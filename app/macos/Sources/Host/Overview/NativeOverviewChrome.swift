@@ -384,7 +384,7 @@ public struct NativeOverviewChrome: View {
                             // a new tint transaction would compete with its return.
                             .buttonStyle(OverviewTagButtonStyle(active: displayedSelection.map {
                                 $0.kind == .semantic && child.matches($0.tag, kind: .semantic, scope: $0.scope)
-                            } ?? false, clipsGlassShadow: true))
+                            } ?? false))
                             .glassEffectID(child.id, in: namespace)
                             .glassEffectTransition(.identity)
                             .background {
@@ -510,7 +510,7 @@ public struct NativeOverviewChrome: View {
                     .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                     .frame(height: OverviewTagMetrics.chipHeight)
             }
-            .buttonStyle(OverviewTagButtonStyle(active: selectedTag.isEmpty, clipsGlassShadow: true))
+            .buttonStyle(OverviewTagButtonStyle(active: selectedTag.isEmpty))
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measuredAllWidth = $0 }
             .overviewSearchAnchor("__all__")
             .focused($focusedTag, equals: "__all__")
@@ -552,8 +552,7 @@ public struct NativeOverviewChrome: View {
                     .frame(height: OverviewTagMetrics.chipHeight)
                     .frame(maxWidth: maximumButtonWidth)
                 }
-                .buttonStyle(OverviewTagButtonStyle(active: active, rendersGlass: !filter.isDirectory,
-                                                    clipsGlassShadow: true))
+                .buttonStyle(OverviewTagButtonStyle(active: active, rendersGlass: !filter.isDirectory))
                 .glassEffectID(filter.id, in: tagGlass)
                 .glassEffectTransition(.matchedGeometry)
                 .overviewSearchAnchor(filter.id)
@@ -807,7 +806,7 @@ private struct OverviewDirectoryGlassGroup<Children: View>: View {
                 .frame(width: visible.width, height: visible.height)
                 .modifier(OverviewTagGlassSurface(active: active,
                     shape: OverviewClippedTagShape(leadingOverflow: visible.minX - source.minX,
-                        trailingOverflow: source.maxX - visible.maxX), clipsGlassShadow: true))
+                        trailingOverflow: source.maxX - visible.maxX)))
                 .glassEffectID(parent.id, in: glass)
                 .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
                 .allowsHitTesting(false)
@@ -852,12 +851,8 @@ private struct OverviewClippedTagShape: Shape {
 private struct OverviewTagButtonStyle: ButtonStyle {
     let active: Bool
     var rendersGlass = true
-    /// Tag-filter chips clip their rendered glass to the pill; the circular
-    /// action buttons keep their glass elevation.
-    var clipsGlassShadow = false
     func makeBody(configuration: Configuration) -> some View {
-        OverviewTagButtonBody(configuration: configuration, active: active, rendersGlass: rendersGlass,
-                              clipsGlassShadow: clipsGlassShadow)
+        OverviewTagButtonBody(configuration: configuration, active: active, rendersGlass: rendersGlass)
     }
 }
 
@@ -865,12 +860,10 @@ private struct OverviewTagButtonBody: View {
     let configuration: ButtonStyleConfiguration
     let active: Bool
     let rendersGlass: Bool
-    let clipsGlassShadow: Bool
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         if rendersGlass {
-            configuration.label.modifier(OverviewTagGlassSurface(active: active, shape: Capsule(),
-                                                                 clipsGlassShadow: clipsGlassShadow))
+            configuration.label.modifier(OverviewTagGlassSurface(active: active, shape: Capsule()))
         } else {
             configuration.label
                 .foregroundStyle(scheme == .dark ? .white : NativePalette.overview.ink.swiftUI)
@@ -879,25 +872,16 @@ private struct OverviewTagButtonBody: View {
     }
 }
 
-/// Regular glass casts a soft shadow well beyond its capsule. The tag bar's
-/// rectangular scroll viewport and its capsule clip cut that shadow at
-/// straight edges, so the 4pt chip gaps fill with one hard-edged band. Clip
-/// each tag chip's rendered glass to its own shape so the shadow stops at the
-/// pill instead of reaching the gaps. This also trims the glass rim at the
-/// shape edge; the frost, tint and interactive response remain. The circular
-/// action buttons keep their glass elevation.
-private struct OverviewTagShadowClip<S: Shape>: ViewModifier {
-    let shape: S
-    let enabled: Bool
-    @ViewBuilder func body(content: Content) -> some View {
-        if enabled { content.clipShape(shape) } else { content }
-    }
-}
-
+/// The `.regular` glass variant draws a system shadow outside its shape. That
+/// shadow is composited by the system outside the SwiftUI view's layer, so a
+/// `clipShape` on the chip (or the bar's capsule clip) cannot trim it. The
+/// chips sit 4pt apart, so the untrimmed shadows overlap into a visible band.
+/// Use the `.clear` variant, which casts no shadow, and paint the frost in the
+/// view layer: a material fill follows the shape and stays clipped, while the
+/// tint and `.interactive()` response still come from the glass.
 private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
     let active: Bool
     let shape: S
-    var clipsGlassShadow = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -908,11 +892,12 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
             .background {
                 if reduceTransparency {
                     shape.fill(Color(white: scheme == .dark ? 0.16 : 0.94))
+                } else {
+                    shape.fill(.thinMaterial)
                 }
             }
             .contentShape(shape)
-            .glassEffect(.regular.tint(active ? selectionTint : nil).interactive(), in: shape)
-            .modifier(OverviewTagShadowClip(shape: shape, enabled: clipsGlassShadow))
+            .glassEffect(.clear.tint(active ? selectionTint : nil).interactive(), in: shape)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: active)
     }
 
