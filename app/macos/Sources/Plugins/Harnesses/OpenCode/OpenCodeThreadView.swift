@@ -70,7 +70,8 @@ public struct OpenCodeThreadView: View {
                     Text(ocLocalized("来自源 OpenCode 会话的分支历史", locale: locale)).font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.muted.swiftUI)
                 }
                 ThreadDetailTurn(id: key, rows: ocMessageRows(inherited, sessionID: session, finalReplies: ocFinalReplyIDs(inherited, sessionID: session, splitTurns: true, presence: executionPresence, agentDetail: agentDetail), actions: actions, context: context, locale: locale, presence: executionPresence, agentDetail: agentDetail, messageAnchorID: visibility.messageAnchorID),
-                    createdAt: input.thread.createdAt, updatedAt: input.thread.createdAt, status: ocLocalized("OpenCode 分支历史（只读）", locale: locale), active: false)
+                    createdAt: input.thread.createdAt, updatedAt: input.thread.createdAt, status: ocLocalized("OpenCode 分支历史（只读）", locale: locale), active: false,
+                    showsSteerMessages: true)
             }
         } else if let execution = state.executions.first(where: { $0.executionID == key }), ocExecutionVisible(key, context: context) {
             OpenCodeTurn(execution: execution, state: state, input: input, actions: actions, context: context)
