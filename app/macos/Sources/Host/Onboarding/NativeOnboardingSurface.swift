@@ -14,6 +14,7 @@ struct NativeOnboardingSurface: View {
     @State private var panelStep = NativeOnboardingStep.discovery
     @State private var contentVisible = true
     @State private var collapsed = false
+    @State private var panelVisible = true
     // Onboarding unfolds from the always-dark Moku, so its own surface tokens
     // stay dark even when the workspace window follows a light appearance.
     private var ink: Color { Color(white: 0.94) }
@@ -32,13 +33,12 @@ struct NativeOnboardingSurface: View {
                 .opacity(contentVisible ? 1 : 0)
                 .frame(width: collapsed ? destination.width : panelSize.width,
                        height: collapsed ? destination.height : panelSize.height)
+                // Stay opaque for the whole contraction. Cross-fading this fill
+                // to clear glass while the Dock is still hidden samples the light
+                // workspace and paints a bright pill before the composer appears.
                 .background {
-                    ZStack {
-                        NativeMokuCapsuleGlass(interactive: false).opacity(collapsed ? 1 : 0)
-                        Color(white: 0.10)
-                            .opacity(reduceTransparency || contrast == .increased ? 1 : 0.96)
-                            .opacity(collapsed ? 0 : 1)
-                    }
+                    Color(white: 0.10)
+                        .opacity(reduceTransparency || contrast == .increased ? 1 : 0.96)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
                 .overlay {
@@ -49,7 +49,7 @@ struct NativeOnboardingSurface: View {
                 .shadow(color: .black.opacity(0.13), radius: collapsed ? 13 : 30, y: collapsed ? 6 : 16)
                 .position(x: collapsed ? destination.midX : geometry.size.width / 2,
                           y: collapsed ? destination.midY : geometry.size.height / 2)
-                .opacity(state.dockVisible ? 0 : 1)
+                .opacity(panelVisible ? 1 : 0)
                 .allowsHitTesting(state.step != .landing)
                 .accessibilityHidden(state.step == .landing)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("onboarding")) } action: { state.panelFrame = $0 }
@@ -229,7 +229,12 @@ struct NativeOnboardingSurface: View {
             try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 50))
             withAnimation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.78)) { collapsed = true }
             try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 800))
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { state.dockVisible = true }
+            // Reveal the Dock behind the still-opaque panel first. Animating the
+            // panel and the Dock against each other leaves both translucent over
+            // the light workspace for a frame, which reads as a second flash.
+            state.dockVisible = true
+            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 30))
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { panelVisible = false }
             try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 200))
             state.finishHandoff()
         } catch { return }
