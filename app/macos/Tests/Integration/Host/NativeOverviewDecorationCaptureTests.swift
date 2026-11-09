@@ -331,9 +331,30 @@ struct NativeOverviewDecorationCaptureTests {
     }
 
     private func requireForeground(_ window: NSWindow) throws {
-        try #require(NSApp.isActive && window.isVisible && window.isKeyWindow
-                     && window.occlusionState.contains(.visible),
-                     "Observation incomplete: Overview capture lost foreground visibility")
+        do {
+            try #require(NSApp.isActive && window.isVisible && window.isKeyWindow
+                         && window.occlusionState.contains(.visible),
+                         "Observation incomplete: Overview capture lost foreground visibility")
+        } catch {
+            // This later snapshot diagnoses focus changes; the failed observation
+            // and its original error remain authoritative.
+            let frontmost = NSWorkspace.shared.frontmostApplication
+            let snapshot: [String: Any] = [
+                "sampledAtUptime": ProcessInfo.processInfo.systemUptime,
+                "appPID": Int(ProcessInfo.processInfo.processIdentifier),
+                "appActive": NSApp.isActive, "windowNumber": window.windowNumber,
+                "windowVisible": window.isVisible, "windowKey": window.isKeyWindow,
+                "windowOcclusionVisible": window.occlusionState.contains(.visible),
+                "frontmostPID": Int(frontmost?.processIdentifier ?? 0),
+                "frontmostBundleID": frontmost?.bundleIdentifier ?? "",
+                "frontmostName": frontmost?.localizedName ?? "",
+            ]
+            if let data = try? JSONSerialization.data(withJSONObject: snapshot, options: [.sortedKeys]),
+               let text = String(data: data, encoding: .utf8) {
+                print("OVERVIEW_FOREGROUND_FAILURE " + text)
+            }
+            throw error
+        }
     }
 
     private func geometry(_ window: NSWindow, nodes: DecorationNodes,

@@ -1,6 +1,7 @@
 """Stage native replay inputs and linked resources outside protected user folders."""
 from pathlib import Path
 import fcntl
+import hashlib
 import json
 import os
 import platform
@@ -10,6 +11,15 @@ import signal
 import subprocess
 import tempfile
 import time
+
+
+def native_module_cache(repo):
+    """Reuse compiler imports without sharing replay binaries or runtime state."""
+    runner_temp = os.environ.get("RUNNER_TEMP")
+    cache = (Path(runner_temp) / "mokusei-native-module-cache" if runner_temp
+             else repo / ".build/native-replay/modules")
+    cache.mkdir(parents=True, exist_ok=True)
+    return cache.resolve()
 
 
 class NativeReplay:
@@ -25,14 +35,18 @@ class NativeReplay:
         self.executable.parent.mkdir(parents=True)
         self.build = self.root / "build"
         self.build.mkdir()
+        self.module_cache = native_module_cache(repo)
         self.lock = None
         self.process = None
         self.termination_handler = None
         self.stopped_pids = set()
-        self.manifest = {"root": str(self.root), "workspace": str(self.workspace)}
+        self.manifest = {"root": str(self.root), "workspace": str(self.workspace),
+                         "moduleCache": str(self.module_cache)}
         self.isolation_source = repo / "tools/verification/NativeReplayIsolation.swift"
         package = repo / "app/macos"
         production = package / f".build/{platform.machine()}-apple-macosx/{configuration}"
+        self.production = production
+        self.configuration = configuration
         link_list = production / "Mokusei.product/Objects.LinkFileList"
         if not link_list.is_file():
             raise RuntimeError("Build current production modules first: make check")
@@ -73,6 +87,67 @@ class NativeReplay:
                           "CFBundleExecutable": name, "CFBundlePackageType": "APPL",
                           "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "26.0"}, output)
 
+    def reuse_test_objects(self, repo, sources_by_target):
+        """Stage only the selected source objects from this job's verified build."""
+        package = repo / "app/macos"
+        manifest_path = package / ".build/ci-manifest.json"
+        manifest_bytes = manifest_path.read_bytes()
+        verified = Path(os.environ["MOKUSEI_CI_EVIDENCE"]) / "build-manifest.json"
+        if verified.read_bytes() != manifest_bytes:
+            raise RuntimeError("Swift replay build manifest differs from the verified CI evidence")
+        build_manifest = json.loads(manifest_bytes)
+        identity = {"revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+                    "workspace": str(repo.resolve()), "architecture": platform.machine(),
+                    "configuration": self.configuration, "run": os.environ.get("GITHUB_RUN_ID"),
+                    "attempt": os.environ.get("GITHUB_RUN_ATTEMPT")}
+        if not identity["run"] or not identity["attempt"] or any(
+                build_manifest.get(key) != value for key, value in identity.items()):
+            raise RuntimeError("Swift replay objects require the current checkout and CI attempt's build")
+        roots = {"MokuseiSettingsIntegrationTests": package / "Tests/Integration/Host",
+                 "MokuseiGitIntegrationTests": package / "Tests/Integration/Threads",
+                 "MokuseiTestSupport": package / "Tests/Support"}
+        receipt = {"buildManifestPath": str(manifest_path),
+                   "buildManifestSHA256": hashlib.sha256(manifest_bytes).hexdigest(),
+                   "revision": build_manifest["revision"], "toolchain": build_manifest["toolchain"],
+                   "objects": []}
+        self.manifest["swiftPMTestObjects"] = receipt
+        staged, seen = [], set()
+        try:
+            for module, sources in sources_by_target.items():
+                if module not in roots or not sources:
+                    raise RuntimeError("Unknown or empty Swift replay object selection: " + module)
+                target_build = (self.production / (module + ".build")).resolve()
+                output_map = target_build / "output-file-map.json"
+                map_bytes = output_map.read_bytes()
+                outputs = json.loads(map_bytes)
+                if "object" in outputs.get("", {}):
+                    raise RuntimeError("Swift replay requires per-source objects, not a whole-module object")
+                for source in sources:
+                    source = source.resolve()
+                    if source.parent != roots[module].resolve() or source.suffix != ".swift":
+                        raise RuntimeError(f"Unexpected Swift replay source for {module}: {source}")
+                    entry = outputs.get(str(source), {})
+                    object_name = entry.get("object")
+                    if not isinstance(object_name, str) or not object_name:
+                        raise RuntimeError(f"No compiled Swift replay object for exact source: {source}")
+                    original = Path(object_name)
+                    if (not original.is_absolute() or original.resolve().parent != target_build
+                            or original.suffix != ".o" or not original.is_file() or original in seen):
+                        raise RuntimeError(f"Missing, duplicate or unexpected Swift replay object: {original}")
+                    seen.add(original)
+                    target = self.build / f"test-object-{len(staged)}.o"
+                    shutil.copy2(original, target)
+                    staged.append(str(target))
+                    receipt["objects"].append({"module": module, "source": str(source.relative_to(repo.resolve())),
+                        "sourceSHA256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                        "objectPath": str(original), "objectSHA256": hashlib.sha256(target.read_bytes()).hexdigest(),
+                        "stagedObject": str(target), "outputFileMap": str(output_map),
+                        "outputFileMapSHA256": hashlib.sha256(map_bytes).hexdigest()})
+            self.objects.extend(staged)
+        finally:
+            (self.root / "launch.json").write_text(json.dumps(self.manifest, indent=2) + "\n")
+        print(f"NATIVE_REPLAY_SWIFTPM_OBJECTS count={len(staged)} targets={list(sources_by_target)}", flush=True)
+
     def compile(self, sources, extra_args=()):
         staged = []
         for index, source in enumerate([*sources, self.isolation_source]):
@@ -84,7 +159,7 @@ class NativeReplay:
                 "-parse-as-library", "-target", f"{platform.machine()}-apple-macosx26.0",
                 "-I", str(self.build / "Modules"), "-F", str(self.application / "Contents/Frameworks"),
                 "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker",
-                "@executable_path/../Frameworks", "-module-cache-path", str(self.root / "ModuleCache")]
+                "@executable_path/../Frameworks", "-module-cache-path", str(self.module_cache)]
         for include in self.includes:
             args += ["-I", str(include), "-Xcc", "-fmodule-map-file=" + str(include / "module.modulemap")]
         subprocess.run([*args, *extra_args, *staged, *self.objects, "-o", str(self.executable)],

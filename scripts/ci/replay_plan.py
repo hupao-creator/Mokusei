@@ -28,8 +28,9 @@ def replay_groups(go_executable, output):
             "artificialanalysis/lifecycle", "maintenance", "thread-detail-performance",
         ]] + [("pi-read-guard", [sys.executable, "tools/verification/pi/read-guard.py"])],
         "fixtures": [
-            ("initial-response", go + ["./tools/verification/initial-response", "-output", fixtures["MOKUSEI_INITIAL_RESPONSE_FIXTURES"]]),
+            # Start the longest independent fixture first to avoid a late tail.
             ("moku", go + ["./tools/verification/moku"]),
+            ("initial-response", go + ["./tools/verification/initial-response", "-output", fixtures["MOKUSEI_INITIAL_RESPONSE_FIXTURES"]]),
             ("voice", go + ["./tools/verification/codex", "-voice-only"]),
             ("conversation", [go_executable, "test", "-count=1", "./internal/hosts/applicationhost",
                               "-run", "^TestConversationProjectionCarriesCurrentSemanticDecoration$"]),

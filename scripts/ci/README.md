@@ -11,9 +11,10 @@ handoff, composer refocus, toggles and folding; their state/identity cases run i
 captures cover wide/stacked layouts and Reduced Motion, with delayed destination
 content admission. Missing native markers or unexpected skips fail coverage.
 
-CGO and system SQLite remain enabled. Actions installs the toolchain from
-`go.mod`; `scripts/go.sh` remains the local Apple Silicon bootstrap. Darwin-only
-profile-rotation tests run in the native job. Portable Moku package tests execute
+CGO and system SQLite remain enabled. Ordinary CI explicitly selects the exact
+`toolchain` patch release in `go.mod`; `scripts/go.sh` remains the local Apple
+Silicon bootstrap. Darwin-only profile-rotation tests run in the native job.
+Portable Moku package tests execute
 once in Linux's race-enabled module set; Moku's Go fixtures and native/interop
 replays still execute in the macOS session.
 
@@ -63,6 +64,17 @@ single-job guests and serialize native work across workflows on each physical Ma
 
 ## One native session
 
+The [Go setup action](../../.github/actions/setup-go/action.yml) caches only the
+pinned SDK's tool-cache directory, including its installation-complete marker.
+It saves a successful installation immediately, so a later test failure does not
+force another SDK download on the next run.
+Its compiler cache has a separate key for each workload and changes with Go
+module files, source, embedded resources and verification inputs. Restore prefixes
+reuse previous compilation where Go's own input validation permits it. A fixed
+dependency-only key is insufficient: Actions caches are immutable and would
+never retain newly compiled project packages. All test commands still execute;
+restored compiler data is not test evidence.
+
 The native job performs these stages:
 
 1. Prepare Xcode and Metal, restore the Swift compilation cache, and always build
@@ -85,6 +97,34 @@ new inventory. `MOKUSEI_SWIFT_SKIP_BUILD` is set only after that build and manif
 verification succeed. Replays reuse that same local build; no other runner's
 binary or prior attempt's evidence is needed. Swift omits the editor index store
 while retaining Debug code and test targets. DirectoryTag executes once.
+
+`swift-native.py build` probes the current compiler for
+`-enable-incremental-file-hashing`. When available, Swift compares input contents
+with its own incremental records so a fresh checkout's timestamps do not alone
+force unchanged Swift sources to recompile. An older toolchain retains the
+ordinary build; the log records which path executed. The first build with this
+flag must populate new records before later cache restores can benefit. This
+does not bypass SwiftPM's build, modify source timestamps or reuse test outcomes.
+The complete Swift build treats warnings as errors, including the test sources
+whose objects are reused by isolated replays.
+
+Native replay compilers share a module cache under the current runner's temporary
+directory; local replays use the checkout's `.build/native-replay/modules`.
+Only compiler imports are shared. Every replay still stages its current sources,
+objects, resources and framework in a new bundle, compiles and signs that bundle,
+and owns its separate workspace, process, graphical lease and evidence. The
+Objective-C input helper and scrollbar compiler use the same import cache.
+
+In CI, reading-presentation replays reuse only the selected test sources' objects
+and shared test support from that verified SwiftPM build. Selection uses exact
+source entries in each target's output-file map. The current checkout, runner
+architecture, configuration, run and attempt must match the exported build
+manifest; missing, duplicate or whole-module objects fail the replay. Launch
+receipts record source, object, output-map and signed-binary hashes. Each replay
+still compiles its AppKit entry point and isolation source, and the native input
+bridge retains its separate strict Clang compile. Local launches and the
+standalone Workspace lifecycle suite retain source compilation. Test selection,
+native ownership and complete-execution audits remain unchanged.
 
 The [shared execution plan](swift_execution.py) selects reviewed windowless
 suites by an anchored suite-prefix filter. The graphical command has no positive
@@ -278,6 +318,9 @@ coverage and local capture entry points with temporary Git histories and control
 external executables. It rejects omissions, duplicate/substituted methods, wrong
 commits, incomplete zero exits, unexpected skips, missing receipts/markers and
 partial or misrouted native evidence; real subprocesses check deadline termination.
+Real temporary object maps exercise exact selected-source staging and hashes,
+atomic linker inputs on failure, and rejection of missing, duplicate, escaped,
+whole-module or stale-build objects without needing a macOS linker.
 Successful audit fixtures contain the complete replay inventory. Literal
 non-owner fixture/interop/native checks exercise omission, duplicate/unknown
 names, failed or incomplete receipts and missing or misrouted logs separately
@@ -326,7 +369,12 @@ No local status publication or external signing extension is part of the gate.
 shares its reviewed suite registry with ordinary CI/local execution.
 Every selected method must pass exactly once, without skips. It does not replace
 full hosted native verification. Independent fixture producers run at most two
-at once (`replays.py fixtures --jobs 1` retains the diagnostic serial control).
+at once, starting the longest Moku producer first (`replays.py fixtures --jobs 1`
+retains the diagnostic serial control). These producers write separate exports;
+all six outputs are checked before they enter the Swift consumers.
+Scripted voice CLI child processes omit the race runtime's post-main sleep;
+their race instrumentation, the production parent's race settings, protocol
+barriers and the real speech-receipt timeout remain active.
 Each command has its own logs/result and cancellation drains all owned process
 groups. GUI and interop replays remain serial.
 

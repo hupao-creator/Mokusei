@@ -1,4 +1,4 @@
-"""Discover and execute the complete ordinary suite from the current Swift build."""
+"""Build, discover and execute the complete ordinary Swift suite."""
 import argparse
 import hashlib
 import json
@@ -48,6 +48,23 @@ def identity():
             "attempt": os.environ.get("GITHUB_RUN_ATTEMPT")}
 
 
+def build():
+    command = ["xcrun", "swift", "build", "--package-path", "app/macos", "--build-tests",
+               "--force-resolved-versions", "--disable-index-store", "-Xswiftc", "-warnings-as-errors"]
+    # A fresh checkout changes mtimes even for identical sources. Let the Swift
+    # driver compare contents against its own build records instead of trusting
+    # cached binaries or adjusting source timestamps ourselves.
+    help_text = subprocess.check_output(["xcrun", "swiftc", "-help-hidden"], text=True)
+    flag = "-enable-incremental-file-hashing"
+    supported = any(line.split()[:1] == [flag] for line in help_text.splitlines())
+    if supported:
+        command.extend(["-Xswiftc", flag])
+    log_progress(f"build incremental-file-hashing={'enabled' if supported else 'unavailable'} command={command!r}")
+    os.chdir(ROOT)
+    # Replace this launcher so the outer deadline owns the build process group.
+    os.execvp(command[0], command)
+
+
 def prepare():
     # Discover from the binary that will run, then audit observed outcomes against
     # this inventory. A requested command alone is not evidence of execution.
@@ -87,11 +104,14 @@ def verify(evidence):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["fingerprint", "prepare", "verify", "run", "headless"])
+    parser.add_argument("mode", choices=["fingerprint", "build", "prepare", "verify", "run", "headless"])
     parser.add_argument("--evidence", type=Path)
     args = parser.parse_args()
     if args.mode == "fingerprint":
         print(identity()["toolchain"])
+        return
+    if args.mode == "build":
+        build()
         return
     if args.mode == "prepare":
         prepare()
