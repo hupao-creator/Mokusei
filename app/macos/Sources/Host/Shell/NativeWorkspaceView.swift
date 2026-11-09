@@ -987,6 +987,10 @@ public struct NativeWorkspaceView: View {
                     },
                     canStartVoice: { detail == nil && canStartMokuVoice }, startVoice: startMokuVoice)
                     .opacity(presentation.onboarding.dockVisible ? 1 : 0)
+                    // The handoff shows this Dock behind the opaque onboarding
+                    // panel, then fades only the panel. Cross-fading both would
+                    // expose the light workspace through two translucent pills.
+                    .animation(nil, value: presentation.onboarding.dockVisible)
                     .allowsHitTesting(!presentation.onboarding.blocksWorkspace)
                     .accessibilityHidden(presentation.onboarding.blocksWorkspace)
             }
