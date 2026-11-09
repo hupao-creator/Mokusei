@@ -39,10 +39,12 @@ struct ThreadAuthorLabel: View {
                 .help(label).accessibilityLabel(label).textSelection(.enabled)
         } else {
             // Reserve the line while the owning turn resolves its author, so the
-            // header never claims an unknown model during ordinary loading.
+            // header never claims an unknown model during ordinary loading. Use
+            // the body skeleton's pending ink instead of the header's muted
+            // foreground, which would look like settled content.
             HStack(spacing: 5) {
                 Text("Author:")
-                RoundedRectangle(cornerRadius: 3).frame(width: 150, height: 8)
+                NativeSkeletonLine(width: 150, height: 10, opacity: 0.12)
             }
             .font(NativeTypography.mono(size: 12))
             .lineLimit(1)
