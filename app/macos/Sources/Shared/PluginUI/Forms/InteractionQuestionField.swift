@@ -263,15 +263,6 @@ public extension EnvironmentValues {
     }
 }
 
-public extension NativePalette.Surface {
-    /// Components accept the owning product's accent without selecting a theme by plugin identity.
-    func withAccent(_ accent: NativeColor, soft: NativeColor) -> Self {
-        Self(canvas: canvas, surface: surface, surfaceStrong: surfaceStrong, surfaceSoft: surfaceSoft,
-             ink: ink, inkStrong: inkStrong, muted: muted, faint: faint, line: line, lineSoft: lineSoft,
-             accent: accent, accentSoft: soft, action: action, provider: provider, danger: danger,
-             warning: warning, success: success, agentRun: agentRun)
-    }
-}
 
 public enum InteractionQuestionError {
     /// Keep unknown plugin errors intact instead of hiding details behind a

@@ -2,8 +2,6 @@ import Foundation
 import CryptoKit
 
 extension RuntimeClient {
-    public func currentConnection() -> RuntimeConnection? { connection }
-
     /// Writes require a live authoritative connection. Persisting an ID tracks
     /// one submitted operation; it is never an offline queue or a replay payload.
     public func invoke(_ channel: String, args: [JSONValue] = [], receiptID: String? = nil,

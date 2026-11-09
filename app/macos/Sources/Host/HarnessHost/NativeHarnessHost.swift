@@ -256,10 +256,6 @@ public final class NativeHarnessHost {
         else { settingsLifetime.generation = UUID() }
     }
 
-    public func makeThreadSettingsSurface(input: HarnessThreadInput) throws -> NativeHarnessSettingsSurface {
-        try makeSettingsSurface(configuration: .thread(input.thread))
-    }
-
     public func releaseAll() async {
         setSettingsAvailable(false)
         let current = surfaces.values.compactMap(\.value)

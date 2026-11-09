@@ -21,8 +21,8 @@ The Latin font coverage matches the Inter subset selected by the renderer. All s
 JetBrains subsets imported by the renderer are bundled. The five non-Latin subset fonts have
 unique internal family and PostScript names (`Mokusei JetBrains Mono <Subset>` and
 `MokuseiJetBrainsMono<Subset>…`) to let CoreText register them simultaneously; their outlines,
-metrics and variable axes are unchanged. `monoNSFont` supplies these subsets as a weighted
-CoreText cascade, preserving Greek, Cyrillic, Vietnamese and extended Latin coverage.
+metrics and variable axes are unchanged. `NativeTypography.mono` supplies these subsets as a
+weighted CoreText cascade, preserving Greek, Cyrillic, Vietnamese and extended Latin coverage.
 Subset source hashes and renamed PostScript names are recorded in `jetbrains-subsets.json`.
 Only font-identifying name fields are renamed. Copyright, designer, manufacturer,
 source URLs and license records retain their upstream values; registering a local
