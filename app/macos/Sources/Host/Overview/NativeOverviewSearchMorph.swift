@@ -44,15 +44,17 @@ struct OverviewSearchMorphGeometry {
         let labelFrame: CGRect
         var childTitle: String? = nil
         var emoji: String? = nil
+        var hasActiveTasks = false
     }
     static func sources(bounds: [String: CGRect], filters: [NativeOverviewFilter], all: String,
                         selectedTag: String, selectedScope: String = "",
-                        selectedKind: NativeOverviewTagKind?, selectedChildren: [String: NativeOverviewFilter] = [:]) -> [Source] {
+                        selectedKind: NativeOverviewTagKind?, selectedChildren: [String: NativeOverviewFilter] = [:],
+                        allHasActiveTasks: Bool = false) -> [Source] {
         guard let bar = bounds["__bar__"] else { return [] }
         var result: [Source] = []
         if let frame = bounds["__all__"]?.intersection(bar), !frame.isEmpty {
             result.append(.init(id: "__all__", title: all, count: nil, directory: false,
-                                selected: selectedTag.isEmpty, frame: frame, labelFrame: frame))
+                                selected: selectedTag.isEmpty, frame: frame, labelFrame: frame, hasActiveTasks: allHasActiveTasks))
         }
         let clip = (bounds["__scroll__"] ?? bar).intersection(bar)
         for filter in filters {
@@ -63,7 +65,7 @@ struct OverviewSearchMorphGeometry {
             result.append(.init(id: filter.id, title: filter.displayTag, count: filter.count, directory: filter.isDirectory,
                                 selected: childSelected || filter.matches(selectedTag, kind: selectedKind, scope: selectedScope),
                                 frame: visible, labelFrame: full, childTitle: selectedChildren[filter.id]?.tag,
-                                emoji: selectedChildren[filter.id]?.emoji))
+                                emoji: selectedChildren[filter.id]?.emoji, hasActiveTasks: filter.hasActiveTasks))
         }
         return result
     }
@@ -146,6 +148,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
                             .padding(.vertical, OverviewTagMetrics.countVerticalInset)
                             .background(.foreground.opacity(0.08), in: Capsule())
                     }
+                    OverviewTagActivityIndicator(hasActiveTasks: source.hasActiveTasks && progress < (isCarrier ? 0.4 : 0.75))
                 }
                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                 .frame(width: source.labelFrame.width, height: source.labelFrame.height)

@@ -27,8 +27,9 @@ bounded by current catalog identities and exposed filters and are released on st
 Global conversation availability is updated from changed eligible records before
 filtering, search and report coverage, including directory-only documents. Moku
 uses these facts for its empty-workspace landing; an unloaded catalog remains
-unknown. The All membership is invalidated lazily and resolved when that view is
-requested. Filter chrome and Moku still receive the complete filter description
+unknown. The All membership is invalidated lazily and resolved when browsing or
+tag activity needs it. Filter chrome and Moku still receive the complete filter
+description
 when membership changes, so producing that public output scales with the output
 size; unrelated scope selections and card projections are reused. Selecting a
 filter, changing search membership/rank or changing card geometry retains the
@@ -290,6 +291,24 @@ Tag widths have no fixed point cap. Each top-level chip may use the scroll viewp
 The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder keeps its original size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
 
 [NativeOverviewSearchMorph](NativeOverviewSearchMorph.swift) expands the visible selected tag into the search field. If the selected tag is clipped, it falls back to visible All, then the first visible tag. Neighbor tags move outward and fade while keeping their measured size; the carrier label crossfades. Reversal preserves the actual mounted controls, focus and clipping.
+
+## Tag activity
+
+All, directory and semantic tag chips reserve a 10pt trailing activity slot.
+It shows the shared native status ring when the tag's existing browsing membership
+contains a Thread whose public `isExecutionActive` is true (running or waiting for
+user). Background work alone does not redefine active. Selection tint, task counts,
+membership, ordering, search scope and Runtime filter context remain independent.
+Archive/visibility, attention-hidden and Report-coverage exclusions come from the
+same membership used to browse each tag; a Report does not itself become an active
+Agent Thread. A changed-ID activity cache refreshes these booleans when active
+participation changes, without rebuilding membership or reacting to every streamed
+payload. Membership changes also refresh the markers, including the existing lazy
+All membership. Submenus and search's transient label plane share the indicator;
+the covered original chrome suspends its rings during search. Native window
+visibility and Reduce Motion remain owned by the production spinner. Tooltips and
+accessibility values announce active presence in the selected UI language. The
+shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActivity.swift).
 
 ## Search results
 

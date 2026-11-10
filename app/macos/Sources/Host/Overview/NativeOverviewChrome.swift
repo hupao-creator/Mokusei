@@ -9,6 +9,7 @@ public struct NativeOverviewFilter: Identifiable, Equatable, Sendable {
     public var emoji: String?
     public var scope: String
     public var count: Int
+    public var hasActiveTasks: Bool
     public var aliases: [String]
     public var isDirectory: Bool
     public var selectionKey: String
@@ -19,10 +20,11 @@ public struct NativeOverviewFilter: Identifiable, Equatable, Sendable {
     public var id: String { "\(isDirectory ? "directory" : "semantic"):\(scope):\(Self.key(tag))" }
 
     public init(tag: String, displayTag: String? = nil, emoji: String? = nil, scope: String = "", count: Int, aliases: [String] = [],
-                isDirectory: Bool = false, selectionKey: String = "", children: [NativeOverviewFilter] = []) {
+                isDirectory: Bool = false, selectionKey: String = "", children: [NativeOverviewFilter] = [], hasActiveTasks: Bool = false) {
         self.tag = tag; self.displayTag = displayTag ?? tag; self.emoji = emoji
         self.scope = scope; self.count = count; self.aliases = aliases
         self.isDirectory = isDirectory; self.selectionKey = selectionKey; self.children = children
+        self.hasActiveTasks = hasActiveTasks
     }
 
     public func matches(_ selectedTag: String, kind: NativeOverviewTagKind? = nil, scope: String? = nil) -> Bool {
@@ -40,6 +42,7 @@ public struct NativeOverviewFilter: Identifiable, Equatable, Sendable {
 /// Floating Liquid Glass controls. The host owns collection filtering.
 public struct NativeOverviewChrome: View {
     public var filters: [NativeOverviewFilter]
+    public var allHasActiveTasks: Bool
     public var selectedTag: String
     public var selectedScope: String
     public var selectedKind: NativeOverviewTagKind?
@@ -86,6 +89,7 @@ public struct NativeOverviewChrome: View {
     @Environment(\.overviewSearchMorphDuration) private var searchMorphDuration
 
     public init(filters: [NativeOverviewFilter], selectedTag: String = "", selectedScope: String = "", selectedKind: NativeOverviewTagKind? = nil,
+                allHasActiveTasks: Bool = false,
                 cameraManual: Bool = false, focusFilterRequestKey: Int = 0,
                 strings: NativeOverviewChromeStrings = .init(),
                 isSearching: Bool = false, searchQuery: String = "", searchFocusRequest: Int = 0,
@@ -99,6 +103,7 @@ public struct NativeOverviewChrome: View {
                 onSettingsFrameChange: ((CGRect?) -> Void)? = nil,
                 clickExclusions: NativeClickExclusions? = nil, interactions: NativeOverviewChromeInteractions? = nil) {
         self.filters = filters; self.selectedTag = selectedTag; self.selectedScope = selectedScope; self.selectedKind = selectedKind
+        self.allHasActiveTasks = allHasActiveTasks
         let selection = selectedKind.map { NativeOverviewTagSelection(tag: selectedTag, kind: $0, scope: selectedScope) }
         _displayedSelection = State(initialValue: selection)
         _latestSelection = State(initialValue: selection)
@@ -151,7 +156,7 @@ public struct NativeOverviewChrome: View {
                             selectedScope: selectedScope, selectedKind: selectedKind,
                             selectedChildren: Dictionary(uniqueKeysWithValues: presentedFilters.compactMap { filter in
                                 displayedChild(of: filter).map { (filter.id, $0) }
-                            }))
+                            }), allHasActiveTasks: allHasActiveTasks)
                         OverviewSearchMorphLayer(progress: searchProgress, searching: isSearching, sources: sources,
                             target: CGRect(x: (geometry.size.width - min(460, maximumFilterWidth)) / 2,
                                            y: narrow ? OverviewTagMetrics.narrowFilterTop : 16,
@@ -360,6 +365,7 @@ public struct NativeOverviewChrome: View {
                         ForEach(menu.children.filter { $0.count > 0 }) { child in
                             let current = parent.children.contains { $0.id == child.id && $0.count > 0 }
                             let childProgress = current ? progress : 0
+                            let activitySuffix = child.hasActiveTasks ? " · \(strings.containsActiveTasks)" : ""
                             Button {
                                 selectChild(child, of: parent)
                             } label: {
@@ -374,6 +380,7 @@ public struct NativeOverviewChrome: View {
                                         .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
                                         .padding(.vertical, OverviewTagMetrics.countVerticalInset)
                                         .background(.foreground.opacity(0.08), in: Capsule())
+                                    OverviewTagActivityIndicator(hasActiveTasks: child.hasActiveTasks && active && current)
                                 }
                                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                                 .frame(height: OverviewTagMetrics.chipHeight)
@@ -402,7 +409,8 @@ public struct NativeOverviewChrome: View {
                             .overviewSearchAnchor(child.id)
                             .accessibilityIdentifier(child.id)
                             .accessibilityAddTraits(child.matches(selectedTag, kind: .semantic, scope: selectedScope) ? .isSelected : [])
-                            .help(child.displayTag)
+                            .accessibilityValue(Text("\(child.count)\(activitySuffix)"))
+                            .help(Text("\(child.displayTag)\(activitySuffix)"))
                         }
                     }
                 }
@@ -504,15 +512,20 @@ public struct NativeOverviewChrome: View {
             Button {
                 selectFilter(nil)
             } label: {
-                Text(strings.all).font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
-                    .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
-                    .frame(height: OverviewTagMetrics.chipHeight)
+                HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
+                    Text(strings.all).font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
+                    OverviewTagActivityIndicator(hasActiveTasks: allHasActiveTasks && !isSearching && !searchMorphVisible)
+                }
+                .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
+                .frame(height: OverviewTagMetrics.chipHeight)
             }
             .buttonStyle(OverviewTagButtonStyle(active: selectedTag.isEmpty))
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measuredAllWidth = $0 }
             .overviewSearchAnchor("__all__")
             .focused($focusedTag, equals: "__all__")
             .accessibilityAddTraits(selectedTag.isEmpty ? .isSelected : [])
+            .accessibilityValue(Text(allHasActiveTasks ? strings.containsActiveTasks : ""))
+            .help(Text(strings.all + (allHasActiveTasks ? " · \(strings.containsActiveTasks)" : "")))
             OverviewHorizontalScroll(interactions: interactions, owner: interactionOwner, ids: presentedFilters.map(\.id), enabled: !isSearching && !searchMorphVisible) {
                 // Keep the effect container inside the scroll viewport. A
                 // container outside it can draw captured labels beyond its clip.
@@ -531,6 +544,7 @@ public struct NativeOverviewChrome: View {
         HStack(spacing: OverviewTagMetrics.spacing) {
             ForEach(presentedFilters) { filter in
                 let active = isActive(filter)
+                let activitySuffix = filter.hasActiveTasks ? " · \(strings.containsActiveTasks)" : ""
                 Button {
                     selectFilter(filter)
                 } label: {
@@ -545,6 +559,7 @@ public struct NativeOverviewChrome: View {
                             .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
                             .padding(.vertical, OverviewTagMetrics.countVerticalInset)
                             .background(.foreground.opacity(0.08), in: Capsule())
+                        OverviewTagActivityIndicator(hasActiveTasks: filter.hasActiveTasks && !isSearching && !searchMorphVisible)
                     }
                     .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                     .frame(height: OverviewTagMetrics.chipHeight)
@@ -557,7 +572,7 @@ public struct NativeOverviewChrome: View {
                 .focused($focusedTag, equals: filter.id)
                 .accessibilityIdentifier(filter.id)
                 .accessibilityAddTraits(active ? .isSelected : [])
-                .accessibilityValue("\(filterTitle(filter)) · \(filter.count)")
+                .accessibilityValue(Text("\(filterTitle(filter)) · \(filter.count)\(activitySuffix)"))
                 .accessibilityHint(filter.isDirectory && filter.children.contains(where: { $0.count > 0 }) ? strings.filter : "")
                 .accessibilityAction(named: Text(hoveredScope == filter.scope ? strings.closeFilter : strings.filter)) {
                     if hoveredScope == filter.scope {
@@ -607,7 +622,8 @@ public struct NativeOverviewChrome: View {
         let label = filter.isDirectory && !filter.scope.isEmpty && filter.scope != NativeOverviewSelection.inboxScope
             ? "\(filterTitle(filter)) — \(filter.scope)" : filterTitle(filter)
         return (filter.isDirectory ? strings.directoryPrefix : "") + label +
-            (filter.aliases.isEmpty ? "" : strings.aliasPrefix + filter.aliases.joined(separator: "、"))
+            (filter.aliases.isEmpty ? "" : strings.aliasPrefix + filter.aliases.joined(separator: "、")) +
+            (filter.hasActiveTasks ? " · \(strings.containsActiveTasks)" : "")
     }
 
     private func consumeFocus(_ request: Int) {
@@ -709,6 +725,7 @@ public struct NativeOverviewChromeStrings: Sendable {
     public var closeFilter = "关闭子标签菜单"
     public var directoryPrefix = "工作目录标签："
     public var aliasPrefix = "；别名："
+    public var containsActiveTasks = "包含活跃任务"
     public init() {}
 }
 

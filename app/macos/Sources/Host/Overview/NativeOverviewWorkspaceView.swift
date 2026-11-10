@@ -114,6 +114,7 @@ public struct NativeOverviewWorkspaceView: View {
             .overlay(alignment: .top) {
                 NativeOverviewChrome(filters: landing ? [] : model.visibleFilters, selectedTag: model.selectedTag,
                     selectedScope: model.selectedScope, selectedKind: model.tagSelection?.kind,
+                    allHasActiveTasks: model.allHasActiveTasks,
                     cameraManual: model.canvasState.camera.manual,
                     focusFilterRequestKey: model.focusFilterRequestKey, strings: chromeStrings,
                     isSearching: model.isSearching, searchQuery: model.searchQuery,
@@ -176,6 +177,7 @@ public struct NativeOverviewWorkspaceView: View {
             strings.search = "Search all conversations"; strings.closeSearch = "Close search (Esc)"
             strings.closeFilter = "Close child tag menu"
             strings.filter = "Filter by tag"; strings.directoryPrefix = "Working directory: "; strings.aliasPrefix = "; aliases: "
+            strings.containsActiveTasks = "Contains active tasks"
         }
         return strings
     }

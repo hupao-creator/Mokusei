@@ -56,6 +56,7 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var selectedScope = ""
     public private(set) var selectedFilter: NativeOverviewFilter?
     public private(set) var filters: [NativeOverviewFilter] = []
+    public private(set) var allHasActiveTasks = false
     public var visibleFilters: [NativeOverviewFilter] {
         filters.filter { $0.count > 0 }.map { filter in
             var visible = filter
@@ -116,6 +117,7 @@ public final class NativeOverviewWorkspaceModel {
     var membershipApplicationCandidateVisits: Int { membershipIndex.applicationCandidateVisits }
     @ObservationIgnored private var allMembers = NativeOverviewMembership()
     @ObservationIgnored private var allMembersDirty = false
+    @ObservationIgnored private var activeThreadIDs = Set<JSONText>()
     @ObservationIgnored private var globalApplicationIDs = Set<JSONText>()
     @ObservationIgnored private var establishedThreadIDs = Set<JSONText>()
     @ObservationIgnored private var pendingInsertedIDs = Set<String>()
@@ -341,10 +343,15 @@ public final class NativeOverviewWorkspaceModel {
                 applicationsByRef = Dictionary(uniqueKeysWithValues: nextApplications.map { ($0.entry.ref, $0) })
                 catalogApplicationJSON = Dictionary(uniqueKeysWithValues: zip(nextApplications, workspace.catalog.applicationThreads).map { ($0.0.entry.ref.threadID, $0.1) })
                 directoryTags.update(threads: catalogThreads)
+                let nextActiveThreadIDs = Set(catalogThreads.filter { $0.moku != true && $0.observation.isExecutionActive }.map(\.id))
+                let changedActivity = activeThreadIDs != nextActiveThreadIDs
+                activeThreadIDs = nextActiveThreadIDs
                 let nextFacts = NativeOverviewMembershipFacts(threads: catalogThreads, applications: nextApplications)
                 if membershipFacts != nextFacts {
                     rebuildMembership()
                     membershipFacts = nextFacts
+                } else if changedActivity {
+                    refreshFilterActivity(filters)
                 }
                 let harnessIDs = Set(catalogThreads.map(\.id)), applicationIDs = Set(nextApplications.map { $0.entry.ref.threadID })
                 harnessCache = harnessCache.filter { harnessIDs.contains($0.key) }
@@ -427,6 +434,7 @@ public final class NativeOverviewWorkspaceModel {
         var changedThreads: [HarnessThread] = []
         var changedApplications: [(id: JSONText, raw: JSONValue?, old: NativeOverviewApplicationEntry?, next: NativeOverviewApplicationEntry?)] = []
         var membershipThreads = Set<JSONText>(), membershipApplications = Set<JSONText>()
+        var changedActivity = false
         for id in change.threadIDs {
             catalogChangeVisitCount += 1
             let thread = workspace.catalog.thread(id)
@@ -457,6 +465,11 @@ public final class NativeOverviewWorkspaceModel {
         }
         for id in change.threadIDs {
             let thread = workspace.catalog.thread(id)
+            if thread?.moku != true && thread?.observation.isExecutionActive == true {
+                changedActivity = activeThreadIDs.insert(id).inserted || changedActivity
+            } else {
+                changedActivity = activeThreadIDs.remove(id) != nil || changedActivity
+            }
             directoryTags.update(thread, id: id)
             if let thread, thread.moku != true {
                 if catalogIDs.insert(id.string).inserted { pendingInsertedIDs.insert(id.string) }
@@ -496,6 +509,9 @@ public final class NativeOverviewWorkspaceModel {
             affectedScopes = membershipIndex.update(threadIDs: membershipThreads, applicationIDs: membershipApplications,
                 catalog: workspace.catalog, directoryTags: directoryTags.values, application: { applicationRecords[$0] })
             publishMembership(); refreshGlobalAvailability()
+        } else if changedActivity {
+            refreshFilterActivity(filters)
+            selectedFilter = matchingFilter(tag: selectedTag, scope: selectedScope, kind: tagSelection?.kind)
         }
         if !operationProjectionReady || operationThreadID != workspace.catalog.moku?.id
             || workspace.catalog.moku.map({ change.threadIDs.contains($0.id) }) == true { refreshMokuOperations() }
@@ -645,9 +661,30 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func publishMembership() {
-        let next = membershipIndex.filters
+        refreshFilterActivity(membershipIndex.filters)
+        filterContextFacts = membershipIndex.contextFacts(filters: filters)
+    }
+
+    private func refreshFilterActivity(_ source: [NativeOverviewFilter]) {
+        // Reuse the exact browsing memberships, including report coverage and
+        // hidden/archived exclusions. Activity never changes membership/context.
+        func hasActiveTasks(_ membership: NativeOverviewMembership) -> Bool {
+            membership.threads.contains { activeThreadIDs.contains($0) }
+        }
+        let next = source.map { filter in
+            var next = filter
+            next.hasActiveTasks = hasActiveTasks(filterMembers[filter.selectionKey]!)
+            next.children = filter.children.map { child in
+                var next = child
+                next.hasActiveTasks = hasActiveTasks(filterMembers[child.selectionKey]!)
+                return next
+            }
+            return next
+        }
         if filters != next { filters = next }
-        filterContextFacts = membershipIndex.contextFacts(filters: next)
+        // All uses its existing lazy membership too; an active task covered by
+        // a Report must not keep an otherwise settled All collection marked.
+        allHasActiveTasks = !activeThreadIDs.isEmpty && hasActiveTasks(allMembership())
     }
 
     func containsGlobalThread(_ id: JSONText) -> Bool { globalThreadIDs.contains(id) }
@@ -775,6 +812,7 @@ public final class NativeOverviewWorkspaceModel {
         content.stop()
         snapshots.removeAll(); revisions.removeAll(); harnessCache.removeAll(); applicationCache.removeAll(); directoryTags.removeAll()
         membershipFacts = nil; membershipIndex = .init(); allMembers = .init(); allMembersDirty = false; applicationsByRef.removeAll()
+        activeThreadIDs.removeAll(); allHasActiveTasks = false
         globalThreadIDs.removeAll(); globalConversationCount = nil; hasEstablishedConversation = false
         applicationRecords = .init(); catalogIDs.removeAll(); keywordMemberIDs.removeAll()
         globalApplicationIDs.removeAll(); establishedThreadIDs.removeAll(); pendingInsertedIDs.removeAll()
