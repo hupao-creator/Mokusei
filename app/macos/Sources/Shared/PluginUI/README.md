@@ -1059,6 +1059,21 @@ growth retries that location until it is reachable or the user scrolls.
 
 ## Model and reasoning selection
 
+All Harness settings editors keep Provider, model and thinking/variant controls
+in their primary layout. `NativeHarnessSettingsFields` puts permission mode,
+Codex service tier and the default-configuration toggle under one initially
+collapsed **Advanced options** disclosure. Pi execution snapshots have no
+secondary controls and therefore no empty disclosure. Field drafts remain owned
+by each Harness; collapse/expansion never saves, clears or replaces their values.
+Default mode retains its existing inheritance and explicit-toggle semantics.
+Provider labels and the disclosure title use the existing Chinese/English
+localization catalogs and update with the interface locale; native provider IDs
+remain exact. OpenCode has no Agent selector or description and uses build for
+capability checks and writes. `HarnessAdvancedSettingsReplayTests` mounts all
+four production editors in defaults and execution-snapshot modes and verifies
+collapse, retained values, permission writes and live locale changes.
+
+
 [NativeModelSelector](Forms/NativeModelSelector.swift) uses the shared system
 `NSPopUpButton` for models and reasoning in Settings (`nativeSettingsFormPage`)
 and onboarding/role panels (`nativeSettingsCompactPresentation`). Default and

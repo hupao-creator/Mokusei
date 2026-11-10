@@ -87,7 +87,7 @@ struct NativeSettingsPanelGlass: View {
             RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
                 .fill(Color(white: scheme == .dark ? 0.12 : 0.97))
         } else {
-            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
+            Color.clear.glassEffect(.regular.tint(.black), in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
         }
     }
 }

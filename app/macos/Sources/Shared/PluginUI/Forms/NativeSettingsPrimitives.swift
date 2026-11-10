@@ -405,20 +405,49 @@ private struct NativeSettingsSwitchStyle: ToggleStyle {
     private static var pointerEvent: Bool { NativePlatformInput.isPointerEvent }
 }
 
-public struct NativeSettingsUseDefaults<Content: View>: View {
-    @Binding private var value: Bool
-    public let label: String?
-    private let content: Content
+/// Keeps model choices visible while optional controls share one disclosure.
+/// Draft values belong to the caller, so collapsing never resets them.
+public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
+    private let defaults: Binding<Bool>?
+    private let basic: Basic
+    private let advanced: Advanced
+    private let hasAdvanced: Bool
+    @State private var expanded = false
     @Environment(\.locale) private var locale
-    public init(value: Binding<Bool>, label: String? = nil, @ViewBuilder content: () -> Content) {
-        _value = value; self.label = label; self.content = content()
+    @Environment(\.nativeSettingsFormPage) private var formPage
+    public init(defaults: Binding<Bool>? = nil, hasAdvanced: Bool = true,
+                @ViewBuilder basic: () -> Basic, @ViewBuilder advanced: () -> Advanced) {
+        self.defaults = defaults; self.hasAdvanced = hasAdvanced
+        self.basic = basic(); self.advanced = advanced()
     }
     public var body: some View {
-        NativeSettingsRow(label: label ?? NativePluginLocalization.localize("使用默认配置", locale: locale),
-                          description: NativePluginLocalization.localize("关闭后可自定义新建 Thread 使用的配置。", locale: locale), inlineControl: true) {
-            NativeSettingsToggle(value: $value)
+        if defaults?.wrappedValue != true { basic }
+        if defaults != nil || hasAdvanced {
+            DisclosureGroup(isExpanded: $expanded) {
+                if expanded {
+                    VStack(alignment: .leading, spacing: formPage ? 0 : 14) {
+                        if let defaults {
+                            NativeSettingsRow(label: NativePluginLocalization.localize("使用默认配置", locale: locale),
+                                description: NativePluginLocalization.localize("关闭后可自定义新建 Thread 使用的配置。", locale: locale), inlineControl: true) {
+                                NativeSettingsToggle(value: defaults).nativeSettingsControl("useDefaults")
+                            }
+                        }
+                        if defaults?.wrappedValue != true { advanced }
+                    }
+                }
+            } label: {
+                Text(NativePluginLocalization.localize("高级选项", locale: locale))
+                    .font(NativeTypography.settings(size: 13))
+            }
+            .background(NativeSettingsControlRegistration(descriptor: .object([
+                "kind": .text("disclosure"), "label": .text(NativePluginLocalization.localize("高级选项", locale: locale)),
+                "value": .bool(expanded), "operations": .array([.text("set")])
+            ])) { _, value in
+                guard let next = value.boolValue else { throw NativeSettingsControlError("invalid_request", "Expected a boolean disclosure value") }
+                expanded = next
+            }.nativeSettingsControl("advancedOptions"))
+            .padding(.vertical, 10)
         }
-        if !value { content }
     }
 }
 

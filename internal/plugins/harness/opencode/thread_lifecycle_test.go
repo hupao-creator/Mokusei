@@ -64,6 +64,8 @@ func newThreadLifecycleFixture(t *testing.T, permissionMode string, active bool,
 			_ = json.NewEncoder(w).Encode(Object{"output": Object{"revisions": Object{"ses_thread": revision}}})
 		case "/api/session":
 			_, _ = w.Write([]byte(`{"data":[]}`))
+		case "/api/session/ses_thread":
+			_ = json.NewEncoder(w).Encode(Object{"id": "ses_thread", "agent": "build"})
 		case "/api/session/ses_thread/inbox":
 			_, _ = w.Write([]byte(`[]`))
 		case "/api/session/ses_thread/interrupt":
@@ -84,7 +86,7 @@ func newThreadLifecycleFixture(t *testing.T, permissionMode string, active bool,
 	nativeLife, cancelNative := context.WithCancel(context.Background())
 	runtime := &Runtime{URL: server.URL, ctx: nativeLife, cancel: cancelNative, bridge: bridge, client: server.Client(), options: Options{CWD: t.TempDir()}}
 	store := &threadFixtureStore{}
-	settings := Settings{PermissionMode: permissionMode}
+	settings := Settings{PermissionMode: permissionMode, Agent: "build"}
 	rawSettings, _ := json.Marshal(settings)
 	thread, err := OpenThread(context.Background(), plugin.OpenContext{
 		SessionState: store,

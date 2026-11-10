@@ -112,10 +112,13 @@ fetch accounts; creation and live model admission retain their native checks.
 
 Ordinary threads require exact provider/model/thinking choices. Native variants are
 validated from their effective request encoding, including at model admission.
-Default-agent discovery preserves native `Agent.list` order: the first visible
-primary/all agent is the actual native default. Execution snapshots, effective
-model presentation and ordinary thread defaults use that same selection even
-when no `default_agent` appears in native configuration; `build` is not assumed.
+Mokusei always selects the native `build` primary agent. Settings normalization,
+execution snapshots, effective model presentation, restored Thread settings,
+isolated prompts and voice discussion all use build, including previously saved
+`plan` selections and native configurations with a different default agent.
+The native build agent must be available; there is no fallback to another agent.
+Settings omit the Agent selector and description, and creation schemas expose no
+agent choice. Native model/variant overrides on build still apply.
 `auto` permissions reply once to requests that pass native deny rules; forms still
 require typed responses. Exclusive sessions reject ambient plugins, MCP and tool
 execution. Forks reserve new identities and import frozen history upon admission;

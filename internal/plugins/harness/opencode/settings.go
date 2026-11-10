@@ -157,6 +157,9 @@ func normalizeSettingsObject(value Object, allowed []string) (Settings, error) {
 		}
 		result.PermissionMode = mode
 	}
+	// Agent selection is product policy. Accept old persisted identifiers at this
+	// boundary, but never let them restore plan or a native default on dispatch.
+	result.Agent = "build"
 	return result, nil
 }
 func NormalizeSettings(raw json.RawMessage) (Settings, error) {
@@ -214,6 +217,7 @@ func (s *SettingsAPI) defaults(raw json.RawMessage) (Settings, error) {
 		return Settings{}, err
 	}
 	next := current.ThreadSettings
+	next.Agent = "build"
 	if next.PermissionMode == "" {
 		next.PermissionMode = "auto"
 	}
@@ -492,10 +496,7 @@ type ModelChoice struct {
 
 func SelectModel(observed *CatalogSnapshot, settings Settings) (ModelChoice, error) {
 	result := ModelChoice{}
-	agentID := settings.Agent
-	if agentID == "" {
-		agentID = observed.DefaultAgent
-	}
+	agentID := "build"
 	var agent *CatalogAgent
 	for i := range observed.Agents {
 		if observed.Agents[i].ID == agentID {
@@ -798,13 +799,7 @@ func (s *SettingsAPI) SnapshotExecution(ctx context.Context, input plugin.Settin
 	if err != nil {
 		return nil, err
 	}
-	agentID := next.Agent
-	if agentID == "" {
-		agentID = observed.DefaultAgent
-	}
-	if agentID == "" {
-		return nil, errors.New("OpenCode did not report its actual default primary agent. Select an explicit agent in settings.")
-	}
+	agentID := "build"
 	var agent *CatalogAgent
 	for i := range observed.Agents {
 		if observed.Agents[i].ID == agentID {
@@ -867,10 +862,7 @@ func (s *SettingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 		}
 		return json.Marshal(Object{"cli": Object{"status": "unavailable", "message": err.Error()}, "models": []any{}, "agents": []any{}})
 	}
-	agentID := selected.Agent
-	if agentID == "" {
-		agentID = observed.DefaultAgent
-	}
+	agentID := "build"
 	provider, id := selected.Provider, selected.Model
 	for _, agent := range observed.Agents {
 		if agent.ID == agentID && agent.Model != nil {
@@ -933,37 +925,27 @@ func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessa
 	permissions := Object{"type": "string", "enum": []string{"auto", "default"}, "default": current.PermissionMode, "description": "auto approves native permission requests once while preserving deny rules; default asks the user."}
 	choices := []any{}
 	omitted := 0
-	defaultAgent := current.Agent
-	if defaultAgent == "" {
-		defaultAgent = observed.DefaultAgent
+	var build *CatalogAgent
+	for i := range observed.Agents {
+		if observed.Agents[i].ID == "build" {
+			build = &observed.Agents[i]
+			break
+		}
 	}
 	for _, entry := range observed.Models {
 		if entry.UnavailableReason != "" || entry.Thinking == nil || entry.Thinking.Kind == "unknown" {
 			omitted++
 			continue
 		}
-		agents := []string{}
-		for i := range observed.Agents {
-			if AgentThinkingCapability(entry, &observed.Agents[i]).Kind != "unknown" {
-				agents = append(agents, observed.Agents[i].ID)
-			}
-		}
-		allowed := defaultAgent == "" || slices.Contains(agents, defaultAgent)
-		if len(agents) == 0 && !allowed {
+		if build == nil || AgentThinkingCapability(entry, build).Kind == "unknown" {
 			omitted++
 			continue
 		}
 		required := []string{"provider", "model", "thinking"}
-		if !allowed {
-			required = append(required, "agent")
-		}
 		properties := Object{"provider": Object{"type": "string", "const": entry.Provider}, "model": Object{"type": "string", "enum": []string{entry.ID}}, "thinking": thinkingSchema(*entry.Thinking), "permissionMode": permissions}
-		if len(agents) > 0 {
-			properties["agent"] = Object{"type": "string", "enum": agents}
-		}
 		choices = append(choices, Object{"type": "object", "additionalProperties": false, "required": required, "properties": properties})
 	}
-	result := Object{"type": "object", "description": "OpenCode ordinary Threads require an exact provider, model, and explicit supported thinking choice. Agent choices are native primary agents.", "additionalProperties": false, "required": []string{"provider", "model", "thinking"}, "properties": Object{"provider": Object{"type": "string", "minLength": 1}, "model": Object{"type": "string", "minLength": 1}, "thinking": Object{"type": "object"}, "agent": Object{"type": "string", "minLength": 1}, "permissionMode": permissions}}
+	result := Object{"type": "object", "description": "OpenCode ordinary Threads require an exact provider, model, and explicit supported thinking choice. Execution always uses the build agent.", "additionalProperties": false, "required": []string{"provider", "model", "thinking"}, "properties": Object{"provider": Object{"type": "string", "minLength": 1}, "model": Object{"type": "string", "minLength": 1}, "thinking": Object{"type": "object"}, "permissionMode": permissions}}
 	status := "ready"
 	if len(choices) == 0 {
 		status = "empty"

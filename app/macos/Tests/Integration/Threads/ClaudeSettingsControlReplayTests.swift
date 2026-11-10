@@ -22,6 +22,9 @@ struct ClaudeSettingsControlReplayTests {
         try await settle(fixture, window)
         #expect(fixture.controls["claude.model"]?["kind"] == .text("select"))
         #expect(fixture.controls["claude.effort"]?["kind"] == .text("select"))
+        #expect(fixture.controls["claude.permissionMode"] == nil)
+        #expect(fixture.controls["claude.advancedOptions"]?["value"] == .bool(false))
+        try await operate("advancedOptions", "set", .bool(true), fixture, window)
         #expect(fixture.controls["claude.permissionMode"]?["kind"] == .text("select"))
         #expect(fixture.changes == 0)
 
@@ -50,6 +53,12 @@ struct ClaudeSettingsControlReplayTests {
             try await operate("permissionMode", "select", .text(mode), fixture, window)
             #expect(fixture.value.json["threadSettings"]?["permissionMode"] == .text(mode))
         }
+        let beforeCollapse = fixture.value
+        try await operate("advancedOptions", "set", .bool(false), fixture, window)
+        #expect(fixture.controls["claude.permissionMode"] == nil)
+        #expect(fixture.value == beforeCollapse)
+        try await operate("advancedOptions", "set", .bool(true), fixture, window)
+        #expect(fixture.controls["claude.permissionMode"]?["value"] == .text("plan"))
         #expect(fixture.value.json["threadSettings"]?["allowedTools"] == .array([.text("Read")]))
         #expect(fixture.value.json["threadSettings"]?["disallowedTools"] == .array([.text("Bash")]))
         try capture(window, "snapshot")
@@ -76,6 +85,7 @@ struct ClaudeSettingsControlReplayTests {
         try await operate("model", "select", .text(""), fixture, window)
         #expect(fixture.value.json["threadSettings"]?["model"] == nil)
         #expect(fixture.value.json["threadSettings"]?["effort"] == nil)
+        try await operate("advancedOptions", "set", .bool(true), fixture, window)
         try await operate("permissionMode", "select", .text(""), fixture, window)
         #expect(fixture.value.json["threadSettings"]?["permissionMode"] == nil)
         #expect(fixture.controls["claude.customModel"] == nil)

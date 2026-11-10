@@ -327,20 +327,14 @@ public struct CodexHarnessSettingsView: View {
                         description: t(props.executionSnapshot ? "运行配置会明确保存，修改后从下一次运行生效。" : "用于新建 Thread 的原生配置默认值。"),
                         page: props.settingsFormPage
                     ) {
-                        if props.settingsFormPage && !props.executionSnapshot {
-                            CodexSettingsField(label: t("使用默认配置"), description: t("关闭后可自定义新建 Thread 使用的配置。"), page: true, inlineControl: true) {
-                                NativeSettingsToggle(value: Binding(get: { props.value.useDefaultThreadSettings }, set: { props.change(props.value.usingDefaults($0)) }))
-                            }
+                        CodexProfileFields(value: pendingProfile ?? props.value.threadSettings, models: models, disabled: false,
+                                           explicitThinking: false, executionSnapshot: props.executionSnapshot,
+                                           page: props.settingsFormPage,
+                                           label: t(props.executionSnapshot ? "Codex 运行配置" : "Codex Thread 默认配置"),
+                                           defaults: props.executionSnapshot ? nil : Binding(get: { props.value.useDefaultThreadSettings }, set: { props.change(props.value.usingDefaults($0)) })) { profile in
+                            changeProfile(profile)
                         }
-                        if !props.settingsFormPage || props.executionSnapshot || !props.value.useDefaultThreadSettings {
-                            CodexProfileFields(value: pendingProfile ?? props.value.threadSettings, models: models, disabled: false,
-                                               explicitThinking: false, executionSnapshot: props.executionSnapshot,
-                                               page: props.settingsFormPage,
-                                               label: t(props.executionSnapshot ? "Codex 运行配置" : "Codex Thread 默认配置")) { profile in
-                                changeProfile(profile)
-                            }
-                            if pendingProfile != nil { NativeSettingsNotice(message: t("请补全模型相关配置；完成前不会保存此组修改。"), kind: .warning) }
-                        }
+                        if pendingProfile != nil { NativeSettingsNotice(message: t("请补全模型相关配置；完成前不会保存此组修改。"), kind: .warning) }
                     }
                 }
             }
@@ -381,6 +375,7 @@ private struct CodexProfileFields: View {
     let executionSnapshot: Bool
     let page: Bool
     let label: String
+    var defaults: Binding<Bool>? = nil
     let change: (CodexThreadSettings) -> Void
     @Environment(\.locale) private var locale
 
@@ -408,24 +403,27 @@ private struct CodexProfileFields: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: page ? 0 : 14) {
-            CodexSettingsField(label: t("模型"), description: page ? nil : selected?.description, page: page) {
-                NativeModelSelector(value: binding("model", setter: selectModel), options: modelOptions,
-                                    accessibilityLabel: label + " " + t("模型")).nativeSettingsControl("model")
-                    .disabled(disabled)
-            }
-            if explicitThinking { thinkingField } else { effortField }
-            if page, let effortUnavailableReason, !effortUnavailableReason.isEmpty {
-                NativeSettingsNotice(message: effortUnavailableReason, kind: .warning)
-            }
-            CodexSettingsField(label: t("服务层级"), page: page) {
-                CodexSettingsSelect(page: page, label: label + " " + t("服务层级"),
-                                    selection: binding("serviceTier"), options: tierOptions).nativeSettingsControl("serviceTier")
-                    .disabled(disabled)
-            }
-            CodexSettingsField(label: t("权限模式"), page: page) {
-                CodexSettingsSelect(page: page, label: label + " " + t("权限模式"),
-                                    selection: binding("permissionMode"), options: permissionOptions)
-                    .disabled(disabled)
+            NativeHarnessSettingsFields(defaults: defaults) {
+                CodexSettingsField(label: t("模型"), description: page ? nil : selected?.description, page: page) {
+                    NativeModelSelector(value: binding("model", setter: selectModel), options: modelOptions,
+                                        accessibilityLabel: label + " " + t("模型")).nativeSettingsControl("model")
+                        .disabled(disabled)
+                }
+                if explicitThinking { thinkingField } else { effortField }
+                if page, let effortUnavailableReason, !effortUnavailableReason.isEmpty {
+                    NativeSettingsNotice(message: effortUnavailableReason, kind: .warning)
+                }
+            } advanced: {
+                CodexSettingsField(label: t("服务层级"), page: page) {
+                    CodexSettingsSelect(page: page, label: label + " " + t("服务层级"),
+                                        selection: binding("serviceTier"), options: tierOptions).nativeSettingsControl("serviceTier")
+                        .disabled(disabled)
+                }
+                CodexSettingsField(label: t("权限模式"), page: page) {
+                    CodexSettingsSelect(page: page, label: label + " " + t("权限模式"),
+                                        selection: binding("permissionMode"), options: permissionOptions).nativeSettingsControl("permissionMode")
+                        .disabled(disabled)
+                }
             }
         }
     }

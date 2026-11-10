@@ -49,6 +49,7 @@ func runMokuReplays() error {
 		run  func() error
 	}{
 		{"creation contract", runCreationContractReplay},
+		{"model routing preferences", runRoutingPreferencesReplay},
 		{"talk schema", runTalkSchemaReplay},
 		{"immediate timer and catalog", runTimerRuntimeReplay},
 		{"note contract", runNoteSchemaReplay},

@@ -192,7 +192,7 @@ func parseSettingsShell(value any) (model.Settings, error) {
 	if err != nil {
 		return result, err
 	}
-	moku, err := closedSettingsObject(object["moku"], []string{"hostHarnessPreference", "executionHarnesses", "targetHarnessIds", "routingGuidance"}, []string{"hostHarnessPreference", "targetHarnessIds", "routingGuidance"}, "settings", "moku")
+	moku, err := closedSettingsObject(object["moku"], []string{"hostHarnessPreference", "executionHarnesses", "targetHarnessIds", "routingGuidance", "routingPreset"}, []string{"hostHarnessPreference", "targetHarnessIds", "routingGuidance"}, "settings", "moku")
 	if err != nil {
 		return result, err
 	}
@@ -221,6 +221,15 @@ func parseSettingsShell(value any) (model.Settings, error) {
 		}
 		seen[id] = true
 		result.Moku.TargetHarnessIDs = append(result.Moku.TargetHarnessIDs, id)
+	}
+	if raw, exists := moku["routingPreset"]; exists {
+		preset, ok := raw.(string)
+		if !ok || preset != "economy" && preset != "balanced" && preset != "performance" && preset != "custom" {
+			return result, schemaError("invalid model routing preset", "custom", "settings", "moku", "routingPreset")
+		}
+		if preset != "custom" {
+			result.Moku.RoutingPreset = preset
+		}
 	}
 	result.Moku.RoutingGuidance, err = normalizedGuidance(moku["routingGuidance"], "settings", "moku", "routingGuidance")
 	if err != nil {
@@ -289,7 +298,7 @@ func changedSettingsFields(before, after model.Settings) []string {
 	for _, entry := range []struct {
 		key           string
 		before, after any
-	}{{"moku.hostHarnessPreference", before.Moku.HostHarnessPreference, after.Moku.HostHarnessPreference}, {"moku.executionHarnesses", before.Moku.ExecutionHarnesses, after.Moku.ExecutionHarnesses}, {"moku.targetHarnessIds", before.Moku.TargetHarnessIDs, after.Moku.TargetHarnessIDs}, {"moku.routingGuidance", before.Moku.RoutingGuidance, after.Moku.RoutingGuidance}, {"harnesses", before.Harnesses, after.Harnesses}, {"pluginSettings", before.PluginSettings, after.PluginSettings}, {"pluginEnabled", before.PluginEnabled, after.PluginEnabled}} {
+	}{{"moku.hostHarnessPreference", before.Moku.HostHarnessPreference, after.Moku.HostHarnessPreference}, {"moku.executionHarnesses", before.Moku.ExecutionHarnesses, after.Moku.ExecutionHarnesses}, {"moku.targetHarnessIds", before.Moku.TargetHarnessIDs, after.Moku.TargetHarnessIDs}, {"moku.routingGuidance", before.Moku.RoutingGuidance, after.Moku.RoutingGuidance}, {"moku.routingPreset", before.Moku.RoutingPreset, after.Moku.RoutingPreset}, {"harnesses", before.Harnesses, after.Harnesses}, {"pluginSettings", before.PluginSettings, after.PluginSettings}, {"pluginEnabled", before.PluginEnabled, after.PluginEnabled}} {
 		if !same(entry.before, entry.after) {
 			result = append(result, entry.key)
 		}
@@ -299,7 +308,7 @@ func changedSettingsFields(before, after model.Settings) []string {
 
 var clientDiagnosticEvents = stringSet("page", "edit", "composition", "close", "retry", "conflict", "validation", "save", "command", "receive", "availability", "discard", "preferences", "presentation")
 var clientDiagnosticOutcomes = stringSet("started", "completed", "failed", "pending", "blocked", "saved", "conflict", "keep", "discard", "available", "unavailable", "opened", "closed")
-var diagnosticFields = stringSet("moku.hostHarnessPreference", "moku.executionHarnesses", "moku.targetHarnessIds", "moku.routingGuidance", "harnesses", "pluginSettings", "pluginEnabled", "appearance", "locale")
+var diagnosticFields = stringSet("moku.hostHarnessPreference", "moku.executionHarnesses", "moku.targetHarnessIds", "moku.routingGuidance", "moku.routingPreset", "harnesses", "pluginSettings", "pluginEnabled", "appearance", "locale")
 var diagnosticUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 var diagnosticCommandID = regexp.MustCompile(`^[a-zA-Z0-9_-]{16,128}$`)
 

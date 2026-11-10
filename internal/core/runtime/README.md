@@ -294,3 +294,9 @@ and report source decoration synchronized while preserving stable tag identity.
 Archived Threads retain frozen decoration and do not consume active membership;
 restoration clears assignment before emitting `thread.restored`. Actual title
 changes emit `thread.title-changed`, independently of execution terminal facts.
+
+Moku model routing presets are validated settings fields, participate in settings
+change diagnostics and configuration equality, and are captured at execution
+admission. Missing/custom keeps existing manual routing guidance. Selecting a
+preset preserves that guidance for later restoration; the Moku service owns
+candidate groups and instruction generation.

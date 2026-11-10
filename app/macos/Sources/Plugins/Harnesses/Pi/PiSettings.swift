@@ -135,7 +135,7 @@ struct PiThreadSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             PiResourceStatus(resource: resource)
             NativeSettingsGroup(title: piLocalized("Pi Thread 配置", locale)) {
-                NativeSettingsRow(label: "Provider") {
+                NativeSettingsRow(label: piLocalized("提供商", locale)) {
                     NativeSettingsSelect(value: Binding(get: { provider }, set: { draft = .object(["provider": .string($0)]) }),
                         options: options(providers.map { ($0, $0.string) }, current: provider)).nativeSettingsControl("provider").disabled(disabled)
                 }
@@ -193,12 +193,12 @@ struct PiHarnessSettingsView: View {
                         if pendingProfile != nil { NativeSettingsNotice(message: piLocalized("请补全模型相关配置；完成前不会保存此组修改。", locale), kind: .warning) }
                     }
                     else {
-                        NativeSettingsUseDefaults(value: Binding(get: { props.value["useDefaultThreadSettings"] != .bool(false) }, set: { useDefault in
+                        NativeHarnessSettingsFields(defaults: Binding(get: { props.value["useDefaultThreadSettings"] != .bool(false) }, set: { useDefault in
                             var next = props.value.objectValue ?? [:]
                             next["useDefaultThreadSettings"] = useDefault ? nil : .bool(false)
                             next["threadSettings"] = useDefault ? .object([:]) : props.value["threadSettings"] ?? .object([:])
                             props.change(.object(next))
-                        })) { fields }
+                        }), hasAdvanced: false) { fields } advanced: { EmptyView() }
                     }
                 }
             }
@@ -240,7 +240,7 @@ private struct PiDefaultFields: View {
     private var modelValue: JSONText { selected.map(modelKey) ?? model }
     var body: some View {
         if formPage {
-            NativeSettingsRow(label: "Provider") {
+            NativeSettingsRow(label: piLocalized("提供商", locale)) {
                 NativeSettingsSelect(value: Binding(get: { provider }, set: { changeProvider($0) }), options: options(providers.map { ($0, $0.string) }, current: provider)).nativeSettingsControl("provider")
             }
             NativeSettingsRow(label: piLocalized("模型", locale)) {
@@ -252,9 +252,9 @@ private struct PiDefaultFields: View {
             }
         } else {
             ForEach(["provider", "model", "thinkingLevel"], id: \.self) { key in
-                NativeSettingsRow(label: key == "provider" ? "Provider" : key == "model" ? "Model" : "Thinking level") {
+                NativeSettingsRow(label: key == "provider" ? piLocalized("提供商", locale) : key == "model" ? "Model" : "Thinking level") {
                     PiSettingsComboInput(value: piText(value[key]) ?? "", options: suggestions(key),
-                        placeholder: piLocalized("Pi 原生默认", locale), label: key == "provider" ? "Provider" : key == "model" ? "Model" : "Thinking level",
+                        placeholder: piLocalized("Pi 原生默认", locale), label: key == "provider" ? piLocalized("提供商", locale) : key == "model" ? "Model" : "Thinking level",
                         change: { set(key, $0) })
                 }
             }

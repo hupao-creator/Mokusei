@@ -118,8 +118,8 @@ func OpenThread(ctx context.Context, open plugin.OpenContext, launch func(contex
 }
 func (t *Thread) settings() (Settings, string, error) {
 	record := t.open.ReadThread()
-	var s Settings
-	if err := json.Unmarshal(record.Settings, &s); err != nil {
+	s, err := NormalizeThreadSettings(record.Settings)
+	if err != nil {
 		return s, "", err
 	}
 	cwd := record.Cwd

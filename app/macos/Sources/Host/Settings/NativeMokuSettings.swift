@@ -57,7 +57,6 @@ import SwiftUI
         }.joined(separator: "\n")
         return errors.isEmpty ? nil : errors
     }
-    private var routingEnabled: Bool { if case .string = moku["routingGuidance"] { true } else { false } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -122,12 +121,10 @@ import SwiftUI
 
     private var routingGuidance: some View {
         SettingsGroup {
-            SettingsRow(label: locale.text("模型选择偏好", "Model selection preferences"), inlineControl: true) {
-                NativeSettingsToggle(value: Binding(get: { routingEnabled }, set: { changeMoku("routingGuidance", $0 ? .text("") : .null) }))
-                    .nativeSettingsControl("routingEnabled")
-                    .accessibilityLabel(locale.text("模型选择偏好", "Model selection preferences"))
-            }
-            if routingEnabled {
+            NativeModelRoutingPreferences(value: Binding(get: { model.draft.value["moku"] ?? .object([:]) }, set: { next in
+                model.draft.change(settingsReplacing(model.draft.value, path: ["moku"], value: next))
+            }), locale: locale)
+            if (moku["routingPreset"]?.stringValue ?? "custom") == "custom" {
                 VStack(alignment: .leading, spacing: 12) {
                     textArea(field: "routingGuidance", label: locale.text("告诉 Moku 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。", "Tell Moku how to choose models for delegated tasks, for example favor speed for simple tasks and reasoning ability for complex tasks."), height: 112)
                     if let error = model.draft.validationError("routingGuidance", locale: locale) {

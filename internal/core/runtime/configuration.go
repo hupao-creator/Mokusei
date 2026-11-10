@@ -593,5 +593,5 @@ func (r *Runtime) validateChangedProfiles(ctx context.Context, settings, previou
 	return settings, nil
 }
 func sameMokuConfiguration(a, b model.Settings) bool {
-	return same(a.Harnesses, b.Harnesses) && same(a.Moku.ExecutionHarnesses, b.Moku.ExecutionHarnesses) && a.Moku.HostHarnessPreference == b.Moku.HostHarnessPreference && same(a.Moku.TargetHarnessIDs, b.Moku.TargetHarnessIDs) && same(a.Moku.RoutingGuidance, b.Moku.RoutingGuidance)
+	return same(a.Harnesses, b.Harnesses) && same(a.Moku.ExecutionHarnesses, b.Moku.ExecutionHarnesses) && a.Moku.HostHarnessPreference == b.Moku.HostHarnessPreference && same(a.Moku.TargetHarnessIDs, b.Moku.TargetHarnessIDs) && same(a.Moku.RoutingGuidance, b.Moku.RoutingGuidance) && a.Moku.RoutingPreset == b.Moku.RoutingPreset
 }

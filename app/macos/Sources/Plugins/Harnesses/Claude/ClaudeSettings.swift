@@ -112,7 +112,9 @@ struct ClaudeThreadSettingsView: View {
                 options:[NativeSettingsOption(id:"",label:t("请选择 Thinking"),disabled:true)] + choices.map { NativeSettingsOption(id:JSONText(claudeThinkingKey($0)),label:claudeThinkingLabel($0)) }, reasoning: true).nativeSettingsControl("thinking")
                 .disabled(disabled || choices.isEmpty)
             if let reason = selected?["thinking"]?["reason"]?.stringValue { Text(reason).foregroundStyle(NativePalette.thread.muted.swiftUI) }
-            ClaudePermissionField(value:$permission, disabled:disabled)
+            NativeHarnessSettingsFields { EmptyView() } advanced: {
+                ClaudePermissionField(value:$permission, disabled:disabled)
+            }
             if input.thread.observation.isExecutionActive { Text(t("该 Thread 正在运行，请等待完成或停止后再修改。")).foregroundStyle(NativePalette.thread.muted.swiftUI) }
             if !valid { Text(t("模型标识不能以空白开头或结尾。")).foregroundStyle(NativePalette.thread.danger.swiftUI) }
             if let error { ClaudeFailure(message:error) }
@@ -168,11 +170,7 @@ struct ClaudeHarnessSettingsView: View {
                     ClaudeSettingsResourceStatus(resource: props.resource)
                 }
                 NativeSettingsGroup(title: props.settingsFormPage ? nil : t(props.executionSnapshot ? "Claude 运行配置" : "Claude Thread 默认配置")) {
-                    if props.executionSnapshot { fields }
-                    else {
-                        NativeSettingsUseDefaults(value: Binding(get: { useDefaults }, set: { setDefaults($0) })) { fields }
-                            .nativeSettingsControl("useDefaults")
-                    }
+                    fields
                 }
             }
         }.environment(\.nativeSettingsFormPage, props.settingsFormPage)
@@ -197,7 +195,7 @@ struct ClaudeHarnessSettingsView: View {
         return true
     }
     private var fields: some View {
-        Group {
+        NativeHarnessSettingsFields(defaults: props.executionSnapshot ? nil : Binding(get: { useDefaults }, set: { setDefaults($0) })) {
             ClaudeModelField(value: Binding(get: { exactModel }, set: { changeModelValue($0) }), models: models,
                              required: props.executionSnapshot, disabled: false)
             ClaudeSelectionField(label: t("推理强度"), value: Binding(get: { profile["effort"]?.stringValue ?? "" },
@@ -206,10 +204,11 @@ struct ClaudeHarnessSettingsView: View {
             if props.executionSnapshot, selected?["thinking"]?.claudeKind == "unknown" || selected == nil {
                 NativeSettingsNotice(message: selected?["thinking"]?["reason"]?.stringValue ?? t("无法确认此模型的推理强度能力。"), kind: .warning)
             }
+            if pendingProfile != nil { NativeSettingsNotice(message: t("请补全模型相关配置；完成前不会保存此组修改。"), kind: .warning) }
+        } advanced: {
             ClaudePermissionField(value: Binding(get: { profile["permissionMode"]?.stringValue ?? "" },
                 set: { change("permissionMode", $0.isEmpty ? nil : .text($0)) }),
                 disabled: props.executionSnapshot && !claudeValidModel(modelText, required: true), required: props.executionSnapshot)
-            if pendingProfile != nil { NativeSettingsNotice(message: t("请补全模型相关配置；完成前不会保存此组修改。"), kind: .warning) }
         }
     }
     private var catalogIdentity: JSONValue { if case .ready(let data) = props.resource.state { data.json } else if case .error(let message) = props.resource.state { .text(message) } else { .null } }
