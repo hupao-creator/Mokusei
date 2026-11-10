@@ -113,7 +113,6 @@ private struct Scene: View {
             }
         } settings: { Color.clear }
         .background(fixture.dark ? Color(red: 0.09, green: 0.10, blue: 0.088) : Color(red: 0.962, green: 0.958, blue: 0.938))
-        .environment(\.nativeMokuTheme, .opencode)
         .environment(\.colorScheme, fixture.dark ? .dark : .light)
         .environment(\.scenePhase, fixture.phase)
     }

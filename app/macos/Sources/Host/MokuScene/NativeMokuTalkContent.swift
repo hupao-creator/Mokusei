@@ -6,10 +6,10 @@ import SwiftUI
 @MainActor enum NativeMokuTalkTypography {
     static let lineSpacing: CGFloat = 3
     static let verticalPadding: CGFloat = 19
-    static let leading: CGFloat = 18
+    static let leading: CGFloat = 64
     static let trailing: CGFloat = 20
-    // Mirror the trailing action seat so every prose line centers on the shell.
-    static let centeredInset: CGFloat = 48
+    // Reserve the eyes and mirror that inset to keep prose centered on the shell.
+    static let centeredInset: CGFloat = 64
     static let lineHeight: CGFloat = 16
     static var maximumHeight: CGFloat { lineHeight * 4 + lineSpacing * 3 }
     /// Talk stays inside a four-line notification viewport. Live dictation has no

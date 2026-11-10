@@ -107,7 +107,7 @@ public struct NativeApplicationBackgroundEditor: View {
             .font(.system(size: 12, weight: selected ? .medium : .regular))
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity).frame(minHeight: 42)
-            .modifier(NativeBackgroundChoiceSurface(selected: selected))
+            .glassEffect(.regular.interactive(), in: .capsule)
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -145,7 +145,7 @@ public struct NativeApplicationBackgroundEditor: View {
                             Text(harness.descriptor.displayName.string).font(.system(size: 11))
                             if effective.harnessPreference == harness.descriptor.id { Image(systemName: "checkmark").font(.system(size: 9)) }
                         }.frame(maxWidth: .infinity).frame(height: 40)
-                            .modifier(NativeBackgroundChoiceSurface(selected: effective.harnessPreference == harness.descriptor.id))
+                            .glassEffect(.regular.interactive(), in: .capsule)
                             .contentShape(Capsule())
                     }.buttonStyle(.plain)
                         .nativeSettingsAction("harness." + harness.descriptor.id.string, label: harness.descriptor.displayName.string,
@@ -270,28 +270,5 @@ public struct NativeApplicationBackgroundEditor: View {
             let next = try ApplicationBackgroundExecutionSettings.Overrides(harnessPreference: id, harnesses: harnesses)
             change(.init(mode: .override(next), enabled: value.enabled))
         } catch { workspace.report(error) }
-    }
-}
-
-/// Settings shares these choices with onboarding, but owns an opaque form surface.
-private struct NativeBackgroundChoiceSurface: ViewModifier {
-    let selected: Bool
-    @Environment(\.nativeSettingsFormPage) private var formPage
-
-    func body(content: Content) -> some View {
-        if formPage {
-            content
-                .foregroundStyle(NativePalette.settings.text.swiftUI)
-                .background(Capsule().fill(selected
-                    ? NativePalette.settings.accent.swiftUI.opacity(0.12)
-                    : NativePalette.settings.input.swiftUI))
-                .overlay {
-                    Capsule().strokeBorder(selected
-                        ? NativePalette.settings.accent.swiftUI
-                        : NativePalette.settings.inputBorder.swiftUI)
-                }
-        } else {
-            content.glassEffect(.regular.interactive(), in: .capsule)
-        }
     }
 }

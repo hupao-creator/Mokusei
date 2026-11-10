@@ -28,10 +28,15 @@ struct NativeMokuCharacterPose {
     func map(_ transform: (String) -> Double) -> Self {
         Self(values: Dictionary(uniqueKeysWithValues: values.keys.map { ($0, transform($0)) }))
     }
-
+    func eye(_ side: String) -> MokuEye {
+        MokuEye(x: self[side + "x"], y: self[side + "y"], w: max(1, self[side + "w"]),
+                h: max(1, self[side + "h"]), radius: max(0, self[side + "r"]),
+                rotation: self[side + "a"], opacity: 1)
+    }
 }
 
-/// One native display clock owns the running dots and retiring decoration ink.
+/// One native display clock owns both seats. The eyes are never cross-faded or
+/// replaced when a role changes; redirection inherits their current derivative.
 @MainActor final class NativeMokuCharacterMotion: NSObject {
     private(set) var input: NativeMokuCharacterInput?
     private(set) var reasoningAnimation = MokuReasoningAnimation()
@@ -50,10 +55,13 @@ struct NativeMokuCharacterPose {
     private var replacementGlyphs: [MokuReasoningGlyph] = []
     private var link: CADisplayLink?
     private weak var linkView: NativeMokuCharacterCanvas?
+    private weak var face: NativeMokuCharacterCanvas?
     private weak var decorations: NativeMokuCharacterCanvas?
     private var wasVisible = false
     private var retirementPending = false
     private var stationaryTarget: NativeMokuCharacterPose?
+    private var blinkWake: Task<Void, Never>?
+    private var blinkWakeDate: Date?
     var onReasoningRetired: (() -> Void)?
 
     var currentReasoning: MokuReasoningContent? { input?.presentsReasoning == true ? reasoningAnimation.content : nil }
@@ -64,14 +72,15 @@ struct NativeMokuCharacterPose {
     var isRetiringReasoning: Bool { !retiredGlyphs.isEmpty && pose["arcAlpha"] > 0.001 }
     private var visible: Bool {
         input?.motion == true && input?.reduceMotion == false
-            && decorations?.motionVisible == true
+            && (face?.motionVisible == true || decorations?.motionVisible == true)
     }
 
     func attach(_ view: NativeMokuCharacterCanvas) {
-        decorations = view
+        if view.seat == .face { face = view } else { decorations = view }
         visibilityChanged()
     }
     func detach(_ view: NativeMokuCharacterCanvas) {
+        if face === view { face = nil }
         if decorations === view { decorations = nil }
         visibilityChanged()
     }
@@ -137,23 +146,24 @@ struct NativeMokuCharacterPose {
             retirementPending = false
         }
         pose = sample(at: clock)
-        decorations?.needsDisplay = true
+        face?.needsDisplay = true; decorations?.needsDisplay = true
         visibilityChanged()
     }
 
     func visibilityChanged() {
         let active = visible
         if active != wasVisible { lastWall = ProcessInfo.processInfo.systemUptime; wasVisible = active }
-        guard active, let anchor = decorations else {
+        guard active, let anchor = face ?? decorations else {
+            blinkWake?.cancel(); blinkWake = nil; blinkWakeDate = nil
             link?.isPaused = true
             if input?.presentsReasoning != true, retirementPending {
                 retiredGlyphs = []; finishRetirement()
             }
-            if decorations == nil {
+            if face == nil && decorations == nil {
                 link?.invalidate(); link = nil; linkView = nil
                 retiredGlyphs = []; replacementGlyphs = []
             }
-            decorations?.needsDisplay = true
+            face?.needsDisplay = true; decorations?.needsDisplay = true
             return
         }
         if linkView !== anchor {
@@ -163,15 +173,36 @@ struct NativeMokuCharacterPose {
             linkView = anchor
             link?.add(to: .main, forMode: .common)
         }
+        let now = Date()
+        let blinkStart = Date(timeIntervalSinceReferenceDate:
+            floor(now.timeIntervalSinceReferenceDate / NativeMokuCapsuleBlinkTiming.interval)
+                * NativeMokuCapsuleBlinkTiming.interval)
+        let faceVisible = face?.motionVisible == true
+        let blinking = faceVisible && now < blinkStart.addingTimeInterval(NativeMokuCapsuleBlinkTiming.duration)
         let moving = input?.running == true || isTransitioning
             || (input?.presentsReasoning == true && reasoningAnimation.needsFrames)
             || retirementPending || (!replacementGlyphs.isEmpty && clock - replacementAt < 220)
-        if moving {
-            // Time spent asleep must not advance a newly accepted transition.
+        if moving || blinking {
+            blinkWake?.cancel(); blinkWake = nil; blinkWakeDate = nil
+            // Sleeping between blinks must not inject its elapsed wall time
+            // into a newly accepted role transition or resumed running clock.
             if link?.isPaused != false { lastWall = ProcessInfo.processInfo.systemUptime }
             link?.isPaused = false
         } else {
             link?.isPaused = true
+            guard faceVisible else {
+                blinkWake?.cancel(); blinkWake = nil; blinkWakeDate = nil
+                return
+            }
+            let next = blinkStart.addingTimeInterval(NativeMokuCapsuleBlinkTiming.interval)
+            guard blinkWakeDate != next else { return }
+            blinkWake?.cancel(); blinkWakeDate = next
+            blinkWake = Task { @MainActor [weak self] in
+                do { try await Task.sleep(for: .seconds(max(0, next.timeIntervalSinceNow))) } catch { return }
+                guard let self, !Task.isCancelled, blinkWakeDate == next else { return }
+                blinkWake = nil; blinkWakeDate = nil
+                visibilityChanged()
+            }
         }
     }
 
@@ -188,8 +219,8 @@ struct NativeMokuCharacterPose {
         }
         if clock - replacementAt >= 220 { replacementGlyphs = [] }
         frameCount += 1
-        decorations?.needsDisplay = true
-        // Submit the final retired-ink frame before sleeping.
+        face?.needsDisplay = true; decorations?.needsDisplay = true
+        // Submit the final open-eye / retired-ink frame before sleeping.
         visibilityChanged()
     }
 
@@ -221,8 +252,15 @@ struct NativeMokuCharacterPose {
         let thinking = input.presentsReasoning && input.reasoning != nil
         let story = NativeMokuRunningGeometry.sample(milliseconds: runningElapsed + (running ? time - clock : 0),
             capsuleSize: input.capsuleSize, cornerRadius: input.cornerRadius, still: input.reduceMotion)
+        let eyes = NativeMokuCapsuleEyes.resolved(expression: running ? .idle : input.expression, focus: running ? 0 : input.focus)
         var result = NativeMokuCharacterPose(values: ["arcAlpha": thinking ? 1 : 0,
                                                        "arcGather": thinking ? 0 : 1, "arcReveal": thinking ? 1 : 0])
+        for (side, eye) in [("l", eyes.left), ("r", eyes.right)] {
+            result[side + "x"] = eye.x + (running ? story.eyes.x * 0.12 / 0.22 : 0)
+            result[side + "y"] = eye.y * (running ? story.eyes.scaleY : 1) + (running ? story.eyes.y * 0.12 / 0.22 : 0)
+            result[side + "w"] = eye.w; result[side + "h"] = eye.h * (running ? story.eyes.scaleY : 1)
+            result[side + "r"] = eye.radius; result[side + "a"] = eye.rotation
+        }
         let track = NativeMokuReasoningArcTrack(body: CGRect(x: -input.capsuleSize.width / 2,
             y: -input.capsuleSize.height / 2, width: input.capsuleSize.width, height: input.capsuleSize.height))
         for (index, dot) in story.dots.enumerated() {
@@ -238,6 +276,15 @@ struct NativeMokuCharacterPose {
         // the frame timestamp. Preserve its exact handoff geometry and colors.
         if !running { stationaryTarget = result }
         return result
+    }
+
+    func paintFace(in context: CGContext, bounds: CGRect) {
+        guard let input else { return }
+        context.saveGState(); defer { context.restoreGState() }
+        let blink = visible ? NativeMokuCapsuleBlinkTiming.factor(at: Date()) : 1
+        let shape = NativeMokuCapsuleEyes(left: pose.eye("l"), right: pose.eye("r"), blink: blink)
+        context.setFillColor((input.dark ? NSColor.white : NSColor.black).cgColor)
+        context.addPath(shape.path(in: bounds).cgPath); context.fillPath()
     }
 
     func paintDecorations(in context: CGContext, bounds: CGRect) {
@@ -268,7 +315,7 @@ struct NativeMokuCharacterPose {
     }
 }
 
-enum NativeMokuCharacterSeat { case decorations }
+enum NativeMokuCharacterSeat { case face, decorations }
 
 struct NativeMokuCharacterSurface: NSViewRepresentable {
     let controller: NativeMokuCharacterMotion
@@ -323,6 +370,7 @@ struct NativeMokuCharacterSurface: NSViewRepresentable {
     override func setFrameSize(_ newSize: NSSize) { super.setFrameSize(newSize); controller.visibilityChanged(); needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        controller.paintDecorations(in: context, bounds: bounds)
+        if seat == .face { controller.paintFace(in: context, bounds: bounds) }
+        else { controller.paintDecorations(in: context, bounds: bounds) }
     }
 }

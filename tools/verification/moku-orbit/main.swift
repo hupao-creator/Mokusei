@@ -44,7 +44,6 @@ private struct Scene: View {
                     .position(x: fixture.state.capsuleFrame.midX, y: fixture.state.capsuleFrame.midY)
             }
         }
-        .environment(\.nativeMokuTheme, .opencode)
         .environment(\.colorScheme, .light)
     }
 }

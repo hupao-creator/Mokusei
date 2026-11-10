@@ -79,13 +79,15 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
     }
 }
 
-struct NativeSettingsPanelSurface: View {
+struct NativeSettingsPanelGlass: View {
+    @Environment(\.accessibilityReduceTransparency) private var opaque
+    @Environment(\.colorScheme) private var scheme
     var body: some View {
-        RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-            .fill(NativePalette.settings.main.swiftUI)
-            .overlay {
-                RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-                    .strokeBorder(NativePalette.settings.line.swiftUI)
-            }
+        if opaque {
+            RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
+                .fill(Color(white: scheme == .dark ? 0.12 : 0.97))
+        } else {
+            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
+        }
     }
 }

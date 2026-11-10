@@ -12,6 +12,7 @@ import SwiftUI
         let previousID: String?
         let direction: CGFloat
         let startedAt: Double
+        let eyeMotion: MokuEyeMotion
     }
     struct FeedbackRequest: Equatable {
         let sequence: Int
@@ -23,6 +24,7 @@ import SwiftUI
         let identity = UUID()
         let request: FeedbackRequest
         let startedAt: Double
+        let eyeMotion: MokuEyeMotion
     }
     struct DispatchMove {
         let from: CGPoint
@@ -64,7 +66,8 @@ import SwiftUI
     func beginHandoff(to next: String, direction: CGFloat) {
         handoffTask?.cancel()
         let now = Self.now
-        let transfer = Handoff(hostID: next, previousID: driverID, direction: direction, startedAt: now)
+        let transfer = Handoff(hostID: next, previousID: driverID, direction: direction, startedAt: now,
+                               eyeMotion: NativeMokuSettingsMotion.handoffEyeMotion(direction: direction, startedAtMilliseconds: now))
         handoff = transfer; hostID = next
         cancelFeedback(); updateIdle()
         handoffTask = Task { [weak self] in
@@ -123,7 +126,8 @@ import SwiftUI
         guard feedback?.request.sequence != request.sequence else { return }
         cancelFeedback()
         let now = Self.now
-        let clip = Feedback(request: request, startedAt: now)
+        let clip = Feedback(request: request, startedAt: now,
+                            eyeMotion: NativeMokuSettingsMotion.feedbackEyeMotion(enabled: request.enabled, gazeX: request.gazeX, startedAtMilliseconds: now))
         feedback = clip
         feedbackTask = Task { [weak self] in
             do { try await Task.sleep(for: .milliseconds(NativeMokuSettingsMotion.feedbackDurationMilliseconds(enabled: request.enabled))) }

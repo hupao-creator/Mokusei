@@ -4,7 +4,6 @@
 
 | 入口 | 状态与用途 |
 | --- | --- |
-| [Moku 球体 Rebrand](moku-orb-rebrand/README.md) | 生产球体/Dock/Note/Talk/派发与四款 Harness 配色；含 Agent 输入 logo/颜色及返回 Moku 的 fixture。 |
 | [Report Thread 卡片与展开](report-thread/README.md) | 已确认设计对照及正式组件 fixture：emoji / 短介绍 / harness logo 卡片、右侧关联列表 2:8、执行阅读 5:5；生产契约已接入。 |
 | [Agent Thread 面板转场](thread-panel-transition/README.md) | 生产 compositor、身份交接和双向正文揭示的 fixture 回放；保留此前独立提案作对照，Moku 常驻。 |
 | [Execution 完成交接](execution-handoff/README.md) | 独立原生提案：先收入 sidecard 并让主面板变宽，再向下翻到新结果；支持重复播放、慢速及减弱动态效果，不修改生产交接。 |
@@ -14,7 +13,7 @@
 | [Settings 导航](settings-navigation/README.md) | 当前生产设置与导航组件的隔离回放。 |
 | [Settings 顶部 tab](settings-tabs/README.md) | 已批准提案的设计对照；正式界面与验收使用 Settings 导航回放。 |
 | [Moku thinking 历史对照](moku-thinking-orbit/README.md) | 当前生产胶囊 + Arc 的 fixture 演示；另保留 Electron 圆形阅读与后续胶囊环流作为历史对照。 |
-| [Moku 渐变玻璃](moku-gradient-material/README.md) | 已退役的暖黑胶囊材质实验；当前生产材质与交互请用 Moku 球体 Rebrand。 |
+| [Moku 渐变玻璃](moku-gradient-material/README.md) | 复用生产暖黑胶囊材质，提供明暗背景与材质强度对照。 |
 | [Moku Note 收起](moku-note-transition/README.md) | 当前 Release 生产 Dock 的隔离视觉预览；合成笔记、连续收起帧、快速往返、窄窗口/居中布局与禁动画 fixture。 |
 | [Moku mention transition](moku-mention-transition/README.md) | 当前生产 Dock 与已确认原型的菜单/眼睛过渡对照，支持真实输入及自动回放。 |
 | [Moku landing](moku-landing/README.md) | 当前生产 Dock/composer 的原生视觉回放；fixture 驱动派发与归档，全局状态接入另有生产页面集成回放。 |

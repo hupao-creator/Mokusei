@@ -56,8 +56,8 @@ The shared role editor's inheritance and Harness choices define a capsule hit
 shape inside each plain button label, after its full-width frame and surface.
 The entire visible capsule, including the space beside its text, selects the
 choice in both Settings and onboarding.
-Settings uses adaptive fills and borders, with an accent border and checkmark
-on the selected choice; onboarding retains its glass material.
+The shared choices retain their interactive capsule glass in Settings and
+onboarding; selection, save gates and capability checks are unchanged.
 
 The coordination and dispatch map retains the icon presentation from before
 `016735c` (system Settings controls): transparent 48-point seats, hover surfaces
@@ -66,11 +66,9 @@ paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled. General's Agent installation buttons and the other
 Settings form controls retain their system presentation.
 
-The coordinator in Settings displays the selected Harness's artwork directly on
-an opaque circle, without Liquid Glass. The circle rests in its seat and keeps
-its shape when it moves to a new coordinator. Onboarding retains its clear-glass
-orb and Reduce Transparency fallback; Harnesses without artwork use a neutral
-gradient. Neither path mounts the former eye character.
+Settings and onboarding use the original animated eye character for every
+coordinating Harness. Its vector body, idle motion, handoff and target-gaze
+feedback are restored; no sphere artwork or fallback sphere gradient remains.
 
 Model, thinking/effort and variant choices use the same AppKit `NSPopUpButton`
 as other selects in Settings and onboarding, including compact role panels.
@@ -104,19 +102,16 @@ Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
-The expanded surface and page inherit the workspace's live light/dark appearance,
-following system changes when Appearance is set to System. Settings escapes the
-Dock's local dark scope: SwiftUI tokens, hosted AppKit editors and selects,
-native scrollers and popovers use the same appearance as the panel. The panel
-uses the opaque adaptive Settings main color and a subtle border, without Liquid
-Glass or backdrop sampling, including when Reduce Transparency is enabled.
+The expanded surface and page retain their fixed dark appearance in light,
+dark and system workspaces. This is a local environment override; the workspace
+appearance preference and other windows retain their existing ownership.
 
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
 same capsule grows toward a centered 780-point-wide surface, starting at a
 900-point preferred height and growing with the active form, bounded by 24-point
-viewport margins. Its expanded surface uses one opaque adaptive fill without
-separate sidebar/content fills. The header has no eye character or reserved
-identity column; navigation starts at its ordinary inset. A single
+viewport margins. Its expanded surface uses untinted Regular Liquid Glass with an opaque Reduce
+Transparency fallback. The resident eyes travel into the reserved leading
+30-point header column and return to the composer with the shell. A single
 Close button replaces the full-page traffic-light/back capsule and its 74-point
 safe area; the main window retains its own native controls. When extreme zoom
 leaves less than 220 logical points of page height, the entire settings shell

@@ -119,7 +119,7 @@ struct NativeMokuNoteTests {
         let row = CGRect(x: 100, y: 300, width: 168, height: 44)
         let mic = CGRect(x: 221, y: 300, width: 44, height: 44)
         func allowed(_ point: CGPoint) -> Bool {
-            NativeMokuSwipeTarget.contains(point, row: row, excluding: [mic])
+            NativeMokuSwipeTarget.contains(point, row: row, eyesOnly: false, excluding: [mic])
         }
         #expect(allowed(CGPoint(x: 160, y: 322)))
         #expect(!allowed(CGPoint(x: 243, y: 322))) // Mic tap and long press.

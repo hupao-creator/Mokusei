@@ -6,10 +6,11 @@ python3 tools/verification/moku-orbit/run.py --skip-build
 
 This retains the former blink replay's existing orbit case. The retired capsule
 blink, eye-focus/mask, eye-slope and blink-negative-control cases were removed
-with the eye-based Dock. No new test cases were added.
+during the orb rebrand. Restoring the eye renderer does not restore those
+removed test cases or claim their coverage. No new test cases were added.
 
-The fixture mounts the production Scene/Dock with OpenCode's neutral artwork so
-the unchanged colored-pixel oracle can distinguish dots from the actual glass.
+The fixture mounts the production Scene/Dock with its warm capsule material;
+the unchanged colored-pixel oracle distinguishes dots from the actual glass.
 It captures a full cycle, requires colored ink beyond all four sides and outside
 the glass, and checks inactive pause, three static Reduce Motion dots, tool/input/
 idle/cancel retirement and restart. The scene phase is supplied by the isolated

@@ -24,9 +24,11 @@ private struct NativeMokuSwipeIntent {
 }
 
 enum NativeMokuSwipeTarget {
-    static func contains(_ point: CGPoint, row: CGRect,
+    static func contains(_ point: CGPoint, row: CGRect, eyesOnly: Bool,
                          excluding controls: [CGRect] = []) -> Bool {
-        return row.contains(point) && !controls.contains { $0.contains(point) }
+        let region = eyesOnly
+            ? CGRect(x: row.minX + 9, y: row.midY - 18, width: 46, height: 36) : row
+        return region.contains(point) && !controls.contains { $0.contains(point) }
     }
 }
 

@@ -1003,7 +1003,6 @@ public struct NativeWorkspaceView: View {
         } settings: {
             if presentation.scene.settingsOpen { settings }
         }
-        .environment(\.nativeMokuTheme, NativeMokuTheme(harnessID: model.catalog.moku?.harnessID))
         .overlay {
             if presentation.onboarding.blocksWorkspace, model.hasInitialContent {
                 NativeOnboardingSurface(state: presentation.onboarding, scene: presentation.scene,
@@ -1157,6 +1156,7 @@ public struct NativeWorkspaceView: View {
                     refreshSequence: request.refreshSequence, value: request.value))
             }, onSetAppearance: { try presentation.setAppearance($0) },
             onSetLocale: { try model.updateLocale($0) }, onClose: { _ in presentation.scene.closeSettings() },
+            mokuController: presentation.scene.settingsCharacter,
             onCoordinatorFrame: { presentation.scene.setCoordinatorFrame($0, pending: $1) })
     }
 }

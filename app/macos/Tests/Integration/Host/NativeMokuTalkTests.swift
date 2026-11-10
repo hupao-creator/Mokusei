@@ -246,7 +246,7 @@ struct NativeMokuTalkTests {
             .environment(\.locale, Locale(identifier: "en"))).fittingSize.width
         #expect(fullHistory > 60)
         for control: CGFloat in [30, 34, 65] {
-            let width = 28 + 2 * (4 + control + 7)
+            let width = 28 + 4 + control + 7
             let horizontal = NativeMokuNoteActionLayout(width: width, historyWidth: fullHistory,
                 controlWidth: control, hasMessage: false, isDispatch: false)
             let stacked = NativeMokuNoteActionLayout(width: width - 1, historyWidth: fullHistory,
