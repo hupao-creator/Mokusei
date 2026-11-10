@@ -31,13 +31,13 @@ struct NativeMokuVoiceComposerRestoration {
     let isDispatch: Bool
 
     private var trailing: CGFloat { controlWidth > 0 ? 7 : 18 }
-    private var fullActions: CGFloat { historyWidth + (controlWidth > 0 ? 4 + controlWidth : 0) + trailing }
+    private var fullActions: CGFloat { historyWidth + 2 * (controlWidth > 0 ? 4 + controlWidth + trailing : trailing) }
     // Preserve the message seat when a Stop or voice control retires.
     private var sharedActions: CGFloat {
         hasMessage ? historyWidth + 4 + max(34, controlWidth) + 7 : fullActions
     }
     var compact: Bool { fullActions > width }
-    var stacked: Bool { controlWidth > 0 && 28 + 4 + controlWidth + trailing > width }
+    var stacked: Bool { controlWidth > 0 && 28 + 2 * (4 + controlWidth + trailing) > width }
     var band: CGFloat {
         if stacked { return 80 }
         let requiredLeading = hasMessage ? NativeMokuTalkTypography.leading + (isDispatch ? 240 : 200) : 18
@@ -783,6 +783,7 @@ public struct NativeMokuDock: View {
     private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, messageWidth: CGFloat, rowHeight: CGFloat,
                          noteHeight: CGFloat, noteAvailableHeight: CGFloat, decorationPadding: CGFloat, settingsSize: CGSize) -> some View {
         let actionLayout = noteActions(width: surface.width)
+        let stackedControlHeight: CGFloat = stopControlPresent ? 30 : 34
         let historyBand = noteHistoryBand(width: surface.width)
         let composerVisible = inputPresent && state.inputOpen
         let followsEditor = (inputPresent && displayedMessage == nil) || composerSeatHeld || continuationPresenting
@@ -901,21 +902,32 @@ public struct NativeMokuDock: View {
             NativeMokuDockIdentity(harness: threadHarness, showsHarness: threadTitle != nil && !state.settingsOpen)
                 .position(identityCenter)
         }
+        .overlay(alignment: .bottom) {
+            if noteExpanded {
+                NativeMokuNoteHistoryButton(compact: actionLayout.compact) { state.setMokuOpen(true) }
+                    .fixedSize()
+                    .background {
+                        NativeMokuNoteHistoryButton {}.fixedSize().hidden()
+                            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { historyActionWidth = $0 }
+                            .accessibilityHidden(true).allowsHitTesting(false)
+                    }
+                    .opacity(noteInkVisible && !state.settingsOpen ? 1 : 0)
+                    .allowsHitTesting(state.notePanelOpen && noteSettled && !state.settingsOpen)
+                    .accessibilityHidden(!state.notePanelOpen || !noteSettled || state.settingsOpen)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: actionLayout.stacked ? 28 : (historyBand > 0 ? historyBand : rowHeight))
+                    // Match the upper seat of the stacked controls while keeping
+                    // History centered independently of their trailing inset.
+                    .padding(.bottom, actionLayout.stacked
+                        ? (historyBand - 28 + 4 + stackedControlHeight) / 2 : 0)
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             NativeMokuNoteActionStack(stacked: noteExpanded && actionLayout.stacked,
                 trailing: noteExpanded ? actionLayout.edgeInset : (stopControlPresent ? (expanded ? 7 : max(0, (surface.width - 30) / 2)) : 3),
                 height: historyBand > 0 ? historyBand : rowHeight) {
-                if noteExpanded {
-                    NativeMokuNoteHistoryButton(compact: actionLayout.compact) { state.setMokuOpen(true) }
-                        .fixedSize()
-                        .background {
-                            NativeMokuNoteHistoryButton {}.fixedSize().hidden()
-                                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { historyActionWidth = $0 }
-                                .accessibilityHidden(true).allowsHitTesting(false)
-                        }
-                        .opacity(noteInkVisible && !state.settingsOpen ? 1 : 0)
-                        .allowsHitTesting(state.notePanelOpen && noteSettled && !state.settingsOpen)
-                        .accessibilityHidden(!state.notePanelOpen || !noteSettled || state.settingsOpen)
+                if noteExpanded && actionLayout.stacked {
+                    Color.clear.frame(width: 28, height: 28)
                 }
                 if stopControlPresent {
                     Button(action: onCancel) {
