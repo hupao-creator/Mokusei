@@ -443,27 +443,14 @@ this sprint.
 
 `routingPreset` selects economy, balanced or performance guidance. Omitted/custom
 uses the existing `routingGuidance` unchanged. Presets never overwrite the user's
-retained manual text or Moku's own execution model. The admitted native creation
-catalog supplies exact Harness/provider/model identities; unavailable and unknown
-models cannot enter a preset through name guessing. Economy instructions contain
-only the efficiency group, performance only frontier, and balanced uses efficiency
-for routine work and frontier for complex tasks. No matching suitable candidate
-asks the user to configure a model or change preference, without silent expansion.
-This is Moku instruction policy, not a hard model admission allowlist.
+retained manual text or Moku's own execution model. Economy prioritizes
+cost-effective models; balanced prefers them for routine work and frontier models
+for complex reasoning, debugging and high-impact decisions; performance prioritizes
+frontier capabilities even for routine tasks. These are general priorities, with
+no fixed model mapping, candidate groups or preset-specific admission restrictions.
+Native creation schemas and admission still own available model choices.
 
-The explicit product mapping is in [routing_preferences.go](routing_preferences.go):
-
-| Group | Exact native model IDs |
-| --- | --- |
-| Efficiency | `gpt-reserve`, `gpt-6-luna`, `gpt-5.6-luna`, `gpt-5.6-terra`, `gpt-5.4-mini`, `gpt-5.4-nano`, `claude-haiku-5-5`, `claude-haiku-4-5`, `claude-haiku-4-5-20251001`, `deepseek-flash`, `deepseek-v4-flash`, `deepseek-v4-flash-free`, `bonsai-2-27b` |
-| Frontier | `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-sol`, `claude-opus-5-5`, `claude-fable-5`, `claude-fable-5-1`, `claude-fable-5-2` |
-
-These are reviewed routing groups, not measured price/performance rankings or
-promises of account access. They were checked against local native catalog
-identities and current [OpenAI](https://developers.openai.com/api/docs/models/all)
-and [Anthropic](https://platform.claude.com/docs/en/models/overview) model
-positioning. A mapping entry only becomes a candidate when present and usable in
-the selected native catalogs; new/unknown aliases require an explicit mapping
-update or custom guidance. `tools/verification/moku` exercises real SQLite
-save/restart, retained custom text, coordinator instruction injection and the
-production grouping with cross-tier and unknown model fixtures.
+[routing_preferences.go](routing_preferences.go) generates the guidance solely from
+settings. The coordinator appends it after the base prompt with the
+`Model routing guidance:` prefix. `tools/verification/moku` exercises real SQLite
+save/restart, retained custom text and production coordinator instruction injection.

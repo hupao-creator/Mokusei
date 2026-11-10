@@ -299,4 +299,4 @@ Moku model routing presets are validated settings fields, participate in setting
 change diagnostics and configuration equality, and are captured at execution
 admission. Missing/custom keeps existing manual routing guidance. Selecting a
 preset preserves that guidance for later restoration; the Moku service owns
-candidate groups and instruction generation.
+general routing priorities and instruction generation.

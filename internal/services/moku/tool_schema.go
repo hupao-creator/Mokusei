@@ -24,13 +24,7 @@ type TargetDescription struct {
 	DeferredNative bool
 	NativeSchema   json.RawMessage
 }
-type RoutingModel struct {
-	HarnessID string
-	Provider  string
-	ID        string
-}
 type ThreadCreationDescription struct {
-	RoutingModels           []RoutingModel
 	CatalogIdentities       map[string]string
 	InputSchema             json.RawMessage
 	TargetHarnessIDs        []string
@@ -97,11 +91,6 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 			return result, err
 		}
 		if envelope.Catalog != nil {
-			for _, entry := range envelope.Catalog.Models {
-				if entry.UnavailableReason == "" {
-					result.RoutingModels = append(result.RoutingModels, RoutingModel{HarnessID: target.HarnessID, Provider: entry.Provider, ID: entry.ID})
-				}
-			}
 			result.CatalogIdentities[target.HarnessID] = envelope.Catalog.ConfigurationID
 		}
 		delete(schema, "x-mokusei-model-catalog")

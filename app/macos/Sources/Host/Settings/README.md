@@ -212,14 +212,14 @@ They reuse the role-mode choice style, show a checkmark on the selected item and
 wrap into fewer columns as the window narrows. Chinese and English explanations
 refer only to cost-effective and frontier models; concrete model names and routing
 guidance remain owned by Runtime. The saved
-`moku.routingPreset` activates native-catalog-based guidance on the next Moku
+`moku.routingPreset` activates general routing guidance on the next Moku
 execution. Custom/omitted restores the separately retained `moku.routingGuidance`
 text editor; existing manual settings open as Custom. Selecting a preset and
 switching interface language never replaces that text. Tabs use discrete
 save semantics, retain keyboard/accessibility selection, and localize through
 `DesktopLocale` in Chinese and English. Custom text keeps its existing validation,
-composition, autosave and close-flush behavior. Runtime owns the model mapping
-and injects only candidates from the captured selected Harness catalogs; see
+composition, autosave and close-flush behavior. Runtime injects routing priorities without fixed model mappings or candidate
+groups; native creation admission still owns availability. See
 [model routing policy](../../../../../internal/services/moku/README.md#model-routing-preferences).
 `NativeModelRoutingPreferencesTests` mounts the real capsule controls and saves
 through the production draft to verify restoration and language changes. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;

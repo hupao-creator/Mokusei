@@ -816,9 +816,9 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			return current, collectErr
 		}
 		// Target options and worktree rules are already in the tool schemas.
-		// Routing preferences are captured with the admitted native catalog.
+		// Routing preferences are captured from the applied settings.
 		instructions := []string{DefaultSystemPrompt()}
-		if guidance := ModelRoutingGuidance(applied.AppliedSettings.Moku, description); guidance != "" {
+		if guidance := ModelRoutingGuidance(applied.AppliedSettings.Moku); guidance != "" {
 			instructions = append(instructions, "Model routing guidance:\n"+guidance)
 		}
 		tools := c.tools(current.ID, description)
