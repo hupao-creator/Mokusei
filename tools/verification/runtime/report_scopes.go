@@ -324,7 +324,8 @@ func verifyReportScopes(ctx context.Context) {
 	// after deleting the source. The report title-only update needs no source.
 	_, err = reportTool(ctx, aHandle, "update_report", "same-scope", model.Object{"reportId": aReport.ID, "expectedRevision": reportReadRevision(ctx, aHandle, aReport.ID), "relatedExecutions": refs[:1]})
 	must(err)
-	_, tagWrites := scopedTagCapabilities(r, aScope, "tag.restore-verification")
+	tagWrites, err := plugin.Require[plugin.SemanticTagsWriteCapability](r.BackgroundCapabilities(plugin.BackgroundAgentRef{PluginID: "tag", AgentID: "tag.restore-verification", Binding: plugin.ScopeBinding{Kind: plugin.DirectoryScopeKind, Scope: aScope}}, ""), plugin.SemanticTagsWriteCapabilityKey)
+	must(err)
 	_, err = tagWrites.Execute(ctx, plugin.SemanticTagOperation{Kind: "create", Name: "Restore label", Emoji: stringPointer("📚")}, plugin.BackgroundWriteOptions{RequestID: "restore-tag"})
 	must(err)
 	_, err = tagWrites.Execute(ctx, plugin.SemanticTagOperation{Kind: "assign", Thread: &model.ThreadRef{ThreadID: a.ID, TypeID: "agent"}, Tags: []string{"Restore label"}}, plugin.BackgroundWriteOptions{RequestID: "restore-label"})
