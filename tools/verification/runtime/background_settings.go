@@ -151,7 +151,7 @@ func verifyBackgroundSettings(ctx context.Context) {
 			verifyBackgroundSettingsCase(ctx, agent, independent)
 		}
 	}
-	fmt.Println("PASS production Tag/Report runners: configuration races do not spend batch retries; inheritance/override, admitted steering and next-batch settings remain isolated; cold orphan settlement and lingering background cleanup re-admit new-batch settings")
+	fmt.Println("PASS production Tag/Report runners: Tag ignores completed/failed/interrupted source executions; configuration races do not spend batch retries; inheritance/override, admitted steering and next-batch settings remain isolated; cold orphan settlement and lingering background cleanup re-admit new-batch settings")
 }
 
 func verifyBackgroundSettingsCase(ctx context.Context, agent string, independent bool) {
@@ -208,9 +208,11 @@ func verifyBackgroundSettingsCase(ctx context.Context, agent string, independent
 		}
 	}
 	must(app.Start(ctx, plugin.RuntimeStartContext{Reason: "startup"}))
+	var sourceHandles []*handle
 	trigger := func() {
 		created, err := r.CreateThread(ctx, core.CreateThreadRequest{HarnessID: "fixture", Cwd: root, Input: model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "settings boundary evidence"}}}})
 		must(err)
+		sourceHandles = append(sourceHandles, h.latest(created.Record.ID))
 		if agent == "report" {
 			finishReportFixture(ctx, h.latest(created.Record.ID), "completed")
 		}
@@ -285,6 +287,27 @@ func verifyBackgroundSettingsCase(ctx context.Context, agent string, independent
 		must(err)
 		return !exists
 	})
+	if agent == "tag" {
+		// The three accepted inputs above have settled. Commit real terminal
+		// observations so an ignored event cannot be confused with a missing one.
+		for i, status := range []string{"completed", "failed", "interrupted"} {
+			source := sourceHandles[i]
+			finishReportFixture(ctx, source, status)
+			events, err := db.Snapshot().EventIDs([]store.Filter{{Types: []string{"execution." + status}, SubjectIDs: []string{source.open.ThreadID}}})
+			must(err)
+			if len(events) != 1 {
+				panic("Tag wake replay did not publish the expected terminal event: " + status)
+			}
+		}
+		select {
+		case sent := <-h.sends:
+			panic("execution terminal event woke Tag: " + sent.execution)
+		case <-time.After(250 * time.Millisecond):
+		}
+		if _, exists, err := db.Snapshot().Work(owner.AgentID + ".events"); err != nil || exists {
+			panic(fmt.Sprintf("execution terminal event admitted Tag work: exists=%v err=%v", exists, err))
+		}
+	}
 	// The captured key initially matches the existing idle session. Reuse
 	// still needs to notice an actual profile edit that wins during discovery.
 	reuseEntered, reuseRelease := make(chan struct{}), make(chan struct{})
