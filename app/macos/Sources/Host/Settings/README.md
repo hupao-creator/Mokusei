@@ -109,10 +109,11 @@ appearance preference and other windows retain their existing ownership.
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
 same capsule grows toward a centered 780-point-wide surface, starting at a
 900-point preferred height and growing with the active form, bounded by 24-point
-viewport margins. Its expanded surface uses Regular Liquid Glass with a pure black tint
-(`.regular.tint(.black)`). Reduce Transparency keeps the existing opaque,
-appearance-aware background instead of mounting glass. The resident eyes travel into the reserved leading
-30-point header column and return to the composer with the shell. A single
+viewport margins. Its expanded surface uses the opaque native
+`NSColor.windowBackgroundColor` in the panel’s fixed dark appearance, with no tint
+or Liquid Glass. The same readable fill is used with Reduce Transparency.
+The resident eyes travel into the reserved leading 30-point header column and
+return to the composer with the shell. A single
 Close button replaces the full-page traffic-light/back capsule and its 74-point
 safe area; the main window retains its own native controls. When extreme zoom
 leaves less than 220 logical points of page height, the entire settings shell
@@ -206,7 +207,11 @@ text-field notifications cannot clear another editor's close/save gate.
 Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible. Local appearance/language persistence has its own path and works without a connected Runtime. General → Interface preferences saves `DesktopPreferences` directly without entering a Runtime draft. `desktop-preferences.json` stores `preferences.appearance` and `preferences.locale`; updates retain selection and onboarding state. Atomic write failures retain the prior observed value and show the existing preference error notice. Interaction snapshots expose the saved values as `settings.appearance` and `settings.locale`.
 
 Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku's “Model selection preferences” (模型选择偏好) offers Economy, Balanced,
-Performance and Custom capsule tabs below its execution fields. The saved
+Performance and Custom separate capsule buttons below its execution fields.
+They reuse the role-mode choice style, show a checkmark on the selected item and
+wrap into fewer columns as the window narrows. Chinese and English explanations
+refer only to cost-effective and frontier models; concrete model names and routing
+guidance remain owned by Runtime. The saved
 `moku.routingPreset` activates native-catalog-based guidance on the next Moku
 execution. Custom/omitted restores the separately retained `moku.routingGuidance`
 text editor; existing manual settings open as Custom. Selecting a preset and
@@ -222,7 +227,7 @@ Settings no longer exposes plugin enablement or service-restart instructions.
 
 The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
 same Moku coordination map with an in-memory settings model. Its `.compact`
-presentation omits map labels and model selection preferences. Settings also uses this map presentation and shows the model selection preferences switch directly. Both presentations
+presentation omits map labels and model selection preferences. Settings also uses this map presentation and shows the four model preference choices directly. Both presentations
 use the historical circular avatar (`8f3548f`) with the same selection, handoff
 and target feedback; the Settings page retains its native execution editors and saved values.
 
@@ -300,3 +305,8 @@ Attention uses the standard background configuration editor for enablement, inhe
 The former Report Agent section is named **Super Thread Agent**. Its existing
 `report.settings` identity, inherited/independent choices and enabled state are
 unchanged; reopening Settings requires no preference migration.
+
+All Harness advanced-options headers retain the native disclosure, with a
+full-width label and 32-point minimum hit height. Title, chevron and trailing space toggle the same
+disclosure; native keyboard activation, localized expanded state, disabled gates
+and the semantic interaction binding remain available. Collapsing retains values.

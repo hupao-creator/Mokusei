@@ -14,32 +14,24 @@ struct NativeModelRoutingPreferences: View {
     }
     var body: some View {
         SettingsRow(label: locale.text("模型选择偏好", "Model selection preferences"), stacked: true) {
-            HStack(spacing: 4) {
-                ForEach(options, id: \.0) { id, title in
-                    Button {
-                        choose(id)
-                    } label: {
-                        Text(title).font(NativeTypography.settings(size: 12, weight: selected == id ? 600 : 400))
-                            .padding(.horizontal, 16).padding(.vertical, 7)
-                            .frame(maxWidth: .infinity)
-                            .foregroundStyle(selected == id ? NativePalette.settings.text.swiftUI : NativePalette.settings.muted.swiftUI)
-                            .background { if selected == id { Capsule().fill(NativePalette.settings.selectedTabFill.swiftUI) } }
-                            .contentShape(Capsule())
-                    }.buttonStyle(.plain)
-                        .accessibilityAddTraits(selected == id ? .isSelected : [])
-                        .nativeSettingsAction("routingPreset." + id, label: title, selected: selected == id) { choose(id) }
+            GlassEffectContainer {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 12)], spacing: 12) {
+                    ForEach(options, id: \.0) { id, title in
+                        NativeSettingsChoiceButton(title, selected: selected == id) { choose(id) }
+                            .nativeSettingsAction("routingPreset." + id, label: title, selected: selected == id) { choose(id) }
+                    }
                 }
-            }.padding(4).background(Capsule().fill(NativePalette.settings.sidebar.swiftUI))
+            }
             Text(explanation).font(NativeTypography.settings(size: 12)).foregroundStyle(NativePalette.settings.muted.swiftUI)
                 .fixedSize(horizontal: false, vertical: true).padding(.top, 8)
         }
     }
     private var explanation: String {
         switch selected {
-        case "economy": locale.text("仅使用高性价比模型；如 GPT Luna、GPT Reserve、Claude Haiku 或 DeepSeek Flash。", "Use only cost-effective models, such as GPT Luna, GPT Reserve, Claude Haiku or DeepSeek Flash.")
-        case "balanced": locale.text("常规任务使用高性价比模型，复杂任务使用 frontier 模型，如 GPT Astra、GPT Sol 或 Claude Opus / Fable。", "Use cost-effective models for routine tasks and frontier models such as GPT Astra, GPT Sol or Claude Opus / Fable for complex tasks.")
-        case "performance": locale.text("仅使用 frontier 模型，如 GPT Astra、GPT Sol 或 Claude Opus / Fable。", "Use only frontier models, such as GPT Astra, GPT Sol or Claude Opus / Fable.")
-        default: locale.text("保留并使用你的手动偏好；留空则由 Moku 自行选择。", "Keep and use your manual preferences; leave blank to let Moku choose.")
+        case "economy": locale.text("仅使用高性价比模型。", "Use only cost-effective models.")
+        case "balanced": locale.text("常规任务用高性价比模型，复杂任务用前沿模型。", "Use cost-effective models for routine tasks and frontier models for complex tasks.")
+        case "performance": locale.text("仅使用前沿模型。", "Use only frontier models.")
+        default: locale.text("按你的偏好选择；留空由 Moku 决定。", "Use your preferences; leave blank to let Moku choose.")
         }
     }
     private func choose(_ id: String) {

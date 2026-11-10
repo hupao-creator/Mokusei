@@ -99,19 +99,7 @@ public struct NativeApplicationBackgroundEditor: View {
 
     private func modeChoice(_ title: String, choice: AgentChoice) -> some View {
         let selected = selectedChoice == choice
-        return Button { selectChoice(choice) } label: {
-            HStack(spacing: 7) {
-                Text(title).multilineTextAlignment(.center)
-                if selected { Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)) }
-            }
-            .font(.system(size: 12, weight: selected ? .medium : .regular))
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity).frame(minHeight: 42)
-            .glassEffect(.regular.interactive(), in: .capsule)
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        return NativeSettingsChoiceButton(title, selected: selected) { selectChoice(choice) }
         .nativeSettingsAction(choice.rawValue, label: title, selected: selected) { selectChoice(choice) }
     }
 

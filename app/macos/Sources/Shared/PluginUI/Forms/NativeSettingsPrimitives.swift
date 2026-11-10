@@ -405,6 +405,35 @@ private struct NativeSettingsSwitchStyle: ToggleStyle {
     private static var pointerEvent: Bool { NativePlatformInput.isPointerEvent }
 }
 
+/// Shared capsule choice used by role modes and model routing preferences.
+public struct NativeSettingsChoiceButton: View {
+    private let title: String
+    private let selected: Bool
+    private let action: () -> Void
+    public init(_ title: String, selected: Bool, action: @escaping () -> Void) {
+        self.title = title; self.selected = selected; self.action = action
+    }
+    public var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Text(title).multilineTextAlignment(.center)
+                if selected {
+                    Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold))
+                        .accessibilityHidden(true)
+                }
+            }
+            .font(.system(size: 12, weight: selected ? .medium : .regular))
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity).frame(minHeight: 42)
+            .glassEffect(.regular.interactive(), in: .capsule)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
 /// Keeps model choices visible while optional controls share one disclosure.
 /// Draft values belong to the caller, so collapsing never resets them.
 public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
@@ -438,6 +467,12 @@ public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
             } label: {
                 Text(NativePluginLocalization.localize("高级选项", locale: locale))
                     .font(NativeTypography.settings(size: 13))
+                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                    .contentShape(Rectangle())
+                    // Keep the native chevron/keyboard/AX behavior and let the
+                    // full label row toggle the same retained expansion state.
+                    .onTapGesture { expanded.toggle() }
+                    .accessibilityIdentifier("harness-advanced-options")
             }
             .background(NativeSettingsControlRegistration(descriptor: .object([
                 "kind": .text("disclosure"), "label": .text(NativePluginLocalization.localize("高级选项", locale: locale)),

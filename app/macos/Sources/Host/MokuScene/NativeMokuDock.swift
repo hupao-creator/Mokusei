@@ -983,7 +983,7 @@ public struct NativeMokuDock: View {
             ZStack {
                 NativeMokuCapsuleGlass(regular: noteExpanded).opacity(state.settingsExpanded ? 0 : 1)
                 if state.settingsOpen {
-                    NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0)
+                    NativeSettingsPanelBackground().opacity(state.settingsExpanded ? 1 : 0)
                 }
                 voiceBackground.opacity(state.settingsOpen ? 0 : 1)
             }
