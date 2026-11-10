@@ -1,5 +1,8 @@
 # Thread detail projection and publication
 
+For a current Release comparison of production Markdown, Textual and MarkdownUI,
+use the [standalone framework benchmark](framework-comparison/README.md).
+
 Run from the repository root with the pinned Go toolchain:
 
 ```sh

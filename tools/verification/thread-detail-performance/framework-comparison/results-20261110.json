@@ -1,0 +1,641 @@
+{
+  "measuredAt": "2026-11-10",
+  "baselineRevision": "a9cffb62a4f669c2f5b30cf3cd236210bc7c083c",
+  "sourceSHA256": "ee1a4e230dcabe1454172b718a5d2a939481b99d47a9edb92516f02fbfdd03c0",
+  "executableSHA256": "0abc0149d84ae604ca3c71a42622c8581ff76b6c4f4d2b7c61301c6de9d809e6",
+  "hardware": "Apple M1 Pro",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80\n",
+  "swift": "Apple Swift version 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0\n",
+  "fixtures": {
+    "prose": {
+      "sha256": "1c7726bd2887088aaa7be37eac7331e6d0ea8b01a4c2b1aa532c46bda8a2e559",
+      "bytes": 66608
+    },
+    "mixed": {
+      "sha256": "8a7c8edfde7965d0e22e0208070b12981be3d6c6b1ce6aa1b01fca9b1359e77f",
+      "bytes": 22778
+    },
+    "local-report": {
+      "sha256": "322f9748c21df205efa5faa83878b5c8803aebee44d7b9d878c3f83a4cb85846",
+      "bytes": 7622
+    }
+  },
+  "dependencyPins": [
+    {
+      "identity": "networkimage",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/gonzalezreal/NetworkImage",
+      "state": {
+        "revision": "2849f5323265386e200484b0d0f896e73c3411b9",
+        "version": "6.0.1"
+      }
+    },
+    {
+      "identity": "swift-cmark",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/swiftlang/swift-cmark",
+      "state": {
+        "revision": "08ddb528923cc1a6527e02b7a1aee9e516ca749a",
+        "version": "0.9.0"
+      }
+    },
+    {
+      "identity": "swift-concurrency-extras",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/pointfreeco/swift-concurrency-extras",
+      "state": {
+        "revision": "8a4260f7373493435bd21194585c95b72bfdd401",
+        "version": "1.4.3"
+      }
+    },
+    {
+      "identity": "swift-markdown",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/swiftlang/swift-markdown.git",
+      "state": {
+        "revision": "3c6f9523da3a1ec2fd829673e472d95b8097a3b8",
+        "version": "0.8.0"
+      }
+    },
+    {
+      "identity": "swift-markdown-ui",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/gonzalezreal/swift-markdown-ui",
+      "state": {
+        "revision": "8371aeb32f35795a9e559029fb08613355733626"
+      }
+    },
+    {
+      "identity": "swift-system",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-system.git",
+      "state": {
+        "revision": "869129b7bf4ecc57b97d0193ad29690ca2134750",
+        "version": "1.8.1"
+      }
+    },
+    {
+      "identity": "swift-url",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/karwa/swift-url.git",
+      "state": {
+        "revision": "9306a962396a50d7d88e924afcd7ec67226763db",
+        "version": "0.4.2"
+      }
+    },
+    {
+      "identity": "swiftui-math",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/gonzalezreal/swiftui-math",
+      "state": {
+        "revision": "0b5c2cfaaec8d6193db206f675048eeb5ce95f71",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "identity": "textual",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/gonzalezreal/textual",
+      "state": {
+        "revision": "01b51875a5406eefc95f52a058cb059e7bc94dc4"
+      }
+    },
+    {
+      "identity": "webrtc-xcframework",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/livekit/webrtc-xcframework.git",
+      "state": {
+        "revision": "c73deceaddd9c07293871ae28f24d4326cc86d62",
+        "version": "150.7871.2"
+      }
+    }
+  ],
+  "summary": {
+    "local-report": {
+      "production": {
+        "coldMountCPUMs": {
+          "median": 190.648,
+          "min": 190.41800000000003,
+          "max": 194.37600000000003
+        },
+        "warmMountCPUMs": {
+          "median": 98.99900000000001,
+          "min": 97.46700000000003,
+          "max": 100.12899999999996
+        },
+        "coldMountWallMs": {
+          "median": 295.3210833366029,
+          "min": 293.1812083115801,
+          "max": 297.14974999660626
+        },
+        "warmMountWallMs": {
+          "median": 228.01858335151337,
+          "min": 226.82262500165962,
+          "max": 229.0831666905433
+        },
+        "scrollCPUMs": {
+          "median": 732.1939999999998,
+          "min": 722.258,
+          "max": 733.899
+        },
+        "resizeCPUMs": {
+          "median": 66.72300000000008,
+          "min": 61.34700000000004,
+          "max": 69.38699999999986
+        },
+        "mountedFootprintMiB": {
+          "median": 71.36033630371094,
+          "min": 68.67285919189453,
+          "max": 82.14163208007812
+        },
+        "nativeTextViews": {
+          "median": 84,
+          "min": 84,
+          "max": 84
+        },
+        "nativeViews": {
+          "median": 215,
+          "min": 215,
+          "max": 215
+        },
+        "warmHeight": {
+          "median": 2669,
+          "min": 2669,
+          "max": 2669
+        },
+        "scrollLatenessP95Ms": 1.345708325970918,
+        "scrollLatenessMaxMs": 4.748458333779126,
+        "samples": 3
+      },
+      "textual": {
+        "coldMountCPUMs": {
+          "median": 298.863,
+          "min": 298.3640000000001,
+          "max": 313.86499999999995
+        },
+        "warmMountCPUMs": {
+          "median": 155.43099999999998,
+          "min": 153.39499999999995,
+          "max": 157.984
+        },
+        "coldMountWallMs": {
+          "median": 391.8016666721087,
+          "min": 391.36412501102313,
+          "max": 403.44133332837373
+        },
+        "warmMountWallMs": {
+          "median": 288.5894583305344,
+          "min": 286.9959999807179,
+          "max": 289.31841664598323
+        },
+        "scrollCPUMs": {
+          "median": 764.911,
+          "min": 753.1750000000001,
+          "max": 770.6270000000001
+        },
+        "resizeCPUMs": {
+          "median": 82.00300000000004,
+          "min": 80.56700000000005,
+          "max": 83.68600000000015
+        },
+        "mountedFootprintMiB": {
+          "median": 80.28239440917969,
+          "min": 80.11051940917969,
+          "max": 85.03239440917969
+        },
+        "nativeTextViews": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "nativeViews": {
+          "median": 40,
+          "min": 40,
+          "max": 40
+        },
+        "warmHeight": {
+          "median": 1967.5,
+          "min": 1967.5,
+          "max": 1967.5
+        },
+        "scrollLatenessP95Ms": 1.1673333356156945,
+        "scrollLatenessMaxMs": 1.1935416550841182,
+        "samples": 3
+      },
+      "markdownui": {
+        "coldMountCPUMs": {
+          "median": 273.23199999999997,
+          "min": 268.80800000000005,
+          "max": 279.918
+        },
+        "warmMountCPUMs": {
+          "median": 160.37100000000004,
+          "min": 154.79999999999993,
+          "max": 167.78800000000004
+        },
+        "coldMountWallMs": {
+          "median": 394.4634999788832,
+          "min": 393.3672499842942,
+          "max": 404.6502916608006
+        },
+        "warmMountWallMs": {
+          "median": 310.4260416585021,
+          "min": 306.0375416825991,
+          "max": 318.51808333885856
+        },
+        "scrollCPUMs": {
+          "median": 490.4059999999999,
+          "min": 487.5160000000001,
+          "max": 584.5210000000001
+        },
+        "resizeCPUMs": {
+          "median": 76.00300000000004,
+          "min": 73.92299999999996,
+          "max": 79.35999999999987
+        },
+        "mountedFootprintMiB": {
+          "median": 66.70413208007812,
+          "min": 66.42288208007812,
+          "max": 66.90723419189453
+        },
+        "nativeTextViews": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "nativeViews": {
+          "median": 162,
+          "min": 162,
+          "max": 162
+        },
+        "warmHeight": {
+          "median": 2166,
+          "min": 2166,
+          "max": 2166
+        },
+        "scrollLatenessP95Ms": 3.8214166706893593,
+        "scrollLatenessMaxMs": 6.478583352873102,
+        "samples": 3
+      }
+    },
+    "mixed": {
+      "production": {
+        "coldMountCPUMs": {
+          "median": 910.0250000000001,
+          "min": 886.3839999999999,
+          "max": 910.2750000000001
+        },
+        "warmMountCPUMs": {
+          "median": 968.744,
+          "min": 950.904,
+          "max": 985.29
+        },
+        "coldMountWallMs": {
+          "median": 896.2995416659396,
+          "min": 874.8526666604448,
+          "max": 908.1497916777153
+        },
+        "warmMountWallMs": {
+          "median": 954.8397916660178,
+          "min": 936.6083333152346,
+          "max": 970.8425000135321
+        },
+        "scrollCPUMs": {
+          "median": 2011.0290000000007,
+          "min": 1989.958,
+          "max": 2088.473
+        },
+        "resizeCPUMs": {
+          "median": 215.04399999999978,
+          "min": 211.75999999999993,
+          "max": 230.8589999999997
+        },
+        "mountedFootprintMiB": {
+          "median": 102.20426940917969,
+          "min": 97.61051940917969,
+          "max": 103.56366729736328
+        },
+        "nativeTextViews": {
+          "median": 640,
+          "min": 640,
+          "max": 640
+        },
+        "nativeViews": {
+          "median": 2029,
+          "min": 2029,
+          "max": 2029
+        },
+        "warmHeight": {
+          "median": 16534,
+          "min": 16534,
+          "max": 16534
+        },
+        "scrollLatenessP95Ms": 14.734041644260287,
+        "scrollLatenessMaxMs": 44.34695834061131,
+        "samples": 3
+      },
+      "textual": {
+        "coldMountCPUMs": {
+          "median": 1279.849,
+          "min": 1273.993,
+          "max": 1318.0700000000002
+        },
+        "warmMountCPUMs": {
+          "median": 1144.7279999999998,
+          "min": 1115.862,
+          "max": 1145.841
+        },
+        "coldMountWallMs": {
+          "median": 1255.1437499932945,
+          "min": 1252.2127916745376,
+          "max": 1324.7075833496638
+        },
+        "warmMountWallMs": {
+          "median": 1129.8078749969136,
+          "min": 1104.6186249877792,
+          "max": 1131.9355000159703
+        },
+        "scrollCPUMs": {
+          "median": 1993.543,
+          "min": 1974.872,
+          "max": 2015.9000000000003
+        },
+        "resizeCPUMs": {
+          "median": 414.50600000000026,
+          "min": 414.2790000000005,
+          "max": 422.8689999999995
+        },
+        "mountedFootprintMiB": {
+          "median": 252.51690673828125,
+          "min": 250.04813385009766,
+          "max": 253.25123596191406
+        },
+        "nativeTextViews": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "nativeViews": {
+          "median": 391,
+          "min": 391,
+          "max": 391
+        },
+        "warmHeight": {
+          "median": 15107.999999999996,
+          "min": 15107.999999999996,
+          "max": 15107.999999999996
+        },
+        "scrollLatenessP95Ms": 52.49316667323001,
+        "scrollLatenessMaxMs": 57.10700000054203,
+        "samples": 3
+      },
+      "markdownui": {
+        "coldMountCPUMs": {
+          "median": 852.353,
+          "min": 847.743,
+          "max": 865.3190000000001
+        },
+        "warmMountCPUMs": {
+          "median": 717.6759999999999,
+          "min": 710.417,
+          "max": 721.8850000000001
+        },
+        "coldMountWallMs": {
+          "median": 845.2739999920595,
+          "min": 834.581375005655,
+          "max": 855.4293333145324
+        },
+        "warmMountWallMs": {
+          "median": 722.9570833151229,
+          "min": 716.9271666789427,
+          "max": 728.3194999909028
+        },
+        "scrollCPUMs": {
+          "median": 1974.466,
+          "min": 1972.5889999999997,
+          "max": 1983.014
+        },
+        "resizeCPUMs": {
+          "median": 225.35499999999954,
+          "min": 222.7560000000004,
+          "max": 227.17899999999958
+        },
+        "mountedFootprintMiB": {
+          "median": 145.0792236328125,
+          "min": 144.8291778564453,
+          "max": 145.2667236328125
+        },
+        "nativeTextViews": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "nativeViews": {
+          "median": 1349,
+          "min": 1349,
+          "max": 1349
+        },
+        "warmHeight": {
+          "median": 15176,
+          "min": 15176,
+          "max": 15176
+        },
+        "scrollLatenessP95Ms": 17.305916699115187,
+        "scrollLatenessMaxMs": 21.322958345990628,
+        "samples": 3
+      }
+    },
+    "prose": {
+      "production": {
+        "coldMountCPUMs": {
+          "median": 329.612,
+          "min": 323.042,
+          "max": 360.442
+        },
+        "warmMountCPUMs": {
+          "median": 244.38799999999995,
+          "min": 239.60199999999998,
+          "max": 249.66600000000005
+        },
+        "coldMountWallMs": {
+          "median": 433.1455416686367,
+          "min": 423.99354168446735,
+          "max": 467.687083320925
+        },
+        "warmMountWallMs": {
+          "median": 335.65108332550153,
+          "min": 330.4624166630674,
+          "max": 344.78966664755717
+        },
+        "scrollCPUMs": {
+          "median": 1130.952,
+          "min": 1119.8160000000003,
+          "max": 1153.3470000000002
+        },
+        "resizeCPUMs": {
+          "median": 245.02600000000018,
+          "min": 244.94400000000027,
+          "max": 253.023
+        },
+        "mountedFootprintMiB": {
+          "median": 96.43850708007812,
+          "min": 95.76663208007812,
+          "max": 108.67290496826172
+        },
+        "nativeTextViews": {
+          "median": 160,
+          "min": 160,
+          "max": 160
+        },
+        "nativeViews": {
+          "median": 349,
+          "min": 349,
+          "max": 349
+        },
+        "warmHeight": {
+          "median": 16066,
+          "min": 16066,
+          "max": 16066
+        },
+        "scrollLatenessP95Ms": 1.1569999915082008,
+        "scrollLatenessMaxMs": 2.0410416764207184,
+        "samples": 3
+      },
+      "textual": {
+        "coldMountCPUMs": {
+          "median": 764.596,
+          "min": 757.379,
+          "max": 769.107
+        },
+        "warmMountCPUMs": {
+          "median": 696.98,
+          "min": 675.9040000000001,
+          "max": 704.0749999999999
+        },
+        "coldMountWallMs": {
+          "median": 782.5153750018217,
+          "min": 765.8557083341293,
+          "max": 786.2643333210144
+        },
+        "warmMountWallMs": {
+          "median": 726.8982916721143,
+          "min": 706.630666682031,
+          "max": 741.836625005817
+        },
+        "scrollCPUMs": {
+          "median": 1708.177,
+          "min": 1686.662,
+          "max": 1742.9869999999999
+        },
+        "resizeCPUMs": {
+          "median": 394.22399999999993,
+          "min": 385.52199999999993,
+          "max": 406.911
+        },
+        "mountedFootprintMiB": {
+          "median": 338.5636444091797,
+          "min": 337.5168151855469,
+          "max": 338.8917922973633
+        },
+        "nativeTextViews": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "nativeViews": {
+          "median": 31,
+          "min": 31,
+          "max": 31
+        },
+        "warmHeight": {
+          "median": 13424,
+          "min": 13424,
+          "max": 13424
+        },
+        "scrollLatenessP95Ms": 1.2126666842959821,
+        "scrollLatenessMaxMs": 2.0191250077914447,
+        "samples": 3
+      },
+      "markdownui": {
+        "coldMountCPUMs": {
+          "median": 759.374,
+          "min": 706.571,
+          "max": 764.1210000000001
+        },
+        "warmMountCPUMs": {
+          "median": 668.656,
+          "min": 616.505,
+          "max": 684.3070000000002
+        },
+        "coldMountWallMs": {
+          "median": 738.9001666742843,
+          "min": 693.2248333469033,
+          "max": 745.2743749890942
+        },
+        "warmMountWallMs": {
+          "median": 647.0891666831449,
+          "min": 595.8345000108238,
+          "max": 668.7947916798294
+        },
+        "scrollCPUMs": {
+          "median": 533.7710000000002,
+          "min": 533.1520000000003,
+          "max": 563.1239999999999
+        },
+        "resizeCPUMs": {
+          "median": 417.75399999999996,
+          "min": 403.75300000000004,
+          "max": 427.7099999999998
+        },
+        "mountedFootprintMiB": {
+          "median": 332.3448715209961,
+          "min": 332.2511215209961,
+          "max": 332.7355194091797
+        },
+        "nativeTextViews": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "nativeViews": {
+          "median": 349,
+          "min": 349,
+          "max": 349
+        },
+        "warmHeight": {
+          "median": 13424,
+          "min": 13424,
+          "max": 13424
+        },
+        "scrollLatenessP95Ms": 2.8799999854527414,
+        "scrollLatenessMaxMs": 5.342249991372228,
+        "samples": 3
+      }
+    }
+  },
+  "sampleCount": 27,
+  "captureIncluded": false,
+  "visualFinding": {
+    "textualEmptyTableCell": "Notes value shifts into empty Status column; production and MarkdownUI preserve the empty cell",
+    "selection": {
+      "production": {
+        "characters": 119,
+        "firstParagraph": true,
+        "secondParagraph": true,
+        "inlineCode": true
+      },
+      "textual": {
+        "characters": 118,
+        "firstParagraph": true,
+        "secondParagraph": true,
+        "inlineCode": true
+      },
+      "markdownui": {
+        "characters": 77,
+        "firstParagraph": true,
+        "secondParagraph": false,
+        "inlineCode": false
+      }
+    }
+  }
+}
