@@ -46,7 +46,7 @@ import MokuseiCore
         try await surfaces()
         try await settingsPage()
         precondition(!(NSApp?.windows.contains(where: \.isVisible) ?? false))
-        print("PASS: windowless Moku Dock/history/interaction; Settings slot and page retain dark in a light host; native editor, dark caret/glow/breathing, appearance changes and Reduce Motion")
+        print("PASS: windowless Moku Dock/history/interaction retain dark; Settings slot and page inherit appearance; native editor, dark caret/glow/breathing, appearance changes and Reduce Motion")
     }
 
     @MainActor private static func caret() throws {
@@ -133,15 +133,15 @@ import MokuseiCore
         }
         state.openSettings()
         try await settle(host)
-        precondition(probe("settings", in: host) == .dark,
-                     "The Dock's Settings slot must stay dark in a light workspace")
+        precondition(probe("settings", in: host) == .light,
+                     "The Dock's Settings slot must follow the light workspace")
         host.rootView = root(.dark)
         try await settle(host)
         precondition(probe("settings", in: host) == .dark)
         host.rootView = root(.light)
         try await settle(host)
-        precondition(probe("settings", in: host) == .dark,
-                     "An appearance change must not lighten the open Settings slot")
+        precondition(probe("settings", in: host) == .light,
+                     "An appearance change must update the open Settings slot")
         precondition(draft.text == "Preserved draft 光标")
         state.closeSettings()
         host.rootView = root(.light, interaction: true)
@@ -160,8 +160,7 @@ import MokuseiCore
         }
     }
 
-    /// The page owns the same dark scope, so it stays dark even when a light
-    /// host mounts it directly, without the Dock slot around it.
+    /// Direct hosts and the Dock slot share the same inherited page appearance.
     @MainActor private static func settingsPage() async throws {
         let settings: JSONValue = .object(["moku": .object([
             "hostHarnessPreference": .text("codex"), "targetHarnessIds": .array([]),
@@ -186,8 +185,8 @@ import MokuseiCore
         host.frame = CGRect(x: 0, y: 0, width: 900, height: 700)
         host.appearance = NSAppearance(named: .aqua)
         try await settle(host)
-        precondition(probe("settings-page", in: host) == .dark,
-                     "The Settings page must scope its own dark appearance")
+        precondition(probe("settings-page", in: host) == .light,
+                     "The Settings page must inherit its host's appearance")
         precondition(host.window == nil)
         model.discardForReload()
     }

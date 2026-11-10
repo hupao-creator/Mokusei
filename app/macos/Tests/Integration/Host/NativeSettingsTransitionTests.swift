@@ -168,8 +168,8 @@ struct NativeSettingsTransitionTests {
             let fixture = SettingsTransitionFixture()
             fixture.size = size; fixture.scale = scale; fixture.landing = landing
             let window = SwiftUIReplay.window(SettingsTransitionReplay(fixture: fixture), width: size.width, height: size.height)
-            // Pin the host's appearance so the dark page is sampled against a
-            // light surface instead of the machine's current system appearance.
+            // Pin the host's appearance so the adaptive panel is sampled in
+            // light mode instead of the machine's current system appearance.
             // Only the content view is pinned: changing the live window's own
             // appearance perturbs click delivery in the later serialized cases.
             try #require(window.contentView).appearance = NSAppearance(named: .aqua)
@@ -193,8 +193,8 @@ struct NativeSettingsTransitionTests {
                 // The 900pt preferred page is capped by the 780pt viewport's
                 // existing 24pt top and bottom margins.
                 #expect(abs(panel.width - 780) < 1 && abs(panel.height - 732) < 1)
-                #expect(try await panelLuminance(window, panel: panel) < 0.6,
-                        "The dark Settings page and glass shell must not follow the light window")
+                #expect(try await panelLuminance(window, panel: panel) > 0.8,
+                        "The opaque Settings panel must follow the light window")
             }
             let before = fixture.pageSize
             fixture.navigation.section = "moku"

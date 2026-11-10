@@ -1,6 +1,6 @@
 import SwiftUI
 
-// The scene supplies the page; the resident Dock owns its single glass surface.
+// The scene supplies the page; the resident Dock owns the expanding surface.
 // This slot keeps Settings independent of the composer's execution dependencies.
 extension EnvironmentValues {
     @Entry var nativeMokuSettingsContent = AnyView(EmptyView())
