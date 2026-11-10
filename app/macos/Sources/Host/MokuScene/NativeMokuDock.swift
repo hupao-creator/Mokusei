@@ -914,6 +914,10 @@ public struct NativeMokuDock: View {
                     .compositingGroup()
                     .opacity(state.settingsExpanded ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: state.settingsClosing ? 0.12 : 0.22), value: state.settingsExpanded)
+                    // Resolve placement with the shell's animation, outside both
+                    // the faster ink fade and the page's discrete layout. Without
+                    // this boundary the page jumps to the collapsed Dock's origin.
+                    .geometryGroup()
                     .disabled(state.settingsClosing)
                     .allowsHitTesting(!state.settingsClosing)
                     .accessibilityHidden(state.settingsClosing)
