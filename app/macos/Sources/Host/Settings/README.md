@@ -164,6 +164,10 @@ selects and CLI status. Its model menu retains a custom-identifier choice for
 native aliases and models outside the advertised catalog; selecting a catalog
 model still updates dependent effort choices as one draft group. An uninitialized
 execution profile displays loading status until native discovery returns.
+Unknown thinking capabilities show a warning and defer execution-profile effort
+confirmation to native `get_settings` during save. Only advertised effort-based
+models require an effort choice before submitting the draft. Known unsupported
+choices, disabled models and native applied-value mismatches still reject saves.
 
 The connected workspace starts installation discovery and prefetches the real
 typed settings resources before Settings opens. Enabled Harness defaults, Moku

@@ -220,7 +220,13 @@ struct ClaudeHarnessSettingsView: View {
     private var efforts: [String] { (props.executionSnapshot ? selected?["thinking"]?["efforts"]?.arrayValue : selected?["supportedEfforts"]?.arrayValue)?.compactMap(\.stringValue) ?? [] }
     private var effortOptions: [NativeSettingsOption] {
         let fixed = selected?["thinking"]?.claudeKind == "fixed"
-        let prompt = props.executionSnapshot ? fixed ? "模型不提供推理强度配置" : "请选择推理强度" : "跟随 Claude 配置"
+        let prompt: String
+        switch (props.executionSnapshot, selected?["thinking"]?.claudeKind) {
+        case (false, _): prompt = "跟随 Claude 配置"
+        case (true, "fixed"): prompt = "模型不提供推理强度配置"
+        case (true, "effort"): prompt = "请选择推理强度"
+        default: prompt = "保存时由 Claude 确认"
+        }
         var options = [NativeSettingsOption(id:"",label:t(prompt),disabled:props.executionSnapshot && !fixed)]
         if let effort = profile["effort"]?.stringValue, !efforts.contains(effort) { options.append(NativeSettingsOption(id:JSONText(effort),label:effort + " · " + t("目录中不可用"))) }
         options += efforts.map { NativeSettingsOption(id:JSONText($0),label:$0) }
@@ -241,7 +247,7 @@ struct ClaudeHarnessSettingsView: View {
     private func emit(_ next:JSONValue) {
         if props.executionSnapshot {
             let model = models.first { $0["value"] == next["model"] }
-            if next["model"] == nil || next["permissionMode"] == nil || (model?["thinking"]?.claudeKind != "fixed" && next["effort"] == nil) {
+            if next["model"] == nil || next["permissionMode"] == nil || (model?["thinking"]?.claudeKind == "effort" && next["effort"] == nil) {
                 pendingProfile = next; return
             }
         }

@@ -33,7 +33,7 @@ struct ClaudeSettingsControlReplayTests {
         try await operate("customModel", "set", .text("external-model"), fixture, window)
         #expect(fixture.controls["claude.customModel"]?["value"] == .text("external-model"))
         #expect(fixture.controls["claude.effort"]?["enabled"] == .bool(false))
-        #expect(fixture.changes == 0) // Unknown capability cannot complete a snapshot.
+        #expect(fixture.changes == 1) // Native capture confirms unknown capability during save.
 
         try await select("model", label: "Fixed model", fixture, window)
         #expect(fixture.value.json["threadSettings"]?["model"] == .text("fixed"))

@@ -59,8 +59,18 @@ model identifiers, and catalog selections retain the exact identifier.
 Thread thinking choices and execution-profile effort remain distinct contracts.
 Changing a model still clears incompatible dependent choices, incomplete execution
 profiles stay local until complete, fixed-capability models need no effort, and
-unknown capabilities are not guessed. Permission values and inherited/default
+unknown capabilities defer confirmation to native execution-profile capture.
+Permission values and inherited/default
 configuration semantics stay owned by the Claude adapter.
+
+Execution-profile capture accepts an unadvertised or unknown-capability concrete
+model only after native `get_settings` confirms the applied model and any selected
+effort. It retains the observed effort, or omits it when native settings omit it,
+without assigning a thinking capability to the catalog. Known effort lists and
+explicit `supportsEffort=false` remain authoritative; disabled models, invalid
+applied efforts, native mismatches and catalog acquisition failures reject the
+capture. The editor's unknown-capability notice remains visible. Ordinary Thread
+creation continues to require advertised thinking controls.
 
 Run `xcrun swift test --package-path app/macos --filter ClaudeSettingsControlReplayTests`
 in a graphical macOS session for the mounted production settings controls with a

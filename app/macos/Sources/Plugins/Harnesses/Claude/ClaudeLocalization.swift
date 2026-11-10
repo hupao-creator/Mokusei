@@ -74,6 +74,7 @@ let claudeEnglish: [String:String] = [
     "无法确认此模型的推理强度能力。": "The reasoning effort capabilities of this model could not be confirmed.",
     "推理强度能力不可确认": "Reasoning effort capabilities could not be confirmed",
     "请选择推理强度": "Select reasoning effort",
+    "保存时由 Claude 确认": "Confirmed by Claude when saving",
     "请选择权限模式": "Select a permission mode",
     "字段约束": "Field constraints",
     "JSON 表单内容": "JSON form content",
