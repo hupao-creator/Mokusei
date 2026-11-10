@@ -156,8 +156,8 @@ tool descriptions or another Agent's prompt.
 
 The three-sentence budget is **not a cap on the provider's entire model input**:
 
-- Saved `Moku.RoutingGuidance` is appended verbatim as user configuration after
-  the built-in prompt and has no sentence cap within its existing settings
+- In omitted/custom mode, saved `Moku.RoutingGuidance` is appended verbatim as
+  user configuration after the built-in prompt and has no sentence cap within its existing settings
   limits; it neither replaces the base nor overrides explicit
   user routing choices.
 - Existing tool descriptions and schemas retain their full contracts: exact
@@ -444,13 +444,17 @@ this sprint.
 `routingPreset` selects economy, balanced or performance guidance. Omitted/custom
 uses the existing `routingGuidance` unchanged. Presets never overwrite the user's
 retained manual text or Moku's own execution model. Economy prioritizes
-cost-effective models; balanced prefers them for routine work and frontier models
-for complex reasoning, debugging and high-impact decisions; performance prioritizes
-frontier capabilities even for routine tasks. These are general priorities, with
+cost-effective models; balanced adds no routing guidance, retaining only the
+already-injected three-sentence base prompt and existing tool contracts, as the
+default did before routing presets. It neither duplicates the base prompt nor
+injects retained custom text. Performance prioritizes frontier capabilities even
+for routine tasks. These are general priorities, with
 no fixed model mapping, candidate groups or preset-specific admission restrictions.
 Native creation schemas and admission still own available model choices.
 
 [routing_preferences.go](routing_preferences.go) generates the guidance solely from
-settings. The coordinator appends it after the base prompt with the
-`Model routing guidance:` prefix. `tools/verification/moku` exercises real SQLite
+settings. The coordinator appends nonempty guidance after the base prompt with the
+`Model routing guidance:` prefix. Explicit user Harness/model/thinking choices
+still take precedence through the creation/follow-up tool contracts.
+`tools/verification/moku` exercises real SQLite
 save/restart, retained custom text and production coordinator instruction injection.

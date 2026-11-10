@@ -9,7 +9,9 @@ func ModelRoutingGuidance(settings model.MokuSettings) string {
 	case "economy":
 		return "Economy: prioritize cost-effective models when delegating tasks."
 	case "balanced":
-		return "Balanced: prefer cost-effective models for routine, bounded tasks and frontier models for complex reasoning, difficult debugging and high-impact decisions. Balance cost and capability for the task."
+		// Before presets, defaults added no routing policy to the base prompt.
+		// The coordinator already injects that base exactly once.
+		return ""
 	case "performance":
 		return "Performance: prioritize frontier model capabilities when delegating tasks, including routine tasks."
 	default:

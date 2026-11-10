@@ -48,11 +48,17 @@ func runRoutingPreferencesReplay() error {
 		}
 		h.mu.Unlock()
 		guidance := moku.ModelRoutingGuidance(restored.Moku)
-		mokuReplayCheck(strings.Contains(instructions, "Model routing guidance:\n"+guidance), "routing preference missing from native injection")
+		if preset == "balanced" {
+			mokuReplayCheck(guidance == "" && instructions == moku.DefaultSystemPrompt(), "balanced preference changed or duplicated the pre-preset default instructions")
+		} else {
+			mokuReplayCheck(strings.Contains(instructions, "Model routing guidance:\n"+guidance), "routing preference missing from native injection")
+		}
 		if preset == "custom" {
 			mokuReplayCheck(guidance == "retained manual policy", "custom preference changed")
 		} else {
-			mokuReplayCheck(strings.HasPrefix(guidance, strings.ToUpper(preset[:1])+preset[1:]+":"), "wrong preset guidance injected")
+			if preset != "balanced" {
+				mokuReplayCheck(strings.HasPrefix(guidance, strings.ToUpper(preset[:1])+preset[1:]+":"), "wrong preset guidance injected")
+			}
 			mokuReplayCheck(!strings.Contains(instructions, "retained manual policy"), "preset included retained custom text")
 			mokuReplayCheck(!strings.Contains(guidance, "Candidate groups:") && !strings.Contains(guidance, "gpt-") && !strings.Contains(guidance, "listed"), "preset still restricts routing to fixed candidates")
 		}
