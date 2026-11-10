@@ -41,6 +41,10 @@ Close seals even stale reads, cancels every active probe and joins cleanup.
 `SourceIdentity` is a bounded routing dependency fingerprint for a resolved
 launch. It visits lexical and canonical workspace ancestors, the owning native
 namespace, symlinks and recognized literal references (including `{file:...}`).
+For Codex, ancestor namespaces contribute only `config.toml`; its native home
+also stores desktop state, plugin caches and worktrees which are not implicit
+configuration dependencies. Adapter-selected root files and explicit references
+remain observed, including references outside the namespace.
 Configuration text is hashed, not logged or persisted. The bound is 4096 paths,
 4 MiB per text file and 16 MiB per read. Inspection errors/limits reject identity
 rather than silently skipping inputs. Runtime-owned caches/history and dependency
