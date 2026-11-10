@@ -2,6 +2,12 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+The Moku Map tint artwork lives in [Resources/moku-map](Resources/moku-map).
+Codex uses the blue sphere from the [application icon](../../../build/SOURCES.md).
+The Claude, Pi and OpenCode variants were generated from that sphere and reviewed
+in the native preview. `NativeMokuMapLogoArtwork` loads each tint once at bounded
+resolution and trims the illustrated rim for the system glass.
+
 `NativeReportExecutionInputKey` carries the expanded Report execution's exact
 reference, content/landing readiness and destination frame to its Host shell. It is absent in list, folded,
 Browser and suppressed states. The Host converts that geometry through the same

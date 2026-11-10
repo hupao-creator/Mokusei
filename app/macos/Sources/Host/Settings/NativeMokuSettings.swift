@@ -17,6 +17,7 @@ import SwiftUI
     // Compact panels keep the same map and character without group explanations.
     var presentation = Presentation.settings
     var showsRoutingGuidance = false
+    var showsHarnessArtwork = false
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
@@ -246,21 +247,29 @@ import SwiftUI
     }
 
     private func coordinator(_ host: AnyHarnessPlugin, sourceX: CGFloat, now: Double) -> some View {
+        let artwork = showsHarnessArtwork ? NativeMokuMapLogoArtwork.image(for: host.descriptor.id) : nil
+        let usesArtwork = artwork != nil
         let handoff = motion.handoff.map { NativeMokuSettingsMotion.handoff(elapsedMilliseconds: now - $0.startedAt, direction: $0.direction) }
         let feedback = motion.feedback.map { NativeMokuSettingsMotion.feedback(enabled: $0.request.enabled, gazeX: $0.request.gazeX,
                                                                               elapsedMilliseconds: now - $0.startedAt) }
-        let idle = motion.idleStartedAt.map { NativeMokuSettingsMotion.idle(elapsedMilliseconds: now - $0) }
+        let idle = usesArtwork ? nil : motion.idleStartedAt.map { NativeMokuSettingsMotion.idle(elapsedMilliseconds: now - $0) }
         let previous = motion.handoff?.previousID.flatMap { id in harnesses.first { $0.descriptor.id.string == id } }
         return ZStack {
-            MokuCharacterView(mode: .idle, motionActive: !model.mokuInFlight, scope: "settings", identity: "moku", controller: controller,
-                              usesResident: false, eyeMotion: motion.handoff?.eyeMotion ?? motion.feedback?.eyeMotion)
-                .frame(width: 122.4, height: 122.4)
+            if let artwork {
+                NativeMokuMapGlassLogo(artwork: artwork)
+            } else {
+                MokuCharacterView(mode: .idle, motionActive: !model.mokuInFlight, scope: "settings", identity: "moku", controller: controller,
+                                  usesResident: false, eyeMotion: motion.handoff?.eyeMotion ?? motion.feedback?.eyeMotion)
+                    .frame(width: 122.4, height: 122.4)
+            }
             NativeMokuEngineHandoff(current: host, previous: previous, elapsedMilliseconds: motion.handoff.map { now - $0.startedAt } ?? 1050)
                 .scaleEffect(feedback?.engine.scale ?? 1).opacity(feedback?.engine.opacity ?? 1)
                 .scaleEffect(1.7).offset(y: 18.7)
         }.frame(width: 81.6, height: 81.6)
-            .modifier(NativeMokuSettingsTransform(pose: feedback?.body ?? idle ?? .init()))
-            .modifier(NativeMokuSettingsTransform(pose: handoff?.receipt ?? .init()))
+            // Rotation and squash change the native glass bounds separately from the tint.
+            // The logo stays circular and moves only with the coordinating seat.
+            .modifier(NativeMokuSettingsTransform(pose: usesArtwork ? .init() : feedback?.body ?? idle ?? .init()))
+            .modifier(NativeMokuSettingsTransform(pose: usesArtwork ? .init() : handoff?.receipt ?? .init()))
             .offset(y: (handoff?.approachY ?? 0) * 1.7)
             .opacity(model.mokuInFlight ? 0 : 1)
             .background(GeometryReader { seat in
@@ -328,5 +337,31 @@ import SwiftUI
         let index = supported.firstIndex { $0.descriptor.id.string == current } ?? 0
         let next = key == .home ? 0 : key == .end ? supported.count - 1 : (index + (key == .leftArrow || key == .upArrow ? -1 : 1) + supported.count) % supported.count
         selectHost(supported[next]); focusedHost = supported[next].descriptor.id.string
+    }
+}
+
+private struct NativeMokuMapGlassLogo: View {
+    let artwork: Image
+    @Environment(\.accessibilityReduceTransparency) private var opaque
+
+    // Keep the logo colors saturated and let more glass show through in the last fifth.
+    private static let tintOpacity = LinearGradient(stops: [
+        .init(color: .white.opacity(0.94), location: 0),
+        .init(color: .white.opacity(0.94), location: 0.80),
+        .init(color: .white.opacity(0.80), location: 1),
+    ], startPoint: .top, endPoint: .bottom)
+
+    var body: some View {
+        artwork.resizable().interpolation(.high)
+            // Match the circular character's diameter and center in the seat.
+            .frame(width: 62.7, height: 62.7)
+            .clipShape(Circle())
+            .mask {
+                if opaque { Color.white }
+                else { Self.tintOpacity }
+            }
+            .glassEffect(opaque ? .identity : .clear, in: Circle())
+            .offset(y: -3.8)
+            .accessibilityHidden(true)
     }
 }
