@@ -64,16 +64,20 @@ func (c *Coordinator) tools(owner string, description ThreadCreationDescription)
 			if len(call.Arguments) > 8*1024*1024 || !json.Valid(call.Arguments) {
 				return nil, errors.New("Moku tool arguments must be bounded JSON")
 			}
+			arguments, err := normalizeToolArguments(binding.InputSchema, call.Arguments)
+			if err != nil {
+				return nil, err
+			}
 			callID := newID()
 			operationID := newID()
 			created := time.Now().UnixMilli()
-			if err = c.appendTranscript(linked, owner, map[string]any{"type": "tool-operation", "id": operationID, "executionId": execution.ExecutionID, "callId": callID, "invocationId": call.InvocationID, "harnessCallId": call.CallID, "name": binding.Name, "arguments": call.Arguments, "createdAt": created}); err != nil {
+			if err = c.appendTranscript(linked, owner, map[string]any{"type": "tool-operation", "id": operationID, "executionId": execution.ExecutionID, "callId": callID, "invocationId": call.InvocationID, "harnessCallId": call.CallID, "name": binding.Name, "arguments": arguments, "createdAt": created}); err != nil {
 				return nil, err
 			}
 			var result json.RawMessage
-			invokeErr := plugin.CallerError(validate(call.Arguments))
+			invokeErr := plugin.CallerError(validate(arguments))
 			if invokeErr == nil {
-				result, invokeErr = c.executeTool(linked, owner, binding.Name, call.Arguments, description)
+				result, invokeErr = c.executeTool(linked, owner, binding.Name, arguments, description)
 			}
 			if invokeErr == nil && (len(result) > 8*1024*1024 || !json.Valid(result)) {
 				invokeErr = errors.New("Moku tool result exceeds the JSON boundary")
@@ -167,14 +171,18 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			if err != nil {
 				return nil, err
 			}
-			if err = validateToolJSON(schema, target.Options); err != nil {
+			options, err := normalizeToolArguments(schema, target.Options)
+			if err != nil {
+				return nil, plugin.CallerError(err)
+			}
+			if err = validateToolJSON(schema, options); err != nil {
 				return nil, plugin.CallerError(err)
 			}
 			defaults, err := h.Settings().DefaultThread(settings)
 			if err != nil {
 				return nil, err
 			}
-			return h.Settings().ResolveThread(ctx, plugin.ResolveSettingsRequest{Merged: defaults, Requested: target.Options, Cwd: cwd})
+			return h.Settings().ResolveThread(ctx, plugin.ResolveSettingsRequest{Merged: defaults, Requested: options, Cwd: cwd})
 		}
 		if c.config.CreateThread == nil {
 			return nil, errors.New("Moku thread creation unavailable")
