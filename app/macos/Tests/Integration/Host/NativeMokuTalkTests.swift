@@ -72,7 +72,7 @@ struct NativeMokuTalkTests {
                      "one\ntwo\nthree\nfour\nfive\nsix"] {
             let width: CGFloat = 180
             #expect(NativeMokuTalkTypography.height(text, width: width) > NativeMokuTalkTypography.maximumHeight)
-            #expect(NativeMokuTalkTypography.capsuleHeight(text, width: width + 84)
+            #expect(NativeMokuTalkTypography.capsuleHeight(text, width: width + 38)
                 == NativeMokuTalkTypography.maximumHeight + 38)
             let host = NSHostingView(rootView: NativeMokuTalkContent(message: .init(id: "overflow", text: text))
                 .frame(width: width, height: NativeMokuTalkTypography.maximumHeight))
@@ -193,7 +193,7 @@ struct NativeMokuTalkTests {
     }
 
     @Test(arguments: [false, true])
-    func longMessagesKeepClearOfEyesWithoutOpeningAWindow(running: Bool) async throws {
+    func longMessagesFitTheCapsuleAndReserveStopWithoutOpeningAWindow(running: Bool) async throws {
         func descendants<T: NSView>(_ root: NSView, of type: T.Type) -> [T] {
             ((root as? T).map { [$0] } ?? [])
                 + root.subviews.flatMap { descendants($0, of: type) }
@@ -204,7 +204,7 @@ struct NativeMokuTalkTests {
                                        ("en", String(repeating: "W", count: 160))] {
                     let state = NativeMokuSceneState()
                     state.setWindowVisible(true)
-                    state.receiveTalk(.init(id: "headless-eyes", text: text))
+                    state.receiveTalk(.init(id: "headless-talk", text: text))
                     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
                     let host = NSHostingView(rootView: NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
                         landing: landing, running: running, talk: text, onSend: { _ in }, onCancel: {})
@@ -220,16 +220,9 @@ struct NativeMokuTalkTests {
                         try await Task.sleep(for: .milliseconds(10))
                     }
                     #expect(host.window == nil)
-                    let face = try #require(descendants(host, of: NativeMokuCharacterCanvas.self).first { $0.seat == .face })
                     let scroll = try #require(descendants(host, of: NSScrollView.self).first { SwiftUIReplay.text(in: $0).contains(text) })
-                    let pose = face.controller.pose
-                    let eyes = NativeMokuCapsuleEyes(left: pose.eye("l"), right: pose.eye("r"))
-                        .path(in: face.bounds).boundingRect
-                    let eyeFrame = host.convert(eyes, from: face)
                     let textFrame = host.convert(scroll.contentView.bounds, from: scroll.contentView)
-                    #expect(eyeFrame.width > 0 && textFrame.width > 0)
-                    #expect(eyeFrame.maxX + 8 <= textFrame.minX,
-                            "Eyes overlap text at width \(width), landing \(landing), locale \(locale)")
+                    #expect(textFrame.width > 0)
                     #expect(SwiftUIReplay.text(in: host).contains(text))
                     #expect(textFrame.minX >= state.capsuleFrame.minX)
                     #expect(textFrame.maxX <= state.capsuleFrame.maxX)

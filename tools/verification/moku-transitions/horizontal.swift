@@ -52,6 +52,8 @@ private struct HorizontalScene: View {
                 threadID: "horizontal-fixture", threadTitle: "Fixture Agent", sidecardComposer: fixture.request,
                 onSend: { _ in }, onCancel: {})
         } settings: { Color.white }
+        // AppKit hosting has no SwiftUI App scene to publish an active phase.
+        .environment(\.scenePhase, .active)
         .environment(\.colorScheme, .light)
     }
 }
@@ -154,7 +156,13 @@ private final class HorizontalCapture: NSObject, SCStreamOutput, @unchecked Send
         fixture.toggle()
         try await awaitHorizontal("new column publication") { fixture.state.executionDockPlacement.travelRevision > previousRevision }
         let targetRevision = fixture.state.executionDockPlacement.travelRevision
-        try await Task.sleep(for: .milliseconds(180))
+        // Inject the stall once WindowServer shows travel. The current monotone
+        // easing has nearly arrived after a fixed 180ms wait, leaving too little
+        // path to test compositor continuity while the main actor is held.
+        try await awaitHorizontal("first optical travel frame") {
+            guard let frame = capture.snapshot().last else { return false }
+            return abs(frame.x - initialPixels.x) > 20
+        }
         guard fixture.arrivals[targetRevision] == nil else { throw HorizontalFailure(description: "Column admitted before horizontal arrival") }
         guard let surface = horizontalSurface(in: host), let optical = capture.snapshot().last else {
             throw HorizontalFailure(description: "Missing native travel surface or optical frame")

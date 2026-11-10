@@ -35,6 +35,8 @@ headless lifecycle checks and optional installed-CLI mock-provider verification,
 see [release runtime health](release-health/README.md).
 
 For shared native loading-cloud motion, see the [Swift cloud replay](cloud-motion/README.md).
+For the existing Moku three-dot orbit and lifecycle checks, see the
+[orbit regression](moku-orbit/README.md); obsolete Dock eye/blink cases are removed.
 For Moku's fixed dark appearance and native caret without windows, see the
 [windowless appearance replay](moku-appearance/README.md).
 For the windowless shared native scrollbar/control-state replay, run

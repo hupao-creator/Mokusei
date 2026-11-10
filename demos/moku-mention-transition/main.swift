@@ -36,7 +36,7 @@ private struct Preview: View {
             } else {
                 GeometryReader { proxy in
                     NativeMokuComposerInput(draft: draft, cwd: "/demo", landing: true,
-                        availableHeight: min(380, proxy.size.height - 180), mentions: mentions, showsEyes: true,
+                        availableHeight: min(380, proxy.size.height - 180), mentions: mentions,
                         selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
                         onKeyDown: { mentions.handle($0, draft: draft) }, onSend: {})
                         .frame(width: min(680, proxy.size.width - 64))

@@ -1,3 +1,5 @@
+> 旧眼睛对照已退役。当前默认入口复用生产球体 Dock，眼睛专用控件已移除；当前完整预览见 [Moku 球体 Rebrand](../moku-orb-rebrand/README.md)。以下保留原实验背景。
+
 # Mention 眼睛过渡预览
 
 ```sh

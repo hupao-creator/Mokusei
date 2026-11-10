@@ -1003,6 +1003,7 @@ public struct NativeWorkspaceView: View {
         } settings: {
             if presentation.scene.settingsOpen { settings }
         }
+        .environment(\.nativeMokuTheme, NativeMokuTheme(harnessID: model.catalog.moku?.harnessID))
         .overlay {
             if presentation.onboarding.blocksWorkspace, model.hasInitialContent {
                 NativeOnboardingSurface(state: presentation.onboarding, scene: presentation.scene,

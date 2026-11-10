@@ -30,7 +30,7 @@ import MokuseiPluginUI
             let scroll = try #require(findScroll(host))
             let textWidth = min(560, width - 48) - NativeMokuTalkTypography.leading - 48
             - NativeMokuTalkTypography.scrollbarGutter(for: NSScroller.preferredScrollerStyle)
-            let source = String(repeating: "实时转写 English words keep growing. ", count: 30)
+            let source = String(repeating: "实时转写 English words keep growing. ", count: 45)
             var previousHeight: CGFloat = 0
             for count in 1...source.count {
                 let text = String(source.prefix(count))
@@ -116,7 +116,7 @@ import MokuseiPluginUI
             window.contentView = host
             defer { window.close() }
             await settle(host)
-            #expect(state.capsuleFrame.width == 168 && state.capsuleFrame.height == 44)
+            #expect(state.capsuleFrame.width == min(560, width - 48) && state.capsuleFrame.height == 58)
             #expect(state.dockHitRects.contains { $0.contains(state.capsuleFrame) })
 
             input.message = .init(id: "session:item", text: "First partial")
@@ -137,7 +137,7 @@ import MokuseiPluginUI
             // transition restores the capsule and never submits/edits the draft.
             input.message = nil
             await settle(host)
-            #expect(state.capsuleFrame.width == 168 && state.capsuleFrame.height == 44)
+            #expect(state.capsuleFrame.width == min(560, width - 48) && state.capsuleFrame.height == 58)
             #expect(state.dockHitRects.contains { $0.contains(state.capsuleFrame) })
             #expect(!state.inputOpen && draft.text == "Retained typed draft")
             #expect(input.sends == 0)

@@ -401,7 +401,7 @@ struct NativeMokuLandingTests {
         try await withFixture { fixture in
             try await fixture.install(running: true); fixture.mount(fullWorkspace: true)
             let root = try #require(fixture.window?.contentView)
-            try await SwiftUIReplay.wait { faces(in: root).first?.controller.input?.running == true }
+            try await SwiftUIReplay.wait { residents(in: root).first?.controller.input?.running == true }
             #expect(fixture.moku.landing && !fixture.scene.inputOpen && fixture.scene.dockHitRects.count == 1)
             #expect(fixture.scene.capsuleFrame.width > NativeMokuCapsuleLayout.idleSize.width)
         }
@@ -416,7 +416,7 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait { fixture.presentation.canvas.allowsActivation(cardID: "child") && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
             try await SwiftUIReplay.wait { fixture.presentation.threadIdentityRegistry.capture("child") != nil }
             let origin = try #require(fixture.presentation.canvas.displayedFrame(for: "child"))
-            try #require(faces(in: root).count == 1)
+            try #require(residents(in: root).count == 1)
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
             #expect(fixture.presentation.readingPanelSource == origin)
             try await SwiftUIReplay.wait {
@@ -478,9 +478,9 @@ struct NativeMokuLandingTests {
             #expect(fixture.scene.dockRouteVisible && !fixture.scene.overviewVisible)
             #expect(!fixture.presentation.canOpenSettings && !fixture.scene.canOpenSettings)
             #expect(fixture.presentation.interactionActions.contains("moku.input.toggle"))
-            // Agent input flips the passive eyes into its Harness logo. The
+            // Agent input shows its Harness logo. The
             // decoration controller stays resident; an invisible eye must not.
-            #expect(faces(in: root).isEmpty, "Agent Harness identity must retire the native eye seat")
+            #expect(residents(in: root).count == 1, "Agent input retains the resident decoration host while showing its Harness logo")
             let panel = try #require(readingPanel(in: root))
             let frame = panel.convert(panel.bounds, to: root)
             let expected = NativeReadingPanelGeometry.frame(in: root.bounds.size)
@@ -522,7 +522,7 @@ struct NativeMokuLandingTests {
             #expect(fixture.presentation.readingPanelSource == returnOrigin)
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
             #expect(fixture.scene.overviewVisible && fixture.scene.dockRouteVisible)
-            try await SwiftUIReplay.wait { faces(in: root).count == 1 }
+            try await SwiftUIReplay.wait { residents(in: root).count == 1 }
             // Direct result visits have no Overview card prerequisite and retain
             // the same close route while their Harness loads the target.
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"), target: .init(
@@ -623,7 +623,7 @@ struct NativeMokuLandingTests {
                         && fixture.presentation.canvas.displayedFrame(for: sourceID) != nil
                 }
                 let origin = try #require(fixture.presentation.canvas.displayedFrame(for: sourceID))
-                let face = try #require(faces(in: root).first)
+                let face = try #require(residents(in: root).first)
                 fixture.presentation.open(ref, sourceCardID: sourceID)
                 #expect(fixture.presentation.usesReadingPanel && fixture.presentation.readingPanelSource == origin)
                 try await SwiftUIReplay.wait {
@@ -642,7 +642,7 @@ struct NativeMokuLandingTests {
                         && abs(frame.minX - expected.minX) < 1 && abs(top - expected.minY) < 1)
                     #expect(fixture.scene.dockRouteVisible && !fixture.scene.overviewVisible && !fixture.presentation.canOpenSettings)
                     #expect(!fixture.presentation.nativeApplicationNavigation)
-                    #expect(faces(in: root).contains { $0 === face })
+                    #expect(residents(in: root).contains { $0 === face })
                 }
                 #expect(!fixture.overview.presentationActive)
                 let retainedItems = fixture.overview.items
@@ -664,7 +664,7 @@ struct NativeMokuLandingTests {
                 }
                 window.setContentSize(CGSize(width: 940, height: 680))
                 try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
-                #expect(fixture.scene.overviewVisible && faces(in: root).contains { $0 === face })
+                #expect(fixture.scene.overviewVisible && residents(in: root).contains { $0 === face })
                 try await SwiftUIReplay.wait { readingPanel(in: root, identifier: identifier) == nil }
                 fixture.presentation.open(ref, sourceCardID: sourceID)
                 do {
@@ -768,9 +768,9 @@ struct NativeMokuLandingTests {
         try click(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), window: window)
     }
 
-    private func faces(in view: NSView) -> [NativeMokuCharacterCanvas] {
-        if let canvas = view as? NativeMokuCharacterCanvas { return canvas.seat == .face ? [canvas] : [] }
-        return view.subviews.flatMap { faces(in: $0) }
+    private func residents(in view: NSView) -> [NativeMokuCharacterCanvas] {
+        if let canvas = view as? NativeMokuCharacterCanvas { return canvas.seat == .decorations ? [canvas] : [] }
+        return view.subviews.flatMap { residents(in: $0) }
     }
     private func readingPanel(in view: NSView, identifier: String = "agent-reading-panel-frame") -> NSView? {
         if view.identifier?.rawValue == identifier { return view }
@@ -796,7 +796,7 @@ struct NativeMokuLandingTests {
             try await fixture.install(); fixture.mount()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen }
             let window = try #require(fixture.window), root = try #require(window.contentView)
-            let face = try #require(faces(in: root).first)
+            let face = try #require(residents(in: root).first)
             let input = try #require(SwiftUIReplay.editor(in: root))
             input.insertText("继续完善需求", replacementRange: NSRange(location: 0, length: 0))
             fixture.rejectSubmission = true
@@ -810,7 +810,7 @@ struct NativeMokuLandingTests {
             try await fixture.install(running: true)
             try await SwiftUIReplay.wait { face.controller.input?.running == true }
             #expect(fixture.moku.landing && fixture.presentation.draft.text.isEmpty)
-            #expect(fixture.scene.dockHitRects.count == 1 && faces(in: root).count == 1 && faces(in: root).first === face)
+            #expect(fixture.scene.dockHitRects.count == 1 && residents(in: root).count == 1 && residents(in: root).first === face)
             #expect(fixture.scene.capsuleFrame.width > NativeMokuCapsuleLayout.idleSize.width)
             #expect(abs(fixture.scene.capsuleFrame.midY - root.bounds.midY) < 1)
             let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
@@ -823,7 +823,8 @@ struct NativeMokuLandingTests {
             #expect(!fixture.scene.inputOpen && fixture.scene.dockHitRects.count == 1)
             #expect(element(id: "moku-landing-notice", in: root) == nil)
             #expect(SwiftUIReplay.text(in: root).contains("你希望任务在哪个目录进行？"))
-            #expect(faces(in: root).count == 1 && faces(in: root).first === face)
+            #expect(residents(in: root).count == 1 && residents(in: root).first === face)
+            fixture.scene.dismissTalk()
             try await SwiftUIReplay.wait { element(id: "moku-open-input", in: root) != nil }
             _ = try #require(element(id: "moku-open-input", in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
             try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
@@ -838,7 +839,7 @@ struct NativeMokuLandingTests {
             fixture.scene.toggleInput()
             try await SwiftUIReplay.wait { !fixture.scene.inputOpen && fixture.scene.talkPresentation.presented }
             #expect(fixture.moku.talkMessage?.dispatch?.phase == .dispatching && fixture.scene.dockHitRects.count == 1)
-            #expect(faces(in: root).count == 1 && faces(in: root).first === face)
+            #expect(residents(in: root).count == 1 && residents(in: root).first === face)
             window.setContentSize(CGSize(width: 480, height: 360))
             try await SwiftUIReplay.wait { fixture.scene.capsuleFrame.width == 400 }
             #expect(abs(fixture.scene.capsuleFrame.midY - root.bounds.midY) < 1)

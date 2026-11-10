@@ -6,7 +6,11 @@ The Moku Map tint artwork lives in [Resources/moku-map](Resources/moku-map).
 Codex uses the blue sphere from the [application icon](../../../build/SOURCES.md).
 The Claude, Pi and OpenCode variants were generated from that sphere and reviewed
 in the native preview. `NativeMokuMapLogoArtwork` loads each tint once at bounded
-resolution and trims the illustrated rim for the system glass.
+resolution and trims the illustrated rim for the system glass. `NativeMokuTheme`
+shares that artwork identity with the Dock: its deepest interior hue supplies
+uniform expanded glass, with bounded luminance for white native text. Unknown
+Harness IDs resolve to a neutral palette. The Host owns which Harness is active;
+this UI resource owns neither routing nor runtime selection.
 
 `NativeReportExecutionInputKey` carries the expanded Report execution's exact
 reference, content/landing readiness and destination frame to its Host shell. It is absent in list, folded,

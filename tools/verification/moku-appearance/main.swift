@@ -99,7 +99,7 @@ import MokuseiCore
                     voiceBackground: AnyView(SchemeProbe(name: "dock")), onSend: { _ in }, onCancel: {})
                     .environment(\.nativeMokuSettingsContent, AnyView(SchemeProbe(name: "settings")))
                 NativeMokuHistoryComposer(draft: draft, cwd: "", focusEnabled: false,
-                    voiceBackground: AnyView(SchemeProbe(name: "history")), onSend: { _ in }, onCancel: {})
+                    onSend: { _ in }, onCancel: {})
                 NativeComposerTextInput(value: .constant("Ordinary thread"), placeholder: "",
                     automaticFocus: false, onSubmit: {})
             }
@@ -114,13 +114,15 @@ import MokuseiCore
             host.rootView = root(scheme)
             try await settle(host)
             precondition(probe("workspace", in: host) == scheme)
-            precondition(probe("dock", in: host) == .dark && probe("history", in: host) == .dark)
+            precondition(probe("dock", in: host) == .dark)
             let allEditors = descendants(host, ComposerTextView.self)
             let current = allEditors.filter(\.emphasizedInsertionPoint)
             precondition(current.count == 2, "Dock and history must retain their native editors")
             let ordinary = allEditors.first { !$0.emphasizedInsertionPoint }!
             precondition(ordinary.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == (scheme == .light ? .aqua : .darkAqua),
                          "Moku override leaked into an ordinary composer")
+            // History no longer mounts the retired voice-background slot. Inspect
+            // both real native editors instead of injecting a probe into that slot.
             for editor in current {
                 precondition(editor.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
                              "Native editor failed to inherit Moku's dark environment")
@@ -151,7 +153,7 @@ import MokuseiCore
         var reference: Data?
         for scheme in [ColorScheme.dark, .light] {
             let renderer = ImageRenderer(content: NativeMokuCapsuleGlass(forceOpaque: true)
-                .frame(width: 168, height: 44).environment(\.colorScheme, scheme))
+                .frame(width: 560, height: 58).environment(\.colorScheme, scheme))
             let image = renderer.cgImage!
             let data = image.dataProvider!.data! as Data
             if let reference { precondition(data == reference) } else { reference = data }

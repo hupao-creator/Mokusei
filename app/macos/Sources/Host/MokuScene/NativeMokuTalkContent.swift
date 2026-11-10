@@ -6,7 +6,7 @@ import SwiftUI
 @MainActor enum NativeMokuTalkTypography {
     static let lineSpacing: CGFloat = 3
     static let verticalPadding: CGFloat = 19
-    static let leading: CGFloat = 64
+    static let leading: CGFloat = 18
     static let trailing: CGFloat = 20
     static let lineHeight: CGFloat = 16
     static var maximumHeight: CGFloat { lineHeight * 4 + lineSpacing * 3 }
@@ -59,7 +59,7 @@ struct NativeMokuTalkContent: View {
             }
             .frame(width: viewport.size.width, height: viewport.size.height)
             .defaultScrollAnchor(.bottom)
-            // Short messages share the eyes' center; overflow still follows its tail.
+            // Short messages share the row center; overflow still follows its tail.
             .defaultScrollAnchor(.center, for: .alignment)
             .defaultScrollAnchor(followsTail ? .bottom : .top, for: .sizeChanges)
             .onScrollGeometryChange(for: Bool.self) { geometry in

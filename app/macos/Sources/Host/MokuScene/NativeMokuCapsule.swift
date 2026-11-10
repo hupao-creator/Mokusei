@@ -4,7 +4,8 @@ import SwiftUI
 /// Point geometry shared by the SwiftUI capsule and its interaction regions.
 /// Coordinates are local to the flipped scene, including a scrolled shell.
 enum NativeMokuCapsuleLayout {
-    static let idleSize = CGSize(width: 168, height: 44)
+    static let idleSize = CGSize(width: 64, height: 64)
+    static let controlRowHeight: CGFloat = 44
     static let landingScale: CGFloat = 76.0 / 58.0
     /// Shared by the capsule glass, its clip shape and the nested composer
     /// surfaces (including attachment chips, which derive their concentric
@@ -111,51 +112,47 @@ struct NativeMokuCapsuleEyes: Shape {
     }
 }
 
-/// Note reads on dark Regular glass. Other capsule states retain their warm
-/// gradient above clear glass; Reduce Transparency supersedes both materials.
-struct NativeMokuCapsuleGlass: View {
-    var interactive = true
-    var regular = false
-    var strength = 0.85
-    /// A local preview override; system Reduce Transparency always takes priority.
-    var forceOpaque = false
+/// The orb and expanded forms retain one native glass node. The circular artwork
+/// retires into a full-shape tint before widening can stretch its rim into an oval.
+struct NativeMokuCapsuleGlass: View, @MainActor Animatable {
+    var interactive: Bool
+    var expansion: Double
+    var forceOpaque: Bool
+    @Environment(\.nativeMokuTheme) private var theme
     @Environment(\.accessibilityReduceTransparency) private var systemOpaque
     private var opaque: Bool { systemOpaque || forceOpaque }
-    private let shape = RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-
-    var body: some View {
-        material.environment(\.colorScheme, .dark)
+    var animatableData: Double {
+        get { expansion }
+        set { expansion = newValue }
     }
-
-    @ViewBuilder private var material: some View {
-        if opaque {
-            shape.fill(Color(red: 0.12, green: 0.11, blue: 0.10))
-        } else {
-            Color.clear
-                // Keep one glass node while Note changes the capsule's size and
-                // material. Stacking clear and regular shells duplicates sampling.
-                .glassEffect(regular ? .regular : interactive ? Glass.clear.interactive() : .clear,
-                             in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
-                .overlay {
-                    // Keep these layers mounted through Note's morph. Inserting
-                    // them on close starts at the final small size while glass
-                    // still contracts, painting a detached pill above the eyes.
-                    shape.fill(LinearGradient(stops: [
-                            .init(color: Color.black.opacity(0.99 * strength), location: 0),
-                            .init(color: Color(red: 0.04, green: 0.035, blue: 0.03).opacity(0.96 * strength), location: 0.40),
-                            .init(color: Color(red: 0.16, green: 0.13, blue: 0.10).opacity(0.70 * strength), location: 0.72),
-                            .init(color: Color(red: 0.38, green: 0.33, blue: 0.26).opacity(0.12 * strength), location: 1),
-                        ], startPoint: .top, endPoint: .bottom))
-                        .opacity(regular ? 0 : 1)
-                }
-                .overlay {
-                    shape.strokeBorder(LinearGradient(stops: [
-                            .init(color: .white.opacity(0.04 * strength), location: 0),
-                            .init(color: .white.opacity(0.08 * strength), location: 0.55),
-                            .init(color: Color(red: 1, green: 0.92, blue: 0.78).opacity(0.65 * strength), location: 1),
-                        ], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
-                        .opacity(regular ? 0 : 1)
-                }
+    init(interactive: Bool = true, expanded: Bool = true, forceOpaque: Bool = false) {
+        self.interactive = interactive; self.expansion = expanded ? 1 : 0
+        self.forceOpaque = forceOpaque
+    }
+    private var progress: Double { min(1, max(0, expansion)) }
+    private var radius: CGFloat { 32 - 3 * progress }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius) }
+    var body: some View {
+        ZStack {
+            shape.fill(LinearGradient(gradient: theme.gradient(expansion: progress), startPoint: .top, endPoint: .bottom))
+            NativeMokuMapLogoArtwork.image(for: theme.harnessID)?
+                .resizable().interpolation(.high)
+                .opacity(max(0, 1 - progress * 8))
         }
+        .clipShape(shape)
+        .mask {
+            LinearGradient(stops: [
+                .init(color: .white.opacity(opaque ? 1 : 0.94), location: 0),
+                .init(color: .white.opacity(opaque ? 1 : 0.94), location: 0.8),
+                .init(color: .white.opacity(opaque ? 1 : 0.80 + 0.14 * progress), location: 1),
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        .glassEffect(opaque ? .identity : interactive ? Glass.clear.interactive() : .clear,
+                     in: .rect(cornerRadius: radius))
+        .overlay {
+            shape.strokeBorder(.white.opacity(0.10), lineWidth: 0.8)
+                .opacity(opaque ? 0 : progress)
+        }
+        .environment(\.colorScheme, .dark)
     }
 }

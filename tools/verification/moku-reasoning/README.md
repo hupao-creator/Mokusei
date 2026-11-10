@@ -36,3 +36,8 @@ builds and graphical replays serially. No real model request, account, microphon
 or WebRTC session is used. Voice mode uses presentation fixtures only.
 Window hide/show covers terminal retirement and clock resumption; physical
 minimize behavior remains outside this replay's scope.
+
+The current Dock fixture uses the Map's neutral OpenCode artwork to keep the
+existing saturated-dot pixel oracle independent of shell color. It follows the
+persistent decoration canvas, with no retired eye-seat assertions; a terminal
+resident sleeps after its handoff instead of scheduling idle eye blinks.

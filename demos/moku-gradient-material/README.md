@@ -1,3 +1,5 @@
+> 此暖黑胶囊材质实验已退役。其调参 API 不再属于生产契约；当前预览请用 [Moku 球体 Rebrand](../moku-orb-rebrand/README.md)。以下记录仅供历史参考。
+
 # Moku 渐变玻璃 · 原生预览与历史提案
 
 独立 macOS 26+ / Xcode 26+ SwiftUI demo，用于评审参考图中的「上深下透、暖灰渐变、细亮边」。原提案比较深浅两款渐变；当前生产 `NativeMokuCapsuleGlass` 固定深色，此 demo 的两列都调用该实现，旧「浅色渐变」标签和深色文字不代表另一款生产材质。此独立预览不连接 Runtime，不读取会话或启动麦克风。需求记录：[Demo #83](https://github.com/hupao-creator/Mokusei/issues/83)、[正式接入 #84](https://github.com/hupao-creator/Mokusei/issues/84)。

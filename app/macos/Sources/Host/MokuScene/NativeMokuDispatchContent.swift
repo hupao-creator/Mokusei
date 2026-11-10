@@ -29,7 +29,7 @@ struct NativeMokuDispatchContent: View {
                             Text(thinking).layoutPriority(1)
                         }
                     }
-                    .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .medium)).foregroundStyle(.white)
                     .frame(width: 92, alignment: .trailing)
                     .help(dispatch.configuration)
                     .accessibilityElement(children: .combine)

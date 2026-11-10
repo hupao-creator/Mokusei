@@ -226,7 +226,7 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [tools/verification/codex/README.md](../tools/verification/codex/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/devtools/README.md](../tools/verification/devtools/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/moku-appearance/README.md](../tools/verification/moku-appearance/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-blink/README.md](../tools/verification/moku-blink/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| [tools/verification/moku-orbit/README.md](../tools/verification/moku-orbit/README.md)（原 blink 中仍有效的 orbit 回放） | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/moku-note-performance/README.md](../tools/verification/moku-note-performance/README.md) | 混合 | 操作入口与历史基线/测量分开核查 |
 | [tools/verification/moku-note/README.md](../tools/verification/moku-note/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/moku-reasoning/README.md](../tools/verification/moku-reasoning/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |

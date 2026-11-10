@@ -106,8 +106,8 @@ struct NativeMokuComposerInput: View {
     var availableHeight: CGFloat = 420
     var mentions: NativeMokuDirectoryMentions?
     var includesCompletion = true
+    var reservesIdentity = false
     var onMentionFrame: (CGRect?) -> Void = { _ in }
-    var showsEyes = false
     var selectionRequest: NativeComposerSelectionRequest?
     var initialSelection: NSRange?
     var onEditorStateChange: ((NativeComposerEditorState) -> Void)?
@@ -181,7 +181,7 @@ struct NativeMokuComposerInput: View {
                 onRemove: { id in Task { await draft.removeAttachment(id) } }, onRemoveDirectory: draft.removeDirectory)
                 .disabled(unavailable || readOnly)
             NativeMokuComposerRowLayout(compact: compact) {
-                eyeSeat
+                identitySeat
                 if let sidecardComposer {
                     Button(action: sidecardComposer.cancel) {
                         NativeIcon(name: "X", size: 16).frame(width: 28, height: 32).contentShape(Rectangle())
@@ -212,16 +212,8 @@ struct NativeMokuComposerInput: View {
     }
     // At high zoom/narrow widths the editor gets its own line. Fixed action
     // seats must never consume its entire width or compress native text to zero.
-    private var eyeSeat: some View {
-        Color.clear.frame(width: 43, height: 34)
-            .overlay {
-                if showsEyes {
-                    NativeMokuBlinkingEyes(expression: .focus, focus: 1)
-                        .frame(width: 34, height: 25).offset(x: 4.5)
-                        .allowsHitTesting(false).accessibilityHidden(true)
-                }
-            }
-            .allowsHitTesting(false)
+    private var identitySeat: some View {
+        Color.clear.frame(width: reservesIdentity ? 43 : 0, height: 34).allowsHitTesting(false)
     }
     private var editor: some View {
         NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.text }, set: { draft.text = $0 }),
@@ -377,7 +369,7 @@ public struct NativeMokuHistoryComposer: View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, suppressInitialFocus: suppressInitialFocus,
             running: running, onCancel: onCancel, availableHeight: availableHeight,
-            mentions: mentions, showsEyes: true,
+            mentions: mentions,
             selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
             onKeyDown: { mentions.handle($0, draft: draft) },
             onSend: {

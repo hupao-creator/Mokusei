@@ -1013,6 +1013,11 @@ struct NativeThreadSendFeedbackTests {
         let input = try #require(editor(in: root))
         #expect(input === initialEditor)
         try #require(input.isEditable && input.isSelectable)
+        // An inactive-window click may only activate the app. Establish the
+        // fixture's foreground window without focusing the editor under test.
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        try await SwiftUIReplay.wait { NSApp.isActive && window.isKeyWindow }
         window.makeFirstResponder(nil)
         let visible = input.visibleRect
         let point = input.convert(CGPoint(x: visible.minX + 20, y: visible.midY), to: nil)
@@ -1036,7 +1041,13 @@ struct NativeThreadSendFeedbackTests {
         NSApp.sendEvent(try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
             timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
             characters: "x", charactersIgnoringModifiers: "x", isARepeat: false, keyCode: 7)))
-        try await SwiftUIReplay.wait { draft.text == "x" && input.string == "x" }
+        print("COMPOSER_TYPE_DISPATCH exact=\(exactExecution) cancel=\(cancelHandoff) text=\(input.string.debugDescription) draft=\(draft.text.debugDescription) marked=\(input.hasMarkedText()) key=\(window.isKeyWindow)")
+        do { try await SwiftUIReplay.wait { draft.text == "x" && input.string == "x" } }
+        catch {
+            print("COMPOSER_TYPE_FAILURE text=\(input.string.debugDescription) draft=\(draft.text.debugDescription) marked=\(input.hasMarkedText()) owns=\(scene.ownsComposer(draft)) leaving=\(scene.inputLeaving) sealed=\(scene.capsuleSealed)")
+            try await capture(window, name: "composer-typing-failure-\(exactExecution)-\(cancelHandoff)")
+            throw error
+        }
         #expect(submissions.count == 1)
         mount.visible = false
         try await SwiftUIReplay.wait { presentation.agentInputTarget == nil }
