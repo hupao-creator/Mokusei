@@ -14,7 +14,7 @@ selection, Undo, label activation and the draft close/save gate.
 | General | Appearance/language popups, Agent/install buttons, cancel and destructive clear buttons |
 | Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons |
 | Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
-| Report and Tag | Off/inherited/independent glass choices, Harness seats, native execution fields and live capability animations |
+| Report and Tag | Off/inherited/independent filled choices, Harness seats, native execution fields and live capability animations |
 
 Report and Tag each expose three mutually exclusive choices: Agent off, Use
 Moku and Configure separately, in both Settings and onboarding. A contextual
@@ -53,9 +53,11 @@ preserves discrete-change semantics. Agent mode choices register as selected
 actions (`off`, `inherit`, `independent`) rather than a separate enabled switch.
 
 The shared role editor's inheritance and Harness choices define a capsule hit
-shape inside each plain button label, after its full-width frame and glass.
+shape inside each plain button label, after its full-width frame and surface.
 The entire visible capsule, including the space beside its text, selects the
 choice in both Settings and onboarding.
+Settings uses adaptive fills and borders, with an accent border and checkmark
+on the selected choice; onboarding retains its glass material.
 
 The coordination and dispatch map retains the icon presentation from before
 `016735c` (system Settings controls): transparent 48-point seats, hover surfaces
@@ -64,12 +66,11 @@ paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled. General's Agent installation buttons and the other
 Settings form controls retain their system presentation.
 
-The coordinator in Settings displays the selected Harness's artwork as tint over
-a circular clear Liquid Glass surface. Tint stays strong through the upper four
-fifths and softens to 80% opacity at the bottom. Reduce Transparency displays the
-artwork directly. The circle rests in its seat and keeps its shape when it moves
-to a new coordinator. Onboarding uses the same orb; Harnesses without artwork
-use a neutral gradient. Neither path mounts the former eye character.
+The coordinator in Settings displays the selected Harness's artwork directly on
+an opaque circle, without Liquid Glass. The circle rests in its seat and keeps
+its shape when it moves to a new coordinator. Onboarding retains its clear-glass
+orb and Reduce Transparency fallback; Harnesses without artwork use a neutral
+gradient. Neither path mounts the former eye character.
 
 Model, thinking/effort and variant choices use the same AppKit `NSPopUpButton`
 as other selects in Settings and onboarding, including compact role panels.
@@ -103,20 +104,19 @@ Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
-The expanded surface is always dark. The page scopes `\.colorScheme` to `.dark`,
-so its SwiftUI tokens, hosted AppKit editors and selects, native scrollers and
-popovers all resolve the dark settings palette, and the Dock's regular-glass
-shell no longer takes the workspace appearance. A light workspace therefore
-neither lightens the page nor shows a light shell around it. The appearance
-preference still governs the window and every surface outside Settings.
+The expanded surface and page inherit the workspace's live light/dark appearance,
+following system changes when Appearance is set to System. Settings escapes the
+Dock's local dark scope: SwiftUI tokens, hosted AppKit editors and selects,
+native scrollers and popovers use the same appearance as the panel. The panel
+uses the opaque adaptive Settings main color and a subtle border, without Liquid
+Glass or backdrop sampling, including when Reduce Transparency is enabled.
 
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
 same capsule grows toward a centered 780-point-wide surface, starting at a
 900-point preferred height and growing with the active form, bounded by 24-point
-viewport margins. Its expanded surface uses
-untinted system regular glass without separate sidebar/content fills; Reduce
-Transparency supplies a solid fallback. The header has no eye character or
-reserved identity column; navigation starts at its ordinary inset. A single
+viewport margins. Its expanded surface uses one opaque adaptive fill without
+separate sidebar/content fills. The header has no eye character or reserved
+identity column; navigation starts at its ordinary inset. A single
 Close button replaces the full-page traffic-light/back capsule and its 74-point
 safe area; the main window retains its own native controls. When extreme zoom
 leaves less than 220 logical points of page height, the entire settings shell
@@ -131,7 +131,7 @@ Incoming messages and interventions cannot replace Settings. On release, a
 pending intervention takes its ordinary priority over a retained Note/composer.
 
 `NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
-page lays out at its final size; closing fades its ink before glass contraction.
+page lays out at its final size; closing fades its ink before panel contraction.
 Reversals fence obsolete completions. Resize, inactivity, Reduce Motion and
 explicit settling retire the current animation without leaving the modal gate
 stuck. Opening and return both report transitioning to semantic callers.

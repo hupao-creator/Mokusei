@@ -53,12 +53,11 @@ The current and archived Moku conversation reading cards inherit the workspace
 appearance: light, dark or system. No local reader override or separate theme
 state masks the window preference. The dark capsule override is a local SwiftUI
 environment, not a window/application appearance preference.
-The Settings page and its regular-glass shell are always dark, including in a
-light workspace. The page scopes `\.colorScheme` to `.dark`, so SwiftUI tokens,
-hosted AppKit popups/editors, scrollers and native controls resolve the dark
-settings palette; the Dock's expanded regular-glass shell no longer inherits
-the workspace appearance, and onboarding does the same for its own panel. The
-theme preference still owns the window and every other surface.
+The Settings page and its opaque shell inherit the workspace's light/dark
+appearance, following the system when Appearance is set to System. The Dock
+passes its incoming appearance to that slot and shell, outside its local dark
+scope, so SwiftUI and hosted AppKit controls agree. Onboarding retains its own
+dark panel. The theme preference still owns the window.
 
 The collapsed Overview Dock is a 64×64-point orb using the coordinating
 Harness's reviewed Moku Map artwork, without a separate logo. The same native
@@ -66,8 +65,8 @@ Clear Glass node expands directly into composer, Talk, dispatch and Note;
 expanded forms contain no small orb or eyes. Their uniform dark tint comes
 from the artwork's deepest interior hue, with brightness limited for white text
 and native placeholder contrast. There is no bottom gradient or glowing edge.
-Reduce Transparency uses the same tint at full opacity. Settings keeps its
-existing panel material, with no eyes or reserved header identity column.
+Reduce Transparency uses the same tint at full opacity. Settings uses an opaque
+adaptive panel, with no eyes or reserved header identity column.
 
 [NativeMokuTheme](../../Shared/PluginUI/Design/NativeMokuTheme.swift) owns the
 Codex/OpenCode/Claude/Pi palettes and neutral fallback. The workspace supplies
@@ -445,11 +444,12 @@ for the production note-to-reader replay across all four Harnesses.
 
 ## Settings expansion
 
-Settings occupies the resident Dock's existing glass capsule, with a stable
+Settings expands from the resident Dock's existing capsule, with a stable
 viewport-bounded centered surface with a 780-point preferred width and a
-900-point minimum preferred height that grows with its active form. Its full panel uses untinted
-regular glass. Its header has no character or reserved eye slot. The other
-Dock surfaces retain their Harness tint and anchors.
+900-point minimum preferred height that grows with its active form. Its full
+panel uses the opaque adaptive Settings fill and a subtle border, without Liquid
+Glass. Its header has no character or reserved eye slot. The other Dock surfaces
+retain their Harness tint and anchors.
 The scene blurs and disables Overview, while the capsule and retained input/Note
 visit stay mounted. Closing uses the Settings draft gate and restores the
 previous valid surface; pending interventions resume only after Settings exits.

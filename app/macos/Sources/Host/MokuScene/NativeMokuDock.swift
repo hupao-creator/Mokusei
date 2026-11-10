@@ -102,6 +102,7 @@ public struct NativeMokuDock: View {
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     @Environment(\.nativeMokuTheme) private var mokuTheme
     @Environment(\.nativeMokuSettingsContent) private var settingsContent
+    @Environment(\.colorScheme) private var workspaceScheme
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -873,6 +874,9 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.settingsOpen {
                 settingsContent
+                    // Settings escapes the Dock's dark scope while preserving
+                    // the workspace's live appearance and its native controls.
+                    .environment(\.colorScheme, workspaceScheme)
                     .frame(width: settingsSize.width, height: settingsSize.height)
                     .nativeLayoutLog("moku.settings.seat")
                     // Settle the page layout during the capsule morph without
@@ -944,7 +948,9 @@ public struct NativeMokuDock: View {
             ZStack {
                 NativeMokuCapsuleGlass(interactive: !noteExpanded, expanded: expanded).opacity(state.settingsExpanded ? 0 : 1)
                 if state.settingsOpen {
-                    NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0)
+                    NativeSettingsPanelSurface()
+                        .environment(\.colorScheme, workspaceScheme)
+                        .opacity(state.settingsExpanded ? 1 : 0)
                 }
                 voiceBackground.opacity(state.settingsOpen ? 0 : 1)
             }

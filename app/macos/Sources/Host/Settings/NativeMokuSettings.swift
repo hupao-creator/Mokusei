@@ -251,12 +251,12 @@ import SwiftUI
                                                                               elapsedMilliseconds: now - $0.startedAt) }
         let previous = motion.handoff?.previousID.flatMap { id in harnesses.first { $0.descriptor.id.string == id } }
         return ZStack {
-            NativeMokuMapGlassLogo(artwork: artwork, theme: NativeMokuTheme(harnessID: host.descriptor.id))
+            NativeMokuMapLogo(artwork: artwork, theme: NativeMokuTheme(harnessID: host.descriptor.id),
+                              usesGlass: presentation != .settings)
             NativeMokuEngineHandoff(current: host, previous: previous, elapsedMilliseconds: motion.handoff.map { now - $0.startedAt } ?? 1050)
                 .scaleEffect(feedback?.engine.scale ?? 1).opacity(feedback?.engine.opacity ?? 1)
                 .scaleEffect(1.7).offset(y: 18.7)
         }.frame(width: 81.6, height: 81.6)
-            // Rotation and squash change the native glass bounds separately from the tint.
             // The logo stays circular and moves only with the coordinating seat.
             .offset(y: (handoff?.approachY ?? 0) * 1.7)
             .opacity(model.mokuInFlight ? 0 : 1)
@@ -328,9 +328,10 @@ import SwiftUI
     }
 }
 
-private struct NativeMokuMapGlassLogo: View {
+private struct NativeMokuMapLogo: View {
     let artwork: Image?
     let theme: NativeMokuTheme
+    let usesGlass: Bool
     @Environment(\.accessibilityReduceTransparency) private var opaque
 
     // Keep the logo colors saturated and let more glass show through in the last fifth.
@@ -349,10 +350,10 @@ private struct NativeMokuMapGlassLogo: View {
             .frame(width: 62.7, height: 62.7)
             .clipShape(Circle())
             .mask {
-                if opaque { Color.white }
+                if opaque || !usesGlass { Color.white }
                 else { Self.tintOpacity }
             }
-            .glassEffect(opaque ? .identity : .clear, in: Circle())
+            .glassEffect(opaque || !usesGlass ? .identity : .clear, in: Circle())
             .offset(y: -3.8)
             .accessibilityHidden(true)
     }
