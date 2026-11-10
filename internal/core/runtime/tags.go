@@ -27,6 +27,7 @@ const (
 )
 
 type tagDefinition struct {
+	ID          string `json:"id"`
 	Emoji       string `json:"emoji"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -111,7 +112,7 @@ func (c tagsReadCapability) CaptureUsage(ctx context.Context, name string) (plug
 	if canonical == nil {
 		return result, nil
 	}
-	tasks, err := (taskReadCapability{runtime: c.runtime, binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}).CaptureList(ctx, true)
+	tasks, err := (taskReadCapability{runtime: c.runtime, binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}).CaptureList(ctx, false)
 	if err != nil {
 		return result, err
 	}
@@ -147,6 +148,13 @@ func (r *Runtime) RefreshApplicationDirectoryTags(ctx context.Context) error {
 	defer r.operations.Done()
 	ctx, cancel := r.operationContext(ctx)
 	defer cancel()
+	_, err := r.config.Store.Update(ctx, r.refreshApplicationTagSources)
+	return err
+}
+
+// Refresh all source identities together: an omitted source means deleted to
+// application projections, so a one-thread delta would erase unrelated labels.
+func (r *Runtime) refreshApplicationTagSources(tx *store.Tx) error {
 	r.mu.Lock()
 	applications, ok := r.config.Applications.(interface {
 		ApplySemanticTags(*store.Tx, plugin.SemanticTagEffect) error
@@ -155,22 +163,17 @@ func (r *Runtime) RefreshApplicationDirectoryTags(ctx context.Context) error {
 	if !ok {
 		return nil
 	}
-	_, err := r.config.Store.Update(ctx, func(tx *store.Tx) error {
-		threads, err := readThreads(tx.Snapshot())
-		if err != nil {
-			return err
+	threads, err := readThreads(tx.Snapshot())
+	if err != nil {
+		return err
+	}
+	sources := []plugin.ThreadTagSnapshot{}
+	for _, thread := range threads {
+		if !thread.Moku && !thread.MokuHistory {
+			sources = append(sources, plugin.ThreadTagSnapshot{Thread: model.ThreadRef{ThreadID: thread.ID, TypeID: "agent"}, Tags: threadTags(thread)})
 		}
-		sources := []plugin.ThreadTagSnapshot{}
-		for _, thread := range threads {
-			if !thread.Moku && !thread.MokuHistory {
-				sources = append(sources, plugin.ThreadTagSnapshot{Thread: model.ThreadRef{ThreadID: thread.ID, TypeID: "agent"}, Tags: threadTags(thread)})
-			}
-		}
-		return applications.ApplySemanticTags(tx, plugin.SemanticTagEffect{
-			SourceThreads: sources,
-		})
-	})
-	return err
+	}
+	return applications.ApplySemanticTags(tx, plugin.SemanticTagEffect{SourceThreads: sources})
 }
 
 func (c tagsWriteCapability) EnsureInventory(ctx context.Context) error {
@@ -189,7 +192,7 @@ func (c tagsWriteCapability) EnsureInventory(ctx context.Context) error {
 		}
 		scoped := []model.ThreadRecord{}
 		for _, thread := range threads {
-			if thread.Moku || thread.MokuHistory || directorytag.Scope(thread.Cwd) != scope {
+			if thread.Moku || thread.MokuHistory || archived(&thread) || directorytag.Scope(thread.Cwd) != scope {
 				continue
 			}
 			scoped = append(scoped, thread)
@@ -204,13 +207,16 @@ func (c tagsWriteCapability) EnsureInventory(ctx context.Context) error {
 	return err
 }
 func (c tagsWriteCapability) Execute(ctx context.Context, operation plugin.SemanticTagOperation, options plugin.BackgroundWriteOptions) (json.RawMessage, error) {
+	return c.execute(ctx, options, func(tx *store.Tx) (any, error) { return c.apply(tx, operation) })
+}
+
+func (c tagsWriteCapability) execute(ctx context.Context, options plugin.BackgroundWriteOptions, effect func(*store.Tx) (any, error)) (json.RawMessage, error) {
 	r := c.runtime
 	var output json.RawMessage
 	_, err := r.config.Store.Update(ctx, func(tx *store.Tx) error {
 		if err := requireBackgroundExecution(tx.Snapshot(), c.settingsID); err != nil {
 			return err
 		}
-		effect := func(tx *store.Tx) (any, error) { return c.apply(tx, operation) }
 		if options.Batch.BatchID != "" {
 			raw, err := tx.ApplyReceipt(store.Receipt{ConsumerID: options.Batch.ConsumerID, BatchID: options.Batch.BatchID, Key: options.Batch.InvocationID}, effect)
 			output = raw
@@ -306,7 +312,11 @@ func (c tagsWriteCapability) apply(tx *store.Tx, op plugin.SemanticTagOperation)
 					return nil, err
 				}
 			}
-			entry := tagDefinition{Name: name, Description: description, Emoji: taglabel.Emoji(definition.Emoji)}
+			id, err := newID()
+			if err != nil {
+				return nil, err
+			}
+			entry := tagDefinition{ID: id, Name: name, Description: description, Emoji: taglabel.Emoji(definition.Emoji)}
 			pool = append(pool, entry)
 			delete(redirects, tagKey(name))
 			created = append(created, entry)
@@ -359,10 +369,10 @@ func (c tagsWriteCapability) apply(tx *store.Tx, op plugin.SemanticTagOperation)
 		}
 		for i := range pool {
 			if tagKey(pool[i].Name) == tagKey(current.Name) {
-				pool[i] = tagDefinition{Name: name, Description: description, Emoji: emoji}
+				pool[i] = tagDefinition{ID: current.ID, Name: name, Description: description, Emoji: emoji}
 			}
 		}
-		result = tagDefinition{Name: name, Description: description, Emoji: emoji}
+		result = tagDefinition{ID: current.ID, Name: name, Description: description, Emoji: emoji}
 	case "delete":
 		canonical := resolveTag(pool, redirects, op.Name)
 		if canonical == nil {
@@ -420,7 +430,11 @@ func (c tagsWriteCapability) apply(tx *store.Tx, op plugin.SemanticTagOperation)
 		if !hasTag(pool, targetName) {
 			// Sources are removed below, so a merge can free the slot that the
 			// new target occupies. Validate the final pool instead.
-			pool = append(pool, tagDefinition{Name: targetName, Description: targetName, Emoji: taglabel.Emoji(*op.Emoji)})
+			id, err := newID()
+			if err != nil {
+				return nil, err
+			}
+			pool = append(pool, tagDefinition{ID: id, Name: targetName, Description: targetName, Emoji: taglabel.Emoji(*op.Emoji)})
 		}
 		merged := []string{}
 		for _, source := range sources {
@@ -523,7 +537,7 @@ func (c tagsWriteCapability) commit(tx *store.Tx, pool []tagDefinition, redirect
 			continue
 		}
 		before := thread
-		if directorytag.Scope(thread.Cwd) == scope {
+		if !archived(&thread) && directorytag.Scope(thread.Cwd) == scope {
 			tags := assigned[model.ThreadRef{ThreadID: thread.ID, TypeID: "agent"}]
 			if tags == nil {
 				tags = canonicalThreadTags(pool, redirects, thread.Tags)
@@ -569,7 +583,7 @@ func (c tagsWriteCapability) classifiable(tx *store.Tx, ref model.ThreadRef) (*m
 	if err != nil {
 		return nil, err
 	}
-	if !ok || thread.Moku || thread.MokuHistory {
+	if !ok || thread.Moku || thread.MokuHistory || archived(&thread) {
 		return nil, errors.New("thread cannot be classified")
 	}
 	if directorytag.Scope(thread.Cwd) != c.scopeID() {
@@ -598,7 +612,12 @@ func readTags(snapshot store.Snapshot, scope string) ([]tagDefinition, map[strin
 	if _, err := snapshot.Get(tagRedirectKey(scope), &redirects); err != nil {
 		return nil, nil, err
 	}
+	ids := map[string]bool{}
 	for _, tag := range pool {
+		if tag.ID == "" || ids[tag.ID] {
+			return nil, nil, errors.New("invalid stored tag identity")
+		}
+		ids[tag.ID] = true
 		if _, err := normalizeTag(tag.Name, 32, false); err != nil {
 			return nil, nil, err
 		}
@@ -682,7 +701,7 @@ func tagUsage(tx *store.Tx, scope, name string, pool []tagDefinition, redirects 
 	}
 	used := 0
 	for _, thread := range threads {
-		if thread.Moku || thread.MokuHistory || directorytag.Scope(thread.Cwd) != scope {
+		if thread.Moku || thread.MokuHistory || archived(&thread) || directorytag.Scope(thread.Cwd) != scope {
 			continue
 		}
 		for _, tag := range thread.Tags {

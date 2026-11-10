@@ -30,13 +30,13 @@ type backgroundSettingsHarness struct {
 }
 
 type backgroundSettingsSend struct {
+	input     model.AgentInput
 	handle    *handle
 	execution string
 	model     string
 }
 
-// There is no connected native UI in this replay; Tag still receives its
-// declared Overview capability through the normal application host boundary.
+// Some application fixtures expose an empty Overview; Tag no longer requires it.
 type backgroundSettingsOverview struct{}
 
 func (backgroundSettingsOverview) ReadClients(ctx context.Context) ([]plugin.OverviewClientSnapshot, error) {
@@ -109,7 +109,7 @@ func (h *backgroundSettingsHandle) Send(ctx context.Context, request plugin.Send
 			Model string `json:"model"`
 		}
 		must(json.Unmarshal(record.Settings, &settings))
-		h.harness.sends <- backgroundSettingsSend{h.handle, request.ExecutionID, settings.Model}
+		h.harness.sends <- backgroundSettingsSend{handle: h.handle, execution: request.ExecutionID, model: settings.Model, input: request.Input}
 	}
 	return nil
 }
@@ -347,7 +347,7 @@ func verifyBackgroundSettingsCase(ctx context.Context, agent string, independent
 	capabilities := r.BackgroundCapabilities(owner, agent+".settings")
 	sessions, err := plugin.Require[plugin.BackgroundSessionsCapability](capabilities, plugin.BackgroundSessionsCapabilityKey)
 	must(err)
-	orphan, err := sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: "primary", Injection: *last.open.Injection})
+	orphan, err := sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: backgroundSessionKey(agent), Injection: *last.open.Injection})
 	must(err)
 	_, err = orphan.Send(ctx, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "unowned native continuation"}}}, nil, nil)
 	must(err)
@@ -399,7 +399,7 @@ func verifyBackgroundSettingsCase(ctx context.Context, agent string, independent
 	case <-time.After(3 * time.Second):
 		panic("background cold-orphan preparation never reached resolution")
 	}
-	orphan, err = sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: "primary", Injection: *last.open.Injection})
+	orphan, err = sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: backgroundSessionKey(agent), Injection: *last.open.Injection})
 	must(err)
 	_, err = orphan.Send(ctx, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "unowned cold continuation"}}}, nil, nil)
 	must(err)
@@ -439,7 +439,7 @@ func verifyBackgroundSettingsCase(ctx context.Context, agent string, independent
 	// active. The new batch must close that owner and then use its saved profile.
 	last = h.latest(owner.AgentID)
 	waitFor(func() bool { last.mu.Lock(); defer last.mu.Unlock(); return last.closed })
-	orphan, err = sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: "primary", Injection: *last.open.Injection})
+	orphan, err = sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: backgroundSessionKey(agent), Injection: *last.open.Injection})
 	must(err)
 	_, err = orphan.Send(ctx, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "unowned background continuation"}}}, nil, nil)
 	must(err)
@@ -472,4 +472,11 @@ func verifyBackgroundSettingsCase(ctx context.Context, agent string, independent
 		panic("orphan background drain consumed an execution retry")
 	}
 	finishReportFixture(ctx, afterBackground.handle, "completed")
+}
+
+func backgroundSessionKey(agent string) string {
+	if agent == "tag" {
+		return "title-classification"
+	}
+	return "primary"
 }

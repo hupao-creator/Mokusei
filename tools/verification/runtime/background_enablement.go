@@ -205,10 +205,9 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 	}
 	save(func(settings *model.Settings) { set(settings, "tag", true) })
 	tagged := await("tag")
-	_, err = reportTool(ctx, tagged.handle, "create_tags", "keep-tag", model.Object{"tags": []any{model.Object{"name": "Keep", "emoji": "🏷️"}}})
-	must(err)
-	_, err = reportTool(ctx, tagged.handle, "set_thread_tags", "keep-assignment", model.Object{"assignments": []any{model.Object{"thread": model.Object{"threadId": source.ID, "typeId": "agent"}, "tags": []string{"Keep"}}}})
-	must(err)
+	status := readTagStatus(ctx, tagged.handle)
+	status = mutateTagTool(ctx, tagged.handle, "create_tag", "keep-tag", model.Object{"expectedRevision": status.Revision, "name": "Keep", "emoji": "🏷️"})
+	mutateTagTool(ctx, tagged.handle, "assign_threads", "keep-assignment", model.Object{"expectedRevision": status.Revision, "assignments": []plugin.TagStatusAssignment{{ThreadID: source.ID, TagID: tagStatusID(status, "Keep")}}})
 	settle(tagged, "tag")
 	save(func(settings *model.Settings) { set(settings, "tag", false); set(settings, "report", true) })
 	reported := await("report")
@@ -225,8 +224,11 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 		trigger()
 		current := await(role)
 		id := owner(role).AgentID
-		tool := map[string]string{"tag": "create_tags", "report": "create_report"}[role]
-		args := model.Object{"tags": []any{model.Object{"name": "Keep", "emoji": "🏷️"}}}
+		tool := map[string]string{"tag": "create_tag", "report": "create_report"}[role]
+		args := model.Object{}
+		if role == "tag" {
+			args = model.Object{"expectedRevision": readTagStatus(ctx, current.handle).Revision, "name": "Keep", "emoji": "🏷️"}
+		}
 		if role == "report" {
 			args = model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Receipt report", "html": "<p>Once only</p>", "coverHTML": "<div>Receipt report</div>"}
 		}
@@ -243,14 +245,14 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 		configuration, err := plugin.Require[plugin.BackgroundConfigurationCapability](caps, plugin.BackgroundConfigurationCapabilityKey)
 		must(err)
 		// Keep a facade so Send is tested independently of cancellation at the tool.
-		facade, err := sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: "primary", Injection: *current.handle.open.Injection})
+		facade, err := sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: backgroundSessionKey(role), Injection: *current.handle.open.Injection})
 		must(err)
 		for n := 0; n < 4; n++ {
 			save(func(settings *model.Settings) { set(settings, role, false) })
-			if _, err := configuration.Resolve(ctx, "primary"); err == nil {
+			if _, err := configuration.Resolve(ctx, backgroundSessionKey(role)); err == nil {
 				panic("disabled configuration resolved")
 			}
-			if _, err := sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: "primary"}); err == nil {
+			if _, err := sessions.Open(ctx, plugin.OpenSessionRequest{SessionKey: backgroundSessionKey(role)}); err == nil {
 				panic("disabled session opened")
 			}
 			if _, err := facade.Send(ctx, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "late send"}}}, nil, nil); err == nil {

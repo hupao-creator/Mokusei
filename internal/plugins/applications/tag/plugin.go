@@ -14,8 +14,6 @@ import (
 //go:embed instructions.txt
 var instructions string
 
-const overviewRequest = "Read current overview context with read_overview_context and use it as read-only evidence alongside the current task to classify threads. No connected overview is normal, so continue classification if none is available."
-
 type Plugin struct{}
 
 func New() *Plugin { return &Plugin{} }
@@ -26,7 +24,7 @@ func (*Plugin) Register(registry plugin.Registry) error {
 	if err := background.RegisterSettings(registry, "tag", "tag.settings"); err != nil {
 		return err
 	}
-	return registry.BackgroundAgent(plugin.BackgroundAgentDefinition{ID: "tag.agent", ExecutionSettingsID: "tag.settings", InstancePolicy: plugin.PerDirectoryScope, Requires: []plugin.CapabilityKey{plugin.BackgroundConfigurationCapabilityKey, plugin.BackgroundEnvironmentCapabilityKey, plugin.BackgroundSessionsCapabilityKey, plugin.LifecycleCapabilityKey, plugin.OverviewControlCapabilityKey, plugin.SemanticTagsReadCapabilityKey, plugin.SemanticTagsWriteCapabilityKey}, Create: newAgent})
+	return registry.BackgroundAgent(plugin.BackgroundAgentDefinition{ID: "tag.agent", ExecutionSettingsID: "tag.settings", InstancePolicy: plugin.PerDirectoryScope, Requires: []plugin.CapabilityKey{plugin.BackgroundConfigurationCapabilityKey, plugin.BackgroundEnvironmentCapabilityKey, plugin.BackgroundSessionsCapabilityKey, plugin.LifecycleCapabilityKey, plugin.SemanticTagsReadCapabilityKey, plugin.SemanticTagsWriteCapabilityKey}, Create: newAgent})
 }
 func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, error) {
 	environment, err := plugin.Require[plugin.BackgroundEnvironmentCapability](ctx.Capabilities, plugin.BackgroundEnvironmentCapabilityKey)
@@ -41,10 +39,6 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 	if err != nil {
 		return nil, err
 	}
-	overview, err := plugin.Require[plugin.OverviewControl](ctx.Capabilities, plugin.OverviewControlCapabilityKey)
-	if err != nil {
-		return nil, err
-	}
 	scopeLabel := ctx.Owner.ScopeLabel
 	if scopeLabel == "" {
 		scopeLabel = "Inbox"
@@ -54,38 +48,38 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 		agentID = "tag.agent"
 	}
 	var runner *background.Runner
-	runner, err = background.NewRunner(ctx, background.Behavior{SettingsID: "tag.settings", ID: agentID, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Replay: "pending", Filter: plugin.LifecycleScope{{Sources: []string{"application", "user"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.input-accepted", "execution.completed", "execution.failed", "execution.interrupted"}}, {Sources: []string{agentID}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.inventory"}}}}, Instructions: []string{instructions}, Initialize: writes.EnsureInventory, LazyInitialize: true, IdleDispose: true,
+	runner, err = background.NewRunner(ctx, background.Behavior{SessionKey: "title-classification", SettingsID: "tag.settings", ID: agentID, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Replay: "pending", Filter: plugin.LifecycleScope{{Sources: []string{"application", "user"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.input-accepted", "thread.title-changed", "thread.restored"}}, {Sources: []string{agentID}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.inventory"}}}}, Instructions: []string{instructions}, Initialize: writes.EnsureInventory, LazyInitialize: true, IdleDispose: true,
 		Message: func(callCtx context.Context, request background.BatchRequest) (model.AgentInput, error) {
 			locale, err := environment.OutputLocale(callCtx)
 			if err != nil {
 				return model.AgentInput{}, err
 			}
-			pool, err := reads.CaptureList(callCtx)
+			status, err := reads.CaptureStatusbar(callCtx)
 			if err != nil {
 				return model.AgentInput{}, err
 			}
 			language := background.LanguageInstructions(locale, func(name string) string {
-				return fmt.Sprintf("Write semantic tag names in %s. Generate a corresponding emoji separately for each tag; never prefix the name with emoji. Prefer concise, consistent names and reuse relevant names in the injected tagPool snapshot or overview context. Assign labels only to the specified thread. Derived directory tags are outside your authority.", name)
+				return fmt.Sprintf("Write concise tag names in %s and generate a separate emoji for each tag.", name)
 			})
-			instruction := fmt.Sprintf("You manage the five-slot semantic tag pool for scope %q. Review every classification-eligible thread in this batch and give each exactly one tag from the current pool. Reuse an existing tag whenever it fits; create a tag only when the pool has a free slot and no existing tag fits.", scopeLabel)
-			if request.Steering {
-				instruction = fmt.Sprintf("You manage the five-slot semantic tag pool for scope %q. Incorporate these additional events into your current batch now. Revisit earlier tag decisions when new evidence changes a thread’s subject, and finish all earlier unfinished reviews.", scopeLabel)
-			}
-			data, err := json.Marshal(model.Object{"scope": scopeLabel, "tagPool": pool, "capacity": max(0, 5-len(pool)), "events": background.EventEvidence(request.Events)})
+			data, err := json.Marshal(status)
 			if err != nil {
 				return model.AgentInput{}, err
 			}
-			return background.Input(fmt.Sprintf("%s %s Use the supplied batch metadata, current tagPool snapshot, and available overview context. Leave existing tags unchanged when this evidence does not establish a useful subject. A thread never has more than one semantic tag. %s Batch: %s\n%s", instruction, language, overviewRequest, request.BatchID, data)), nil
+			instruction := "Review every Thread in this statusbar, fill every unassigned Thread, and adjust classifications or reorganize the pool when current titles justify it."
+			if request.Steering {
+				instruction = "This statusbar supersedes the previous snapshot. Reconsider all current Threads and finish any incomplete classification or reorganization."
+			}
+			return background.Input(fmt.Sprintf("You manage the five-slot tag pool for %q. %s %s Batch: %s\nStatusbar: %s", scopeLabel, instruction, language, request.BatchID, data)), nil
 		},
 		Tools: func(lifetime context.Context) []plugin.ToolBinding {
-			execute := func(callCtx context.Context, operation plugin.SemanticTagOperation, callID string) (any, error) {
+			execute := func(callCtx context.Context, operation plugin.TagMutation, callID string) (any, error) {
 				options, err := runner.WriteOptions(callCtx, callID)
 				if err != nil {
 					return nil, err
 				}
-				return writes.Execute(callCtx, operation, plugin.BackgroundWriteOptions{RequestID: options.RequestID, Batch: *options.Batch})
+				return writes.Mutate(callCtx, operation, plugin.BackgroundWriteOptions{RequestID: options.RequestID, Batch: *options.Batch})
 			}
-			return append(mutationTools(lifetime, execute), overviewContextTool(overview, lifetime, ctx.Owner.Binding.Scope))
+			return append(mutationTools(lifetime, execute), statusbarTool(lifetime, reads.CaptureStatusbar))
 		},
 	})
 	return runner, err

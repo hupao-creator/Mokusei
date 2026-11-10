@@ -36,7 +36,7 @@ authority to resume execution or become an ordinary Agent Thread.
 
 _Avoid_: Report Agent
 
-**Tag Agent**: The private agent that maintains a five-slot semantic tag pool within one Directory Scope and assigns eligible ordinary Agent Threads, including archived threads, to that pool.
+**Tag Agent**: The private agent that maintains a five-slot semantic tag pool within one Directory Scope and classifies all unarchived ordinary Agent Threads in that pool using only their IDs and titles. Its statusbar includes the complete active membership and assignments. Archived Threads retain frozen label decoration outside the active pool.
 
 **Attention Agent**: The private global agent that uses each ordinary Agent Thread's own reading facts to decide whether to hide its card from normal Overview browsing. Opening a hidden search result or starting a new execution restores the card.
 

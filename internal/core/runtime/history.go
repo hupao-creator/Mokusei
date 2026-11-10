@@ -181,6 +181,12 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 		if t.MokuHistory && !value {
 			return errors.New("Moku history is read-only and cannot be unarchived")
 		}
+		// Archived label decoration is frozen outside the active pool. Restoring
+		// starts a new classification instead of reviving a retired category.
+		if archived(t) && !value {
+			t.Tags = []string{}
+			t.TagEmojis = map[string]string{}
+		}
 		t.Archived = &value
 		return nil
 	})

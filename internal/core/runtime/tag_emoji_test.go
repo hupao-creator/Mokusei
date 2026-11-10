@@ -96,9 +96,9 @@ func TestTagEmojiWriteContractAndAtomicFailure(t *testing.T) {
 
 func TestStoredTagsAreRejectedWithoutRepair(t *testing.T) {
 	for _, tag := range []tagDefinition{
-		{Name: "Backend", Description: "Backend"},
-		{Name: "🔥 Backend", Description: "Backend", Emoji: "🔥"},
-		{Name: "Backend", Description: "Backend", Emoji: "👩‍"},
+		{ID: "tag", Name: "Backend", Description: "Backend"},
+		{ID: "tag", Name: "🔥 Backend", Description: "Backend", Emoji: "🔥"},
+		{ID: "tag", Name: "Backend", Description: "Backend", Emoji: "👩‍"},
 	} {
 		db, err := store.Open(filepath.Join(t.TempDir(), "state.sqlite"))
 		if err != nil {

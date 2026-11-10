@@ -324,9 +324,26 @@ func verifyReportScopes(ctx context.Context) {
 	// after deleting the source. The report title-only update needs no source.
 	_, err = reportTool(ctx, aHandle, "update_report", "same-scope", model.Object{"reportId": aReport.ID, "expectedRevision": reportReadRevision(ctx, aHandle, aReport.ID), "relatedExecutions": refs[:1]})
 	must(err)
+	_, tagWrites := scopedTagCapabilities(r, aScope, "tag.restore-verification")
+	_, err = tagWrites.Execute(ctx, plugin.SemanticTagOperation{Kind: "create", Name: "Restore label", Emoji: stringPointer("📚")}, plugin.BackgroundWriteOptions{RequestID: "restore-tag"})
+	must(err)
+	_, err = tagWrites.Execute(ctx, plugin.SemanticTagOperation{Kind: "assign", Thread: &model.ThreadRef{ThreadID: a.ID, TypeID: "agent"}, Tags: []string{"Restore label"}}, plugin.BackgroundWriteOptions{RequestID: "restore-label"})
+	must(err)
 	must(r.SetArchived(ctx, a.ID, true))
 	_, err = reportTool(ctx, aHandle, "get_thread_status", "archived", model.Object{"threadId": a.ID})
 	must(err)
+	_, err = tagWrites.Execute(ctx, plugin.SemanticTagOperation{Kind: "delete", Name: "Restore label"}, plugin.BackgroundWriteOptions{RequestID: "retire-archived-label"})
+	must(err)
+	assertThreadTags(r, a.ID, "Restore label")
+	assertTagEmoji(r, a.ID, "Restore label", "📚")
+	must(r.SetArchived(ctx, a.ID, false))
+	restoredCatalog, err := app.Catalog(ctx)
+	must(err)
+	for _, entry := range restoredCatalog {
+		if entry.ID == aReport.ID && (len(entry.Tags.SemanticTags) != 0 || len(entry.Tags.TagEmojis) != 0) {
+			panic("restoration left stale report source labels")
+		}
+	}
 	must(r.DeleteThread(ctx, a.ID))
 	must(r.DeleteThread(ctx, a2.ID))
 	_, err = reportTool(ctx, aHandle, "update_report", "after-source-delete", model.Object{"reportId": aReport.ID, "expectedRevision": reportReadRevision(ctx, aHandle, aReport.ID), "title": "Scoped report"})

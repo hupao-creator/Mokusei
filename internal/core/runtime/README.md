@@ -282,3 +282,15 @@ rejection remains explicitly unconsumed; interaction replies reject before
 claiming an answer. Cleanup failure leaves the owner fenced and prevents a new
 native owner from overlapping it. No new execution ID or input is reserved merely
 by replacing the idle recovery handle.
+
+## Tag classification state
+
+[tag_statusbar.go](tag_statusbar.go) captures one scope's active title-only Threads,
+stable-ID tags and assignments from one immutable snapshot. Its content revision
+fences atomic mutations without reacting to unrelated stream writes. The writer
+checks revision, active membership and scope in the receipt transaction and returns
+current status on conflicts. [tags.go](tags.go) keeps public name/emoji projections
+and report source decoration synchronized while preserving stable tag identity.
+Archived Threads retain frozen decoration and do not consume active membership;
+restoration clears assignment before emitting `thread.restored`. Actual title
+changes emit `thread.title-changed`, independently of execution terminal facts.

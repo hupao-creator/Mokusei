@@ -87,6 +87,11 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 			return err
 		}
 	} else {
+		if old.Title != next.Title && !next.Moku && !next.MokuHistory && !archived(next) {
+			if err := emit("thread.title-changed", map[string]any{}); err != nil {
+				return err
+			}
+		}
 		if old.Title != next.Title || !same(old.Tags, next.Tags) || !same(old.TagEmojis, next.TagEmojis) || !same(old.Settings, next.Settings) {
 			if err := emit("entity.updated", map[string]any{"harnessId": next.HarnessID, "title": next.Title, "tags": next.Tags, "tagEmojis": next.TagEmojis}); err != nil {
 				return err
@@ -99,6 +104,11 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 			}
 			if err := emit(kind, map[string]any{}); err != nil {
 				return err
+			}
+			if !archived(next) {
+				if err := r.refreshApplicationTagSources(tx); err != nil {
+					return err
+				}
 			}
 		}
 	}

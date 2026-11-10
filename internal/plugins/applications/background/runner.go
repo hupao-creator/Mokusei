@@ -26,8 +26,8 @@ type BatchRequest struct {
 // MarshalEvents is the complete lifecycle delivery representation for both
 // initial batches and steering. Keep Data opaque: decoding it into a projection
 // can lose source fields or replace an execution snapshot with newer state.
-// Consumers such as Tag may deliberately use a bounded evidence projection
-// instead; that choice must not change the shared delivery representation.
+// Consumers such as Tag may use events only for scheduling and inject a
+// separate status snapshot; that must not change the shared delivery contract.
 func (r BatchRequest) MarshalEvents() ([]byte, error) {
 	return json.Marshal(r.Events)
 }
@@ -38,6 +38,9 @@ type BatchPlan struct {
 	Finish func(context.Context, string) error
 }
 type Behavior struct {
+	// SessionKey isolates a changed private context contract from old native history.
+	// Empty uses the shared default.
+	SessionKey   string
 	SettingsID   string
 	ID           string
 	Consumer     plugin.LifecycleConsumerDefinition
@@ -522,7 +525,7 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		return finish("processed")
 	}
 	stage = "read-session"
-	session, err := r.sessions.Read("primary")
+	session, err := r.sessions.Read(r.sessionKey())
 	if err != nil {
 		return err
 	}
@@ -615,7 +618,7 @@ func busy(observation model.PublicObservation) bool {
 	return observation.BackgroundWork != nil || (observation.LatestExecution != nil && (observation.LatestExecution.Status == "running" || observation.LatestExecution.Status == "waiting-for-user"))
 }
 func (r *Runner) settleStale(ctx context.Context) error {
-	session, err := r.sessions.Read("primary")
+	session, err := r.sessions.Read(r.sessionKey())
 	if err != nil {
 		return err
 	}
@@ -658,7 +661,7 @@ func (r *Runner) ensureInstance(ctx context.Context) (instancePreparation, error
 	}
 }
 func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, error) {
-	session, err := r.sessions.Read("primary")
+	session, err := r.sessions.Read(r.sessionKey())
 	if err != nil {
 		return instancePreparation{}, err
 	}
@@ -672,7 +675,7 @@ func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, erro
 	// previous owner. Open it for cleanup before attempting idle configuration.
 	orphan := !retained && busy(observation)
 	if session == nil || (!retained && !orphan) {
-		configuration, err := r.configuration.Resolve(ctx, "primary")
+		configuration, err := r.configuration.Resolve(ctx, r.sessionKey())
 		if err != nil {
 			return instancePreparation{}, err
 		}
@@ -689,7 +692,7 @@ func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, erro
 		}
 		// Even reuse must validate the resolved source: a settings save can
 		// race discovery while the old key still matches this idle session.
-		if _, err := r.sessions.Configure(ctx, plugin.ConfigureSessionRequest{SessionKey: "primary", ExpectedRevision: configuration.SessionRevision, Configuration: configuration}); err != nil {
+		if _, err := r.sessions.Configure(ctx, plugin.ConfigureSessionRequest{SessionKey: r.sessionKey(), ExpectedRevision: configuration.SessionRevision, Configuration: configuration}); err != nil {
 			return instancePreparation{}, err
 		}
 	}
@@ -703,7 +706,7 @@ func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, erro
 	opening, cancel := context.WithCancel(lifetime)
 	stop := context.AfterFunc(ctx, cancel)
 	bindings := r.behavior.Tools(opening)
-	handle, err = r.sessions.Open(opening, plugin.OpenSessionRequest{SessionKey: "primary", Injection: plugin.Injection{Instructions: r.behavior.Instructions, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: bindings, AuditContext: func() plugin.ToolRetryContext {
+	handle, err = r.sessions.Open(opening, plugin.OpenSessionRequest{SessionKey: r.sessionKey(), Injection: plugin.Injection{Instructions: r.behavior.Instructions, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: bindings, AuditContext: func() plugin.ToolRetryContext {
 		if work := r.consumer.Work(); work != nil {
 			return plugin.ToolRetryContext{ConsumerID: r.consumer.ID(), BatchID: work.ID, Attempt: work.Attempts, BatchExecutionID: work.ExecutionID}
 		}
@@ -821,7 +824,7 @@ func (r *Runner) waitForSettlement(ctx context.Context, handle plugin.PrivateSes
 		if work == nil || work.ExecutionID != executionID {
 			return errors.New("Background batch replaced")
 		}
-		session, err := r.sessions.Read("primary")
+		session, err := r.sessions.Read(r.sessionKey())
 		if err != nil {
 			return err
 		}
@@ -875,4 +878,11 @@ func (r *Runner) log(stage string, err error) {
 		outcome = "cancelled"
 	}
 	r.diagnose(outcome, stage, -1, time.Time{}, err)
+}
+
+func (r *Runner) sessionKey() string {
+	if r.behavior.SessionKey != "" {
+		return r.behavior.SessionKey
+	}
+	return "primary"
 }
