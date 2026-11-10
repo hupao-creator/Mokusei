@@ -160,6 +160,12 @@ text, then checks native editing, autosave normalization and Undo persistence.
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
 
+The Tag statusbar replay uses the production scoped participant and injected tools
+to verify complete ID/title-only active membership, stable tag IDs, atomic batch
+assignment, stale-revision conflicts, five-slot reorganization, archive decoration
+freeze, restoration, and title-change steering/idle wake. Report replay also checks
+that restoring a source clears its historical label projection atomically.
+
 The Runtime replay also drives the production Tag and Report participants with
 inherited and independent execution profiles. After accepted inputs settle, real
 completed/failed/interrupted source executions must leave Tag idle. Subsequent
