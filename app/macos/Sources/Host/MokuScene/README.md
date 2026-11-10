@@ -256,11 +256,11 @@ retains the Arc for comparison only.
 
 The expanded note's **Moku history** button opens the existing conversation
 reader. It remains available when the note or conversation is empty and supports keyboard and accessibility activation
-with localized labels. History sits before Stop or voice controls in the trailing
-action row. Note covers Talk, dispatch and voice
+with localized labels. History is horizontally centered in the panel footer; Stop and voice controls
+retain their trailing seat. Note covers Talk, dispatch and voice
 transcript ink rather than reserving a second message row. The Dock measures
 the actions; narrower capsules put them in a separate control band. If the full label
-cannot fit beside the other control, History becomes an icon with the same
+cannot fit in the centered seat clear of the trailing control, History becomes an icon with the same
 accessible label and help; if even that pair cannot fit, the controls stack.
 The note body stays clipped above these rows; its header scrolls with the body
 in short viewports, including 5× zoom.
