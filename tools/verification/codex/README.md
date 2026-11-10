@@ -21,6 +21,15 @@ user-agent fixtures remain independent of that discovery version.
 
 The synthetic replay checks:
 
+- Production Adapter catalog acquisition tolerates desktop state and unrelated
+  keychain writes, captures one environment per native probe, and observes real
+  config/auth/ancestor/referenced-model changes even beside a large runtime tree.
+  A single source edit recovers after the old process drains; continuous churn
+  stops after two acquisitions and never publishes an old snapshot. RPC failures
+  and cancellation do not retry, every peer is reaped, and stable catalogs reuse
+  their cache. Run `./scripts/go.sh run -race ./tools/verification/codex -catalog-only`
+  for this focused replay. It uses isolated fixtures, not the user's native home.
+
 - Exclusive authentication delegates source access credentials without copying
   refresh tokens. Two isolated processes observe source rotation, coalesce a
   concurrent refresh, reject changed accounts and unchanged/revoked tokens,

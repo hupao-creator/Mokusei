@@ -78,6 +78,7 @@ func main() {
 	}
 }
 func verificationMain() error {
+	catalogOnly := flag.Bool("catalog-only", false, "run production catalog source and recovery replay")
 	authOnly := flag.Bool("auth-only", false, "run isolated native authentication ownership replay")
 	settingsPerformance := flag.Bool("settings-performance", false, "measure concurrent settings/defaults reads with the native fixture")
 	streamOnly := flag.Bool("stream-only", false, "run only deterministic native streaming and cancellation replay")
@@ -100,6 +101,13 @@ func verificationMain() error {
 		return e
 	}
 	defer os.RemoveAll(root)
+	if *catalogOnly {
+		binary, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		return verifyCatalogSources(ctx, root, binary)
+	}
 	if *authOnly {
 		binary, err := os.Executable()
 		if err != nil {
