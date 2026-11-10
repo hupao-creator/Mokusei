@@ -47,27 +47,17 @@ func runRoutingPreferencesReplay() error {
 			}
 		}
 		h.mu.Unlock()
+		guidance := moku.ModelRoutingGuidance(restored.Moku)
+		mokuReplayCheck(strings.Contains(instructions, "Model routing guidance:\n"+guidance), "routing preference missing from native injection")
 		if preset == "custom" {
-			mokuReplayCheck(strings.Contains(instructions, "retained manual policy"), "custom preference missing from native injection")
+			mokuReplayCheck(guidance == "retained manual policy", "custom preference changed")
 		} else {
-			mokuReplayCheck(strings.Contains(instructions, "Candidate groups:") && !strings.Contains(instructions, "retained manual policy"), "preset did not replace effective guidance while retaining custom text")
-			if preset == "performance" {
-				mokuReplayCheck(!strings.Contains(instructions, `"model":"gpt-6-luna"`), "performance routed to economy catalog model")
-			} else {
-				mokuReplayCheck(strings.Contains(instructions, `"model":"gpt-6-luna"`), "available economy model omitted")
-			}
-		}
-		// Cross-tier candidate generation is production code fed with native identities.
-		description := moku.ThreadCreationDescription{RoutingModels: []moku.RoutingModel{
-			{HarnessID: "mock", ID: "gpt-6-luna"}, {HarnessID: "mock", ID: "gpt-6-astra"}, {HarnessID: "mock", ID: "unknown-free-pro"},
-		}}
-		guidance := moku.ModelRoutingGuidance(restored.Moku, description)
-		if preset != "custom" {
-			mokuReplayCheck(!strings.Contains(guidance, "unknown-free-pro"), "unknown model acquired an inferred tier")
-			mokuReplayCheck(strings.Contains(guidance, `"model":"gpt-6-astra"`) == (preset != "economy"), "frontier mapping does not match preset")
+			mokuReplayCheck(strings.HasPrefix(guidance, strings.ToUpper(preset[:1])+preset[1:]+":"), "wrong preset guidance injected")
+			mokuReplayCheck(!strings.Contains(instructions, "retained manual policy"), "preset included retained custom text")
+			mokuReplayCheck(!strings.Contains(guidance, "Candidate groups:") && !strings.Contains(guidance, "gpt-") && !strings.Contains(guidance, "listed"), "preset still restricts routing to fixed candidates")
 		}
 		s.close()
 	}
-	fmt.Println("PASS routing preferences: SQLite save/restart, retained custom text, actual native injection, exact available-model groups and unknown-model exclusion")
+	fmt.Println("PASS routing preferences: SQLite save/restart, retained custom text, actual native injection, general routing priorities without fixed candidate groups")
 	return nil
 }
