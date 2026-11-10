@@ -8,6 +8,7 @@ import SwiftUI
     let props: ApplicationThreadProps<NativeReportView>
     let projection: NativeReportCardProjection
     let openThread: () -> Void
+    var showsCover = true
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
     @State private var failure: String?
@@ -17,7 +18,7 @@ import SwiftUI
     var body: some View {
         Button(action: openThread) {
             VStack(spacing: 4) {
-                if props.entry.view.hasCover {
+                if showsCover && props.entry.view.hasCover {
                     NativeReportCover(props: props)
                         .frame(height: 308)
                         .allowsHitTesting(false).accessibilityHidden(true)

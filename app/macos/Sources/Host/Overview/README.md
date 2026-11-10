@@ -46,14 +46,14 @@ distinguishes model work from GUI and GPU work.
 
 All Overview cards, including Agent Threads and Report, use opaque palette
 surfaces and a soft border, including completed cards.
-Shell and semantic planes contain no Liquid Glass containers. The card boundary
+Shells stay flat. Super Thread collection navigation is the sole card-local Liquid Glass control layer. The card boundary
 supplies the shared flat-material policy to provider badges, terminal marks and
 plan highlights. Agent Thread emoji badges use static opaque palette fills
 without an added border: adaptive accent-soft green when completed, neutral
 surface-strong otherwise. This also applies under Reduce Transparency. Removing
 per-card Liquid Glass avoids its spatial update cost during canvas movement.
 The terminal symbol and accessible status label remain independent of color.
-Card shells and all other card surfaces stay flat.
+Card shells, collection content and all other card surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
 scan and spatial-animation ownership are unchanged.
@@ -386,3 +386,54 @@ their existing rules. Refresh and restart consume the retained envelope rather
 than guessing from terminal status or local UI actions.
 
 Attention-hidden ordinary threads remain in the search candidate catalog. Browsing memberships exclude them, including tag children. The window reports a stable visit identity and cumulative foreground time across history navigation. A completed execution observed in the foreground can start a read deadline without requiring another open.
+
+
+## Viewed application collections
+
+Application plugins can opt into `ApplicationOverviewCollectionPolicy`; Super
+Thread opts in with a 600-second last-open interval and a 1×2 footprint. After
+normal scope/tag filtering and report coverage, two or more eligible reports
+become one view-only card. At exactly 600 seconds a report remains individual;
+never-opened and future-dated reports are ineligible. All is its own view. Nonempty
+search queries retain individual results and rank. Canonical filters/counts and
+report execution coverage still describe underlying documents.
+
+The collection has a reserved canvas identity per type/filter, never a Runtime
+record. Its snapshot retains the exact member projections. Content changes to a
+collected member refresh the selected projection (including that collection);
+unrelated deltas keep the ordinary incremental path. Selection changes within
+the card do not create layout revisions. Only the nearest eligibility deadline
+owns a cancellable timer; read-hidden or inactive canvas presentation cancels it and
+return recomputes eligibility and rearms the deadline. No one-second catalog poll.
+
+Admitted detail navigation records the actual document's last-open time in the
+profile's `desktop-preferences.json`. No prior opening is inferred from creation,
+update or execution timestamps. Failed writes report an error while preserving
+this session's open fact; disk recovery is not claimed. These are local client
+reading facts, not cross-device state. Collections themselves are never persisted.
+
+Opening captures the collection's displayed geometry, retains its old backdrop
+through travel, and then returns to the member's current card after prepared
+Overview reflow. Reopening removes that member; one remaining candidate dissolves
+the collection. Semantic interaction targets include every real member, never
+the synthetic ID; snapshots expose membership and the current selection.
+
+The Report plugin owns `NativeReportCollection`: a 308pt cover slides horizontally
+while the 144pt metadata stays in place and fades out/in, over 460ms. The 4pt gap
+and card shell stay fixed. It reuses `NativeReportCover` and `NativeReportCard`
+with `showsCover: false`, rather than duplicating metadata. Coverless reports use
+their emoji on the ordinary surface. Arrow/dot/menu controls use native Liquid
+Glass; the canvas continues to own the flat outer shell. A native cover input
+region retains pointer drag and trackpad input instead of moving the canvas;
+its scroll/pinch region is intentionally reserved for the collection cover.
+
+The selected ID is shared by cover, metadata, opening and semantic navigation.
+Automatic advance is every 10 seconds while foreground, visible and not in a
+cover gesture; manual advance resets the dwell. Offscreen and hidden collections
+stop advancing. Reduce Motion switches immediately. Transition ownership
+prevents overlapping turns and opening intermediate content. At most four covers
+mount (current, retiring and neighbors), regardless of collection size; larger
+collections use the page menu instead of an overflowing dot row.
+
+The [production-backed demo](../../../../../demos/super-thread-carousel/README.md)
+provides headless model exports and manual viewing without running a Runtime.

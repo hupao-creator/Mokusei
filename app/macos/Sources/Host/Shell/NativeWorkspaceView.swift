@@ -248,7 +248,7 @@ public final class NativeWorkspacePresentation {
             followUpVisible = false; resetNavigation(); nativeApplicationNavigation = false
         }
         if selected != ref {
-            readingPanelSourceCardID = selected == nil ? sourceCardID ?? ref.threadID.string : nil
+            readingPanelSourceCardID = selected == nil ? sourceCardID ?? overview.sourceCardID(for: ref) ?? ref.threadID.string : nil
             readingPanelSource = readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
             threadIdentityVisit = ref.typeID == "agent" && target == nil
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
@@ -256,6 +256,7 @@ public final class NativeWorkspacePresentation {
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
         configureThreadVoice(); publishPresence()
+        if ref.typeID != "agent" { overview.recordApplicationOpen(ref) }
         if ref.typeID == "agent" { scene.setInputOpen(true) }
         Task { await overview.recordUserAction(kind: "open-thread", thread: ref) }
     }
@@ -316,6 +317,14 @@ public final class NativeWorkspacePresentation {
         let route = navigationRouteID, target = selected
         await canvas.prepareForPresentation()
         guard !Task.isCancelled, navigationRouteID == route, selected == target else { return }
+        // A recently opened collection member returns as an individual card.
+        // Resolve its current visual slot after reflow, rather than shrinking the
+        // reader into a different report now showing in the old collection.
+        if let target, target.typeID != "agent", readingPanelSourceCardID != nil,
+           (try? workspace.plugins.applications.requireThread(target.typeID).overviewCollection) != nil {
+            let id = overview.sourceCardID(for: target) ?? target.threadID.string
+            readingPanelSourceCardID = overview.items.contains(where: { $0.id == id }) ? id : nil
+        }
         if overview.error == nil, canvas.layoutError == nil, usesReadingPanel, let id = readingPanelSourceCardID {
             readingPanelSource = canvas.displayedFrame(for: id)
         } else { readingPanelSource = nil }

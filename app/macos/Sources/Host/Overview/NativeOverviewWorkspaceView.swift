@@ -213,6 +213,8 @@ private struct NativeOverviewWorkspaceCard: View {
                     .accessibilityAction(named: Text(model.workspace.preferences.locale.text("打开会话", "Open conversation"))) { open(thread.id) }
             case .application(let plugin, let snapshot):
                 applicationCard(plugin: plugin, snapshot: snapshot)
+            case .collection(let plugin, let members):
+                collectionCard(plugin: plugin, members: members)
             case nil:
                 // Removed entities retain an inert geometric slot until the queued
                 // exit/reflow commits. They never acquire fresh execution authority.
@@ -244,6 +246,26 @@ private struct NativeOverviewWorkspaceCard: View {
         defer { model.canvasState.endInteraction(cardID: item.id) }
         try await model.workspace.harnessHost.actions(for: thread).respond(request)
     }
+    private func collectionCard(plugin: AnyApplicationThreadPlugin, members: [ApplicationOverviewSnapshot]) -> AnyView {
+        do {
+            let props = try members.map { snapshot in
+                ApplicationThreadProps(entry: snapshot.entry,
+                    context: try model.applicationFactories.rendererContext(plugin, snapshot.entry, lifetime))
+            }
+            return try plugin.collectionCard(props: props, initialSelection: model.selectedCollectionMember(for: item),
+                active: model.presentationActive && model.facts.overviewVisible && model.facts.focused
+                    && model.facts.documentVisible && !model.facts.settingsOpen,
+                onSelection: { model.selectCollectionMember($0, cardID: item.id) }, openThread: { reference in
+                    guard plugin.hasDetail, model.canvasState.allowsActivation(cardID: item.id),
+                          members.contains(where: { $0.entry.ref == reference }) else { return }
+                    callbacks.current.openApplication(reference, nil)
+                })
+        } catch {
+            return AnyView(Text(error.localizedDescription).font(NativeTypography.inter(size: 11))
+                .foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18))
+        }
+    }
+
     private func applicationCard(plugin: AnyApplicationThreadPlugin, snapshot: ApplicationOverviewSnapshot) -> AnyView {
         do {
             let provided = try model.applicationFactories.rendererContext(plugin, snapshot.entry, lifetime)

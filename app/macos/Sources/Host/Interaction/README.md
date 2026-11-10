@@ -68,3 +68,10 @@ and persisted completion state. Only its mounted `settings.control` actions are
 admitted, using an independent visit/step registry. The handoff reports
 `transitioning` until the real Dock is revealed; workspace navigation remains
 blocked throughout setup and the morph.
+
+
+Super Thread collections expose every real member as a `thread.open` target.
+Overview card observations include `members` and the currently displayed member's
+`ref`/`title`; the synthetic collection identity is only a canvas slot. Opening
+uses the same source/return geometry resolution and profile-local reading fact
+as native card activation. Selecting a carousel page is not a reading event.

@@ -4,6 +4,7 @@
 
 | 入口 | 状态与用途 |
 | --- | --- |
+| [Super Thread 轮播集合](super-thread-carousel/README.md) | 生产集合/Report 卡片 fixture：按最近打开时间归组，封面横滑、body 淡出淡入、Liquid Glass 控件；提供无窗口生产模型与持久化数据导出。 |
 | [Report Thread 卡片与展开](report-thread/README.md) | 已确认设计对照及正式组件 fixture：emoji / 短介绍 / harness logo 卡片、右侧关联列表 2:8、执行阅读 5:5；生产契约已接入。 |
 | [Agent Thread 面板转场](thread-panel-transition/README.md) | 生产 compositor、身份交接和双向正文揭示的 fixture 回放；保留此前独立提案作对照，Moku 常驻。 |
 | [Execution 完成交接](execution-handoff/README.md) | 独立原生提案：先收入 sidecard 并让主面板变宽，再向下翻到新结果；支持重复播放、慢速及减弱动态效果，不修改生产交接。 |

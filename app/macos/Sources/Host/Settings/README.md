@@ -320,3 +320,9 @@ All Harness advanced-options headers retain the native disclosure, with a
 full-width label and 32-point minimum hit height. Title, chevron and trailing space toggle the same
 disclosure; native keyboard activation, localized expanded state, disabled gates
 and the semantic interaction binding remain available. Collapsing retains values.
+
+
+`DesktopPreferences` also retains profile-local `applicationLastOpened` timestamps
+(Unix seconds) for opted-in application collections. Appearance, locale, selection and onboarding
+writes preserve this dictionary. It is reading state rather than a configurable
+setting; collection membership and carousel selection are not written to disk.

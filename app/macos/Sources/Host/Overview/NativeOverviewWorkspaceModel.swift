@@ -39,6 +39,7 @@ public struct NativeOverviewPresentationFacts: Equatable, Sendable {
 public enum NativeOverviewCardSnapshot {
     case harness(HarnessOverviewSnapshot)
     case application(AnyApplicationThreadPlugin, ApplicationOverviewSnapshot)
+    case collection(AnyApplicationThreadPlugin, [ApplicationOverviewSnapshot])
 }
 
 /// Owns public catalog selection and the committed presentation session. Call receive
@@ -97,6 +98,10 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var facts = NativeOverviewPresentationFacts()
     public private(set) var presentationActive = true
     @ObservationIgnored private var presentationDirty = false
+    @ObservationIgnored private var collectionSources: [ApplicationThreadRef: String] = [:]
+    @ObservationIgnored private var collectionSelections: [String: ApplicationThreadRef] = [:]
+    @ObservationIgnored private var recentApplicationOpens: [ApplicationThreadRef: Date] = [:]
+    @ObservationIgnored private var collectionExpiryTask: Task<Void, Never>?
     @ObservationIgnored private var snapshots: [String: NativeOverviewCardSnapshot] = [:]
     @ObservationIgnored private var harnessCache: [JSONText: HarnessOverviewSnapshot] = [:]
     @ObservationIgnored private var applicationCache: [JSONText: (JSONValue, ApplicationOverviewSnapshot)] = [:]
@@ -201,12 +206,14 @@ public final class NativeOverviewWorkspaceModel {
             if presentationDirty { reconcile(captureMutation: false) }
         } else {
             presentationDirty = true
+            collectionExpiryTask?.cancel(); collectionExpiryTask = nil
             invalidateContentSearch()
         }
     }
 
     public func setPresentation(_ value: NativeOverviewPresentationFacts) {
         guard facts != value else { return }
+        let becameVisible = !facts.overviewVisible && value.overviewVisible
         if facts.overviewVisible != value.overviewVisible {
             revisions.removeAll()
             // Leaving retains the committed canvas as the reading backdrop.
@@ -214,8 +221,12 @@ public final class NativeOverviewWorkspaceModel {
             if value.overviewVisible { recoveryEpoch += 1 }
         }
         facts = value
+        if !value.overviewVisible { collectionExpiryTask?.cancel(); collectionExpiryTask = nil }
         // Direct navigation/recovery can bypass an animated return.
-        if value.overviewVisible { setPresentationActive(true) }
+        if value.overviewVisible {
+            setPresentationActive(true)
+            if presentationDirty || becameVisible { reconcile(captureMutation: false) }
+        }
         if isSearching {
             if searchAvailable { reconcile(captureMutation: false) }
             else { invalidateContentSearch() }
@@ -285,6 +296,39 @@ public final class NativeOverviewWorkspaceModel {
         pruneSnapshots()
     }
     public func snapshot(for item: NativeOverviewItem) -> NativeOverviewCardSnapshot? { snapshots[item.presentationID] }
+
+    public func sourceCardID(for reference: ApplicationThreadRef) -> String? { collectionSources[reference] }
+
+    public func selectedCollectionMember(for item: NativeOverviewItem) -> ApplicationThreadRef? {
+        guard case .collection(_, let members) = snapshot(for: item) else { return nil }
+        if let selected = collectionSelections[item.id], members.contains(where: { $0.entry.ref == selected }) { return selected }
+        return members.first?.entry.ref
+    }
+
+    public func selectCollectionMember(_ reference: ApplicationThreadRef, cardID: String) {
+        guard collectionSources[reference] == cardID else { return }
+        collectionSelections[cardID] = reference
+    }
+
+    /// Called only after the Host has admitted real detail navigation. Rotating a
+    /// cover never creates a reading fact. Keep the opening backdrop until return.
+    public func recordApplicationOpen(_ reference: ApplicationThreadRef, at date: Date = .now) {
+        guard let plugin = try? workspace.plugins.applications.requireThread(reference.typeID),
+              plugin.overviewCollection != nil, applicationsByRef[reference] != nil else { return }
+        recentApplicationOpens[reference] = date
+        do { try workspace.preferences.recordApplicationOpen(key: openHistoryKey(reference), at: date) }
+        catch { workspace.report(error) }
+        presentationDirty = true
+        if facts.overviewVisible && presentationActive { reconcile(captureMutation: true) }
+    }
+
+    private func openHistoryKey(_ reference: ApplicationThreadRef) -> String {
+        reference.typeID.string + ":" + reference.threadID.string
+    }
+    private func lastOpened(_ reference: ApplicationThreadRef) -> Date? {
+        recentApplicationOpens[reference] ?? workspace.preferences.applicationLastOpened[openHistoryKey(reference)]
+            .map { Date(timeIntervalSince1970: $0) }
+    }
 
     /// Await this before a user submission so its intent has crossed the runtime
     /// boundary. UTF-16 truncation matches JS slice(0, 4000), including surrogates.
@@ -518,10 +562,16 @@ public final class NativeOverviewWorkspaceModel {
             reconcile(captureMutation: captureMutation, refreshSelection: false)
             return true
         }
+        if changedApplications.contains(where: { change in
+            collectionSources.keys.contains(where: { $0.threadID == change.id })
+        }) {
+            reconcile(captureMutation: captureMutation, refreshSelection: false)
+            return true
+        }
         let selected = NativeOverviewCollection(
             threads: changedThreads.filter { content.activeIDs.contains($0.id.string) },
             applications: changedApplications.compactMap(\.next).filter { content.activeIDs.contains($0.entry.ref.threadID.string) })
-        let next = try project(selected)
+        let next = try project(selected, groupCollections: false)
         let previousTokens = next.compactMap { content.records[$0.id]?.presentationID }
         guard content.update(next) else {
             reconcile(captureMutation: captureMutation, refreshSelection: false)
@@ -652,7 +702,7 @@ public final class NativeOverviewWorkspaceModel {
 
     func containsGlobalThread(_ id: JSONText) -> Bool { globalThreadIDs.contains(id) }
 
-    private func project(_ collection: NativeOverviewCollection) throws -> [NativeOverviewItem] {
+    private func project(_ collection: NativeOverviewCollection, groupCollections: Bool = true) throws -> [NativeOverviewItem] {
         projectionVisitCount += collection.count
         var entries: [(created: Double, index: Int, item: NativeOverviewItem)] = []
         for thread in collection.threads {
@@ -685,6 +735,50 @@ public final class NativeOverviewWorkspaceModel {
             entries.append((entry.createdAt, entries.count, .init(id: entry.ref.threadID.string,
                 columns: projection.envelope.footprint.columns, rows: projection.envelope.footprint.rows,
                 structureKey: projection.envelope.structureKey.string, presentationID: token)))
+        }
+        if groupCollections {
+            collectionSources.removeAll()
+            collectionExpiryTask?.cancel(); collectionExpiryTask = nil
+            if NativeOverviewSearch(isSearching ? searchQuery : "").terms.isEmpty {
+                let now = Date()
+                var candidates: [JSONText: (AnyApplicationThreadPlugin, ApplicationOverviewCollectionPolicy, [ApplicationOverviewSnapshot])] = [:]
+                var nextExpiry: Date?
+                for application in collection.applications {
+                    let entry = application.entry
+                    let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
+                    guard let policy = plugin.overviewCollection, let opened = lastOpened(entry.ref) else { continue }
+                    if policy.includes(lastOpened: opened, now: now) {
+                        if candidates[plugin.id] == nil { candidates[plugin.id] = (plugin, policy, []) }
+                        candidates[plugin.id]!.2.append(applicationCache[entry.ref.threadID]!.1)
+                    } else {
+                        let expiry = opened.addingTimeInterval(policy.openedBefore + 0.01)
+                        nextExpiry = min(nextExpiry ?? expiry, expiry)
+                    }
+                }
+                for (_, (plugin, policy, members)) in candidates where members.count > 1 {
+                    let id = "\u{0}application-collection:\(plugin.id.string):\(browseSceneKey)"
+                    let ids = Set(members.map { $0.entry.ref.threadID.string })
+                    let origin = entries.filter { ids.contains($0.item.id) }.min {
+                        $0.created == $1.created ? $0.index < $1.index : $0.created < $1.created
+                    }!
+                    let token = id + ":" + members.map { String(describing: ObjectIdentifier($0)) }.joined(separator: ",")
+                    snapshots[token] = .collection(plugin, members)
+                    for member in members { collectionSources[member.entry.ref] = id }
+                    entries.removeAll { ids.contains($0.item.id) }
+                    entries.append((origin.created, origin.index, .init(id: id, columns: policy.footprint.columns,
+                        rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token)))
+                }
+                if let expiry = nextExpiry, facts.overviewVisible, presentationActive {
+                    collectionExpiryTask = Task { [weak self] in
+                        do {
+                            try await Task.sleep(for: .seconds(min(86_400, max(0.01, expiry.timeIntervalSinceNow))))
+                            try Task.checkCancellation()
+                            guard let self, self.active else { return }
+                            self.reconcile(captureMutation: true)
+                        } catch { }
+                    }
+                }
+            }
         }
         let ordered = entries.sorted { a, b in
             if isSearching, let ranks = contentRanks {
@@ -769,6 +863,8 @@ public final class NativeOverviewWorkspaceModel {
 
     public func stop() async {
         active = false
+        collectionExpiryTask?.cancel(); collectionExpiryTask = nil
+        collectionSources.removeAll(); collectionSelections.removeAll(); recentApplicationOpens.removeAll()
         invalidateContentSearch()
         await publication?.value
         try? await workspace.client.updateOverviewContext(nil)
