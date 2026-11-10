@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -60,77 +59,6 @@ func EvidenceTools(lifetime context.Context, tasks plugin.OrdinaryTaskReadCapabi
 }
 func taskSummary(task plugin.OrdinaryTaskSnapshot) model.Object {
 	return model.Object{"id": task.Ref.ThreadID, "title": task.Title, "harnessId": task.HarnessID, "cwd": task.Cwd, "executionCwd": task.ExecutionCwd, "archived": task.Archived, "observation": task.Observation, "tags": task.Tags.SemanticTags}
-}
-func EventMetadata(events []plugin.LifecycleEvent) []model.Object {
-	rows := []model.Object{}
-	for _, event := range events {
-		rows = append(rows, model.Object{"id": event.ID, "type": event.Type, "subject": event.Subject, "createdAt": event.CreatedAt})
-	}
-	return rows
-}
-
-const (
-	eventExcerptLimit = 1200
-	eventExcerptTotal = 12000
-)
-
-// EventEvidence adds a bounded text excerpt to lifecycle event metadata. Tag
-// classification needs the accepted request or the inventory title; without
-// it a batch only carries event types and thread IDs. The total budget keeps a
-// large inventory from flooding the model context.
-func EventEvidence(events []plugin.LifecycleEvent) []model.Object {
-	rows := EventMetadata(events)
-	remaining := eventExcerptTotal
-	for i, event := range events {
-		if remaining <= 0 {
-			break
-		}
-		excerpt := eventExcerpt(event)
-		if excerpt == "" {
-			continue
-		}
-		runes := []rune(excerpt)
-		limit := min(len(runes), eventExcerptLimit, remaining)
-		value := strings.TrimSpace(string(runes[:limit]))
-		if value == "" {
-			continue
-		}
-		if limit < len(runes) {
-			value += "…"
-		}
-		rows[i]["excerpt"] = value
-		remaining -= limit
-	}
-	return rows
-}
-
-func eventExcerpt(event plugin.LifecycleEvent) string {
-	var data struct {
-		Title string `json:"title"`
-		Text  string `json:"text"`
-		Parts []struct {
-			Kind string `json:"kind"`
-			Text string `json:"text"`
-		} `json:"parts"`
-	}
-	if json.Unmarshal(event.Data, &data) != nil {
-		return ""
-	}
-	texts := []string{}
-	if title := strings.TrimSpace(data.Title); title != "" {
-		texts = append(texts, title)
-	}
-	for _, part := range data.Parts {
-		if part.Kind == "text" {
-			if text := strings.TrimSpace(part.Text); text != "" {
-				texts = append(texts, text)
-			}
-		}
-	}
-	if text := strings.TrimSpace(data.Text); text != "" {
-		texts = append(texts, text)
-	}
-	return strings.Join(texts, "\n")
 }
 func Input(text string) model.AgentInput {
 	return model.AgentInput{Presentation: "internal", Parts: []model.AgentInputPart{{Kind: "text", Text: text}}}

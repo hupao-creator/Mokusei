@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -45,48 +44,4 @@ type runnerTestHistory struct {
 
 func (c runnerTestHistory) Read(query plugin.LifecycleHistoryQuery) (plugin.Page[plugin.LifecycleHistoryEntry], error) {
 	return c.read(query)
-}
-
-func TestEventEvidenceAddsBoundedInputExcerpt(t *testing.T) {
-	text := strings.Repeat("分类", 700)
-	data, err := json.Marshal(map[string]any{"parts": []any{map[string]any{"kind": "text", "text": text}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	rows := EventEvidence([]plugin.LifecycleEvent{{ID: "event", Type: "thread.input-accepted", Data: data}})
-	excerpt, _ := rows[0]["excerpt"].(string)
-	if !strings.HasPrefix(excerpt, "分类分类") || !strings.HasSuffix(excerpt, "…") {
-		t.Fatalf("excerpt = %q", excerpt)
-	}
-	if len([]rune(excerpt)) != eventExcerptLimit+1 {
-		t.Fatalf("excerpt length = %d", len([]rune(excerpt)))
-	}
-}
-
-func TestEventEvidenceUsesInventoryTitle(t *testing.T) {
-	rows := EventEvidence([]plugin.LifecycleEvent{{ID: "event", Type: "thread.inventory", Data: json.RawMessage(`{"title":"修复粘贴预览"}`)}})
-	if rows[0]["excerpt"] != "修复粘贴预览" {
-		t.Fatalf("excerpt = %v", rows[0]["excerpt"])
-	}
-}
-
-func TestEventEvidenceStopsAtTotalBudget(t *testing.T) {
-	data := json.RawMessage(`{"title":"` + strings.Repeat("a", eventExcerptLimit) + `"}`)
-	events := []plugin.LifecycleEvent{}
-	for i := 0; i < eventExcerptTotal/eventExcerptLimit+1; i++ {
-		events = append(events, plugin.LifecycleEvent{ID: "event", Type: "thread.inventory", Data: data})
-	}
-	rows := EventEvidence(events)
-	withExcerpt := 0
-	for _, row := range rows {
-		if _, ok := row["excerpt"]; ok {
-			withExcerpt++
-		}
-	}
-	if withExcerpt != eventExcerptTotal/eventExcerptLimit {
-		t.Fatalf("excerpted events = %d", withExcerpt)
-	}
-	if _, ok := rows[withExcerpt]["excerpt"]; ok {
-		t.Fatalf("event beyond the total budget received an excerpt")
-	}
 }

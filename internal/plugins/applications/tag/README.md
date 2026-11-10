@@ -5,9 +5,53 @@ Production injected callbacks use the shared
 this instance's bound scope and the runner's batch/attempt at entry. This is
 separate from native history and mutation receipts and does not infer model retries.
 
-[plugin.go](plugin.go) registers a per-directory Tag Agent. Each scope, including Inbox, owns a pool of at most **five** semantic tags. The agent classifies eligible ordinary threads, including archived threads, into exactly one tag from that pool. Runtime capability bindings enforce scope; the agent cannot assign another directory's threads or mutate directory labels.
+[plugin.go](plugin.go) registers a per-directory Tag Agent, including Inbox. Each
+pool has at most **five** semantic tags. Every wake reviews all unarchived ordinary
+Threads in that pool; archived Threads, Moku, private sessions and other scopes
+are excluded. Runtime bindings enforce the same boundary on reads and writes.
 
-The agent observes accepted input and completed/failed/interrupted execution facts, plus its scoped inventory events. It uses the shared background runner with lazy initialization and idle disposal. Configuration follows Moku or an independent profile. [overview.go](overview.go) exposes only `read_overview_context` through the host's read-only Overview capability. It retains scoped filters, member thread references and recent user actions as classification evidence, without exposing client identity, context revisions or selection handles. The Tag Agent cannot select filters; users continue to select them manually in Overview.
+Accepted input (user or application), actual title changes, restoration and its
+own initialization inventory wake the agent. Execution completed/failed/interrupted
+facts do not. Events schedule work but their payloads are never sent to Tag.
+The runner initializes lazily and disposes idle sessions. Its dedicated
+`title-classification` session key keeps earlier excerpt-based native history
+outside this title-only context contract.
+
+## Statusbar and tools
+
+Every initial send, retry and active steering captures one authoritative statusbar:
+`pool`, opaque `revision`, `capacity` (five), `tags` (stable ID/name/emoji), `threads`
+(ID/title only), `assignments` (threadId/tagId), and `unassignedThreadIds`.
+All fields come from one immutable store snapshot. The revision is a content hash
+of classification-relevant state; unrelated streaming/status changes do not stale
+it. Thread titles, tag names and all tool results are evidence, never instructions.
+No input excerpt, assistant output, execution status, conversation history, or
+Overview context is exposed. There is no user-facing statusbar UI.
+
+The exclusive tool set is:
+
+- `read_statusbar`: refresh the full current pool view.
+- `create_tag(name, emoji, expectedRevision)`: create one tag, reusing duplicate names.
+- `update_tag(tagId, name?, emoji?, expectedRevision)`: preserve identity and members.
+- `delete_tag(tagId, expectedRevision)`: delete an empty tag; active members reject it.
+- `assign_threads(assignments, expectedRevision)`: batch threadId/tagId replacements,
+  each to exactly one existing tag; one invalid entry rejects the entire transaction.
+
+Writes compare the supplied revision inside the same transaction as the mutation.
+They return `status: applied` or `status: conflict` with the fresh `statusbar`.
+Conflicts apply no classification change. Durable receipts preserve exactly-once
+mutation effects across retries; read fresh status when resuming. Reorganization
+can span calls: move members, delete an empty tag, create a better category, and
+redistribute. Each call is atomic; the whole multi-call reorganization is resumable.
+Before finishing, the agent reads status again and checks complete active coverage.
+
+## Archive boundary
+
+An archived Thread retains its name/emoji decoration as a historical snapshot,
+but is absent from status, active usage, assignments and inventory. Tag mutations
+never rewrite that decoration; a category used only by archives can be deleted.
+Restoring clears its historical assignment and wakes classification into the
+current active pool. The model cannot assign an archived Thread directly.
 
 Saved configuration applies at the next batch configuration boundary. Active
 batch steering retains its admitted profile. A save during native discovery
@@ -26,14 +70,19 @@ Overview filtering and existing tags remain available while the Agent is off.
 
 ## Names and emoji
 
-`create_tags` requires `{name, emoji}` entries. `merge_tags` requires the target emoji; `rename_tag` preserves it unless supplied. Duplicate creation returns the existing definition. Unused tags may be deleted; an in-use tag must be merged instead. Renames/merges update affected assignments atomically.
+[Mutation tools](tools.go) validate complete shapes before batch write admission.
+Unknown nested fields, missing required values, null decorations, empty updates
+and malformed IDs reject the call. Runtime owns name normalization, five-tag
+capacity, scope/active-member validation and transactional revision comparison.
 
-[Mutation tools](tools.go) validate complete argument shapes before requesting batch write authority. Unknown nested fields, missing required fields and `null` or non-string optional decorations reject the call; omitted decorations preserve existing values, while an explicit empty description remains a supplied value. Runtime retains responsibility for tag normalization, pool limits and scope authorization.
-
-Text names are the normalized identity; names/assignments cannot contain emoji prefixes. [taglabel](../../../services/taglabel/) validates complete Unicode Emoji 16.0 sequences. Invalid nonempty newly generated emoji falls back to `🏷️`; missing/empty fields reject. Stored metadata and Swift decoding are strict and do not repair invalid definitions.
+Tags have stable internal IDs; normalized names remain unique within their pool.
+Public Thread envelopes still carry label names and emoji. Names cannot contain
+emoji prefixes. [taglabel](../../../services/taglabel/) validates complete Unicode
+Emoji 16.0 sequences. Invalid nonempty generated emoji falls back to `🏷️`;
+missing/empty creation emoji rejects. An omitted update emoji preserves it.
 
 Every public thread envelope includes `tagEmojis`, even when empty. Keys match semantic tags, excluding directory tags. Emoji-only changes publish revisions and update Report source decoration. [generate-tag-emoji.py](../../../../scripts/generate-tag-emoji.py) generates the Swift table from the pinned data; the parity test checks agreement.
 
 Overview displays emoji and name separately from the identity, groups aliases with identical membership, and includes singly used semantic tags. Directory labels come from [directorytag](../../../services/directorytag/directorytag.go). [Overview presentation](../../../../app/macos/Sources/Host/Overview/README.md) owns visual filtering and motion.
 
-Verification: `make check-directorytag`, `./scripts/go.sh test -race ./internal/services/taglabel ./internal/plugins/applications/tag ./internal/core/runtime` and the runtime integration replay.
+Verification: affected Go race tests and `./scripts/go.sh run -race ./tools/verification/runtime`. The production replay covers title-only injection, exact tools, full scoped membership, stable IDs, atomic writes, stale revisions, five-slot reorganization, archive/restore, terminal non-wake and title-change steering/idle wake. Hosted Complete coverage includes existing native label presentation checks.

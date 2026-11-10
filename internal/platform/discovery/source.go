@@ -52,7 +52,13 @@ func SourceIdentity(ctx context.Context, env map[string]string, executable, cwd,
 	queue := append([]string{}, roots...)
 	for _, start := range []string{base, canonical} {
 		for directory := start; ; directory = filepath.Dir(directory) {
-			queue = append(queue, filepath.Join(directory, namespace))
+			path := filepath.Join(directory, namespace)
+			if namespace == ".codex" {
+				// Codex loads ancestor config.toml files, not every desktop state,
+				// plugin cache or worktree stored beside its global configuration.
+				path = filepath.Join(path, "config.toml")
+			}
+			queue = append(queue, path)
 			if namespace == ".opencode" {
 				queue = append(queue, filepath.Join(directory, "opencode.json"), filepath.Join(directory, "opencode.jsonc"))
 			}

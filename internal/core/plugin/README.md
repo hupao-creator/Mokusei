@@ -63,7 +63,7 @@ Boolean input; `BackgroundExecutionEnabled` treats omitted values as enabled, an
 admission. A disabled execution binding does not disable its application reader
 or remove retained settings and history.
 
-The Overview capability exposes only `ReadClients` for background classification evidence; it grants no filter-selection authority.
+The Overview capability exposes only `ReadClients`; it grants no filter-selection authority. Tag does not request it. [tag_statusbar.go](tag_statusbar.go) defines its scoped title-only status and revision-fenced mutation contract, alongside the semantic-tag read/write capabilities.
 
 ## Other plugin categories
 

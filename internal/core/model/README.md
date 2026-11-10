@@ -66,3 +66,7 @@ The public thread envelope projects the optional attentionHidden browsing flag. 
 send context only; Moku remains the destination. The application-owned query
 resolves the actual report and related executions rather than trusting client
 content. Existing requests may omit it.
+
+Archived ordinary Thread `tags` and `tagEmojis` form frozen historical decoration,
+not active Tag pool membership. Restoration clears them for reclassification;
+public field shapes are unchanged.

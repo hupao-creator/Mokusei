@@ -239,6 +239,7 @@ type SemanticTagUsage struct {
 	Threads       []SemanticTagThread `json:"threads"`
 }
 type SemanticTagsReadCapability interface {
+	CaptureStatusbar(context.Context) (TagStatusbar, error)
 	CaptureList(context.Context) ([]SemanticTagSummary, error)
 	CaptureUsage(context.Context, string) (SemanticTagUsage, error)
 }
@@ -272,6 +273,7 @@ type BackgroundWriteOptions struct {
 	Batch     BatchWriteContext
 }
 type SemanticTagsWriteCapability interface {
+	Mutate(context.Context, TagMutation, BackgroundWriteOptions) (json.RawMessage, error)
 	EnsureInventory(context.Context) error
 	Execute(context.Context, SemanticTagOperation, BackgroundWriteOptions) (json.RawMessage, error)
 }

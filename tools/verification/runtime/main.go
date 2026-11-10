@@ -198,6 +198,7 @@ func main() {
 	verifyReportScopes(ctx)
 	verifyBackgroundSettings(ctx)
 	verifyBackgroundEnablement(ctx)
+	verifyTagStatusbar(ctx)
 	verifyComputePool(ctx)
 	verifyProjectionWorkers(ctx, dir)
 	verifyProjectionReuse(ctx, dir)
