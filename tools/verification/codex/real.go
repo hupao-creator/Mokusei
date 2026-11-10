@@ -262,10 +262,37 @@ trace_exporter = "none"
 	if record(record(options["properties"])["serviceTier"])["type"] != "string" || !containsText(options["required"], "serviceTier") {
 		return fmt.Errorf("native model-facing Moku declaration hid the required service tier: %s", encoded(options))
 	}
+	contracts, e := requestToolContracts(requests[len(requests)-1])
+	if e != nil || len(contracts) != 2 || !sameSchema(contracts["create_thread"], creation.InputSchema) {
+		return fmt.Errorf("native developer instructions lost the original creation contract: %v", e)
+	}
+	if !sameSchema(contracts["echo_fixture"], encoded(object{"type": "object", "properties": object{"text": object{"type": "string"}}, "required": []string{"text"}, "additionalProperties": false})) {
+		return fmt.Errorf("native developer instructions omitted the unrelated injected tool")
+	}
+	fmt.Println("PASS real native developer instructions preserve complete injected schemas, including conditions absent from converted tool parameters")
 	fmt.Println("PASS real native standard tier overrides Fast defaults / model-facing target.codex requires serviceTier and retains its object selector")
 	fmt.Printf("PASS real native network audit (%d scripted Provider requests, loopback-only OS sandbox)\n", len(requests))
 
 	return verifyRealHTTPRecovery(ctx, root, wrapper, adapter, provider)
+}
+
+func requestToolContracts(request object) (map[string]json.RawMessage, error) {
+	candidates := []string{text(request["instructions"])}
+	for _, raw := range list(request["input"]) {
+		message := record(raw)
+		if message["role"] != "developer" && message["role"] != "system" {
+			continue
+		}
+		for _, raw := range list(message["content"]) {
+			candidates = append(candidates, text(record(raw)["text"]))
+		}
+	}
+	for _, candidate := range candidates {
+		if strings.Contains(candidate, "<mokusei_tool_input_schemas>") {
+			return readToolContracts(candidate)
+		}
+	}
+	return nil, fmt.Errorf("no schema instruction block in native request")
 }
 
 // Reproduce an empty native thread whose first turn is rejected by the real

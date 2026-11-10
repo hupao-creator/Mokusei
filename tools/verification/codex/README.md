@@ -138,6 +138,18 @@ model-facing declaration must expose `target.codex.serviceTier` as required and
 retain the target selector as an object with required `codex`. The scripted
 Provider never calls that creation tool.
 
+The captured native request must also carry the complete original creation
+schema in developer instructions, including `allOf`/`if`/`then` constraints
+that native tool-parameter conversion discards, plus the unrelated echo tool's
+schema. The ordinary replay observes production start/resume/fork RPCs and
+authenticated MCP `tools/list` for arbitrary future tool names, changed
+contracts and empty injections. It preserves schema-valued properties, literal
+marker text, references and integers beyond float64 precision. These checks
+exercise the generic Codex injection boundary; the loopback provider does not
+prove live model interpretation. A targeted live headless dispatch remains the
+diagnostic check for regressions in model/provider schema interpretation and
+does not become a paid or credential-dependent hosted gate.
+
 `-voice-only` additionally checks launch-catalog reuse and account/configuration
 invalidation, idle fresh-process prewarming, repeated direct calls, consuming a
 warm candidate before work, active-owner protection, shutdown during prewarm,

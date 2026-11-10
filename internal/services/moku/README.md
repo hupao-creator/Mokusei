@@ -26,6 +26,12 @@ Fixed tool schemas compile once per installed binding and are reused for that
 configuration generation. Dynamic target schemas remain freshly discovered and
 validated at creation admission.
 
+The Codex Harness additionally places the original injected input schemas in
+native developer instructions, so its model can read the complete creation
+contract even when native tool-schema conversion drops composition details.
+Moku retains the same named-target schema and authoritative validation; Pi,
+OpenCode and Claude continue receiving their existing definitions.
+
 [tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
 
 Tool scopes follow the current Moku Thread's monotonic record revision, not the

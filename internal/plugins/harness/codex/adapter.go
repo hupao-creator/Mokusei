@@ -287,7 +287,7 @@ func toolIdentity(injection *plugin.Injection) string {
 		tools = append(tools, item)
 	}
 	sort.Slice(tools, func(i, j int) bool { return str(tools[i]["name"]) < str(tools[j]["name"]) })
-	digest := sha256.Sum256(raw(Map{"transport": "mcp-v1", "mode": injection.Tools.Mode, "definitions": tools}))
+	digest := sha256.Sum256(raw(Map{"transport": "mcp-v1", "schemaInstructions": "full-input-v1", "mode": injection.Tools.Mode, "definitions": tools}))
 	return hex.EncodeToString(digest[:])
 }
 
