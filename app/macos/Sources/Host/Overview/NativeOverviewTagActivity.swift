@@ -1,8 +1,9 @@
 import SwiftUI
 import MokuseiPluginUI
 
-/// Keep the slot even when inactive so status changes cannot move a tag's text,
-/// count or neighbors. The native spinner owns motion and window visibility.
+/// Callers omit this view and its HStack spacing for inactive tags. Once mounted
+/// for an active tag, retain its measured width while menu/search transitions
+/// hide the ring. The native spinner owns motion and window visibility.
 struct OverviewTagActivityIndicator: View {
     let hasActiveTasks: Bool
     var body: some View {

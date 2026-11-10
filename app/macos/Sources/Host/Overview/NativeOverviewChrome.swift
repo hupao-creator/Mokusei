@@ -380,7 +380,9 @@ public struct NativeOverviewChrome: View {
                                         .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
                                         .padding(.vertical, OverviewTagMetrics.countVerticalInset)
                                         .background(.foreground.opacity(0.08), in: Capsule())
-                                    OverviewTagActivityIndicator(hasActiveTasks: child.hasActiveTasks && active && current)
+                                    if child.hasActiveTasks {
+                                        OverviewTagActivityIndicator(hasActiveTasks: active && current)
+                                    }
                                 }
                                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                                 .frame(height: OverviewTagMetrics.chipHeight)
@@ -514,7 +516,9 @@ public struct NativeOverviewChrome: View {
             } label: {
                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                     Text(strings.all).font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
-                    OverviewTagActivityIndicator(hasActiveTasks: allHasActiveTasks && !isSearching && !searchMorphVisible)
+                    if allHasActiveTasks {
+                        OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
+                    }
                 }
                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                 .frame(height: OverviewTagMetrics.chipHeight)
@@ -559,7 +563,9 @@ public struct NativeOverviewChrome: View {
                             .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
                             .padding(.vertical, OverviewTagMetrics.countVerticalInset)
                             .background(.foreground.opacity(0.08), in: Capsule())
-                        OverviewTagActivityIndicator(hasActiveTasks: filter.hasActiveTasks && !isSearching && !searchMorphVisible)
+                        if filter.hasActiveTasks {
+                            OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
+                        }
                     }
                     .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                     .frame(height: OverviewTagMetrics.chipHeight)

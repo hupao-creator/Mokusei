@@ -148,7 +148,9 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
                             .padding(.vertical, OverviewTagMetrics.countVerticalInset)
                             .background(.foreground.opacity(0.08), in: Capsule())
                     }
-                    OverviewTagActivityIndicator(hasActiveTasks: source.hasActiveTasks && progress < (isCarrier ? 0.4 : 0.75))
+                    if source.hasActiveTasks {
+                        OverviewTagActivityIndicator(hasActiveTasks: progress < (isCarrier ? 0.4 : 0.75))
+                    }
                 }
                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                 .frame(width: source.labelFrame.width, height: source.labelFrame.height)

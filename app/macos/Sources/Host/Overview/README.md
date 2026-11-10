@@ -294,10 +294,12 @@ The shared prefix keeps its native ideal size: an emoji's advance and line bound
 
 ## Tag activity
 
-All, directory and semantic tag chips reserve a 10pt trailing activity slot.
-It shows the shared native status ring when the tag's existing browsing membership
-contains a Thread whose public `isExecutionActive` is true (running or waiting for
-user). Background work alone does not redefine active. Selection tint, task counts,
+All, directory and semantic tag chips append a 10pt native status ring only when
+their existing browsing membership contains a Thread whose public
+`isExecutionActive` is true (running or waiting for user). Inactive tags omit both
+the ring and its adjacent HStack spacing. Active tags retain the ring's measured
+width while menu/search transitions temporarily hide it, keeping their source
+geometry consistent. Background work alone does not redefine active. Selection tint, task counts,
 membership, ordering, search scope and Runtime filter context remain independent.
 Archive/visibility, attention-hidden and Report-coverage exclusions come from the
 same membership used to browse each tag; a Report does not itself become an active
