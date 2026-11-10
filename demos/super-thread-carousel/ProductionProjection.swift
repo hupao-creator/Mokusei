@@ -106,6 +106,41 @@ import MokuseiHarnessCodex
     try preferences.selectThread("fixture-selection")
     rows.append(["scenario": "production-history-survives-preference-writes",
                  "preserved": DesktopPreferences(directory: directory).applicationLastOpened == preferences.applicationLastOpened])
+    // Exercise the actual navigation entry, including an old preferences file
+    // with no read-history field and an Overview that has not projected yet.
+    let legacyDirectory = directory.appendingPathComponent("legacy-client")
+    try FileManager.default.createDirectory(at: legacyDirectory, withIntermediateDirectories: true)
+    try Data(#"{"onboardingCompleted":true,"preferences":{"locale":"zh-CN","appearance":"system"}}"#.utf8)
+        .write(to: legacyDirectory.appendingPathComponent("desktop-preferences.json"))
+    let legacyPreferences = DesktopPreferences(directory: legacyDirectory)
+    let navigationWorkspace = NativeWorkspaceModel(
+        client: RuntimeClient(profile: try RuntimeProfile(dataDirectory: legacyDirectory)),
+        preferences: legacyPreferences, plugins: try .init(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())],
+            sidecards: [], applications: NativeApplicationModules.make()))
+    let navigationSnapshot: JSONValue = .object(["revision": .integer(1), "settingsRevision": .integer(0),
+        "defaultCwd": .text("/fixture/carousel"), "settings": .object([:]), "threads": .array([]),
+        "executions": .array([]), "applicationThreads": .array(records)])
+    try navigationWorkspace.catalog.install(navigationSnapshot)
+    let navigation = NativeWorkspacePresentation(workspace: navigationWorkspace)
+    rows.append(["scenario": "legacy-profile-does-not-invent-opens", "recordCount": legacyPreferences.applicationLastOpened.count])
+    rows.append(["scenario": "legacy-open-diagnostic",
+                 "eligibility": try JSONSerialization.jsonObject(with: navigation.overview.collectionEligibility(first)!.encodedData())])
+    navigation.open(first)
+    rows.append(["scenario": "real-open-before-overview-projection", "selected": navigation.selected == first,
+                 "persisted": DesktopPreferences(directory: legacyDirectory).applicationLastOpened["report.document:navigation"] != nil])
+    navigation.overview.receive(.snapshot(navigationSnapshot, authority: UUID()))
+    navigation.open(fixtures["typography"]!.props.entry.ref)
+    navigation.finishBack()
+    rows.append(["scenario": "real-open-and-return-after-projection",
+                 "persisted": DesktopPreferences(directory: legacyDirectory).applicationLastOpened["report.document:typography"] != nil])
+    rows.append(["scenario": "real-entry-open-diagnostic",
+                 "eligibility": try JSONSerialization.jsonObject(with: navigation.overview.collectionEligibility(first)!.encodedData())])
+    let missing = ApplicationThreadRef(threadID: "missing-report", typeID: "report.document")
+    navigation.overview.recordApplicationOpen(missing)
+    rows.append(["scenario": "missing-catalog-reference-not-recorded",
+                 "persisted": DesktopPreferences(directory: legacyDirectory).applicationLastOpened["report.document:missing-report"] != nil])
+    navigation.applicationHost.release()
+    await navigation.overview.stop()
     let output = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("production-projection.json")
     try JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys]).write(to: output)
     await model.stop(); await reopened.stop()

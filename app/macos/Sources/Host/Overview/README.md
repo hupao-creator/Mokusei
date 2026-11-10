@@ -433,6 +433,15 @@ update or execution timestamps. Failed writes report an error while preserving
 this session's open fact; disk recovery is not claimed. These are local client
 reading facts, not cross-device state. Collections themselves are never persisted.
 
+Recording is admitted against `NativeWorkspaceCatalog`, not the Overview's
+private projection cache: a valid report opened before its first card projection
+must still acquire a durable fact. Invalid/deleted catalog references do not.
+An old preferences file without `applicationLastOpened` supplies no evidence of
+past Report visits; existing valid entries continue to load. There is no safe
+migration from report creation/update time, cover loading or Agent Thread visits.
+Absent evidence stays unknown until a real Report open, then the ordinary
+strict ten-minute rule applies. A card's relative timestamp is its update time.
+
 Opening captures the collection's displayed geometry, retains its old backdrop
 through travel, and then returns to the member's current card after prepared
 Overview reflow. Reopening removes that member; one remaining candidate dissolves

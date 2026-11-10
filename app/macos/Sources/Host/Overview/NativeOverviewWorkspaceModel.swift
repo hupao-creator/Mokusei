@@ -316,12 +316,33 @@ public final class NativeOverviewWorkspaceModel {
     /// cover never creates a reading fact. Keep the opening backdrop until return.
     public func recordApplicationOpen(_ reference: ApplicationThreadRef, at date: Date = .now) {
         guard let plugin = try? workspace.plugins.applications.requireThread(reference.typeID),
-              plugin.overviewCollection != nil, applicationsByRef[reference] != nil else { return }
+              plugin.overviewCollection != nil,
+              (try? workspace.catalog.applicationEntry(reference)) != nil else { return }
+        // Navigation is admitted against the catalog, even when a hidden or new
+        // Overview has not built its private projection cache. Never drop the
+        // reading fact just because no card has been projected yet.
         recentApplicationOpens[reference] = date
         do { try workspace.preferences.recordApplicationOpen(key: openHistoryKey(reference), at: date) }
         catch { workspace.report(error) }
         presentationDirty = true
         if facts.overviewVisible && presentationActive { reconcile(captureMutation: true) }
+    }
+
+    /// Read-only diagnostics distinguish missing historical evidence from a
+    /// recent visit. Eligibility alone does not imply two matches in this view.
+    public func collectionEligibility(_ reference: ApplicationThreadRef, at now: Date = .now) -> JSONValue? {
+        guard let policy = (try? workspace.plugins.applications.requireThread(reference.typeID))?.overviewCollection else { return nil }
+        let opened = lastOpened(reference)
+        let eligible = policy.includes(lastOpened: opened, now: now)
+        let reason: String
+        if let opened {
+            reason = opened > now ? "future-open-record" : eligible ? "eligible" : "within-open-interval"
+        } else { reason = "no-open-record" }
+        return .object([
+            "lastOpenedAt": opened.map { .number($0.timeIntervalSince1970 * 1000) } ?? .null,
+            "intervalSeconds": .number(policy.openedBefore), "eligible": .bool(eligible),
+            "reason": .text(reason), "collected": .bool(collectionSources[reference] != nil)
+        ])
     }
 
     private func openHistoryKey(_ reference: ApplicationThreadRef) -> String {

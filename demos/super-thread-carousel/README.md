@@ -47,6 +47,6 @@ open "$(cat .build/super-thread-carousel/app-path.txt)"
 `--headless` 在创建 `NSApplication` 之前退出；不挂载 WebKit、不产生截图。
 
 - `.build/super-thread-carousel/headless.json`：13 个 fixture 数据场景，资格判断复用 `ApplicationOverviewCollectionPolicy`，包含严格 600 秒边界。
-- `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、打开/返回/解散、持久化重载、搜索、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留打开记录。
+- `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、打开/返回/解散、持久化重载、搜索、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留打开记录。另通过真实 `NativeWorkspacePresentation.open` 方法验证首次 Overview 投影前的打开落盘、旧偏好缺失历史、返回后保留记录及无效引用拒绝；不创建窗口。
 
 生产导出使用独立临时 profile，不连接 Runtime；完成后清理该 profile。这是可审阅的 fixture 数据导出，不是新测试套件，不证明视觉中间帧或物理手势通过。已运行和未运行的检查见 [validation.md](validation.md)。

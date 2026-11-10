@@ -75,3 +75,14 @@ Overview card observations include `members` and the currently displayed member'
 `ref`/`title`; the synthetic collection identity is only a canvas slot. Opening
 uses the same source/return geometry resolution and profile-local reading fact
 as native card activation. Selecting a carousel page is not a reading event.
+
+
+Collection diagnostics are read-only: individual application cards expose
+`collectionEligibility`; collections expose `memberEligibility` keyed by real
+references. Values contain `lastOpenedAt` (Unix milliseconds or null),
+`intervalSeconds`, the time-condition `eligible` flag, a `reason`
+(`no-open-record`, `future-open-record`, `within-open-interval`, `eligible`) and
+current `collected` membership. Time eligibility alone does not establish two
+eligible members in the same browsing view; search remains individual. During
+reading travel the retained collection can temporarily differ from live
+eligibility. These observations neither create opens nor migrate unknown history.
