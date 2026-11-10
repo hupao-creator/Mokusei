@@ -17,6 +17,11 @@ type CatalogTransport interface {
 	Call(context.Context, string, any) (Map, error)
 }
 type CatalogFactory func(context.Context, string, string) (*AppServer, error)
+type catalogSource struct {
+	factory  CatalogFactory
+	identity string
+	current  func(context.Context) (string, error)
+}
 type catalogEntry struct {
 	sourceProof        plugin.CatalogSourceEvidence
 	identity           string
@@ -30,9 +35,8 @@ type catalogEntry struct {
 	cli                Map
 }
 type Catalog struct {
-	source       func(context.Context, string, string, bool) (CatalogFactory, string, error)
+	source       func(context.Context, string, string, bool) (catalogSource, error)
 	factory      CatalogFactory
-	identity     func(context.Context, string, string) (string, error)
 	reads        discovery.Cache[catalogEntry]
 	routingReads discovery.Cache[catalogEntry]
 }
@@ -70,41 +74,57 @@ func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, 
 // The probe is shared, but cancellation belongs to each reader. A cancelled
 // settings panel cannot abort another reader's model admission check.
 var errIncompleteCatalog = errors.New("native catalog is incomplete")
+var errCatalogSourceChanged = errors.New("Codex native configuration changed during discovery")
 
-func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, routing bool) (catalogEntry, error) {
+func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, routing bool) (entry catalogEntry, err error) {
+	// A native read can initialize credentials. The old process has drained
+	// before observeOnce reports a source change; retry only that read with a
+	// newly captured source.
+	for range 2 {
+		entry, err = c.observeOnce(ctx, cwd, configured, refresh, routing)
+		if ctx.Err() != nil {
+			return catalogEntry{}, ctx.Err()
+		}
+		if !errors.Is(err, errCatalogSourceChanged) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return entry, err
+		}
+		// The changed identity selects a new key. Join/reuse another reader's
+		// replacement instead of superseding it with another explicit refresh.
+		refresh = false
+	}
+	return entry, err
+}
+
+func (c *Catalog) observeOnce(ctx context.Context, cwd, configured string, refresh, routing bool) (catalogEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return catalogEntry{}, err
+	}
 	key := codexClientName + "\x00" + configured + "\x00" + cwd
 	identity := ""
 	factory := c.factory
+	var currentSource func(context.Context) (string, error)
 	if c.source != nil {
-		var err error
-		factory, identity, err = c.source(ctx, cwd, configured, routing)
+		source, err := c.source(ctx, cwd, configured, routing)
 		if err != nil {
 			return catalogEntry{}, err
 		}
-		key += "\x00" + identity
-	} else if c.identity != nil {
-		var err error
-		identity, err = c.identity(ctx, cwd, configured)
-		if err != nil {
-			return catalogEntry{}, err
-		}
+		factory, identity, currentSource = source.factory, source.identity, source.current
 		key += "\x00" + identity
 	}
 	probe := func(shared context.Context) (catalogEntry, error) {
 		value, err := c.probe(shared, cwd, configured, factory, routing)
-		if err == nil && (c.source != nil || c.identity != nil) {
-			var current string
-			var sourceErr error
-			if c.source != nil {
-				_, current, sourceErr = c.source(shared, cwd, configured, routing)
-			} else {
-				current, sourceErr = c.identity(shared, cwd, configured)
-			}
+		if err == nil && currentSource != nil {
+			current, sourceErr := currentSource(shared)
 			if sourceErr != nil {
 				return catalogEntry{}, sourceErr
 			}
 			if current != identity {
-				return catalogEntry{}, errors.New("Codex native configuration changed during discovery")
+				// Partial facts also belong to the old source. Preserve native
+				// failures without turning them into permission to retry.
+				if failed := errors.Join(value.modelsError, value.configurationError, value.autoReviewError); failed != nil {
+					return catalogEntry{}, fmt.Errorf("Codex native configuration changed during failed discovery: %w", failed)
+				}
+				return catalogEntry{}, errCatalogSourceChanged
 			}
 		}
 		if err == nil {

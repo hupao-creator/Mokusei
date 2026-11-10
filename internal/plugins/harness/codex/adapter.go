@@ -32,14 +32,14 @@ func New(host plugin.HostContext) *Adapter {
 	a.settings = NewSettingsAPI(func(ctx context.Context, cwd, executable string) (*AppServer, error) {
 		return a.server(ctx, cwd, executable, "", "")
 	})
-	a.settings.(*SettingsAPI).catalog.source = func(ctx context.Context, cwd, configured string, routing bool) (CatalogFactory, string, error) {
+	a.settings.(*SettingsAPI).catalog.source = func(ctx context.Context, cwd, configured string, routing bool) (catalogSource, error) {
 		values, err := a.environment(ctx)
 		if err != nil {
-			return nil, "", err
+			return catalogSource{}, err
 		}
 		target, err := ResolveExecutableTarget(ctx, cwd, configured, values)
 		if err != nil {
-			return nil, "", err
+			return catalogSource{}, err
 		}
 		env := ceEnvironment(values)
 		env["CODEX_INTERNAL_ORIGINATOR_OVERRIDE"] = codexClientName
@@ -47,15 +47,29 @@ func New(host plugin.HostContext) *Adapter {
 		if home == "" {
 			home = filepath.Join(env["HOME"], ".codex")
 		}
+		// The shared login keychain's generation changes for unrelated apps;
+		// it is not a Codex account identity. TTL/refresh and native admission
+		// still own account changes that cannot be observed in these files.
 		files := []string{filepath.Join(home, "config.toml"), filepath.Join(home, "auth.json"), filepath.Join(home, "models.json"),
-			filepath.Join(env["HOME"], "Library", "Keychains", "login.keychain-db"),
 			"/etc/codex/config.toml", "/etc/codex/requirements.toml", "/etc/codex/managed_config.toml"}
-		identity := discovery.Identity(env, append(files, target.Executable)...)
-		if routing {
-			identity, err = discovery.ObservedIdentity(ctx, env, target.Executable, cwd, ".codex", files...)
-			if err != nil {
-				return nil, "", err
+
+		// Validate the files against the same launch snapshot used by the probe.
+		// Reloading a login shell here can change incidental session variables
+		// without changing that native process. New acquisitions capture new env.
+		current := func(ctx context.Context) (string, error) {
+			identity := discovery.Identity(env, append(files, target.Executable)...)
+			if routing {
+				var err error
+				identity, err = discovery.ObservedIdentity(ctx, env, target.Executable, cwd, ".codex", files...)
+				if err != nil {
+					return "", err
+				}
 			}
+			return target.Identity + "\x00" + identity, ctx.Err()
+		}
+		identity, err := current(ctx)
+		if err != nil {
+			return catalogSource{}, err
 		}
 		launch := LaunchOptions{Executable: target.Executable, Cwd: cwd, Environment: values, Identity: target.Identity, Version: target.Version}
 		open := func(probeCtx context.Context, _, _ string) (*AppServer, error) {
@@ -65,7 +79,7 @@ func New(host plugin.HostContext) *Adapter {
 			}
 			return StartAppServer(probeCtx, prepared)
 		}
-		return open, target.Identity + "\x00" + identity, nil
+		return catalogSource{factory: open, identity: identity, current: current}, nil
 	}
 	return a
 }

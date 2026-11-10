@@ -33,6 +33,7 @@ type peer struct {
 	earlySpeeches     int
 	authLogin         object
 	authPending       map[string]any
+	catalogSource     *catalogSourcePeer
 }
 
 func (p *peer) send(value any) error {
@@ -87,6 +88,13 @@ func fixtureMain() error {
 		}
 	}
 	p := &peer{encoder: json.NewEncoder(os.Stdout), session: "fixture-thread"}
+	if root := os.Getenv("MOKUSEI_CODEX_CATALOG_SOURCE"); root != "" {
+		var err error
+		p.catalogSource, err = startCatalogSourcePeer(root)
+		if err != nil {
+			return err
+		}
+	}
 	if root := os.Getenv("MOKUSEI_SETTINGS_PERFORMANCE"); root != "" {
 		if err := os.WriteFile(filepath.Join(root, fmt.Sprintf("start-%d", os.Getpid())), nil, 0600); err != nil {
 			return err
@@ -159,6 +167,9 @@ func (p *peer) receive(frame object) error {
 		return err
 	}
 	if handled, err := p.settlementFixture(method, params, id); handled {
+		return err
+	}
+	if handled, err := p.catalogSourceFixture(method, id); handled {
 		return err
 	}
 	if path := os.Getenv("MOKUSEI_CODEX_REPLAY_TIER_CAPTURE"); path != "" && (strings.HasPrefix(method, "thread/") || method == "turn/start") {
