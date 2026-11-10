@@ -1,11 +1,16 @@
 import SwiftUI
 
+public extension EnvironmentValues {
+    /// Use the Agent reader's loading presentation in place of compact indicators.
+    @Entry var nativeThreadUsesLoadingSkeleton = false
+}
+
 /// Presentation only: the owner still decides whether content is loading.
 public struct NativeReadingPlaceholder: View {
     public enum Placement { case surface, inline }
 
     private let placement: Placement
-    @Environment(\.nativeThreadContentReveal) private var revealsContent
+    @Environment(\.nativeThreadUsesLoadingSkeleton) private var usesLoadingSkeleton
     @Environment(\.nativeThreadIdentityVisit) private var identityVisit
     @Environment(\.locale) private var locale
     @State private var visible = false
@@ -16,9 +21,9 @@ public struct NativeReadingPlaceholder: View {
 
     public var body: some View {
         Group {
-            if revealsContent && placement == .surface && identityVisit != nil {
+            if usesLoadingSkeleton && placement == .surface && identityVisit != nil {
                 NativeThreadOpeningContent(showsLoading: visible)
-            } else if revealsContent {
+            } else if usesLoadingSkeleton {
                 NativeThreadLoadingSkeleton().frame(maxWidth: NativeGeometry.readingWidth).padding(.horizontal, placement == .surface ? 32 : 0)
             } else {
                 Text(locale.language.languageCode?.identifier == "zh" ? "正在读取…" : "Loading…")
@@ -32,16 +37,16 @@ public struct NativeReadingPlaceholder: View {
             }
         }
             .nativeThreadRailFallback()
-            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+            .transformPreference(NativeReadingContentStatusKey.self) { status in
                 // A loaded sibling (for example a system error) cannot admit
                 // auxiliary input while this document is still being acquired.
                 // Readiness starts waiting before the visual grace period ends.
-                status.revealing = status.revealing || revealsContent
+                status.pending = status.pending || usesLoadingSkeleton
             }
             .nativeLayoutLog("reading.placeholder")
             // Reserve the same geometry during the grace period. Inline loading
             // must never claim viewport height or change the reader's scroll extent.
-            .opacity(visible || (revealsContent && placement == .surface && identityVisit != nil) ? 1 : 0)
+            .opacity(visible || (usesLoadingSkeleton && placement == .surface && identityVisit != nil) ? 1 : 0)
             .accessibilityHidden(!visible)
             .allowsHitTesting(false)
             .task {
@@ -58,11 +63,11 @@ public struct NativeReadingPlaceholder: View {
 
 /// Keep each Harness's compact spinner outside the main Agent reader.
 public struct NativeThreadLoadingIndicator: View {
-    @Environment(\.nativeThreadContentReveal) private var revealsContent
+    @Environment(\.nativeThreadUsesLoadingSkeleton) private var usesLoadingSkeleton
     private let alignedLeading: Bool
     public init(alignedLeading: Bool = false) { self.alignedLeading = alignedLeading }
     public var body: some View {
-        if revealsContent { NativeReadingPlaceholder(placement: .inline) }
+        if usesLoadingSkeleton { NativeReadingPlaceholder(placement: .inline) }
         else {
             ProgressView().controlSize(.small)
                 .frame(maxWidth: alignedLeading ? .infinity : nil, alignment: .leading)

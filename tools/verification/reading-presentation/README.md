@@ -35,9 +35,8 @@ the production aperture marker during travel, its folded launcher bounds and
 the expanded main-panel marker. An intentionally delayed destination row (or
 mounted read error) must keep the incoming host hidden after folding. Only content
 admission releases the downward page turn; native presentation-layer samples
-verify both moving pages before the same incoming host survives landing. Content
-identity and the absence of a second blank text reveal are also
-asserted. Wide and stacked layouts, including Reduced Motion policy, retain source,
+verify both moving pages before the same incoming host survives landing. The
+final reader must contain the destination content and retire the outgoing host. Wide and stacked layouts, including Reduced Motion policy, retain source,
 fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
 Motion still waits for content but settles without an intermediate page turn.
 The fold observer is installed before completion and samples native bounds on
@@ -935,7 +934,7 @@ is read-only, so its open state is checked by panel geometry rather than the
 input-sidecard `followUpVisible` flag. Return/interruption input waits for both
 the current visit's production `readingEntranceAdmitted` gate and the actual
 panel narrowing for its automatic Sidecard, within the existing three-second
-wait. A quiet full-width panel during main-text reveal is not final readiness.
+wait. A quiet full-width panel while the main document loads is not final readiness.
 The original 450ms stable-frame observation, 100ms exact-frame recheck, real Close
 click and five recovery-event cases remain. Phase, interruption, admission and
 actual/full geometry are logged on readiness or failure.

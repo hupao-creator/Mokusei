@@ -606,7 +606,7 @@ for that adjustment; its rendered feel remains to be confirmed in the app.
 
 Primary reading entry uses the shared 420ms emphasized curve for the collapsed
 Dock's position. Its composer stays unmounted until the reading panel/title handoff
-and main-document line/footer reveal finish, then the folded Agent workspace
+finishes and the main document is ready, then the folded Agent workspace
 commits. That visit-scoped boundary admits the Sidecard reveal (380ms). If its
 execution column owns the Dock, the compact Moku travels there first; the actual
 horizontal animation's removed completion then admits input expansion (420ms).

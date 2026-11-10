@@ -93,7 +93,7 @@ private struct NativeThreadWorkspaceBody: View {
     @State private var model: NativeSidecardWorkspaceModel?
     @State private var auxiliaryStageReady = false
     @State private var inputStageReady = false
-    @State private var contentRevealComplete = false
+    @State private var mainContentReady = false
 
     private var configuration: NativeSidecardWorkspaceConfiguration {
         NativeSidecardWorkspaceConfiguration(input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
@@ -105,16 +105,16 @@ private struct NativeThreadWorkspaceBody: View {
     var body: some View {
         Group {
             if let model, let snapshot = model.snapshot {
-                NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot, onContentRevealChange: { status in
+                NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot, onContentStatusChange: { status in
                     guard self.model === model else { return }
-                    contentRevealComplete = status.complete
+                    mainContentReady = status.ready
                 }, onDockSettled: {
                     guard self.model === model, snapshot.entranceReady, auxiliaryStageReady, !inputStageReady,
                           primaryEntranceReady else { return }
                     inputStageReady = onEntranceReady()
                 })
                     .background {
-                        NativeReadingEntranceStage(enabled: primaryEntranceReady && contentRevealComplete && !auxiliaryStageReady) {
+                        NativeReadingEntranceStage(enabled: primaryEntranceReady && mainContentReady && !auxiliaryStageReady) {
                             guard self.model === model else { return }
                             auxiliaryStageReady = true
                             if executionPlacement == nil { inputStageReady = onEntranceReady() }
@@ -138,7 +138,7 @@ private struct NativeThreadWorkspaceBody: View {
         }
         .onDisappear {
             model?.release(); model = nil
-            auxiliaryStageReady = false; inputStageReady = false; contentRevealComplete = false
+            auxiliaryStageReady = false; inputStageReady = false; mainContentReady = false
         }
     }
 }
@@ -150,7 +150,7 @@ struct NativeSidecardWorkspaceLayout: View {
     let snapshot: NativeSidecardWorkspaceSnapshot
     /// Previews/replays can supply the same policy without changing OS settings.
     var motionReduced: Bool? = nil
-    var onContentRevealChange: (NativeReadingContentRevealStatus) -> Void = { _ in }
+    var onContentStatusChange: (NativeReadingContentStatus) -> Void = { _ in }
     var onDockSettled: () -> Void = {}
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
@@ -341,22 +341,13 @@ struct NativeSidecardWorkspaceLayout: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        // A promoting sidecard already displays this execution. Do not blank it
-        // for a second entrance when the main reader takes ownership.
-        .environment(\.nativeThreadContentReveal, snapshot.handoff == nil)
-        // An active execution owned by a Sidecard leaves existing history in
-        // main, even while folded. Keep readiness gates, but do not replay ink.
-        .environment(\.nativeThreadContentRevealAnimated,
-            !(snapshot.input.thread.observation.isExecutionActive
-                && snapshot.input.thread.observation.latestExecution.map {
-                    snapshot.excludedExecutionIDs.contains($0.executionID)
-                } == true))
-        .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+        .environment(\.nativeThreadUsesLoadingSkeleton, snapshot.handoff == nil)
+        .transformPreference(NativeReadingContentStatusKey.self) { status in
             // The identity-only preparation reader has no loaded document. Its
             // placeholder must not leave a ready value for the live reader.
             if preparing { status = .init() }
         }
-        .onPreferenceChange(NativeReadingContentRevealStatusKey.self, perform: onContentRevealChange)
+        .onPreferenceChange(NativeReadingContentStatusKey.self, perform: onContentStatusChange)
         // Reserve the history rail across initial loading. The reading column
         // still centers itself inside the current main pane when it resizes.
         .environment(\.nativeThreadReservesHistoryRail, true)

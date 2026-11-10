@@ -194,9 +194,9 @@ so the first reverse step at either limit changes the visible scale.
 
 
 Agent panels now carry source title/emoji ink separately during deferred opening,
-show a scoped skeleton while loading, and reveal admitted native text top-down
-for completed executions or bottom-up for active executions. A per-execution
-presentation scope protects first paint and releases masks on change/cancellation.
+show a scoped skeleton while loading, and draw the full parsed Markdown body
+once the reader is admitted. Completed turns keep their footer in the normal layout; running turns keep
+their existing latest-message positioning.
 Closing retains the 420ms native return: reader content fades over the first
 80%, travel reaches the source card at 86%, and the shell crossfades to the
 refreshed card over the final 14%. See the shared PluginUI and WindowNavigation

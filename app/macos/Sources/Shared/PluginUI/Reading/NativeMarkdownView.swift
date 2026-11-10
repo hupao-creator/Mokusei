@@ -30,8 +30,7 @@ public struct NativeMarkdownView: View {
     @Environment(\.nativeReadingPageCapacity) private var pageCapacity
     @StateObject private var model = MarkdownViewModel()
     @State private var hasStreamed = false
-    @State private var revealDocument = UUID()
-    @Environment(\.nativeThreadReveal) private var threadReveal
+    @State private var preparationID = UUID()
     @Environment(\.nativeReadingContentPreparation) private var handoffPreparation
     @Environment(\.nativePerformanceOperation) private var performanceOperation
 
@@ -90,28 +89,26 @@ public struct NativeMarkdownView: View {
             // whole-document parse replaces its final page.
             if value { hasStreamed = true }
         }
+        .transformPreference(NativeReadingContentStatusKey.self) { status in
+            status.pending = status.pending || (!streaming && !model.hasParsedContent)
+        }
         .onAppear {
-            threadReveal?.beginDocument(revealDocument)
-            handoffPreparation?.require(revealDocument, ready: streaming || model.hasParsedContent)
+            handoffPreparation?.require(preparationID, ready: streaming || model.hasParsedContent)
         }
         .task(id: MarkdownRevision(text: text, streaming: streaming, token: documentToken)) {
-            model.submit(text: text, streaming: streaming, token: documentToken, context: performanceOperation,
-                paceInitialMount: threadReveal != nil && !hasStreamed)
+            model.submit(text: text, streaming: streaming, token: documentToken, context: performanceOperation)
         }
         .onChange(of: model.applied, initial: true) { _, applied in
             onDocumentApplied?(applied)
         }
         .onChange(of: model.hasParsedContent, initial: true) { _, value in
-            if value { threadReveal?.documentReady(revealDocument) }
-            handoffPreparation?.require(revealDocument, ready: streaming || value)
+            handoffPreparation?.require(preparationID, ready: streaming || value)
         }
         .onChange(of: streaming, initial: true) { _, value in
-            if value { threadReveal?.documentReady(revealDocument) }
-            handoffPreparation?.require(revealDocument, ready: value || model.hasParsedContent)
+            handoffPreparation?.require(preparationID, ready: value || model.hasParsedContent)
         }
         .onDisappear {
-            threadReveal?.endDocument(revealDocument)
-            handoffPreparation?.remove(revealDocument)
+            handoffPreparation?.remove(preparationID)
             model.cancel()
         }
     }
@@ -138,7 +135,7 @@ private final class MarkdownViewModel: ObservableObject {
     private var worker: Task<Void, Never>?
     private var workerGeneration = UUID()
 
-    func submit(text: String, streaming: Bool, token: String?, context: UInt64?, paceInitialMount: Bool) {
+    func submit(text: String, streaming: Bool, token: String?, context: UInt64?) {
         if streaming {
             cancel()
             if !blocks.isEmpty { blocks = [] }
@@ -164,35 +161,11 @@ private final class MarkdownViewModel: ObservableObject {
                     try Task.checkCancellation()
                     // A parser result cannot replace a newer pending revision.
                     if pending == nil {
-                        if blocks != document.blocks {
-                            if paceInitialMount && !hasParsedContent && !document.blocks.isEmpty {
-                                // Share the native creation work across display
-                                // turns. The execution's document-ready gate
-                                // protects first paint until every block exists.
-                                var end = 0
-                                while end < document.blocks.count {
-                                    var cost = 0
-                                    repeat {
-                                        let nextCost = markdownMountingCost(document.blocks[end])
-                                        if cost > 0 && cost + nextCost > 12 { break }
-                                        cost += nextCost; end += 1
-                                    } while end < document.blocks.count
-                                    blocks = Array(document.blocks.prefix(end))
-                                    if end < document.blocks.count {
-                                        try await Task.sleep(for: .milliseconds(16))
-                                        try Task.checkCancellation()
-                                        if pending != nil { break }
-                                    }
-                                }
-                            } else { blocks = document.blocks }
-                        }
-                        if pending == nil {
-                            if !hasParsedContent { hasParsedContent = true }
-                            // Cached/identical blocks must still acknowledge
-                            // the current document identity after all blocks are admitted.
-                            applied = next.token.map { NativeMarkdownAppliedDocument(token: $0,
-                                coverageEligible: document.coverageEligible) }
-                        }
+                        if blocks != document.blocks { blocks = document.blocks }
+                        if !hasParsedContent { hasParsedContent = true }
+                        // Cached/identical blocks still acknowledge this document identity.
+                        applied = next.token.map { NativeMarkdownAppliedDocument(token: $0,
+                            coverageEligible: document.coverageEligible) }
                     }
                     measurement?.end(pending == nil ? .completed : .cancelled,
                         values: ["streaming": next.streaming ? 1 : 0, "blocks": Double(document.blocks.count)])
@@ -203,19 +176,6 @@ private final class MarkdownViewModel: ObservableObject {
 
     func cancel() { workerGeneration = UUID(); worker?.cancel(); worker = nil; pending = nil; applied = nil; hasParsedContent = false }
 
-}
-
-/// Keep atomic tables/lists intact; the estimate budgets native text leaves,
-/// not source bytes or paragraphs, so nested blocks share the mounting budget.
-private func markdownMountingCost(_ block: MarkdownBlock) -> Int {
-    switch block {
-    case .paragraph, .heading, .code, .rule: 1
-    case .quote(let blocks), .footnote(_, _, let blocks):
-        1 + blocks.reduce(0) { $0 + markdownMountingCost($1) }
-    case .list(let items):
-        items.reduce(0) { total, item in total + 1 + item.blocks.reduce(0) { $0 + markdownMountingCost($1) } }
-    case .table(let rows, _): rows.reduce(0) { $0 + $1.count }
-    }
 }
 
 /// Completed blocks can keep their view tree while the tail changes. Their

@@ -491,7 +491,16 @@ struct NativeMokuLandingTests {
             // invocation: it catches ancestor clipping of the external launcher.
             let toolbarPoint = CGPoint(x: expected.maxX + 38, y: expected.midY)
             try click(toolbarPoint, window: try #require(fixture.window))
-            try await SwiftUIReplay.wait { (readingPanel(in: root)?.bounds.width ?? expected.width) < expected.width - 300 }
+            try await SwiftUIReplay.wait {
+                guard let pane = readingPanel(in: root),
+                      let aperture = readingPanel(in: root, identifier: "sidecard-aperture-conversation-frame")
+                else { return false }
+                // The main pane adopts its destination width immediately.
+                // Wait for the visible aperture to clear the launcher's seat
+                // before testing another click on the settled button.
+                return pane.bounds.width < expected.width - 300
+                    && aperture.convert(aperture.bounds, to: root).maxX <= expected.maxX + 1
+            }
             #expect(!fixture.presentation.followUpVisible, "Execution display must not advertise an input sidecard")
             try click(toolbarPoint, window: try #require(fixture.window))
             try await SwiftUIReplay.wait { !fixture.presentation.followUpVisible && abs((readingPanel(in: root)?.bounds.width ?? 0) - expected.width) < 1 }
@@ -535,7 +544,7 @@ struct NativeMokuLandingTests {
                 }
                 do {
                     // A new visit resets admission. Its full-width panel can be
-                    // quiet while main text reveals, before the Sidecard opens.
+                    // quiet while the main document loads, before the Sidecard opens.
                     try await SwiftUIReplay.wait {
                         guard let panel = readingPanel(in: root) else { return false }
                         return fixture.presentation.selected?.threadID == "child"
