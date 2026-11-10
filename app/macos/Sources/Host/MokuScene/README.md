@@ -12,6 +12,10 @@ settling, without restoring the retired AppKit scene host.
 The Settings content suppresses inherited animation only for changes to the
 expanded state, so its final layout remains stable during the shell morph while
 subsequent child-owned animations retain their own transactions.
+A geometry group outside that transaction resolves the shell's animated page
+placement first. Closing therefore carries the fixed-size page with the shell
+instead of immediately centering its Map, title and form in the collapsed Dock's
+width. Compositing alone does not provide this layout boundary.
 
 Moku history uses the same bounded reading stack and panel shell as Agent, Git
 and Report reading: shared margins, rounded surface, border, dimmed/blurred
