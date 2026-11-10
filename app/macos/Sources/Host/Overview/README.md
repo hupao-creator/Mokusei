@@ -67,8 +67,9 @@ current pending interaction. There is no per-card message editor, text/file drop
 target or send shortcut. Canvas drag/scroll/pinch, search, Return-to-open and
 card activation keep their navigation behavior. The independent Moku composer,
 Thread-detail Moku input, Browser annotation sends and general Runtime APIs
-remain owned by their existing boundaries; Moku operation decorations are observations,
-not card send controls.
+remain owned by their existing boundaries. Moku tool operations do not decorate
+card borders; returning from a reader must not replay an operation-completion
+edge flash. The workspace-level running list-refresh indicator remains separate.
 
 ## Card update isolation
 

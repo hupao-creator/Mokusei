@@ -221,9 +221,6 @@ private struct NativeOverviewWorkspaceCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .environment(\.locale, locale)
-        .overlay {
-            NativeOverviewWorkspaceCardOperation(itemID: item.id, model: model)
-        }
         .overlay(alignment: .bottomTrailing) {
             if let rank = model.searchRank(for: item.id) {
                 Text(model.workspace.preferences.locale.text("相关度 #\(rank + 1)", "Match #\(rank + 1)"))
@@ -268,18 +265,6 @@ private struct NativeOverviewWorkspaceCard: View {
                 Text(snapshot.entry.title.string).font(NativeTypography.inter(size: 15, weight: 620))
                 Text(error.localizedDescription).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.danger.swiftUI)
             }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
-        }
-    }
-}
-
-/// Keep operation/visibility observation out of the card's focusable subtree.
-private struct NativeOverviewWorkspaceCardOperation: View {
-    let itemID: String
-    let model: NativeOverviewWorkspaceModel
-    var body: some View {
-        if let operation = model.operation(for: itemID) {
-            NativeOverviewOperationDecoration(operation: operation,
-                visible: model.facts.overviewVisible && model.facts.documentVisible).allowsHitTesting(false)
         }
     }
 }

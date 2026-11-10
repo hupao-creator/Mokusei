@@ -284,7 +284,6 @@ public final class NativeOverviewWorkspaceModel {
         retainedPresentationIDs = values
         pruneSnapshots()
     }
-    public func operation(for threadID: String) -> NativeOverviewMokuOperation? { operations.last { $0.threadID == threadID } }
     public func snapshot(for item: NativeOverviewItem) -> NativeOverviewCardSnapshot? { snapshots[item.presentationID] }
 
     /// Await this before a user submission so its intent has crossed the runtime
