@@ -209,6 +209,11 @@ Saves carry expected settings revision. Success adopts the normalized response a
 Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku's “Model selection preferences” (模型选择偏好) offers Economy, Balanced,
 Performance and Custom separate capsule buttons after its basic execution fields
 and before Advanced options, including the complete Custom guidance editor.
+The production Settings entry uses `.compact, showsRoutingGuidance: true` for
+its map. Routing insertion and the compact row rhythm follow that explicit
+routing opt-in as well as the full Settings presentation. The visible execution
+field order is model, reasoning effort, model selection preferences, then Advanced
+options. The compact onboarding map leaves routing guidance disabled.
 Moku rows use 12pt vertical padding instead of the default 15pt; label hierarchy,
 advanced disclosure padding and description spacing retain their existing metrics.
 The Custom editor draws an adaptive Settings border with accent focus and danger
