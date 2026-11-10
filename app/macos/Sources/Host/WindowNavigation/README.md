@@ -95,12 +95,12 @@ their existing behavior unless a host supplies these optional hooks.
 
 Validation uses the existing navigation, sidecard and reading suites and the [Overview native input replay](../../../../../tools/verification/overview-input/README.md).
 
-Agent entry now keeps line reveal separate from auxiliary presentation: after the
-outer panel/title handoff, only the active main document reveals; its last line
-and footer must complete before Moku input and Sidecard admission. Nested reading
-stacks retain the parent's entrance gate, and a moving empty/error history page
-also holds content readiness until its own travel finishes. Report admits its
-auxiliary card after primary travel and a committed folded layout. See the [three-stage contract and sprint validation limits](../../../../../design/reading-entrance-choreography.md).
+Agent entry waits for the panel/title handoff and active main-document readiness
+before admitting Moku input and Sidecards. Markdown draws in full once parsed
+and the panel is admitted. Nested history, including an empty/error page, holds
+content readiness until its own travel finishes. Report admits its auxiliary
+card after primary travel and a committed folded layout. See the
+[admission contract](../../../../../design/reading-entrance-choreography.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
@@ -163,7 +163,7 @@ The shared Close sits at the panel's upper-left. Viewports normally reserve
 insets and clears Close horizontally through its reserved 48pt history rail.
 The rail retains its own 64pt vertical padding. This applies to both opening
 heading preparation and the live current/history reader, retaining measured
-title handoff and the existing text-then-input/Sidecard entrance gates.
+title handoff and the existing content readiness gates for input and Sidecards.
 Agent Sidecards use their right-side launcher as
 the open/close toggle and have no independent Close icon. The main panel button
 owns its 32pt circular background and hit shape, so

@@ -92,9 +92,8 @@ Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 ## Conversation
 
 Initial Host presentation is the third entrance stage: the main panel finishes
-its actual travel, then main reveals its lines separately. The last line and any
-completion footer must settle before a folded workspace commits and admits a
-requested Sidecard. The resident Agent composer's input gate releases through
+its actual travel and the main document is ready, then the folded workspace
+commits and admits the requested Sidecard. The resident Agent composer's input gate releases through
 the same visit check after the compact Dock's horizontal travel completes,
 then starts its 420ms expansion. Without an owning execution Sidecard, input is
 admitted at the layout commit. The card keeps its existing 380ms animation.

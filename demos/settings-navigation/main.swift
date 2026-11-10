@@ -90,13 +90,19 @@ private struct Failure: Error { let message: String }
 
     private func run() async throws {
         let directory = URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "SettingsDemoDirectory") as! String)
-        try? FileManager.default.removeItem(at: directory.appendingPathComponent("result.txt"))
+        let opensMoku = Bundle.main.object(forInfoDictionaryKey: "SettingsDemoOpensMoku") as? Bool == true
+            && !CommandLine.arguments.contains("--verify")
+        if !opensMoku { try? FileManager.default.removeItem(at: directory.appendingPathComponent("result.txt")) }
         let fixture = try Fixture(directory: directory.appendingPathComponent("profile"))
         self.fixture = fixture
+        if opensMoku {
+            fixture.dark = true
+            fixture.navigation.section = "moku"
+        }
         let window = NSWindow(contentRect: .init(x: 100, y: 100, width: 1100, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         self.window = window
-        window.title = "Settings Navigation · Production UI"
+        window.title = opensMoku ? "Moku Map · Production UI" : "Settings Navigation · Production UI"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.level = .floating
@@ -106,6 +112,7 @@ private struct Failure: Error { let message: String }
         NSApp.activate(ignoringOtherApps: true)
         fixture.settings = true
         await fixture.model.refreshInstallations()
+        if opensMoku { return }
         try await Task.sleep(for: .seconds(1))
         guard fixture.navigation.section == "general",
               NativeSettingsNavigation.sections(model: fixture.model, applications: []) == ["general", "moku"] else {

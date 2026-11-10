@@ -600,11 +600,6 @@ struct NativeThreadSendFeedbackTests {
         print("THREAD_SEND_GEOMETRY width=\(width) mode=\(mode) source=\(sourceFrame) travel=\(travelFrame) folded=\(foldedFrame) waiting=\(landedFrame) main=\(mainFrame)")
         #expect(abs(mainFrame.width - landedFrame.width) < 1 && abs(mainFrame.height - landedFrame.height) < 1)
         #expect(abs(mainFrame.minX - landedFrame.minX) < 1 && abs(mainFrame.minY - landedFrame.minY) < 1)
-        func blockedText(in view: NSView) -> Bool {
-            if let text = view as? MarkdownTextView, text.awaitsLineReveal { return true }
-            return view.subviews.contains { blockedText(in: $0) }
-        }
-        #expect(!blockedText(in: root), "Promoted content must not restart the initial-entry reveal and become blank")
         try await capture(window, name: prefix + "-main")
         print("THREAD_SEND_NATIVE_HANDOFF_CONFIRMED width=\(width) mode=\(mode)")
         await fixture.close()

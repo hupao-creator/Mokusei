@@ -27,14 +27,13 @@ struct DemoThread: Identifiable {
     let harness = AnyHarnessPlugin(CodexHarnessPlugin())
     let presentation = try! composeThreadCard(.standard(identity: .init(), extensions: []), layoutContext: .init(availableCols: 3))
     let threads = [
-        DemoThread(id: "让阅读回到工作现场", emoji: "🌱", excerpt: "让 Agent Thread 从原卡片展开，保留工作区与 Moku。", reply: "## 让上下文留在身边\n\n展开后的对话是工作区中的一个面板。原来的卡片仍留在原处，其他任务退到背景，Moku 始终在底部。\n\n### 熟悉的阅读布局\n\n标题与 emoji 从原卡片连续移动到阅读位置，正文载入后按实际排版逐行显现。面板两侧保留相同的空间。\n\n### 为阅读留出空间\n\n标签筛选收起，设置入口退场。右侧的继续对话、浏览器和语音讨论以纵向工具组呈现。\n\n这是一份可交互的原生设计提案。"),
-        DemoThread(id: "整理原生交互细节", emoji: "🪴", excerpt: "执行中 · 定位最新消息，由下向上揭示。", reply: "## 原生交互细节\n\n面板保留独立关闭入口。按 Escape 或点击关闭按钮，回到刚才的卡片。\n\n- 窗口红绿灯仍属于窗口\n- 面板有自己的关闭按钮\n- Moku 输入保持可用\n- 窗口改变大小时，面板跟随可用空间调整\n\n卡片外壳展开时，标题与 emoji 保持连续；正文加载完成后逐行显现。\n\n### 当前进展\n\n已完成窗口层级检查，正在检查收起后的再次进入。\n\n底部是这次执行的最新消息。页面先跟随到这里，再从最新一行向上展开已有正文。", running: true),
+        DemoThread(id: "让阅读回到工作现场", emoji: "🌱", excerpt: "让 Agent Thread 从原卡片展开，保留工作区与 Moku。", reply: "## 让上下文留在身边\n\n展开后的对话是工作区中的一个面板。原来的卡片仍留在原处，其他任务退到背景，Moku 始终在底部。\n\n### 熟悉的阅读布局\n\n标题与 emoji 从原卡片连续移动到阅读位置，正文载入后直接显示。面板两侧保留相同的空间。\n\n### 为阅读留出空间\n\n标签筛选收起，设置入口退场。右侧的继续对话、浏览器和语音讨论以纵向工具组呈现。\n\n这是一份可交互的原生设计提案。"),
+        DemoThread(id: "整理原生交互细节", emoji: "🪴", excerpt: "执行中 · 定位最新消息。", reply: "## 原生交互细节\n\n面板保留独立关闭入口。按 Escape 或点击关闭按钮，回到刚才的卡片。\n\n- 窗口红绿灯仍属于窗口\n- 面板有自己的关闭按钮\n- Moku 输入保持可用\n- 窗口改变大小时，面板跟随可用空间调整\n\n卡片外壳展开时，标题与 emoji 保持连续；正文加载完成后直接显示。\n\n### 当前进展\n\n已完成窗口层级检查，正在检查收起后的再次进入。\n\n底部是这次执行的最新消息。页面打开时会跟随到这里。", running: true),
         DemoThread(id: "梳理工作区信息层级", emoji: "🔭", excerpt: "将当前阅读与背景任务分层，保持位置记忆。", reply: "## 工作区中的阅读\n\n背景卡片保留原有布局，弱化后作为空间参照。\n\n阅读面板与右侧工具栏之间留出清晰间距，底部留给常驻的 Moku bar。\n\n### 返回来源\n\n关闭阅读后，原卡片、筛选栏与设置入口一起恢复，继续浏览其他任务。")
     ]
     var selected: DemoThread?
     var expanded = false
     var loaded = false
-    var footerVisible = false
     var closing = false
     var returning = false
     var shellVisible = true
@@ -60,7 +59,7 @@ struct DemoThread: Identifiable {
     func open(_ thread: DemoThread) {
         guard selected == nil, let frame = frames[thread.id], frame.width > 0 else { return }
         transitionID = UUID()
-        loaded = false; footerVisible = false
+        loaded = false
         closing = false; returning = false; chromeVisible = false
         shellVisible = true; sourceVisible = false
         source = frame
@@ -68,6 +67,9 @@ struct DemoThread: Identifiable {
         selected = thread
         sidecards = DemoSidecards(thread: thread, onBack: { [weak self] in self?.close() })
         sidecards?.reducedMotion = reduceMotion
+        // The proposal opens at full width so its toolbar can demonstrate
+        // each card from a folded workspace, even with an active fixture.
+        if !productionMode { sidecards?.choose(nil) }
         // Mount one carrier at the measured card bounds before changing its target.
         let visit = transitionID
         Task { @MainActor in
@@ -120,24 +122,6 @@ struct DemoThread: Identifiable {
     }
     func target(in size: CGSize) -> CGRect {
         NativeReadingPanelGeometry.frame(in: size)
-    }
-}
-
-private struct DemoRevealedReply: View {
-    @Bindable var state: DemoState
-    let answer: String
-    let bottomUp: Bool
-    @State private var owner = UUID()
-    var body: some View {
-        ThreadMessage(id: "answer", author: .assistant, content: answer)
-            .environment(\.nativeMarkdownLineRevealOwner, owner)
-            .environment(\.nativeMarkdownAwaitsLineReveal, !state.reduceMotion && !state.footerVisible)
-            .background(DemoLineReveal(owner: owner, bottomUp: bottomUp, slow: state.slow, reducedMotion: state.reduceMotion) {
-                guard state.loaded, !state.closing else { return }
-                withAnimation(state.reduceMotion ? nil : .easeOut(duration: state.slow ? 0.65 : 0.28)) {
-                    state.footerVisible = true
-                }
-            })
     }
 }
 
@@ -235,7 +219,7 @@ private struct PanelDemo: View {
                 NativeThreadPreparedReader {
                     if state.loaded { reading(thread) } else { NativeReadingPlaceholder() }
                 }
-                    .environment(\.nativeThreadContentReveal, true)
+                    .environment(\.nativeThreadUsesLoadingSkeleton, true)
                     .environment(\.nativeThreadReservesHistoryRail, true)
                     .nativeReadingPanelViewport(balancedVerticalInsets: true)
                     .nativeReadingPanelClose(label: "关闭 Thread", onClose: state.close)
@@ -282,8 +266,7 @@ private struct PanelDemo: View {
                 executionId: "current-execution", position: .start, follow: true) : nil,
             running: thread.running, runningTurnId: thread.running ? "current-execution" : nil)
             .environment(\.threadIdentityTransition, state.productionMode || state.closing ? nil : .init(namespace: identity, id: thread.id, expanded: state.expanded))
-            .environment(\.threadDetailFooterReveal, state.productionMode || state.footerVisible ? 1 : 0)
-            .environment(\.nativeThreadContentReveal, state.productionMode)
+            .environment(\.nativeThreadUsesLoadingSkeleton, state.productionMode)
     }
     private func conversationRow(_ thread: DemoThread, history: Bool) -> ThreadConversationRow {
         let id: JSONText = history ? "previous-execution" : "current-execution"
@@ -305,14 +288,13 @@ private struct PanelDemo: View {
                     .init(id: JSONText(id.string + "-answer"), kind: .content,
                         node: AnyView(Group {
                             if state.loaded {
-                                if state.productionMode { ThreadMessage(id: "answer", author: .assistant, content: answer) }
-                                else { DemoRevealedReply(state: state, answer: answer, bottomUp: running) }
+                                ThreadMessage(id: "answer", author: .assistant, content: answer)
                             } else {
-                                DemoLoadingSkeleton(reducedMotion: state.reduceMotion)
+                                NativeThreadLoadingSkeleton()
                             }
                         }), finalReply: true)
                 ], createdAt: timestamp, updatedAt: timestamp + 60000, status: running ? "running" : "completed",
-                completedAt: running ? nil : timestamp + 60000, active: running)
+                completedAt: running ? nil : timestamp + 60000, active: running || !state.loaded)
                 }
             }))
     }
@@ -368,36 +350,42 @@ private struct PanelDemo: View {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent(name + ".png"))
     }
-    private func verifyProductionText(_ window: NSWindow, bottomUp: Bool) async throws {
-        var texts: [MarkdownTextView] = []
-        func collect(_ view: NSView) {
-            if let text = view as? MarkdownTextView, text.threadReveal != nil { texts.append(text) }
-            view.subviews.forEach(collect)
+    private func markdownTexts(in view: NSView) -> [MarkdownTextView] {
+        if let text = view as? MarkdownTextView { return [text] }
+        return view.subviews.flatMap(markdownTexts)
+    }
+    private func isDrawn(_ view: NSView) -> Bool {
+        guard !view.isHidden, view.alphaValue > 0, (view.layer?.opacity ?? 1) > 0 else { return false }
+        return view.superview.map(isDrawn) ?? true
+    }
+    private func verifyBody(_ window: NSWindow) async throws {
+        guard let reply = state.selected?.reply,
+              let heading = reply.split(separator: "\n").first?.dropFirst(3),
+              let ending = reply.split(separator: "\n").last else {
+            throw DemoFailure(message: "Missing fixture body")
         }
         for _ in 0..<180 {
-            texts.removeAll()
-            if let root = window.contentView { collect(root) }
-            if texts.first?.threadReveal?.footerVisible == true, texts.allSatisfy({ $0.layer?.mask == nil }) { break }
+            let texts = window.contentView.map(markdownTexts) ?? []
+            if let first = texts.first(where: { $0.string.contains(heading) }),
+               let last = texts.first(where: { $0.string.contains(ending) }) {
+                // The entire document should draw on its first admitted layout,
+                // including the last paragraph in a running or completed turn.
+                guard [first, last].allSatisfy({ isDrawn($0) && $0.layer?.mask == nil }) else {
+                    throw DemoFailure(message: "Admitted Markdown was still hidden or masked")
+                }
+                return
+            }
             try await Task.sleep(for: .milliseconds(16))
         }
-        guard let reveal = texts.first?.threadReveal, reveal.animatedLineCount > 3,
-              reveal.initialDrawingProtected, reveal.bottomUp == bottomUp, reveal.footerVisible,
-              texts.allSatisfy({ !$0.awaitsLineReveal && $0.layer?.mask == nil }) else {
-            throw DemoFailure(message: "Production text entrance failed: texts=\(texts.count), lines=\(texts.first?.threadReveal?.animatedLineCount ?? -1), protected=\(String(describing: texts.first?.threadReveal?.initialDrawingProtected)), direction=\(String(describing: texts.first?.threadReveal?.bottomUp)), footer=\(String(describing: texts.first?.threadReveal?.footerVisible)), blocked=\(texts.filter(\.awaitsLineReveal).count), masks=\(texts.filter { $0.layer?.mask != nil }.count)")
-        }
+        throw DemoFailure(message: "The complete Markdown body did not mount")
     }
     private func verifyPreloadedText(_ window: NSWindow, before deadline: ContinuousClock.Instant) async throws {
         while ContinuousClock.now < deadline {
-            var texts: [MarkdownTextView] = []
-            func collect(_ view: NSView) {
-                if let text = view as? MarkdownTextView, text.threadReveal != nil, !text.string.isEmpty { texts.append(text) }
-                view.subviews.forEach(collect)
-            }
-            if let root = window.contentView { collect(root) }
+            let texts = (window.contentView.map(markdownTexts) ?? []).filter { !$0.string.isEmpty }
             if !texts.isEmpty {
                 guard state.productionMotion.active, state.identityVisit?.openingFinished == false,
-                      texts.allSatisfy({ $0.awaitsLineReveal && $0.threadReveal?.animatedLineCount == 0 }) else {
-                    throw DemoFailure(message: "Ready text must preload during travel without consuming its entrance")
+                      texts.allSatisfy({ !isDrawn($0) }) else {
+                    throw DemoFailure(message: "Ready text must preload behind the hidden panel host during travel")
                 }
                 return
             }
@@ -428,7 +416,7 @@ private struct PanelDemo: View {
             guard state.identityVisit?.usedMeasuredDestination == true, !state.productionMotion.active else {
                 throw DemoFailure(message: "Production identity did not hand off to the mounted header")
             }
-            try await verifyProductionText(window, bottomUp: false)
+            try await verifyBody(window)
             for element in ["title", "emoji"] {
                 guard let planned = visit.openingTarget[element], let actual = visit.measuredTargets[element],
                       abs(planned.frame.minX - actual.frame.minX) < 1,
@@ -461,7 +449,7 @@ private struct PanelDemo: View {
                 throw DemoFailure(message: "Existing content delayed identity travel")
             }
             try await Task.sleep(for: .seconds(1))
-            try await verifyProductionText(window, bottomUp: true)
+            try await verifyBody(window)
             try await capture("production-04-running", window: window)
             state.close()
             try await Task.sleep(for: .seconds(1))
@@ -506,7 +494,7 @@ private struct PanelDemo: View {
                 throw DemoFailure(message: "Wide loading column is not centered: \(loadingFrame), pane=\(mainFrame)")
             }
             try await capture("production-05-wide-loading", window: window)
-            try await verifyProductionText(window, bottomUp: false)
+            try await verifyBody(window)
             guard let loadedTitle = wideVisit.measuredTargets["title"],
                   abs(loadedTitle.frame.minX - loadingTitle.frame.minX) < 1,
                   abs(loadedTitle.frame.minY - loadingTitle.frame.minY) < 1 else {
@@ -529,15 +517,10 @@ private struct PanelDemo: View {
             try await capture("02-expanding", window: window)
             try await Task.sleep(for: .seconds(2))
             guard state.expanded else { throw DemoFailure(message: "Panel did not expand") }
-            guard !state.footerVisible else { throw DemoFailure(message: "Completion time appeared during loading") }
             try await capture("03-panel", window: window)
             try await Task.sleep(for: .milliseconds(700))
             guard state.loaded else { throw DemoFailure(message: "Body did not load") }
-            guard RevealProbe.admittedBeforeFirstPaint else { throw DemoFailure(message: "Text was visible before line mask admission") }
-            guard RevealProbe.revealedLineCount > 3 else { throw DemoFailure(message: "TextKit line reveal did not mount") }
-            try await capture("03a-line-reveal", window: window)
-            try await Task.sleep(for: .seconds(4))
-            guard state.footerVisible else { throw DemoFailure(message: "Completion time did not join the reveal") }
+            try await verifyBody(window)
             try await capture("03b-body-ready", window: window)
             try verifyPanelMargins()
             var measurements = [["viewport": NSStringFromSize(state.viewport), "panel": NSStringFromRect(state.panelFrame)]]
@@ -609,19 +592,15 @@ private struct PanelDemo: View {
             state.slow = true
             state.open(state.threads[1])
             try await Task.sleep(for: .seconds(2.7))
-            guard state.loaded, RevealProbe.admittedBeforeFirstPaint,
-                  RevealProbe.revealOrder.count > 3,
-                  zip(RevealProbe.revealOrder, RevealProbe.revealOrder.dropFirst()).allSatisfy({ $0 >= $1 }) else {
-                throw DemoFailure(message: "Running reply did not reveal from its bottom line upward")
-            }
-            try await capture("11-running-bottom-up", window: window)
+            try await verifyBody(window)
+            try await capture("11-running", window: window)
             try await Task.sleep(for: .seconds(4))
             state.close()
             try await Task.sleep(for: .seconds(2.5))
             state.reduceMotion = true
             state.open(state.threads[0])
             try await Task.sleep(for: .seconds(1))
-            guard state.loaded, state.footerVisible else { throw DemoFailure(message: "Reduced motion did not show body and completion time") }
+            try await verifyBody(window)
             state.close()
             try await Task.sleep(for: .milliseconds(100))
             guard state.selected == nil else { throw DemoFailure(message: "Reduced motion did not close") }

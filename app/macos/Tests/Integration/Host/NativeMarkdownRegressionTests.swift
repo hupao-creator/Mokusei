@@ -40,31 +40,31 @@ struct NativeMarkdownRegressionTests {
         var body: some View { NativeMarkdownView(text: source.text) }
     }
 
-    private struct PacedReader: View {
+    private struct TokenReader: View {
         @ObservedObject var source: UnicodeSource
-        let reveal: NativeThreadContentReveal
         let applied: (NativeMarkdownAppliedDocument?) -> Void
         var body: some View {
             NativeMarkdownView(text: source.text, documentToken: source.text.isEmpty ? "empty" : "old",
                 onDocumentApplied: applied)
-                .environment(\.nativeThreadReveal, reveal)
         }
     }
 
-    @Test func pacedMountDiscardsSupersededContentBeforeAcknowledgingEmptyDocument() async throws {
+    @Test func mountedReaderClearsPreviousContentWhenApplyingAnEmptyDocument() async throws {
         let source = UnicodeSource()
-        source.text = (0..<80).map { "OBSOLETE_\($0)" }.joined(separator: "\n\n")
+        source.text = "OBSOLETE_BODY"
         var applied: NativeMarkdownAppliedDocument?
         let window = SwiftUIReplay.window(ScrollView {
-            PacedReader(source: source, reveal: NativeThreadContentReveal(), applied: { applied = $0 })
+            TokenReader(source: source, applied: { applied = $0 })
         }, width: 700, height: 500)
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { texts(root).contains { $0.string.hasPrefix("OBSOLETE_") } }
-        #expect(texts(root).filter { $0.string.hasPrefix("OBSOLETE_") }.count < 80)
-        #expect(applied == nil)
+        try await SwiftUIReplay.wait {
+            applied?.token == "old" && texts(root).contains { $0.string == "OBSOLETE_BODY" }
+        }
         source.text = ""
-        try await SwiftUIReplay.wait { applied?.token == "empty" && texts(root).allSatisfy { !$0.string.hasPrefix("OBSOLETE_") } }
+        try await SwiftUIReplay.wait {
+            applied?.token == "empty" && texts(root).allSatisfy { $0.string != "OBSOLETE_BODY" }
+        }
     }
 
     @Test func mountedReaderUpdatesCanonicallyEquivalentLink() async throws {

@@ -20,11 +20,17 @@ native failures cannot authorize replay or clear an uncertain outbox attempt.
 
 ## Tools and creation
 
-[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. `create_thread` takes a `target` object with exactly one Harness key containing its native settings. Each Harness has its own named property, so model-facing fields and catalog descriptions retain their ownership even when a host discards root composition keywords. Inclusive property hints expose model/thinking choices only within that Harness; native fields are never merged across targets. The target's union selects a key without validating other Harnesses' options, keeping bounded error output focused on the supplied target. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution; the parser decodes the one key into the existing internal Harness/options pair.
+[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. `create_thread` takes a `target` object with exactly one Harness key containing its native settings. Each Harness has its own named property, so model-facing fields and catalog descriptions retain their ownership even when a host discards root composition keywords. Inclusive property hints expose model/thinking choices only within that Harness; native fields are never merged across targets. The target's union selects a key without validating other Harnesses' options, keeping bounded error output focused on the supplied target. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution; the parser decodes the one key into the existing internal Harness/options pair. Before validation, [schema_validation.go](schema_validation.go) repairs one narrow serialization fault: a container that a Harness stringified where the schema declares object/array is decoded, while declared strings, invalid JSON and values hidden behind `$ref`/`$defs` or conditional keywords pass through unchanged so the original schema error still surfaces. The same repair runs again against the native settings schema when `create_thread` resolves its target.
 
 Fixed tool schemas compile once per installed binding and are reused for that
 configuration generation. Dynamic target schemas remain freshly discovered and
 validated at creation admission.
+
+The Codex Harness additionally places the original injected input schemas in
+native developer instructions, so its model can read the complete creation
+contract even when native tool-schema conversion drops composition details.
+Moku retains the same named-target schema and authoritative validation; Pi,
+OpenCode and Claude continue receiving their existing definitions.
 
 [tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
 

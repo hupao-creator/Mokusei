@@ -6,13 +6,6 @@ import MokuseiCore
 import MokuseiPluginAPI
 import SwiftUI
 
-extension EnvironmentValues {
-    // An opt-in native demo keeps new text transparent until its line masks
-    // are installed. This is applied before attachment, never after first paint.
-    @Entry var nativeMarkdownAwaitsLineReveal = false
-    @Entry var nativeMarkdownLineRevealOwner: UUID? = nil
-}
-
 /// TextKit owns selection, accessibility, native Copy, and links. Attributed
 /// strings, attachments and layout are created only on the main actor.
 struct MarkdownSelectableText: MarkdownPlatformRepresentable {
@@ -29,20 +22,12 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     var selectionScope: String? = nil
     var executionLinkHarnesses: [JSONText: AnyHarnessPlugin]? = nil
     var openLink: (URL) -> Void
-    @Environment(\.nativeThreadReveal) private var threadReveal
-    @Environment(\.nativeMarkdownLineRevealOwner) private var lineRevealOwner
-    @Environment(\.nativeMarkdownAwaitsLineReveal) private var awaitsLineReveal
     @Environment(\.locale) private var locale
     @Environment(\.nativePerformanceOperation) private var performanceOperation
 
     func makeNSView(context: Context) -> MarkdownTextView {
         let view = makeTextView(context: performanceOperation)
         view.delegate = context.coordinator
-        view.lineRevealOwner = lineRevealOwner
-        view.awaitsLineReveal = awaitsLineReveal
-        view.alphaValue = awaitsLineReveal ? 0 : 1
-        view.threadReveal = threadReveal
-        threadReveal?.register(view)
         return view
     }
 
@@ -100,7 +85,7 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     }
 
     static func dismantleNSView(_ view: MarkdownTextView, coordinator: Coordinator) {
-        view.threadReveal?.unregister(view); view.setSelectionScope(nil)
+        view.setSelectionScope(nil)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: MarkdownTextView, context: Context) -> CGSize? {
@@ -273,20 +258,6 @@ struct MarkdownTextInput: Equatable {
 }
 
 final class MarkdownTextView: MarkdownPlatformTextView {
-    weak var threadReveal: NativeThreadContentReveal?
-    var lineRevealOwner: UUID?
-    var awaitsLineReveal = false
-    func admitLineReveal() {
-        awaitsLineReveal = false
-        alphaValue = 1
-        needsDisplay = true
-    }
-    override func draw(_ dirtyRect: NSRect) {
-        // SwiftUI may overwrite NSView.alphaValue during placement. Suppress
-        // TextKit drawing itself until the owner has committed its line mask.
-        guard !awaitsLineReveal else { return }
-        super.draw(dirtyRect)
-    }
     nonisolated private static let compactDescription =
         ProcessInfo.processInfo.environment["MOKUSEI_TEXT_COMPACT_DESCRIPTION"] != "0"
 
@@ -304,11 +275,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     var executionSurfaces: [Int: MarkdownExecutionHost] = [:]
     var executionLocale = Locale.current {
         didSet { if executionLocale != oldValue { updateExecutionSurfaces() } }
-    }
-
-    override func setFrameSize(_ newSize: NSSize) {
-        if bounds.width > 0, abs(bounds.width - newSize.width) > 0.5 { threadReveal?.contentChanged(self) }
-        super.setFrameSize(newSize)
     }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -463,7 +429,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     func setContent(_ next: MarkdownTextInput, build: @escaping (CGFloat) -> NSAttributedString) {
         NativePerformance.event(.textUpdate, context: performanceOperation, values: ["changed": input != next ? 1 : 0])
         guard input != next else { return }
-        if input != nil { threadReveal?.contentChanged(self) }
         input = next
         buildText = build
         // An opted-in Note also contains ordinary prose. Only actual attachments

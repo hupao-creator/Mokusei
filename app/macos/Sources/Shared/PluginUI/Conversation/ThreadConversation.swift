@@ -339,7 +339,7 @@ public struct ThreadConversation: View {
                         .allowsHitTesting(!readingPage).accessibilityHidden(readingPage)
                         .nativeReadingScope("current")
                         .nativeReadingActive(!readingPage && !pageMotion.active)
-                        .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+                        .transformPreference(NativeReadingContentStatusKey.self) { status in
                             if readingPage { status = .init() }
                         }
                         .onAppear { hasMountedCurrentDocument = true }
@@ -358,10 +358,10 @@ public struct ThreadConversation: View {
             }
             .clipped()
         }.padding(.vertical, (agentDetail && !executionCard) || (executionCard && !relatedExecution) ? 0 : 12)
-            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+            .transformPreference(NativeReadingContentStatusKey.self) { status in
                 // Empty/error history pages have no turn to hold the boundary
                 // while their own reading stack is still travelling.
-                status.revealing = status.revealing || pageMotion.active
+                status.pending = status.pending || pageMotion.active
             }
             .nativeReadingObservation("state", role: "conversation", value: .object([
                 "destination": .text(readingPage ? selectedPage == nil ? "unavailable" : "history" : "current"),

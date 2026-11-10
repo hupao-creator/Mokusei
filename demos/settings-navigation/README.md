@@ -26,3 +26,11 @@ IME 阻止关闭、分类键盘导航，以及无效分类回退 General。
 数据和保存使用内存 fixture；偏好写入 demo 私有 profile。
 不启动 Runtime、模型服务或麦克风。Harness 子表单为空，不代表其功能已验证。
 需要 macOS 26 / Xcode 26；不安装或重启 Dev 应用。
+
+交互预览可直接打开生产版 Moku Map。切换协调 Agent 可以查看各 Harness 的玻璃圆标。
+
+```sh
+swift build --package-path app/macos
+python3 demos/settings-navigation/build.py --moku-map
+.build/settings-moku-map-logo/MokuMapLogoDemo.app/Contents/MacOS/MokuMapLogoDemo
+```

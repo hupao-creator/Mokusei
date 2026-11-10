@@ -64,6 +64,13 @@ paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled. General's Agent installation buttons and the other
 Settings form controls retain their system presentation.
 
+The coordinator in Settings displays the selected Harness's artwork as tint over
+a circular clear Liquid Glass surface. Tint stays strong through the upper four
+fifths and softens to 80% opacity at the bottom. Reduce Transparency displays the
+artwork directly. The circle rests in its seat and keeps its shape when it moves
+to a new coordinator. Onboarding and Harnesses without artwork use the animated
+Moku character.
+
 Model, thinking/effort and variant choices use the same AppKit `NSPopUpButton`
 as other selects in Settings and onboarding, including compact role panels.
 `NativeModelSelector` delegates to the system select in these environments;

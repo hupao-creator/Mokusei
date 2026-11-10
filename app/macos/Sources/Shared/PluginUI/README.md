@@ -2,6 +2,12 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+The Moku Map tint artwork lives in [Resources/moku-map](Resources/moku-map).
+Codex uses the blue sphere from the [application icon](../../../build/SOURCES.md).
+The Claude, Pi and OpenCode variants were generated from that sphere and reviewed
+in the native preview. `NativeMokuMapLogoArtwork` loads each tint once at bounded
+resolution and trims the illustrated rim for the system glass.
+
 `NativeReportExecutionInputKey` carries the expanded Report execution's exact
 reference, content/landing readiness and destination frame to its Host shell. It is absent in list, folded,
 Browser and suppressed states. The Host converts that geometry through the same
@@ -134,14 +140,12 @@ layout cannot move the heading destination before the live reader owns it.
 folded layout to commit before auxiliary motion is admitted; its queued callback
 is invalidated on disable, detach or replacement. This prevents an initially
 selected execution Sidecard from first rendering at expanded width. Agent detail
-also waits for `NativeReadingContentRevealStatusKey`: only active main contributes
-readiness, and unfinished line/footer fades keep the gate closed. Turns wait for
-primary admission, then use actual last-line and footer animation completion.
-Loaded empty/error states can finish without a text animation; mounted Agent
-loading placeholders keep the gate pending even alongside loaded sibling rows
-and during their visual grace period. The identity-only reader cannot admit
-content. Reduced Motion skips fades but keeps Markdown
-readiness, and teardown cancels late completion. See the
+also waits for `NativeReadingContentStatusKey`: only the active main document
+contributes readiness, and pending Markdown parsing or loading placeholders
+keep the gate closed. Loaded empty/error states can finish without Markdown.
+Agent loading placeholders keep the gate pending even alongside loaded sibling
+rows and during their visual grace period. The identity-only reader cannot
+admit content. Reduce Motion preserves the same readiness rules. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
 
@@ -1302,57 +1306,19 @@ appears only after
 reader admission and fades before return; its position and hit region remain
 owned by the production upper-left control.
 
-The main Agent workspace opts into `nativeThreadContentReveal`. Scoped loading
-uses the shared `NativeThreadLoadingSkeleton` after the existing 180ms grace
-period. Real Markdown parse completion (independent of optional document tokens)
-and native text attachment admit the first execution entrance. TextKit drawing
-is gated before first paint, then line masks and visibility commit together.
-Completed executions reveal top-down; active executions reveal bottom-up after
-normal follow positioning. The completion footer joins the same native mask
-ordering as the last row, starting one beat after the preceding line rather
-than waiting for its fade to end.
-Execution-process summaries join this same ordering as whole rows, including
-their icon and wrapped text. Their SwiftUI layout and accessibility stay intact;
-an inner native host gates first paint until the shared mask is installed.
-Summary count/usage changes or width changes release the entrance masks, while
-summaries admitted after the entrance appear immediately without restarting it.
-When a completed execution moves from its retained sidecard into the main
-reader, the destination skips this entrance: the handoff already presents the
-content and must not expose a second blank/reveal cycle. Content readiness still
-acknowledges the destination before the retained sidecard fades away.
-
-When a newer active execution belongs to the Conversation Sidecard, existing
-main-reader executions skip the line/footer animation and appear fully once
-primary admission and Markdown readiness complete. This follows execution
-ownership even when the Sidecard is folded or another activity is selected;
-it does not depend on the Sidecard's delayed opening stage. The main reader
-keeps loading, parse readiness and content-completion preferences enabled, so
-skipping ink animation cannot admit auxiliary content early. A first active
-execution in main and ordinary completed-only visits retain their entrance.
-Running/waiting transitions, streaming, scroll ownership, Reduce Motion and
-accessibility gates keep their existing paths. Sprint validation passed static
-review, Swift syntax parsing, `make lint` and a focused `MokuseiUI` target build;
-no tests, replays or CI are run, so rendered
-timing, scrolling and accessibility behavior remain unverified at runtime.
-
-Each mounted execution owns weak text/summary registrations, masks and cancellation;
-there is no window-wide text scan. Live text changes, actual width changes,
-Reduce Motion and disappearance retire masks and restore drawing. Streaming
-page admission and user scroll ownership remain unchanged. The entrance is
-sped up by a factor of 1.32 (a further 20% over 1.1): the original 45ms line
-beat, 600ms stagger cap and 280ms line/footer fade are each divided by 1.32
-(approximately 34.1ms, 454.5ms and 212.1ms for either fade). Line ordering,
-ease-out curves and completion-driven entrance admission stay unchanged, as do
-Markdown/layout readiness waits, loading skeletons and panel/identity motion.
-Later disclosures and stream updates do not restart an execution entrance. Other Markdown consumers
-leave the presentation scope disabled.
+The main Agent workspace opts into `nativeThreadUsesLoadingSkeleton`. Scoped
+loading uses the shared `NativeThreadLoadingSkeleton` after its 180ms grace
+period. Parsed Markdown mounts as a complete document; execution summaries and
+the terminal footer use their ordinary SwiftUI layout. The panel host alone
+controls first paint during primary travel. Running execution positioning and
+later streaming updates retain their own scroll and rendering policies. A
+completed execution promoted from a Sidecard still acknowledges destination
+content readiness before the retained source retires.
 
 Run the [production fixture](../../../../../demos/thread-panel-transition/README.md)
-with `--production --verify`; it uses these production components with deterministic
-loaded/running data and checks source capture, measured handoff, first-paint
-protection, line direction, footer and mask cleanup, normal close and interrupted
-opening. Full-workspace navigation remains covered by the existing native reading
-and Moku landing integration replays.
+with `--production --verify`; it checks source capture, measured handoff, hidden
+preloading, complete body display, and normal and interrupted close. The native
+reading and Moku landing replays cover full-workspace navigation and input.
 
 Initial conversation admission uses an inline loading placeholder until its entry
 request is consumed. It must not use the surface placeholder: with an identity
@@ -1386,17 +1352,9 @@ the local-image and execution-link replays cover asynchronous media and streamin
 admission. This optimization does not use viewport virtualization or stale
 cross-document height caches.
 
-### Paced initial Agent text
-
-An Agent execution's first non-streamed Markdown document admits small batches
-of top-level blocks between main-loop turns, budgeted by estimated native text
-leaves. Tables and lists remain atomic. The document-ready/coverage acknowledgement
-is published only after all blocks have been admitted; the existing reveal scope
-protects first paint. A newer revision interrupts the old batches, including an
-empty replacement, and disappearance cancels the worker. Already displayed content
-and streaming pages retain their ordinary update path. Animation durations are
-unchanged. Reveal registration dictionaries, masks and tasks are imperative
-bookkeeping outside SwiftUI observation; visible completion remains observable.
+Markdown publishes the complete parsed document and acknowledges its token in
+the same update. A newer revision supersedes pending parse results, including
+when the replacement is empty; disappearance cancels the worker.
 
 There is no additional cross-visit attributed-string or native-view cache.
 Existing immutable parse/content caches and layout-local measurements retain their

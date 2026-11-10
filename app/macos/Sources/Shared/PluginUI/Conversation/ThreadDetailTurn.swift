@@ -114,12 +114,6 @@ private extension EnvironmentValues {
 }
 
 public struct ThreadDetailTurn: View {
-    @Environment(\.nativeThreadContentReveal) private var revealsContent
-    @Environment(\.nativeThreadContentRevealAnimated) private var animatesContentReveal
-    @Environment(\.accessibilityReduceMotion) private var reducedMotion
-    @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
-    @State private var entrance = NativeThreadContentReveal()
-    @Environment(\.threadDetailFooterReveal) private var footerReveal
     @Environment(\.threadExecutionGroup) private var executionGroup
     public let id: JSONText
     public let author: JSONValue?
@@ -184,10 +178,7 @@ public struct ThreadDetailTurn: View {
         }
     }
 
-    private var entranceWithoutAnimation: Bool { reducedMotion || !animatesContentReveal }
-
     public var body: some View {
-        let revealInProgress = revealsContent && !entrance.settled
         if let executionGroup {
             ThreadExecutionGroupContent(groupID: executionGroup, rows: filteredRows)
         } else {
@@ -212,38 +203,10 @@ public struct ThreadDetailTurn: View {
                 // Catalog activity and scoped Harness content update independently.
                 // A still-running execution must not expose the terminal footer.
                 if !active && !executionRunning {
-                    Group {
-                        if revealsContent {
-                            // Join the line clock instead of waiting for the body to finish fading.
-                            NativeThreadRevealRow(contentID: nativeReadingInteractionKey(id)) {
-                                footer.opacity(footerReveal)
-                            }
-                        } else {
-                            footer.opacity(footerReveal)
-                        }
-                    }
-                    .padding(.top, displayed.last?.kind == .user ? 26 : 18)
+                    footer.padding(.top, displayed.last?.kind == .user ? 26 : 18)
                 }
             }
-            .environment(\.nativeThreadReveal, revealsContent ? entrance : nil)
-            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
-                status.hasContent = true
-                status.revealing = status.revealing || revealInProgress
-            }
-            .onAppear {
-                if revealsContent {
-                    if primaryEntranceReady { entrance.begin(bottomUp: active, reducedMotion: entranceWithoutAnimation) }
-                }
-                else { entrance.finish() }
-            }
-            .onChange(of: revealsContent) { _, value in if !value { entrance.finish() } }
-            .onChange(of: primaryEntranceReady) { _, ready in
-                if ready && revealsContent { entrance.begin(bottomUp: active, reducedMotion: entranceWithoutAnimation) }
-            }
-            .onChange(of: entranceWithoutAnimation) { _, value in
-                if value && primaryEntranceReady && revealsContent { entrance.begin(bottomUp: active, reducedMotion: true) }
-            }
-            .onDisappear { entrance.cancel() }
+            .transformPreference(NativeReadingContentStatusKey.self) { $0.hasContent = true }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(localize("对话轮次"))

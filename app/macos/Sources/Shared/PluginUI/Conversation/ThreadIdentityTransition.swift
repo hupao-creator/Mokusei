@@ -8,7 +8,6 @@ struct ThreadIdentityTransition {
     let expanded: Bool
 }
 extension EnvironmentValues {
-    @Entry var threadDetailFooterReveal: Double = 1
     @Entry var threadIdentityTransition: ThreadIdentityTransition? = nil
 }
 extension View {

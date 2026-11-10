@@ -35,8 +35,7 @@ indicator immediately. The existing reader content preference and
 `NativeReadingContentPreparation` jointly wait for a real row/error and registered
 Markdown parsing. Admission crossfades the indicator and fades the retained native
 host from 0 to 1 over 200ms, using Core Animation ease-out. Only paint animates;
-text geometry does not inherit the entrance transaction. This entry disables the
-ordinary Agent line reveal to avoid two entrances.
+text geometry does not inherit the entrance transaction.
 
 Hidden preparation excludes reader pointer, keyboard and accessibility activity;
 the Report-owned return button remains outside this gate. Identity is scoped to

@@ -137,6 +137,16 @@ func (n *NativeSession) prepare(ctx context.Context, o NativeOptions) (string, e
 	var bridge *ToolBridge
 	var err error
 	if len(o.Tools) > 0 {
+		contracts, err := toolSchemaInstructions(o.Tools)
+		if err != nil {
+			return "", err
+		}
+		// NativeOptions is a per-prepare copy: reopening or forking refreshes the
+		// contracts without appending another block to retained caller guidance.
+		if o.Instructions != "" {
+			o.Instructions += "\n\n"
+		}
+		o.Instructions += contracts
 		bridge, err = NewToolBridge(o.Tools, n.executeTool)
 		if err != nil {
 			return "", err

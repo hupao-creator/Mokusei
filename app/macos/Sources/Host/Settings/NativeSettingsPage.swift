@@ -314,7 +314,8 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 if role == .moku {
                     NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,
                         harnessSettings: harnessSettings, controller: mokuController, onCoordinatorFrame: onCoordinatorFrame,
-                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true)
+                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true,
+                        showsHarnessArtwork: true)
                 } else if let application = activeApplications.first(where: { $0.id == activeSection }) {
                     applicationContent(application)
                 }

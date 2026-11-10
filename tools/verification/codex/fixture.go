@@ -213,6 +213,11 @@ func (p *peer) receive(frame object) error {
 		result["data"] = []any{}
 		result["marketplaces"] = []any{}
 	case "thread/start", "thread/resume", "thread/fork":
+		if path := os.Getenv("MOKUSEI_CODEX_REPLAY_SCHEMA_CAPTURE"); path != "" {
+			if err := os.WriteFile(path, encoded(params), 0600); err != nil {
+				return err
+			}
+		}
 		p.bridge = record(record(record(params["config"])["mcp_servers"])["mokusei_injected"])
 		if method == "thread/resume" {
 			p.session = text(params["threadId"])

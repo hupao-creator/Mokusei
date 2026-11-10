@@ -27,6 +27,18 @@ creation validation.
 
 [tools.go](tools.go) exposes injected tools through an authenticated local MCP bridge with a schema budget sized for the supplied definitions. Tool execution is bound to the admitted native thread/turn and cancellation context. Exclusive injection disables unrelated native/MCP tools. Stock resource-helper names do not confer authority: the bridge returns no resources/templates and has no resource-read implementation.
 
+Every injected tool's original input schema is also serialized into one
+`developerInstructions` contract block on native start, resume and fork. Codex's
+tool-parameter conversion can drop conditionals and obscure selector-only
+unions; the instruction copy preserves the full declarative contract, including
+references, exact numbers and nested native choices. This applies automatically
+to new tools, without tool-name checks, schema simplification or producer flags.
+MCP definitions and callback validation remain unchanged. The block is built
+from the current preparation's bindings and does not accumulate on caller
+instructions. Empty injections add nothing; output schemas are not duplicated.
+Full input schemas add context proportional to their serialized size. Schema
+descriptions and literals are explicitly framed as data, not new instructions.
+
 The bridge preserves JSON number precision in arguments, request identities and
 structured results. Retired turns cannot borrow a successor's admission window.
 Terminal settlement cancels and drains the turn's injected tool callbacks before

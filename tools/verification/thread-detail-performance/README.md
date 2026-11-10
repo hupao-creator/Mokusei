@@ -37,9 +37,9 @@ remaining hot paths and parallel-change intersections.
 ## SwiftUI / AppKit reading text comparison
 
 This is a historical comparison. The SwiftUI migration has been reverted;
-the benchmark source and measurements remain for reconsideration. The driver
-refuses to run against the restored AppKit-only sources, including stale Release
-artifacts. To reproduce, use revision `39d0941` in a separately managed checkout
+the measurements remain for reconsideration. The benchmark source and driver
+are available in revision `39d0941`. To reproduce, use that revision in a
+separately managed checkout
 and rebuild its matching production modules before running:
 
 ```sh
@@ -53,7 +53,7 @@ changes. It runs 32 fresh foreground processes: four samples of each renderer,
 fixture and scope, alternating A/B and B/A order. It does not send Harness tasks,
 load user documents or fetch the fixture's inert example links.
 
-[SwiftUITextBenchmark.swift](SwiftUITextBenchmark.swift) uses the production
+The historical `SwiftUITextBenchmark.swift` uses that revision's production
 parser and MarkdownContent/MarkdownReadingText, with the existing environment
 switch selecting the original TextKit path or SwiftUI. Parsing precedes timing.
 The Thread condition retains a finished content-reveal scope: it includes the
