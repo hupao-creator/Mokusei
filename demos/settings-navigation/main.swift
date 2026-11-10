@@ -243,21 +243,25 @@ private struct Failure: Error { let message: String }
             throw Failure(message: "Map host and target actions did not retain their draft bindings")
         }
         try await activateMapControl("moku.host.codex")
-        guard let routing = mapControls().first(where: { $0["id"] == .text("moku.routingEnabled") }),
-              let handle = routing["handle"]?.stringValue else {
-            throw Failure(message: "Routing switch is not mounted")
+        for locale in [DesktopLocale.chinese, .english] {
+            try fixture.preferences.setLocale(locale)
+            for preset in ["economy", "balanced", "performance", "custom"] {
+                try await activateMapControl("moku.routingPreset." + preset)
+                let expected: JSONValue? = preset == "custom" ? nil : .text(preset)
+                guard fixture.model.draft.value["moku"]?["routingPreset"] == expected else {
+                    throw Failure(message: "Routing preset binding failed: \(preset)")
+                }
+                if preset == "custom" {
+                    let label = locale.text("告诉 Moku 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。",
+                        "Tell Moku how to choose models for delegated tasks, for example favor speed for simple tasks and reasoning ability for complex tasks.")
+                    guard mapControls().contains(where: { $0["id"] == .text("moku.routingGuidance") && $0["label"] == .text(label) }) else {
+                        throw Failure(message: "Routing editor lost its accessible name")
+                    }
+                }
+                window.setContentSize(.init(width: 540, height: 780))
+                try await capture("settings-routing-\(preset)-\(locale == .chinese ? "chinese" : "english")")
+            }
         }
-        try fixture.navigation.interactions.perform(id: "moku.routingEnabled", handle: handle,
-            operation: "set", value: .bool(true), context: fixture.navigation.interactionContext(section: "moku"))
-        try await capture("settings-routing-guidance")
-        guard mapControls().contains(where: {
-            $0["id"] == .text("moku.routingGuidance") &&
-            $0["label"] == .text("告诉 Moku 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。")
-        }) else { throw Failure(message: "Routing editor lost its accessible name") }
-        window.setContentSize(.init(width: 540, height: 780))
-        try await capture("settings-routing-guidance-compact")
-        try fixture.preferences.setLocale(.english)
-        try await capture("settings-routing-guidance-compact-english")
         try fixture.preferences.setLocale(.chinese)
         window.setContentSize(.init(width: 1100, height: 780))
         fixture.navigation.section = "general"
@@ -281,7 +285,7 @@ private struct Failure: Error { let message: String }
         try await capture("settings-compact-zoom-in")
         fixture.scale = 1
         window.setContentSize(.init(width: 1100, height: 780))
-        let result = "PASS: production Settings in the resident Moku Dock; removed sections fall back to General; arrow/Home/End navigation; panel close blocks IME and closes after composition; four-Harness map bindings and last-target protection; routing editor accessible name and expanded/compact bilingual layouts; light/dark/compact/narrow-English/zoom screenshots; close remains in viewport.\n"
+        let result = "PASS: production Settings in the resident Moku Dock; removed sections fall back to General; arrow/Home/End navigation; panel close blocks IME and closes after composition; four-Harness map bindings and last-target protection; four routing presets and compact bilingual layouts; opaque panel; light/dark/compact/narrow-English/zoom screenshots; close remains in viewport.\n"
         try result.write(to: directory.appendingPathComponent("result.txt"), atomically: true, encoding: .utf8)
         print(result)
         if !CommandLine.arguments.contains("--interactive") { NSApp.terminate(nil) }

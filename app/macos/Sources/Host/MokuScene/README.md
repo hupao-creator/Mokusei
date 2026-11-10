@@ -53,8 +53,9 @@ The current and archived Moku conversation reading cards inherit the workspace
 appearance: light, dark or system. No local reader override or separate theme
 state masks the window preference. The dark capsule override is a local SwiftUI
 environment, not a window/application appearance preference.
-Settings and onboarding retain their fixed dark appearance. Settings uses one
-Regular Liquid Glass panel, with an opaque fallback for Reduce Transparency.
+Settings and onboarding retain their fixed dark appearance. Settings uses an
+opaque native window background in its local dark appearance,
+including with Reduce Transparency; the expanded panel has no tint or glass.
 The resident eyes travel into its reserved header seat during expansion.
 
 The collapsed Overview Dock is the original 168×44-point eye capsule. Its warm

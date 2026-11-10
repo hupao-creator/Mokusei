@@ -1503,3 +1503,12 @@ cannot reenable input. The Report's Back button lives outside this carrier.
 `NativeReportSidecardPresentation` owns the selection and execution visit alongside
 Browser/list admission; accepted continuations are visit-local and independent of
 the authored reference list. The window supplies one presentation per route.
+
+`NativeSettingsChoiceButton` shares the existing interactive capsule appearance
+between role modes and model routing presets: full capsule hit shape, selected
+checkmark, native button keyboard behavior and accessibility selection. The
+Settings panel's opaque background is independent of these small glass controls.
+Harness advanced options retain their native disclosure and expand the label’s
+hit shape over trailing row space with a 32-point minimum height. Expansion stays
+local to the editor and never changes retained field values or saves by itself.
+The existing Harness replay checks retained values, permission writes and locale changes.

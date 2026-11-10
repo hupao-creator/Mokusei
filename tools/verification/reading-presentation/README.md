@@ -964,3 +964,7 @@ Report/Git cases also merge hidden catalog changes and require the refreshed
 source-card frame before their close animation completes.
 The Report fixture separately loads real HTML, and `GitNativeTests` retains diff,
 selection, refresh and cancellation coverage with scoped capability fixtures.
+
+The Settings panel uses an opaque native window background, independent of its
+small capsule controls. Pixel sampling in the Settings transition replay compares
+the panel margin with the native dark-window fill over the striped Overview.

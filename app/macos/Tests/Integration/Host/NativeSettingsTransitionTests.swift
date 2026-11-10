@@ -193,8 +193,15 @@ struct NativeSettingsTransitionTests {
                 // The 900pt preferred page is capped by the 780pt viewport's
                 // existing 24pt top and bottom margins.
                 #expect(abs(panel.width - 780) < 1 && abs(panel.height - 732) < 1)
-                #expect(try await panelLuminance(window, panel: panel) < 0.6,
-                        "The dark Settings page and glass shell must not follow the light window")
+                // Opaque native dark-window fill must remain neutral even over
+                // the high-contrast striped Overview fixture.
+                let expected = try #require(NSAppearance(named: .darkAqua))
+                var background: NSColor?
+                expected.performAsCurrentDrawingAppearance { background = NSColor.windowBackgroundColor.usingColorSpace(.sRGB) }
+                let component = try #require(background).redComponent
+                let linear = component <= 0.04045 ? component / 12.92 : pow((component + 0.055) / 1.055, 2.4)
+                #expect(abs(try await panelLuminance(window, panel: panel) - linear) < 0.01,
+                        "Settings must use the opaque native dark window background over Overview")
             }
             let before = fixture.pageSize
             fixture.navigation.section = "moku"
