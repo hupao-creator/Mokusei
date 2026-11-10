@@ -161,7 +161,9 @@ text, then checks native editing, autosave normalization and Undo persistence.
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
 
 The Runtime replay also drives the production Tag and Report participants with
-inherited and independent execution profiles. Gated native discovery checks
+inherited and independent execution profiles. After accepted inputs settle, real
+completed/failed/interrupted source executions must leave Tag idle. Subsequent
+accepted input still opens the next batch. Gated native discovery checks
 settings-save conflicts without batch retry consumption, validation of matching
 idle-session reuse, unchanged admitted steering and next-batch profile adoption.
 It also checks cold Open settlement of an orphan and background work that needs
