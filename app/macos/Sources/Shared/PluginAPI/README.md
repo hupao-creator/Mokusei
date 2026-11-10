@@ -139,3 +139,17 @@ text is capped at 600 characters; a non-running execution with no end time is
 shown as unknown duration rather than ticking indefinitely. Super Thread relations
 now obtain authoritative exact-execution state/timing from `report.relations`,
 separate from current Thread state. Bounded native previews remain exact-ID-only.
+
+
+### Application overview collections
+
+`ApplicationThreadPlugin.overviewCollection` is optional native presentation
+policy: an elapsed last-open interval and a footprint. The Host computes one
+collection per opted-in type in the current browsing filter; it does not publish
+or persist a collection entity. `collectionCard` receives the exact member
+snapshots, each with its own scoped capabilities/context, initial selection,
+visibility/foreground gate, selection callback and real-reference open callback.
+The erased boundary checks each member's type, owner, domain and capability scope.
+A renderer must keep member identities intact and must not treat selection or
+automatic paging as opening a document. Individual card/detail contracts are
+unchanged. Super Thread is the only current opt-in.

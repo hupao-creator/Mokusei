@@ -24,6 +24,7 @@ public final class DesktopPreferences {
     public private(set) var appearance: DesktopAppearance
     public private(set) var locale: DesktopLocale
     public private(set) var selectedThreadID: String?
+    public private(set) var applicationLastOpened: [String: Double] = [:]
     public private(set) var onboardingCompleted: Bool
     public private(set) var onboardingPending: Bool
     public private(set) var readError: String?
@@ -39,6 +40,7 @@ public final class DesktopPreferences {
         var preferences: Preferences
         var selectedThreadId: String?
         var onboardingCompleted: Bool?
+        var applicationLastOpened: [String: Double]?
     }
 
     public init(directory: URL) {
@@ -54,6 +56,12 @@ public final class DesktopPreferences {
             appearance = state.preferences.appearance
             locale = state.preferences.locale
             selectedThreadID = state.selectedThreadId
+            if let opened = state.applicationLastOpened {
+                guard opened.allSatisfy({ !$0.key.isEmpty && $0.key.utf16.count <= 512 && $0.value.isFinite && $0.value >= 0 }) else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                applicationLastOpened = opened
+            }
             // A valid preexisting desktop file establishes prior use. Explicit
             // pending state must survive preference writes and interrupted setup.
             onboardingCompleted = state.onboardingCompleted ?? true
@@ -65,6 +73,15 @@ public final class DesktopPreferences {
         }
         diagnostics.record(.preferences, readError == nil ? .completed : .failed,
                            durationMs: Date().timeIntervalSince(started) * 1000, fields: [.appearance, .locale])
+    }
+
+    /// Local reading history is profile-scoped UI state, never a collection record.
+    public func recordApplicationOpen(key: String, at date: Date) throws {
+        var opened = applicationLastOpened
+        opened[key] = date.timeIntervalSince1970
+        try persist(appearance: appearance, locale: locale, selectedThreadID: selectedThreadID,
+                    applicationLastOpened: opened)
+        applicationLastOpened = opened
     }
 
     public func setAppearance(_ value: DesktopAppearance) throws {
@@ -93,10 +110,12 @@ public final class DesktopPreferences {
     }
 
     private func persist(appearance: DesktopAppearance, locale: DesktopLocale,
-                         selectedThreadID: String?, onboardingCompleted: Bool? = nil) throws {
+                         selectedThreadID: String?, onboardingCompleted: Bool? = nil,
+                         applicationLastOpened: [String: Double]? = nil) throws {
         let data = try JSONEncoder().encode(SavedState(
             preferences: Preferences(locale: locale, appearance: appearance), selectedThreadId: selectedThreadID,
-            onboardingCompleted: onboardingCompleted ?? self.onboardingCompleted
+            onboardingCompleted: onboardingCompleted ?? self.onboardingCompleted,
+            applicationLastOpened: applicationLastOpened ?? self.applicationLastOpened
         ))
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,

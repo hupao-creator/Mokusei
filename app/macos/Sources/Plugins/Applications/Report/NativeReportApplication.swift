@@ -19,6 +19,15 @@ import SwiftUI
         [ApplicationCapabilities.executionReferencesUI.requirement, ApplicationCapabilities.threadUserActions.requirement,
          ApplicationCapabilities.isolatedHTML.requirement]
     }
+    var overviewCollection: ApplicationOverviewCollectionPolicy? {
+        .init(openedBefore: 600, footprint: .init(columns: 1, rows: 2))
+    }
+    func collectionCard(props: [ApplicationThreadProps<NativeReportView>], initialSelection: ApplicationThreadRef?, active: Bool,
+                        onSelection: @escaping (ApplicationThreadRef) -> Void,
+                        openThread: @escaping (ApplicationThreadRef) -> Void) -> AnyView {
+        AnyView(NativeReportCollection(props: props, initialSelection: initialSelection, active: active,
+                                       onSelection: onSelection, openThread: openThread))
+    }
     func projectCard(entry: ApplicationThreadCatalogEntry<NativeReportView>, availableColumns: Int,
                      capabilities: ApplicationCapabilityAccess<ApplicationProjectionPhase>) throws -> HarnessOverviewProjection<NativeReportCardProjection> {
         .init(footprint: .init(columns: 1, rows: entry.view.hasCover ? 2 : 1), structureKey: entry.view.hasCover ? "report:1x2:cover" : "report:1x1", excerpt: entry.view.shortDescription,
