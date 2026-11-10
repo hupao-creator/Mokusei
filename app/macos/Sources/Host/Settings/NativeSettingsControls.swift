@@ -88,10 +88,12 @@ struct SettingsTextArea: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = Surface()
         scroll.hasVerticalScroller = true
-        NativeScrollbarStyle.apply(to: scroll); scroll.borderType = .bezelBorder
+        NativeScrollbarStyle.apply(to: scroll); scroll.borderType = .noBorder
         scroll.drawsBackground = true; scroll.backgroundColor = .textBackgroundColor
         scroll.contentInsets = NSEdgeInsets(top: 1, left: 1, bottom: 1, right: 1)
         scroll.focusRingType = .exterior
+        scroll.wantsLayer = true
+        scroll.layer?.borderWidth = 1
         let view = Editor()
         view.drawsBackground = true; view.allowsUndo = true
         view.isRichText = false; view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
@@ -132,6 +134,7 @@ struct SettingsTextArea: NSViewRepresentable {
         }
         scroll.alphaValue = isEnabled ? 1 : 0.5
         if let surface = scroll as? Surface {
+            surface.invalid = invalid
             surface.updateInteraction = { [weak surface, weak view] in
                 guard let surface, let view else { return }
                 interaction.install(surface.interactionLease, editor: view, label: accessibilityLabel, value: text, invalid: invalid)
@@ -144,11 +147,30 @@ struct SettingsTextArea: NSViewRepresentable {
         }
     }
     final class Surface: NativeStyledScrollView {
+        var invalid = false { didSet { updateBorder() } }
+        var editorFocused = false { didSet { updateBorder() } }
+        override func viewDidChangeEffectiveAppearance() {
+            super.viewDidChangeEffectiveAppearance()
+            updateBorder()
+        }
+        func updateBorder() {
+            // Resolve dynamic colors in this view's appearance before CGColor;
+            // AppKit's bezel alone disappears against the dark Settings surface.
+            let color = invalid ? NativeAppKitPalette.settings.danger
+                : editorFocused ? NativeAppKitPalette.settings.accent : NativeAppKitPalette.settings.inputBorder.withAlphaComponent(0.32)
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                layer?.borderColor = color.cgColor
+                CATransaction.commit()
+            }
+        }
         let interactionLease = NativeSettingsControlLease()
         var updateInteraction: (() -> Void)?
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if window == nil { interactionLease.remove() } else { updateInteraction?() }
+            editorFocused = window != nil && window?.firstResponder === documentView
         }
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
@@ -204,6 +226,16 @@ struct SettingsTextArea: NSViewRepresentable {
             ])
             text.draw(in: CGRect(x: textContainerInset.width, y: textContainerInset.height,
                                  width: max(0, bounds.width - 2 * textContainerInset.width), height: max(0, bounds.height - 2 * textContainerInset.height)))
+        }
+        override func becomeFirstResponder() -> Bool {
+            let accepted = super.becomeFirstResponder()
+            if accepted { (enclosingScrollView as? Surface)?.editorFocused = true }
+            return accepted
+        }
+        override func resignFirstResponder() -> Bool {
+            let accepted = super.resignFirstResponder()
+            if accepted { (enclosingScrollView as? Surface)?.editorFocused = false }
+            return accepted
         }
         override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
             compositionChanged?(true)

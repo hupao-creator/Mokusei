@@ -24,8 +24,19 @@ private struct NativeSettingsPageKey: EnvironmentKey { static let defaultValue =
 private struct NativeSettingsViewportWidthKey: EnvironmentKey { static let defaultValue = CGFloat.infinity }
 private struct NativeSettingsLocalAgentDetailKey: EnvironmentKey { static let defaultValue = false }
 private struct NativeSettingsCLIKey: EnvironmentKey { static let defaultValue = false }
+private struct NativeSettingsBeforeAdvancedKey: EnvironmentKey { static var defaultValue: AnyView? { nil } }
+private struct NativeSettingsRowVerticalPaddingKey: EnvironmentKey { static let defaultValue = CGFloat(15) }
 private struct NativeSettingsGroupBottomSpacingKey: EnvironmentKey { static let defaultValue = CGFloat(22) }
 public extension EnvironmentValues {
+    /// Host-owned fields between the Harness basics and its advanced disclosure.
+    var nativeSettingsBeforeAdvanced: AnyView? {
+        get { self[NativeSettingsBeforeAdvancedKey.self] }
+        set { self[NativeSettingsBeforeAdvancedKey.self] = newValue }
+    }
+    var nativeSettingsRowVerticalPadding: CGFloat {
+        get { self[NativeSettingsRowVerticalPaddingKey.self] }
+        set { self[NativeSettingsRowVerticalPaddingKey.self] = newValue }
+    }
     var nativeSettingsFieldActivation: NativeSettingsFieldActivation? { nativeSettingsField.activation }
     var nativeSettingsFormPage: Bool {
         get { self[NativeSettingsPageKey.self] }
@@ -109,6 +120,7 @@ public struct NativeSettingsRow<Content: View>: View {
     @Environment(\.nativeSettingsViewportWidth) private var viewportWidth
     @Environment(\.nativeSettingsLocalAgentDetail) private var localAgentDetail
     @Environment(\.nativeSettingsFormPage) private var settingsFormPage
+    @Environment(\.nativeSettingsRowVerticalPadding) private var verticalPadding
     @State private var hintVisible = false
     @State private var activation = NativeSettingsFieldActivation()
     public init(label: String, description: String? = nil, error: String? = nil,
@@ -147,7 +159,7 @@ public struct NativeSettingsRow<Content: View>: View {
                         .padding(.top, localAgentDetail ? 10 : 12).padding(.bottom, localAgentDetail ? 0 : 12)
                 }
             }
-        }.padding(.top, localAgentDetail ? 14 : 15).padding(.bottom, localAgentDetail ? 0 : 15)
+        }.padding(.top, localAgentDetail ? 14 : verticalPadding).padding(.bottom, localAgentDetail ? 0 : verticalPadding)
             .zIndex(hintVisible ? 6 : 0)
             .accessibilityElement(children: .contain)
             .onChange(of: error) { _, error in
@@ -442,6 +454,7 @@ public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
     private let advanced: Advanced
     private let hasAdvanced: Bool
     @State private var expanded = false
+    @Environment(\.nativeSettingsBeforeAdvanced) private var beforeAdvanced
     @Environment(\.locale) private var locale
     @Environment(\.nativeSettingsFormPage) private var formPage
     public init(defaults: Binding<Bool>? = nil, hasAdvanced: Bool = true,
@@ -451,6 +464,7 @@ public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
     }
     public var body: some View {
         if defaults?.wrappedValue != true { basic }
+        beforeAdvanced.environment(\.nativeSettingsBeforeAdvanced, nil)
         if defaults != nil || hasAdvanced {
             DisclosureGroup(isExpanded: $expanded) {
                 if expanded {

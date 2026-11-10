@@ -20,6 +20,7 @@ import SwiftUI
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
+    @Environment(\.nativeSettingsInteractionScope) private var interactionScope
     @FocusState private var focusedHost: String?
 
     private var moku: JSONValue { model.draft.value["moku"] ?? .object([:]) }
@@ -78,6 +79,7 @@ import SwiftUI
                     savedValue: model.savedSettings["moku"]?["executionHarnesses"]?[host.descriptor.id.string] ?? .null,
                     value: model.harnessValueBinding(host.descriptor.id.string, execution: true)))
                     .environment(\.nativeSettingsInteractionScope, "moku." + host.descriptor.id.string)
+                    .environment(\.nativeSettingsBeforeAdvanced, presentation == .settings ? AnyView(routingGuidance.environment(\.nativeSettingsInteractionScope, interactionScope)) : nil)
             } else if rosterReady, !rosterPending, selectedHost.flatMap({ model.installations[$0]?.status }) == .checking {
                 NativeSettingsNotice(message: locale.text("正在读取所选 Agent 配置…", "Loading the selected Agent configuration…"))
             } else if rosterReady, !rosterPending, !pickable.isEmpty,
@@ -86,13 +88,14 @@ import SwiftUI
                     ? locale.text("当前值不可用，请选择", "The current value is unavailable. Please choose one.")
                     : locale.text("当前 Moku provider 值不可用，请重新选择。", "The selected Moku provider is unavailable. Please choose another."), error: selectedHost != nil)
             }
-            if presentation == .settings {
-                routingGuidance.padding(.top, -10)
-            } else if showsRoutingGuidance {
+            if presentation == .settings, !(rosterReady && !rosterPending && host != nil) {
+                routingGuidance
+            } else if presentation == .compact && showsRoutingGuidance {
                 routingGuidance.padding(.top, 18)
             }
         }
         .environment(\.nativeSettingsGroupBottomSpacing, 8)
+        .environment(\.nativeSettingsRowVerticalPadding, presentation == .settings ? 12 : 15)
         .background(NativeSettingsWindowVisibility { motion.setVisible($0) })
         .onDisappear { motion.setVisible(false); onCoordinatorFrame(nil, true) }
         .onAppear {
@@ -130,7 +133,7 @@ import SwiftUI
                     if let error = model.draft.validationError("routingGuidance", locale: locale) {
                         SettingsNotice(error, error: true)
                     }
-                }.padding(.bottom, 15).id("routingGuidance")
+                }.padding(.bottom, 12).id("routingGuidance")
             }
         }
     }

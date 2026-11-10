@@ -1066,6 +1066,12 @@ collapsed **Advanced options** disclosure. Pi execution snapshots have no
 secondary controls and therefore no empty disclosure. Field drafts remain owned
 by each Harness; collapse/expansion never saves, clears or replaces their values.
 Default mode retains its existing inheritance and explicit-toggle semantics.
+Hosts can supply `nativeSettingsBeforeAdvanced` for one host-owned region between
+basic fields and the disclosure; Pi snapshots use the same wrapper without an
+empty disclosure. The slot clears itself for descendants to avoid recursive
+insertion. Moku supplies its model routing preferences and keeps their interaction
+scope independent of the Harness. `nativeSettingsRowVerticalPadding` allows its
+12pt row rhythm without changing other Settings pages or local Agent detail.
 Provider labels and the disclosure title use the existing Chinese/English
 localization catalogs and update with the interface locale; native provider IDs
 remain exact. OpenCode has no Agent selector or description and uses build for

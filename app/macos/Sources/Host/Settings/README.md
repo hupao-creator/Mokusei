@@ -207,7 +207,12 @@ text-field notifications cannot clear another editor's close/save gate.
 Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible. Local appearance/language persistence has its own path and works without a connected Runtime. General → Interface preferences saves `DesktopPreferences` directly without entering a Runtime draft. `desktop-preferences.json` stores `preferences.appearance` and `preferences.locale`; updates retain selection and onboarding state. Atomic write failures retain the prior observed value and show the existing preference error notice. Interaction snapshots expose the saved values as `settings.appearance` and `settings.locale`.
 
 Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku's “Model selection preferences” (模型选择偏好) offers Economy, Balanced,
-Performance and Custom separate capsule buttons below its execution fields.
+Performance and Custom separate capsule buttons after its basic execution fields
+and before Advanced options, including the complete Custom guidance editor.
+Moku rows use 12pt vertical padding instead of the default 15pt; label hierarchy,
+advanced disclosure padding and description spacing retain their existing metrics.
+The Custom editor draws an adaptive Settings border with accent focus and danger
+validation states, retaining native text editing and focus-ring behavior.
 They reuse the role-mode choice style, show a checkmark on the selected item and
 wrap into fewer columns as the window narrows. Chinese and English explanations
 refer only to cost-effective and frontier models; concrete model names and routing

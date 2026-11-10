@@ -189,8 +189,10 @@ struct PiHarnessSettingsView: View {
                 PiResourceStatus(resource: props.resource, formPage: props.settingsFormPage)
                 NativeSettingsGroup {
                     if props.executionSnapshot {
-                        fields
-                        if pendingProfile != nil { NativeSettingsNotice(message: piLocalized("请补全模型相关配置；完成前不会保存此组修改。", locale), kind: .warning) }
+                        NativeHarnessSettingsFields(hasAdvanced: false) {
+                            fields
+                            if pendingProfile != nil { NativeSettingsNotice(message: piLocalized("请补全模型相关配置；完成前不会保存此组修改。", locale), kind: .warning) }
+                        } advanced: { EmptyView() }
                     }
                     else {
                         NativeHarnessSettingsFields(defaults: Binding(get: { props.value["useDefaultThreadSettings"] != .bool(false) }, set: { useDefault in
