@@ -275,9 +275,12 @@ public struct NativeMokuDock: View {
             }
             .frame(width: max(1, width - NativeMokuTalkTypography.leading - 48), height: 28)
         } else {
+            // The legacy scroller occupies the trailing gutter; extend its
+            // viewport so the remaining text clip stays centered in the shell.
             NativeMokuTalkContent(message: message, scrollbarStyle: talkScrollbarStyle)
                 .accessibilityIdentifier(visibleVoiceTranscript == nil ? "moku-talk-content" : "moku-voice-transcript")
-                .frame(width: max(1, width - NativeMokuTalkTypography.leading - 48),
+                .frame(width: max(1, width - NativeMokuTalkTypography.centeredInset * 2
+                    + NativeMokuTalkTypography.scrollbarGutter(for: talkScrollbarStyle)),
                        height: max(0, surfaceHeight(width: width) - NativeMokuTalkTypography.verticalPadding * 2))
                 .padding(.vertical, NativeMokuTalkTypography.verticalPadding)
                 // Text snapshots change discretely. Interpolating the
@@ -330,7 +333,9 @@ public struct NativeMokuDock: View {
         let maximumHeight = visibleVoiceTranscript == nil
             ? NativeMokuTalkTypography.maximumHeight : NativeMokuTalkTypography.transcriptMaximumHeight
         return max(landing ? 76 : 58, NativeMokuTalkTypography.capsuleHeight(message.text, width: width,
-            trailingInset: 48, maximumHeight: maximumHeight, scrollbarStyle: talkScrollbarStyle))
+            leadingInset: NativeMokuTalkTypography.centeredInset,
+            trailingInset: NativeMokuTalkTypography.centeredInset - NativeMokuTalkTypography.scrollbarGutter(for: talkScrollbarStyle),
+            maximumHeight: maximumHeight, scrollbarStyle: talkScrollbarStyle))
     }
     private var residentPresenting: Bool {
         threadTitle == nil && !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
@@ -894,7 +899,7 @@ public struct NativeMokuDock: View {
                     .allowsHitTesting(messageInkVisible && !state.notePanelOpen && !noteMounted && !state.settingsOpen)
                     .accessibilityHidden(!messageInkVisible || state.notePanelOpen || noteMounted || state.settingsOpen)
                     .frame(height: rowHeight - historyBand)
-                    .padding(.leading, NativeMokuTalkTypography.leading)
+                    .padding(.leading, message.dispatch == nil ? NativeMokuTalkTypography.centeredInset : NativeMokuTalkTypography.leading)
                     .padding(.bottom, historyBand)
             }
         }

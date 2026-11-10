@@ -198,8 +198,9 @@ the query to a previously hidden result.
 
 On macOS, clicking the orb opens input. Talk, dispatch and Note have no hidden
 eye-width click target over their prose; dismiss the notification or close Note
-to return to the orb, or use the existing input command. Messages start at the
-normal 18pt content inset. Physical two-finger upward gestures open Note from
+to return to the orb, or use the existing input command. Talk and live transcript
+prose use semibold, centered lines in a horizontally centered seat, with room for
+the trailing control. Physical two-finger upward gestures open Note from
 the row while real native scroll viewports and measured Stop/voice controls keep
 their input ownership. There is no retired eye-only gesture region.
 [NativeMokuSwipe](NativeMokuSwipe.swift) retains its direction threshold,
