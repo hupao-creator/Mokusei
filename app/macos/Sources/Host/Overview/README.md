@@ -274,6 +274,14 @@ Menu opening uses a 220ms smooth spring with zero extra bounce, both after initi
 
 The child menu's clip contains both its viewport and the visible parent in viewport coordinates. A single short child can therefore expand from, and return to, a wider selected-directory capsule without cutting off its rounded ends. Scroll offset affects the morph's content-space target but not that clip. Overflowing rows retain horizontal clipping because their viewport already contains the parent. The native tag-glass replay samples WindowServer pixels during this transition.
 
+Child-menu motion samples one retained progress for label scale/opacity and the
+surface's actual frame/offset. Natural child widths still own row measurement.
+Only the label scales; the material fill and clear glass receive the same
+interpolated frame without another geometry animation. Applying a GeometryEffect
+to captured glass lets its compositor geometry drift from the view-layer material,
+creating offset capsule rims during opening and closing. Stable child glass IDs,
+selection tint, viewport clipping and interrupted-return ownership are retained.
+
 The directory's own glass capsule uses its current animated frame plus only the leading/trailing overflow outside the scroll viewport. Using an absolute measured source width here can slice off its right rounded end while switching from a selected child to another top-level tag. The native replay samples both capsule edges during that shrink and the return to the child; the source still clips at the real viewport when scrolled partly offscreen.
 
 Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar reserves the actual action envelope plus 16pt clearance on both sides; at 620pt and narrower the actions occupy a separate row. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Names only truncate when their individual viewport cannot hold them. Search’s temporary visual layer reuses the same title, divider and prefix components. Presentation does not change tag identity or membership.

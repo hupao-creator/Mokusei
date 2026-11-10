@@ -378,24 +378,22 @@ public struct NativeOverviewChrome: View {
                                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                                 .frame(height: OverviewTagMetrics.chipHeight)
                                 .frame(maxWidth: maximumWidth)
-                                .modifier(OverviewSubmenuLabel(progress: childProgress))
                             }
-                            // Keep the retiring tint with the displayed title;
-                            // a new tint transaction would compete with its return.
-                            .buttonStyle(OverviewTagButtonStyle(active: displayedSelection.map {
-                                $0.kind == .semantic && child.matches($0.tag, kind: .semantic, scope: $0.scope)
-                            } ?? false))
-                            .glassEffectID(child.id, in: namespace)
-                            .glassEffectTransition(.identity)
+                            .buttonStyle(OverviewTagButtonStyle(active: false, rendersGlass: false))
                             .background {
                                 GeometryReader { geometry in
                                     Color.clear.preference(key: OverviewSubmenuWidths.self, value: [child.id: geometry.size.width])
                                 }
                             }
                             .modifier(OverviewSubmenuMorph(progress: reduceMotion ? 1 : childProgress,
-                                target: target, originX: menu.children.filter { $0.count > 0 }.prefix { $0.id != child.id }
-                                    .reduce(0) { $0 + (widths[$1.id] ?? 0) + OverviewTagMetrics.submenuSpacing }))
-                            .modifier(OverviewSubmenuSurface(progress: reduceMotion ? 1 : childProgress))
+                                target: target, width: widths[child.id] ?? 1,
+                                originX: menu.children.filter { $0.count > 0 }.prefix { $0.id != child.id }
+                                    .reduce(0) { $0 + (widths[$1.id] ?? 0) + OverviewTagMetrics.submenuSpacing },
+                                // Retire the tint with the displayed title so a
+                                // selection change cannot compete with the return.
+                                active: displayedSelection.map {
+                                    $0.kind == .semantic && child.matches($0.tag, kind: .semantic, scope: $0.scope)
+                                } ?? false, id: child.id, namespace: namespace))
                             .opacity(reduceMotion && childProgress == 0 ? 0 : 1)
                             .transition(.identity)
                             .allowsHitTesting(active && current)
@@ -968,7 +966,7 @@ private struct OverviewTagMenuViewport<Content: View>: View {
                 content(active && entered ? 1 : 0, target, widths)
                     .fixedSize(horizontal: true, vertical: true)
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-                        withAnimation(reduceMotion || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
+                        withAnimation(reduceMotion || !entered || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
                             contentWidth = width
                         }
                     }
@@ -993,7 +991,11 @@ private struct OverviewTagMenuViewport<Content: View>: View {
     }
 
     private func revealMeasuredMenu() {
-        guard contentWidth != nil, !widths.isEmpty, !entered else { return }
+        guard let contentWidth, !widths.isEmpty, !entered else { return }
+        // The first natural-width preferences replace the temporary morph
+        // slots. Admit ink only after the viewport has measured those slots.
+        let measuredWidth = widths.values.reduce(0, +) + CGFloat(widths.count - 1) * OverviewTagMetrics.submenuSpacing
+        guard abs(contentWidth - measuredWidth) < 0.5 else { return }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.22, extraBounce: 0)) { entered = true }
     }
 }
@@ -1005,37 +1007,46 @@ private struct OverviewSubmenuWidths: PreferenceKey {
     }
 }
 
-/// Visual geometry never feeds back into row measurement. Retargeting samples
-/// this same mounted modifier, including a close interrupted by reopening.
-private struct OverviewSubmenuMorph: GeometryEffect {
+/// Keep natural row measurement outside the morph. The glass needs an actual
+/// presented frame: transforming captured glass with a GeometryEffect lets its
+/// compositor geometry lag behind the view-layer material and produces two rims.
+/// Reopening still retargets the same mounted, interpolated progress.
+private struct OverviewSubmenuMorph: ViewModifier, @preconcurrency Animatable {
     var progress: CGFloat
     let target: CGRect
+    let width: CGFloat
     let originX: CGFloat
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        let p = min(1, max(0, progress))
-        return ProjectionTransform(CGAffineTransform(
-            translationX: (target.midX - originX - size.width / 2) * (1 - p),
-            y: (target.midY - size.height / 2) * (1 - p))
-            .translatedBy(x: size.width / 2, y: size.height / 2)
-            .scaledBy(x: 1 + (target.width / max(1, size.width) - 1) * (1 - p),
-                      y: 1 + (target.height / max(1, size.height) - 1) * (1 - p))
-            .translatedBy(x: -size.width / 2, y: -size.height / 2))
-    }
-}
-
-private struct OverviewSubmenuSurface: ViewModifier, @preconcurrency Animatable {
-    var progress: CGFloat
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
-    func body(content: Content) -> some View { content.opacity(min(1, max(0, progress) / 0.25)) }
-}
-
-private struct OverviewSubmenuLabel: ViewModifier, @preconcurrency Animatable {
-    var progress: CGFloat
+    let active: Bool
+    let id: String
+    let namespace: Namespace.ID
     var animatableData: CGFloat { get { progress } set { progress = newValue } }
     func body(content: Content) -> some View {
         let p = min(1, max(0, progress))
-        content.opacity(p * p * p)
+        let naturalWidth = max(1, width)
+        let height = OverviewTagMetrics.chipHeight
+        let presentedWidth = naturalWidth + (target.width - naturalWidth) * (1 - p)
+        let presentedHeight = height + (target.height - height) * (1 - p)
+        let surfaceOpacity = min(1, p / 0.25)
+        content
+            // Do not propose the sampled glass width back to the label's
+            // measurement; it owns the row's natural width at every progress.
+            .fixedSize(horizontal: true, vertical: true)
+            .opacity(p * p * p)
+            .scaleEffect(x: presentedWidth / naturalWidth, y: presentedHeight / height)
+            // Glass captures the label too; a separate background glass plane
+            // can composite over it. Resize that capture before restoring the
+            // natural layout slot, rather than scaling the captured surface.
+            .frame(width: presentedWidth, height: presentedHeight)
+            .modifier(OverviewTagGlassSurface(active: active, shape: Capsule()))
+            .glassEffectID(id, in: namespace)
+            .glassEffectTransition(.identity)
+            .opacity(surfaceOpacity)
+            .frame(width: naturalWidth, height: height)
+            .offset(x: (target.midX - originX - naturalWidth / 2) * (1 - p),
+                    y: (target.midY - height / 2) * (1 - p))
+            // These are presentation samples, not new animation destinations.
+            // The surface's own selection-tint animation remains independent.
+            .transaction { $0.animation = nil }
     }
 }
 
