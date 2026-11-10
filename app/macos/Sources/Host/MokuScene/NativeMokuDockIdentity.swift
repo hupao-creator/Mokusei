@@ -5,10 +5,9 @@ import SwiftUI
 
 /// Only the passive mark flips. The editor, its layout seat and native input
 /// lifecycle are independent of Thread/Harness identity changes.
-struct NativeMokuDockIdentity<Face: View>: View {
+struct NativeMokuDockIdentity: View {
     let harness: AnyHarnessPlugin?
     let showsHarness: Bool
-    @ViewBuilder var face: Face
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Identity: Hashable { case moku, harness(JSONText?) }
@@ -28,14 +27,12 @@ struct NativeMokuDockIdentity<Face: View>: View {
                     if let harness { harness.logo(size: 24) }
                     else { Image(systemName: "terminal").font(.system(size: 22)) }
                 }
-                .frame(width: NativeMokuFaceLayout.seat.width, height: NativeMokuFaceLayout.seat.height)
+                .frame(width: NativeMokuIdentityLayout.seat.width, height: NativeMokuIdentityLayout.seat.height)
                 .id(identity)
                 .transition(transition)
-            } else {
-                face.transition(transition)
             }
         }
-        .frame(width: NativeMokuFaceLayout.seat.width, height: NativeMokuFaceLayout.seat.height)
+        .frame(width: NativeMokuIdentityLayout.seat.width, height: NativeMokuIdentityLayout.seat.height)
         .animation(reduceMotion ? nil : NativeReadingPageTiming.openingAnimation, value: identity)
         .environment(\.colorScheme, .dark)
         .foregroundStyle(.white)

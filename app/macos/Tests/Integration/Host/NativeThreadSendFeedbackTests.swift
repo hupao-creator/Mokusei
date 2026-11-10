@@ -940,6 +940,14 @@ struct NativeThreadSendFeedbackTests {
 
     @Test(.requiresDisplay, arguments: [false, true], [false, true])
     func completedSendAllowsClickingAndTypingIntoTheResidentComposer(exactExecution: Bool, cancelHandoff: Bool) async throws {
+        // This foreground replay must not ingest unrelated physical typing while
+        // its asynchronous reader handoff runs. Only this app's test key is tagged;
+        // other applications and system input-source preferences are untouched.
+        let keyTag: Int64 = 0x4D4F4B555245504C
+        let keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
+            event.cgEvent?.getIntegerValueField(.eventSourceUserData) == keyTag ? event : nil
+        }
+        defer { if let keyMonitor { NSEvent.removeMonitor(keyMonitor) } }
         let fixture = try Fixture()
         defer { fixture.pump?.cancel(); fixture.model.release() }
         let preferences = DesktopPreferences(directory: fixture.directory)
@@ -1038,9 +1046,12 @@ struct NativeThreadSendFeedbackTests {
         print("COMPOSER_CLICK_RESULT time=\(ProcessInfo.processInfo.systemUptime) editable=\(input.isEditable) available=\(presentation.dockInputAvailable) focus=\(window.firstResponder === input)")
         if window.firstResponder !== input { try await capture(window, name: "composer-focus-failure-\(exactExecution)-\(cancelHandoff)") }
         try #require(window.firstResponder === input)
-        NSApp.sendEvent(try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
-            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-            characters: "x", charactersIgnoringModifiers: "x", isARepeat: false, keyCode: 7)))
+        let typedKey = try #require(CGEvent(keyboardEventSource: nil, virtualKey: 7, keyDown: true))
+        typedKey.setIntegerValueField(.eventSourceUserData, value: keyTag)
+        typedKey.setIntegerValueField(.eventTargetUnixProcessID, value: Int64(ProcessInfo.processInfo.processIdentifier))
+        let characters: [UniChar] = [0x78]
+        characters.withUnsafeBufferPointer { typedKey.keyboardSetUnicodeString(stringLength: $0.count, unicodeString: $0.baseAddress!) }
+        NSApp.sendEvent(try #require(NSEvent(cgEvent: typedKey)))
         print("COMPOSER_TYPE_DISPATCH exact=\(exactExecution) cancel=\(cancelHandoff) text=\(input.string.debugDescription) draft=\(draft.text.debugDescription) marked=\(input.hasMarkedText()) key=\(window.isKeyWindow)")
         do { try await SwiftUIReplay.wait { draft.text == "x" && input.string == "x" } }
         catch {

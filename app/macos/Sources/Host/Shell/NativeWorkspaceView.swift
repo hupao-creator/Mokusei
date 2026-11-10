@@ -1157,7 +1157,6 @@ public struct NativeWorkspaceView: View {
                     refreshSequence: request.refreshSequence, value: request.value))
             }, onSetAppearance: { try presentation.setAppearance($0) },
             onSetLocale: { try model.updateLocale($0) }, onClose: { _ in presentation.scene.closeSettings() },
-            mokuController: presentation.scene.settingsCharacter,
             onCoordinatorFrame: { presentation.scene.setCoordinatorFrame($0, pending: $1) })
     }
 }

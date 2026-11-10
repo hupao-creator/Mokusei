@@ -106,8 +106,11 @@ import MokuseiPluginUI
             let state = NativeMokuSceneState()
             state.setWindowVisible(true)
             let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
-            draft.text = "Retained typed draft"
+            let savedDraft = "Retained typed draft\nSecond line\nThird line"
+            draft.text = savedDraft
             let input = TranscriptSurfaceInput()
+            input.voice = false
+            state.setInputOpen(true)
             let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: width, height: 500),
                                   styleMask: [.borderless], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
@@ -115,6 +118,9 @@ import MokuseiPluginUI
                 .environment(\.colorScheme, scheme))
             window.contentView = host
             defer { window.close() }
+            await settle(host)
+            #expect(state.capsuleFrame.height > 58)
+            input.voice = true
             await settle(host)
             #expect(state.capsuleFrame.width == min(560, width - 48) && state.capsuleFrame.height == 58)
             #expect(state.dockHitRects.contains { $0.contains(state.capsuleFrame) })
@@ -139,7 +145,7 @@ import MokuseiPluginUI
             await settle(host)
             #expect(state.capsuleFrame.width == min(560, width - 48) && state.capsuleFrame.height == 58)
             #expect(state.dockHitRects.contains { $0.contains(state.capsuleFrame) })
-            #expect(!state.inputOpen && draft.text == "Retained typed draft")
+            #expect(!state.inputOpen && draft.text == savedDraft)
             #expect(input.sends == 0)
         }
     }
@@ -203,6 +209,7 @@ import MokuseiPluginUI
 }
 
 @MainActor @Observable private final class TranscriptSurfaceInput {
+    var voice = true
     var message: NativeMokuTalkMessage?
     var sends = 0
 }
@@ -212,8 +219,8 @@ import MokuseiPluginUI
     let draft: NativeComposerDraft
     let input: TranscriptSurfaceInput
     var body: some View {
-        NativeMokuDock(state: state, draft: draft, cwd: "/tmp", voiceStatusVisible: true,
-                       voiceModeActive: true, voiceTranscript: input.message,
+        NativeMokuDock(state: state, draft: draft, cwd: "/tmp", voiceStatusVisible: input.voice,
+                       voiceModeActive: input.voice, voiceTranscript: input.message,
                        onSend: { _ in input.sends += 1 }, onCancel: {})
     }
 }

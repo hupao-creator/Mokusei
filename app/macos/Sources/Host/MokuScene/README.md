@@ -58,9 +58,7 @@ light workspace. The page scopes `\.colorScheme` to `.dark`, so SwiftUI tokens,
 hosted AppKit popups/editors, scrollers and native controls resolve the dark
 settings palette; the Dock's expanded regular-glass shell no longer inherits
 the workspace appearance, and onboarding does the same for its own panel. The
-theme preference still owns the window and every other surface. Moku's face
-keeps its existing ink when it moves into the page's header, because that panel
-is now the same dark surface as the capsule.
+theme preference still owns the window and every other surface.
 
 The collapsed Overview Dock is a 64×64-point orb using the coordinating
 Harness's reviewed Moku Map artwork, without a separate logo. The same native
@@ -69,7 +67,7 @@ expanded forms contain no small orb or eyes. Their uniform dark tint comes
 from the artwork's deepest interior hue, with brightness limited for white text
 and native placeholder contrast. There is no bottom gradient or glowing edge.
 Reduce Transparency uses the same tint at full opacity. Settings keeps its
-existing panel material and header presentation.
+existing panel material, with no eyes or reserved header identity column.
 
 [NativeMokuTheme](../../Shared/PluginUI/Design/NativeMokuTheme.swift) owns the
 Codex/OpenCode/Claude/Pi palettes and neutral fallback. The workspace supplies
@@ -219,8 +217,8 @@ glass clip; input, Note, messages, tools and voice retain their existing priorit
 [NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) retains the native
 clock and interrupted-transition continuity for those decorations. Overview
 mounts no eye canvas and schedules no idle blink wake. Inactive/hidden scenes
-pause; Reduce Motion uses static dots. Settings' existing face still uses its
-blink timing. The [orbit regression](../../../../../tools/verification/moku-orbit/README.md)
+pause; Reduce Motion uses static dots. No surface retains eye rendering or a
+blink timer. The [orbit regression](../../../../../tools/verification/moku-orbit/README.md)
 retains real WindowServer coverage for path clearance, pause, static dots,
 ownership exits and restart; the retired eye-mask/focus cases are gone.
 
@@ -450,9 +448,8 @@ for the production note-to-reader replay across all four Harnesses.
 Settings occupies the resident Dock's existing glass capsule, with a stable
 viewport-bounded centered surface with a 780-point preferred width and a
 900-point minimum preferred height that grows with its active form. Its full panel uses untinted
-regular glass. Its existing header face mounts for the Settings visit at
-`NativeSettingsHeaderLayout.faceCenter`; Overview and ordinary Moku input do not
-mount that face. The other Dock surfaces retain their Harness tint and anchors.
+regular glass. Its header has no character or reserved eye slot. The other
+Dock surfaces retain their Harness tint and anchors.
 The scene blurs and disables Overview, while the capsule and retained input/Note
 visit stay mounted. Closing uses the Settings draft gate and restores the
 previous valid surface; pending interventions resume only after Settings exits.
@@ -472,12 +469,11 @@ successor. Equal text in separate successful calls remains separate messages.
 Ordinary Talk keeps its existing silent, latest-only, 60-second presentation.
 
 [NativeMokuTimerBar](NativeMokuTimerBar.swift) reserves a small seat above the
-current workspace route with Moku's surprised eyes, the complete scrollable text,
+current workspace route with the complete scrollable text,
 a queue count and an always-present **已收到 / Received** button. It does not
 navigate, replace the Dock editor, grab focus, or close voice/permission surfaces.
 Its click region is excluded from composer outside-click dismissal. It has no
-Escape, outside-click, focus-loss or timeout acknowledgment. Static eyes and
-nonanimated presentation respect Reduce Motion. Native text/buttons expose the
+Escape, outside-click, focus-loss or timeout acknowledgment. Nonanimated presentation respects Reduce Motion. Native text/buttons expose the
 content and action to accessibility; acknowledgment does not require audio.
 Like the other Moku surfaces, the Timer bar uses a local dark environment even
 in a light workspace; it does not override the window appearance.
@@ -578,7 +574,7 @@ once, inside its own geometry group, while the shell retains its existing size
 and vertical animation. The complete Dock owns its state and geometry within
 one hosting tree, including Settings height preferences and input hit regions.
 The hosting root stays fixed while observable content carries outer updates;
-replacing the root can settle the shell before its face finishes moving.
+replacing the root can settle the shell before its content finishes moving.
 
 The [horizontal transition replay](../../../../../tools/verification/moku-transitions/README.md)
 uses WindowServer pixels to check continued travel during a controlled main-actor
@@ -632,10 +628,10 @@ The host resolves the current target's `harnessID` on each render, including tar
 changes; unknown/empty IDs use a neutral terminal mark, never Moku's Harness.
 Registered custom Harnesses supply their own mark through the same registry.
 The passive logo occupies a 34×25pt seat only in Agent input and ignores pointer
-and accessibility hit testing. A 420ms horizontal-axis flip retires the old face
+and accessibility hit testing. A 420ms horizontal-axis flip retires the old mark
 in its first half and reveals the new mark in its second half. Changing Harness
 flips to the new mark; changing Threads within the same Harness keeps it steady.
-Overview and Report/Git restore Moku's theme without a logo; Settings retains its header face. Reduce Motion replaces
+Overview and Report/Git restore Moku's theme without a logo; Settings has no header identity slot. Reduce Motion replaces
 marks without spatial travel. Identity transitions use SwiftUI's retained views,
 without delayed callbacks that could restore a stale Harness or acquire focus.
 The logo is separate from placeholder/draft text and never replaces the editor.
@@ -750,7 +746,7 @@ same orbit clock; unrelated Moku execution updates cannot restart it. Reduce
 Motion retains static dots.
 
 An accepted exact-execution continuation retains the previous Dock column,
-expanded shell and face seat while its new reading visit prepares. Native column
+expanded shell and Harness logo seat while its new reading visit prepares. Native column
 markers belong to a route and publish only after auxiliary layout admission;
 retained outgoing Report markers cannot overwrite the destination. The Dock
 travels once to that committed column with a monotone curve. Replacements use

@@ -251,34 +251,21 @@ public struct NativeMokuDock: View {
         reduceMotion ? nil : state.readingPanelVisible
             ? NativeReadingPageTiming.openingAnimation : .smooth(duration: 0.42, extraBounce: 0)
     }
-    /// Centre of the resident face seat in shell-local points. The composer row
-    /// carries the face with the editor; a retired composer keeps it on the row
-    /// the shell's own layout reserves.
-    private static func faceSeatCenter(shell: CGSize, rowHeight: CGFloat, historyBand: CGFloat,
+    /// Centre of the Agent Harness logo in shell-local points. It follows the
+    /// editor while the shell expands and retains its row during retirement.
+    private static func identitySeatCenter(shell: CGSize, rowHeight: CGFloat, historyBand: CGFloat,
                                        capsuleWidth: CGFloat, composerFraction: CGFloat,
                                        editorBottomInset: CGFloat, followsEditor: Bool) -> CGPoint {
         let idle = NativeMokuCapsuleLayout.idleSize
-        let leading = (min(idle.width, capsuleWidth) - NativeMokuFaceLayout.seat.width) / 2 * (1 - composerFraction)
+        let leading = (min(idle.width, capsuleWidth) - NativeMokuIdentityLayout.seat.width) / 2 * (1 - composerFraction)
             + 15 * composerFraction
         let bottom = followsEditor
             ? idle.height / 2 - 12.5 + (editorBottomInset - idle.height / 2) * composerFraction
             : historyBand
         let centerY = followsEditor
-            ? shell.height - bottom - NativeMokuFaceLayout.seat.height / 2
+            ? shell.height - bottom - NativeMokuIdentityLayout.seat.height / 2
             : shell.height - bottom - (rowHeight - historyBand) / 2
-        return CGPoint(x: leading + NativeMokuFaceLayout.seat.width / 2, y: centerY)
-    }
-
-    /// Settings retains its existing header character. The rebranded Overview
-    /// orb and expanded inputs do not mount a native eye canvas.
-    private func face(_ input: NativeMokuCharacterInput) -> some View {
-        NativeMokuCharacterSurface(controller: character, input: input, seat: .face)
-            // The panel corner shows the eyes at their ordinary size, so the
-            // landing scale retires inside the same transaction.
-            .scaleEffect(landing && expanded && !state.settingsExpanded ? NativeMokuCapsuleLayout.landingScale : 1)
-            .frame(width: NativeMokuFaceLayout.canvas.width, height: NativeMokuFaceLayout.canvas.height)
-            .frame(width: NativeMokuFaceLayout.seat.width, height: NativeMokuFaceLayout.seat.height)
-            .allowsHitTesting(false).accessibilityHidden(true)
+        return CGPoint(x: leading + NativeMokuIdentityLayout.seat.width / 2, y: centerY)
     }
 
     @ViewBuilder private func rowMessage(_ message: NativeMokuTalkMessage, width: CGFloat) -> some View {
@@ -332,6 +319,9 @@ public struct NativeMokuDock: View {
     // and scroll position without reserving a second message row inside Note.
     private func surfaceHeight(width: CGFloat) -> CGFloat {
         guard let message = displayedMessage else {
+            // Retain the editor/draft during voice without borrowing its old
+            // multiline height for a row that only contains voice controls.
+            if voiceControlVisible && !inputPresent { return landing ? 76 : 58 }
             return max(landing ? 76 : 58, capsuleHeight) + (completionVisible ? completionHeight : 0)
         }
         if message.dispatch != nil { return landing ? 76 : 58 }
@@ -513,7 +503,12 @@ public struct NativeMokuDock: View {
                 state.setDockInteractionVisible(state.dockRouteVisible && interaction != nil, question: value)
             }
         }
-        .overlay { interactionMonitors }
+        .overlay(alignment: .topLeading) {
+            // Local event monitors need an attached origin, not a hit area.
+            // A full-size SwiftUI NSViewRepresentable host can intercept clicks
+            // even when its child returns nil from AppKit hitTest.
+            interactionMonitors.frame(width: 0, height: 0)
+        }
         .nativeReadingEscape(perform: !state.inputPinnedOpen && state.inputOpen && state.dockContentVisible && interaction == nil ? {
             escapeInput()
         } : nil)
@@ -791,29 +786,14 @@ public struct NativeMokuDock: View {
         let historyBand = noteHistoryBand(width: surface.width)
         let composerVisible = inputPresent && state.inputOpen
         let followsEditor = (inputPresent && displayedMessage == nil) || composerSeatHeld || continuationPresenting
-        // Settings always settles the composer expansion at 1 and retires the
-        // row above the face, so the seat it lands on is known without reading
-        // any animated geometry back. The face keeps its layout seat and is
-        // shifted by the difference, which returns to zero as the shell
-        // contracts and leaves the face exactly on Moku's row.
-        let settledFace = Self.faceSeatCenter(shell: surface.size, rowHeight: rowHeight,
-                                              historyBand: historyBand, capsuleWidth: width,
-                                              composerFraction: 1, editorBottomInset: editorBottomInset,
-                                              followsEditor: false)
-        let faceShift = state.settingsExpanded
-            ? CGSize(width: NativeSettingsHeaderLayout.faceCenter.x - settledFace.x,
-                     height: NativeSettingsHeaderLayout.faceCenter.y - settledFace.y)
-            : .zero
-        let faceCenter = Self.faceSeatCenter(shell: surface.size, rowHeight: rowHeight,
+        let identityCenter = Self.identitySeatCenter(shell: surface.size, rowHeight: rowHeight,
             historyBand: historyBand, capsuleWidth: width, composerFraction: capsuleFraction,
             editorBottomInset: editorBottomInset, followsEditor: followsEditor)
         let characterInput = NativeMokuCharacterInput(expression: eyeExpression, focus: expanded ? 1 : 0,
             running: runningFeedback, reasoning: reasoningEligible ? incomingReasoning : nil,
             presentsReasoning: reasoningEligible && reasoningReady, executionKey: threadID?.string ?? presentation?.executionKey,
             capsuleSize: CGSize(width: surface.width, height: rowHeight - historyBand), cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
-            // Settings covers the Dock but keeps the face on screen in the page's
-            // header, so its blink and expression keep their clock.
-            motion: scenePhase == .active && state.windowVisible && (!state.dockCovered || state.settingsOpen),
+            motion: scenePhase == .active && state.windowVisible && !state.dockCovered,
             reduceMotion: reduceMotion, dark: true, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
@@ -918,15 +898,8 @@ public struct NativeMokuDock: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            // One numeric seat travels with the same transaction as the shell.
-            // Switching between an intrinsic-height row and a fixed-height row
-            // cannot interpolate, and a delayed expansion fraction starts the
-            // eyes a layout pass after the glass has already changed size.
-            NativeMokuDockIdentity(harness: threadHarness, showsHarness: threadTitle != nil && !state.settingsOpen) {
-                if state.settingsOpen { face(characterInput) }
-                else { Color.clear.frame(width: NativeMokuFaceLayout.seat.width, height: NativeMokuFaceLayout.seat.height) }
-            }
-                .position(x: faceCenter.x + faceShift.width, y: faceCenter.y + faceShift.height)
+            NativeMokuDockIdentity(harness: threadHarness, showsHarness: threadTitle != nil && !state.settingsOpen)
+                .position(identityCenter)
         }
         .overlay(alignment: .bottomTrailing) {
             NativeMokuNoteActionStack(stacked: noteExpanded && actionLayout.stacked,

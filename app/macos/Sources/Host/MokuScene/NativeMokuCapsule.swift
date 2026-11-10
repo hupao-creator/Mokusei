@@ -40,76 +40,9 @@ enum NativeMokuCapsuleLayout {
     }
 }
 
-/// The resident character's painted canvas and the seat it occupies. Moku's
-/// message row and Settings' header share this seat, so the face keeps one size
-/// wherever it sits.
-enum NativeMokuFaceLayout {
-    /// Canvas the painter scales its 640-unit geometry into.
-    static let canvas = CGSize(width: 58, height: 49)
-    /// Layout seat that centres the canvas on Moku's row.
+/// The actual Harness logo occupies this seat only in Agent Thread detail.
+enum NativeMokuIdentityLayout {
     static let seat = CGSize(width: 34, height: 25)
-}
-
-/// Reuses the real Moku eyes, including their tilt, proportions and expression.
-struct NativeMokuCapsuleEyes: Shape {
-    typealias ScalarPair = AnimatablePair<Double, Double>
-    typealias EyeData = AnimatablePair<ScalarPair, AnimatablePair<ScalarPair, ScalarPair>>
-    private var left: MokuEye
-    private var right: MokuEye
-    var blink: Double
-
-    // Animate the resolved geometry, including expression changes. Animating
-    // only focus replaces the idle expression's size and tilt in a single frame.
-    var animatableData: AnimatablePair<EyeData, EyeData> {
-        get { .init(Self.data(left), Self.data(right)) }
-        set { left = Self.eye(newValue.first); right = Self.eye(newValue.second) }
-    }
-
-    init(expression: MokuExpression, focus: Double, blink: Double = 1) {
-        let eyes = Self.resolved(expression: expression, focus: focus)
-        self.init(left: eyes.left, right: eyes.right, blink: blink)
-    }
-
-    init(left: MokuEye, right: MokuEye, blink: Double = 1) {
-        self.left = left; self.right = right; self.blink = blink
-    }
-
-    static func resolved(expression: MokuExpression, focus: Double) -> (left: MokuEye, right: MokuEye) {
-        let idle = MokuGeometry.expressions[expression == .focus ? .idle : expression]!
-        let target = MokuGeometry.expressions[.focus]!
-        func mix(_ a: Double, _ b: Double) -> Double { a + (b - a) * focus }
-        let centerY = mix((idle.left.y + idle.right.y) / 2, (target.left.y + target.right.y) / 2)
-        func resolve(_ a: MokuEye, _ b: MokuEye) -> MokuEye {
-            MokuEye(x: mix(a.x, b.x), y: mix(a.y, b.y) - centerY,
-                    w: mix(a.w, b.w), h: mix(a.h, b.h), radius: mix(a.radius, b.radius),
-                    rotation: mix(a.rotation, b.rotation), opacity: 1)
-        }
-        return (resolve(idle.left, target.left), resolve(idle.right, target.right))
-    }
-
-    private static func data(_ eye: MokuEye) -> EyeData {
-        .init(.init(eye.x, eye.y), .init(.init(eye.w, eye.h), .init(eye.radius, eye.rotation)))
-    }
-    private static func eye(_ data: EyeData) -> MokuEye {
-        MokuEye(x: data.first.first, y: data.first.second,
-                w: data.second.first.first, h: data.second.first.second,
-                radius: data.second.second.first, rotation: data.second.second.second, opacity: 1)
-    }
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        for geometry in [left, right] {
-            let scale = 0.22
-            let width = geometry.w * scale, height = geometry.h * scale * blink
-            let eye = Path(roundedRect: CGRect(x: -width / 2, y: -height / 2, width: width, height: height),
-                           cornerRadius: geometry.radius * scale)
-            let transform = CGAffineTransform(rotationAngle: geometry.rotation * .pi / 180)
-                .concatenating(CGAffineTransform(translationX: rect.midX + geometry.x * scale,
-                                               y: rect.midY + geometry.y * scale))
-            path.addPath(eye, transform: transform)
-        }
-        return path
-    }
 }
 
 /// The orb and expanded forms retain one native glass node. The circular artwork

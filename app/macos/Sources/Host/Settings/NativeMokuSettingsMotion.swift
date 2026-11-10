@@ -2,8 +2,7 @@ import MokuseiPluginAPI
 import SwiftUI
 
 /// Settings' coordinator choreography, in the source's unscaled CSS units.
-/// The coordinator anchor supplies the outer 1.7 scale; eye offsets use the
-/// character's SVG viewBox units and must be applied by its eye-animation API.
+/// The coordinator anchor supplies the outer 1.7 scale.
 enum NativeMokuSettingsMotion {
     static let durationMilliseconds = 1050.0
     static let coordinatorScale: CGFloat = 1.7
@@ -19,7 +18,6 @@ enum NativeMokuSettingsMotion {
     struct Handoff: Equatable, Sendable {
         var approachY: CGFloat
         var receipt: Transform
-        var eyes: CGPoint
     }
 
     struct Mark: Equatable, Sendable {
@@ -34,7 +32,6 @@ enum NativeMokuSettingsMotion {
 
     struct Feedback: Equatable, Sendable {
         var body: Transform
-        var eyes: CGPoint
         var target: Transform
         var targetOpacity: Double
         var engine: Mark
@@ -46,12 +43,10 @@ enum NativeMokuSettingsMotion {
         let progress = cubicProgress(normalized(elapsedMilliseconds), x1: 0.42, x2: 0.58)
         let sign: CGFloat = direction == 0 ? 0 : direction > 0 ? 1 : -1
         let receipt = interpolated(receiptFrames, at: progress)
-        let eyes = interpolatedEyes(eyeFrames, at: normalized(elapsedMilliseconds))
         return Handoff(approachY: interpolated(liftFrames, at: progress),
             receipt: Transform(x: receipt.x * sign, y: receipt.y,
                 rotationDegrees: receipt.rotationDegrees * Double(sign),
-                scaleX: receipt.scaleX, scaleY: receipt.scaleY),
-            eyes: CGPoint(x: eyes.x * sign, y: eyes.y))
+                scaleX: receipt.scaleX, scaleY: receipt.scaleY))
     }
 
     /// CSS animation-timing-function applies within each keyframe interval,
@@ -71,38 +66,16 @@ enum NativeMokuSettingsMotion {
 
     static func feedbackDurationMilliseconds(enabled: Bool) -> Double { enabled ? 1800 : 1600 }
 
-    static func handoffEyeMotion(direction: CGFloat,
-                                 startedAtMilliseconds: Double = ProcessInfo.processInfo.systemUptime * 1000) -> MokuEyeMotion {
-        let sign: CGFloat = direction == 0 ? 0 : direction > 0 ? 1 : -1
-        return eyeMotion(eyeFrames, duration: durationMilliseconds, gazeX: sign, startedAt: startedAtMilliseconds)
-    }
-
-    static func feedbackEyeMotion(enabled: Bool, gazeX: CGFloat,
-                                  startedAtMilliseconds: Double = ProcessInfo.processInfo.systemUptime * 1000) -> MokuEyeMotion {
-        eyeMotion(enabled ? enabledEyeFrames : disabledEyeFrames,
-            duration: feedbackDurationMilliseconds(enabled: enabled), gazeX: gazeX, startedAt: startedAtMilliseconds)
-    }
-
-    private static func eyeMotion(_ frames: [(Double, CGPoint)], duration: Double,
-                                  gazeX: CGFloat, startedAt: Double) -> MokuEyeMotion {
-        MokuEyeMotion(points: frames.map {
-            .init(atMilliseconds: $0.0 * duration, offset: CGPoint(x: $0.1.x * gazeX, y: $0.1.y))
-        }, durationMilliseconds: duration, startedAtMilliseconds: startedAt)
-    }
-
     /// `gazeX` is clamp((target centerX - coordinator centerX) / 4, -32, 32).
     /// Body and engine transforms remain in coordinator CSS units; the target
-    /// transform is in the unscaled dispatch icon's CSS units. Eye values are
-    /// 640-unit viewBox offsets, sampled with the canvas' segment smoothstep.
+    /// transform is in the unscaled dispatch icon's CSS units.
     static func feedback(enabled: Bool, gazeX: CGFloat, elapsedMilliseconds: Double) -> Feedback {
         let time = min(1, max(0, elapsedMilliseconds / feedbackDurationMilliseconds(enabled: enabled)))
         let progress = cubicProgress(time, x1: 0.42, x2: 0.58)
         var body = interpolated(enabled ? enabledBodyFrames : disabledBodyFrames, at: progress)
         body.x *= gazeX / 9
         body.rotationDegrees *= Double(gazeX) / 6
-        var eyes = interpolatedEyes(enabled ? enabledEyeFrames : disabledEyeFrames, at: time)
-        eyes.x *= gazeX
-        return Feedback(body: body, eyes: eyes,
+        return Feedback(body: body,
             target: interpolated(enabled ? enabledTargetFrames : disabledTargetFrames, at: progress),
             targetOpacity: enabled ? 1 : Double(interpolated(disabledTargetOpacityFrames, at: progress)),
             engine: interpolated(enabled ? enabledConfirmationFrames : disabledConfirmationFrames, at: progress))
@@ -136,10 +109,6 @@ enum NativeMokuSettingsMotion {
         (0.68, Transform(y: 2, scaleX: 1.09, scaleY: 0.9)),
         (0.84, Transform(y: -4, scaleX: 0.97, scaleY: 1.04)),
         (1, Transform())
-    ]
-    private static let eyeFrames: [(Double, CGPoint)] = [
-        (0, .zero), (0.2, CGPoint(x: 32, y: 12)), (0.5, CGPoint(x: 24, y: 20)),
-        (0.68, CGPoint(x: 0, y: 32)), (0.84, CGPoint(x: 0, y: -10)), (1, .zero)
     ]
     private static let arrivalFrames: [(Double, Mark)] = [
         (0, Mark(opacity: 0, scale: 0.6)), (0.69, Mark(opacity: 0, scale: 0.6)),
@@ -186,15 +155,6 @@ enum NativeMokuSettingsMotion {
         (0.6, Transform(x: -0.5, y: -3, rotationDegrees: -0.4, scaleX: 0.98, scaleY: 1.02)),
         (0.78, Transform(x: -0.25, y: -1)), (1, Transform())
     ]
-    // X encodes a multiplier of gazeX; Y remains in the 640-unit eye space.
-    private static let enabledEyeFrames: [(Double, CGPoint)] = [
-        (0, .zero), (0.13, CGPoint(x: 1, y: 28)), (0.38, CGPoint(x: 1, y: 36)),
-        (0.72, CGPoint(x: 0.75, y: 26)), (1, .zero)
-    ]
-    private static let disabledEyeFrames: [(Double, CGPoint)] = [
-        (0, .zero), (0.13, CGPoint(x: 1, y: 28)), (0.38, CGPoint(x: 1, y: 28)),
-        (0.72, CGPoint(x: 0, y: 8)), (1, .zero)
-    ]
     private static let enabledTargetFrames: [(Double, Transform)] = [
         (0, Transform()), (0.44, Transform()),
         (0.61, Transform(y: -5, scaleX: 1.12, scaleY: 1.12)),
@@ -230,12 +190,6 @@ enum NativeMokuSettingsMotion {
     private static func interpolated(_ frames: [(Double, CGFloat)], at progress: Double) -> CGFloat {
         let (a, b, amount) = interval(frames, at: progress)
         return a + (b - a) * amount
-    }
-
-    private static func interpolatedEyes(_ frames: [(Double, CGPoint)], at progress: Double) -> CGPoint {
-        let (a, b, local) = interval(frames, at: progress)
-        let amount = local * local * (3 - 2 * local)
-        return CGPoint(x: a.x + (b.x - a.x) * amount, y: a.y + (b.y - a.y) * amount)
     }
 
     private static func interpolated(_ frames: [(Double, Transform)], at progress: Double,

@@ -13,9 +13,6 @@ struct NativeMokuTimerBar: View {
         if let message = timer.current {
             VStack(spacing: 8) {
                 HStack(spacing: 12) {
-                    NativeMokuCapsuleEyes(expression: .surprised, focus: 0)
-                        .fill(.primary).frame(width: 34, height: 38)
-                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(localize("Moku 提醒", "Moku timer")).font(.caption.weight(.semibold))
                         NativeMokuTalkContent(message: .init(id: message.id, text: message.text))
@@ -46,7 +43,7 @@ struct NativeMokuTimerBar: View {
             .accessibilityLabel(localize("Moku 提醒，等待确认", "Moku timer, awaiting acknowledgment"))
             .accessibilityIdentifier("moku-timer")
             .padding(.horizontal, 16).padding(.vertical, 8)
-            // Static eyes and no insertion/removal choreography also respect
+            // Static content and no insertion/removal choreography also respect
             // Reduce Motion. No timeout, Escape or outside-click dismissal.
             .transaction { $0.animation = nil }
             .environment(\.colorScheme, .dark)

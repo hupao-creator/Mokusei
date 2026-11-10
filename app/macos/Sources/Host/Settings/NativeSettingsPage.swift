@@ -4,22 +4,12 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 import SwiftUI
 
-/// Point geometry of the Settings header. The leading seat belongs to Moku's
-/// face: the resident Dock draws the same eyes into it while Settings owns the
-/// shell, so the page never mounts a second character and the face can travel
-/// from the capsule without being replaced. Keep both call sites on these
-/// constants so the eye lands in the reserved column exactly.
+/// Point geometry of the Settings navigation header.
 enum NativeSettingsHeaderLayout {
     static let horizontalInset: CGFloat = 22
     static let topInset: CGFloat = 16
     static let bottomInset: CGFloat = 12
     static let rowHeight: CGFloat = 42
-    /// Placeholder the header reserves at the leading edge, left of the tabs.
-    static let faceSlot = CGSize(width: 30, height: 30)
-    /// Centre of that column in panel-local points.
-    static var faceCenter: CGPoint {
-        CGPoint(x: horizontalInset + faceSlot.width / 2, y: topInset + rowHeight / 2)
-    }
 }
 
 /// The scroll document reports its natural height, independent of the clipped
@@ -40,7 +30,6 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     public let onSetAppearance: (DesktopAppearance) throws -> Void
     public let onSetLocale: (DesktopLocale) throws -> Void
     public let onClose: (CGRect) -> Void
-    public var mokuController: MokuCharacterController?
     public var onCoordinatorFrame: (CGRect?, Bool) -> Void
     @State private var navigation: NativeSettingsNavigation
     @State private var preferencesErrors: [String: String] = [:]
@@ -68,14 +57,13 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 onSetAppearance: @escaping (DesktopAppearance) throws -> Void,
                 onSetLocale: @escaping (DesktopLocale) throws -> Void,
                 onClose: @escaping (CGRect) -> Void,
-                mokuController: MokuCharacterController? = nil,
                 onCoordinatorFrame: @escaping (CGRect?, Bool) -> Void = { _, _ in }) {
         self.model = model
         _navigation = State(initialValue: navigation ?? NativeSettingsNavigation(section: model.runtimeAvailable ? "moku" : "general"))
         self.preferences = preferences; self.harnesses = harnesses
         self.applicationSections = applicationSections; self.harnessSettings = harnessSettings
         self.onSetAppearance = onSetAppearance; self.onSetLocale = onSetLocale; self.onClose = onClose
-        self.mokuController = mokuController; self.onCoordinatorFrame = onCoordinatorFrame
+        self.onCoordinatorFrame = onCoordinatorFrame
     }
 
     private var locale: DesktopLocale { preferences.locale }
@@ -218,9 +206,6 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
 
     private var header: some View {
         HStack(spacing: 0) {
-            // Reserved for the resident face, which the Dock centres here.
-            Color.clear.frame(width: NativeSettingsHeaderLayout.faceSlot.width, height: NativeSettingsHeaderLayout.faceSlot.height)
-                .accessibilityHidden(true)
             GeometryReader { geometry in
                 ScrollViewReader { reader in
                     ScrollView(.horizontal) {
@@ -313,9 +298,8 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                                          visitPlaybackStarted: role == .tag ? $animationVisits.tag : role == .report ? $animationVisits.report : nil) {
                 if role == .moku {
                     NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,
-                        harnessSettings: harnessSettings, controller: mokuController, onCoordinatorFrame: onCoordinatorFrame,
-                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true,
-                        showsHarnessArtwork: true)
+                        harnessSettings: harnessSettings, onCoordinatorFrame: onCoordinatorFrame,
+                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true)
                 } else if let application = activeApplications.first(where: { $0.id == activeSection }) {
                     applicationContent(application)
                 }

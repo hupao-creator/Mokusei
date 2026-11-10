@@ -9,7 +9,6 @@ import MokuseiPluginUI
 /// SwiftUI owns presentation and animation; the model owns navigation intent.
 @MainActor @Observable public final class NativeMokuSceneState {
     public let overviewState: NativeOverviewCanvasState
-    public let settingsCharacter = MokuCharacterController()
     /// Controls outside the Dock that an outside click must treat as inside,
     /// such as the Overview's Return to Automatic View button.
     let outsideClickExclusions = NativeClickExclusions()

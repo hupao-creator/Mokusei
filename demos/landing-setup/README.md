@@ -8,7 +8,7 @@
 - 发现页只显示检测状态和逐个出现的 Agent 图标、名称，不显示 Moku 或说明段落。未发现时才展示官方安装入口和重新检测。
 - 已发现 Agent 时只保留「继续」，移除左下角刷新按钮。
 - Moku Host 单选，Targets 多选且至少保留一个；Host 可以同时作为 Target。Host 的模型与推理选择不应用到所有 Targets。
-- Moku 步骤直接挂载设置页 `NativeMokuSettings` 的协调派发 map，使用 Git 历史 `8f3548f` 中的圆形 `MokuCharacterView`，不显示 Host / Targets 文案。沿用角色眨眼、Host 换乘动画、Target 连线和选中反馈；原生 settings draft 的保存回调只写内存。模型选择仍由示例 catalog 提供，首次设置暂不展示高级路由指导。
+- Moku 步骤直接挂载设置页 `NativeMokuSettings` 的协调派发 map，使用生产的 Harness Liquid Glass 球体，不显示 Host / Targets 文案。沿用 Host 换乘动画、Target 连线和选中反馈，不保留眼睛；原生 settings draft 的保存回调只写内存。模型选择仍由示例 catalog 提供，首次设置暂不展示高级路由指导。
 - Tag 和 Report 各有独立步骤，默认跟随 Moku；切换为独立配置后可选择 Agent、模型和推理强度，切回继承保留独立选择。
 - 前后切换保留选择；全程保留原 landing 背景，在中央悬浮面板内完成设置。完成 Report 后，面板连续收拢到真实 Dock 的位置和尺寸，再交给生产 composer 和模拟派发。
 - 首个模拟任务选取已勾选的 Target，并展示该 Agent 的原生品牌和示例模型。
