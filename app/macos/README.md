@@ -216,10 +216,12 @@ or Report-reader safe-area handling. See the
 and [production-component demo](../../demos/report-thread/README.md).
 
 
-Super Thread browsing now groups previously opened documents whose latest open
-is more than ten minutes old into one collection per tag view, when at least two
-qualify. Collections are native view projections; per-document open history is
-profile-local desktop state. The Report renderer keeps a sliding cover, fading
+Super Thread browsing groups documents closed more than five minutes ago into
+one collection per tag view, when at least two qualify. Eligible documents retain
+their place across short reopened visits; more than two minutes of foreground
+reading in one visit clears that eligibility. Collections are native view
+projections; close evidence and retained eligibility are profile-local desktop
+state. The Report renderer keeps a sliding cover, fading
 metadata and stationary Liquid Glass navigation. Search results remain individual.
 See [Overview collection ownership](Sources/Host/Overview/README.md#viewed-application-collections)
 and the [production fixture](../../demos/super-thread-carousel/README.md).

@@ -69,7 +69,7 @@ private struct DemoView: View {
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("关闭后超过 5 分钟的报告按当前标签归组；已归组报告短读后仍保留资格。")
-                    Text("至少 2 篇才成组；打开成员会移出集合。切换页面不计为打开。")
+                    Text("至少 2 篇才成组；单次前台阅读超过 2 分钟才移出。切换轮播页不计为阅读。")
                         .foregroundStyle(.tertiary)
                 }.font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
