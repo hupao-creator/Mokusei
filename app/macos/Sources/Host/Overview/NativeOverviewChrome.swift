@@ -754,6 +754,7 @@ public struct NativeOverviewAttentionIndicator: View {
 }
 
 enum OverviewTagMetrics {
+    static let selectionTintOpacity = 0.70
     static let iconButtonSize: CGFloat = 30
     static let actionInset: CGFloat = 5
     static let buttonHeight = iconButtonSize + actionInset * 2
@@ -883,7 +884,6 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
     let active: Bool
     let shape: S
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func body(content: Content) -> some View {
@@ -903,7 +903,7 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
 
     private var selectionTint: Color {
         NativePalette.overview.accent.swiftUI
-            .opacity(contrast == .increased ? 0.34 : 0.22)
+            .opacity(OverviewTagMetrics.selectionTintOpacity)
     }
 }
 

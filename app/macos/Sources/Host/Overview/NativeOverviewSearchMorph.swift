@@ -154,7 +154,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
         .clipped()
         .background { if reduceTransparency { Capsule().fill(NativePalette.overview.surface.swiftUI) } }
         .glassEffect((!isCarrier || progress < 0.001 ? Glass.clear : Glass.regular)
-            .tint(source?.selected == true && progress < 0.5 ? NativePalette.overview.accent.swiftUI.opacity(0.16 * (1 - progress * 2)) : nil), in: .capsule)
+            .tint(source?.selected == true && progress < 0.5 ? NativePalette.overview.accent.swiftUI.opacity(OverviewTagMetrics.selectionTintOpacity * (1 - progress * 2)) : nil), in: .capsule)
         .opacity(isCarrier ? 1 : OverviewSearchMorphGeometry.neighborOpacity(progress: progress))
         .overviewSearchAnchor(isCarrier ? "__search_carrier__" : "__search_neighbor__\(source?.id ?? "")")
         .position(x: rect.midX, y: rect.midY)
