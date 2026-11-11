@@ -554,7 +554,7 @@ public struct NativeOverviewChrome: View {
                 } label: {
                     HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                         if filter.isDirectory {
-                            OverviewTagPrefix(emoji: displayedChild(of: filter)?.emoji)
+                            OverviewTagPrefix(emoji: displayedChild(of: filter)?.emoji, selected: active)
                         }
                         OverviewTagTitle(title: filter.displayTag, child: displayedChild(of: filter)?.tag)
                         if filter.hasActiveTasks {
@@ -686,9 +686,13 @@ struct OverviewTagTitle: View {
 
 struct OverviewTagPrefix: View {
     var emoji: String?
+    var selected = false
     var body: some View {
         ZStack {
-            if let emoji, !emoji.isEmpty {
+            if selected {
+                NativeIcon(name: "Check", size: OverviewTagMetrics.folderIcon)
+                    .transition(.opacity)
+            } else if let emoji, !emoji.isEmpty {
                 Text(emoji).font(.system(size: OverviewTagMetrics.folderIcon))
                     .id(emoji).transition(.opacity)
             } else {
@@ -754,7 +758,9 @@ public struct NativeOverviewAttentionIndicator: View {
 }
 
 enum OverviewTagMetrics {
-    static let selectionTintOpacity = 0.70
+    static func selectionTintOpacity(contrast: ColorSchemeContrast) -> Double {
+        contrast == .increased ? 0.34 : 0.22
+    }
     static let iconButtonSize: CGFloat = 30
     static let actionInset: CGFloat = 5
     static let buttonHeight = iconButtonSize + actionInset * 2
@@ -884,6 +890,7 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
     let active: Bool
     let shape: S
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func body(content: Content) -> some View {
@@ -903,7 +910,7 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
 
     private var selectionTint: Color {
         NativePalette.overview.accent.swiftUI
-            .opacity(OverviewTagMetrics.selectionTintOpacity)
+            .opacity(OverviewTagMetrics.selectionTintOpacity(contrast: contrast))
     }
 }
 

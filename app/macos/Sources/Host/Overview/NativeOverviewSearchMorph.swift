@@ -99,6 +99,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
     let target: CGRect
     @ViewBuilder let controls: (Bool) -> Controls
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     var animatableData: CGFloat { get { progress } set { progress = newValue } }
     private var selectedSource: OverviewSearchMorphGeometry.Source? {
         OverviewSearchMorphGeometry.carrier(in: sources)
@@ -138,7 +139,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
         return Group {
             if let source {
                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
-                    if source.directory { OverviewTagPrefix(emoji: source.emoji) }
+                    if source.directory { OverviewTagPrefix(emoji: source.emoji, selected: source.selected) }
                     OverviewTagTitle(title: source.title, child: source.childTitle)
                     if source.hasActiveTasks {
                         OverviewTagActivityIndicator(hasActiveTasks: progress < (isCarrier ? 0.4 : 0.75))
@@ -154,7 +155,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
         .clipped()
         .background { if reduceTransparency { Capsule().fill(NativePalette.overview.surface.swiftUI) } }
         .glassEffect((!isCarrier || progress < 0.001 ? Glass.clear : Glass.regular)
-            .tint(source?.selected == true && progress < 0.5 ? NativePalette.overview.accent.swiftUI.opacity(OverviewTagMetrics.selectionTintOpacity * (1 - progress * 2)) : nil), in: .capsule)
+            .tint(source?.selected == true && progress < 0.5 ? NativePalette.overview.accent.swiftUI.opacity(OverviewTagMetrics.selectionTintOpacity(contrast: contrast) * (1 - progress * 2)) : nil), in: .capsule)
         .opacity(isCarrier ? 1 : OverviewSearchMorphGeometry.neighborOpacity(progress: progress))
         .overviewSearchAnchor(isCarrier ? "__search_carrier__" : "__search_neighbor__\(source?.id ?? "")")
         .position(x: rect.midX, y: rect.midY)
