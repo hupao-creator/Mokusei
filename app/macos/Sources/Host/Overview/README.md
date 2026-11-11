@@ -309,7 +309,7 @@ The shared prefix keeps its native ideal size: an emoji's advance and line bound
 
 ## Tag activity
 
-All, directory and semantic tag chips append a 10pt native status ring only when
+Directory and semantic tag chips append a 10pt native status ring only when
 their existing browsing membership contains a Thread whose public
 `isExecutionActive` is true (running or waiting for user). Inactive tags omit both
 the ring and its adjacent HStack spacing. Active tags retain the ring's measured
@@ -321,7 +321,8 @@ same membership used to browse each tag; a Report does not itself become an acti
 Agent Thread. A changed-ID activity cache refreshes these booleans when active
 participation changes, without rebuilding membership or reacting to every streamed
 payload. Membership changes also refresh the markers, including the existing lazy
-All membership. Submenus and search's transient label plane share the indicator;
+All membership for its accessibility value. The All chip has no visible activity
+ring. Submenus and search's transient label plane share the other tags' indicator;
 the covered original chrome suspends its rings during search. Native window
 visibility and Reduce Motion remain owned by the production spinner. Tooltips and
 accessibility values announce active presence in the selected UI language. The

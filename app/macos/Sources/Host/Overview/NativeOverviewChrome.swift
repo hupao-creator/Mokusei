@@ -161,7 +161,7 @@ public struct NativeOverviewChrome: View {
                             selectedScope: selectedScope, selectedKind: selectedKind,
                             selectedChildren: Dictionary(uniqueKeysWithValues: presentedFilters.compactMap { filter in
                                 displayedChild(of: filter).map { (filter.id, $0) }
-                            }), allHasActiveTasks: allHasActiveTasks)
+                            }))
                         OverviewSearchMorphLayer(progress: searchProgress, searching: isSearching, sources: sources,
                             target: CGRect(x: (geometry.size.width - min(460, maximumFilterWidth)) / 2,
                                            y: narrow ? OverviewTagMetrics.narrowFilterTop : 16,
@@ -517,9 +517,6 @@ public struct NativeOverviewChrome: View {
             } label: {
                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                     Text(strings.all).font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
-                    if allHasActiveTasks {
-                        OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
-                    }
                 }
                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                 .frame(height: OverviewTagMetrics.chipHeight)

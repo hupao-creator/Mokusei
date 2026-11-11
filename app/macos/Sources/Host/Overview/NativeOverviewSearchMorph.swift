@@ -47,13 +47,12 @@ struct OverviewSearchMorphGeometry {
     }
     static func sources(bounds: [String: CGRect], filters: [NativeOverviewFilter], all: String,
                         selectedTag: String, selectedScope: String = "",
-                        selectedKind: NativeOverviewTagKind?, selectedChildren: [String: NativeOverviewFilter] = [:],
-                        allHasActiveTasks: Bool = false) -> [Source] {
+                        selectedKind: NativeOverviewTagKind?, selectedChildren: [String: NativeOverviewFilter] = [:]) -> [Source] {
         guard let bar = bounds["__bar__"] else { return [] }
         var result: [Source] = []
         if let frame = bounds["__all__"]?.intersection(bar), !frame.isEmpty {
             result.append(.init(id: "__all__", title: all, directory: false,
-                                selected: selectedTag.isEmpty, frame: frame, labelFrame: frame, hasActiveTasks: allHasActiveTasks))
+                                selected: selectedTag.isEmpty, frame: frame, labelFrame: frame))
         }
         let clip = (bounds["__scroll__"] ?? bar).intersection(bar)
         for filter in filters {
