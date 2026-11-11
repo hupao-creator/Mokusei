@@ -1087,6 +1087,9 @@ public struct NativeMokuDock: View {
         guard state.ownsComposer(draft), !state.settingsOpen, !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
         guard sidecardComposer?.ready ?? true else { return }
         state.retainDraft(draft, seal: !state.inputPinnedOpen)
+        // The retiring capsule is a sealed projection, independent of the live
+        // draft. Clear it too so collapse never keeps the submitted ink visible.
+        state.retainedText = ""; state.retainedAttachments = []; state.retainedDirectories = []
         if threadTitle == nil { state.dismissTalk() }
         let sendingDraft = draft, send = onSend, consumed = onSendConsumed, generation = state.composerGeneration
         submissionDraft = sendingDraft
@@ -1094,7 +1097,7 @@ public struct NativeMokuDock: View {
         Task {
             // Capture both the draft and route before yielding. A late receipt
             // consumes only this draft and cannot reopen a replacement visit.
-            await sendingDraft.submit(send, didConsume: consumed)
+            await sendingDraft.submit(send, optimisticallyClear: true, didConsume: consumed)
             if submissionDraft === sendingDraft { submissionDraft = nil }
             if state.composerGeneration == generation, sendingDraft.error != nil, !state.mokuOpen {
                 state.setInputOpen(true)

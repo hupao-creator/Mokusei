@@ -130,9 +130,9 @@ struct NativeMokuComposerInput: View {
         voiceModeActive
     }
     private var hasInput: Bool {
-        !NativeComposerSubmissionPolicy.trimmedText(retainedText ?? draft.text).isEmpty
-            || !(retainedAttachments ?? draft.attachments).isEmpty
-            || !(retainedDirectories ?? draft.directories).isEmpty
+        !NativeComposerSubmissionPolicy.trimmedText(retainedText ?? draft.inputText).isEmpty
+            || !(retainedAttachments ?? draft.inputAttachments).isEmpty
+            || !(retainedDirectories ?? draft.inputDirectories).isEmpty
     }
     private var placeholder: String {
         if let sidecardComposer { return sidecardComposer.placeholder }
@@ -142,7 +142,7 @@ struct NativeMokuComposerInput: View {
         if superThreadContext {
             return localize("向 Moku 提问，附带当前 Super Thread…", "Ask Moku with this Super Thread…")
         }
-        let directories = retainedDirectories ?? draft.directories
+        let directories = retainedDirectories ?? draft.inputDirectories
         guard let first = directories.first else {
             return voiceEntryEnabled ? localize("向 Moku 提问，或长按说话…", "Ask Moku… or hold to speak") : localize("向 Moku 提问…", "Ask Moku…")
         }
@@ -175,8 +175,8 @@ struct NativeMokuComposerInput: View {
     }
     private var input: some View {
         VStack(spacing: 0) {
-            NativeComposerAttachmentChips(attachments: retainedAttachments ?? draft.attachments,
-                directories: retainedDirectories ?? draft.directories,
+            NativeComposerAttachmentChips(attachments: retainedAttachments ?? draft.inputAttachments,
+                directories: retainedDirectories ?? draft.inputDirectories,
                 containerRadius: NativeMokuCapsuleLayout.cornerRadius,
                 onRemove: { id in Task { await draft.removeAttachment(id) } }, onRemoveDirectory: draft.removeDirectory)
                 .disabled(unavailable || readOnly)
@@ -224,7 +224,7 @@ struct NativeMokuComposerInput: View {
             .allowsHitTesting(false)
     }
     private var editor: some View {
-        NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.text }, set: { draft.text = $0 }),
+        NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.inputText }, set: { draft.inputText = $0 }),
             placeholder: placeholder, placeholderIcon: placeholderIcon, placeholderLineLimit: 1,
             disabled: editingUnavailable || busy, readOnly: readOnly || busy,
             focusEnabled: focusEnabled, automaticFocus: automaticFocus,
@@ -383,7 +383,7 @@ public struct NativeMokuHistoryComposer: View {
             onSend: {
                 guard !disabled else { return }
                 let sendingDraft = draft, send = onSend, consumed = onSendConsumed
-                Task { await sendingDraft.submit(send, didConsume: consumed) }
+                Task { await sendingDraft.submit(send, optimisticallyClear: true, didConsume: consumed) }
             })
             .fixedSize(horizontal: false, vertical: true)
             .background { NativeMokuCapsuleGlass() }

@@ -766,6 +766,25 @@ for actual Go projections consumed by the native production card replay.
 
 Composer state and submitted revision belong to the workspace. Attachment upload, file selection and send receipts are shared by the Dock and conversation surfaces. The Host’s `NativeMokuComposerInput` composes the shared text input, attachment chips and host file picker for both Dock and history; PluginUI owns those primitives and draft persistence. Harness and Moku interaction owners compose `InteractionQuestionField` with their own validation, submission and cancellation controls, sending through injected actions rather than bypassing Runtime admission.
 
+Ready image thumbnails open the existing system Quick Look presentation using
+managed absolute file URLs, with all ready images in the strip available for
+navigation. Preview and remove are sibling buttons; pending images remain
+non-previewable until staging supplies the original. Removing the selected
+image, consuming the strip or unmounting it clears the preview selection. Preview
+never stages, sends, discards or takes ownership of attachment files.
+
+Moku opts into `NativeComposerDraft.submit(optimisticallyClear:)`. Its
+`inputText`, `inputAttachments` and `inputDirectories` project an empty editor
+immediately while the original draft, captured send payload and attachment leases
+remain owned until admission. Other composer callers retain receipt-time clearing.
+The existing submitting fence blocks duplicate sends. New text/imports retain
+their revision/identity and survive success. On failure the original chips return;
+new text is preserved after the failed text, separated by a blank line. Recovery
+never retries a send. A retired owner's text recovery compares its last saved
+revision so a replacement owner's edits or consumption win, and preserves raw
+pending imports. Accepted sends never enter failure recovery, including when
+subsequent persistence consumption fails.
+
 Attachment paste shortcuts bind to the exact mounted native composer through a
 shared editor identity. Common window ancestry and overlapping geometry cannot
 authorize a retained/covered composer to paste into its draft. Provider decoding
