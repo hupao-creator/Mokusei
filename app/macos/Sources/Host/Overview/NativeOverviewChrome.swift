@@ -679,7 +679,7 @@ struct OverviewTagTitle: View {
         HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
             Text(title).contentTransition(.opacity)
             if let child {
-                Divider().frame(height: 14).accessibilityHidden(true).transition(.opacity)
+                Divider().frame(height: 14 * OverviewTagMetrics.enlargement).accessibilityHidden(true).transition(.opacity)
                 Text(child).contentTransition(.opacity).transition(.opacity)
             }
         }
@@ -776,20 +776,16 @@ enum OverviewTagMetrics {
     // Match both the row gap and child gap to the native morph distance. Each
     // directory has its own container, so unrelated parents never fuse at rest.
     static let submenuSpacing: CGFloat = 10
-    /// Tag-filter chips only. Typography, icon and spacing are 12.5% above the
-    /// 10.5 / 8.5 / 11 / 12 metrics they previously used; the height is pinned
-    /// independently so the bar and the circular action buttons stay in step.
-    static let chipScale: CGFloat = 1.125
+    /// Enlarge the existing tag presentation without changing action controls.
+    static let enlargement: CGFloat = 1.1
+    static let chipScale: CGFloat = 1.125 * enlargement
     static let chipFont = 10.5 * chipScale
     static let folderIcon = 11 * chipScale
     static let chipContentSpacing = 6 * chipScale
     static let chipLabelInset = labelInset * chipScale
-    /// Shared by the tag-filter bar and the action buttons.
-    static let chipHeight: CGFloat = 42
-    /// Action buttons are circles matching the tag bar height. Equal width and
-    /// height keep the glass from stretching into a vertical ellipse, while
-    /// the shared diameter keeps both controls aligned edge to edge.
-    static let actionDiameter = chipHeight
+    static let chipHeight: CGFloat = 42 * enlargement
+    /// Keep the independent action buttons circular and at their existing size.
+    static let actionDiameter: CGFloat = 42
     static let barHeight = chipHeight
     /// Always reserve a caption band below the narrow action row, including
     /// when no child is selected. Its appearance cannot move the filter bar.

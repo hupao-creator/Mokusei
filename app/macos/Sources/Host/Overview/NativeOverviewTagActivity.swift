@@ -9,9 +9,12 @@ struct OverviewTagActivityIndicator: View {
     var body: some View {
         ZStack {
             Color.clear
-            if hasActiveTasks { NativeStatusSpinner(size: 10, lineWidth: 1.5) }
+            if hasActiveTasks {
+                NativeStatusSpinner(size: 10 * OverviewTagMetrics.enlargement,
+                                    lineWidth: 1.5 * OverviewTagMetrics.enlargement)
+            }
         }
-        .frame(width: 10, height: 10)
+        .frame(width: 10 * OverviewTagMetrics.enlargement, height: 10 * OverviewTagMetrics.enlargement)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
