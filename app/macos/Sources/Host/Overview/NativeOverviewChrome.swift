@@ -373,12 +373,18 @@ public struct NativeOverviewChrome: View {
                         ForEach(menu.children.filter { $0.count > 0 }) { child in
                             let current = parent.children.contains { $0.id == child.id && $0.count > 0 }
                             let childProgress = current ? progress : 0
+                            let childSelected = displayedSelection.map {
+                                $0.kind == .semantic && child.matches($0.tag, kind: .semantic, scope: $0.scope)
+                            } ?? false
                             let activitySuffix = child.hasActiveTasks ? " · \(strings.containsActiveTasks)" : ""
                             Button {
                                 selectChild(child, of: parent)
                             } label: {
                                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
-                                    Text(child.displayTag)
+                                    if childSelected, child.emoji != nil {
+                                        OverviewTagPrefix(emoji: nil, selected: true)
+                                    }
+                                    Text(childSelected && child.emoji != nil ? child.tag : child.displayTag)
                                         .font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
                                         .lineLimit(1)
                                         .contentTransition(.opacity)
@@ -402,9 +408,7 @@ public struct NativeOverviewChrome: View {
                                     .reduce(0) { $0 + (widths[$1.id] ?? 0) + OverviewTagMetrics.submenuSpacing },
                                 // Retire the tint with the displayed title so a
                                 // selection change cannot compete with the return.
-                                active: displayedSelection.map {
-                                    $0.kind == .semantic && child.matches($0.tag, kind: .semantic, scope: $0.scope)
-                                } ?? false, id: child.id, namespace: namespace))
+                                active: childSelected, id: child.id, namespace: namespace))
                             .opacity(reduceMotion && childProgress == 0 ? 0 : 1)
                             .transition(.identity)
                             .allowsHitTesting(active && current)
@@ -412,6 +416,7 @@ public struct NativeOverviewChrome: View {
                             .focused($focusedTag, equals: child.id)
                             .overviewSearchAnchor(child.id)
                             .accessibilityIdentifier(child.id)
+                            .accessibilityLabel(Text(child.displayTag))
                             .accessibilityAddTraits(child.matches(selectedTag, kind: .semantic, scope: selectedScope) ? .isSelected : [])
                             .accessibilityValue(Text("\(child.count)\(activitySuffix)"))
                         }
@@ -552,8 +557,11 @@ public struct NativeOverviewChrome: View {
                     HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                         if filter.isDirectory {
                             OverviewTagPrefix(emoji: displayedChild(of: filter)?.emoji, selected: active)
+                        } else if active, filter.emoji != nil {
+                            OverviewTagPrefix(emoji: nil, selected: true)
                         }
-                        OverviewTagTitle(title: filter.displayTag, child: displayedChild(of: filter)?.tag)
+                        OverviewTagTitle(title: !filter.isDirectory && active && filter.emoji != nil ? filter.tag : filter.displayTag,
+                                         child: displayedChild(of: filter)?.tag)
                         if filter.hasActiveTasks {
                             OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
                         }
@@ -568,6 +576,7 @@ public struct NativeOverviewChrome: View {
                 .overviewSearchAnchor(filter.id)
                 .focused($focusedTag, equals: filter.id)
                 .accessibilityIdentifier(filter.id)
+                .accessibilityLabel(Text(filterTitle(filter)))
                 .accessibilityAddTraits(active ? .isSelected : [])
                 .accessibilityValue(Text("\(filterTitle(filter)) · \(filter.count)\(activitySuffix)"))
                 .accessibilityHint(filter.isDirectory && filter.children.contains(where: { $0.count > 0 }) ? strings.filter : "")

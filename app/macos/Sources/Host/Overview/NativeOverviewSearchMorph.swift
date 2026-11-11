@@ -60,10 +60,12 @@ struct OverviewSearchMorphGeometry {
             let visible = full.intersection(clip)
             guard !visible.isEmpty, visible.width >= 4 else { continue }
             let childSelected = filter.isDirectory && selectedKind == .semantic && !selectedTag.isEmpty && selectedScope == filter.scope
-            result.append(.init(id: filter.id, title: filter.displayTag, directory: filter.isDirectory,
-                                selected: childSelected || filter.matches(selectedTag, kind: selectedKind, scope: selectedScope),
+            let selected = childSelected || filter.matches(selectedTag, kind: selectedKind, scope: selectedScope)
+            result.append(.init(id: filter.id, title: !filter.isDirectory && selected && filter.emoji != nil ? filter.tag : filter.displayTag,
+                                directory: filter.isDirectory, selected: selected,
                                 frame: visible, labelFrame: full, childTitle: selectedChildren[filter.id]?.tag,
-                                emoji: selectedChildren[filter.id]?.emoji, hasActiveTasks: filter.hasActiveTasks))
+                                emoji: filter.isDirectory ? selectedChildren[filter.id]?.emoji : filter.emoji,
+                                hasActiveTasks: filter.hasActiveTasks))
         }
         return result
     }
@@ -139,6 +141,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
             if let source {
                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                     if source.directory { OverviewTagPrefix(emoji: source.emoji, selected: source.selected) }
+                    else if source.selected, source.emoji != nil { OverviewTagPrefix(emoji: nil, selected: true) }
                     OverviewTagTitle(title: source.title, child: source.childTitle)
                     if source.hasActiveTasks {
                         OverviewTagActivityIndicator(hasActiveTasks: progress < (isCarrier ? 0.4 : 0.75))
