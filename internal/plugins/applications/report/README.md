@@ -8,11 +8,6 @@ documents, native history and mutation receipts.
 
 [plugin.go](plugin.go) declares the Super Thread application, its settings and a **per-directory-scope** background agent. Each instance receives an explicit owner and scope, including Inbox. It observes successful ordinary-task completion and reads only evidence allowed by that binding. Its private conversation is distinct from the report documents shown to the user.
 
-The host's [background running indicator](../../../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
-shares Tag Agent's presentation and consumes only public running private-execution
-facts. It is independent of report documents and their source executions, and
-does not reveal this agent's private conversation or scoped workspace identity.
-
 [domain.go](domain.go) and [model.go](model.go) define document commands, queries and projections. Mutations use the Application host's planned transaction scopes, CAS and batch receipts. Report source references and semantic tag/emoji snapshots are maintained with the document; a source deletion does not rewrite the report as an executing task. HTML and full document content are queried on demand rather than embedded in the overview catalog.
 
 Super Thread Agent's exclusive tool bindings are `create_report`, `list_reports`,

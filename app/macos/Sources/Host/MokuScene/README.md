@@ -41,24 +41,6 @@ layout/closing motion, scrollbar policy and Agent composer motion are independen
 
 ## Dock and composer
 
-[NativeBackgroundAgentStatusBar](NativeBackgroundAgentStatusBar.swift) gives Tag
-Agent and Super Thread Agent the same passive running indicator in a reserved
-bottom safe-area row. Its invisible measurement reserves both localized roles
-even while idle, so activity changes cannot move the editor or repack the canvas.
-Both may appear together; multiple directory instances
-collapse to one indicator per role. It consumes only Runtime's `agentRuns`
-projection of running private executions. Report documents, ordinary tasks,
-queued batches, retry backoff, enabled settings and idle native sessions do not
-establish running activity. Waiting and terminal executions are absent from this
-projection. Runtime availability gates the computed indicators immediately on
-disconnect, synchronization, failure or shutdown, even with a retained catalog.
-Settings and onboarding hide the row. Narrow widths stack the two roles; the
-shared native spinner owns Reduce Motion and window visibility. The bar takes
-no pointer input or focus, creates no Talk message or Stop action, and exposes
-only localized role/status text to both drawing and accessibility, never scope
-paths, private session IDs, execution IDs, prompts or tool data. Timer receipts,
-Moku communication and execution cancellation keep their separate seats.
-
 Dock and history composer placeholders stay on one line and truncate at the tail,
 including the Agent-target title. The native draft editor remains multiline.
 The composer layout reserves attachment/action seats and the resident eye seat
