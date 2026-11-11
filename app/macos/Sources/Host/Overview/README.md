@@ -60,8 +60,15 @@ Settings and shared controls outside a card keep their own materials. Cloud,
 scan and spatial-animation ownership are unchanged.
 
 Overview cannot originate steer/send input for a specified Thread. Emoji badges
-are status content: they have no Send swap, button, keyboard focus stop or draft
-callback. The Harness overview renderer receives only an existing-interaction
+retain their status presentation. For an unarchived ordinary Thread whose latest
+execution was explicitly interrupted by user Stop, with no pending input or
+background work, the badge becomes an independent Archive conversation button.
+Hovering the card or focusing that button replaces the emoji with a close icon;
+Return/Space and accessibility activation archive without opening the reader.
+The Host rechecks current catalog eligibility, blocks duplicate requests and
+displays failures on the card. Other interruption sources, including unknown
+historical provenance, do not acquire this action. Badges have no Send swap or
+draft callback. The Harness overview renderer receives only an existing-interaction
 response callback plus ordinary reading navigation, rather than full thread
 actions. Permission/question responses remain available; those are bound to a
 current pending interaction. There is no per-card message editor, text/file drop

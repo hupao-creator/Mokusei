@@ -87,6 +87,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 	next.ID = id
 	// A new fork was not the target of the source thread's interrupt command.
 	next.MokuInterruptedExecutionID = ""
+	next.UserInterruptedExecutionID = ""
 	next.Revision = 0
 	next.Worktree = nil
 	next.CreatedAt = time.Now().UnixMilli()

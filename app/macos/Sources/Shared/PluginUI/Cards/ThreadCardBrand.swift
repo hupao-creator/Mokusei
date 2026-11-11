@@ -165,3 +165,57 @@ public extension View {
         }
     }
 }
+
+private struct ThreadCardArchiveActionKey: EnvironmentKey {
+    static let defaultValue: (@MainActor () -> Void)? = nil
+}
+private struct ThreadCardArchivePendingKey: EnvironmentKey {
+    static let defaultValue = false
+}
+public extension EnvironmentValues {
+    /// Host-owned archive capability, supplied only for a manually stopped Thread.
+    var threadCardArchiveAction: (@MainActor () -> Void)? {
+        get { self[ThreadCardArchiveActionKey.self] }
+        set { self[ThreadCardArchiveActionKey.self] = newValue }
+    }
+    var threadCardArchivePending: Bool {
+        get { self[ThreadCardArchivePendingKey.self] }
+        set { self[ThreadCardArchivePendingKey.self] = newValue }
+    }
+}
+
+struct ThreadCardArchiveBadge<Content: View>: View {
+    let hovered: Bool
+    @ViewBuilder let content: () -> Content
+    @Environment(\.threadCardArchiveAction) private var archive
+    @Environment(\.threadCardArchivePending) private var pending
+    @Environment(\.locale) private var locale
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        if let archive {
+            Button(action: archive) {
+                ZStack {
+                    content().opacity(hovered || focused ? 0 : 1)
+                    NativeIcon(name: "X", size: 20)
+                        .frame(width: ThreadCardProviderStatus.diameter, height: ThreadCardProviderStatus.diameter)
+                        .foregroundStyle(NativePalette.overview.ink.swiftUI)
+                        .background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
+                        .opacity(hovered || focused ? 1 : 0)
+                }
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .focused($focused)
+            .disabled(pending)
+            .onKeyPress(.return) {
+                if !pending { archive() }
+                return .handled
+            }
+            .accessibilityLabel((locale.language.languageCode?.identifier == "en" ? "Archive conversation" : "归档会话"))
+            .help((locale.language.languageCode?.identifier == "en" ? "Archive conversation" : "归档会话"))
+        } else {
+            content()
+        }
+    }
+}
