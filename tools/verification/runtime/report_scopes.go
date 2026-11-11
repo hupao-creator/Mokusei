@@ -111,6 +111,20 @@ func expectReportDenied(err error, label string) {
 }
 
 func verifyReportGuidance(h *handle) {
+	injection := h.open.Injection.Tools
+	if injection == nil || injection.Mode != "exclusive" {
+		panic("Report must use exclusive tools")
+	}
+	want := map[string]bool{"create_report": true, "list_reports": true, "read_report": true, "update_report": true}
+	for _, tool := range injection.Bindings {
+		if !want[tool.Name] {
+			panic("unexpected or duplicate Report tool: " + tool.Name)
+		}
+		delete(want, tool.Name)
+	}
+	if len(want) != 0 {
+		panic("Report is missing a report maintenance tool")
+	}
 	// Hash the actual injected entry, including front matter and trailing newline,
 	// against the pinned upstream bytes rather than duplicating the skill here.
 	found := false
@@ -242,16 +256,8 @@ func verifyReportScopes(ctx context.Context) {
 	}
 	for _, entry := range []struct {
 		scope string
-		h     *handle
-		own   model.ThreadRecord
 		other model.ThreadRecord
-	}{{aScope, aHandle, a, b}, {bScope, bHandle, b, a}} {
-		list := reportPage(ctx, entry.h, "list_threads", model.Object{})
-		if !strings.Contains(list, entry.own.ID) || strings.Contains(list, entry.other.ID) || strings.Contains(list, inbox.ID) {
-			panic("Report list_threads leaked another scope")
-		}
-		_, err := reportTool(ctx, entry.h, "get_thread_status", "foreign-task", model.Object{"threadId": entry.other.ID})
-		expectReportDenied(err, "foreign get_thread_status")
+	}{{aScope, b}, {bScope, a}} {
 		caps := r.BackgroundCapabilities(owners[entry.scope], report.SettingsID)
 		tasks, err := plugin.Require[plugin.OrdinaryTaskReadCapability](caps, plugin.OrdinaryTaskReadCapabilityKey)
 		must(err)
@@ -264,10 +270,20 @@ func verifyReportScopes(ctx context.Context) {
 			panic("Report resolved foreign execution")
 		}
 	}
-	// Explicit journal IDs must obey the same filter as delivery.
-	journal := reportPage(ctx, aHandle, "read_lifecycle_events", model.Object{"eventIds": append(append([]string{}, steered.EventIDs...), bWork.EventIDs...)})
-	if !strings.Contains(journal, a.ID) || strings.Contains(journal, b.ID) || strings.Contains(journal, inbox.ID) {
-		panic("Report journal escaped successful-event scope")
+	// Delivery itself must carry the scoped evidence now that journal lookup is unavailable.
+	var delivered state
+	must(json.Unmarshal(aHandle.open.SessionState.Read(), &delivered))
+	messages := strings.Join(delivered.Messages, "\n")
+	for _, eventID := range steered.EventIDs {
+		var event store.Event
+		exists, err := db.Snapshot().Get("event:"+eventID, &event)
+		must(err)
+		if !exists || !strings.Contains(messages, string(raw(event.Data))) {
+			panic("Report delivery omitted completed execution data")
+		}
+	}
+	if strings.Contains(messages, b.ID) || strings.Contains(messages, inbox.ID) {
+		panic("Report delivery escaped successful-event scope")
 	}
 	create := model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Scoped report", "html": "<html><body>Evidence</body></html>", "coverHTML": "<div>Scoped evidence</div>"}
 	aRaw, err := reportTool(ctx, aHandle, "create_report", "create", create)
@@ -331,8 +347,6 @@ func verifyReportScopes(ctx context.Context) {
 	_, err = tagWrites.Execute(ctx, plugin.SemanticTagOperation{Kind: "assign", Thread: &model.ThreadRef{ThreadID: a.ID, TypeID: "agent"}, Tags: []string{"Restore label"}}, plugin.BackgroundWriteOptions{RequestID: "restore-label"})
 	must(err)
 	must(r.SetArchived(ctx, a.ID, true))
-	_, err = reportTool(ctx, aHandle, "get_thread_status", "archived", model.Object{"threadId": a.ID})
-	must(err)
 	_, err = tagWrites.Execute(ctx, plugin.SemanticTagOperation{Kind: "delete", Name: "Restore label"}, plugin.BackgroundWriteOptions{RequestID: "retire-archived-label"})
 	must(err)
 	assertThreadTags(r, a.ID, "Restore label")

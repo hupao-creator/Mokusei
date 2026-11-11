@@ -17,6 +17,10 @@ const maxAttempts = 3
 const runTimeout = 10 * time.Minute
 const batchSize = 64
 
+func Input(text string) model.AgentInput {
+	return model.AgentInput{Presentation: "internal", Parts: []model.AgentInputPart{{Kind: "text", Text: text}}}
+}
+
 type BatchRequest struct {
 	BatchID  string
 	Events   []plugin.LifecycleEvent

@@ -2,14 +2,13 @@ package background
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-func TestLifecycleEvidenceStopsPagingAfterCancellation(t *testing.T) {
+func TestReadEventsStopsPagingAfterCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	reads := 0
@@ -22,19 +21,12 @@ func TestLifecycleEvidenceStopsPagingAfterCancellation(t *testing.T) {
 		return plugin.Page[plugin.LifecycleHistoryEntry]{}, nil
 	}}
 	runner := &Runner{consumer: consumer}
-	for _, tool := range EvidenceTools(t.Context(), nil, runner) {
-		if tool.Name != "read_lifecycle_events" {
-			continue
-		}
-		if _, err := tool.Execute(ctx, plugin.ToolCall{Arguments: json.RawMessage(`{}`)}); !errors.Is(err, context.Canceled) {
-			t.Fatalf("canceled evidence call returned %v", err)
-		}
-		if reads != 1 {
-			t.Fatalf("canceled evidence call read %d pages", reads)
-		}
-		return
+	if _, err := runner.ReadEvents(ctx, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled evidence read returned %v", err)
 	}
-	t.Fatal("lifecycle evidence tool is missing")
+	if reads != 1 {
+		t.Fatalf("canceled evidence read fetched %d pages", reads)
+	}
 }
 
 type runnerTestHistory struct {
