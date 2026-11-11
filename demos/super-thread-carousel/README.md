@@ -4,9 +4,9 @@
 
 ## 生产行为
 
-- 当前标签内，已打开且距离最近一次打开 **超过 600 秒** 的 Super Thread 自动归入一个 collection。至少两篇才成组；从未打开、刚打开和未来时间记录不合格。
-- collection 只是视图投影；成员保留原报告身份，过滤、搜索和关联执行数据不变。非空搜索逐篇展示。最近打开时间由生产客户端保存在当前 profile 的 desktop preferences，collection 本身不持久化。
-- 点击封面/body 才打开报告并更新打开记录；翻页不计为打开。打开时从 collection 位置展开，返回时根据重新归组后的卡片位置收回；只剩一篇时解散集合。
+- 当前标签内，已关闭且距离最近一次关闭 **超过 300 秒** 的 Super Thread 自动归入一个 collection。至少两篇才成组；无关闭记录、刚关闭和未来关闭时间记录不合格。
+- collection 只是视图投影；成员保留原报告身份，过滤、搜索和关联执行数据不变。非空搜索逐篇展示。关闭时间与短读保留资格由生产客户端保存在当前 profile 的 desktop preferences，collection 本身不持久化。
+- 点击封面/body 才打开报告并开始独立阅读访问；翻页不计为打开。打开时从 collection 位置展开；单次前台阅读超过 120 秒才清除原资格，短读返回保留；每次关闭重新开始 300 秒等待；只剩一篇时解散集合。
 - 封面在 308pt 区域水平轮播；底部 144pt body 保持原位，旧内容淡出后新内容淡入。两部分共享选择和 460ms 时钟，4pt 间距和外壳固定。
 - Liquid Glass 轮播控件固定在封面上。每 10 秒自动切换，手动切换重新计时；离屏、阅读页、失焦或封面手势暂停自动轮播。Reduce Motion 直接切换。
 - 大集合最多挂载四个封面；超过七篇以菜单代替圆点列表。无封面报告使用自身 emoji 占位。
@@ -34,19 +34,19 @@ open "$(cat .build/super-thread-carousel/app-path.txt)"
 
 ## 查看路径
 
-1. “全部”：三篇集合、一篇最近打开、一篇未打开。等待十秒或用封面拖动、触控板横向滑动、左右按钮/圆点切换。
+1. “全部”：三篇集合、一篇最近关闭、一篇无关闭记录。等待十秒或用封面拖动、触控板横向滑动、左右按钮/圆点切换。
 2. 勾选“慢速 ×3”，观察封面位移和固定 body 的淡出/淡入。这个仅供预览的选项不进入生产控件。
 3. “产品”两篇成组；“原生”“工程”只有一篇合格，不成组；“未读”零篇合格。
-4. 打开集合成员再返回，看它恢复独立卡片；“时间 +10 分钟”只推进 demo 归组时钟，未打开者始终不自动归组。
-5. 深色只影响预览窗口，“重置”恢复 fixture 打开记录。预览阅读 sheet 是说明页，不模拟真实 Report reader。
+4. 打开集合成员可查看示意阅读 sheet；真实开关与计时以生产 headless 导出为准；“时间 +10 分钟”只推进 demo 归组时钟，未打开者始终不自动归组。
+5. 深色只影响预览窗口，“重置”恢复 fixture 关闭记录。预览阅读 sheet 是说明页，不模拟真实 Report reader。
 
-可视 App 的打开记录为内存 fixture，便于重置；生产已使用持久化记录。卡片、动效、封面输入与 Liquid Glass 完全来自生产组件，没有 demo 动效副本。
+可视 App 的关闭记录为内存 fixture，便于重置；生产已使用持久化记录。卡片、动效、封面输入与 Liquid Glass 完全来自生产组件，没有 demo 动效副本。
 
 ## Headless 数据导出
 
 `--headless` 在创建 `NSApplication` 之前退出；不挂载 WebKit、不产生截图。
 
-- `.build/super-thread-carousel/headless.json`：13 个 fixture 数据场景，资格判断复用 `ApplicationOverviewCollectionPolicy`，包含严格 600 秒边界。
-- `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、打开/返回/解散、持久化重载、搜索、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留打开记录。另通过真实 `NativeWorkspacePresentation.open` 方法验证首次 Overview 投影前的打开落盘、旧偏好缺失历史、返回后保留记录及无效引用拒绝；不创建窗口。
+- `.build/super-thread-carousel/headless.json`：13 个 fixture 数据场景，资格判断复用 `ApplicationOverviewCollectionPolicy`，包含严格 300 秒边界。
+- `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、短读保留/长读移出/解散、持久化重载、搜索、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留关闭事实。另通过真实 `NativeWorkspacePresentation.open` 方法验证首次 Overview 投影前的打开标记落盘、旧打开数据不冒充关闭事实、返回后保留记录及无效引用拒绝；不创建窗口。
 
 生产导出使用独立临时 profile，不连接 Runtime；完成后清理该 profile。这是可审阅的 fixture 数据导出，不是新测试套件，不证明视觉中间帧或物理手势通过。已运行和未运行的检查见 [validation.md](validation.md)。

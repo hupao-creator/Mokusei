@@ -61,14 +61,14 @@ private struct DemoView: View {
                     ForEach(model.projection.individual) { report in
                         VStack(alignment: .leading, spacing: 10) {
                             CardShell { ProductionCard(fixture: fixtures[report.id]!, open: { model.open(report) }) }
-                            Text(lastOpenedLabel(report)).font(.system(size: 11)).foregroundStyle(.secondary)
+                            Text(lastClosedLabel(report)).font(.system(size: 11)).foregroundStyle(.secondary)
                         }
                     }
                 }.padding(.vertical, 2)
             }
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("打开过，且距最近打开超过 10 分钟的报告，自动归入当前标签的集合。")
+                    Text("关闭后超过 5 分钟的报告按当前标签归组；已归组报告短读后仍保留资格。")
                     Text("至少 2 篇才成组；打开成员会移出集合。切换页面不计为打开。")
                         .foregroundStyle(.tertiary)
                 }.font(.system(size: 11)).foregroundStyle(.secondary)
@@ -93,7 +93,7 @@ private struct DemoView: View {
                     Text(report.title).font(NativeTypography.inter(size: 26, weight: 620))
                     Text(report.summary).font(.system(size: 16)).lineSpacing(7)
                     Divider()
-                    Text("这篇报告现在已重新打开。返回后，它会作为独立卡片显示；超过 10 分钟后，再按当前标签归组。")
+                    Text("这是轮播内容预览，不模拟真实阅读计时。生产中，已归组报告单次前台阅读超过 2 分钟才移出；关闭后重新计时 5 分钟。")
                         .font(.system(size: 13)).foregroundStyle(.secondary)
                     Text("此处为演示阅读页，未连接真实报告或 Agent。")
                         .font(.system(size: 11)).foregroundStyle(.tertiary)
@@ -102,10 +102,10 @@ private struct DemoView: View {
                     .preferredColorScheme(dark ? .dark : .light)
             }
     }
-    private func lastOpenedLabel(_ report: ReportSample) -> String {
-        guard let opened = model.openedAt[report.id] else { return "尚未打开" }
+    private func lastClosedLabel(_ report: ReportSample) -> String {
+        guard let opened = model.closedAt[report.id] else { return "尚未打开" }
         let minutes = max(0, Int(model.now.timeIntervalSince(opened) / 60))
-        return minutes == 0 ? "刚刚打开" : "\(minutes) 分钟前打开"
+        return minutes == 0 ? "刚刚关闭" : "\(minutes) 分钟前关闭"
     }
 }
 

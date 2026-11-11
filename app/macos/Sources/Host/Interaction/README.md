@@ -79,9 +79,9 @@ as native card activation. Selecting a carousel page is not a reading event.
 
 Collection diagnostics are read-only: individual application cards expose
 `collectionEligibility`; collections expose `memberEligibility` keyed by real
-references. Values contain `lastOpenedAt` (Unix milliseconds or null),
+references. Values contain `lastClosedAt` (Unix milliseconds or null), `retainsEligibility`,
 `intervalSeconds`, the time-condition `eligible` flag, a `reason`
-(`no-open-record`, `future-open-record`, `within-open-interval`, `eligible`) and
+(`no-close-record`, `future-close-record`, `within-close-interval`, `eligible`) and
 current `collected` membership. Time eligibility alone does not establish two
 eligible members in the same browsing view; search remains individual. During
 reading travel the retained collection can temporarily differ from live

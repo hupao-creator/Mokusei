@@ -17,6 +17,16 @@ public enum DesktopLocale: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Durable local evidence; an interrupted open has no invented close timestamp.
+public struct ApplicationCollectionReading: Codable, Equatable, Sendable {
+    public var lastClosedAt: Double?
+    public var retainsEligibility: Bool
+    public init(lastClosedAt: Double? = nil, retainsEligibility: Bool = false) {
+        self.lastClosedAt = lastClosedAt
+        self.retainsEligibility = retainsEligibility
+    }
+}
+
 /// Client preferences remain available when the execution service is unavailable.
 /// A successful setter means the new value was saved; failed writes leave it unchanged.
 @MainActor @Observable
@@ -25,6 +35,7 @@ public final class DesktopPreferences {
     public private(set) var locale: DesktopLocale
     public private(set) var selectedThreadID: String?
     public private(set) var applicationLastOpened: [String: Double] = [:]
+    public private(set) var applicationCollectionReading: [String: ApplicationCollectionReading] = [:]
     public private(set) var onboardingCompleted: Bool
     public private(set) var onboardingPending: Bool
     public private(set) var readError: String?
@@ -41,6 +52,7 @@ public final class DesktopPreferences {
         var selectedThreadId: String?
         var onboardingCompleted: Bool?
         var applicationLastOpened: [String: Double]?
+        var applicationCollectionReading: [String: ApplicationCollectionReading]?
     }
 
     public init(directory: URL) {
@@ -62,6 +74,13 @@ public final class DesktopPreferences {
                 }
                 applicationLastOpened = opened
             }
+            if let reading = state.applicationCollectionReading {
+                guard reading.allSatisfy({ !$0.key.isEmpty && $0.key.utf16.count <= 512
+                    && ($0.value.lastClosedAt.map { $0.isFinite && $0 >= 0 } ?? true) }) else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                applicationCollectionReading = reading
+            }
             // A valid preexisting desktop file establishes prior use. Explicit
             // pending state must survive preference writes and interrupted setup.
             onboardingCompleted = state.onboardingCompleted ?? true
@@ -75,13 +94,16 @@ public final class DesktopPreferences {
                            durationMs: Date().timeIntervalSince(started) * 1000, fields: [.appearance, .locale])
     }
 
-    /// Local reading history is profile-scoped UI state, never a collection record.
-    public func recordApplicationOpen(key: String, at date: Date) throws {
-        var opened = applicationLastOpened
-        opened[key] = date.timeIntervalSince1970
+    public func recordApplicationReading(key: String, value: ApplicationCollectionReading) throws {
+        guard !key.isEmpty, key.utf16.count <= 512,
+              value.lastClosedAt.map({ $0.isFinite && $0 >= 0 }) ?? true else {
+            throw CocoaError(.validationMissingMandatoryProperty)
+        }
+        var reading = applicationCollectionReading
+        reading[key] = value
         try persist(appearance: appearance, locale: locale, selectedThreadID: selectedThreadID,
-                    applicationLastOpened: opened)
-        applicationLastOpened = opened
+                    applicationCollectionReading: reading)
+        applicationCollectionReading = reading
     }
 
     public func setAppearance(_ value: DesktopAppearance) throws {
@@ -111,11 +133,13 @@ public final class DesktopPreferences {
 
     private func persist(appearance: DesktopAppearance, locale: DesktopLocale,
                          selectedThreadID: String?, onboardingCompleted: Bool? = nil,
-                         applicationLastOpened: [String: Double]? = nil) throws {
+                         applicationLastOpened: [String: Double]? = nil,
+                         applicationCollectionReading: [String: ApplicationCollectionReading]? = nil) throws {
         let data = try JSONEncoder().encode(SavedState(
             preferences: Preferences(locale: locale, appearance: appearance), selectedThreadId: selectedThreadID,
             onboardingCompleted: onboardingCompleted ?? self.onboardingCompleted,
-            applicationLastOpened: applicationLastOpened ?? self.applicationLastOpened
+            applicationLastOpened: applicationLastOpened ?? self.applicationLastOpened,
+            applicationCollectionReading: applicationCollectionReading ?? self.applicationCollectionReading
         ))
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,

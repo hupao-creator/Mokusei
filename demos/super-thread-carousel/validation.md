@@ -52,3 +52,37 @@
 基线日志/输出：`.build/collection-investigation/baseline-entry.log`、`baseline-projection.json`。修复日志：`fixed-build.log`、`fixed-entry.log`；最终生产 fixture 共 22 个输出场景，原有归组/到期/搜索/持久化结果仍可审阅。生产 Debug 构建、Swift 6 warnings-as-errors fixture 编译、签名及 headless 导出通过。按 sprint 未新增测试、未运行回归套件或 GUI 回放；真实鼠标/触控板操作仍未验证。
 
 验证前读取 main ruleset 26378950（PR 规则），现有远端 CI 属于其他提交。本轮不推送或运行托管 CI，最终集成由调用方完成。
+
+## Collection close/read timing — 2026-11-11
+
+本次 sprint 不新增测试、不运行无关回归；复用现有 headless fixture 导出，
+通过生产 catalog、Overview、导航入口和临时 profile 核对行为。
+
+- `python3 demos/super-thread-carousel/build.py --headless`：当前工作树 Debug
+  生产构建、独立 replay 编译/签名与无窗口导出完成（退出 0）。13 个轮播 fixture、
+  30 个生产场景；所有生产投影 `error` 为空。
+- 严格边界：120 秒整保留资格；累计前台 120.001 秒清除；中间遮挡不计时；
+  同一路由重复打开不重置。实际 cancellable reading deadline 在无新事件时清除资格。
+- 短读返回和反复短读保留；长读返回恢复独立卡片；只剩一位候选时集合解散。
+  每次关闭重新开始等待；打开期间即使推进墙钟一小时也不获得资格。
+- 实际关闭记录往返保存后：300 秒整不合格、300.001 秒合格；未来关闭不合格。
+  首轮核对发现 Date 参考 epoch 与 Unix epoch 往返的浮点精度导致精确边界提前通过；
+  改为在持久化的 Unix 秒域比较后，重新构建及导出确认以上结果。
+- 无 catalog 事件的关闭到期自动归组、持久化重载、普通偏好写入保留、搜索逐篇显示、
+  成员内容刷新、首次 Overview 投影前真实导航落盘和无效引用拒绝均已核对。
+- 旧 profile 仅有 `applicationLastOpened` 不会生成关闭事实；真实 open 写入无关闭时间的
+  marker，路由替换/返回写入关闭。保留旧打开数据，不推断历史关闭或阅读时长。
+
+首次构建因沙箱 DNS/网络及用户缓存写权限失败，未执行 replay；获准下载锁定依赖后
+构建成功。随后本工作树增量构建和 headless 导出成功。没有把首次失败或旧提交结果
+计作通过。导出在 `.build/super-thread-carousel/{headless,production-projection}.json`，
+使用独立临时 profile，没有操作运行中的正式应用或用户数据。
+
+已查询远程：经典保护接口返回 main 未受保护；有效 ruleset 要求 PR 和解决 review
+threads，没有 required status checks。当时 PR #300、#290 的 Complete coverage 为
+success，最近 main run 42788322800 为 failure；这些结果不认证本次提交。
+本次不推送、不合并，由协调方串行集成；未触发本次托管 CI。
+
+未运行全量 `make check`、Swift 测试套件、GUI/截图/物理手势或实机验证；不声明视觉
+中间帧通过。关闭计时属于本地客户端事实，异常退出不会伪造关闭时间；未保存的前台
+阅读时长不跨进程恢复。

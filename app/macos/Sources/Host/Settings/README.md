@@ -356,7 +356,10 @@ disclosure; native keyboard activation, localized expanded state, disabled gates
 and the semantic interaction binding remain available. Collapsing retains values.
 
 
-`DesktopPreferences` also retains profile-local `applicationLastOpened` timestamps
-(Unix seconds) for opted-in application collections. Appearance, locale, selection and onboarding
-writes preserve this dictionary. It is reading state rather than a configurable
-setting; collection membership and carousel selection are not written to disk.
+`DesktopPreferences` retains profile-local `applicationCollectionReading` close
+facts and retained eligibility for application collections. Unix-second close
+timestamps are separate from historical `applicationLastOpened`, which remains
+preserved but cannot establish a close. Appearance, locale, selection and
+onboarding writes preserve both dictionaries. This is reading state rather than
+a configurable setting; collection membership and carousel selection are not
+written to disk. See the [reading contract](../Overview/README.md#viewed-application-collections).

@@ -253,10 +253,15 @@ public final class NativeWorkspacePresentation {
             threadIdentityVisit = ref.typeID == "agent" && target == nil
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
         }
+        if selected != ref { overview.recordApplicationClose() }
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
         configureThreadVoice(); publishPresence()
-        if ref.typeID != "agent" { overview.recordApplicationOpen(ref) }
+        if ref.typeID != "agent" {
+            // Publish the hidden Overview first so its opening backdrop survives.
+            overview.recordApplicationOpen(ref)
+            overview.updateApplicationReading(visible: readingForeground)
+        }
         if ref.typeID == "agent" { scene.setInputOpen(true) }
         Task { await overview.recordUserAction(kind: "open-thread", thread: ref) }
     }
@@ -333,6 +338,7 @@ public final class NativeWorkspacePresentation {
     public func finishBack() {
         performanceVisit?.end(); performanceVisit = nil; performanceOperation = nil
         let previous = selected
+        overview.recordApplicationClose()
         selected = nil; readingTarget = nil; threadIdentityVisit = nil; resetNavigation(); followUpVisible = false
         nativeApplicationNavigation = false
         if let previous, previous.typeID == "agent" { workspace.voice.releaseThread(previous.threadID) }
@@ -348,6 +354,7 @@ public final class NativeWorkspacePresentation {
             return
         }
         NativeReadingPageMotion.cancelAll()
+        overview.recordApplicationClose()
         selected = applicationReturn?.thread; readingTarget = applicationReturn?.target
         if let selected { beginPerformanceVisit(selected) }
         applicationReturn = nil; resetNavigation(); nativeApplicationNavigation = false
@@ -399,12 +406,18 @@ public final class NativeWorkspacePresentation {
 
     public func setFollowUpVisible(_ value: Bool) { followUpVisible = value; publishPresence() }
 
+    private var readingForeground: Bool {
+        focused && documentVisible && readingWindowActive && workspace.connection == .connected
+            && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen
+    }
+
     public func publishPresence() {
         guard started else { return }
         let agentID = selected?.typeID == "agent" ? selected?.threadID : nil
         let latest = agentID.flatMap { workspace.catalog.thread($0)?.observation.latestExecution }
+        overview.updateApplicationReading(visible: readingForeground)
         attentionVisits.update(thread: agentID,
-            visible: focused && documentVisible && readingWindowActive && workspace.connection == .connected && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen,
+            visible: readingForeground,
             completed: latest?.status == .completed ? latest?.executionID : nil,
             fromSearch: overview.isSearching && !overview.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         configureThreadVoice()
@@ -778,6 +791,7 @@ public final class NativeWorkspacePresentation {
         performanceVisit?.end(.cancelled); performanceVisit = nil; performanceOperation = nil
         if let releaseTask { await releaseTask.value; return }
         guard started else { return }
+        overview.recordApplicationClose()
         started = false
         workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner, active: false, allowed: false)
         clearSidecardComposer()

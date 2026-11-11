@@ -419,10 +419,10 @@ Attention-hidden ordinary threads remain in the search candidate catalog. Browsi
 ## Viewed application collections
 
 Application plugins can opt into `ApplicationOverviewCollectionPolicy`; Super
-Thread opts in with a 600-second last-open interval and a 1×2 footprint. After
+Thread opts in with a 300-second last-close interval and a 1×2 footprint. After
 normal scope/tag filtering and report coverage, two or more eligible reports
-become one view-only card. At exactly 600 seconds a report remains individual;
-never-opened and future-dated reports are ineligible. All is its own view. Nonempty
+become one view-only card. At exactly 300 seconds a report remains individual;
+reports without close evidence and future-dated closes are ineligible. All is its own view. Nonempty
 search queries retain individual results and rank. Canonical filters/counts and
 report execution coverage still describe underlying documents.
 
@@ -434,26 +434,41 @@ the card do not create layout revisions. Only the nearest eligibility deadline
 owns a cancellable timer; read-hidden or inactive canvas presentation cancels it and
 return recomputes eligibility and rearms the deadline. No one-second catalog poll.
 
-Admitted detail navigation records the actual document's last-open time in the
-profile's `desktop-preferences.json`. No prior opening is inferred from creation,
-update or execution timestamps. Failed writes report an error while preserving
-this session's open fact; disk recovery is not claimed. These are local client
-reading facts, not cross-device state. Collections themselves are never persisted.
+Admitted detail navigation is validated against `NativeWorkspaceCatalog`, even
+before the first Overview projection. Each actual route departure (Close, Back,
+replacement or orderly release) records a wall-clock close time. Opening clears
+the previous close deadline, so time spent reading cannot age into a collection.
+Every new close restarts the strict five-minute interval.
 
-Recording is admitted against `NativeWorkspaceCatalog`, not the Overview's
-private projection cache: a valid report opened before its first card projection
-must still acquire a durable fact. Invalid/deleted catalog references do not.
-An old preferences file without `applicationLastOpened` supplies no evidence of
-past Report visits; existing valid entries continue to load. There is no safe
-migration from report creation/update time, cover loading or Agent Thread visits.
-Absent evidence stays unknown until a real Report open, then the ordinary
-strict ten-minute rule applies. A card's relative timestamp is its update time.
+A document eligible at opening retains that eligibility through a short visit,
+independently of tag/search projection or whether a second candidate is present.
+Only **more than 120 seconds** of cumulative foreground reading in that visit
+clears it. Exactly 120 seconds retains it. Focus loss, covering by Moku/Settings,
+missing reader admission, inactive window and disconnection pause reading time;
+resuming the same route accumulates time using monotonic uptime. Reopening the
+same admitted route does not reset dwell. Actual close then reopen starts a new
+visit, so separate short visits do not add up to a long read. One cancellable
+deadline clears retained eligibility during uninterrupted reading. After a long
+read, closing starts a fresh five-minute wait. Cover rotation is never a visit.
 
-Opening captures the collection's displayed geometry, retains its old backdrop
-through travel, and then returns to the member's current card after prepared
-Overview reflow. Reopening removes that member; one remaining candidate dissolves
-the collection. Semantic interaction targets include every real member, never
-the synthetic ID; snapshots expose membership and the current selection.
+`desktop-preferences.json` stores profile-local `applicationCollectionReading`
+entries (`lastClosedAt` in Unix seconds and `retainsEligibility`). Open writes a
+marker without a close timestamp; a crash cannot invent a close. A retained
+eligibility marker survives restart, but foreground duration does not. Orderly
+release records its actual close. Ordinary preference writes preserve both the
+new state and historical `applicationLastOpened`; the latter supplies **no close
+evidence**. Old profiles therefore start unknown until a real open/close, without
+inferring anything from creation, update or execution times. Invalid new reading
+state reports a preferences read error. Failed writes report errors and preserve
+session evidence without claiming disk recovery. These facts are local to the
+client, not cross-device state; collection membership and selection remain
+unpersisted view projections.
+
+Opening captures the collection's displayed geometry and keeps its backdrop
+through travel. Prepared return samples the refreshed collection for a short
+visit, or the member's individual card after a long visit. One remaining
+candidate dissolves the collection. Semantic interaction targets include every
+real member, never the synthetic ID; snapshots expose membership and selection.
 
 The Report plugin owns `NativeReportCollection`: a 308pt cover slides horizontally
 while the 144pt metadata stays in place and fades out/in, over 460ms. The 4pt gap

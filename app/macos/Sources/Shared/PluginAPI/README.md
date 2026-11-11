@@ -156,3 +156,8 @@ The erased boundary checks each member's type, owner, domain and capability scop
 A renderer must keep member identities intact and must not treat selection or
 automatic paging as opening a document. Individual card/detail contracts are
 unchanged. Super Thread is the only current opt-in.
+
+`ApplicationOverviewCollectionPolicy.closedBefore` is a strict elapsed interval
+from a known close (`includes(lastClosed:now:)`). Unknown/future closes do not
+qualify. The Host owns foreground reading visits and retained eligibility; the
+plugin supplies the grouping interval and footprint. Super Thread uses 300 seconds.
