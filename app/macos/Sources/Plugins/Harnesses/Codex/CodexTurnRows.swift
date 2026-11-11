@@ -26,13 +26,34 @@ struct CodexTurnRows: View {
             usage: AnyView(ThreadTokenUsage(input: turn.usage?["inputTokens"]?.numberValue,
                 output: turn.usage?["outputTokens"]?.numberValue, cached: turn.usage?["cachedInputTokens"]?.numberValue,
                 reasoning: turn.usage?["reasoningTokens"]?.numberValue)), active: active, executionRunning: turn.status == "running",
-            executionTailIsWork: turn.timeline.last.map { ["reasoning", "activity"].contains($0.kind) } ?? false)
+            executionTailIsWork: turn.timeline.last.map { ["reasoning", "activity"].contains($0.kind) } ?? false,
+            workAvailable: hasDisplayableWork)
             .nativeReadingExecutionReady(turn.executionId, settled: !["running", "waiting-input"].contains(turn.status))
             .onChange(of: turn.interactions) { _, interactions in
                 if let busyInteractionID, !interactions.contains(where: { $0.id == busyInteractionID && $0.status == "pending" && $0.blocksTurn }) {
                     self.busyInteractionID = nil
                 }
             }
+    }
+
+    // Codex deliberately skips constructing collapsed work rows. Inspect its
+    // native facts instead, so availability can change while work is hidden.
+    private var hasDisplayableWork: Bool {
+        if turn.activities.contains(where: activityHasContent) { return true }
+        let reasoning = turn.timeline.filter { $0.kind == "reasoning" }
+        if reasoning.contains(where: reasoningHasContent) ||
+            (!reasoning.isEmpty && (executionReasoningTokens ?? 0) > 0) { return true }
+        let replies = turn.timeline.filter {
+            $0.kind == "assistant" && $0.status != "streaming" && $0.status != "failed" &&
+                !codexTrim($0.raw["content"]).codeUnits.isEmpty
+        }
+        if replies.count > 1 || (!turn.active && turn.status == "waiting-input" && !replies.isEmpty) { return true }
+        let interactions = firstByID(turn.interactions)
+        return turn.timeline.contains { item in
+            if item.kind == "context-compaction" { return true }
+            guard item.kind == "interaction", let interaction = interactions[item.raw.codexIdentity("interactionId")] else { return false }
+            return interaction.status != "pending"
+        }
     }
 
     private var executionReasoningTokens: Double? {
