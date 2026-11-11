@@ -381,10 +381,10 @@ public struct NativeOverviewChrome: View {
                                 selectChild(child, of: parent)
                             } label: {
                                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
-                                    if childSelected, child.emoji != nil {
-                                        OverviewTagPrefix(emoji: nil, selected: true)
+                                    if let emoji = child.emoji {
+                                        OverviewTagPrefix(emoji: emoji, selected: childSelected)
                                     }
-                                    Text(childSelected && child.emoji != nil ? child.tag : child.displayTag)
+                                    Text(child.emoji != nil ? child.tag : child.displayTag)
                                         .font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
                                         .lineLimit(1)
                                         .contentTransition(.opacity)
@@ -557,10 +557,10 @@ public struct NativeOverviewChrome: View {
                     HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                         if filter.isDirectory {
                             OverviewTagPrefix(emoji: displayedChild(of: filter)?.emoji, selected: active)
-                        } else if active, filter.emoji != nil {
-                            OverviewTagPrefix(emoji: nil, selected: true)
+                        } else if let emoji = filter.emoji {
+                            OverviewTagPrefix(emoji: emoji, selected: active)
                         }
-                        OverviewTagTitle(title: !filter.isDirectory && active && filter.emoji != nil ? filter.tag : filter.displayTag,
+                        OverviewTagTitle(title: !filter.isDirectory && filter.emoji != nil ? filter.tag : filter.displayTag,
                                          child: displayedChild(of: filter)?.tag)
                         if filter.hasActiveTasks {
                             OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
@@ -695,19 +695,21 @@ struct OverviewTagPrefix: View {
     var selected = false
     var body: some View {
         ZStack {
-            if selected {
-                NativeIcon(name: "Check", size: OverviewTagMetrics.folderIcon)
-                    .transition(.opacity)
-            } else if let emoji, !emoji.isEmpty {
-                Text(emoji).font(.system(size: OverviewTagMetrics.folderIcon))
-                    .id(emoji).transition(.opacity)
-            } else {
-                NativeIcon(name: "Folder", size: OverviewTagMetrics.folderIcon).opacity(0.72)
-                    .transition(.opacity)
+            // Both layers participate in layout even when invisible. Keep the
+            // complete emoji's native bounds so selection cannot resize the chip
+            // or clip wide/combined glyphs to the check's icon-sized square.
+            Group {
+                if let emoji, !emoji.isEmpty {
+                    Text(emoji).font(.system(size: OverviewTagMetrics.folderIcon))
+                        .id(emoji).transition(.opacity)
+                } else {
+                    NativeIcon(name: "Folder", size: OverviewTagMetrics.folderIcon).opacity(0.72)
+                }
             }
+            .opacity(selected ? 0 : 1)
+            NativeIcon(name: "Check", size: OverviewTagMetrics.folderIcon, strokeWidth: 2)
+                .opacity(selected ? 1 : 0)
         }
-        // Emoji advance and line bounds can exceed the point size. Preserve
-        // native glyph layout instead of proposing an icon-sized square to Text.
         .fixedSize()
         .frame(minWidth: OverviewTagMetrics.folderIcon)
         .accessibilityHidden(true)
