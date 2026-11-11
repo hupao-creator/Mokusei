@@ -64,6 +64,70 @@ header (schema, PID, segment, units and overwritten-segment count). Select the
 newest session by directory creation time; UUIDs/PIDs do not sort by age. Sort
 segments **numerically**.
 
+## AttributeGraph warnings
+
+New dev sessions also write `incidents-<number>.jsonl` in this same directory.
+The recorder observes the existing regular stderr file opened by LaunchServices;
+it does not redirect descriptors, interpose framework functions, attach a debugger,
+sample a running thread, or initialize another application. Original stderr bytes
+remain intact. Terminal/pipe stderr, an unreadable file, replacement and truncation
+produce explicit `captureStatus` records rather than a false zero-warning result.
+Only bytes appended after recorder admission are observed. This is local dev
+diagnostics, with the same channel/opt-out rules as layout recording; no upload
+or product telemetry is added.
+
+Query a session without contacting the app:
+
+```sh
+python3 scripts/query-attributegraph.py '/absolute/layout-pid-uuid'
+python3 scripts/query-attributegraph.py '/absolute/layout-pid-uuid' --stacks
+python3 scripts/query-attributegraph.py '/absolute/layout-pid-uuid' --json
+```
+
+The journal retains these independent facts:
+
+- `cycle`: exact AttributeGraph warning attribute ID, original stderr byte range
+  `[byteStart, byteEnd)`, wall-time and monotonic observation bounds. `time` and
+  `uptimeNs` are the observation upper bound; `observedAfter` and
+  `observedAfterUptimeNs` are the lower bound. A split line keeps the first
+  fragment's lower bound. Polling is nominally 200ms, not a timing guarantee;
+  these are **not** exact emission timestamps. Attribute IDs are process-local.
+- `operation`: a code-owned synchronous call's source file/line, role, anonymous
+  host UUID, caller thread, time interval and stderr byte enclosure. A caller
+  stack is collected **after the call**, only when stderr grew (at most 40 frames,
+  1024 characters per frame). Ordinary calls add two file metadata reads, no
+  stack walk or log write. Current boundaries cover reading-parent hide, show,
+  root content publication, frame/layout updates and retirement.
+- `session`: process/session identity, OS, clock anchors and the packaged
+  `build-provenance.json` binary-input hashes/channel/configuration. Raw executables
+  explicitly lack package provenance; the journal does not invent a source SHA
+  from the investigator's current checkout.
+- `captureGap` / `dataLoss`: skipped stderr byte ranges or dropped incident
+  admission counts. The reader limits work to the newest 256KiB per poll and
+  ignores overlong/nonmatching lines without retaining their content. The
+  incident mailbox admits 256 records independently of geometry's 4096 slots.
+
+The query joins complete warning byte ranges to enclosing operations. This is
+stronger than nearby timestamps, but a concurrent thread can write stderr during
+another thread's call: **a candidate boundary is not a proven emitter or the
+framework's cycle stack**. The output explicitly labels candidate boundaries,
+unattributed warnings, evidence gaps, unavailable capture and missing session end.
+Multiple nested candidates remain visible. Uninstrumented framework/layout paths
+still retain the warning and its observation bounds; add a narrow code-owned
+`NativeLayoutDiagnostics.operation` boundary when investigating that path.
+Do not claim a specific cycle node from an attribute number or treat absence of
+a candidate as proof that an instrumented component was uninvolved.
+
+Incidents have their own 1MiB segments: the first segment plus the latest three
+are retained, independently of geometry rotation. Headers count overwritten
+intermediate segments. Existing whole-session retention still applies, and
+unreadable/dropped/overwritten records cannot certify absence. Both streams share
+the private directory, owner lease, writer failure handling and asynchronous exit
+deadline. Shutdown polls stderr once before draining the writer; an incomplete
+line is explicit. A forced exit, slow disk or warnings after the final poll can
+still lose the tail. None of these diagnostics changes visibility, focus,
+layout, animation or the warning-producing operation's execution order.
+
 ## Reconstructing important layout paths
 
 Start with a single session directory: IDs are session-local. Search `role` for

@@ -48,6 +48,7 @@ public struct NativeLayoutRelayoutSnapshot: Encodable, Sendable {
 public enum NativeLayoutDiagnostics {
     private static var observer: LayoutWindowObserver?
     private static var writer: NativeLayoutLogWriter?
+    private static var attributeGraph: NativeAttributeGraphDiagnostics?
     private nonisolated static let enabledID = Mutex<UUID?>(nil)
     public nonisolated static var isEnabled: Bool { enabledID.withLock { $0 != nil } }
     // Keep SwiftUI structural identity stable after an IO failure. Installed
@@ -92,10 +93,12 @@ public enum NativeLayoutDiagnostics {
             Task { @MainActor in
                 guard recordingID == id else { return }
                 observer?.stop(); observer = nil
+                attributeGraph?.finish {}; attributeGraph = nil
                 self.writer = nil; recordingID = nil
             }
         }
         self.writer = writer
+        attributeGraph = NativeAttributeGraphDiagnostics(writer: writer)
         installsHooks = true
         FileHandle.standardError.write(Data("[layout-log] \(writer.directory.path)/events-*.jsonl\n".utf8))
         observer = LayoutWindowObserver()
@@ -106,9 +109,24 @@ public enum NativeLayoutDiagnostics {
         enabledID.withLock { $0 = nil }
         observer?.stop(); observer = nil
         let previous = writer
+        let previousAttributeGraph = attributeGraph
+        attributeGraph = nil
         writer = nil; recordingID = nil
-        if let previous { previous.finish(completion: completion) }
+        if let previous {
+            if let previousAttributeGraph {
+                previousAttributeGraph.finish { previous.finish(completion: completion) }
+            } else { previous.finish(completion: completion) }
+        }
         else { completion() }
+    }
+
+    /// Code-owned operations only. Byte enclosure is a candidate boundary;
+    /// stderr does not expose which thread emitted an AttributeGraph warning.
+    static func operation<T>(_ name: StaticString, component: UUID,
+                             file: StaticString = #fileID, line: UInt = #line,
+                             _ body: () throws -> T) rethrows -> T {
+        guard let attributeGraph else { return try body() }
+        return try attributeGraph.operation(name, component: component, file: file, line: line, body)
     }
 
     fileprivate static func record(kind: String, source: String, component: String, role: String,
