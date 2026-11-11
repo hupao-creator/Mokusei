@@ -112,8 +112,13 @@ struct NativeReportCollection: View {
                                     Button(member.entry.title.string) { select(member.entry.ref, direction: index >= page ? 1 : -1) }
                                 }
                             } label: {
-                                Text("\(page + 1) / \(members.count)").font(.system(size: 10, weight: .medium)).monospacedDigit()
-                            }.menuStyle(.borderlessButton).fixedSize()
+                                // Keep the borderless menu's spacing and disclosure
+                                // while letting the chrome style own all its ink.
+                                HStack(spacing: 4) {
+                                    Text("\(page + 1) / \(members.count)").font(.system(size: 10, weight: .medium)).monospacedDigit()
+                                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                                }.padding(.leading, 3).padding(.trailing, 2)
+                            }.menuStyle(.button).fixedSize()
                                 .accessibilityLabel(applicationText(locale, "选择 Super Thread", "Select Super Thread"))
                             Button { step(1) } label: {
                                 Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle())

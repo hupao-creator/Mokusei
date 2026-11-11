@@ -110,3 +110,28 @@ success，最近 main run 42788322800 为 failure；这些结果不认证本次�
 未运行全量 `make check`、Swift 测试套件、GUI/截图/物理手势或实机验证；不声明视觉
 中间帧通过。关闭计时属于本地客户端事实，异常退出不会伪造关闭时间；未保存的前台
 阅读时长不跨进程恢复。
+
+## 2026-11-11：轮播页数禁用态变暗
+
+- 用户录屏 `录屏2026-11-11 16.55.49.mov`（attachment
+  `019b038f-b946-484a-99b1-a78b76c20d1b`）以软件 FFmpeg 解码；全片
+  7.97 秒，提取全片概览及 4.2–5.4 秒的导航条中间帧。未打开播放器。
+  AVFoundation 初次提帧因解码能力错误 `-11821/-12911` 失败，改用软件解码成功。
+- 原因：翻页期间 `NativeReportCarouselChrome.disabled` 正常锁定控件，但
+  `.borderlessButton` Menu 自带的禁用外观覆盖了导航条 ButtonStyle，单独压暗
+  x/x 和下拉箭头。改用 `.button` 继承既有样式，显式保留下拉箭头和原标签间距。
+  页数表达式、选择状态、原生禁用边界、布局高度和 460ms 动画均未改动。
+- headless 对照使用当前生产源码的 chrome modifier/ButtonStyle 及菜单标签，
+  在无窗口 `NSHostingView` 中缓存位图；未创建 NSWindow、未启动 GUI 验收。
+  以 1/2、2/2、1/4、4/4、1/12、12/12，分别注入 light/dark，比较锁定前后。
+  修复前 12 组位图均不同，修复后 12 组均完全相同；所有场景修复前后的
+  控件尺寸一致（四篇以内 96×59，1/12 为 102×59，12/12 为 109×59，含 probe 外围）。
+  这是临时验证 probe，没有新增测试或测试套件。
+- 当前工作树 `MokuseiApplications` target Debug 编译通过；仅构建受影响 target
+  及其依赖。`git diff --check` 通过。原始帧、临时 probe、位图与编译日志保留在
+  `.build/carousel-dimming/`（不提交生成物）。
+  提交 hook 的 `make lint`（architecture/static registration/no-Node 和
+  `go vet ./...`）通过；未执行回归测试。
+- 限制：离屏 AppKit 缓存不认证真实窗口的材质、颜色或中间动画帧；没有运行
+  GUI、物理输入、无关回归或完整测试。GitHub 门禁、PR/run 查询因无法连接
+  `api.github.com` 失败；未推送、未触发 CI，最终由协调方验证并合入。

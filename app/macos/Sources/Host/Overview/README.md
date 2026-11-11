@@ -504,6 +504,8 @@ Carousel buttons and menu remain natively disabled, with the disabled boundary
 inside the surrounding glass surface rather than around it; this preserves
 keyboard/accessibility safety without restyling the material. Their ButtonStyle
 keeps the ink appearance stable during the temporary lock.
+The page menu uses the button menu style to inherit that same ButtonStyle;
+the native borderless menu style would dim the x/x label during every turn.
 The count and navigation glass inherit the workspace color scheme; selected
 page markers use primary ink and unselected markers use secondary ink, retaining
 the capsule/dot shape distinction in both light and dark appearances.
