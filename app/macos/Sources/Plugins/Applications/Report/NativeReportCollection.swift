@@ -14,6 +14,7 @@ struct NativeReportCollection: View {
     @State private var interacting = false
     @State private var outgoingID: ApplicationThreadRef?
     @State private var progress = 1.0
+    @State private var motionEpoch = UUID()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardAnimationVisibility) private var visibility
 
@@ -47,11 +48,12 @@ struct NativeReportCollection: View {
     private func select(_ id: ApplicationThreadRef, direction: Int) {
         guard active, outgoingID == nil, id != selected else { return }
         self.direction = direction
-        // Retain the old identity until both independent transitions finish.
+        // Cover and ink retain the old identity on one shared clock.
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
             outgoingID = reduceMotion ? nil : selected
             progress = reduceMotion ? 1 : 0
+            motionEpoch = UUID()
             selection = id
         }
         onSelection(id)
@@ -67,23 +69,15 @@ struct NativeReportCollection: View {
                         ForEach(rendered, id: \.entry.ref) { member in
                             cover(member)
                                 .frame(width: geometry.size.width, height: 308)
-                                .offset(x: Double(direction) * geometry.size.width * (member.entry.ref == outgoingID ? -progress : 1 - progress))
+                                .modifier(NativeReportCollectionCoverOffset(direction: Double(direction), incoming: member.entry.ref != outgoingID,
+                                    moving: outgoingID != nil, width: geometry.size.width, progress: progress))
                                 .opacity(member.entry.ref == selected || member.entry.ref == outgoingID ? 1 : 0)
                         }
                     }.frame(height: 308).clipped().allowsHitTesting(false).accessibilityHidden(true)
-                    ZStack {
-                        ForEach(rendered, id: \.entry.ref) { member in
-                            NativeReportCard(props: member,
-                                projection: .init(previewText: member.entry.view.shortDescription,
-                                                  relatedThreadCount: member.entry.view.relatedExecutions.count),
-                                openThread: { openThread(member.entry.ref) }, showsCover: false)
-                                .modifier(NativeReportBodyFade(incoming: member.entry.ref != outgoingID, progress: progress))
-                                .opacity(member.entry.ref == selected || member.entry.ref == outgoingID ? 1 : 0)
-                                .allowsHitTesting(member.entry.ref == selected && outgoingID == nil && active)
-                                .accessibilityHidden(member.entry.ref != selected)
-                                .disabled(!active || outgoingID != nil)
-                        }
-                    }.frame(maxHeight: .infinity).clipped()
+                    NativeReportCollectionBody(props: rendered, selected: selected, outgoingID: outgoingID,
+                        direction: direction, progress: progress, visualEpoch: motionEpoch, active: active,
+                        allowsActions: { active && outgoingID == nil && $0 == selected }, openThread: openThread)
+                        .frame(maxHeight: .infinity).clipped()
                 }
                 NativeReportCarouselInput(step: step, open: { if active && outgoingID == nil { openThread(selected) } }, interacting: { interacting = $0 })
                     .frame(height: 308).nativeCanvasNavigationRegion().accessibilityHidden(true).zIndex(3)
@@ -124,28 +118,27 @@ struct NativeReportCollection: View {
                             Button { step(1) } label: {
                                 Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle())
                             }.accessibilityLabel(applicationText(locale, "下一个 Super Thread", "Next Super Thread"))
-                        }.font(.system(size: 11, weight: .semibold))
-                            .padding(.horizontal, 7).padding(.vertical, 3)
-                            .glassEffect(.regular.interactive(), in: Capsule())
-                            .buttonStyle(.plain)
-                            .disabled(!active || outgoingID != nil)
+                        }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
                     }.foregroundStyle(.primary).padding(14).frame(height: 308)
                 }.zIndex(4)
             }
         }
         .onAppear { onSelection(selected) }
         .onChange(of: members) { _, next in
-            outgoingID = nil; progress = 1
+            settle()
             if !next.contains(selection) { selection = next[0] }
             onSelection(selected)
         }
         .onChange(of: active) { _, value in
-            if !value { outgoingID = nil; progress = 1; interacting = false }
+            if !value { settle() }
         }
         .onChange(of: reduceMotion) { _, reduced in
-            if reduced { outgoingID = nil; progress = 1 }
+            if reduced { settle() }
         }
-        .task(id: selection) {
+        .onChange(of: visibility?.isVisible) { _, visible in
+            if visible == false { settle() }
+        }
+        .task(id: motionEpoch) {
             guard outgoingID != nil else { return }
             do {
                 // Commit the initial pair of native pages before animating it.
@@ -166,6 +159,13 @@ struct NativeReportCollection: View {
             } catch { /* Leaving the view or manual input cancels this page's dwell. */ }
         }
     }
+    private func settle() {
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            outgoingID = nil; progress = 1; interacting = false
+            motionEpoch = UUID()
+        }
+    }
     @ViewBuilder private func cover(_ member: ApplicationThreadProps<NativeReportView>) -> some View {
         if member.entry.view.hasCover { NativeReportCover(props: member) }
         else {
@@ -178,18 +178,77 @@ struct NativeReportCollection: View {
 
 }
 
+/// Keep the metadata in its original viewport while old/new ink swaps. Disabling
+/// its Button would dim the whole label independently of the mask, so input and
+/// accessibility are gated separately; the action guard also covers keyboard use.
+struct NativeReportCollectionBody: View {
+    let props: [ApplicationThreadProps<NativeReportView>]
+    let selected: ApplicationThreadRef
+    let outgoingID: ApplicationThreadRef?
+    let direction: Int
+    let progress: Double
+    let visualEpoch: UUID
+    let active: Bool
+    let allowsActions: (ApplicationThreadRef) -> Bool
+    let openThread: (ApplicationThreadRef) -> Void
 
-/// The cover slides separately; only metadata opacity follows this envelope.
-/// Fade the old text out before the new text appears, avoiding overlapping glyphs.
-struct NativeReportBodyFade: ViewModifier, @MainActor Animatable {
+    var body: some View {
+        ZStack {
+            ForEach(props.filter { $0.entry.ref == selected || $0.entry.ref == outgoingID }, id: \.entry.ref) { member in
+                NativeReportCard(props: member,
+                    projection: .init(previewText: member.entry.view.shortDescription,
+                                      relatedThreadCount: member.entry.view.relatedExecutions.count),
+                    openThread: { openThread(member.entry.ref) }, showsCover: false,
+                    allowsActions: { allowsActions(member.entry.ref) })
+                    .mask {
+                        ThreadCardInkMask(progress: CGFloat(progress), outgoing: member.entry.ref == outgoingID)
+                            .scaleEffect(x: direction < 0 ? -1 : 1, y: 1)
+                            // Retire only the mask's animation presentation. Keep
+                            // subscriptions and in-flight card actions mounted.
+                            .id(visualEpoch).transition(.identity)
+                    }
+                    .zIndex(member.entry.ref == outgoingID ? 1 : 0)
+                    .allowsHitTesting(active && outgoingID == nil && member.entry.ref == selected)
+                    .accessibilityHidden(!active || outgoingID != nil || member.entry.ref != selected)
+                    .disabled(!active)
+            }
+        }
+    }
+}
+
+/// Keep WebKit identities mounted. A settled pose ignores any remaining
+/// interpolated progress, so Reduce Motion/reset cannot expose a retiring offset
+/// and does not reload the cover merely to cancel its presentation animation.
+struct NativeReportCollectionCoverOffset: GeometryEffect {
+    let direction: Double
     let incoming: Bool
+    let moving: Bool
+    let width: CGFloat
     var progress: Double
     var animatableData: Double {
         get { progress }
         set { progress = newValue }
     }
-    func body(content: Content) -> some View {
-        let p = min(1, max(0, progress))
-        content.opacity(incoming ? max(0, 2 * p - 1) : max(0, 1 - 2 * p))
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let x = moving ? direction * width * (incoming ? 1 - progress : -progress) : 0
+        return ProjectionTransform(CGAffineTransform(translationX: x, y: 0))
     }
+}
+
+/// Disable the real controls (including Menu and keyboard/AX activation), but
+/// keep the surrounding glass outside that environment boundary. A transient
+/// input lock must not restyle the material or dim all the navigation labels.
+struct NativeReportCarouselChrome: ViewModifier {
+    let blocked: Bool
+    func body(content: Content) -> some View {
+        content.font(.system(size: 11, weight: .semibold))
+            .buttonStyle(NativeReportCarouselButtonStyle())
+            .disabled(blocked)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .glassEffect(.regular.interactive(), in: Capsule())
+    }
+}
+
+private struct NativeReportCarouselButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { configuration.label }
 }

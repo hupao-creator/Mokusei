@@ -9,6 +9,7 @@ import SwiftUI
     let projection: NativeReportCardProjection
     let openThread: () -> Void
     var showsCover = true
+    var allowsActions: () -> Bool = { true }
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
     @State private var failure: String?
@@ -16,7 +17,9 @@ import SwiftUI
     @State private var archivePending = false
     private var locale: JSONText { props.context.locale }
     var body: some View {
-        Button(action: openThread) {
+        Button {
+            if allowsActions() { openThread() }
+        } label: {
             VStack(spacing: 4) {
                 if showsCover && props.entry.view.hasCover {
                     NativeReportCover(props: props)
@@ -32,7 +35,7 @@ import SwiftUI
             .contextMenu {
                 Button(applicationText(locale, props.entry.archived ? "恢复报告" : "归档报告", props.entry.archived ? "Restore report" : "Archive report")) {
                     Task { await archive() }
-                }.disabled(archivePending)
+                }.disabled(archivePending || !allowsActions())
             }
             .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
             .onDisappear { unsubscribe?(); unsubscribe = nil }
@@ -98,7 +101,9 @@ import SwiftUI
         catch { failure = error.localizedDescription }
     }
     private func archive() async {
-        guard !archivePending else { return }; archivePending = true
+        // Recheck at invocation: an already-open native menu can outlive the
+        // collection pose that admitted it. Accepted work still owns completion.
+        guard allowsActions(), !archivePending else { return }; archivePending = true
         defer { archivePending = false }
         do {
             try await props.context.capabilities.require(ApplicationCapabilities.threadUserActions)

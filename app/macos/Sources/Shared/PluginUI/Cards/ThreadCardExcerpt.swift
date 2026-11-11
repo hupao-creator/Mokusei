@@ -47,9 +47,9 @@ public struct ThreadCardExcerpt: View {
                     // intrinsic-height layers would clip without a tail ellipsis.
                     ZStack(alignment: .topLeading) {
                         text(reveal.incoming)
-                            .mask(ExcerptInkMask(progress: revealProgress, outgoing: false))
+                            .mask(ThreadCardInkMask(progress: revealProgress, outgoing: false))
                         text(reveal.previous)
-                            .mask(ExcerptInkMask(progress: revealProgress, outgoing: true))
+                            .mask(ThreadCardInkMask(progress: revealProgress, outgoing: true))
                     }
                     // A disabled-animation reset does not retire an offset's
                     // in-flight presentation. Replace only these stateless
@@ -345,30 +345,6 @@ private struct ExcerptFrame {
     }
 }
 
-/// The original 240%-wide masks travel from x=0 to x=-140% in 280ms. Text
-/// remains stationary, with the outgoing ink tail above the incoming layer.
-/// The built-in offset interpolates the translation without reevaluating this
-/// gradient/geometry view for every intermediate progress value.
-private struct ExcerptInkMask: View {
-    var progress: CGFloat
-    let outgoing: Bool
-
-    var body: some View {
-        GeometryReader { geometry in
-            LinearGradient(stops: outgoing ? [
-                .init(color: .white, location: 0.45),
-                .init(color: .white.opacity(0.36), location: 0.53),
-                .init(color: .white.opacity(0.20), location: 0.56),
-                .init(color: .clear, location: 0.58),
-            ] : [
-                .init(color: .clear, location: 0.45),
-                .init(color: .white, location: 0.55),
-            ], startPoint: .leading, endPoint: .trailing)
-                .frame(width: geometry.size.width * 2.4, height: geometry.size.height)
-                .offset(x: -geometry.size.width * 1.4 * progress)
-        }
-    }
-}
 
 private enum ExcerptPreview {
     static let budget = 16_384

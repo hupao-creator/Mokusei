@@ -471,11 +471,21 @@ candidate dissolves the collection. Semantic interaction targets include every
 real member, never the synthetic ID; snapshots expose membership and selection.
 
 The Report plugin owns `NativeReportCollection`: a 308pt cover slides horizontally
-while the 144pt metadata stays in place and fades out/in, over 460ms. The 4pt gap
+while the 144pt metadata stays in place and switches through the shared
+`ThreadCardInkMask`. Cover and ink use one 460ms ease-in-out progress; backward
+paging mirrors only the mask so the reveal follows cover travel. Outgoing ink
+stays above incoming ink. The 4pt gap
 and card shell stay fixed. It reuses `NativeReportCover` and `NativeReportCard`
 with `showsCover: false`, rather than duplicating metadata. Coverless reports use
 their emoji on the ordinary surface. Arrow/dot/menu controls use native Liquid
-Glass; the canvas continues to own the flat outer shell.
+Glass; the canvas continues to own the flat outer shell. During page travel,
+metadata gates pointer/accessibility/actions without disabling its visual label.
+Open and archive callbacks recheck the current collection pose, including an
+already-open context menu; accepted archive work may finish across page changes.
+Carousel buttons and menu remain natively disabled, with the disabled boundary
+inside the surrounding glass surface rather than around it; this preserves
+keyboard/accessibility safety without restyling the material. Their ButtonStyle
+keeps the ink appearance stable during the temporary lock.
 The count and navigation glass inherit the workspace color scheme; selected
 page markers use primary ink and unselected markers use secondary ink, retaining
 the capsule/dot shape distinction in both light and dark appearances.
@@ -486,7 +496,12 @@ collection cover.
 The selected ID is shared by cover, metadata, opening and semantic navigation.
 Automatic advance is every 10 seconds while foreground, visible and not in a
 cover gesture; manual advance resets the dwell. Offscreen and hidden collections
-stop advancing. Reduce Motion switches immediately. Transition ownership
+stop advancing. Reduce Motion switches immediately, including during travel.
+Active/visibility loss and membership replacement settle the current selection and cancel its
+motion owner. Only the stateless mask identity is replaced; settled metadata
+subscriptions and in-flight card actions remain mounted. Cover geometry ignores
+interpolated offsets once settled, preserving
+mounted WebKit identities instead of reloading them to cancel travel. Transition ownership
 prevents overlapping turns and opening intermediate content. At most four covers
 mount (current, retiring and neighbors), regardless of collection size; larger
 collections use the page menu instead of an overflowing dot row.

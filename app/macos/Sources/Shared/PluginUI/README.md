@@ -933,7 +933,10 @@ shifts keep the ordinary preview path. Each resumed buffer has a new session so
 an obsolete reveal or hold cannot install a prior presentation.
 
 The 280ms ink reveal uses the built-in offset effect to translate its two
-gradient masks. The mask view itself does not interpolate progress, removing
+`ThreadCardInkMask` gradient masks. The Report collection reuses that mask with
+its own shared 460ms cover progress and mirrors it for backward paging; excerpt
+buffer ownership, 280ms timing and its fixed reveal direction are unchanged.
+The mask view itself does not interpolate progress, removing
 that cause of per-frame body evaluation. Buffer advancement, reveal
 ownership, disabled-animation resets and the 800ms hold remain leaf-owned.
 Each new reveal key replaces only its two stateless visual layers, retiring
