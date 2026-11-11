@@ -45,10 +45,6 @@ public final class NativeWorkspacePresentation {
     public private(set) var selected: ApplicationThreadRef?
     public fileprivate(set) var mountedReadingThread: ApplicationThreadRef?
     public private(set) var performanceOperation: UInt64?
-    @ObservationIgnored private lazy var attentionVisits = NativeThreadVisitTracker { [weak self] payload in
-        guard let self else { throw CancellationError() }
-        _ = try await self.workspace.invoke("thread:record-visit", args: [payload])
-    }
     @ObservationIgnored private var performanceVisit: NativePerformanceSpan?
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readingPanelSource: CGRect?
@@ -413,13 +409,7 @@ public final class NativeWorkspacePresentation {
 
     public func publishPresence() {
         guard started else { return }
-        let agentID = selected?.typeID == "agent" ? selected?.threadID : nil
-        let latest = agentID.flatMap { workspace.catalog.thread($0)?.observation.latestExecution }
         overview.updateApplicationReading(visible: readingForeground)
-        attentionVisits.update(thread: agentID,
-            visible: readingForeground,
-            completed: latest?.status == .completed ? latest?.executionID : nil,
-            fromSearch: overview.isSearching && !overview.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         configureThreadVoice()
         // Keep Dock eligibility continuous while moving between its two routes.
         if selected == nil { scene.overviewVisible = true; scene.readingPanelVisible = false }
@@ -805,7 +795,6 @@ public final class NativeWorkspacePresentation {
         themeTransition.cancel(); scene.settle(); moku.stop(); applicationHost.release()
         if let voiceOwner { workspace.voice.releaseThread(voiceOwner); self.voiceOwner = nil }
         let task = Task {
-            await attentionVisits.finish()
             await overview.stop(); await draft.dispose(discardRemoteAttachments: !runtimeStopped)
             for draft in threadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
             for draft in superThreadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }

@@ -62,8 +62,6 @@ with the durable envelope independently of opaque Harness state.
 user Stop. Missing tool provenance does not establish user provenance. Forks
 clear both fields; consumers match the exact latest interrupted execution.
 
-The public thread envelope projects the optional attentionHidden browsing flag. The thread:record-visit command accepts an identified detail visit, cumulative foreground milliseconds, search-entry provenance and the completed execution actually observed by the reader.
-
 
 `moku:submit.superThreadId` is an optional nonempty bounded document ID. It selects
 send context only; Moku remains the destination. The application-owned query

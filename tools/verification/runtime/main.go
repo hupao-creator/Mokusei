@@ -193,7 +193,6 @@ func main() {
 	dir, err := os.MkdirTemp("", "mokusei-runtime-verification-")
 	must(err)
 	defer os.RemoveAll(dir)
-	verifyAttentionAgent(ctx, dir)
 	verifyBackgroundScopeBindings(ctx)
 	verifyReportScopes(ctx)
 	verifyBackgroundSettings(ctx)

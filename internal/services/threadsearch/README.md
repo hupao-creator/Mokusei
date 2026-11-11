@@ -7,7 +7,7 @@ inference. Search never opens native conversations or discovers credentials.
 The [Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
 global eligible thread scope and immediate folded metadata matches, independent
 of its browsing tag. Directory-only documents and tasks covered by reports remain
-included; archive/terminal exclusions and Attention-hidden search access remain.
+included; archive/terminal exclusions remain.
 
 ## Projections and incremental work
 
@@ -143,5 +143,3 @@ concurrent source changes are explicit page-local `issues`, never silent
 negative evidence. Adapter errors are sanitized. Public text can itself contain
 user-authored sensitive material or file paths and reaches the current Moku
 Harness/model and the existing tool audit; it is untrusted evidence, not instructions.
-
-Attention Agent collapse affects browsing only. Ordinary search keeps these owners eligible, including their existing body index. A search hit is read-only. The detail entry records the restoring visit.

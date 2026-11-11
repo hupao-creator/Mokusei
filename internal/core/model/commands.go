@@ -13,7 +13,7 @@ var commandReadOnly = map[string]bool{
 	"thread:update-settings": false, "app:update-settings": false, "settings:diagnostics": true,
 	"harness:detect-installations": false, "harness:detect-installation": true, "workspace:list-known-directories": true,
 	"harness:install": false, "harness:settings-presentation": true, "harness:extension": false,
-	"thread:record-visit": false, "thread:set-archived": false, "application:archive": false, "application:initialize-conversation": false,
+	"thread:set-archived": false, "application:archive": false, "application:initialize-conversation": false,
 	"application:command": false, "state:load": true, "application:query": true,
 }
 

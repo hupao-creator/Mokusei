@@ -792,7 +792,7 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func collection(tags: [String], kind: NativeOverviewTagKind?, scope: String? = nil) -> NativeOverviewCollection {
-        NativeOverviewSelection.select(threads: catalogThreads.filter { !$0.attentionHidden }, applications: catalogApplications,
+        NativeOverviewSelection.select(threads: catalogThreads, applications: catalogApplications,
             tags: tags, kind: kind, scope: scope, directoryTags: directoryTags.values)
     }
 

@@ -264,7 +264,7 @@ Overview index, then fences returned hits by source hash. Directory Scope filter
 reuse the existing scope resolver. No native history is opened. See the
 [grep contract](../../services/threadsearch/README.md#moku-deterministic-grep).
 
-Attention visits, the scheduler clock and hidden-card projections are profile-local. Search reads the ordinary source independently of the attention marker. New executions and search visits fence old decisions through the same SQLite writer. See the [Attention Agent contract](../../plugins/applications/attention/README.md).
+Overview browsing does not apply agent-authored hidden-card markers. Retired visibility and reading-evidence records are left untouched; ordinary archive, execution eligibility and Report coverage still determine browsing membership.
 
 
 Thread voice calls are removed at the command authority boundary: prepare, start

@@ -20,8 +20,7 @@ public final class NativeSettingsNavigation {
 
     public static func sections(model: NativeSettingsModel, applications: [NativeApplicationSettingsSection]) -> [String] {
         let available = applications.filter { definition in
-            definition.id != "attention.settings"
-                && model.plugins.first { $0.key == "extension:\(definition.owner)" }?.enabled != false
+            model.plugins.first { $0.key == "extension:\(definition.owner)" }?.enabled != false
         }.map(\.id)
         let roles = ["tag.settings", "report.settings"].filter { available.contains($0) }
         return ["general", "moku"] + roles + available.filter { !roles.contains($0) }

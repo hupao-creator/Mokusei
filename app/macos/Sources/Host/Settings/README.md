@@ -154,9 +154,7 @@ configuration and the `tag.settings`/`report.settings` records. Every choice,
 switch and text field edits the retained draft. Debounce, blur, composition
 completion, reconnect, explicit retry and saves from other sections exclude these
 unaccepted role edits. General/local preferences, other application settings and
-onboarding retain their existing persistence behavior. Attention's setting entry
-and page are temporarily hidden, including semantic navigation; its registration,
-background functionality and stored configuration remain intact.
+onboarding retain their existing persistence behavior.
 
 Close, Escape, backdrop and semantic navigation accept the three roles in one
 settings snapshot. Quit also accepts and awaits that snapshot before teardown.
@@ -340,10 +338,6 @@ including inherited and independent Harness forms. Smaller windows, app zoom,
 expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
-
-Attention retains the standard background configuration contract for enablement,
-inherited Moku configuration and an independent execution profile, but its Settings
-entry is hidden. Its wake intervals and visible-thread threshold are product constants.
 
 
 The former Report Agent section is named **Super Thread Agent**. Its existing

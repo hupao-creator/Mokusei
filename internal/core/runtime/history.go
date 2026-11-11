@@ -366,7 +366,7 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		if err := threadsearch.ClearHistory(tx); err != nil {
 			return err
 		}
-		for _, prefix := range []string{attentionPrefix, attentionHiddenPrefix, "attention-clock", mokuDeliveryPrefix, "directory-scope:", "thread:", "interaction-answer:", "telemetry:", "event:", "lifecycle-work:", "lifecycle-outcome:", "private-session:", "private-session-index:", "application-receipt:", "tag-receipt:", "semantic-tags:", "tag-redirects:", "tag-inventory-initialized:"} {
+		for _, prefix := range []string{mokuDeliveryPrefix, "directory-scope:", "thread:", "interaction-answer:", "telemetry:", "event:", "lifecycle-work:", "lifecycle-outcome:", "private-session:", "private-session-index:", "application-receipt:", "tag-receipt:", "semantic-tags:", "tag-redirects:", "tag-inventory-initialized:"} {
 			for _, key := range tx.Keys(prefix) {
 				if err := tx.Delete(key); err != nil {
 					return err

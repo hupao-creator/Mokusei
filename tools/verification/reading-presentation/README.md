@@ -242,7 +242,7 @@ starting a Runtime, reading a repository or loading WebKit.
 python3 tools/verification/reading-presentation/run.py --overview-search
 ```
 
-Runs the complete `NativeOverviewSearchTests` suite in the AppKit event loop,
+Runs all 16 tests in `NativeOverviewSearchTests` in the AppKit event loop,
 including the three cases skipped by ordinary SwiftPM: selected-chip search
 morph/reversal at 360/540/1100pt in light/dark appearance, fixture-backed Chinese
 body keyword search, and continuous query edits retaining mounted card identities.

@@ -90,36 +90,6 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		}
 	}
 	switch channel {
-	case "thread:record-visit":
-		keys := []string{"threadId", "visitId", "elapsed", "foreground", "searchOpen", "completedExecution", "alreadyVisible"}
-		obj, err := objectKeys(value, keys, keys)
-		if err != nil {
-			return err
-		}
-		if err = text(obj["threadId"], 512); err != nil {
-			return err
-		}
-		if err = uuid(obj["visitId"]); err != nil {
-			return err
-		}
-		n, ok := obj["elapsed"].(json.Number)
-		if !ok {
-			return errors.New("invalid elapsed time")
-		}
-		ms, err := n.Int64()
-		if err != nil || ms < 0 || ms > MaximumSafeInteger {
-			return errors.New("invalid elapsed time")
-		}
-		if err = checkBoolean(obj["foreground"]); err != nil {
-			return err
-		}
-		if err = checkBoolean(obj["searchOpen"]); err != nil {
-			return err
-		}
-		if err = checkText(obj["completedExecution"], 512, false); err != nil {
-			return err
-		}
-		return checkBoolean(obj["alreadyVisible"])
 	case "moku:record-note-exposure":
 		object, err := objectKeys(value, []string{"noteId", "revision", "signal"}, []string{"noteId", "revision", "signal"})
 		if err != nil {

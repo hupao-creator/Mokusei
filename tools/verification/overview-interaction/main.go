@@ -13,16 +13,14 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/codex"
-	"github.com/hupao-creator/Mokusei/internal/services/threadattention"
 )
 
 type fixtureRow struct {
-	ID              string   `json:"threadId"`
-	Cwd             string   `json:"cwd"`
-	Title           string   `json:"title"`
-	Tags            []string `json:"tags"`
-	Archived        bool     `json:"archived"`
-	AttentionHidden bool     `json:"attentionHidden"`
+	ID       string   `json:"threadId"`
+	Cwd      string   `json:"cwd"`
+	Title    string   `json:"title"`
+	Tags     []string `json:"tags"`
+	Archived bool     `json:"archived"`
 }
 
 func main() {
@@ -87,14 +85,6 @@ func seed() error {
 			}, Title: row.Title, Archived: &row.Archived, Tags: row.Tags, TagEmojis: emojis}
 			if err := tx.Put("thread:"+row.ID, record); err != nil {
 				return err
-			}
-			if row.AttentionHidden {
-				if err := tx.Put("attention-hidden:"+row.ID, true); err != nil {
-					return err
-				}
-				if err := tx.Put("attention-thread:"+row.ID, threadattention.Thread{Hidden: true, Revision: 1}); err != nil {
-					return err
-				}
 			}
 			ids = append(ids, row.ID)
 		}

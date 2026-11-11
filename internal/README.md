@@ -14,7 +14,7 @@ The executable [mokusei-runtime](../cmd/mokusei-runtime/main.go) acquires a prof
 | [hosts/applicationhost](hosts/applicationhost/README.md) | Application registration, scoped operations and background participants |
 | [hosts/contexthost](hosts/contexthost/README.md) | Moku-only context services |
 | plugins/harness | [Codex](plugins/harness/codex/README.md), [Claude](plugins/harness/claude/README.md), [Pi](plugins/harness/pi/README.md), [OpenCode](plugins/harness/opencode/README.md) |
-| plugins/applications | [Report](plugins/applications/report/README.md), [Tag](plugins/applications/tag/README.md), [Attention](plugins/applications/attention/README.md), built-in [Git](plugins/applications/git/README.md) |
+| plugins/applications | [Report](plugins/applications/report/README.md), [Tag](plugins/applications/tag/README.md), built-in [Git](plugins/applications/git/README.md) |
 | plugins/contexts | [Artificial Analysis](plugins/contexts/artificialanalysis/README.md) |
 | services | [Moku](services/moku/README.md), [workspaces](services/workspaces/README.md), [search](services/threadsearch/README.md), [local embedding](services/embedding/README.md), [thread voice](services/threadvoice/README.md), [attachments](services/attachments/README.md) and tag normalization |
 | platform | [Daemon/profile ownership](platform/daemon/README.md), [transport](platform/transport/README.md), process groups, environment, diagnostics and SQLite binding |

@@ -87,8 +87,7 @@ readiness, hidden execution fields and exact profile restoration after reopening
 Before asserting that an incomplete model edit cannot change saved settings, the
 flow joins the earlier discovery-seeded target save through the production flush.
 After onboarding, it checks the exact Settings section order for the full
-production application composition, including the contributed `attention.settings`
-section after the built-in role sections:
+production application composition with the built-in role sections:
 
 ```sh
 make runtime

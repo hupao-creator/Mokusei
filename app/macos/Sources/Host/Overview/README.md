@@ -308,7 +308,7 @@ the ring and its adjacent HStack spacing. Active tags retain the ring's measured
 width while menu/search transitions temporarily hide it, keeping their source
 geometry consistent. Background work alone does not redefine active. Selection tint, task counts,
 membership, ordering, search scope and Runtime filter context remain independent.
-Archive/visibility, attention-hidden and Report-coverage exclusions come from the
+Archive/visibility and Report-coverage exclusions come from the
 same membership used to browse each tag; a Report does not itself become an active
 Agent Thread. A changed-ID activity cache refreshes these booleans when active
 participation changes, without rebuilding membership or reacting to every streamed
@@ -321,7 +321,7 @@ shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActiv
 
 ## Search results
 
-[NativeOverviewSearch](NativeOverviewSearch.swift) combines immediate keyword matches with the Runtime's [local hybrid thread search](../../../../../internal/services/threadsearch/README.md). Query, scene and search configuration define context; streaming thread revisions do not repeatedly clear rankings. Within one context, periodic refresh and temporary failures retain the last successful body result until a replacement arrives. Every nonempty query uses the global eligible catalog for both metadata matching and the Runtime `threads` request, including directory-only documents and tasks otherwise covered by reports. Archived and terminal-ineligible records remain excluded, and removed items disappear immediately. Attention-collapsed ordinary threads retain search eligibility. The search scene and request context are independent of the browsing tag: switching directory or semantic tags retains the query, rankings and in-flight request. A new query/configuration context clears old rankings, and cancelled or stale responses cannot replace current results. The search field always shows a localized global placeholder, without a tag scope badge.
+[NativeOverviewSearch](NativeOverviewSearch.swift) combines immediate keyword matches with the Runtime's [local hybrid thread search](../../../../../internal/services/threadsearch/README.md). Query, scene and search configuration define context; streaming thread revisions do not repeatedly clear rankings. Within one context, periodic refresh and temporary failures retain the last successful body result until a replacement arrives. Every nonempty query uses the global eligible catalog for both metadata matching and the Runtime `threads` request, including directory-only documents and tasks otherwise covered by reports. Archived and terminal-ineligible records remain excluded, and removed items disappear immediately. The search scene and request context are independent of the browsing tag: switching directory or semantic tags retains the query, rankings and in-flight request. A new query/configuration context clears old rankings, and cancelled or stale responses cannot replace current results. The search field always shows a localized global placeholder, without a tag scope badge.
 
 Empty or whitespace-only queries hide the canvas cards and their attention indicator while retaining the current tag membership and browsing scene without issuing body searches. The search field stays focused, and the empty-results message appears only for a nonempty query. Clearing or closing search returns to the current browsing tag. The first nonempty query bookmarks the browsing camera. Without an intervening tag selection, clearing or closing search restores that camera into the current browsing scene, even when visible result cards survive the transition. Explicit tag selection retains its existing camera-reset behavior. Explicit bookmark restoration takes precedence over preserving the result scene's framing.
 
@@ -420,7 +420,7 @@ plugin-owned application visibility and explicit result-reading links keep
 their existing rules. Refresh and restart consume the retained envelope rather
 than guessing from terminal status or local UI actions.
 
-Attention-hidden ordinary threads remain in the search candidate catalog. Browsing memberships exclude them, including tag children. The window reports a stable visit identity and cumulative foreground time across history navigation. A completed execution observed in the foreground can start a read deadline without requiring another open.
+Ordinary browsing and search ignore retired agent-authored visibility markers. Archive, execution eligibility and Report coverage retain their own selection rules. Detail reading no longer sends per-thread visit or foreground-time receipts to Runtime; application collection reading remains independently owned by the desktop.
 
 
 ## Viewed application collections

@@ -35,9 +35,6 @@ func (r *Runtime) BackgroundCapabilities(owner plugin.BackgroundAgentRef, settin
 		return capabilityAccess{phase: "runtime", err: errors.New("missing background owner identity")}
 	}
 	access := r.RuntimeCapabilities(owner.PluginID).(capabilityAccess)
-	if owner.AgentID == "attention.agent" && owner.Binding.Kind == plugin.GlobalScope {
-		access.values[plugin.AttentionCapabilityKey.ID] = attentionCapability{r}
-	}
 	background := backgroundCapability{r, owner, settingsID}
 	access.values[plugin.BackgroundConfigurationCapabilityKey.ID] = background
 	access.values[plugin.BackgroundSessionsCapabilityKey.ID] = background

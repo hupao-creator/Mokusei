@@ -11,10 +11,10 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/services/threadattention"
 	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -190,16 +190,23 @@ func main() {
 		assert(result.Mode == "keyword" && len(result.Hits) == 1 && result.Hits[0].Ref.ThreadID == "body", "body AND terms exclude partial-term matches: "+text)
 	}
 	assert(query(r, "exact-ID-42", refs("body", "literal")...).Hits[0].Ref.ThreadID == "literal", "identifier match")
+	// Retired agent evidence is inert and stays untouched by normal browsing/search.
 	_, err = db.Update(ctx, func(tx *store.Tx) error {
-		if err := tx.Put("attention-thread:body", threadattention.Thread{Hidden: true, Revision: 1}); err != nil {
+		if err := tx.Put("attention-thread:body", model.Object{"hidden": true, "revision": 1}); err != nil {
 			return err
 		}
 		return tx.Put("attention-hidden:body", true)
 	})
 	must(err)
-	assert(len(query(r, "离线删除", refs("body")...).Hits) == 1 && db.Snapshot().Has("attention-hidden:body"), "collapsed card remains hidden and body-indexed on search hit")
-	invoke(r, "thread:record-visit", model.Object{"threadId": "body", "visitId": "aa000000-0000-4000-8000-000000000001", "elapsed": 0, "foreground": true, "completedExecution": "", "alreadyVisible": false, "searchOpen": true})
-	assert(!db.Snapshot().Has("attention-hidden:body"), "opening the search hit restores the ordinary card")
+	retiredHash, _ := db.Snapshot().RecordHash("attention-thread:body")
+	assert(len(query(r, "离线删除", refs("body")...).Hits) == 1, "retired visibility marker does not exclude search")
+	state, err := r.Snapshot()
+	must(err)
+	assert(!strings.Contains(string(raw(state)), `"attentionHidden"`), "retired visibility is absent from public projection")
+	retainedHash, _ := db.Snapshot().RecordHash("attention-thread:body")
+	assert(retiredHash == retainedHash && db.Snapshot().Has("attention-hidden:body"), "search and projection preserve retired records")
+	_, err = r.Invoke(ctx, "thread:record-visit", []json.RawMessage{raw(model.Object{})})
+	assert(err != nil, "retired visit command is rejected")
 	must(r.SetArchived(ctx, "body", true))
 	assert(len(query(r, "离线删除", refs("body")...).Hits) == 0, "archive immediately excludes body")
 	must(r.SetArchived(ctx, "body", false))
