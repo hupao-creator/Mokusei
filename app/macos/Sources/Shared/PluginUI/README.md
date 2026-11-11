@@ -76,6 +76,12 @@ readers, timeline columns/documents, composers and scroll containers. It does no
 sample animation presentation frames or read content/accessibility values.
 Overview also records bounded, anonymous logical relayout transactions (before, plan and terminal outcome), separate from geometry callbacks. Per-transaction card indices never contain model IDs or hashes. Individual timeline rows have no global geometry hook. IO failure stops collection
 and restores native observation flags without remounting focused product controls.
+The same session retains AttributeGraph warnings in a separate bounded incident
+journal, with stderr byte offsets and observation clocks. Reading-parent host
+operations supply caller stacks and byte enclosures only when stderr grows;
+these identify candidate application boundaries, not framework cycle stacks.
+`scripts/query-attributegraph.py` joins that evidence without contacting the app.
+See the layout logging guide for capture availability, retention and loss markers.
 
 Thread, Report, Git and Moku history panels share
 [`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).

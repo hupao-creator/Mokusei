@@ -44,6 +44,9 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
         var records: [NativeLayoutRecord] = []
         var sequence: UInt64 = 0
         var dropped = 0
+        var incidents: [NativeLayoutIncident] = []
+        var incidentSequence: UInt64 = 0
+        var incidentsDropped = 0
         var closed = false
         var finishing = false
     }
@@ -57,6 +60,9 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
     private var bytes = 0
     private var segment = 0
     private var failed = false
+    private var incidentFile: FileHandle?
+    private var incidentBytes = 0
+    private var incidentSegment = 0
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .millisecondsSince1970
@@ -65,6 +71,7 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
     private static let segmentBytes = 8 * 1024 * 1024
     private static let retainedSegments = 4
     private static let maximumPending = 4096
+    private static let incidentSegmentBytes = 1024 * 1024
 
     init(directory root: URL, onFailure: @escaping @Sendable () -> Void) {
         self.onFailure = onFailure
@@ -77,6 +84,7 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
                 guard lease >= 0, flock(lease, LOCK_EX | LOCK_NB) == 0 else { throw CocoaError(.fileWriteUnknown) }
                 prune(root)
                 try openSegment()
+                try openIncidentSegment()
                 let timer = DispatchSource.makeTimerSource(queue: queue)
                 timer.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250), leeway: .milliseconds(50))
                 timer.setEventHandler { [weak self] in self?.drain() }
@@ -97,14 +105,40 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
         }
     }
 
+    func appendIncident(_ incident: NativeLayoutIncident) {
+        pending.withLock { state in
+            guard !state.closed else { return }
+            state.incidentSequence &+= 1
+            guard state.incidents.count < 256 else { state.incidentsDropped += 1; return }
+            var incident = incident
+            incident.sequence = state.incidentSequence
+            state.incidents.append(incident)
+        }
+    }
+
     private func drain() {
         let batch = pending.withLock { state in
-            let batch = (state.records, state.dropped, state.sequence)
+            let batch = (state.records, state.dropped, state.sequence,
+                         state.incidents, state.incidentsDropped, state.incidentSequence)
             state.records = []; state.dropped = 0
+            state.incidents = []; state.incidentsDropped = 0
             return batch
         }
         guard !failed else { return }
         do {
+            // Incidents have independent admission and retention, so a busy
+            // geometry stream cannot evict the only evidence of a warning.
+            for incident in batch.3 {
+                var line = try encoder.encode(incident); line.append(10)
+                if incidentBytes + line.count > Self.incidentSegmentBytes {
+                    try incidentFile?.close(); incidentSegment += 1; try openIncidentSegment()
+                }
+                try incidentFile?.write(contentsOf: line); incidentBytes += line.count
+            }
+            if batch.4 > 0 {
+                let gap = try json(["kind": "dataLoss", "dropped": batch.4, "throughSequence": batch.5])
+                try incidentFile?.write(contentsOf: gap); incidentBytes += gap.count
+            }
             // One write per batch/segment, rather than one syscall per view.
             var data = Data()
             for record in batch.0 {
@@ -128,6 +162,35 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
     }
 
     private func segmentURL(_ index: Int) -> URL { directory.appendingPathComponent("events-\(index).jsonl") }
+
+    private func incidentURL(_ index: Int) -> URL { directory.appendingPathComponent("incidents-\(index).jsonl") }
+
+    private func openIncidentSegment() throws {
+        let descriptor = open(incidentURL(incidentSegment).path, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW, 0o600)
+        guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        incidentFile = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        var header: [String: Any] = ["kind": "session", "schema": 1,
+            "session": directory.lastPathComponent, "pid": ProcessInfo.processInfo.processIdentifier,
+            "time": Date().timeIntervalSince1970 * 1000, "uptimeNs": DispatchTime.now().uptimeNanoseconds,
+            "segment": incidentSegment, "overwrittenSegments": max(0, incidentSegment - 3),
+            "os": ProcessInfo.processInfo.operatingSystemVersionString,
+            "tailMayBeLostUnlessSessionEnd": true, "boundaryStackIsCycleStack": false]
+        // Packaged hashes identify the actual binaries, not the checkout that
+        // happens to be current when someone reads this recording later.
+        if let url = Bundle.main.url(forResource: "build-provenance", withExtension: "json"),
+           let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 64 * 1024,
+           let data = try? Data(contentsOf: url),
+           let provenance = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+            header["build"] = provenance.filter {
+                ["channel", "configuration", "executableInputSHA256", "runtimeInputSHA256"].contains($0.key)
+            }
+        } else { header["buildUnavailable"] = true }
+        let data = try json(header)
+        try incidentFile?.write(contentsOf: data); incidentBytes = data.count
+        // Preserve the first evidence plus the newest three segments. Geometry
+        // rotation never removes these; whole-session pruning still applies.
+        if incidentSegment > 3 { try FileManager.default.removeItem(at: incidentURL(incidentSegment - 3)) }
+    }
 
     private func openSegment() throws {
         let descriptor = open(segmentURL(segment).path, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW, 0o600)
@@ -174,7 +237,7 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
     private func fail(_ error: Error) {
         guard !failed else { return }
         failed = true
-        pending.withLock { $0.closed = true; $0.records.removeAll() }
+        pending.withLock { $0.closed = true; $0.records.removeAll(); $0.incidents.removeAll() }
         timer?.cancel(); timer = nil
         // Stop UI collection before any potentially slow close. Reporting uses
         // unified logging, never the failed file or a possibly full stderr pipe.
@@ -190,6 +253,7 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
         // userInfo or paths, which can contain caller-owned strings.
         Logger(subsystem: "com.mokusei.desktop", category: "layout").error("Layout log IO failed domain=\(domain, privacy: .public) code=\(failure.code); collection stopped; diagnostic tail may be lost")
         try? file?.close(); file = nil
+        try? incidentFile?.close(); incidentFile = nil
         if lease >= 0 { close(lease); lease = -1 }
     }
 
@@ -207,9 +271,12 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
             drain()
             do {
                 if !failed { try file?.write(contentsOf: json(["kind": "sessionEnd", "segment": segment])) }
+                if !failed { try incidentFile?.write(contentsOf: json(["kind": "sessionEnd", "segment": incidentSegment])) }
                 try file?.close()
+                try incidentFile?.close()
             } catch { fail(error) }
             file = nil
+            incidentFile = nil
             if lease >= 0 { close(lease); lease = -1 }
         }
     }

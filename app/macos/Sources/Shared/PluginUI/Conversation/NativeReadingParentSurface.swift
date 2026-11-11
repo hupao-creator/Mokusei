@@ -22,6 +22,7 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
 @MainActor final class NativeReadingParentView: NSView {
     private let hosting = NSHostingView(rootView: AnyView(EmptyView()))
     private var freezeRequested = false
+    private let diagnosticID = UUID()
 
     override var isFlipped: Bool { true }
     override init(frame frameRect: NSRect) {
@@ -37,18 +38,30 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
     func update(content: AnyView, frozen: Bool) {
         freezeRequested = frozen
         if frozen {
-            hosting.isHidden = true
+            NativeLayoutDiagnostics.operation("reading.parent.hide", component: diagnosticID) {
+                hosting.isHidden = true
+            }
         } else {
-            hosting.rootView = content
-            hosting.frame = bounds
-            hosting.isHidden = false
+            NativeLayoutDiagnostics.operation("reading.parent.content", component: diagnosticID) {
+                hosting.rootView = content
+            }
+            NativeLayoutDiagnostics.operation("reading.parent.frame", component: diagnosticID) {
+                hosting.frame = bounds
+            }
+            NativeLayoutDiagnostics.operation("reading.parent.show", component: diagnosticID) {
+                hosting.isHidden = false
+            }
         }
     }
 
     override func layout() {
         super.layout()
         // The hidden tree keeps its last viewport until return preparation.
-        if !hosting.isHidden { hosting.frame = bounds }
+        if !hosting.isHidden {
+            NativeLayoutDiagnostics.operation("reading.parent.layout", component: diagnosticID) {
+                hosting.frame = bounds
+            }
+        }
     }
     override func hitTest(_ point: NSPoint) -> NSView? {
         freezeRequested ? nil : super.hitTest(point)
@@ -57,6 +70,8 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
         freezeRequested ? [] : super.accessibilityChildren()
     }
     func retire() {
-        hosting.rootView = AnyView(EmptyView())
+        NativeLayoutDiagnostics.operation("reading.parent.retire", component: diagnosticID) {
+            hosting.rootView = AnyView(EmptyView())
+        }
     }
 }
