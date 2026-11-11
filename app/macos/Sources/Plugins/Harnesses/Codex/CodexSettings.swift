@@ -284,7 +284,7 @@ public struct CodexThreadSettingsView: View {
 public struct CodexHarnessSettingsView: View {
     public let props: HarnessSettingsProps<CodexHarnessSettings, CodexSettingsPresentationData>
     @State private var lastReady: CodexStableModels?
-    @State private var pendingProfile: CodexThreadSettings?
+    @NativeSettingsEditorState("pendingProfile", blocksCommit: { $0 != nil }) private var pendingProfile: CodexThreadSettings? = nil
     @Environment(\.locale) private var locale
 
     public init(props: HarnessSettingsProps<CodexHarnessSettings, CodexSettingsPresentationData>) { self.props = props }

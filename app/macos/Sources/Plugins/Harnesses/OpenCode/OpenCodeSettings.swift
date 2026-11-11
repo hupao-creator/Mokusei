@@ -254,7 +254,7 @@ public struct OpenCodeThreadSettingsView: View {
 }
 public struct OpenCodeHarnessSettingsView: View {
     public let props: HarnessSettingsProps<OpenCodeHarnessSettings, OpenCodeSettingsPresentationData>
-    @State private var pendingProfile: JSONValue?
+    @NativeSettingsEditorState("pendingProfile", blocksCommit: { $0 != nil }) private var pendingProfile: JSONValue? = nil
     @Environment(\.locale) private var locale
     public init(props: HarnessSettingsProps<OpenCodeHarnessSettings, OpenCodeSettingsPresentationData>) { self.props = props }
     public var body: some View {

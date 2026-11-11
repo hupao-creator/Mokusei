@@ -75,24 +75,30 @@ struct NativeSettingsUserFlows {
         }
         defer { draft.discardForReload() }
         draft.runtimeAvailable = true
+        draft.beginPageEditing()
         draft.change(replace(draft.value, ["moku", "routingGuidance"], .text("")))
         #expect(draft.value["moku"]?["routingGuidance"] == .text(""))
         #expect(draft.saved["moku"]?["routingGuidance"] == .null && submitted.isEmpty)
 
         draft.change(replace(draft.value, ["harnesses", "fixture"], .object(["model": .text("new model")])))
-        try await eventually("unrelated settings save completes") { draft.revision == 2 && draft.status == .saved }
+        try await eventually("unrelated settings save completes") { draft.revision == 2 && draft.status == .pending }
         #expect(draft.value["moku"]?["routingGuidance"] == .text(""))
         #expect(draft.saved["moku"]?["routingGuidance"] == .null)
         #expect(submitted.count == 1 && submitted.first?["moku"]?["routingGuidance"] == .null)
 
         draft.change(replace(draft.value, ["moku", "routingGuidance"], .text("  specific guidance  ")), textEdit: true)
         draft.flushText()
+        #expect(submitted.count == 1 && draft.saved["moku"]?["routingGuidance"] == .null)
+        try #require(draft.prepareClose())
         try await eventually("routing guidance save completes") { draft.revision == 3 && draft.status == .saved }
         #expect(draft.value["moku"]?["routingGuidance"] == .text("  specific guidance  "))
         #expect(draft.saved["moku"]?["routingGuidance"] == .text("specific guidance"))
 
+        draft.beginPageEditing()
         draft.change(replace(draft.value, ["moku", "routingGuidance"], .text("")), textEdit: true)
         draft.flushText()
+        #expect(submitted.count == 2 && draft.saved["moku"]?["routingGuidance"] == .text("specific guidance"))
+        try #require(draft.prepareClose())
         try await eventually("cleared routing guidance save completes") { draft.revision == 4 && draft.status == .saved }
         #expect(draft.value["moku"]?["routingGuidance"] == .null)
         #expect(draft.saved["moku"]?["routingGuidance"] == .null)
@@ -168,9 +174,11 @@ struct NativeSettingsUserFlows {
             try await eventually("restore defaults") { draft.status == .saved && draft.saved["harnesses"]?["codex"]?["threadSettings"]?["model"] == nil }
 
             draft.change(replace(draft.value, ["moku", "routingGuidance"], .text("save after I stop typing")), textEdit: true)
-            try await eventually("idle typing autosaves without an explicit flush") {
-                draft.status == .saved && draft.saved["moku"]?["routingGuidance"] == .text("save after I stop typing")
-            }
+            draft.flushText()
+            #expect(draft.saved["moku"]?["routingGuidance"] != .text("save after I stop typing"))
+            try presentation.performInteraction(.closeSettings)
+            try await eventually("close saves staged typing") { draft.status == .saved && draft.saved["moku"]?["routingGuidance"] == .text("save after I stop typing") }
+            try presentation.performInteraction(.openSettings)
 
             let beforeQuitFlush = draft.revision
             draft.change(replace(draft.value, ["moku", "routingGuidance"], .text("  immediate quit edit  ")), textEdit: true)
@@ -205,7 +213,10 @@ struct NativeSettingsUserFlows {
             #expect(draft.saved["moku"]?["routingGuidance"] == .text("中文输入 🚀"))
             draft.change(replace(draft.value, ["moku", "routingGuidance"], .text(" \n\t ")), textEdit: true)
             draft.flushText()
+            #expect(draft.saved["moku"]?["routingGuidance"] == .text("中文输入 🚀"))
+            try presentation.performInteraction(.closeSettings)
             try await eventually("cleared text is persisted as null") { draft.status == .saved && draft.saved["moku"]?["routingGuidance"] == .null }
+            try presentation.performInteraction(.openSettings)
 
             // Invalid input remains editable; it does not block an independent
             // valid field. Then correcting it allows a normal close.
@@ -293,7 +304,7 @@ struct NativeSettingsUserFlows {
     }
 
     /// The real page binds its production NSTextView to the Runtime-backed
-    /// draft. Waiting for autosave must not shift the editor's native Undo ranges.
+    /// draft. Accepting a quit snapshot must not shift native Undo ranges.
     private func routingUndoFlow(model: NativeSettingsModel, presentation: NativeWorkspacePresentation,
                                  preferences: DesktopPreferences) async throws {
         let draft = model.draft
@@ -326,9 +337,10 @@ struct NativeSettingsUserFlows {
         editor.insertText(" X ", replacementRange: NSRange(location: 0, length: 0))
         editor.breakUndoCoalescing()
         #expect(editor.string == " X ABC")
-        try await eventually("native routing edit autosaves") {
-            draft.status == .saved && draft.saved["moku"]?["routingGuidance"] == .text("X ABC")
-        }
+        try await SwiftUIReplay.wait { draft.value["moku"]?["routingGuidance"] == .text(" X ABC") }
+        #expect(draft.saved["moku"]?["routingGuidance"] == .text("ABC"))
+        try await draft.flushForQuit()
+        #expect(draft.status == .saved && draft.saved["moku"]?["routingGuidance"] == .text("X ABC"))
         try await SwiftUIReplay.wait { editor.string == " X ABC" }
         #expect(draft.value["moku"]?["routingGuidance"] == .text(" X ABC"))
         try #require(undo.canUndo)

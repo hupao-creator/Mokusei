@@ -13,6 +13,8 @@ public struct NativeApplicationBackgroundEditor: View {
     private let value: ApplicationBackgroundExecutionSettings
     private let change: (ApplicationBackgroundExecutionSettings) -> Void
     @Environment(\.nativeSettingsCompactPresentation) private var onboarding
+    @Environment(\.nativeSettingsEditorDrafts) private var editorDrafts
+    @Environment(\.nativeSettingsRowVerticalPadding) private var rowPadding
 
     public init(workspace: NativeWorkspaceModel, settingsModel: NativeSettingsModel, settingID: JSONText,
                 value: ApplicationBackgroundExecutionSettings,
@@ -49,7 +51,8 @@ public struct NativeApplicationBackgroundEditor: View {
             locale.text("停止当前 Agent 并暂停自动处理。保留已有数据、待处理任务和运行配置，重新开启后继续处理。",
                         "Stops this Agent and pauses automatic processing. Existing data, pending work and execution settings are kept; enabling resumes pending work.")
         case .inherit:
-            locale.text("使用下方 Moku 当前保存的配置。修改 Moku 后，从下个任务开始采用新配置；保留已有的单独配置。",
+            editorDrafts != nil ? locale.text("使用此设置页中的 Moku 配置，关闭设置时一并保存；保留已有的单独配置。",
+                        "Uses Moku’s configuration in this Settings draft. Both are saved when Settings closes; your separate settings are kept.") : locale.text("使用下方 Moku 当前保存的配置。修改 Moku 后，从下个任务开始采用新配置；保留已有的单独配置。",
                         "Uses Moku’s saved settings shown below. Changes to Moku apply to the next task. Your separate settings are kept.")
         case .independent:
             locale.text("独立保存运行配置，修改从下个任务开始生效。切换到跟随 Moku 或关闭 Agent 后，仍保留此配置。",
@@ -110,7 +113,9 @@ public struct NativeApplicationBackgroundEditor: View {
                     HStack(spacing: 12) {
                         host.logo(size: 24)
                         Text(host.descriptor.displayName.string).font(.system(size: 13, weight: .medium))
-                    }.padding(.top, 15)
+                    // Match the first form row's 32pt content area and its
+                    // inherited vertical padding, rather than aligning tops.
+                    }.frame(height: 32).padding(.top, rowPadding)
                     VStack(alignment: .leading, spacing: 8) {
                         if !harnesses.contains(where: { $0.descriptor.id == host.descriptor.id }) {
                             NativeSettingsNotice(message: locale.text("Moku 当前选择的 Agent 不可用，请先检查 Moku 配置。",
@@ -190,7 +195,7 @@ public struct NativeApplicationBackgroundEditor: View {
         if inherited {
             // Follow the saved Moku resource even while an application's mode
             // change is still saving; its old independent catalog is unrelated.
-            return .init(harnessID: id, cwd: cwd, source: effective.harnesses[id] ?? .null,
+            return .init(harnessID: id, cwd: cwd, source: settingsModel.savedSettings["moku"]?["executionHarnesses"]?[id.string] ?? .null,
                          scope: .global(executionOwner: .moku))
         }
         let saved = try savedApplicationSettings()
@@ -201,14 +206,18 @@ public struct NativeApplicationBackgroundEditor: View {
     private func effectiveSettings(_ settings: ApplicationBackgroundExecutionSettings) throws
         -> ApplicationBackgroundExecutionSettings.Overrides {
         switch settings.mode {
-        case .inherit: return try savedMokuSettings()
+        case .inherit: return try mokuSettings(editorDrafts == nil ? settingsModel.savedSettings : settingsModel.draft.value)
         case .override(let overrides): return overrides
         }
     }
 
     private func savedMokuSettings() throws -> ApplicationBackgroundExecutionSettings.Overrides {
-        guard case .string(let preference) = settingsModel.savedSettings["moku"]?["hostHarnessPreference"],
-              case .object(let harnesses) = settingsModel.savedSettings["moku"]?["executionHarnesses"] else {
+        try mokuSettings(settingsModel.savedSettings)
+    }
+
+    private func mokuSettings(_ source: JSONValue) throws -> ApplicationBackgroundExecutionSettings.Overrides {
+        guard case .string(let preference) = source["moku"]?["hostHarnessPreference"],
+              case .object(let harnesses) = source["moku"]?["executionHarnesses"] else {
             throw PluginContractError("Invalid saved Moku execution settings")
         }
         return try .init(harnessPreference: preference, harnesses: harnesses)
@@ -222,7 +231,8 @@ public struct NativeApplicationBackgroundEditor: View {
         let saved = try ApplicationBackgroundExecutionSettings(json: settings)
         let inherited: Bool
         if case .inherit = saved.mode { inherited = true } else { inherited = false }
-        return (try effectiveSettings(saved), inherited)
+        if case .override(let overrides) = saved.mode { return (overrides, false) }
+        return (try savedMokuSettings(), inherited)
     }
 
     private func selectChoice(_ choice: AgentChoice) {
@@ -233,7 +243,7 @@ public struct NativeApplicationBackgroundEditor: View {
             let mode: ApplicationBackgroundExecutionSettings.Mode
             switch (choice, value.mode) {
             case (.inherit, .override(let overrides)): mode = .inherit(independent: overrides)
-            case (.independent, .inherit(let independent)): mode = .override(try independent ?? savedMokuSettings())
+            case (.independent, .inherit(let independent)): mode = .override(try independent ?? mokuSettings(editorDrafts == nil ? settingsModel.savedSettings : settingsModel.draft.value))
             default: mode = value.mode
             }
             NativeSettingsChangeContext.withDiscreteChange {

@@ -2,6 +2,13 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+Settings role editors can opt into `NativeSettingsEditorDrafts` and
+`NativeSettingsEditorState` to retain incomplete plugin input across unmounts.
+Storage is local to the Settings visit and interaction scope; complete values still
+leave the plugin through its typed change callback. Entries can report incomplete
+choices to the Host's close gate. Without that environment, the wrapper retains
+ordinary view-local state, preserving other settings and onboarding behavior.
+
 Moku's eye character is drawn by the Host's vector renderer. The sphere-specific
 Moku Map PNG resources, loader and Harness gradient palette have been removed;
 application icon resources remain independent.
