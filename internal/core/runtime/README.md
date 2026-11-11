@@ -197,6 +197,13 @@ select requested event identities before pagination and join only their outcomes
 
 [scope_agents.go](scope_agents.go), [background_scope.go](background_scope.go) and [lifecycle_capability.go](lifecycle_capability.go) bind background instances to explicit directory scopes. Inbox is a valid scope, distinct from global authority. Task reads, events and private-session access intersect the owner's binding. Report and Tag use per-directory instances; their native sessions initialize lazily and are disposed when idle.
 
+The title-only ordinary-task inventory snapshot in [capabilities.go](capabilities.go)
+reads the host-captured immutable snapshot, filters by the explicitly bound
+directory and excludes archived Threads, Moku and retained Moku history. Report
+joins those identities with its binding index before each actual background send
+to list unclassified Threads; inventory does not expose execution status or
+history and cannot substitute for successful-execution evidence.
+
 ## Coordination state lifetime
 
 Command locks count both holders and waiters. Only the final lease release

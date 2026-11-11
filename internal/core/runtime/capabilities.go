@@ -42,7 +42,32 @@ func (r *Runtime) RuntimeCapabilities(pluginID string) plugin.CapabilityAccess {
 	return capabilityAccess{values: values, phase: "runtime"}
 }
 func (r *Runtime) SnapshotCapabilities(snapshot store.Snapshot, issue func(string, int64) (plugin.MutationScope, error)) plugin.CapabilityAccess {
-	return capabilityAccess{phase: "snapshot", values: map[string]any{plugin.OrdinaryTaskSnapshotCapabilityKey.ID: taskSnapshotCapability{runtime: r, snapshot: snapshot, issue: issue}, plugin.SemanticTagsSnapshotCapabilityKey.ID: tagsSnapshotCapability{r, snapshot, issue}}}
+	return capabilityAccess{phase: "snapshot", values: map[string]any{
+		plugin.OrdinaryTaskSnapshotCapabilityKey.ID:          taskSnapshotCapability{runtime: r, snapshot: snapshot, issue: issue},
+		plugin.OrdinaryTaskInventorySnapshotCapabilityKey.ID: taskInventorySnapshotCapability{snapshot},
+		plugin.SemanticTagsSnapshotCapabilityKey.ID:          tagsSnapshotCapability{r, snapshot, issue},
+	}}
+}
+
+type taskInventorySnapshotCapability struct{ snapshot store.Snapshot }
+
+func (c taskInventorySnapshotCapability) List(scope string) ([]plugin.OrdinaryTaskIdentity, error) {
+	binding := plugin.ScopeBinding{Kind: plugin.DirectoryScopeKind, Scope: scope}
+	if err := binding.Validate(); err != nil {
+		return nil, err
+	}
+	threads, err := readThreads(c.snapshot)
+	if err != nil {
+		return nil, err
+	}
+	result := []plugin.OrdinaryTaskIdentity{}
+	for _, thread := range threads {
+		if thread.Moku || thread.MokuHistory || archived(&thread) || !binding.Allows(directorytag.Scope(thread.Cwd)) {
+			continue
+		}
+		result = append(result, plugin.OrdinaryTaskIdentity{ID: thread.ID, Title: thread.Title})
+	}
+	return result, nil
 }
 
 type taskReadCapability struct {

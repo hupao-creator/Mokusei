@@ -12,10 +12,11 @@ documents, native history and mutation receipts.
 
 Super Thread Agent's exclusive tool bindings are `create_report`, `list_reports`,
 `read_report` and `update_report`. It uses automatically delivered successful
-execution evidence and saved reports. It cannot enumerate ordinary tasks, query
-current task status, look up historical lifecycle events or ask model-based
-source-history questions. Earlier evidence absent from its current context and
-saved reports cannot be recovered by the agent. Moku's task tools are independent.
+execution evidence, saved reports and the scoped title-only inventory described
+below. It cannot query current task status, look up historical lifecycle events
+or ask model-based source-history questions. Earlier evidence absent from its
+current context and saved reports cannot be recovered by the agent. Moku's task
+tools are independent.
 
 The operational prompt describes the delivered evidence and report content
 requirements without prescribing tool invocation. The verbatim ELI5 snapshot
@@ -34,6 +35,52 @@ an empty summary stays empty. Delivery does not synthesize a final reply or
 substitute the thread's current execution. See the host's
 [shared delivery contract](../../../hosts/applicationhost/README.md#lifecycle-batch-delivery)
 for size, retry and disclosure limits.
+
+## Wake statusbar
+
+Every actual initial, retry or steering send captures `report.statusbar` afresh
+and appends its JSON after the unchanged lifecycle event array. The snapshot is
+`scope`, opaque content `revision`, and `unassignedThreads` (ID/title only, sorted
+by ID). It lists all current unarchived ordinary Threads in the instance's
+Directory Scope, including Inbox, that have no Super Thread owner. It does not
+filter by execution status or by the triggering event. Moku, retained Moku history,
+private sessions and other scopes are excluded. A bound Thread remains classified
+when its current execution changes or its Super Thread is archived. Historical
+bindings in other scopes also exclude it, without exposing those owners. User
+unlink, report-reference edits, archive/restore, title changes and deletion are
+reflected at the next send; they do not create new wake triggers.
+
+[statusbar.go](statusbar.go) joins title-only inventory and the host's complete
+binding index from one immutable store snapshot. The background-only query has
+no model tool binding and accepts no scope supplied by the model. It requires
+only a snapshot inventory capability, without task history or current execution
+reads. Apart from the existing host-owned scope identity, full reports, HTML,
+covers, per-Thread working directories, private sessions, tools and diagnostic
+bodies are absent. The existing four report tools remain unchanged.
+
+The version changes only when the scoped unassigned ID/title content changes;
+it is not an `expectedRevision` for report writes. Membership is advisory and
+can change concurrently. Existing full-report read, record CAS, binding checks
+and durable write receipts remain authoritative. An unassigned Thread is not
+evidence of completion and does not require a report. Titles are untrusted text;
+snapshot content is evidence, never instructions granting authority.
+Delivered successful-execution data and saved reports
+remain the only report-content evidence; missing historic execution evidence
+is not reconstructed from this inventory.
+
+The shared `sendEvents` path covers lazy first admission, later idle batches,
+failure retries, pending work after restart, re-enablement after pause, and new
+events steering a running execution. Each send takes a new snapshot after native
+configuration preparation. Merely reconnecting an already admitted running
+execution does not send input, replay events, spend an attempt or replace its
+in-flight context. Its next actual send refreshes the snapshot. Already completed
+recovered work settles without an unnecessary model wake. Query failures prevent
+the send and follow existing retry/cancellation handling; no empty success is
+substituted. Delivery keeps the existing input-size limits and never silently
+truncates the unassigned list. Oversized input fails through the same retry path.
+
+No UI status bar or new completion, polling, title-change or report-write wake is
+introduced. The verbatim writing skill and report presentation remain unchanged.
 
 `report.settings.enabled` defaults to true when omitted and operates independently
 of Tag. Disabling revokes the active attempt and tool lifetime, interrupts/closes
