@@ -80,7 +80,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
 
     private var locale: DesktopLocale { preferences.locale }
     private var activeApplications: [NativeApplicationSettingsSection] {
-        applicationSections.filter { definition in model.plugins.first { $0.key == "extension:\(definition.owner)" }?.enabled != false }
+        applicationSections.filter { definition in sections.contains(definition.id) }
     }
     private var sections: [String] { NativeSettingsNavigation.sections(model: model, applications: applicationSections) }
     private var activeSection: String { sections.contains(navigation.section) ? navigation.section : "general" }
@@ -124,6 +124,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             })
             .background(SettingsNavigationInputObserver { keyboardNavigation = $0 })
             .onAppear {
+                model.draft.beginPageEditing()
                 model.draft.diagnostics.record(.page, .opened, revision: model.draft.revision)
                 navigation.mounted = true
                 focusedBack = true
@@ -316,7 +317,8 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 } else if let application = activeApplications.first(where: { $0.id == activeSection }) {
                     applicationContent(application)
                 }
-            }.id(activeSection)
+            }.environment(\.nativeSettingsEditorDrafts, model.draft.editorDrafts)
+                .id(activeSection + model.draft.editorDrafts.generation.uuidString)
         } else if let application = activeApplications.first(where: { $0.id == activeSection }), model.runtimeAvailable {
             applicationContent(application)
         }
@@ -508,6 +510,9 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
         navigation.section = sections[next]; focusedTab = navigation.section
     }
     private func localizedError(_ text: String) -> String {
+        if text == NativeSettingsNavigation.incompleteEditError {
+            return locale.text(text, "Complete the model configuration before closing Settings.")
+        }
         if model.draft.conflicted { return locale.text(text, "Settings changed in another client. Your draft is retained. Keep my changes and retry merges independent changes and keeps your edits for overlapping fields.") }
         return text
     }

@@ -389,7 +389,8 @@ public final class NativeWorkspacePresentation {
     }
     public func openSettings() {
         guard canOpenSettings else { workspace.settingsOpen = scene.settingsOpen; return }
-        if !scene.settingsOpen {
+        if !scene.settingsOpen || scene.settingsClosing {
+            workspace.settingsModel.draft.beginPageEditing()
             settingsNavigation.visit = UUID()
             settingsNavigation.section = workspace.settingsModel.runtimeAvailable ? "moku" : "general"
         }

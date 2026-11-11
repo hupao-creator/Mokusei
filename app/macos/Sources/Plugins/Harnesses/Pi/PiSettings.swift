@@ -180,7 +180,7 @@ struct PiThreadSettingsView: View {
 
 struct PiHarnessSettingsView: View {
     let props: HarnessSettingsProps<JSONValue, JSONValue>
-    @State private var pendingProfile: JSONValue?
+    @NativeSettingsEditorState("pendingProfile", blocksCommit: { $0 != nil }) private var pendingProfile: JSONValue? = nil
     @Environment(\.locale) private var locale
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

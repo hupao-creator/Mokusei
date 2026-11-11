@@ -12,7 +12,7 @@ selection, Undo, label activation and the draft close/save gate.
 | Settings surface | Native interactions |
 | --- | --- |
 | General | Appearance/language popups, Agent/install buttons, cancel and destructive clear buttons |
-| Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons |
+| Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons (Claude Code omits its local-detail refresh button; acquisition and load-error recovery remain) |
 | Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing preset capsules and custom text editor |
 | Report and Tag | Off/inherited/independent filled choices, Harness seats, native execution fields and live capability animations |
 
@@ -21,17 +21,20 @@ Moku and Configure separately, in both Settings and onboarding. A contextual
 explanation remains visible below the choices. Off hides execution fields and
 preserves both the underlying source mode and retained independent settings.
 Selecting either enabled choice updates enablement and source in one draft
-change; the first independent choice copies saved Moku settings only when no
+change; the first independent choice copies the current Moku draft in Settings
+(saved Moku settings elsewhere) only when no
 independent settings have been retained. Selecting the current choice is a no-op.
-Mode choices use the discrete-change save path rather than the text debounce,
-while preserving composition and pending-save gates.
+Settings stages mode choices alongside all other role edits until page close;
+onboarding retains its discrete-change save path and readiness gates.
 The save revokes active work and pauses automatic processing without removing
 existing reports, tags or pending work. Re-enabling resumes after native cleanup.
 The workspace does not prefetch execution resources for disabled roles. A
 disabled role is ready to continue without an available execution profile.
 
-Report and Tag show the saved Moku execution profile beside the inherited Agent
-in both Settings and onboarding. The read-only details reuse the Harness's native
+Report and Tag show the current Moku draft beside the inherited Agent in Settings,
+and the saved profile in onboarding. The Agent icon/title is centered in the same
+32-point first-row content area as the model label/control, using the form's
+vertical padding. The read-only details reuse the Harness's native
 fields and catalog statuses, including model, reasoning and other execution
 parameters. They join Moku's saved resource even while a role-mode save is pending,
 so a retained independent profile cannot supply the inherited details or catalog.
@@ -146,12 +149,38 @@ preferences while disconnected.
 
 [NativeSettingsModel](NativeSettingsModel.swift) loads public settings and Harness presentation. [NativeSettingsDraft](NativeSettingsDraft.swift) keeps editable, ready and committed state separately. Page, control and native text-editor adapters present that state; the [Runtime](../../../../../internal/core/runtime/README.md#settings) remains persistence and validation authority.
 
-Text edits debounce with IME protection; complete option changes can save immediately. Incomplete model-dependent choices remain visible locally instead of submitting guessed defaults. Changing model/provider updates dependent options together using the advertised schema. Opening initialized settings reuses saved execution profiles; explicit refresh reloads native catalog facts.
+Opening Settings starts a page-owned commit boundary for the entire `moku`
+configuration and the `tag.settings`/`report.settings` records. Every choice,
+switch and text field edits the retained draft. Debounce, blur, composition
+completion, reconnect, explicit retry and saves from other sections exclude these
+unaccepted role edits. General/local preferences, other application settings and
+onboarding retain their existing persistence behavior. Attention's setting entry
+and page are temporarily hidden, including semantic navigation; its registration,
+background functionality and stored configuration remain intact.
+
+Close, Escape, backdrop and semantic navigation accept the three roles in one
+settings snapshot. Quit also accepts and awaits that snapshot before teardown.
+Invalid guidance, active IME composition or incomplete active model choices block
+closing and keep the editor available. Plugin-local incomplete profiles and Claude
+custom text live in a visit-owned, scope-keyed editor draft across tab, Harness and
+mode changes; inactive/off configurations do not block closing. Complete dependent
+model/provider choices still emit one typed group through the advertised schema.
+Opening initialized settings reuses saved execution profiles; explicit refresh
+reloads native catalog facts without writing the draft.
+
+The accepted write outlives the page animation. Reopening while it is in flight
+starts a new boundary, so later edits cannot drain into the earlier close's write.
+Offline close retains an accepted pending snapshot for reconnect. Failures retain
+the exact draft, expose the existing global error/reopen path and keep retry and
+revision-conflict reconciliation available. A rejected quit restores the open
+page's boundary. Successful normalized responses rebase later edits without
+overwriting them; inherited Tag/Report previews follow the Moku draft while their
+catalog reads continue to use saved resource identities.
 
 Returning a local draft to its saved value adopts any newer streamed settings
 without issuing a redundant write. Persisted routing guidance is normalized,
 while the nonempty editor retains its exact text and native Undo ranges after
-autosave. Equivalent saved text still adopts unrelated streamed settings without
+save. Equivalent saved text still adopts unrelated streamed settings without
 an unnecessary write. Later typing and an enabled empty routing editor remain
 intact when unrelated fields save. Saving a change from nonempty guidance to
 empty text still stores null and closes the editor.
@@ -229,9 +258,9 @@ text editor and is saved explicitly, including when empty. With no saved preset,
 nonblank manual guidance opens as Custom; otherwise Balanced is selected.
 Opening Settings does not write or replace an existing preference. Selecting a preset and
 switching interface language never replaces that text. Tabs use discrete
-save semantics, retain keyboard/accessibility selection, and localize through
+draft semantics, retain keyboard/accessibility selection, and localize through
 `DesktopLocale` in Chinese and English. Custom text keeps its existing validation,
-composition, autosave and close-flush behavior. Runtime injects routing priorities without fixed model mappings or candidate
+composition and close-flush behavior. Runtime injects routing priorities without fixed model mappings or candidate
 groups; native creation admission still owns availability. See
 [model routing policy](../../../../../internal/services/moku/README.md#model-routing-preferences).
 `NativeModelRoutingPreferencesTests` mounts the real capsule controls and saves
@@ -312,7 +341,9 @@ expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
-Attention uses the standard background configuration editor for enablement, inherited Moku configuration and an independent execution profile. Its wake intervals and visible-thread threshold are product constants.
+Attention retains the standard background configuration contract for enablement,
+inherited Moku configuration and an independent execution profile, but its Settings
+entry is hidden. Its wake intervals and visible-thread threshold are product constants.
 
 
 The former Report Agent section is named **Super Thread Agent**. Its existing

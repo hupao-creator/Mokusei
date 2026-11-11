@@ -155,9 +155,9 @@ struct ClaudeHarnessSettingsView: View {
     let props: HarnessSettingsProps<ClaudeHarnessSettings,ClaudeSettingsPresentationData>
     @State private var stableModels: [JSONValue] = []
     @State private var stableCwd: JSONText?
-    @State private var modelText = ""
-    @State private var exactModel: JSONText = ""
-    @State private var pendingProfile: JSONValue?
+    @NativeSettingsEditorState("modelText") private var modelText = ""
+    @NativeSettingsEditorState("exactModel") private var exactModel: JSONText = ""
+    @NativeSettingsEditorState("pendingProfile", blocksCommit: { $0 != nil }) private var pendingProfile: JSONValue? = nil
     @Environment(\.locale) private var locale
     var body: some View {
         VStack(alignment: .leading, spacing: props.settingsFormPage ? 0 : 16) {
@@ -254,7 +254,9 @@ struct ClaudeHarnessSettingsView: View {
     }
     private func changeModelValue(_ raw:JSONText) {
         exactModel = raw; modelText = raw.string
-        guard claudeValidModel(modelText,required:props.executionSnapshot) else { return }
+        guard claudeValidModel(modelText,required:props.executionSnapshot) else {
+            pendingProfile = profile.claudeReplacing("model", .string(raw)); return
+        }
         var next = profile.claudeReplacing("model",raw.codeUnits.isEmpty ? nil : .string(raw))
         let model = models.first { $0["value"] == .string(raw) }
         let efforts = (props.executionSnapshot ? model?["thinking"]?["efforts"]?.arrayValue : model?["supportedEfforts"]?.arrayValue) ?? []
@@ -268,7 +270,7 @@ private struct ClaudeModelField: View {
     let models: [JSONValue]
     let required: Bool
     let disabled: Bool
-    @State private var custom = false
+    @NativeSettingsEditorState("customModel") private var custom = false
     @Environment(\.locale) private var locale
     @Environment(\.nativeSettingsFormPage) private var formPage
     private var selected: JSONValue? { models.first { $0["value"] == .string(value) } }
@@ -336,10 +338,12 @@ struct ClaudeSettingsResourceStatus: View {
     @State private var reloading = false
     @State private var error:String?
     @Environment(\.nativeSettingsFormPage) private var formPage
+    @Environment(\.nativeSettingsLocalAgentDetail) private var localAgentDetail
     @Environment(\.locale) private var locale
     var body: some View {
         if isCLI {
-            NativeSettingsCliStatus(label: "Claude Code", status: message, kind: tone, action: AnyView(refresh))
+            NativeSettingsCliStatus(label: "Claude Code", status: message, kind: tone,
+                                    action: localAgentDetail ? nil : AnyView(refresh))
         } else {
             NativeSettingsNotice(message: message, kind: tone, action: loading ? nil : AnyView(refresh))
         }
