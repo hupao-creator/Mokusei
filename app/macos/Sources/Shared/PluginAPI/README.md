@@ -116,7 +116,10 @@ The catalog title remains independent metadata and cannot fill a missing history
 entry. This envelope also persists through ordinary offline catalog recovery.
 
 `HarnessThread.mokuInterruptedExecutionID` decodes the optional nonblank
-`mokuInterruptedExecutionId` envelope field. Missing provenance remains unknown;
+`mokuInterruptedExecutionId` envelope field. `userInterruptedExecutionID` similarly
+decodes `userInterruptedExecutionId`, written only after an acknowledged user Stop
+of that exact execution. The two sources are never inferred from one another.
+Missing provenance remains unknown;
 the client preserves it through catalog snapshots, deltas and offline storage
 without inspecting private Harness state.
 

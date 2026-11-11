@@ -721,8 +721,12 @@ stays 21pt, with the existing terminal mark preserving a non-color status cue.
 Agent and Report cards share its upper-right placement and title clearance.
 Report uses the completed badge's accent-soft background without an execution
 terminal mark; Agent execution status and its terminal mark remain independent.
-The badge is status content, with an accessible label and tooltip, and has no Send button, hover swap, focus stop or
-message callback. Card activation stays with the surrounding host. Empty plans
+The badge is status content with an accessible label and tooltip. When the Host
+supplies `threadCardArchiveAction`, it becomes a 44pt independent archive button:
+card hover or keyboard focus swaps its contents for a close icon, with a localized
+archive label and tooltip. Pending requests disable the button; Return is consumed
+by it rather than opening the surrounding card. No Send or message callback is
+provided. Other card activation stays with the surrounding host. Empty plans
 render no section.
 The shared controls keep their original materials outside a card; this internal
 renderer policy is not a preference and does not identify plugins by name.

@@ -125,6 +125,8 @@ type ThreadRecord struct {
 	// Only a successful Moku interrupt tool call supplies this exact execution ID.
 	// Absence is unknown provenance, never evidence of a tool interruption.
 	MokuInterruptedExecutionID string `json:"mokuInterruptedExecutionId,omitempty"`
+	// Only an acknowledged user Stop supplies this exact execution ID.
+	UserInterruptedExecutionID string `json:"userInterruptedExecutionId,omitempty"`
 }
 
 type ThreadRef struct {

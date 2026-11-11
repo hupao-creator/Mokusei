@@ -107,6 +107,15 @@ The field records the successful host cancellation request, not native forensic
 evidence of which event physically stopped a process if an external native stop
 races that request. It changes presentation only, never status or archive state.
 
+User Stop retains `userInterruptedExecutionId` through the same cancellation gate
+and acknowledged terminal-outcome checks as tool provenance. Successful retention
+clears the other source marker. Lifecycle teardown, recovery settlement, failed or
+uncertain stops and background-only cancellation supply no user marker. Forks
+clear both markers; a later execution cannot reuse an earlier marker for archive
+eligibility. The native Overview offers quick archive only for this exact user
+interruption with no pending input or background work, using the existing
+`thread:set-archived` command and normal catalog invalidation.
+
 ## Settings
 
 [settings.go](settings.go) separates saved settings revision from streaming thread revisions. `app:update-settings` normalizes through the owning Harness and compares `expectedSettingsRevision` in the store transaction. A conflict returns the latest settings; invalid writes leave state unchanged. An unchanged save does not advance the revision.

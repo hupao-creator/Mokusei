@@ -190,6 +190,7 @@ private struct NativeOverviewWorkspaceCard: View {
     let callbacks: NativeOverviewWorkspaceCallbackStore
     @State private var lifetime = PluginLifetime()
     @State private var error: String?
+    @State private var archivePending = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.locale) private var locale
 
@@ -199,6 +200,8 @@ private struct NativeOverviewWorkspaceCard: View {
             case .harness(let snapshot):
                 let thread = snapshot.input.thread
                 snapshot.card(respond: { try await respond($0, thread: thread) }, openThread: { open(thread.id) })
+                    .environment(\.threadCardArchiveAction, archiveAction(for: thread))
+                    .environment(\.threadCardArchivePending, archivePending)
                     .environment(\.nativeThreadIdentityKey, thread.id.string)
                     .environment(\.threadCardLogo, { @MainActor in
                         (try? model.workspace.harnessHost.registry.require(thread.harnessID))?.logo(size: 12) ?? AnyView(EmptyView())
@@ -239,9 +242,36 @@ private struct NativeOverviewWorkspaceCard: View {
         .onDisappear { lifetime.cancel() }
     }
     private func open(_ id: JSONText) {
-        guard model.canvasState.allowsActivation(cardID: item.id) else { return }
+        guard !archivePending, model.canvasState.allowsActivation(cardID: item.id) else { return }
         callbacks.current.openThread(id, nil)
         Task { await model.recordUserAction(kind: "open-thread", thread: .init(threadID: id, typeID: JSONText("agent"))) }
+    }
+    private func archiveAction(for thread: HarnessThread) -> (@MainActor () -> Void)? {
+        guard canArchive(thread) else { return nil }
+        return { Task { await archive(thread.id) } }
+    }
+    private func canArchive(_ thread: HarnessThread) -> Bool {
+        guard thread.moku != true, !thread.mokuHistory, thread.archived != true,
+              !thread.pendingInput, thread.observation.backgroundWork == nil,
+              let execution = thread.observation.latestExecution else { return false }
+        return execution.status == .interrupted && thread.userInterruptedExecutionID == execution.executionID
+    }
+    private func archive(_ id: JSONText) async {
+        guard !archivePending, model.canvasState.allowsActivation(cardID: item.id),
+              let current = model.workspace.catalog.thread(id), canArchive(current) else { return }
+        archivePending = true
+        error = nil
+        model.canvasState.beginInteraction(cardID: item.id)
+        defer {
+            archivePending = false
+            model.canvasState.endInteraction(cardID: item.id)
+        }
+        do {
+            try lifetime.checkCancellation()
+            _ = try await model.workspace.client.invoke("thread:set-archived", args: [.string(id), .bool(true)])
+        } catch {
+            if !lifetime.isCancelled { self.error = error.localizedDescription }
+        }
     }
     private func respond(_ request: HarnessRespondRequest, thread: HarnessThread) async throws {
         model.canvasState.beginInteraction(cardID: item.id)
