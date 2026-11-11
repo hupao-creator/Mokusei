@@ -108,6 +108,7 @@ public struct ThreadConversation: View {
     @Environment(\.threadDetailNavigation) private var navigation
     @Environment(\.threadDetailRootNavigation) private var rootNavigation
     @State private var authors: [JSONText: JSONValue] = [:]
+    @State private var workAvailability: [JSONText: Bool] = [:]
     @State private var sidebarFocusRevision = 0
     @State private var userMessages = false
     @Environment(\.threadAgentDetail) private var agentDetail
@@ -335,6 +336,7 @@ public struct ThreadConversation: View {
                         .environment(\.threadDetailVisibility, visibility)
                         .environment(\.threadAuthorInHeader, true)
                         .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
+                        .onPreferenceChange(ThreadWorkPreference.self) { workAvailability = $0 }
                         .environment(\.nativeInteractionQuestionInDocument, true)
                         .allowsHitTesting(!readingPage).accessibilityHidden(readingPage)
                         .nativeReadingScope("current")
@@ -392,11 +394,16 @@ public struct ThreadConversation: View {
                 let authorID = visibleRows.first { $0.id == selected }?.execution?.id
                 ThreadReadingHeader(author: authorID.flatMap { authors[$0] },
                     authorResolved: authorID.map { authors[$0] != nil } ?? false, showsAuthor: authorID != nil,
-                    showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning, users: userMessages, work: work,
+                    showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning && (!agentDetail || hasDisplayableWork), users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
                     .padding(.top, showsDocumentHeading ? 12 : 0).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
         }
+    }
+    private var hasDisplayableWork: Bool {
+        let ids = visibleRows.filter { !$0.history && (!historicalIDs.contains($0.id) || $0.id == inlineRow) }
+            .compactMap { $0.execution?.id }
+        return ids.isEmpty || ids.contains { workAvailability[$0] != false } || workAvailability.values.contains(true)
     }
     private var documentTitle: String {
         if relatedExecution, let row = visibleRows.first(where: { $0.id == selectedRowID }) {
@@ -588,6 +595,7 @@ private struct ThreadHistoryDocument: View {
     @Environment(\.threadAgentDetail) private var agentDetail
     @State private var users = false
     @State private var authors: [JSONText: JSONValue] = [:]
+    @State private var workAvailability: [JSONText: Bool] = [:]
     @State private var manualWork: Bool?
     private var work: Bool { running || (manualWork ?? (result && active)) }
     @Environment(\.nativeReadingInteractionActive) private var readingActive
@@ -603,6 +611,7 @@ private struct ThreadHistoryDocument: View {
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
+            .onPreferenceChange(ThreadWorkPreference.self) { workAvailability = $0 }
             .nativeReadingExitCommand(perform: readingActive ? onBack : nil).onAppear { if focusHeading && !hidesHeading { headingFocused = true } }
             .nativeReadingEscape(perform: readingActive ? onBack : nil)
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
@@ -627,7 +636,7 @@ private struct ThreadHistoryDocument: View {
                 ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] },
                     authorResolved: page?.execution.map { authors[$0.id] != nil } ?? false,
                     showsAuthor: page?.execution != nil,
-                    showsWorkFilter: !running, users: users, work: work, toggleUsers: { users.toggle() }, toggleWork: toggleWork)
+                    showsWorkFilter: !running && (!agentDetail || page?.execution.map { workAvailability[$0.id] != false } != false), users: users, work: work, toggleUsers: { users.toggle() }, toggleWork: toggleWork)
                 Divider().overlay(NativePalette.thread.lineSoft.swiftUI)
             }
         }.padding(.bottom, 28)

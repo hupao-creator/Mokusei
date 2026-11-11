@@ -113,6 +113,15 @@ private extension EnvironmentValues {
     }
 }
 
+/// Mounted turns report independently of the current disclosure state. Missing
+/// entries mean the scoped content is still loading, not that it is empty.
+public struct ThreadWorkPreference: PreferenceKey {
+    public static let defaultValue: [JSONText: Bool] = [:]
+    public static func reduce(value: inout [JSONText: Bool], nextValue: () -> [JSONText: Bool]) {
+        value.merge(nextValue(), uniquingKeysWith: { $0 || $1 })
+    }
+}
+
 public struct ThreadDetailTurn: View {
     @Environment(\.threadExecutionGroup) private var executionGroup
     public let id: JSONText
@@ -133,6 +142,7 @@ public struct ThreadDetailTurn: View {
     /// Steer cards belong to the live execution. Read-only inherited transcripts
     /// reuse this turn without an owning execution and keep their input visible.
     public let showsSteerMessages: Bool
+    public let workAvailable: Bool?
 
     @Environment(\.threadAuthorInHeader) private var authorInHeader
     @Environment(\.threadDetailVisibility) private var visibility
@@ -143,7 +153,7 @@ public struct ThreadDetailTurn: View {
                 reasoningUsage: ThreadReasoningUsage? = nil, createdAt: Double,
                 updatedAt: Double, status: String, completedAt: Double? = nil,
                 usage: AnyView? = nil, active: Bool, executionRunning: Bool = false,
-                executionTailIsWork: Bool = false, showsSteerMessages: Bool? = nil) {
+                executionTailIsWork: Bool = false, showsSteerMessages: Bool? = nil, workAvailable: Bool? = nil) {
         self.id = id
         self.author = author
         self.rows = rows
@@ -157,6 +167,7 @@ public struct ThreadDetailTurn: View {
         self.executionRunning = executionRunning
         self.executionTailIsWork = executionTailIsWork
         self.showsSteerMessages = showsSteerMessages ?? executionRunning
+        self.workAvailable = workAvailable
     }
 
     private var filteredRows: [ThreadDetailRow] {
@@ -216,8 +227,14 @@ public struct ThreadDetailTurn: View {
                 "userMessages": .bool(!agentDetail && visibility.userMessages), "work": .bool(visibility.work)
             ]))
             .preference(key: ThreadAuthorPreference.self, value: [id: author ?? .null])
+            .preference(key: ThreadWorkPreference.self, value: [id: workAvailable ?? hasDisplayableWork])
             .id(id)
         }
+    }
+
+    private var hasDisplayableWork: Bool {
+        let workRows = rows.filter { $0.execution != nil || $0.kind == .work }
+        return !groupThreadExecutionRows(workRows, reasoningUsage: reasoningUsage, summaryOnly: agentDetail).isEmpty
     }
 
     private var footer: some View {

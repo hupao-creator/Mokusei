@@ -245,7 +245,7 @@ private struct CodexBackgroundTerminals: View {
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadDetailVisibility) private var visibility
     var body: some View {
-        if !agentDetail || visibility.work {
+        Group { if !agentDetail || visibility.work {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 NativeIcon(name: "Terminal", size: 14)
@@ -262,7 +262,8 @@ private struct CodexBackgroundTerminals: View {
             } }
         }.font(NativeTypography.inter(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 16).overlay(alignment: .top) { Rectangle().fill(NativePalette.thread.lineSoft.swiftUI).frame(height: 1) }.padding(.top, 24)
-        }
+        } }
+        .preference(key: ThreadWorkPreference.self, value: ["codex:background-terminals": !terminals.isEmpty])
     }
 }
 

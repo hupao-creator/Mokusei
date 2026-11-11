@@ -160,7 +160,7 @@ struct ClaudeBackgroundTasks: View {
         // Task notifications describe execution work, not a Harness-level error.
         visibility.work ? tasks : []
     }
-    var body: some View { if !visibleTasks.isEmpty {
+    var body: some View { Group { if !visibleTasks.isEmpty {
         if agentDetail {
             let failed = visibleTasks.filter { $0["status"]?.stringValue == "failed" }.count
             let count = visibleTasks.count.formatted(.number.locale(locale))
@@ -175,7 +175,7 @@ struct ClaudeBackgroundTasks: View {
             }
         }.font(NativeTypography.inter(size: 12)).padding(.vertical, 16)
         }
-    } }
+    } }.preference(key: ThreadWorkPreference.self, value: ["claude:background-tasks": !tasks.isEmpty]) }
 }
 struct ClaudeFailure: View {
     let message: String

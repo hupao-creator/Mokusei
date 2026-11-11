@@ -201,6 +201,12 @@ semantic palette and locale follow the reader. This is presentation state only:
 content acquisition, decoding, caching and resource release are unchanged.
 See the [recording review and validation limits](../../../../../design/reading-placeholder-alignment.md).
 
+The Agent reader hides its work visibility control when the mounted execution
+content reports no displayable work. Missing reports during scoped loading remain
+unknown, and later content updates can restore the control. Summary admission
+and background terminal/task presence determine availability independently of the
+current work toggle; other conversation readers retain their controls.
+
 Agent execution summaries suppress a group only when every member explicitly
 reports no summary content and no positive reasoning usage is reported for that
 group. Empty reasoning and completed Hooks without output qualify; tool calls,
