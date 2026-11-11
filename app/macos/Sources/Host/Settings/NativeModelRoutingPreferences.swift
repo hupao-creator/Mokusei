@@ -7,7 +7,14 @@ import SwiftUI
 struct NativeModelRoutingPreferences: View {
     @Binding var value: JSONValue
     let locale: DesktopLocale
-    private var selected: String { value["routingPreset"]?.stringValue ?? "custom" }
+    static func selectedPreset(in value: JSONValue) -> String {
+        if let preset = value["routingPreset"]?.stringValue { return preset }
+        // Older manual preferences omitted the preset. Keep their text active;
+        // an untouched configuration uses the coordinator's balanced policy.
+        let guidance = value["routingGuidance"]?.stringValue ?? ""
+        return guidance.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "balanced" : "custom"
+    }
+    private var selected: String { Self.selectedPreset(in: value) }
     private var options: [(String, String)] {
         [("economy", locale.text("经济", "Economy")), ("balanced", locale.text("平衡", "Balanced")),
          ("performance", locale.text("性能", "Performance")), ("custom", locale.text("自定义", "Custom"))]
@@ -37,7 +44,7 @@ struct NativeModelRoutingPreferences: View {
     private func choose(_ id: String) {
         guard selected != id else { return }
         NativeSettingsChangeContext.withDiscreteChange {
-            value = settingsReplacing(value, path: ["routingPreset"], value: id == "custom" ? nil : .text(id))
+            value = settingsReplacing(value, path: ["routingPreset"], value: .text(id))
         }
     }
 }

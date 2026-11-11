@@ -93,7 +93,8 @@ struct SettingsTextArea: NSViewRepresentable {
         scroll.contentInsets = NSEdgeInsets(top: 1, left: 1, bottom: 1, right: 1)
         scroll.focusRingType = .exterior
         scroll.wantsLayer = true
-        scroll.layer?.borderWidth = 1
+        scroll.layer?.cornerRadius = 7
+        scroll.layer?.masksToBounds = true
         let view = Editor()
         view.drawsBackground = true; view.allowsUndo = true
         view.isRichText = false; view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
@@ -147,6 +148,22 @@ struct SettingsTextArea: NSViewRepresentable {
         }
     }
     final class Surface: NativeStyledScrollView {
+        // Keep the outline above the opaque AppKit clip/document surfaces.
+        private let outline = CALayer()
+        override func layout() {
+            super.layout()
+            if outline.superlayer == nil {
+                outline.borderWidth = 1
+                outline.cornerRadius = 7
+                outline.zPosition = 1
+                layer?.addSublayer(outline)
+            }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            outline.frame = bounds
+            CATransaction.commit()
+            updateBorder()
+        }
         var invalid = false { didSet { updateBorder() } }
         var editorFocused = false { didSet { updateBorder() } }
         override func viewDidChangeEffectiveAppearance() {
@@ -161,7 +178,7 @@ struct SettingsTextArea: NSViewRepresentable {
             effectiveAppearance.performAsCurrentDrawingAppearance {
                 CATransaction.begin()
                 CATransaction.setDisableActions(true)
-                layer?.borderColor = color.cgColor
+                outline.borderColor = color.cgColor
                 CATransaction.commit()
             }
         }

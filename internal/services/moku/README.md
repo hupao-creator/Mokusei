@@ -442,7 +442,9 @@ this sprint.
 ## Model routing preferences
 
 `routingPreset` selects economy, balanced or performance guidance. Omitted/custom
-uses the existing `routingGuidance` unchanged. Presets never overwrite the user's
+uses the existing `routingGuidance` unchanged. Explicit custom is persisted even
+when empty; without a preset or manual text the balanced base policy applies.
+Presets never overwrite the user's
 retained manual text or Moku's own execution model. Economy prioritizes
 cost-effective models; balanced adds no routing guidance, retaining only the
 already-injected three-sentence base prompt and existing tool contracts, as the

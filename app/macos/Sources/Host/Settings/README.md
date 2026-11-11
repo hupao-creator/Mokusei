@@ -216,15 +216,18 @@ field order is model, reasoning effort, model selection preferences, then Advanc
 options. The compact onboarding map leaves routing guidance disabled.
 Moku rows use 12pt vertical padding instead of the default 15pt; label hierarchy,
 advanced disclosure padding and description spacing retain their existing metrics.
-The Custom editor draws an adaptive Settings border with accent focus and danger
-validation states, retaining native text editing and focus-ring behavior.
+The Custom editor draws a rounded adaptive Settings border above its opaque
+AppKit content, with accent focus and danger validation states, retaining native
+text editing and focus-ring behavior.
 They reuse the role-mode choice style, show a checkmark on the selected item and
 wrap into fewer columns as the window narrows. Chinese and English explanations
 refer only to cost-effective and frontier models; concrete model names and routing
 guidance remain owned by Runtime. The saved
 `moku.routingPreset` activates general routing guidance on the next Moku
-execution. Custom/omitted restores the separately retained `moku.routingGuidance`
-text editor; existing manual settings open as Custom. Selecting a preset and
+execution. Custom restores the separately retained `moku.routingGuidance`
+text editor and is saved explicitly, including when empty. With no saved preset,
+nonblank manual guidance opens as Custom; otherwise Balanced is selected.
+Opening Settings does not write or replace an existing preference. Selecting a preset and
 switching interface language never replaces that text. Tabs use discrete
 save semantics, retain keyboard/accessibility selection, and localize through
 `DesktopLocale` in Chinese and English. Custom text keeps its existing validation,

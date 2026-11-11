@@ -71,8 +71,10 @@ Archived ordinary Thread `tags` and `tagEmojis` form frozen historical decoratio
 not active Tag pool membership. Restoration clears them for reclassification;
 public field shapes are unchanged.
 
-`MokuSettings.routingPreset` optionally selects `economy`, `balanced` or
-`performance`; omission means custom guidance, preserving existing settings.
+`MokuSettings.routingPreset` optionally selects `economy`, `balanced`,
+`performance` or `custom`; explicit Custom is retained even with empty guidance.
+Omission preserves existing manual guidance; without manual text the balanced
+base policy applies.
 `routingGuidance` retains the user's manual text independently while a preset is
 active. Runtime validates preset IDs and captures changes at the next Moku
 execution admission, alongside the existing configuration fields.

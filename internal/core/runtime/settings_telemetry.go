@@ -227,9 +227,7 @@ func parseSettingsShell(value any) (model.Settings, error) {
 		if !ok || preset != "economy" && preset != "balanced" && preset != "performance" && preset != "custom" {
 			return result, schemaError("invalid model routing preset", "custom", "settings", "moku", "routingPreset")
 		}
-		if preset != "custom" {
-			result.Moku.RoutingPreset = preset
-		}
+		result.Moku.RoutingPreset = preset
 	}
 	result.Moku.RoutingGuidance, err = normalizedGuidance(moku["routingGuidance"], "settings", "moku", "routingGuidance")
 	if err != nil {

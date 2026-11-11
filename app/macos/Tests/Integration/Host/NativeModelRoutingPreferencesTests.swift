@@ -24,7 +24,7 @@ struct NativeModelRoutingPreferencesTests {
             try fixture.registry.perform(id: "moku.routingPreset." + preset, handle: try #require(row["handle"]?.stringValue),
                 operation: "activate", value: .null, context: fixture.context)
             try await SwiftUIReplay.wait { control(preset)?["value"] == .bool(true) && fixture.draft.status == .saved }
-            #expect(fixture.draft.saved["moku"]?["routingPreset"] == (preset == "custom" ? nil : .text(preset)))
+            #expect(fixture.draft.saved["moku"]?["routingPreset"] == .text(preset))
             #expect(fixture.draft.saved["moku"]?["routingGuidance"] == .text("My existing manual choices"))
             let reopened = NativeSettingsDraft(settings: fixture.draft.saved, revision: fixture.draft.revision,
                 save: { value, revision in .saved(settings: value, revision: revision + 1) })

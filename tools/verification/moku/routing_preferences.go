@@ -26,9 +26,7 @@ func runRoutingPreferencesReplay() error {
 		_, invalidErr := s.r.UpdateSettings(mokuReplayContext(), revision, invalid)
 		mokuReplayCheck(invalidErr != nil, "unknown routing preset was accepted")
 		settings.Moku.RoutingGuidance = mokuReplayString("retained manual policy")
-		if preset != "custom" {
-			settings.Moku.RoutingPreset = preset
-		}
+		settings.Moku.RoutingPreset = preset
 		result, err := s.r.UpdateSettings(mokuReplayContext(), revision, settings)
 		mokuReplayMust(err)
 		mokuReplayCheck(result.Status == "saved", "routing preset did not save")

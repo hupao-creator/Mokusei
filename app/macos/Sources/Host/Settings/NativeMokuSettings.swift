@@ -128,7 +128,7 @@ import SwiftUI
             NativeModelRoutingPreferences(value: Binding(get: { model.draft.value["moku"] ?? .object([:]) }, set: { next in
                 model.draft.change(settingsReplacing(model.draft.value, path: ["moku"], value: next))
             }), locale: locale)
-            if (moku["routingPreset"]?.stringValue ?? "custom") == "custom" {
+            if NativeModelRoutingPreferences.selectedPreset(in: moku) == "custom" {
                 VStack(alignment: .leading, spacing: 12) {
                     textArea(field: "routingGuidance", label: locale.text("告诉 Moku 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。", "Tell Moku how to choose models for delegated tasks, for example favor speed for simple tasks and reasoning ability for complex tasks."), height: 112)
                     if let error = model.draft.validationError("routingGuidance", locale: locale) {
