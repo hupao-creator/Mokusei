@@ -371,6 +371,13 @@ rapid reversals, narrow/centered layouts and a local no-animation fixture.
 
 ## Voice display
 
+Voice controls alone keep the ordinary 168×44pt capsule, fitted to the viewport.
+A visible transcript expands to the message width (up to 560pt in the ordinary
+Overview Dock) and grows to eight lines before scrolling. When it disappears,
+the capsule becomes compact again unless a pending Talk/dispatch or another
+surface needs expansion. The 34×34pt voice control remains inside the compact
+row. See the [width regression investigation](../../../../../design/moku-voice-compact-width.md).
+
 The current user transcript takes precedence over Talk/dispatch while present. Partial/final snapshots replace the same session/item; final or handoff alone does not hide it. The first nonempty assistant item or explicitly associated Moku answer consumes it once. Duplicate assistant fragments cannot hide a newer input, and a late final cannot resurrect a consumed item. Owner/media termination clears the projection. [Native voice](../../Voice/README.md) owns these identities and microphone lifecycle; mounting the Dock/history or cloud never starts media.
 
 The [voice cloud](../VoiceControls/NativeMokuVoiceCloud.swift) is driven by the production capture analyser's bounded loudness/onset signals. Active voice presentation covers the thinking arc; the history composer does not mount it.

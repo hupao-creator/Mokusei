@@ -122,7 +122,7 @@ import MokuseiPluginUI
             #expect(state.capsuleFrame.height > 58)
             input.voice = true
             await settle(host)
-            #expect(state.capsuleFrame.width == min(560, width - 48) && state.capsuleFrame.height == 58)
+            #expect(state.capsuleFrame.width == 168 && state.capsuleFrame.height == 44)
             #expect(state.dockHitRects.contains { $0.contains(state.capsuleFrame) })
 
             input.message = .init(id: "session:item", text: "First partial")
@@ -143,7 +143,7 @@ import MokuseiPluginUI
             // transition restores the capsule and never submits/edits the draft.
             input.message = nil
             await settle(host)
-            #expect(state.capsuleFrame.width == min(560, width - 48) && state.capsuleFrame.height == 58)
+            #expect(state.capsuleFrame.width == 168 && state.capsuleFrame.height == 44)
             #expect(state.dockHitRects.contains { $0.contains(state.capsuleFrame) })
             #expect(!state.inputOpen && draft.text == savedDraft)
             #expect(input.sends == 0)
