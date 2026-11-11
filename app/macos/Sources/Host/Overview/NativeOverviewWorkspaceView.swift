@@ -176,7 +176,7 @@ public struct NativeOverviewWorkspaceView: View {
             strings.settings = "Settings"; strings.restart = "Restart development app"; strings.actions = "Overview actions"
             strings.search = "Search all conversations"; strings.closeSearch = "Close search (Esc)"
             strings.closeFilter = "Close child tag menu"
-            strings.filter = "Filter by tag"; strings.directoryPrefix = "Working directory: "; strings.aliasPrefix = "; aliases: "
+            strings.filter = "Filter by tag"
             strings.containsActiveTasks = "Contains active tasks"
         }
         return strings

@@ -412,7 +412,6 @@ public struct NativeOverviewChrome: View {
                             .accessibilityIdentifier(child.id)
                             .accessibilityAddTraits(child.matches(selectedTag, kind: .semantic, scope: selectedScope) ? .isSelected : [])
                             .accessibilityValue(Text("\(child.count)\(activitySuffix)"))
-                            .help(Text("\(child.displayTag)\(activitySuffix)"))
                         }
                     }
                 }
@@ -529,7 +528,6 @@ public struct NativeOverviewChrome: View {
             .focused($focusedTag, equals: "__all__")
             .accessibilityAddTraits(selectedTag.isEmpty ? .isSelected : [])
             .accessibilityValue(Text(allHasActiveTasks ? strings.containsActiveTasks : ""))
-            .help(Text(strings.all + (allHasActiveTasks ? " · \(strings.containsActiveTasks)" : "")))
             OverviewHorizontalScroll(interactions: interactions, owner: interactionOwner, ids: presentedFilters.map(\.id), enabled: !isSearching && !searchMorphVisible) {
                 // Keep the effect container inside the scroll viewport. A
                 // container outside it can draw captured labels beyond its clip.
@@ -589,7 +587,6 @@ public struct NativeOverviewChrome: View {
                     guard filter.isDirectory, filter.children.contains(where: { $0.count > 0 }) else { return }
                     if inside { revealChildren(of: filter) } else { scheduleHoverClear() }
                 }
-                .help(filterHint(filter))
             }
         }
         .fixedSize(horizontal: true, vertical: true)
@@ -622,14 +619,6 @@ public struct NativeOverviewChrome: View {
         .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
         .help(title).accessibilityLabel(title)
         .accessibilityAddTraits(active ? .isSelected : [])
-    }
-
-    private func filterHint(_ filter: NativeOverviewFilter) -> String {
-        let label = filter.isDirectory && !filter.scope.isEmpty && filter.scope != NativeOverviewSelection.inboxScope
-            ? "\(filterTitle(filter)) — \(filter.scope)" : filterTitle(filter)
-        return (filter.isDirectory ? strings.directoryPrefix : "") + label +
-            (filter.aliases.isEmpty ? "" : strings.aliasPrefix + filter.aliases.joined(separator: "、")) +
-            (filter.hasActiveTasks ? " · \(strings.containsActiveTasks)" : "")
     }
 
     private func consumeFocus(_ request: Int) {
@@ -729,8 +718,6 @@ public struct NativeOverviewChromeStrings: Sendable {
     public var closeSearch = "退出搜索（Esc）"
     public var filter = "按标签筛选"
     public var closeFilter = "关闭子标签菜单"
-    public var directoryPrefix = "工作目录标签："
-    public var aliasPrefix = "；别名："
     public var containsActiveTasks = "包含活跃任务"
     public init() {}
 }
