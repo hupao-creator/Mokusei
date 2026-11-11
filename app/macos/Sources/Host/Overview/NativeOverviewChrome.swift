@@ -374,12 +374,6 @@ public struct NativeOverviewChrome: View {
                                         .font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
                                         .lineLimit(1)
                                         .contentTransition(.opacity)
-                                    Text(String(child.count))
-                                        .font(NativeTypography.inter(size: OverviewTagMetrics.countFont, weight: 680))
-                                        .frame(minWidth: OverviewTagMetrics.countMinWidth)
-                                        .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
-                                        .padding(.vertical, OverviewTagMetrics.countVerticalInset)
-                                        .background(.foreground.opacity(0.08), in: Capsule())
                                     if child.hasActiveTasks {
                                         OverviewTagActivityIndicator(hasActiveTasks: active && current)
                                     }
@@ -555,12 +549,6 @@ public struct NativeOverviewChrome: View {
                             OverviewTagPrefix(emoji: displayedChild(of: filter)?.emoji)
                         }
                         OverviewTagTitle(title: filter.displayTag, child: displayedChild(of: filter)?.tag)
-                        Text(String(filter.count))
-                            .font(NativeTypography.inter(size: OverviewTagMetrics.countFont, weight: 680))
-                            .frame(minWidth: OverviewTagMetrics.countMinWidth)
-                            .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
-                            .padding(.vertical, OverviewTagMetrics.countVerticalInset)
-                            .background(.foreground.opacity(0.08), in: Capsule())
                         if filter.hasActiveTasks {
                             OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
                         }
@@ -772,13 +760,9 @@ enum OverviewTagMetrics {
     /// independently so the bar and the circular action buttons stay in step.
     static let chipScale: CGFloat = 1.125
     static let chipFont = 10.5 * chipScale
-    static let countFont = 8.5 * chipScale
     static let folderIcon = 11 * chipScale
     static let chipContentSpacing = 6 * chipScale
     static let chipLabelInset = labelInset * chipScale
-    static let countHorizontalInset = 4 * chipScale
-    static let countVerticalInset = 1 * chipScale
-    static let countMinWidth = 6 * chipScale
     /// Shared by the tag-filter bar and the action buttons.
     static let chipHeight: CGFloat = 42
     /// Action buttons are circles matching the tag bar height. Equal width and

@@ -37,7 +37,6 @@ struct OverviewSearchMorphGeometry {
     struct Source: Identifiable {
         let id: String
         let title: String
-        let count: Int?
         let directory: Bool
         let selected: Bool
         let frame: CGRect
@@ -53,7 +52,7 @@ struct OverviewSearchMorphGeometry {
         guard let bar = bounds["__bar__"] else { return [] }
         var result: [Source] = []
         if let frame = bounds["__all__"]?.intersection(bar), !frame.isEmpty {
-            result.append(.init(id: "__all__", title: all, count: nil, directory: false,
+            result.append(.init(id: "__all__", title: all, directory: false,
                                 selected: selectedTag.isEmpty, frame: frame, labelFrame: frame, hasActiveTasks: allHasActiveTasks))
         }
         let clip = (bounds["__scroll__"] ?? bar).intersection(bar)
@@ -62,7 +61,7 @@ struct OverviewSearchMorphGeometry {
             let visible = full.intersection(clip)
             guard !visible.isEmpty, visible.width >= 4 else { continue }
             let childSelected = filter.isDirectory && selectedKind == .semantic && !selectedTag.isEmpty && selectedScope == filter.scope
-            result.append(.init(id: filter.id, title: filter.displayTag, count: filter.count, directory: filter.isDirectory,
+            result.append(.init(id: filter.id, title: filter.displayTag, directory: filter.isDirectory,
                                 selected: childSelected || filter.matches(selectedTag, kind: selectedKind, scope: selectedScope),
                                 frame: visible, labelFrame: full, childTitle: selectedChildren[filter.id]?.tag,
                                 emoji: selectedChildren[filter.id]?.emoji, hasActiveTasks: filter.hasActiveTasks))
@@ -141,13 +140,6 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                     if source.directory { OverviewTagPrefix(emoji: source.emoji) }
                     OverviewTagTitle(title: source.title, child: source.childTitle)
-                    if let count = source.count {
-                        Text(String(count)).font(NativeTypography.inter(size: OverviewTagMetrics.countFont, weight: 680))
-                            .frame(minWidth: OverviewTagMetrics.countMinWidth)
-                            .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
-                            .padding(.vertical, OverviewTagMetrics.countVerticalInset)
-                            .background(.foreground.opacity(0.08), in: Capsule())
-                    }
                     if source.hasActiveTasks {
                         OverviewTagActivityIndicator(hasActiveTasks: progress < (isCarrier ? 0.4 : 0.75))
                     }
