@@ -475,9 +475,13 @@ while the 144pt metadata stays in place and fades out/in, over 460ms. The 4pt ga
 and card shell stay fixed. It reuses `NativeReportCover` and `NativeReportCard`
 with `showsCover: false`, rather than duplicating metadata. Coverless reports use
 their emoji on the ordinary surface. Arrow/dot/menu controls use native Liquid
-Glass; the canvas continues to own the flat outer shell. A native cover input
-region retains pointer drag and trackpad input instead of moving the canvas;
-its scroll/pinch region is intentionally reserved for the collection cover.
+Glass; the canvas continues to own the flat outer shell.
+The count and navigation glass inherit the workspace color scheme; selected
+page markers use primary ink and unselected markers use secondary ink, retaining
+the capsule/dot shape distinction in both light and dark appearances.
+A native cover input region retains pointer drag and trackpad input instead of
+moving the canvas; its scroll/pinch region is intentionally reserved for the
+collection cover.
 
 The selected ID is shared by cover, metadata, opening and semantic navigation.
 Automatic advance is every 10 seconds while foreground, visible and not in a

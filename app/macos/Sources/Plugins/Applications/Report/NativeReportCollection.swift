@@ -104,7 +104,8 @@ struct NativeReportCollection: View {
                                 HStack(spacing: 7) {
                                     ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
                                         Button { select(member.entry.ref, direction: index >= page ? 1 : -1) } label: {
-                                            Capsule().fill(.white.opacity(member.entry.ref == selected ? 1 : 0.4))
+                                            Capsule().fill(member.entry.ref == selected
+                                                ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                                                 .frame(width: member.entry.ref == selected ? 16 : 5, height: 5)
                                                 .frame(minWidth: 16, minHeight: 28).contentShape(Rectangle())
                                         }.accessibilityLabel(member.entry.title.string)
@@ -129,7 +130,7 @@ struct NativeReportCollection: View {
                             .buttonStyle(.plain)
                             .disabled(!active || outgoingID != nil)
                     }.foregroundStyle(.primary).padding(14).frame(height: 308)
-                }.environment(\.colorScheme, .dark).zIndex(4)
+                }.zIndex(4)
             }
         }
         .onAppear { onSelection(selected) }

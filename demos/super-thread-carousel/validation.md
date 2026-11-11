@@ -1,5 +1,29 @@
 # 生产接入验证
 
+## Light mode 指示点对比度修复 — 2026-11-11
+
+- 控件取消强制深色环境，数量、箭头、页码菜单和玻璃跟随工作区主题；
+  选中点使用系统 primary，未选中点使用 secondary，保留长胶囊/圆点区分。
+- 本地静态审阅覆盖选中/未选中、过渡/非活动禁用、七篇以上菜单、
+  命中区域、辅助功能选择标记及拖动/滚动/自动翻页的现有逻辑。
+  输入、时钟与生命周期代码无改动；这不代表实际交互回放通过。
+- `python3 demos/super-thread-carousel/build.py --headless` 首次因沙箱 DNS
+  无法下载依赖而退出 1；允许网络后同命令退出 0。当前生产 Debug 构建、
+  独立生产组件 fixture 编译/签名及 headless 导出完成。13 个数据场景、
+  30 个生产投影场景可解析，所有生产 `error` 为空，stderr 为空。
+  日志：`/tmp/carousel-light-contrast-headless.log`、
+  `/tmp/carousel-light-contrast-headless-retry.log`；数据在
+  `.build/super-thread-carousel/`。
+- `git diff --check` 通过。没有新增测试、运行全套回归、启动 GUI 或重启应用。
+  headless 不挂载轮播玻璃或 WebKit，不能证明浅/深色像素对比度、
+  hover/pressed/focus/disabled 外观、辅助功能显示选项或转场帧通过；
+  这些图形验证本次未运行。
+- 只读查询 main 实际 rules 与 PR/run 状态：规则 26378950 要求 PR，
+  未返回 required status check 规则；已有 CI 属于其他提交。
+  本轮不推送、不自行合并，由调用方协调本地 main 集成与最终 CI。
+
+## 历史生产接入记录
+
 基线 `d2127dbf70280bddac5a1d0ba8515bac6ec1c3b5`，2026-11-10。用户先确认独立 demo，随后授权落地生产；本轮交付 detached 工作树提交，由调用方集成 main。不安装、关闭或重启正在运行的正式应用。
 
 ## 已完成
