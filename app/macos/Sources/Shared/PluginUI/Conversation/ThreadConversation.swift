@@ -113,6 +113,7 @@ public struct ThreadConversation: View {
     @State private var userMessages = false
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadRelatedExecution) private var relatedExecution
+    @Environment(\.nativeReportSidecards) private var reportSidecards
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
     @State private var consumedRequest: JSONText?
@@ -174,10 +175,16 @@ public struct ThreadConversation: View {
         return execution.isActive || execution.id == activeExecutionId
     }
     private var showsDocumentHeading: Bool {
+        if relatedSendTitle != nil { return true }
         // Main readers retain their heading; Report sidecards also suppress it
         // until the selected execution's activity is known.
-        (!executionCard || relatedExecution)
+        return (!executionCard || relatedExecution)
             && !(executionCard && agentDetail && (selectedIsActive || (relatedExecution && selectedRowID == nil)))
+    }
+    private var relatedSendTitle: NativeReportSidecardPresentation.SendTitle? {
+        guard relatedExecution, selectedIsActive, case let .execution(id) = context?.presentation else { return nil }
+        return reportSidecards?.sendTitles[ApplicationExecutionRef(
+            thread: .init(threadID: threadId, typeID: "agent"), executionID: id)]
     }
     private var allowsJumpToLatest: Bool {
         guard let activeExecutionId, !excluded.contains(activeExecutionId) else { return false }
@@ -387,7 +394,9 @@ public struct ThreadConversation: View {
     }
     private func documentHeader() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if showsDocumentHeading { heading(documentTitle, emoji: icon ?? "📝") }
+            if showsDocumentHeading {
+                heading(relatedSendTitle?.text ?? documentTitle, emoji: relatedSendTitle?.emoji ?? icon ?? "📝")
+            }
             if let actions { actions.padding(.top, 15) }
             if !rows.isEmpty {
                 let selected = selectedRowID

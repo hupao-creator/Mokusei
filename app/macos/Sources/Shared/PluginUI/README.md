@@ -1496,8 +1496,17 @@ The host scopes `threadRelatedExecution` to Report's referenced execution reader
 Completed references keep the exact execution title (instruction, then timestamp
 fallback), the Harness's thread emoji, final reply and ordinary non-work facts,
 while hiding execution work and its process summary. Active references show the
-shared live process summary again; active references omit title and emoji just
-like live Agent execution Sidecards. Completed presentation is unchanged. See the [Report admission contract](../../../../../design/report-sidecard-admission.md)
+shared live process summary again. After an accepted send from a Super Thread,
+its active referenced execution shows the submitted text and a random emoji.
+The Report visit retains that emoji by exact Thread/execution identity, including
+same-execution steering, folding and catalog refresh. Later accepted sends to the
+same execution replace only the text. Whitespace is collapsed for the heading;
+blank text uses the exact execution's ordinary title/instruction/timestamp fallback.
+The shared heading truncates long text to two lines and exposes its full text on
+hover. Only the still-current composer/selection visit may install this title;
+other active readers keep their existing heading policy. Completion restores the
+ordinary execution title and Thread emoji; no catalog or historical title is
+written. Leaving the Report retires these visit-local send titles. See the [Report admission contract](../../../../../design/report-sidecard-admission.md)
 for lifecycle details and Sprint validation limits.
 
 The outer reading stack can accept a `panelFrontIdentity` for a route-retaining

@@ -29,7 +29,7 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored private lazy var executionContinuation = NativeExecutionContinuation(workspace: workspace)
     @ObservationIgnored private lazy var mokuSubmission = NativeMokuSubmission(workspace: workspace)
     @ObservationIgnored private var reportInputBack: (() -> Void)?
-    private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef, reportSelection: UUID?)?
+    private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef, reportSelection: UUID?, text: String)?
     var awaitingExecutionContinuation: Bool {
         guard let pending = executionSendNavigation else { return false }
         return pending.route == navigationRouteID && pending.generation == scene.composerGeneration
@@ -566,7 +566,7 @@ public final class NativeWorkspacePresentation {
         guard let thread = workspace.catalog.thread(pending.destination.thread.threadID) else { return }
         executionSendNavigation = nil
         if let selection = pending.reportSelection {
-            reportSidecards.continueExecution(pending.destination, from: pending.reference, selection: selection)
+            reportSidecards.continueExecution(pending.destination, from: pending.reference, selection: selection, text: pending.text)
             return
         }
         let previousDockFrame = scene.executionDockPlacement.frame
@@ -707,7 +707,7 @@ public final class NativeWorkspacePresentation {
             if let executionID, navigationRouteID == route, scene.composerGeneration == generation {
                 let reference = ApplicationExecutionRef(thread: .init(threadID: id, typeID: "agent"), executionID: executionID)
                 if dockExecution == reference {
-                    executionSendNavigation = (route, generation, reference, accepted, reportSelection)
+                    executionSendNavigation = (route, generation, reference, accepted, reportSelection, submission.text)
                     finishExecutionSendNavigation()
                 }
             }
