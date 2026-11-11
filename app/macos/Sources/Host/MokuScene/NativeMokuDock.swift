@@ -284,7 +284,7 @@ public struct NativeMokuDock: View {
             NativeMokuDispatchContent(dispatch: dispatch, harness: dispatchHarness(dispatch)) {
                 dispatchDetail = message
             }
-            .frame(width: max(1, width - NativeMokuTalkTypography.leading - 48), height: 28)
+            .frame(width: max(1, width - NativeMokuTalkTypography.leading - 48), height: 32)
         } else {
             // The legacy scroller occupies the trailing gutter; extend its
             // viewport so the remaining text clip stays centered in the shell.

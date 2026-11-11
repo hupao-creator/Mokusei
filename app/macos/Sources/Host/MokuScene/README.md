@@ -46,9 +46,9 @@ including the Agent-target title. The native draft editor remains multiline.
 The composer layout reserves attachment/action seats and the resident eye seat
 (the actual Harness logo in Agent detail) before giving
 the remaining width to the editor; long placeholder text cannot displace Stop.
-Dispatch status already uses a single line with tail truncation and retains the
-Dock's separate trailing control inset. This repair is verified by source/layout
-review, Swift parsing and diff checks only; no tests, replays, builds or CI run.
+Dispatch status remains a single line with tail truncation and retains the
+Dock's separate trailing control inset. Its configuration adapts within that
+reserved content seat as described below.
 
 Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
 panel, dispatch details and history input capsule keep their existing dark
@@ -311,6 +311,19 @@ using the existing dismissal and capsule transition; it never deletes transcript
 history or changes the persistent note, ordinary replies or voice transcript.
 
 [NativeMokuDispatch](NativeMokuDispatch.swift) projects the same operation while pending and settled. Success requires `completedAt`, no error, `ok:true` and a nonempty `threadId`; it confirms dispatch, not task completion. The 400×58-point layout contracts for narrow viewports. Configuration comes from that call's arguments. Details resolve the selected operation identity in the full transcript, preserving its original prompt and outcome when newer notifications arrive.
+
+The notification first fits the complete status and configuration on one line.
+When their intrinsic width exceeds the available content seat, configuration
+moves below status inside a 32-point row, without changing capsule dimensions,
+eye placement or the 48-point trailing control reservation. Model and thinking
+use 11-point text with no fixed configuration width. The model keeps its exact
+identifier across Codex, Claude, Pi and OpenCode; there are no display aliases
+or provider-prefix stripping. Thinking retains the requested effort or mode
+(`on`, `off`, `fixed`), with no inferred defaults. Only an overlong model on the
+second line truncates in the middle; thinking has higher layout priority, and
+extreme widths can still truncate either field. Hover help, accessibility and
+the existing clickable detail sheet retain the complete configuration. Provider
+stays in details, separately from model identity.
 
 The selected Harness is the single key in `arguments.target`, with its native
 fields nested under that key. Empty, ambiguous or non-object selections do not

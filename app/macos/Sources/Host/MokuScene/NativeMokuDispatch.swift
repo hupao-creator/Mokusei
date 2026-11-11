@@ -49,7 +49,7 @@ public struct NativeMokuDispatch: Equatable, Sendable {
         }
     }
 
-    /// Keep the real identifier; visual truncation belongs to the single line.
+    /// Keep the real identifier; fitting and truncation belong to the view.
     public var configuration: String { [model, thinking].compactMap { $0 }.joined(separator: " · ") }
 
     private static func text(_ value: JSONValue?) -> String? {
