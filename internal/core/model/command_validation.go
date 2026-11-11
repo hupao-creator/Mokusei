@@ -38,7 +38,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 	}()
 	arity := 1
 	switch channel {
-	case "search:status", "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
+	case "search:status", "search:retry", "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
 		arity = 0
 	case "attachment:preview", "thread:set-archived", "application:archive":
 		arity = 2

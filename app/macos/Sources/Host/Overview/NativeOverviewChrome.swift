@@ -64,6 +64,8 @@ public struct NativeOverviewChrome: View {
     public var searchFocusRequest: Int
     public var onSearchChange: (String) -> Void
     public var onSearchExit: () -> Void
+    public var searchPreparation: NativeSearchPreparation?
+    public var onSearchRetry: () -> Void
     @FocusState private var focusedTag: String?
     @Namespace private var tagGlass
     @Namespace private var actionGlass
@@ -95,6 +97,8 @@ public struct NativeOverviewChrome: View {
                 isSearching: Bool = false, searchQuery: String = "", searchFocusRequest: Int = 0,
                 onSearchChange: @escaping (String) -> Void = { _ in },
                 onSearchExit: @escaping () -> Void = {},
+                searchPreparation: NativeSearchPreparation? = nil,
+                onSearchRetry: @escaping () -> Void = {},
                 onTagChange: @escaping (NativeOverviewFilter?) -> Void,
                 onReturnToAuto: (() -> Void)? = nil,
                 onSettings: (() -> Void)? = nil, onRestart: (() -> Void)? = nil,
@@ -121,6 +125,7 @@ public struct NativeOverviewChrome: View {
         _searchMorphVisible = State(initialValue: isSearching)
         self.isSearching = isSearching; self.searchQuery = searchQuery
         self.searchFocusRequest = searchFocusRequest; self.onSearchChange = onSearchChange; self.onSearchExit = onSearchExit
+        self.searchPreparation = searchPreparation; self.onSearchRetry = onSearchRetry
     }
 
     public var body: some View {
@@ -234,6 +239,9 @@ public struct NativeOverviewChrome: View {
                 placeholder: strings.search,
                 focusRequest: focusReady ? searchFocusRequest : 0, onChange: onSearchChange, onExit: onSearchExit)
                 .frame(minWidth: 40, maxWidth: .infinity).frame(height: OverviewTagMetrics.buttonHeight)
+            if let searchPreparation {
+                OverviewSearchPreparation(state: searchPreparation, retry: onSearchRetry)
+            }
             Button(action: onSearchExit) {
                 Image(systemName: "escape").font(.system(size: 11, weight: .medium))
                     .frame(width: 24, height: OverviewTagMetrics.buttonHeight)

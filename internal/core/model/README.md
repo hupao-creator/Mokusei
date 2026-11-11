@@ -81,3 +81,7 @@ base policy applies.
 `routingGuidance` retains the user's manual text independently while a preset is
 active. Runtime validates preset IDs and captures changes at the next Moku
 execution admission, alongside the existing configuration fields.
+
+`search:retry` is a zero-argument write command that wakes local model/index
+recovery. `search:status` and `search:query` remain read channels; their responses
+include bounded semantic preparation state and may report `hybrid` mode.

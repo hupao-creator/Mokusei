@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -114,7 +115,28 @@ func refs(ids ...string) []model.ThreadRef {
 }
 
 func main() {
+	helper := flag.String("embedding-helper", "", "bundled native embedding executable")
+	models := flag.String("model-directory", "", "verified model cache for native replay")
+	nativeOnly := flag.Bool("native-only", false, "run only the real native model replay")
+	evaluateStore := flag.String("evaluate-store", "", "read-only real profile database for local evaluation")
+	evaluationOutput := flag.String("evaluation-output", "", "private local evaluation output directory")
+	evaluationCorpus := flag.String("evaluation-corpus", "", "previously extracted private corpus")
+	evaluationQueries := flag.String("evaluation-queries", "", "locally labelled queries and held-out split")
+	evaluationVariant := flag.String("evaluation-variant", "baseline", "keyword, baseline, conservative, strict, short, coherent, or final")
+	flag.Parse()
 	ctx := context.Background()
+	if *evaluationCorpus != "" {
+		must(runCorpusEvaluation(ctx, *evaluationCorpus, *evaluationQueries, *evaluationOutput, *evaluationVariant, *helper, *models))
+		return
+	}
+	if *evaluateStore != "" {
+		must(extractEvaluationCorpus(*evaluateStore, *evaluationOutput))
+		return
+	}
+	if *nativeOnly {
+		must(verifyNativeHybrid(ctx, *helper, *models))
+		return
+	}
 	verifyTextAdapters()
 	directory, err := os.MkdirTemp("", "mokusei-keyword-search-")
 	must(err)
@@ -199,5 +221,9 @@ func main() {
 	verifyMaintenanceFanout(ctx, directory)
 	verifyApplications(ctx, directory)
 	verifyDiagnostics(ctx, filepath.Join(directory, "diagnostics"))
+	verifyHybridLifecycle(ctx, filepath.Join(directory, "hybrid"))
+	if *helper != "" {
+		must(verifyNativeHybrid(ctx, *helper, *models))
+	}
 	fmt.Println("PASS keyword Runtime/SQLite: legacy migration, source preservation, retired APIs, Chinese body/AND/scope, archive, updates, reopen, history clear and application/Report text")
 }

@@ -120,6 +120,7 @@ public struct NativeOverviewWorkspaceView: View {
                     isSearching: model.isSearching, searchQuery: model.searchQuery,
                     searchFocusRequest: model.searchFocusRequest, onSearchChange: model.updateSearch,
                     onSearchExit: model.endSearch,
+                    searchPreparation: model.searchPreparation, onSearchRetry: model.retrySearchPreparation,
                     onTagChange: model.selectTag,
                     onReturnToAuto: { model.canvasState.camera.returnToAuto() }, onSettings: callbacks.onSettings,
                     onRestart: callbacks.onRestart, onFocusFilterRequestConsumed: model.consumeFilterFocus,

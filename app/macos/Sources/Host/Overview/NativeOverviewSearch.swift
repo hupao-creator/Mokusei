@@ -3,6 +3,59 @@ import MokuseiCore
 import MokuseiPluginAPI
 import SwiftUI
 
+public struct NativeSearchPreparation: Equatable, Sendable {
+    let phase: String
+    let reason: String
+    let progress: Double?
+    let indexing: Bool
+    let pending: Int
+    init?(_ value: JSONValue?) {
+        guard let value, let phase = value["phase"]?.stringValue,
+              ["preparing", "downloading", "verifying", "loading", "idle", "ready", "failed"].contains(phase) else { return nil }
+        self.phase = phase
+        reason = value["reason"]?.stringValue ?? ""
+        indexing = value["indexing"]?.boolValue == true
+        pending = max(0, value["pendingDocuments"]?.intValue ?? 0)
+        let total = value["totalBytes"]?.numberValue ?? 0
+        let completed = value["completedBytes"]?.numberValue ?? 0
+        progress = total > 0 && completed.isFinite && total.isFinite ? min(1, max(0, completed / total)) : nil
+    }
+    var failed: Bool { phase == "failed" || !reason.isEmpty }
+    var visible: Bool { failed || indexing || !["idle", "ready"].contains(phase) }
+}
+
+struct OverviewSearchPreparation: View {
+    let state: NativeSearchPreparation
+    let retry: () -> Void
+    @Environment(\.locale) private var locale
+    private var chinese: Bool { locale.language.languageCode?.identifier == "zh" }
+    private var label: String {
+        if state.failed { return chinese ? "语义搜索暂不可用" : "Semantic search unavailable" }
+        if state.phase == "downloading", let progress = state.progress {
+            return chinese ? "下载中 \(Int(progress * 100))%" : "Downloading \(Int(progress * 100))%"
+        }
+        if state.indexing { return chinese ? "索引中 · 剩余 \(state.pending) 条" : "Indexing · \(state.pending) remaining" }
+        return chinese ? "准备语义搜索" : "Preparing semantic search"
+    }
+    var body: some View {
+        if state.visible {
+            HStack(spacing: 5) {
+                if state.failed {
+                    Button(action: retry) { Image(systemName: "arrow.clockwise") }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(chinese ? "重试语义搜索" : "Retry semantic search")
+                        .accessibilityIdentifier("overview-search-retry")
+                } else { ProgressView().controlSize(.mini) }
+                Text(label).lineLimit(1).truncationMode(.tail)
+            }
+            .font(.system(size: 11)).foregroundStyle(.secondary)
+            .frame(maxWidth: 175).help(label)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("overview-search-preparation")
+        }
+    }
+}
+
 /// Searches public catalog metadata in the supplied eligible collection.
 /// Every whitespace-delimited term must match at least one field.
 struct NativeOverviewSearch {

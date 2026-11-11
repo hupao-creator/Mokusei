@@ -139,6 +139,8 @@ The tools do not reset or grant privacy consent.
 ```text
 Contents/MacOS/Mokusei
 Contents/MacOS/mokusei-runtime
+Contents/MacOS/MokuseiEmbedding
+Contents/Frameworks/libCLiteRTLM_mac.dylib
 Contents/Frameworks/LiveKitWebRTC.framework
 Contents/Resources/MokuseiNative_MokuseiPluginUI.bundle
 Contents/Resources/AppIcon.icns
@@ -207,3 +209,16 @@ with isolated process fixtures.
 
 This is a locally signed direct-distribution build. Notarization, public release,
 automatic updates and App Store submission require a separate release workflow.
+
+## Local embedding package
+
+The application build also builds `MokuseiEmbedding`. Packaging copies the pinned
+LiteRT-LM 0.19.1 dylib, thins it to arm64, strips development rpaths, includes its
+Apache license and signs the library/helper with the application's team. A signed
+`--describe` probe verifies loading from the bundle without SwiftPM paths. Model
+weights are downloaded and SHA-256 checked at Runtime startup; they are not
+embedded into the application bundle.
+
+The [search replay](../../../tools/verification/thread-search/README.md) can target
+the packaged helper to verify genuine inference, offline operation and process
+retirement with the same signed artifact used by production acceptance.

@@ -403,6 +403,11 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		return err
 	}
 	r.pruneCancellationStates()
+	if r.search != nil {
+		if err := r.search.ClearDerived(); err != nil {
+			return err
+		}
+	}
 	if err := r.clearVoice(ctx); err != nil {
 		return err
 	}

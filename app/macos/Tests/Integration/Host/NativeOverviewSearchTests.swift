@@ -287,6 +287,34 @@ struct NativeOverviewSearchTests {
         #expect(calls == 2)
     }
 
+    @Test func hybridSearchShowsPreparationThenAdmitsThreadRankings() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let workspace = try workspace(directory)
+        try install([thread("a", title: "First"), thread("b", title: "Second")], in: workspace)
+        var calls = 0
+        let model = model(workspace, searchRequest: { _ in
+            calls += 1
+            if calls == 1 {
+                return .object(["mode": .text("keyword"), "refreshMs": .integer(400), "hits": .array([]),
+                    "semantic": .object(["phase": .text("downloading"), "completedBytes": .integer(50), "totalBytes": .integer(100)])])
+            }
+            return .object(["mode": .text("hybrid"), "semantic": .object(["phase": .text("ready"), "ready": .bool(true)]),
+                "hits": .array([.object(["ref": ApplicationThreadRef(threadID: "b", typeID: "agent").json]),
+                                .object(["ref": ApplicationThreadRef(threadID: "not-in-scope", typeID: "agent").json]),
+                                .object(["ref": ApplicationThreadRef(threadID: "a", typeID: "agent").json])])])
+        })
+        defer { model.endSearch() }
+        model.refresh(); model.beginSearch(); model.updateSearch("a related concept")
+        try await wait { model.searchPreparation?.progress == 0.5 }
+        #expect(model.searchMode == "keyword" && model.items.isEmpty)
+        try await wait { model.searchMode == "hybrid" }
+        #expect(model.items.map(\.id) == ["b", "a"])
+        #expect(model.searchRank(for: "b") == 0 && model.searchPreparation?.visible == false)
+        model.endSearch()
+        #expect(model.searchMode == "keyword" && !model.isSearching)
+    }
+
     @Test func pausedPresentationRejectsOldSearchResponseAndRestartsOnReturn() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -564,9 +592,13 @@ struct NativeOverviewSearchTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let workspace = try workspace(directory)
         try install([thread("a", title: "Maintenance", tags: ["Storage"]), thread("b", title: "Interface", tags: ["Glass"])], in: workspace)
+        var semanticReady = false
         let model = model(workspace, searchRequest: { request in
             #expect(request["query"] == .text("清空历史"))
-            return .object(["mode": .text("keyword"), "hits": .array([.object([
+            return .object(["mode": .text(semanticReady ? "hybrid" : "keyword"), "refreshMs": .integer(300),
+                "semantic": .object(["phase": .text(semanticReady ? "ready" : "downloading"),
+                    "ready": .bool(semanticReady), "completedBytes": .integer(50), "totalBytes": .integer(100)]),
+                "hits": .array([.object([
                 "ref": ApplicationThreadRef(threadID: "a", typeID: "agent").json, "score": .number(0.9)
             ])])])
         })
@@ -578,7 +610,12 @@ struct NativeOverviewSearchTests {
         model.beginSearch(); model.updateSearch("清空历史")
         try await wait { model.searchMode == "keyword" && model.items.map(\.id) == ["a"] && !model.canvasState.isLayingOut }
         try await Task.sleep(for: .milliseconds(450))
-        try await capture(window, name: "keyword-chinese-body")
+        #expect(model.searchPreparation?.progress == 0.5 && model.searchPreparation?.visible == true)
+        try await capture(window, name: "hybrid-model-preparation")
+        semanticReady = true
+        try await wait { model.searchMode == "hybrid" && model.searchPreparation?.visible == false }
+        #expect(model.items.map(\.id) == ["a"])
+        try await capture(window, name: "hybrid-chinese-body")
         model.endSearch()
     }
 

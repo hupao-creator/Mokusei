@@ -24,11 +24,13 @@ type Hit struct {
 	Score float64         `json:"score"`
 }
 type QueryResult struct {
-	Hits     []Hit  `json:"hits"`
-	Mode     string `json:"mode"`
-	Reason   string `json:"reason,omitempty"`
-	Epoch    uint64 `json:"epoch"`
-	Indexing bool   `json:"indexing"`
+	Hits      []Hit           `json:"hits"`
+	Mode      string          `json:"mode"`
+	Reason    string          `json:"reason,omitempty"`
+	Epoch     uint64          `json:"epoch"`
+	Indexing  bool            `json:"indexing"`
+	Semantic  *SemanticStatus `json:"semantic,omitempty"`
+	RefreshMS int             `json:"refreshMs,omitempty"`
 }
 
 func keywords(query, text string) bool {
@@ -105,14 +107,31 @@ func (m *Manager) Query(ctx context.Context, request QueryRequest) (result Query
 	for _, ref := range request.KeywordMatches {
 		literal[RefKey(ref)] = true
 	}
-	fingerprint := resultKey(snapshot, c, request, sources, scope)
+	var queryVector []float32
+	semanticToken := ""
+	if m.semantic != nil {
+		queryVector, _ = m.semantic.query(request.Query)
+		result.Semantic, err = m.semanticStatus(snapshot, c, sources)
+		if err != nil {
+			return result, err
+		}
+		semanticToken = m.semantic.token()
+		if queryVector == nil {
+			semanticToken += ":pending"
+		} else {
+			semanticToken += ":ready"
+		}
+	}
+	fingerprint := resultKey(snapshot, c, request, sources, scope) + semanticToken
 	cached, cacheHit, generation := m.retrieval.result(fingerprint)
 	if cacheHit {
 		current := m.options.Store.Snapshot()
 		latest, _ := readConfig(current)
-		if latest.Epoch == c.Epoch && ctx.Err() == nil && resultKey(current, latest, request, sources, scope) == fingerprint {
+		if latest.Epoch == c.Epoch && ctx.Err() == nil && resultKey(current, latest, request, sources, scope)+semanticToken == fingerprint {
 			result.Hits = cached.result.Hits
 			result.Mode = cached.result.Mode
+			result.Reason = cached.result.Reason
+			result.RefreshMS = cached.result.RefreshMS
 			event.Cache = "hit"
 			event.DocumentCount = cached.event.documents
 			return result, nil
@@ -147,6 +166,26 @@ func (m *Manager) Query(ctx context.Context, request QueryRequest) (result Query
 		}
 	}
 	event.DocumentCount = len(documents)
+	if m.semantic != nil {
+		if queryVector == nil {
+			result.Reason = "semantic-preparing"
+			if result.Semantic.Ready {
+				result.RefreshMS = 400
+			}
+		} else {
+			semantic, semanticErr := m.semantic.scores(ctx, snapshot, c, selected, documents, queryVector)
+			if semanticErr != nil {
+				if ctx.Err() != nil {
+					return result, ctx.Err()
+				}
+				result.Reason = "semantic-index-failed"
+				result.Semantic.Reason = result.Reason
+			} else {
+				fuse(scores, semantic, m.options.Tuning)
+				result.Mode = "hybrid"
+			}
+		}
+	}
 	// Revalidate owner and epoch after reading projections so deletion and
 	// history clearing cannot return stale source content.
 	current := m.options.Store.Snapshot()
@@ -170,7 +209,7 @@ func (m *Manager) Query(ctx context.Context, request QueryRequest) (result Query
 		}
 		return result.Hits[i].Score > result.Hits[j].Score
 	})
-	if result.Reason == "" && resultKey(current, latest, request, sources, scope) == fingerprint {
+	if resultKey(current, latest, request, sources, scope)+semanticToken == fingerprint {
 		m.retrieval.remember(fingerprint, generation, cachedResult{result, queryCounts{event.DocumentCount}})
 	}
 	return result, nil

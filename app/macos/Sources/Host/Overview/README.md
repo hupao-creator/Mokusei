@@ -321,7 +321,7 @@ shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActiv
 
 ## Search results
 
-[NativeOverviewSearch](NativeOverviewSearch.swift) combines immediate keyword matches with the Runtime's [indexed body keyword search](../../../../../internal/services/threadsearch/README.md). Query, scene and search configuration define context; streaming thread revisions do not repeatedly clear rankings. Within one context, periodic refresh and temporary failures retain the last successful body result until a replacement arrives. Every nonempty query uses the global eligible catalog for both metadata matching and the Runtime `threads` request, including directory-only documents and tasks otherwise covered by reports. Archived and terminal-ineligible records remain excluded, and removed items disappear immediately. Attention-collapsed ordinary threads retain search eligibility. The search scene and request context are independent of the browsing tag: switching directory or semantic tags retains the query, rankings and in-flight request. A new query/configuration context clears old rankings, and cancelled or stale responses cannot replace current results. The search field always shows a localized global placeholder, without a tag scope badge.
+[NativeOverviewSearch](NativeOverviewSearch.swift) combines immediate keyword matches with the Runtime's [local hybrid thread search](../../../../../internal/services/threadsearch/README.md). Query, scene and search configuration define context; streaming thread revisions do not repeatedly clear rankings. Within one context, periodic refresh and temporary failures retain the last successful body result until a replacement arrives. Every nonempty query uses the global eligible catalog for both metadata matching and the Runtime `threads` request, including directory-only documents and tasks otherwise covered by reports. Archived and terminal-ineligible records remain excluded, and removed items disappear immediately. Attention-collapsed ordinary threads retain search eligibility. The search scene and request context are independent of the browsing tag: switching directory or semantic tags retains the query, rankings and in-flight request. A new query/configuration context clears old rankings, and cancelled or stale responses cannot replace current results. The search field always shows a localized global placeholder, without a tag scope badge.
 
 Empty or whitespace-only queries hide the canvas cards and their attention indicator while retaining the current tag membership and browsing scene without issuing body searches. The search field stays focused, and the empty-results message appears only for a nonempty query. Clearing or closing search returns to the current browsing tag. The first nonempty query bookmarks the browsing camera. Without an intervening tag selection, clearing or closing search restores that camera into the current browsing scene, even when visible result cards survive the transition. Explicit tag selection retains its existing camera-reset behavior. Explicit bookmark restoration takes precedence over preserving the result scene's framing.
 
@@ -334,6 +334,13 @@ for growth beyond the old row height before asserting the shrink barrier.
 Membership freshness uses Report's authored introduction and independent cover
 revision, preserving the two-row covered-card footprint without rebuilding membership.
 The subsequent coverage/filter cases retain the ordinary one-row card without a cover.
+
+The search chrome shows model download/preparation and indexing progress, plus a
+retry action for recoverable failures. Status observation is scoped to the visible
+search presentation and resumes after covering/uncovering it. Immediate metadata
+and keyword results remain available while semantic evidence loads. The Runtime's
+`hybrid` ranking is admitted without changing cards, result identity or navigation;
+no snippet, model selector or historical-execution jump is added.
 
 ## Production control chaos
 

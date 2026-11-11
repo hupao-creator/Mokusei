@@ -13,6 +13,7 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 
 | Location | Responsibility |
 | --- | --- |
+| [Sources/Embedding](Sources/Embedding/README.md) | Runtime-owned local model download and LiteRT inference process |
 | Sources/App | Mac application entry, windows and application lifecycle |
 | [Sources/Composition](Sources/Composition/NativePlugins.swift) | Shared static Harness, Application and Sidecard registration |
 | [Sources/Core](Sources/Core/README.md) | Protocol, connections, public state, host files and offline recovery |

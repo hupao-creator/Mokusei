@@ -87,7 +87,7 @@ The native job performs these stages:
    graphical remainder, both with `--skip-build --no-parallel`. Every ordinary
    method belongs to exactly one process; fixture-backed windowless suites move
    only when their existing producer environment is supplied.
-5. Run all ten `interop` checks and all thirteen `native` checks serially.
+5. Run all eleven `interop` checks and all thirteen `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 

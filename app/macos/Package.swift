@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .executable(name: "Mokusei", targets: ["Mokusei"]),
         .executable(name: "MokuseiProbe", targets: ["MokuseiProbe"]),
+        .executable(name: "MokuseiEmbedding", targets: ["MokuseiEmbedding"]),
         .library(name: "MokuseiCore", targets: ["MokuseiCore"]),
         .library(name: "MokuseiUI", targets: ["MokuseiUI"]),
         .library(name: "MokuseiPluginAPI", targets: ["MokuseiPluginAPI"]),
@@ -20,6 +21,9 @@ let package = Package(
         .package(url: "https://github.com/livekit/webrtc-xcframework.git", exact: "150.7871.02")
     ],
     targets: [
+        .binaryTarget(name: "CLiteRTLM_mac",
+            url: "https://github.com/google-ai-edge/LiteRT-LM/releases/download/v0.19.1/CLiteRTLM_mac.xcframework.zip",
+            checksum: "cedd331e78e94bf98ca8f2f28aeb3d543e20277fcd51570c12deed6d49524fb6"),
         .target(name: "MokuseiCore", path: "Sources/Core", exclude: ["README.md"]),
         .target(name: "MokuseiPluginAPI", dependencies: ["MokuseiCore"], path: "Sources/Shared/PluginAPI", exclude: ["README.md"]),
         .target(name: "MokuseiPluginUI", dependencies: [
@@ -47,6 +51,9 @@ let package = Package(
         .executableTarget(name: "Mokusei", dependencies: ["MokuseiComposition", "MokuseiCore", "MokuseiUI", "MokuseiPluginUI"], path: "Sources/App",
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .executableTarget(name: "MokuseiProbe", dependencies: ["MokuseiCore"], path: "Sources/Tools/Probe"),
+        .executableTarget(name: "MokuseiEmbedding", dependencies: ["CLiteRTLM_mac"],
+            path: "Sources/Embedding", exclude: ["README.md"],
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .target(name: "MokuseiTestSupport", path: "Tests/Support", exclude: ["README.md"]),
         .target(name: "MokuseiNativeInputSupport", path: "Tests/NativeInputSupport", exclude: ["README.md"],
             publicHeadersPath: "include", linkerSettings: [.linkedFramework("AppKit")]),
