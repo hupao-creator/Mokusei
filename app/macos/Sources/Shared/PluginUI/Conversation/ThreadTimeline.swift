@@ -375,10 +375,12 @@ public struct HarnessMessageTimeline: View {
                 .overlay(alignment: .bottom) {
                     if allowsJumpToLatest && followOutput && showLatest && !suspended {
                         Button { jumpToLatest() } label: {
-                            HStack(spacing: 5) { NativeIcon(name: "ChevronDown", size: 13); Text(localize("回到最新")) }
-                                .font(NativeTypography.inter(size: 11)).padding(.vertical, 6).padding(.horizontal, 10)
+                            NativeIcon(name: "ArrowDown", size: 13)
+                                .padding(.vertical, 6).padding(.horizontal, 10)
                                 .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 6))
                         }.buttonStyle(.plain).padding(.bottom, 16)
+                            .accessibilityLabel(localize("回到最新"))
+                            .help(localize("回到最新"))
                             .nativeReadingAction("jumpLatest", role: "jumpLatest", label: localize("回到最新")) { jumpToLatest() }
                     }
                 }
