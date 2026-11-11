@@ -29,6 +29,6 @@ parser, provide an existing AA release slug:
 ```
 
 This opt-in check needs network access but no API key. It uses a temporary cache,
-requires verified v5.0 measurements and checks the rendered context version.
+requires verified v5.0.1 measurements and checks the rendered context version.
 It intentionally fails if the release is removed or AA changes its supported
 methodology or page contract. Offline replays remain deterministic.

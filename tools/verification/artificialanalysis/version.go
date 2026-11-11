@@ -154,7 +154,7 @@ func liveReplay(release string) {
 	defer cancel()
 	require(source.Refresh(ctx, []aa.AcquisitionIdentity{{ReleaseSlug: &release}}) == nil, "live v5 acquisition")
 	snapshot := source.Snapshot()
-	require(snapshot.Availability == "available" && snapshot.IntelligenceIndexVersion == "5.0" && len(snapshot.Releases) == 1 && snapshot.Releases[0].Slug == release, "live v5 release identity and version")
+	require(snapshot.Availability == "available" && snapshot.IntelligenceIndexVersion == aa.IntelligenceIndexVersion && len(snapshot.Releases) == 1 && snapshot.Releases[0].Slug == release, "live v5 release identity and version")
 	measured := 0
 	for _, evaluation := range snapshot.Releases[0].Evaluations {
 		if evaluation.IntelligenceIndex != nil && evaluation.BenchmarkScores.HLEDiamond != nil && evaluation.BenchmarkScores.TerminalBenchV40 != nil {
@@ -162,6 +162,6 @@ func liveReplay(release string) {
 		}
 	}
 	require(measured > 0, "live published v5 measurements")
-	require(strings.Contains(aa.FormatCached(snapshot), "Intelligence Index version: v5.0."), "live formatted version")
-	fmt.Printf("PASS AA live website: %s, Intelligence Index v5.0, %d configurations with published index/HLE-Diamond/Terminal-Bench 4.0 scores\n", release, measured)
+	require(strings.Contains(aa.FormatCached(snapshot), "Intelligence Index version: v"+aa.IntelligenceIndexVersion+"."), "live formatted version")
+	fmt.Printf("PASS AA live website: %s, Intelligence Index v%s, %d configurations with published index/HLE-Diamond/Terminal-Bench 4.0 scores\n", release, snapshot.IntelligenceIndexVersion, measured)
 }

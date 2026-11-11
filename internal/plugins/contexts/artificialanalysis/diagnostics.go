@@ -9,6 +9,8 @@ import (
 	"os"
 )
 
+var invalidDocument = errors.New("AA source document is invalid")
+
 type httpFailure int
 
 func (e httpFailure) Error() string { return fmt.Sprintf("AA source HTTP %d", int(e)) }
@@ -22,6 +24,8 @@ func failureClass(err error) string {
 		return "cancelled"
 	case errors.Is(err, context.DeadlineExceeded):
 		return "timeout"
+	case errors.Is(err, invalidDocument):
+		return "invalid-document"
 	case errors.As(err, &httpStatus):
 		return "http"
 	case errors.As(err, &network):
