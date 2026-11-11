@@ -744,7 +744,11 @@ Four integration cases consume actual overview payloads exported by all four Go
 adapters. They exercise first-scope eligibility, null/empty state, pending versus
 execution precedence, reasoning/completed-answer eligibility, incomplete text,
 no-text terminal states, second execution and fork exclusion, plans and bounded
-Unicode prompts. They require unchanged search excerpts and composition keys,
+Unicode prompts. The same Go-produced payloads also compare exact-execution
+previews with ordinary card messages during reasoning updates, completed
+messages, completion/failure/interruption, long Unicode replies and a later
+execution. OpenCode includes a child-session sentinel. Missing references and
+prompt-only/incomplete states must remain empty. They require unchanged search excerpts and composition keys,
 reject malformed flags, and conservatively disable missing flags and Moku.
 The mounted production plugin cards check body accessibility at their actual
 1×1/extended footprints and save light/dark
@@ -759,6 +763,16 @@ no installed app or paid model. These fixtures do not toggle the user's Reduce
 Motion preference, prove physical display frame pacing or cover real account
 startup. System Reduce Motion and the 120ms visual entrance require separate
 visual inspection; ordinary SwiftPM skips are not native replay evidence.
+
+`NativeLocalChangeFanoutTests.referencedCardsConsumeLiveCatalogAndRetireSelections`
+uses the same `MOKUSEI_INITIAL_RESPONSE_FIXTURES` export with the production
+workspace admission, Host reference capability and mounted Report row. It checks
+incremental text updates, exact-execution switching, folded/reopened rows,
+unrelated-change isolation, Moku/history exclusion, deletion and subscription
+retirement. It runs in the ordinary graphical Swift suite with the generated
+fixtures, independently of the four-case initial-response launcher. These
+assertions establish native text convergence and callback ownership, not physical
+frame pacing or a CPU benchmark.
 
 ## Markdown reading regressions
 

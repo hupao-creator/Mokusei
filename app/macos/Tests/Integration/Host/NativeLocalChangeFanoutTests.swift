@@ -1,4 +1,7 @@
+import AppKit
 import Foundation
+import Observation
+import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
 import MokuseiTestSupport
@@ -6,7 +9,7 @@ import MokuseiTestSupport
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiHarnessCodex
-import MokuseiApplications
+@testable import MokuseiApplications
 @testable import MokuseiUI
 
 /// Replays the production admission and mutation path. A fresh full snapshot on
@@ -287,6 +290,96 @@ struct NativeLocalChangeFanoutTests {
         }
     }
 
+    @Test(.requiresDisplay, .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_INITIAL_RESPONSE_FIXTURES"] != nil,
+                                    "Requires Go initial-response fixtures"))
+    func referencedCardsConsumeLiveCatalogAndRetireSelections() async throws {
+        let path = try #require(ProcessInfo.processInfo.environment["MOKUSEI_INITIAL_RESPONSE_FIXTURES"])
+        let rows = try #require(JSONValue(data: Data(contentsOf: URL(fileURLWithPath: path))).arrayValue)
+        var revision = 0
+        func source(_ name: String, privateField: JSONText? = nil) throws -> HarnessThread {
+            let row = try #require(rows.first { $0["harness"] == .text("codex") && $0["name"] == .text(name) })
+            revision += 1
+            var json = try #require(thread("target", revision: revision).json.objectValue)
+            json["sessionState"] = row["state"]
+            json["observation"] = row["observation"]
+            if let privateField {
+                json[privateField] = .bool(true); json["transcript"] = .array([])
+                if privateField == "mokuHistory" { json["archived"] = .bool(true) }
+                else { json.removeValue(forKey: "archived") }
+            }
+            return try HarnessThread(json: .object(json))
+        }
+        try await withFixture(threads: [source("running"), thread("unrelated")]) { fixture in
+            let host = NativeApplicationHost(workspace: fixture.workspace, navigationCallbacks: .init(
+                openThread: { _, _ in }, openExecution: { _ in }, followUp: { _, _ in }, openExternal: { _ in }))
+            defer { host.release() }
+            let first = ApplicationExecutionRef(thread: .init(threadID: "target", typeID: "agent"), executionID: "first")
+            let second = ApplicationExecutionRef(thread: first.thread, executionID: "second")
+            let presentation = ReferenceCardPresentation()
+            let lifetime = PluginLifetime()
+            defer { lifetime.cancel() }
+            var callbacks = 0
+            @MainActor func subscribe(_ reference: ApplicationExecutionRef) throws -> () -> Void {
+                presentation.item = try host.executionReferences([reference]).first
+                return host.subscribeReferences([reference], listener: {
+                    callbacks += 1
+                    do { presentation.item = try host.executionReferences([reference]).first }
+                    catch { Issue.record(error) }
+                }, lifetime: lifetime)
+            }
+            var stop = try subscribe(first)
+            defer { stop() }
+            let window = SwiftUIReplay.window(ReferenceCardReplay(presentation: presentation), width: 400, height: 260)
+            defer { window.close() }
+            let root = try #require(window.contentView)
+            // A SwiftUI Button exposes its Text children as one comma-separated
+            // AX label; require the complete body field, not a prefix match.
+            @MainActor func shows(_ body: String) -> Bool {
+                SwiftUIReplay.text(in: root).contains { $0.components(separatedBy: ", ").contains(body) }
+            }
+            for (name, expected) in [("reasoning", "AGENT_CONTENT_TAKES_OVER"),
+                                     ("reasoning-update", "AGENT_CONTENT_TAKES_OVER UPDATED"),
+                                     ("answer", "AGENT_CONTENT_TAKES_OVER"),
+                                     ("final-answer", "AGENT_CONTENT_TAKES_OVER"),
+                                     ("second-answer", "AGENT_CONTENT_TAKES_OVER")] {
+                try await fixture.patch(["threads": patch(upserts: [try source(name).json])])
+                #expect(presentation.item?.preview?.excerpt.string == expected)
+                try await SwiftUIReplay.wait { shows(expected) }
+                #expect(!SwiftUIReplay.text(in: root).joined().contains("USER_PROMPT_MUST_NOT_APPEAR_IN_BODY"))
+            }
+            #expect(presentation.item?.preview?.running == false)
+            let beforeUnrelated = callbacks
+            try await fixture.patch(["threads": patch(upserts: [try thread("unrelated", revision: 1).json])])
+            #expect(callbacks == beforeUnrelated)
+
+            // Replace the reference while the real row remains mounted. Later
+            // publication must not let a retired selection restore its body.
+            stop(); stop = try subscribe(second)
+            try await SwiftUIReplay.wait { shows("AGENT_CONTENT_TAKES_OVER SECOND") }
+            stop(); stop = try subscribe(first)
+            try await SwiftUIReplay.wait { shows("AGENT_CONTENT_TAKES_OVER") }
+            #expect(!shows("AGENT_CONTENT_TAKES_OVER SECOND"))
+            presentation.visible = false
+            try await fixture.patch(["threads": patch(upserts: [try source("reasoning-update").json])])
+            #expect(presentation.item?.preview?.excerpt == "AGENT_CONTENT_TAKES_OVER UPDATED")
+            presentation.visible = true
+            try await SwiftUIReplay.wait { shows("AGENT_CONTENT_TAKES_OVER UPDATED") }
+            for privateField in [JSONText("moku"), "mokuHistory"] {
+                try await fixture.patch(["threads": patch(upserts: [try source("reasoning-update", privateField: privateField).json])])
+                #expect(presentation.item == nil)
+            }
+            try await fixture.patch(["threads": patch(upserts: [try source("reasoning-update").json])])
+            try await SwiftUIReplay.wait { shows("AGENT_CONTENT_TAKES_OVER UPDATED") }
+            try await fixture.patch(["threads": patch(removed: ["target"])])
+            #expect(presentation.item?.missing == true && presentation.item?.preview == nil)
+            try await SwiftUIReplay.wait { !SwiftUIReplay.text(in: root).joined().contains("AGENT_CONTENT_TAKES_OVER") }
+            lifetime.cancel()
+            let retiredCallbacks = callbacks
+            try await fixture.patch(["threads": patch(upserts: [try source("answer").json])])
+            #expect(callbacks == retiredCallbacks)
+        }
+    }
+
     private func withFixture(threads: [HarnessThread], applications: [JSONValue] = [],
                              _ run: @MainActor (NativeLocalChangeFixture) async throws -> Void) async throws {
         let fixture = try NativeLocalChangeFixture(threads: threads, applications: applications)
@@ -390,5 +483,20 @@ private final class NativeLocalChangeFixture {
         await workspace.client.close()
         model.canvasState.camera.dispose()
         try? FileManager.default.removeItem(at: directory)
+    }
+}
+
+@MainActor @Observable private final class ReferenceCardPresentation {
+    var item: ApplicationExecutionPresentation?
+    var visible = true
+}
+
+private struct ReferenceCardReplay: View {
+    let presentation: ReferenceCardPresentation
+    var body: some View {
+        if let item = presentation.item {
+            NativeReportExecutionRow(item: item, locale: "en", logo: { _ in AnyView(Color.clear) },
+                                     relation: nil, visible: presentation.visible, open: {})
+        }
     }
 }

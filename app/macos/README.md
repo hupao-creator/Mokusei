@@ -111,8 +111,8 @@ Report related executions target a 3:7 sidecard-to-Report width in list state
 and 5:5 in execution detail, subject to the shared width constraints and stacked
 layout. The related list uses individual 16pt Liquid Glass items without
 number prefixes or connector lines. Each item shows its source Thread's validated
-generated emoji (📝 when absent), its exact execution title, a four-line assistant
-excerpt, Harness identity, current Thread status and cited execution elapsed time
+generated emoji (📝 when absent), its exact execution title, a four-line agent
+message excerpt, Harness identity, current Thread status and cited execution elapsed time
 instead of token usage. Thread name, cited execution status and execution UUID
 are omitted from the card body. Current status includes background work and
 remains unknown when facts are unavailable; it updates through catalog
@@ -120,11 +120,18 @@ invalidation while the list is open. Binding-conflict warnings remain visible. A
 click queries `report.relations` again and opens the source Thread's latest
 execution, including running executions, in the existing sidecard reader.
 The card's title, excerpt and timing still describe the report's cited execution;
-this navigation never rewrites report references or Thread bindings. Missing,
-out-of-scope or execution-less Threads leave the list open with an unavailable
+this navigation never rewrites report references or Thread bindings. The excerpt
+uses the same Harness-owned message selector as the ordinary Overview card,
+restricted to the cited execution: eligible live reasoning and complete assistant
+messages refresh through existing catalog invalidation. Terminal compact history
+can fall back to its own retained reply summary; active incomplete assistant text
+and user-prompt fallbacks are excluded. The Host still excludes Moku and Moku
+history, and OpenCode retains its main-session/inherited-message filters. No
+conversation content lease, polling or additional catalog payload is introduced.
+Missing, out-of-scope or execution-less Threads leave the list open with an unavailable
 notice; query failures remain retryable by clicking again. Closing, covering or
 replacing the sidecard invalidates pending navigation. Unknown timing is
-explicit; absent assistant text leaves the excerpt empty. Reduced Transparency
+explicit; absent eligible agent text leaves the excerpt empty. Reduced Transparency
 uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list begins directly with its items. Returning preserves the existing sidecard navigation and
 execution reader scroll ownership. The list fades in on its first opening in a
 Report visit. Each selected execution waits for its scoped row and Markdown

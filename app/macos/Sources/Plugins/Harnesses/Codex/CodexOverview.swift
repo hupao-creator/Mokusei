@@ -269,7 +269,7 @@ enum CodexOverviewProjector {
         return HarnessExecutionTokenUsage(value: part.codexIdentity("value"), count: count, suffix: part.codexIdentity("suffix"))
     }
 
-    private static func overviewMessage(_ turns: [CodexTurn]) -> JSONValue? {
+    static func overviewMessage(_ turns: [CodexTurn]) -> JSONValue? {
         for turn in turns.reversed() {
             if let item = turn.timeline.last(where: {
                 (($0.kind == "assistant" && $0.status == "complete") ||

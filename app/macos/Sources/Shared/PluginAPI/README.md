@@ -127,9 +127,16 @@ without inspecting private Harness state.
 validated ordinary execution reference. The mounted host observes deletion and excludes private Moku conversations, while `NativeHarnessThreadView` owns acquisition/release and the
 single-execution presentation. Report plugins never decode Harness timelines.
 
-`HarnessPlugin.executionPreview` projects bounded assistant text and validated
-start/end timestamps for the requested execution ID. Each Harness interprets
-its own private state; Host/Report never parse another Harness's timeline.
+`HarnessPlugin.executionPreview` projects bounded agent message text and validated
+start/end timestamps for the requested execution ID. It reuses the Harness's
+Overview message selector on that execution only, including eligible live
+reasoning and complete assistant messages. It never uses Overview's prompt/title
+fallback or another execution's content. When compact terminal history no longer
+contains a selected message, its own retained reply summary remains available;
+active incomplete assistant text is not a summary fallback. Each Harness
+interprets its own private state; Host/Report never parse another Harness's
+timeline. Existing catalog notifications drive updates without new content
+subscriptions, polling or broader wire payloads.
 `ApplicationExecutionPresentation.preview` carries that value to the related
 list. `ApplicationExecutionPresentation.emoji` uses the same validated generated
 Thread metadata as all Harness cards/readers. Emoji is Thread-scoped, not an

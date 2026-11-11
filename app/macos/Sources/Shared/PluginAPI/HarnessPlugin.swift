@@ -87,7 +87,7 @@ public struct HarnessExecutionTokenUsage: Hashable, Sendable {
     }
 }
 
-/// A bounded assistant excerpt and timing for one exact execution, never another turn.
+/// A bounded Overview-eligible agent message and timing for one exact execution.
 public struct HarnessExecutionPreview: Hashable, Sendable {
     public let startedAt: Double
     public let finishedAt: Double?

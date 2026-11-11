@@ -58,6 +58,32 @@ struct ThreadCardInitialResponseTests {
                 #expect(!body.initialResponse!.title.contains(sentinel))
             }
             if f["agent"] == .bool(true) { #expect(body.excerpt.contains("AGENT_CONTENT_TAKES_OVER")) }
+            let modules = [AnyHarnessPlugin(CodexHarnessPlugin()), AnyHarnessPlugin(ClaudeHarnessPlugin()),
+                           AnyHarnessPlugin(PiHarnessPlugin()), AnyHarnessPlugin(OpenCodeHarnessPlugin())]
+            let module = try #require(modules.first { $0.descriptor.id == input.thread.harnessID })
+            let preview = try module.executionPreview(thread: input.thread, executionID: "first")
+            #expect(try module.executionPreview(thread: input.thread, executionID: "missing") == nil)
+            if f["agent"] == .bool(true) {
+                let preview = try #require(preview)
+                if f["name"] == .text("second-answer") {
+                    #expect(preview.excerpt == "AGENT_CONTENT_TAKES_OVER")
+                    #expect(!preview.running && preview.finishedAt != nil)
+                    let current = try #require(try module.executionPreview(thread: input.thread, executionID: "second"))
+                    #expect(current.excerpt == "AGENT_CONTENT_TAKES_OVER SECOND" && current.running)
+                } else {
+                    // Compare the actual card message, before its separate search
+                    // excerpt/ellipsis formatting, to the exact-reference path.
+                    #expect(preview.excerpt.string == String(try #require(body.message).text.prefix(600)),
+                            "\(f["harness"]!) / \(f["name"]!)")
+                    #expect(preview.running == input.thread.observation.isExecutionActive)
+                }
+                #expect(preview.excerpt.string.count <= 600)
+                #expect(!preview.excerpt.string.contains("PRIVATE_CHILD_MESSAGE"))
+                #expect(!preview.excerpt.string.contains(sentinel))
+            } else {
+                #expect(preview?.excerpt.codeUnits.isEmpty != false)
+            }
+
             if f["name"] == .text("running") || f["name"] == .text("long-prompt") {
                 #expect(search.string.contains(sentinel))
             }

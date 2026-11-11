@@ -67,7 +67,7 @@ func projectOpenCodeOverview(input: HarnessThreadInput, availableColumns: Int) t
         model: model.isEmpty ? "OpenCode" : model, effort: settings["thinking"].map(ocThinkingLabel) ?? "未选择", pendingInteractionID: pending?.id, openForm: openForm)
     return .init(footprint: .init(columns: presentation.size.cols, rows: presentation.size.rows), structureKey: JSONText(presentation.key), excerpt: excerptRaw, view: view)
 }
-private func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONText?, status: PublicExecution.Status?) -> (id: JSONText, text: JSONText)? {
+func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONText?, status: PublicExecution.Status?) -> (id: JSONText, text: JSONText)? {
     let live = status == .running || status == .waitingForUser
     let reasoningEligible = status == .completed || live
     for message in messages.reversed() {
