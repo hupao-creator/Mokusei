@@ -159,7 +159,7 @@ struct NativeReportCollection: View {
         .task(id: clockKey) {
             guard playing else { return }
             do {
-                try await Task.sleep(for: .seconds(10))
+                try await Task.sleep(for: .seconds(8))
                 try Task.checkCancellation()
                 step(1)
             } catch { /* Leaving the view or manual input cancels this page's dwell. */ }

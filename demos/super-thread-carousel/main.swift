@@ -39,7 +39,7 @@ private struct DemoView: View {
                         .accessibilityAddTraits(model.tag == tag ? .isSelected : [])
                 }
                 Spacer()
-                Text("封面左右滑动 · 每 10 秒切换").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("封面左右滑动 · 每 8 秒切换").font(.system(size: 11)).foregroundStyle(.secondary)
             }
             HStack(spacing: 16) {
                 Text("封面横向轮播 · 正文淡出 / 淡入").font(.system(size: 12)).foregroundStyle(.secondary)

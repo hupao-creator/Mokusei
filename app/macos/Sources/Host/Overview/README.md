@@ -512,7 +512,7 @@ moving the canvas; its scroll/pinch region is intentionally reserved for the
 collection cover.
 
 The selected ID is shared by cover, metadata, opening and semantic navigation.
-Automatic advance is every 10 seconds while foreground, visible and not in a
+Automatic advance is every 8 seconds while foreground, visible and not in a
 cover gesture; manual advance resets the dwell. Offscreen and hidden collections
 stop advancing. Reduce Motion switches immediately, including during travel.
 Active/visibility loss and membership replacement settle the current selection and cancel its
