@@ -649,8 +649,10 @@ struct NativeMokuLandingTests {
                 try await fixture.install([fixture.thread(status: .completed), fixture.thread("added-while-hidden", status: .completed)], applications: [report])
                 #expect(fixture.overview.items == retainedItems)
                 try fixture.presentation.performInteraction(.toggleMokuInput)
-                try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
-                fixture.scene.setInputOpen(false)
+                fixture.scene.setInputOpen(true)
+                #expect(!fixture.scene.inputOpen && !fixture.scene.inputAdmissionReady)
+                #expect(SwiftUIReplay.editor(in: root) == nil)
+                #expect(element(id: "moku-open-input", in: root) == nil)
                 let panel = try #require(readingPanel(in: root, identifier: identifier))
                 let point = panel.convert(CGPoint(x: panel.bounds.minX + 30,
                     y: panel.isFlipped ? 30 : panel.bounds.maxY - 30), to: root)

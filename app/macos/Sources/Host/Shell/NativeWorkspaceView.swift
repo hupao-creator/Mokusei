@@ -652,8 +652,12 @@ public final class NativeWorkspacePresentation {
             normalDraft = superThreadDrafts[superThread]!
         } else { normalDraft = draft }
         dockDraft = sidecardComposer != nil ? sidecardDraft ?? normalDraft : normalDraft
-        state.setComposerContext(dockDraft, opensInput: thread != nil || superThread != nil, keepsInputOpen: thread != nil || superThread != nil,
-            inputAdmissionReady: (selected == nil || readingEntranceAdmitted) && (reportExecution == nil || reportInputReady),
+        // A Report lends input only to its selected Thread. Keep the default
+        // document/list closed at the shared admission boundary so capsule,
+        // keyboard and scripted open requests obey the same route policy.
+        state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil,
+            inputAdmissionReady: (selected == nil || readingEntranceAdmitted)
+                && (selected?.typeID != "report.document" || (thread != nil && reportInputReady)),
             autofocus: autofocus)
         if started {
             workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner,
@@ -671,7 +675,7 @@ public final class NativeWorkspacePresentation {
         readingEntranceAdmitted = true
         publishPresence()
         configureDockInput(in: scene)
-        if dockThreadID != nil || mokuSuperThreadID != nil, !scene.dockCovered, !scene.dockInteractionVisible {
+        if dockThreadID != nil, !scene.dockCovered, !scene.dockInteractionVisible {
             scene.setInputOpen(true)
         }
         return true
@@ -1226,7 +1230,7 @@ public struct NativeWorkspaceCommands: Commands {
             Button("Moku") { presentation?.scene.toggleMoku() }.keyboardShortcut("b")
                 .disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.settingsOpen == true)
             Button(locale.text("输入", "Compose")) { presentation?.scene.toggleInput() }
-                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.dockRouteVisible != true || presentation?.scene.settingsOpen == true)
+                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.dockRouteVisible != true || presentation?.scene.inputInteractionReady != true || presentation?.scene.settingsOpen == true)
             Button(locale.text("Moku 笔记", "Moku Note")) { presentation?.toggleMokuNote() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(presentation?.canToggleMokuNote != true)

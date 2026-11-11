@@ -614,7 +614,8 @@ accepted Close also suspends input hit testing/focus through the panel's live
 motion state without folding the retained shell. Reduce Motion removes the focus
 delay and spatial animations. The fitted Dock
 bottom moves down by up to 16pt, keeping at least
-12pt below it; Super Thread pins Moku input open when no execution is selected; Git retains its normal input policy in that same lower seat.
+12pt below it; Super Thread admits the expanded composer only for a selected
+associated Thread; Git retains its normal input policy in that same lower seat.
 Landing and Settings keep their existing positions. The bottom-anchored editor,
 reasoning envelope and hit regions still use the fitted surface. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md).
@@ -661,7 +662,8 @@ open it. Card choices, navigation, suppression and failed admission retire the
 request; a fresh send may reveal again even when steering the same execution.
 Navigation resets retained editor ink, selection and completion ownership before
 admitting the replacement draft. Returning to Overview, Git or Moku history restores the existing Moku send route.
-An unselected Super Thread restores Moku with that document as its send source. No Overview card send entrance is added.
+An unselected Super Thread keeps the resident Moku capsule compact and denies
+input expansion. No Overview card send entrance is added.
 
 Agent detail pins the composer open: Escape, outside clicks, the input toggle
 and successful sends cannot fold it. The editor's Escape callback closes the
@@ -776,16 +778,17 @@ the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
 
-Super Thread document/list input pins the resident Moku composer open with an
-explicit Moku/Super Thread placeholder without an empty identity slot. Escape follows the report's
-auxiliary Back or normal close; IME, completions, covering routes and input-admission
-gates keep their existing precedence. Each report has a persisted Moku draft;
-Overview and exact-execution drafts retain their existing storage identities.
-Send captures `superThreadId` before suspending, while the Runtime resolves the
-current report and its precise source references. Route fences prevent a retiring
-composer from assigning its input to another report. Selecting an execution still
-borrows the ordinary Agent composer with its existing historical continuation,
-Stop authority and receipt handling. No associated Agent receives unselected input.
+Super Thread document/list state does not admit Moku input. The shared scene
+admission gate blocks capsule clicks, Compose menu/shortcut actions, scripted
+toggles and direct open requests; its compact capsule exposes no input launcher
+or hint. Selecting an associated execution still borrows and pins the ordinary
+Agent composer after reading/content admission, with its existing historical
+continuation, Stop authority and receipt handling. Returning to the list, folding
+or replacing the associated reader immediately retires input, including pending
+focus work. Escape retains the report's auxiliary Back or normal close; IME,
+completions and covering routes keep their existing precedence. Overview and
+exact-execution drafts retain their existing storage identities. No associated
+Agent receives unselected input.
 Voice is now restricted to Overview. Entering an ordinary Agent, Super Thread or
 Moku history reader stops the global call before its controls are hidden, retaining
 a visible cleanup notice and received transcript. Reader inputs mount no long-press

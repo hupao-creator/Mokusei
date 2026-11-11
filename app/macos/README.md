@@ -98,11 +98,12 @@ for evidence and the limits of the isolated measurements.
 Report HTML fades in over 200ms after its first successful WebKit load in a
 reader visit; later content revisions do not repeat the entrance. Reduce Motion
 shows the document immediately. Loading and error controls remain independent.
-The Super Thread's persistent composer does not suppress its document or
-sidecards; covering surfaces such as Settings still suppress them.
-This exemption belongs to the Report route, including the handoff from its Moku
-input to a selected Agent execution. Send context is revoked before the
-execution preference arrives and must not determine surface suppression.
+The Super Thread's selected associated execution uses a persistent composer
+without suppressing its document or sidecards; covering surfaces such as Settings
+still suppress them. The default document/list keeps Moku input closed and
+rejects expansion through the capsule, Compose shortcut/menu and scripted actions.
+Surface suppression belongs to the Report route rather than its send context,
+which is revoked before the execution preference arrives.
 See the [recording and local-log diagnosis](../../design/super-thread-associated-open.md).
 
 Report related executions target a 3:7 sidecard-to-Report width in list state

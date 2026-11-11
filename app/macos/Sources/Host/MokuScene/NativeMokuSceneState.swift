@@ -156,9 +156,9 @@ import MokuseiPluginUI
         return true
     }
     public func toggleInput() {
-        // Only routes with a resident capsule may focus its editor. Application
-        // documents still omit the Dock and cannot acquire hidden input.
-        guard dockRouteVisible else { return }
+        // Reject unavailable input before changing the history/camera route;
+        // a Compose shortcut must not navigate around the admission gate.
+        guard dockRouteVisible, inputInteractionReady else { return }
         if mokuOpen || cameraActive { setMokuOpen(false); setInputOpen(true) }
         // A pinned Agent editor cannot fold. Compose is an explicit focus
         // request even when TOC navigation deliberately suppressed autofocus.
