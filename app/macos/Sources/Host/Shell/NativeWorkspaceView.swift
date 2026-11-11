@@ -873,6 +873,11 @@ public struct NativeWorkspaceView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             NativeMokuTimerBar(timer: model.timer, exclusions: presentation.scene.outsideClickExclusions)
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !presentation.scene.settingsOpen && !presentation.onboarding.blocksWorkspace {
+                NativeBackgroundAgentStatusBar(presentation: presentation.moku)
+            }
+        }
         .environment(\.locale, Locale(identifier: model.preferences.locale.rawValue))
         .environment(\.nativeOfflineDraftEditing, model.hasInitialContent && !model.runtimeAvailable && !model.stopping)
         .environment(\.nativeCanvasInputRegions, canvasInputRegions)

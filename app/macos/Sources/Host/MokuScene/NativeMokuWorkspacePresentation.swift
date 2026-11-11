@@ -33,7 +33,8 @@ public final class NativeMokuWorkspacePresentation {
     public private(set) var running = false
     public private(set) var sessionIdle = true
     public private(set) var landing = false
-    public private(set) var tagAgentRunning = false
+    public var tagAgentRunning: Bool { agentRunning("tag.agent") }
+    public var superThreadAgentRunning: Bool { agentRunning("report.agent") }
     public private(set) var talk: String?
     public private(set) var talkID: JSONText?
     public private(set) var talkMessage: NativeMokuTalkMessage?
@@ -127,10 +128,6 @@ public final class NativeMokuWorkspacePresentation {
         } ?? false
         running = moku?.pendingInput == true || (execution.map { $0.status == .running } ?? fallbackRunning)
         sessionIdle = moku?.pendingInput != true && !(execution.map { $0.status == .running || $0.status == .waitingForUser } ?? fallbackRunning)
-        tagAgentRunning = workspace.catalog.agentRuns.contains { run in
-            guard let id = run["agentId"]?.stringValue else { return false }
-            return id == "tag.agent" || id.hasPrefix("tag.agent.")
-        }
         activity = harnessPresentation?.activity.flatMap { value in
             execution?.status == .running && value.executionID == execution?.executionID ? value : nil
         }
@@ -219,6 +216,16 @@ public final class NativeMokuWorkspacePresentation {
 
     private func updatePresenting() {
         queue.setPresenting(requestedPresenting && workspace.connection == .connected && intervention == nil && activeOperation == nil)
+    }
+
+    private func agentRunning(_ agentID: String) -> Bool {
+        // A retained offline snapshot is reading history, not live activity.
+        // agentRuns contains only running private executions; a document, queued
+        // batch, enabled setting or open idle session cannot establish activity.
+        workspace.runtimeAvailable && workspace.catalog.agentRuns.contains { run in
+            guard let id = run["agentId"]?.stringValue else { return false }
+            return id == agentID || id.hasPrefix(agentID + ".")
+        }
     }
 
     private func publishDisplay() {

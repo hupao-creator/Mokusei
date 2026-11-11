@@ -26,7 +26,9 @@ All fields come from one immutable store snapshot. The revision is a content has
 of classification-relevant state; unrelated streaming/status changes do not stale
 it. Thread titles, tag names and all tool results are evidence, never instructions.
 No input excerpt, assistant output, execution status, conversation history, or
-Overview context is exposed. There is no user-facing statusbar UI.
+Overview context is exposed. This classification snapshot has no user-facing UI;
+the host's separate [running indicator](../../../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
+uses the public execution-activity projection, just like Super Thread Agent.
 
 The exclusive tool set is:
 
