@@ -9,6 +9,7 @@
 - 点击封面/body 才打开报告并开始独立阅读访问；翻页不计为打开。打开时从 collection 位置展开；单次前台阅读超过 120 秒才清除原资格，短读返回保留；每次关闭重新开始 300 秒等待；只剩一篇时解散集合。
 - 封面在 308pt 区域水平轮播；底部 144pt body 保持原位，旧内容淡出后新内容淡入。两部分共享选择和 460ms 时钟，4pt 间距和外壳固定。
 - Liquid Glass 轮播控件固定在封面上。每 10 秒自动切换，手动切换重新计时；离屏、阅读页、失焦或封面手势暂停自动轮播。Reduce Motion 直接切换。
+- 集合采用已确认的 regular Liquid Glass：同一背板连续覆盖封面、4pt 布局间距和 body，不露出背景缝。emoji badge 保持生产 44pt 直径、距 metadata 顶部 12pt / 右边 17pt；单篇 Report 仍为不透明材质。降低透明度时新表面使用实色。
 - 大集合最多挂载四个封面；超过七篇以菜单代替圆点列表。无封面报告使用自身 emoji 占位。
 
 生产边界和输入归属见 [Overview README](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)。没有 Thinking Effort 控件改动。
@@ -31,6 +32,16 @@ open "$(cat .build/super-thread-carousel/app-path.txt)"
 ```
 
 如果当前环境的命令行 `open` 报 LaunchServices `-10827`，使用 Finder/桌面接口打开相同路径。此前 demo 已通过桌面接口打开，不需要停止现有正式应用。
+
+## Regular glass 的 headless 验证
+
+`--headless` 导出真实生产投影的 `surfaceOwners`：collection 为 true，单篇
+Report 与搜索结果为 false。它在创建 NSApplication 之前退出，不启动 GUI。
+生产 Canvas 根据这个声明省略 collection 的实色底壳，regular 背板由 Report
+renderer 提供。现有手动 App 的集合外壳同样让出底色，其他卡片保留实色。
+
+本次落地的构建、导出和未完成视觉验证见
+[regular-glass-validation.md](regular-glass-validation.md)。
 
 ## 查看路径
 

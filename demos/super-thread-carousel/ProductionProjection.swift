@@ -59,6 +59,7 @@ import MokuseiHarnessCodex
             }
         }
         return ["scenario": name, "collections": collections, "individual": singles,
+                "surfaceOwners": Dictionary(uniqueKeysWithValues: model.items.map { ($0.id, $0.providesCardSurface) }),
                 "memberTitles": titles, "error": model.error ?? ""]
     }
     var rows = [snapshot("production-initial", model: model)]

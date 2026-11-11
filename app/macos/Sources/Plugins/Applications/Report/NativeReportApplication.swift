@@ -20,7 +20,7 @@ import SwiftUI
          ApplicationCapabilities.isolatedHTML.requirement]
     }
     var overviewCollection: ApplicationOverviewCollectionPolicy? {
-        .init(closedBefore: 300, footprint: .init(columns: 1, rows: 2))
+        .init(closedBefore: 300, footprint: .init(columns: 1, rows: 2), providesCardSurface: true)
     }
     func collectionCard(props: [ApplicationThreadProps<NativeReportView>], initialSelection: ApplicationThreadRef?, active: Bool,
                         onSelection: @escaping (ApplicationThreadRef) -> Void,

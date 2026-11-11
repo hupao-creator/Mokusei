@@ -5,10 +5,13 @@ import Foundation
 public struct ApplicationOverviewCollectionPolicy: Sendable {
     public let closedBefore: TimeInterval
     public let footprint: HarnessOverviewFootprint
-    public init(closedBefore: TimeInterval, footprint: HarnessOverviewFootprint) {
+    /// The renderer supplies its own complete backdrop instead of the Host's flat shell.
+    public let providesCardSurface: Bool
+    public init(closedBefore: TimeInterval, footprint: HarnessOverviewFootprint, providesCardSurface: Bool = false) {
         precondition(closedBefore.isFinite && closedBefore > 0)
         precondition((1...3).contains(footprint.columns) && (1...100).contains(footprint.rows))
         self.closedBefore = closedBefore; self.footprint = footprint
+        self.providesCardSurface = providesCardSurface
     }
     public func includes(lastClosed: Date?, now: Date) -> Bool {
         guard let lastClosed else { return false }

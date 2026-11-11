@@ -164,6 +164,14 @@ A renderer must keep member identities intact and must not treat selection or
 automatic paging as opening a document. Individual card/detail contracts are
 unchanged. Super Thread is the only current opt-in.
 
+`providesCardSurface` defaults to false. An opted-in collection renderer may
+provide its complete card backdrop; the Host then omits its opaque decorative
+shell while retaining geometry, clipping, input, and visibility ownership.
+This is a native presentation fact, not persisted data or a thread-kind check.
+Super Thread opts in to draw one regular-glass plate behind its cover and body.
+If collection rendering fails, the Host's error view supplies its own opaque
+surface so this opt-in cannot leave error ink without a readable backdrop.
+
 `ApplicationOverviewCollectionPolicy.closedBefore` is a strict elapsed interval
 from a known close (`includes(lastClosed:now:)`). Unknown/future closes do not
 qualify. The Host owns foreground reading visits and retained eligibility; the

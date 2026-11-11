@@ -45,16 +45,24 @@ normalizes its distinct labels once. The
 [CPU benchmark and scenario matrix](../../../../../tools/verification/overview-performance/README.md)
 distinguishes model work from GUI and GPU work.
 
-All Overview cards, including Agent Threads and Report, use opaque palette
-surfaces and a soft border, including completed cards.
-Shells stay flat. Super Thread collection navigation is the sole card-local Liquid Glass control layer. The card boundary
-supplies the shared flat-material policy to provider badges, terminal marks and
-plan highlights. Agent Thread emoji badges use static opaque palette fills
+Ordinary Overview cards, including Agent Threads and individual Reports, use
+opaque palette surfaces and a soft border, including completed cards.
+Super Thread collections provide one continuous regular Liquid Glass plate
+behind their cover, metadata and intervening layout space. Their policy's
+`providesCardSurface` omits the Canvas's opaque shell; glass remains in the
+semantic camera plane so pan/zoom update its backdrop geometry. Collection
+emoji badges opt into regular glass with a light mint tint at the unchanged
+44pt diameter / top 12pt / trailing 17pt metadata seat. Reduce Transparency
+uses opaque palette fills; the material helper falls back to system Material
+when Liquid Glass is unavailable. Other card content keeps the shared flat
+policy for provider badges, terminal marks and plan highlights.
+Agent Thread emoji badges use static opaque palette fills
 without an added border: adaptive accent-soft green when completed, neutral
 surface-strong otherwise. This also applies under Reduce Transparency. Removing
-per-card Liquid Glass avoids its spatial update cost during canvas movement.
+per-card Liquid Glass on ordinary cards avoids its spatial update cost during canvas movement.
 The terminal symbol and accessible status label remain independent of color.
-Card shells, collection content and all other card surfaces stay flat.
+Only Super Thread collections opt into the new card material; individual Report
+and ordinary Thread surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
 scan and spatial-animation ownership are unchanged.
@@ -481,11 +489,13 @@ The Report plugin owns `NativeReportCollection`: a 308pt cover slides horizontal
 while the 144pt metadata stays in place and switches through the shared
 `ThreadCardInkMask`. Cover and ink use one 460ms ease-in-out progress; backward
 paging mirrors only the mask so the reveal follows cover travel. Outgoing ink
-stays above incoming ink. The 4pt gap
-and card shell stay fixed. It reuses `NativeReportCover` and `NativeReportCard`
+stays above incoming ink. The 4pt layout spacing and card shell stay fixed;
+the spacing is filled by the same glass plate as the body, without an exposed
+background seam or a separate body glass edge. It reuses `NativeReportCover` and `NativeReportCard`
 with `showsCover: false`, rather than duplicating metadata. Coverless reports use
 their emoji on the ordinary surface. Arrow/dot/menu controls use native Liquid
-Glass; the canvas continues to own the flat outer shell. During page travel,
+Glass; the collection owns its regular-glass outer plate while the Canvas
+retains geometry, clipping and hit testing. During page travel,
 metadata gates pointer/accessibility/actions without disabling its visual label.
 Open and archive callbacks recheck the current collection pose, including an
 already-open context menu; accepted archive work may finish across page changes.

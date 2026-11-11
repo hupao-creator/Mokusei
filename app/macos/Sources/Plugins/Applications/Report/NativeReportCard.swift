@@ -9,6 +9,7 @@ import SwiftUI
     let projection: NativeReportCardProjection
     let openThread: () -> Void
     var showsCover = true
+    var usesGlassBadge = false
     var allowsActions: () -> Bool = { true }
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
@@ -69,7 +70,7 @@ import SwiftUI
         }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .threadCardBadge {
                 ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
-                                         completedBackground: true)
+                                         completedBackground: true, usesRegularGlass: usesGlassBadge)
             }.contentShape(Rectangle())
     }
 

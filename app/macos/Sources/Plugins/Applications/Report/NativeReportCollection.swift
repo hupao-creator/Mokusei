@@ -122,6 +122,12 @@ struct NativeReportCollection: View {
                     }.foregroundStyle(.primary).padding(14).frame(height: 308)
                 }.zIndex(4)
             }
+            .background {
+                // Cover, gap and metadata share one continuous plate. The opaque
+                // cover hides its upper portion; ink/page masks never clip it.
+                Color.clear.nativeRegularCardGlass(in: RoundedRectangle(cornerRadius: 22),
+                    opaque: NativePalette.overview.surface.swiftUI)
+            }
         }
         .onAppear { onSelection(selected) }
         .onChange(of: members) { _, next in
@@ -198,7 +204,7 @@ struct NativeReportCollectionBody: View {
                 NativeReportCard(props: member,
                     projection: .init(previewText: member.entry.view.shortDescription,
                                       relatedThreadCount: member.entry.view.relatedExecutions.count),
-                    openThread: { openThread(member.entry.ref) }, showsCover: false,
+                    openThread: { openThread(member.entry.ref) }, showsCover: false, usesGlassBadge: true,
                     allowsActions: { allowsActions(member.entry.ref) })
                     .mask {
                         ThreadCardInkMask(progress: CGFloat(progress), outgoing: member.entry.ref == outgoingID)

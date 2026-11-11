@@ -4,12 +4,15 @@ import MokuseiPluginUI
 @testable import MokuseiApplications
 
 private struct CardShell<Content: View>: View {
+    var providesCardSurface = false
     @ViewBuilder let content: Content
     var body: some View {
         content.frame(width: 360, height: 456)
-            .background(NativePalette.overview.surface.swiftUI)
+            .background(providesCardSurface ? Color.clear : NativePalette.overview.surface.swiftUI)
             .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI))
+            .overlay {
+                if !providesCardSurface { RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI) }
+            }
     }
 }
 
@@ -47,7 +50,7 @@ private struct DemoView: View {
                 LazyVGrid(columns: [.init(.adaptive(minimum: 360, maximum: 360), spacing: 16)], alignment: .center, spacing: 22) {
                     if !model.projection.members.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
-                            CardShell {
+                            CardShell(providesCardSurface: true) {
                                 NativeReportCollection(props: model.projection.members.map { fixtures[$0.id]!.props },
                                     active: active && model.reading == nil, slow: slow, onSelection: { _ in },
                                     openThread: { reference in

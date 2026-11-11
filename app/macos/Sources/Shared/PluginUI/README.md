@@ -2,6 +2,13 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+`nativeRegularCardGlass` supplies native regular glass with a system Material
+fallback and an opaque palette fill under Reduce Transparency. Super Thread
+collections opt into it for their full backdrop and emoji badge; the badge keeps
+the shared 44pt diameter and top 12 / trailing 17 seat. Other card badges retain
+their flat-material policy. Apply the backdrop separately from ink masks so a
+page reveal does not cut the collection's continuous material surface.
+
 Settings role editors can opt into `NativeSettingsEditorDrafts` and
 `NativeSettingsEditorState` to retain incomplete plugin input across unmounts.
 Storage is local to the Settings visit and interaction scope; complete values still

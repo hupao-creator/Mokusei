@@ -295,7 +295,9 @@ private struct NativeOverviewWorkspaceCard: View {
                 })
         } catch {
             return AnyView(Text(error.localizedDescription).font(NativeTypography.inter(size: 11))
-                .foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18))
+                .foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(NativePalette.overview.surface.swiftUI))
         }
     }
 

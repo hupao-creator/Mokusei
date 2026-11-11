@@ -231,6 +231,11 @@ their place across short reopened visits; more than two minutes of foreground
 reading in one visit clears that eligibility. Collections are native view
 projections; close evidence and retained eligibility are profile-local desktop
 state. The Report renderer keeps a sliding cover, fading
-metadata and stationary Liquid Glass navigation. Search results remain individual.
+metadata and stationary Liquid Glass navigation. Collections also provide a
+continuous regular-glass backdrop and regular-glass emoji badges at the existing
+metadata seat; the Host omits only their opaque shell. The 4pt internal spacing
+shares the backdrop, preserving the card geometry without a visible seam.
+Reduce Transparency uses opaque palette fills. Single Report cards and search
+results retain their ordinary flat material. Search results remain individual.
 See [Overview collection ownership](Sources/Host/Overview/README.md#viewed-application-collections)
 and the [production fixture](../../demos/super-thread-carousel/README.md).

@@ -921,7 +921,8 @@ public final class NativeOverviewWorkspaceModel {
                     for member in members { collectionSources[member.entry.ref] = id }
                     entries.removeAll { ids.contains($0.item.id) }
                     entries.append((origin.created, origin.index, .init(id: id, columns: policy.footprint.columns,
-                        rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token)))
+                        rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token,
+                        providesCardSurface: policy.providesCardSurface)))
                 }
                 if let expiry = nextExpiry, facts.overviewVisible, presentationActive {
                     collectionExpiryTask = Task { [weak self] in
