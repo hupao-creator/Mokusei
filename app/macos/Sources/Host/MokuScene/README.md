@@ -51,7 +51,7 @@ Dock's separate trailing control inset. Its configuration adapts within that
 reserved content seat as described below.
 
 Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
-panel, dispatch details and history input capsule keep their existing dark
+panel and history input capsule keep their existing dark
 appearance independently of the system and workspace preference.
 The current and archived Moku conversation reading cards inherit the workspace
 appearance: light, dark or system. No local reader override or separate theme
@@ -200,6 +200,7 @@ row remain note entry points for a long message. The monitor checks the actual
 hit-tested AppKit viewport, so resizing and persistent scroller gutters do not
 depend on a predicted text height. Stop and voice controls retain their measured
 exclusions. Live voice transcripts and dispatch cards keep their eye-only entry.
+Dispatch status is informational; clicking it does not open a detail sheet.
 
 The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The choreography comes from Bart commits `2c3125ac7` and `45578f321`; the eyes retain their seat while the 5-point dots follow the capsule's outer contour, with 3 points of clear space. [NativeMokuRunningGeometry](NativeMokuRunningGeometry.swift) supplies that authored path to the persistent character host. Decorations paint outside the glass clip. Input, note, tool, message, interaction and voice ownership retire the running decoration through the same host rather than replacing the eye view.
 
@@ -310,7 +311,7 @@ captured operation identity before expiry. Timeout consumes only the notificatio
 using the existing dismissal and capsule transition; it never deletes transcript
 history or changes the persistent note, ordinary replies or voice transcript.
 
-[NativeMokuDispatch](NativeMokuDispatch.swift) projects the same operation while pending and settled. Success requires `completedAt`, no error, `ok:true` and a nonempty `threadId`; it confirms dispatch, not task completion. The 400×58-point layout contracts for narrow viewports. Configuration comes from that call's arguments. Details resolve the selected operation identity in the full transcript, preserving its original prompt and outcome when newer notifications arrive.
+[NativeMokuDispatch](NativeMokuDispatch.swift) projects the same operation while pending and settled. Success requires `completedAt`, no error, `ok:true` and a nonempty `threadId`; it confirms dispatch, not task completion. The 400×58-point layout contracts for narrow viewports. Configuration comes from that call's arguments. The notification is informational and does not open a detail sheet.
 
 The notification first fits the complete status and configuration on one line.
 When their intrinsic width exceeds the available content seat, configuration
@@ -321,9 +322,9 @@ identifier across Codex, Claude, Pi and OpenCode; there are no display aliases
 or provider-prefix stripping. Thinking retains the requested effort or mode
 (`on`, `off`, `fixed`), with no inferred defaults. Only an overlong model on the
 second line truncates in the middle; thinking has higher layout priority, and
-extreme widths can still truncate either field. Hover help, accessibility and
-the existing clickable detail sheet retain the complete configuration. Provider
-stays in details, separately from model identity.
+extreme widths can still truncate either field. Hover help and accessibility
+retain the complete configuration. Provider remains separate from model identity
+in the stored operation; the notification has no clickable detail sheet.
 
 The selected Harness is the single key in `arguments.target`, with its native
 fields nested under that key. Empty, ambiguous or non-object selections do not
@@ -351,7 +352,7 @@ message ink in place over 100ms, expands the single glass shell with the existin
 that sequence. The footer retains History/Stop/voice actions; Note prose never travels through a visible Talk row. The message's native
 viewport remains mounted with its ordinary 48-point control inset, preserving
 wrapping and scroll state while hidden. This also applies to dispatch and live
-voice transcript ink, without changing dispatch detail or voice media ownership.
+voice transcript ink, without changing dispatch state or voice media ownership.
 
 A generation fences each animation completion, so a rapid reversal cannot finish
 an older intent. Input, covering routes, inactive/hidden scenes and Reduce Motion

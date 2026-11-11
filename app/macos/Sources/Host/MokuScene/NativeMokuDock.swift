@@ -132,7 +132,6 @@ public struct NativeMokuDock: View {
     @State private var stopControlsFrame = CGRect.zero
     @State private var voiceComposerRestoration = NativeMokuVoiceComposerRestoration()
     @State private var talkScrollbarStyle = NSScroller.preferredScrollerStyle
-    @State private var dispatchDetail: NativeMokuTalkMessage?
     @State private var character = NativeMokuCharacterMotion()
     @State private var reasoningRequested = false
     @State private var reasoningSeatReserved = false
@@ -281,10 +280,8 @@ public struct NativeMokuDock: View {
 
     @ViewBuilder private func rowMessage(_ message: NativeMokuTalkMessage, width: CGFloat) -> some View {
         if let dispatch = message.dispatch {
-            NativeMokuDispatchContent(dispatch: dispatch, harness: dispatchHarness(dispatch)) {
-                dispatchDetail = message
-            }
-            .frame(width: max(1, width - NativeMokuTalkTypography.leading - 48), height: 32)
+            NativeMokuDispatchContent(dispatch: dispatch, harness: dispatchHarness(dispatch))
+                .frame(width: max(1, width - NativeMokuTalkTypography.leading - 48), height: 32)
         } else {
             // The legacy scroller occupies the trailing gutter; extend its
             // viewport so the remaining text clip stays centered in the shell.
@@ -684,9 +681,6 @@ public struct NativeMokuDock: View {
             presentation?.setPresenting(false)
             hoverTask?.cancel(); hoverTask = nil
             focusGeneration = nil
-        }
-        .sheet(item: $dispatchDetail) { selected in
-            NativeMokuDispatchSheet(selected: selected, presentation: presentation)
         }
         .task(id: "\(state.composerGeneration):\(mentionsEnabled)") { await directoryMentions.load(enabled: mentionsEnabled, using: loadMentionDirectories) }
         // Keep the override local: a preferredColorScheme would also recolor
