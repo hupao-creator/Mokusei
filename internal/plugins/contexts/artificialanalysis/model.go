@@ -12,7 +12,7 @@ import (
 )
 
 const SourceID = "artificial-analysis"
-const IntelligenceIndexVersion = "5.0"
+const IntelligenceIndexVersion = "5.0.1"
 const cacheSchemaVersion = 2
 const MaxFactsBytes = 8 * 1024 * 1024
 const MaxCatalogBytes = 64 * 1024
@@ -258,7 +258,7 @@ func parsePersisted(data []byte) (*persistedSnapshot, error) {
 	if err := json.Unmarshal(data, &value); err != nil {
 		return nil, err
 	}
-	if !keys(value, []string{"schemaVersion", "intelligenceIndexVersion", "source", "observedAt", "fetchedAt", "configurations"}, nil) || value["schemaVersion"] != float64(cacheSchemaVersion) || value["intelligenceIndexVersion"] != IntelligenceIndexVersion || value["source"] != SourceID || !iso(text(value["observedAt"])) || !iso(text(value["fetchedAt"])) {
+	if !keys(value, []string{"schemaVersion", "intelligenceIndexVersion", "source", "observedAt", "fetchedAt", "configurations"}, nil) || value["schemaVersion"] != float64(cacheSchemaVersion) || !supportedIndexVersion(text(value["intelligenceIndexVersion"])) || value["source"] != SourceID || !iso(text(value["observedAt"])) || !iso(text(value["fetchedAt"])) {
 		return nil, fmt.Errorf("invalid evaluation cache envelope")
 	}
 	entries, ok := value["configurations"].([]any)
