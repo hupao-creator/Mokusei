@@ -1,5 +1,11 @@
 # Window and reading navigation
 
+The shell publishes the selected route to Overview's shared application reading
+owner after hiding the canvas. A Super Thread and its associated ordinary Threads
+share collection eligibility and cumulative foreground dwell across route changes;
+leaving that owner records one close. Catalog rebinding and restored Agent routes
+use the same path. See the [reading contract](../Overview/README.md#viewed-application-collections).
+
 [Semantic workspace actions](../Interaction/README.md) expose navigation to scripts
 through the same presentation methods. Back dispatches the active reading action;
 Settings uses its shared draft close gate.

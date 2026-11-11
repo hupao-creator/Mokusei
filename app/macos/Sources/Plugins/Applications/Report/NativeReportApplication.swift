@@ -1,3 +1,5 @@
+import CryptoKit
+import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
@@ -21,6 +23,18 @@ import SwiftUI
     }
     var overviewCollection: ApplicationOverviewCollectionPolicy? {
         .init(closedBefore: 300, footprint: .init(columns: 1, rows: 2), providesCardSurface: true)
+    }
+    func collectionContentRevision(entry: ApplicationThreadCatalogEntry<NativeReportView>) throws -> String? {
+        // Record revisions also advance for tag propagation. Only authored content
+        // and exact execution bindings invalidate the document's reading evidence.
+        let view = entry.view
+        let references = view.relatedExecutions.sorted {
+            $0.thread.threadID.codeUnits.lexicographicallyPrecedes($1.thread.threadID.codeUnits)
+        }
+        let content = JSONValue.array([.string(entry.title), .string(view.contentRevision),
+            .string(view.coverRevision), .string(view.emoji), .string(view.shortDescription),
+            .array(references.map { .array([.string($0.thread.threadID), .string($0.executionID)]) })])
+        return SHA256.hash(data: try content.encodedData()).map { String(format: "%02x", $0) }.joined()
     }
     func collectionCard(props: [ApplicationThreadProps<NativeReportView>], initialSelection: ApplicationThreadRef?, active: Bool,
                         onSelection: @escaping (ApplicationThreadRef) -> Void,

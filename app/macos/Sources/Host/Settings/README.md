@@ -351,7 +351,7 @@ and the semantic interaction binding remain available. Collapsing retains values
 
 
 `DesktopPreferences` retains profile-local `applicationCollectionReading` close
-facts and retained eligibility for application collections. Unix-second close
+facts, retained eligibility and optional plugin content fingerprints for application collections. Unix-second close
 timestamps are separate from historical `applicationLastOpened`, which remains
 preserved but cannot establish a close. Appearance, locale, selection and
 onboarding writes preserve both dictionaries. This is reading state rather than

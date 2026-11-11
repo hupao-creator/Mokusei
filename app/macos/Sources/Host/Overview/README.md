@@ -454,7 +454,27 @@ Admitted detail navigation is validated against `NativeWorkspaceCatalog`, even
 before the first Overview projection. Each actual route departure (Close, Back,
 replacement or orderly release) records a wall-clock close time. Opening clears
 the previous close deadline, so time spent reading cannot age into a collection.
-Every new close restarts the strict five-minute interval.
+Every new close restarts the strict five-minute interval unless a short visit
+retains eligibility that was already established at opening.
+
+Reading an associated ordinary Thread uses the same Super Thread reading owner,
+whether opened in the Report sidecard, from search, through an execution link or
+as a restored Agent route. Ownership comes from the full catalog's declared
+execution coverage, independently of filters, collection membership and archive
+visibility. It matches Thread identity even when reading a newer/current or older
+execution than the report cites. Ordinary execution updates never edit the report
+or reset its reading evidence. Unassociated Threads have no collection owner.
+
+Moving between a Report and its associated Threads (or between its associated
+Threads) continues one visit; loading/admission pauses its foreground clock.
+Closing the route or moving to another owner records the close. Covers, previews,
+carousel rotation and data prefetch do not open visits. Catalog binding changes
+reconcile the active route: departure from the old owner closes that visit, and
+the new owner starts a fresh visit with no transferred dwell. Unlinking leaves no
+owner. A newly generated report can become the current associated reading owner,
+but gains no eligibility until an actual departure and the normal close interval.
+The reverse ownership index updates with application deltas, without a full scan
+for ordinary execution/status events. Ambiguous ownership earns no read credit.
 
 A document eligible at opening retains that eligibility through a short visit,
 independently of tag/search projection or whether a second candidate is present.
@@ -479,6 +499,26 @@ state reports a preferences read error. Failed writes report errors and preserve
 session evidence without claiming disk recovery. These facts are local to the
 client, not cross-device state; collection membership and selection remain
 unpersisted view projections.
+
+The Report plugin supplies a stable content fingerprint covering title, document
+and cover revisions, emoji, introduction and the set of exact execution bindings.
+A changed fingerprint clears both the old close and retained eligibility, so an
+updated member appears individually until another actual visit closes and the
+normal five-minute interval elapses. Updates during a short visit also revoke
+retention; closing that visit starts a new interval. Tags, archive state, catalog
+timestamps/revisions, source execution status and reference reordering do not
+change this fingerprint. Runtime no-op writes retain document/cover revisions.
+
+The fingerprint is saved as optional `contentRevision` in the same reading entry.
+Both full snapshots/reconnects and incremental catalog changes compare it before
+projection, including hidden presentation and other browsing filters. Unknown
+fingerprints establish a baseline without claiming an update; initial generation
+never counts as a revision of previously read content. Existing reading entries
+without a fingerprint cannot detect edits predating that first baseline. Unvisited
+documents acquire their first reading entry only when opened. Failed persistence
+keeps the same session-only fallback as close evidence. Content invalidation does
+not alter canonical counts, report coverage, creation ordering or other members;
+a collection with one survivor dissolves under the existing minimum-two rule.
 
 Opening captures the collection's displayed geometry and keeps its backdrop
 through travel. Prepared return samples the refreshed collection for a short

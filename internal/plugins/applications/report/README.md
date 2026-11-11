@@ -308,3 +308,16 @@ The passive native WebKit surface uses a nonpersistent store, disabled JavaScrip
 a host-owned document response with a sandbox CSP blocking external resources.
 It neither navigates nor handles input; theme follows the native appearance.
 A failed cover leaves the native card usable with an unavailable label.
+
+
+## Updated collection members
+
+The native plugin exposes a stable reading fingerprint for title, emoji,
+introduction, document/cover revisions and the set of exact execution references.
+The desktop Host persists this fingerprint with its close/retained-reading facts;
+a change revokes the old collection eligibility even across reconnect/restart.
+Tag propagation, archive/restore, source status, record timestamps/revisions and
+reference order alone do not split a collection. Initial observation establishes
+a baseline rather than an edit. No report record, write receipt or CAS changes.
+See the [desktop reading contract](../../../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+for close/dwell rules and the limit of reading evidence without a prior fingerprint.

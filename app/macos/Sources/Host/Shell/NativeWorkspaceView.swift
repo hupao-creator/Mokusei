@@ -249,15 +249,9 @@ public final class NativeWorkspacePresentation {
             threadIdentityVisit = ref.typeID == "agent" && target == nil
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
         }
-        if selected != ref { overview.recordApplicationClose() }
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
         configureThreadVoice(); publishPresence()
-        if ref.typeID != "agent" {
-            // Publish the hidden Overview first so its opening backdrop survives.
-            overview.recordApplicationOpen(ref)
-            overview.updateApplicationReading(visible: readingForeground)
-        }
         if ref.typeID == "agent" { scene.setInputOpen(true) }
         Task { await overview.recordUserAction(kind: "open-thread", thread: ref) }
     }
@@ -350,7 +344,6 @@ public final class NativeWorkspacePresentation {
             return
         }
         NativeReadingPageMotion.cancelAll()
-        overview.recordApplicationClose()
         selected = applicationReturn?.thread; readingTarget = applicationReturn?.target
         if let selected { beginPerformanceVisit(selected) }
         applicationReturn = nil; resetNavigation(); nativeApplicationNavigation = false
@@ -409,7 +402,6 @@ public final class NativeWorkspacePresentation {
 
     public func publishPresence() {
         guard started else { return }
-        overview.updateApplicationReading(visible: readingForeground)
         configureThreadVoice()
         // Keep Dock eligibility continuous while moving between its two routes.
         if selected == nil { scene.overviewVisible = true; scene.readingPanelVisible = false }
@@ -425,6 +417,10 @@ public final class NativeWorkspacePresentation {
             followUpThread: followUpVisible ? selected : nil,
             focused: focused, documentVisible: documentVisible,
             available: workspace.runtimeAvailable))
+        // Hide Overview before writing the open marker to retain its backdrop.
+        // Catalog changes also reconcile association ownership while reading.
+        overview.recordReadingRoute(selected)
+        overview.updateApplicationReading(visible: readingForeground)
     }
 
     private func configureThreadVoice() {

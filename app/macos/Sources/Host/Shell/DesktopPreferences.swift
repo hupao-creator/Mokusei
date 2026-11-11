@@ -21,9 +21,11 @@ public enum DesktopLocale: String, Codable, CaseIterable, Sendable {
 public struct ApplicationCollectionReading: Codable, Equatable, Sendable {
     public var lastClosedAt: Double?
     public var retainsEligibility: Bool
-    public init(lastClosedAt: Double? = nil, retainsEligibility: Bool = false) {
+    public var contentRevision: String?
+    public init(lastClosedAt: Double? = nil, retainsEligibility: Bool = false, contentRevision: String? = nil) {
         self.lastClosedAt = lastClosedAt
         self.retainsEligibility = retainsEligibility
+        self.contentRevision = contentRevision
     }
 }
 
@@ -76,7 +78,8 @@ public final class DesktopPreferences {
             }
             if let reading = state.applicationCollectionReading {
                 guard reading.allSatisfy({ !$0.key.isEmpty && $0.key.utf16.count <= 512
-                    && ($0.value.lastClosedAt.map { $0.isFinite && $0 >= 0 } ?? true) }) else {
+                    && ($0.value.lastClosedAt.map { $0.isFinite && $0 >= 0 } ?? true)
+                    && ($0.value.contentRevision.map { !$0.isEmpty && $0.utf16.count <= 512 } ?? true) }) else {
                     throw CocoaError(.fileReadCorruptFile)
                 }
                 applicationCollectionReading = reading
@@ -96,7 +99,8 @@ public final class DesktopPreferences {
 
     public func recordApplicationReading(key: String, value: ApplicationCollectionReading) throws {
         guard !key.isEmpty, key.utf16.count <= 512,
-              value.lastClosedAt.map({ $0.isFinite && $0 >= 0 }) ?? true else {
+              value.lastClosedAt.map({ $0.isFinite && $0 >= 0 }) ?? true,
+              value.contentRevision.map({ !$0.isEmpty && $0.utf16.count <= 512 }) ?? true else {
             throw CocoaError(.validationMissingMandatoryProperty)
         }
         var reading = applicationCollectionReading

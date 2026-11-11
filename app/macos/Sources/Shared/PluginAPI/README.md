@@ -154,7 +154,7 @@ separate from current Thread state. Bounded native previews remain exact-ID-only
 ### Application overview collections
 
 `ApplicationThreadPlugin.overviewCollection` is optional native presentation
-policy: an elapsed last-open interval and a footprint. The Host computes one
+policy: an elapsed last-close interval and a footprint. The Host computes one
 collection per opted-in type in the current browsing filter; it does not publish
 or persist a collection entity. `collectionCard` receives the exact member
 snapshots, each with its own scoped capabilities/context, initial selection,
@@ -176,3 +176,12 @@ surface so this opt-in cannot leave error ink without a readable backdrop.
 from a known close (`includes(lastClosed:now:)`). Unknown/future closes do not
 qualify. The Host owns foreground reading visits and retained eligibility; the
 plugin supplies the grouping interval and footprint. Super Thread uses 300 seconds.
+
+`collectionContentRevision(entry:)` optionally returns a stable, nonempty opaque
+fingerprint (at most 512 UTF-16 units). The erased boundary decodes the plugin's
+typed entry before requesting it. The Host saves it with local reading evidence;
+a change revokes the close deadline and retained eligibility. A first observation
+establishes a baseline. Plugins choose meaningful content independently of record
+revision, timestamps, tags or source execution status; nil preserves interval-only
+behavior. Super Thread fingerprints title, authored metadata, HTML/cover revisions
+and exact execution bindings. This adds no Runtime record or model execution.

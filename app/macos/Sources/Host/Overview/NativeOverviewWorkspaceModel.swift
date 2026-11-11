@@ -104,6 +104,7 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var presentationActive = true
     @ObservationIgnored private var presentationDirty = false
     @ObservationIgnored private var collectionSources: [ApplicationThreadRef: String] = [:]
+    @ObservationIgnored private var collectionReadingOwners: [ApplicationThreadRef: Set<ApplicationThreadRef>] = [:]
     @ObservationIgnored private var collectionSelections: [String: ApplicationThreadRef] = [:]
     @ObservationIgnored private var recentApplicationReading: [ApplicationThreadRef: ApplicationCollectionReading] = [:]
     @ObservationIgnored private var applicationVisit: (reference: ApplicationThreadRef, elapsed: TimeInterval, foregroundSince: TimeInterval?)?
@@ -319,17 +320,34 @@ public final class NativeOverviewWorkspaceModel {
         collectionSelections[cardID] = reference
     }
 
-    /// A visit belongs to the admitted route, not a cover rotation or projection.
-    /// Repeated opens of that route do not reset its foreground reading duration.
-    public func recordApplicationOpen(_ reference: ApplicationThreadRef, at date: Date = .now) {
+    /// Report and associated Agent routes share one visit while their owner is
+    /// unchanged. Coverage is matched by Thread, not by its current execution.
+    public func recordReadingRoute(_ route: ApplicationThreadRef?, at date: Date = .now,
+                                   uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        let reference: ApplicationThreadRef?
+        if let route, route.typeID == "agent" {
+            let owners = collectionReadingOwners[route] ?? []
+            reference = owners.count == 1 ? owners.first : nil
+        } else { reference = route }
+        guard applicationVisit?.reference != reference else { return }
+        recordApplicationClose(at: date, uptime: uptime)
+        if let reference { recordApplicationOpen(reference, at: date, uptime: uptime) }
+    }
+
+    /// Repeated opens of the same reading owner do not reset foreground dwell.
+    public func recordApplicationOpen(_ reference: ApplicationThreadRef, at date: Date = .now,
+                                      uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard applicationVisit?.reference != reference,
               let plugin = try? workspace.plugins.applications.requireThread(reference.typeID),
               let policy = plugin.overviewCollection,
-              (try? workspace.catalog.applicationEntry(reference)) != nil else { return }
-        recordApplicationClose(at: date)
+              let entry = try? workspace.catalog.applicationEntry(reference) else { return }
+        let contentRevision: String?
+        do { contentRevision = try refreshApplicationReading(entry) }
+        catch { workspace.report(error); return }
+        recordApplicationClose(at: date, uptime: uptime)
         let retained = collectionEligible(reference, policy: policy, at: date)
         applicationVisit = (reference, 0, nil)
-        saveReading(reference, .init(retainsEligibility: retained))
+        saveReading(reference, .init(retainsEligibility: retained, contentRevision: contentRevision))
         readingChanged()
     }
 
@@ -338,7 +356,8 @@ public final class NativeOverviewWorkspaceModel {
         updateApplicationReading(visible: false, uptime: uptime)
         let retained = reading(visit.reference)?.retainsEligibility == true
         applicationVisit = nil
-        saveReading(visit.reference, .init(lastClosedAt: date.timeIntervalSince1970, retainsEligibility: retained))
+        saveReading(visit.reference, .init(lastClosedAt: date.timeIntervalSince1970, retainsEligibility: retained,
+                                          contentRevision: reading(visit.reference)?.contentRevision))
         readingChanged()
     }
 
@@ -351,7 +370,7 @@ public final class NativeOverviewWorkspaceModel {
         visit.foregroundSince = visible ? uptime : nil
         applicationVisit = visit
         if visit.elapsed > 120, reading(visit.reference)?.retainsEligibility == true {
-            saveReading(visit.reference, .init())
+            saveReading(visit.reference, .init(contentRevision: reading(visit.reference)?.contentRevision))
             readingChanged()
         } else if visible, reading(visit.reference)?.retainsEligibility == true {
             applicationReadDeadline = Task { [weak self] in
@@ -368,9 +387,35 @@ public final class NativeOverviewWorkspaceModel {
         recentApplicationReading[reference] ?? workspace.preferences.applicationCollectionReading[readingHistoryKey(reference)]
     }
 
+    private func updateCollectionReadingOwners(_ entry: NativeOverviewApplicationEntry, inserting: Bool) {
+        guard (try? workspace.plugins.applications.requireThread(entry.entry.ref.typeID))?.overviewCollection != nil else { return }
+        for reference in entry.coveredExecutions where reference.thread.typeID == "agent" {
+            if inserting { collectionReadingOwners[reference.thread, default: []].insert(entry.entry.ref) }
+            else {
+                collectionReadingOwners[reference.thread]?.remove(entry.entry.ref)
+                if collectionReadingOwners[reference.thread]?.isEmpty == true { collectionReadingOwners.removeValue(forKey: reference.thread) }
+            }
+        }
+    }
+
     private func collectionEligible(_ reference: ApplicationThreadRef, policy: ApplicationOverviewCollectionPolicy, at now: Date) -> Bool {
         guard let reading = reading(reference) else { return false }
         return reading.retainsEligibility || policy.includes(lastClosed: reading.lastClosedAt.map(Date.init(timeIntervalSince1970:)), now: now)
+    }
+
+    @discardableResult
+    private func refreshApplicationReading(_ entry: ApplicationThreadCatalogEntry<JSONValue>) throws -> String? {
+        let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
+        guard plugin.overviewCollection != nil,
+              let revision = try plugin.collectionContentRevision(entry) else { return nil }
+        guard let previous = reading(entry.ref), previous.contentRevision != revision else { return revision }
+        // First observation establishes a baseline, never an update. A changed
+        // baseline revokes both close and short-visit retention, even offscreen or
+        // after reconnect. Only another actual close can start the interval again.
+        var next = previous.contentRevision == nil ? previous : .init()
+        next.contentRevision = revision
+        saveReading(entry.ref, next)
+        return revision
     }
 
     private func saveReading(_ reference: ApplicationThreadRef, _ value: ApplicationCollectionReading) {
@@ -447,6 +492,7 @@ public final class NativeOverviewWorkspaceModel {
                     let ref = ApplicationThreadRef(threadID: id, typeID: type)
                     if let cached = overviewEntries[ref], cached.0 == raw { return cached.1 }
                     let entry = try NativeOverviewApplicationEntry(entry: workspace.catalog.applicationEntry(json: raw))
+                    try refreshApplicationReading(entry.entry)
                     overviewEntries[ref] = (raw, entry)
                     return entry
                 }
@@ -457,6 +503,8 @@ public final class NativeOverviewWorkspaceModel {
                 for item in nextApplications { applicationRecords.updateValue(item, forKey: item.entry.ref.threadID) }
                 catalogIDs = Set(catalogThreads.map { $0.id.string } + nextApplications.map { $0.entry.ref.threadID.string })
                 applicationsByRef = Dictionary(uniqueKeysWithValues: nextApplications.map { ($0.entry.ref, $0) })
+                collectionReadingOwners.removeAll()
+                for entry in nextApplications { updateCollectionReadingOwners(entry, inserting: true) }
                 catalogApplicationJSON = Dictionary(uniqueKeysWithValues: zip(nextApplications, workspace.catalog.applicationThreads).map { ($0.0.entry.ref.threadID, $0.1) })
                 directoryTags.update(threads: catalogThreads)
                 let nextActiveThreadIDs = Set(catalogThreads.filter { $0.moku != true && $0.observation.isExecutionActive }.map(\.id))
@@ -601,11 +649,14 @@ public final class NativeOverviewWorkspaceModel {
             }
         }
         for (id, raw, previous, next) in changedApplications {
+            if let previous { updateCollectionReadingOwners(previous, inserting: false) }
+            if let next { updateCollectionReadingOwners(next, inserting: true) }
             if let previous, previous.entry.ref != next?.entry.ref {
                 overviewEntries.removeValue(forKey: previous.entry.ref); applicationsByRef.removeValue(forKey: previous.entry.ref)
                 applicationCache.removeValue(forKey: id)
             }
             if let raw, let next {
+                try refreshApplicationReading(next.entry)
                 overviewEntries[next.entry.ref] = (raw, next); applicationsByRef[next.entry.ref] = next
                 applicationRecords.updateValue(next, forKey: id); catalogApplicationJSON[id] = raw
                 if catalogIDs.insert(id.string).inserted { pendingInsertedIDs.insert(id.string) }
@@ -1021,6 +1072,7 @@ public final class NativeOverviewWorkspaceModel {
         active = false
         collectionExpiryTask?.cancel(); collectionExpiryTask = nil
         collectionSources.removeAll(); collectionSelections.removeAll(); recentApplicationReading.removeAll()
+        collectionReadingOwners.removeAll()
         applicationReadDeadline?.cancel(); applicationReadDeadline = nil
         applicationVisit = nil
         preparationRequest?.cancel(); preparationRequest = nil
