@@ -1421,10 +1421,12 @@ There is no additional cross-visit attributed-string or native-view cache.
 Existing immutable parse/content caches and layout-local measurements retain their
 own lifetimes; every reader owns fresh native text, callbacks and selection.
 
-Report uses `NativeReadingAuxiliaryBackKey` to offer its expanded auxiliary
-Back action to the outer reading workspace. The preference carries a stable
-identity and a main-actor callback; equality ignores closure allocation so
-ordinary redraws cannot republish a fresh navigation action. Folding the card
+Report uses `NativeReadingAuxiliaryBackKey` to offer an opened referenced
+execution's Back action to the outer reading workspace. Its default reference
+list adds no Back step, even while pending admission or explicitly reopened.
+The preference carries a stable identity and a main-actor callback; equality
+ignores closure allocation so ordinary redraws cannot republish a fresh
+navigation action. Folding the card
 removes the preference. The Host keeps Close and browser-first cancellation.
 
 Agent and Report Sidecards share `NativeSidecardWorkspaceGeometry`,

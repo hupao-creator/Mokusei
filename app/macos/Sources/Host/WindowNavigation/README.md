@@ -227,10 +227,14 @@ Both cards share one active/pending selection: opening either replaces the
 other, including the related list. Close and replacement win over delayed
 admission; document revisions, retries, covering and departure retire old work.
 `NativeReadingAuxiliaryBackKey` forwards the current auxiliary Back action upward;
-native and HTML Escape first fold a linked browser, return from an execution to
-references, fold references with focus restored to their launcher, then close
-the report. The action also cancels a pending related card before it opens, and
-is removed when neither an active nor pending related card belongs to the visit.
+native and HTML Escape fold a linked browser or return from an opened execution
+to references before closing the Report. The related list is part of its default
+view: with no execution open, Escape closes the Report directly, including while
+the list is pending admission or after reopening it through its launcher. Folding
+the list remains an explicit launcher action. A pending related card with a
+retained execution still cancels before opening and restores launcher focus.
+The auxiliary action exists only for an active/pending related card with a
+selected execution; folding, replacement and visit identities retain their fences.
 Report HTML keeps its 8pt viewport inset and 14pt inner clipping independently
 of the Sidecard. For related-card width/height changes, the actual HTML viewport,
 inner clip and 22pt outer shell/border share one interpolated size. The retained

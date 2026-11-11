@@ -280,14 +280,15 @@ struct NativeReportDetail: View {
     }
 
     private var auxiliaryBack: NativeReadingAuxiliaryBackAction? {
-        guard expanded || sidecards.pending == .relatedExecutions else { return nil }
+        // The reference list belongs to the Report's default view. Only an
+        // explicitly opened execution adds a nested Back step.
+        guard let reference = selected, expanded || sidecards.pending == .relatedExecutions else { return nil }
         let selectionID = sidecards.selectionID
-        let reference = selected
-        let referenceID = reference.map { $0.thread.threadID.string + ":" + $0.executionID.string } ?? ""
+        let referenceID = reference.thread.threadID.string + ":" + reference.executionID.string
         return NativeReadingAuxiliaryBackAction(id: selectionID.uuidString + referenceID) {
             guard !sidecards.retainingForReturn, selectionID == sidecards.selectionID, reference == selected,
                   sidecards.active == .relatedExecutions || sidecards.pending == .relatedExecutions else { return }
-            if expanded && selected != nil { sidecards.selectExecution(nil) }
+            if expanded { sidecards.selectExecution(nil) }
             else { sidecards.close(); launcherFocused = true }
         }
     }
