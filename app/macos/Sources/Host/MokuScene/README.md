@@ -76,6 +76,16 @@ ownership and the zero-size event-monitor origin are unchanged.
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services and send callback; it has no voice entrance. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
+Dock and history clear submitted text, directory mentions and ready attachment
+chips immediately through the shared draft's optimistic editor projection. The
+retiring Dock capsule also clears its sealed ink snapshot before collapse.
+Admission still owns persistence consumption and staged-file release. Failure
+reveals the retained draft, preserving any new text after the failed message;
+no automatic retry occurs. Ready image chips use system Quick Look with the
+shared strip's local managed-file URLs and independent preview/remove actions.
+Sprint validation is limited to headless compilation and affected existing
+windowless cases; it does not certify Quick Look window, focus or pointer behavior.
+
 The identity seat retains the last open editor position while the composer
 retires. Directory completion stays above the same bottom-anchored native editor.
 Its measured height changes the shell without replacing the editor or its

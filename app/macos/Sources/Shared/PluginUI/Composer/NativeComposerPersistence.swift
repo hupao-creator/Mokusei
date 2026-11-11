@@ -120,6 +120,25 @@ public struct NativeComposerDraftPersistence: Sendable {
         return revision
     }
 
+    /// Patch only text after a failed optimistic send owned by a retired view.
+    /// A successor's edit/consume wins the revision comparison. Preserve raw
+    /// pending imports rather than serializing their decoded interruption state.
+    @MainActor
+    func recoverText(expectedRevision: String?, _ recover: (String) -> String) throws
+        -> (previousRevision: String, revision: String, text: String)? {
+        guard let expectedRevision, let raw = try store.load() else { return nil }
+        let snapshot = try decode(raw)
+        guard snapshot.revision == expectedRevision else { return nil }
+        let text = recover(snapshot.text)
+        guard text != snapshot.text else { return nil }
+        var value = raw.objectValue!
+        let revision = UUID().uuidString
+        value["revision"] = .text(revision)
+        value["text"] = .text(text)
+        try store.save(.object(value), attachmentIDs: snapshot.attachments.compactMap(\.attachment).map(\.id))
+        return (snapshot.revision, revision, text)
+    }
+
     /// Accepted files are consumed by both chip and staged-file identity even
     /// when a successor has edited the draft. Preserve the other serialized
     /// fields verbatim: decoding for restoration turns pending imports into

@@ -1,5 +1,6 @@
 import AppKit
 import MokuseiCore
+import QuickLook
 import SwiftUI
 
 /// Shared metrics for the composer attachment strip. Every radius is derived
@@ -57,6 +58,7 @@ public struct NativeComposerAttachmentChips: View {
     private let onRemoveDirectory: ((JSONText) -> Void)?
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @State private var previewURL: URL?
     @State private var availableWidth: CGFloat = 0
 
     /// `containerRadius` is the host's clip radius, used to derive each chip's
@@ -98,6 +100,11 @@ public struct NativeComposerAttachmentChips: View {
             .padding(.init(top: NativeComposerChipMetrics.topInset, leading: NativeComposerChipMetrics.containerInset,
                            bottom: NativeComposerChipMetrics.bottomInset, trailing: NativeComposerChipMetrics.containerInset))
             .accessibilityLabel(composerLocalized("Moku 附件", locale: locale))
+            .quickLookPreview($previewURL, in: imageURLs)
+            .onChange(of: imageURLs) { _, urls in
+                if let previewURL, !urls.contains(previewURL) { self.previewURL = nil }
+            }
+            .onDisappear { previewURL = nil }
         }
     }
 
@@ -106,7 +113,11 @@ public struct NativeComposerAttachmentChips: View {
         switch draft.status {
         case .ready(let value) where value.kind == .image:
             NativeComposerImageChip(attachment: draft, containerRadius: containerRadius,
-                onRemove: { onRemove(draft.id) }, removeLabel: removeLabel)
+                onPreview: imageURL(draft).map { url in { previewURL = url } },
+                onRemove: {
+                    if previewURL == imageURL(draft) { previewURL = nil }
+                    onRemove(draft.id)
+                }, removeLabel: removeLabel)
         case .ready(let value):
             chip(name: draft.name.string, icon: value.kind == .document ? "FileText" : "Paperclip",
                  size: value.size, pending: false, failed: false, help: value.path.string,
@@ -124,6 +135,16 @@ public struct NativeComposerAttachmentChips: View {
                  remove: { onRemove(draft.id) }, removeLabel: removeLabel)
         }
     }
+
+    // Match the thumbnail's local managed-file boundary. Pending imports do
+    // not have a readable original yet; their small raster is display-only.
+    private func imageURL(_ draft: NativeComposerAttachment) -> URL? {
+        guard let file = draft.attachment, file.kind == .image,
+              file.path.string.hasPrefix("/") else { return nil }
+        return URL(fileURLWithPath: file.path.string)
+    }
+
+    private var imageURLs: [URL] { attachments.compactMap(imageURL) }
 
     private var maximumWidth: CGFloat {
         guard availableWidth > 0 else { return NativeComposerChipMetrics.maximumWidth }
