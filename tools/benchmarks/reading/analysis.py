@@ -134,7 +134,9 @@ def pixels(root, plan, observation, frames, times, result, mark):
         elif complete and abs(displacement) < segment["minimumTravelPoints"] - 24:
             mark("reader did not complete the declared minimum scroll travel", product="wrong-result")
             successful = False
-        if first_response and onset is not None and metrics["presentation"]["scheduledUsabilityProbeSeconds"] is None:
+        if (complete and first_response and not wrong and minimum_stall <= plan["maximumNoProgressSeconds"]
+                and abs(displacement) >= segment["minimumTravelPoints"] - 24
+                and onset is not None and metrics["presentation"]["scheduledUsabilityProbeSeconds"] is None):
             metrics["presentation"]["scheduledUsabilityProbeSeconds"] = (start - onset) / 1e9 + first_response["upper"]
     if stalled:
         if plan["targetKind"] == "application" and not any(

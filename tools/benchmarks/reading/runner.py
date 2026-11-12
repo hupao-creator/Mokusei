@@ -362,7 +362,8 @@ def run_suite(tools, bundle, directory, body_kib, history_counts, scenarios, mod
         interval = reading.get("presentation", {}).get("firstContentSeconds")
         content_ms = f"{interval['lower'] * 1000:.0f}–{interval['upper'] * 1000:.0f}" if interval else "unavailable"
         segments = reading.get("scroll", [])
-        responses = [item["firstVisibleResponseSeconds"]["upper"] for item in segments if item.get("firstVisibleResponseSeconds")]
+        responses = [item["firstVisibleResponseSeconds"]["upper"] for item in segments
+                     if item.get("motionCoverageComplete") and item.get("firstVisibleResponseSeconds")]
         gaps = [item["maximumObservedNoProgressSeconds"]["upper"] for item in segments if item.get("maximumObservedNoProgressSeconds") is not None]
         response_ms = f"{max(responses) * 1000:.0f}" if responses else "unavailable"
         gap_ms = f"{max(gaps) * 1000:.0f}" if gaps else "unavailable"

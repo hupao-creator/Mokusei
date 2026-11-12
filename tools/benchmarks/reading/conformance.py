@@ -228,6 +228,8 @@ def main():
         presentation = run("entry", entry, product="passed")["metrics"]["reading"]["presentation"]
         assert presentation["firstContentSeconds"]["upper"] < .4
         assert presentation["scheduledUsabilityProbeSeconds"] > 3.7
+        partial_entry = run("entry-partial-probe", lambda p, o, f: (entry(p, o, f), partial(p, o, f)), product="wrong-result")
+        assert partial_entry["metrics"]["reading"]["presentation"]["scheduledUsabilityProbeSeconds"] is None
 
         def excerpt_only(plan, observation, frames):
             entry(plan, observation, frames)
