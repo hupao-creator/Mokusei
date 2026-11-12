@@ -18,4 +18,8 @@ MOKUSEI_GIT_CONTRACT_EVIDENCE=/tmp/mokusei-git-contract.json \
 
 The Go replay creates disposable repositories. The Swift suites consume its production metadata fixtures and cover card composition and known/unknown/failed/stale statistics in Chinese and English. Set `MOKUSEI_GIT_ARTIFACTS` to retain native card captures.
 
-For the diff-panel removal Sprint, validation is limited to static checks/builds and local diff review. Tests and replays are not run; pointer behavior and accessibility require later interactive acceptance.
+Default CI generates the Git contract with the other Go fixtures before the
+windowless Swift run. Missing evidence fails `GitNativeTests` explicitly. For a
+local `make check-swift`, generate the evidence with the command above and export
+`MOKUSEI_GIT_CONTRACT_EVIDENCE` into that invocation as well. Passing without
+reading the Go output is not contract coverage.

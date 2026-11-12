@@ -218,7 +218,7 @@ def main():
         isolated_methods = ["ordinaryClickFocusesAndPersistsExactUnicodeReplacement",
                             "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
                             "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
-                            "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack",
+                            "reportPanelPreservesEditingReplacementSuppressionZoomAndClose",
                             "reportNativeDialogsAndDownloadsPreserveTheDocument",
                             "pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation",
                             "realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer",

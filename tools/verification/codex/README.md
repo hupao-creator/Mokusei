@@ -92,7 +92,7 @@ The synthetic replay checks:
   on every exit, and exact-pending recovery and cancellation-error assertions stay
   independent of this ordering.
   Use `-voice-configuration-only` for these external-process protocol fixtures.
-- Voice relay, direct owner and private discussion startup with a newer CLI.
+- Voice relay and direct owner startup with a newer CLI.
   The focused `-voice-only` replay also accepts future, unversioned and empty
   user-agent strings when V3 works, and preserves native method/parameter
   rejections with a Chinese compatibility diagnostic, one start attempt and no
@@ -168,15 +168,14 @@ does not become a paid or credential-dependent hosted gate.
 `-voice-only` additionally checks launch-catalog reuse and account/configuration
 invalidation, idle fresh-process prewarming, repeated direct calls, consuming a
 warm candidate before work, active-owner protection, shutdown during prewarm,
-unrelated-thread late events, and discussion preparation with exactly one
-app-server instead of an unused configuration-reader process.
+and unrelated-thread late events. Retired private thread-discussion preparation
+is excluded.
 
 To run the installed-CLI loopback checks independently of the synthetic
 background/process-group scenarios, use `-real-only -real-codex /path/to/codex`.
-The native replay now prepares and closes three private read-only discussion
-forks without inference; the original phase's network audit still requires
-exactly six scripted Provider requests before the separate recovery fault phase.
-This is preparation evidence, not a remote microphone call.
+The original phase's network audit requires exactly six scripted Provider
+requests before the separate recovery fault phase. Ordinary fork/read and direct
+native voice remain covered; this does not establish a remote microphone call.
 
 The full replay has a bounded five-minute lifetime to include the production
 60-second retry window and the concurrent healthy 63-second tool scenario.

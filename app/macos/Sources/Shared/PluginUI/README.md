@@ -90,7 +90,7 @@ these identify candidate application boundaries, not framework cycle stacks.
 `scripts/query-attributegraph.py` joins that evidence without contacting the app.
 See the layout logging guide for capture availability, retention and loss markers.
 
-Thread, Report, Git and Moku history panels share
+Thread, Report and Moku history panels share
 [`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
 `nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's
 top-left edge. Pair it with `nativeReadingPanelViewport`: its default 48pt top

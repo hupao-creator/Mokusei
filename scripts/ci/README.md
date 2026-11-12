@@ -81,8 +81,8 @@ The native job performs these stages:
    current sources and every test target with the resolved dependency versions.
 2. Discover the complete inventory from the resulting binary and record current
    commit, workspace, architecture, configuration, toolchain, run and attempt.
-3. Verify the graphical environment, run native Go checks and generate the five
-   real Go fixture producers' six output files in the same evidence directory.
+3. Verify the graphical environment, run native Go checks and generate the six
+   real Go fixture producers' seven output files in the same evidence directory.
 4. Execute reviewed windowless suites with `MOKUSEI_TEST_HEADLESS=1`, then their
    graphical remainder, both with `--skip-build --no-parallel`. Every ordinary
    method belongs to exactly one process; fixture-backed windowless suites move
@@ -304,6 +304,9 @@ evidence under `.build/check-swift`. It uses the same serial execution plan and
 explicit native exclusion, then invokes the existing producer
 for each declared owner check serially. The complete CI path additionally runs
 all fixtures/interop/native groups and audits the discovered method inventory.
+For local full Swift runs, generate and export `MOKUSEI_GIT_CONTRACT_EVIDENCE`
+as described in the [Git contract replay](../../app/macos/Sources/Host/Git/README.md).
+A missing Git fixture is a failure, not a passing empty test.
 To inspect an existing ordinary log without claiming native owner execution:
 
 ```sh
@@ -369,7 +372,7 @@ Every selected method must pass exactly once, without skips. It does not replace
 full hosted native verification. Independent fixture producers run at most two
 at once, starting the longest Moku producer first (`replays.py fixtures --jobs 1`
 retains the diagnostic serial control). These producers write separate exports;
-all six outputs are checked before they enter the Swift consumers.
+all seven outputs are checked before they enter the Swift consumers.
 Scripted voice CLI child processes omit the race runtime's post-main sleep;
 their race instrumentation, the production parent's race settings, protocol
 barriers and the real speech-receipt timeout remain active.

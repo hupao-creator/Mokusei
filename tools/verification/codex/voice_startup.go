@@ -118,30 +118,6 @@ func verifyNativeVoicePrewarm(ctx context.Context, root, binary string, env map[
 	if err = handle.Close(); err != nil {
 		return err
 	}
-	// A read-only discussion shares the source history home and needs only a
-	// catalog plus its real fork process, never a throwaway config reader.
-	record.SessionState = store.Read()
-	beforeDiscussion := launchCount(capture, "initialize")
-	discussion, err := adapter.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: record}, Instructions: "Read-only replay"})
-	if err != nil {
-		return err
-	}
-	if launchCount(capture, "initialize") != beforeDiscussion+1 {
-		_ = discussion.Close()
-		return fmt.Errorf("discussion launched a redundant configuration-reading process")
-	}
-	defer discussion.Close()
-	discussionVoice, err := discussion.(plugin.NativeVoiceCapability).PrepareNativeVoice(ctx, nil)
-	if err != nil {
-		return err
-	}
-	if err = verifyVoiceEvents(ctx, discussionVoice); err != nil {
-		return err
-	}
-	if err = discussion.Close(); err != nil {
-		return err
-	}
-	fmt.Println("PASS read-only discussion restricted catalog / independent fork / no throwaway config process")
 	fmt.Println("PASS native voice prewarm/reopen, source config/account invalidation and close during prewarm")
 	return nil
 }

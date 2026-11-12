@@ -78,10 +78,9 @@ provider/URL defaults that disable effort forwarding, explicit true/false
 overrides, and rejection of unsupported effort choices. These requests use only
 loopback endpoints and disposable native configuration.
 
-The native mode also drives real Pi `DiscussionPreparer` through the production
-threadvoice relay with synthetic media: private history continuity, Core reads,
-forbidden write, concurrent questions, provider errors, cancellation/media failure
-cleanup, lazy forks and an actively running source remaining unchanged.
+The native mode covers current task execution, native fork/read, the embedded
+read guard, cancellation and recovery. Retired thread-discussion relay scenarios
+and their synthetic media/provider helpers have been removed.
 
 The deterministic replay also sends an editor request from the RPC child process, checks its multiline Unicode prefill in the committed public form, and submits the unchanged default through production preflight and native response.
 

@@ -280,32 +280,6 @@ public struct NativeSettingsInput: View {
     }
 }
 
-public struct NativeSettingsTextarea: View {
-    @Binding private var value: String
-    public let minHeight: CGFloat
-    @State private var height: CGFloat = 0
-    @Environment(\.nativeSettingsField) private var field
-    @Environment(\.nativeSettingsFormPage) private var formPage
-    @Environment(\.locale) private var locale
-    public init(value: Binding<String>, minHeight: CGFloat = 112, rows: Int? = nil) {
-        _value = value; self.minHeight = minHeight
-        _height = State(initialValue: max(minHeight, rows.map { CGFloat(max(1, $0)) * 18.2 + 16 } ?? minHeight))
-    }
-    public var body: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            NativeSettingsTextEditor(value: $value, height: $height, minimumHeight: max(34, minHeight),
-                                 label: field.label, description: field.description, invalid: field.invalid,
-                                 activation: field.activation)
-                .frame(maxWidth: .infinity).frame(height: max(34, minHeight, height))
-            if formPage {
-                Stepper(locale.language.languageCode?.identifier == "zh" ? "编辑器高度" : "Editor height",
-                        value: $height, in: max(34, minHeight)...CGFloat.greatestFiniteMagnitude, step: 28)
-                    .controlSize(.small)
-            }
-        }
-    }
-}
-
 public struct NativeSettingsOption: Identifiable, Hashable, Sendable {
     public let id: JSONText
     public let label: String

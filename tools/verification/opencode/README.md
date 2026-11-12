@@ -81,10 +81,9 @@ completion cleanup errors and rejected steering/interruptible interaction replie
 The native `thread` case checks both ordinary injected tool names and `__proto__`
 through actual plugin loading, provider advertisement, execution and projection.
 
-The `thread` case also verifies installed-native private voice discussion through
-the production relay (synthetic media), continuous history, Core reads, malicious
-write rejection, concurrency, native failure reason propagation, lazy forks, and
-cleanup that preserves completed or actively running source sessions.
+The `thread` case retains installed-native fork/read, cancellation and cleanup
+that preserve completed or actively running source sessions. Retired private
+thread-voice discussion scenarios are excluded.
 
 Before asserting byte-for-byte source immutability during a completed-session
 read, the replay waits for that execution's input and successful idle boundary

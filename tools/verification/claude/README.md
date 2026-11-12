@@ -23,7 +23,6 @@ The replay exercises the actual Go adapter and its actual OS subprocess pipes:
   and host admission of a native background continuation.
 - Native fork intent/history, isolated read and prompt completion.
 - Usage/window ledger envelopes and deferred execution projections.
-- Private discussion lifecycle with a temporary native fork.
 - Unexpected root-process exit with a descendant retaining stdout/stderr,
   process-group cleanup, subsequent session recovery and session-ID fencing.
 - Concurrent interrupt and close, plus repeated close.
@@ -34,8 +33,8 @@ A success line is emitted only after all assertions pass. This is a protocol and
 lifecycle integration replay. It does not establish compatibility with a
 particular installed Claude release, SQLite persistence (this runner uses an
 in-memory session store), model quality, network behavior, real
-microphone/speaker behavior, or production performance. The discussion case uses
-text input; audio capture/playback belongs to the native app and voice adapters.
+microphone/speaker behavior, or production performance. Retired thread-discussion
+flows are excluded; native fork/read and current voice coverage remain independent.
 
 The replay covers nested Harness tool schemas, overlapping branches and singleton
 unions. They retain exactly-one validation without a root `oneOf`, which the
