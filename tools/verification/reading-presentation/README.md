@@ -1,5 +1,11 @@
 # Reading-page background presentation replay
 
+The default command runs twelve reading cases: six mounted lifecycle and
+vertical-history methods plus six windowless geometry and history methods.
+The former full-page horizontal entry and mid-opening Overview return visual
+replays have been retired; current Agent, Report and Moku entry uses panel
+presentation.
+
 ## Workspace Reload and rejected Quit
 
 ```sh
@@ -259,15 +265,16 @@ Run on macOS with the current Xcode toolchain:
 python3 tools/verification/reading-presentation/run.py
 ```
 
-The isolated AppKit app links the worktree's production reading stack and
-Overview canvas. It runs the native-only Swift integration suite with real
-window visibility, preserving the 420 ms opening animation and live glass.
-It checks retained native controls, deferred content/full environment updates,
-latest content during return, first-responder eligibility and activation,
-cloud visibility, and opening interrupted by reverse/cancel/resize/disable.
-It also opens the production history route at narrow and wide window sizes,
-checking that long Chinese/path and multiline prompt headings occupy the same
-height as a two-line title and keep the answer in place.
+The isolated AppKit app links the worktree's production reading stack and runs
+its six mounted integration cases with real window visibility. They check parent
+preparation and replacement ownership, retained parent/detail identity, accepted
+Close through focus loss or resize, and cancellation of obsolete returns.
+Vertical history navigation checks edge-to-edge travel and a stable horizontal
+position. The production history route also opens at narrow and wide window
+sizes, checking that long Chinese/path and multiline prompt headings occupy the
+same height as a two-line title and keep the answer in place. The six windowless
+geometry/history cases in the same source file execute too: Swift Testing's
+runtime method IDs include that filename and match the default filter.
 
 The launcher stages link objects, modules, headers, framework, replay sources
 and resource bundles outside the checkout. The app validates its temporary
@@ -461,23 +468,9 @@ with `mainHoldWindow` to identify the surrounding frames and excluded prefix.
 These diagnostic frames never contribute to the passing frame count or pixel
 assertions. This does not certify input responsiveness, physical FPS or energy.
 
-The same running AppKit host owns
-`NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
-This test requires an actual `NSApplication.run` loop before observing an opening
-midpoint, reversing the page and checking latest Overview content with no remount.
-Its display observer is installed before opening; the original 40–60% pose,
-native anchors and live identity are qualified in the same callback that requests
-the return. Asynchronous polling waits only for that recorded result, so its
-scheduling cannot delay the return past the admitted frame. The three-second
-observation budget is unchanged, and an unobserved midpoint still fails.
-Its original geometry and return assertions remain intact. Ordinary Swift execution
-excludes this exact method; complete coverage requires its native passing outcome
-and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
-These are AppKit geometry/content observations, not WindowServer pixel assertions.
-
-The capture launcher requires all seven assigned methods: two tag-glass captures,
-title reversal, excerpt reveal, native decorations, retained Overview return and
-Tag Settings first-frame capture. The last case mounts the production onboarding
+The capture launcher requires all six assigned methods: two tag-glass captures,
+title reversal, excerpt reveal, native decorations and Tag Settings first-frame
+capture. The last case mounts the production onboarding
 animation across initial entry and retained returns. Capture starts before
 insertion and keeps every entry frame; the 400ms observation window starts only
 after the native scene has prepared and begun playback (or resumed its settled
@@ -625,28 +618,20 @@ runner. The mounted navigation and native dialog/download cases require its
 running AppKit event loop for trusted WebKit mouse/key delivery and explicitly
 skip in plain SwiftPM; the recoverable-error and route-state cases still run
 there. A green plain Swift run needs this replay to complete Report input
-coverage. A production Report loads fixture HTML in WebKit,
-opens through the reading stack, replaces its document, changes workspace zoom
-(0.25×/0.8×/1×/1.44×/5×),
-scrolls to collapse/reveal and reverses an in-flight collapse. Intermediate samples
-require the three real window buttons to share the navigation portal's vertical
-offset; the collapsed endpoint requires all buttons hidden. Checks cover native
-button sizes/actions, suppression/restoration while scrolled, resize and simulated
-activation/deminiaturize/full-screen-exit notifications without losing the hidden
-state, document focus and the dispatched back-button click. Leaving the Report
-must restore ordinary window controls. The other cases cover native dialogs and
-downloads without document replacement, recovery without retaining a retired
-surface error, and return to the source execution or Overview.
+coverage. A production Report loads fixture HTML in the current reading panel,
+replaces its document and suppresses native dialogs while covered. Readiness comes
+from the production HTML readiness preference, not the retired window-navigation
+portal. The other cases cover native dialogs and downloads without document
+replacement, recovery without retaining a retired surface error, and return to
+the source execution or Overview.
 
-The same mounted case keeps top content outside the fixed navigation safe area,
-checks native word movement in closed Shadow DOM and Escape in editable elements
-and a native HTML dialog, and rejects script-generated navigation keys. Its real
-POST form click must show the non-GET new-window rejection notice without an
-external open or HTTP request. Navigating from a collapsed Report to a short
-loopback HTTP page must restore the native navigation and window controls. This
-check acquires the ready destination's portal because the main-frame loading
-cycle withdraws the previous document's navigation; it verifies its hit target,
-back-button click and exit motion with the document.
+The mounted case checks native word movement in closed Shadow DOM, Escape in
+editable elements and a native HTML dialog, and rejects script-generated
+navigation keys. Its real POST form click must show the non-GET new-window
+rejection notice without an external open or HTTP request. HTTP link activation
+opens the Host's browser-card callback while retaining the Report document.
+Window controls remain visible while scrolling and during panel resize/return.
+The retired full-window portal collapse and horizontal exit are not exercised.
 
 The panel zoom matrix measures the real Report content anchor in a responsive
 native host. It establishes an actual 1180×640 viewport before the existing
@@ -858,15 +843,15 @@ while execution remains running, retains that reply while a successor message
 streams, and checks full successor text after completion. Terminal cases retain
 failed/cancelled reply text, including Pi's stale streaming marker after execution
 settlement. The generic Markdown streaming path remains available to other readers.
-The twelve tests include mounted `ThreadDetailFrame` and window Back controls:
+The twelve tests include mounted `ThreadDetailFrame` and production panel Close controls:
 application execution callbacks and explicit start-position reading requests to
 old, current and missing executions return to Overview in one action, including
 archived threads. Note deep links establish a successor before entry and reopen
-the same old/missing result. Window Back, native Escape and the document close
+the same old/missing result. Panel Close, native Escape and the document close
 callback all exit directly. Native sibling controls outside the viewport and a
 real editor first consume their own Escape; a subsequent unfocused document
 Escape still exits the route. Explicitly reselecting the entry's TOC row resumes
-internal Back,
+the document’s `history.close` action,
 including when a successor arrives afterward; ordinary TOC history still returns
 to the loaded current document before leaving the thread. A production
 Harness-surface resource case checks that closing one of two equal-scope
@@ -875,7 +860,7 @@ consumers. The fixture supplies content, without opening a user Runtime/profile.
 For window-free Host routing and content-handle lifetime verification, run
 `MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos --filter NativeMokuExecutionLinkRoutingTests`.
 These two tests cover 12 route cases and three content scopes. They do not
-certify the mounted window Back control, Escape delivery or return animation;
+certify the mounted panel Close control, Escape delivery or return animation;
 the other ten tests require a graphical session and explicitly skip headless.
 The lifecycle case checks current and result timelines across completed, running,
 waiting for input and completed states for all four Harnesses. Jump to latest
@@ -963,21 +948,20 @@ The standalone thread-panel demo exercises real Sidecard content and shared
 production split geometry with mock capabilities, including retained widths,
 rapid switching and narrow vertical splits.
 
-### Report and Git reading panels
+### Report reading panels and Git metadata
 
-The existing `--report-navigation` mounted case also exercises Report HTML in the
+The existing `--report-navigation` mounted case exercises Report HTML in the
 production application-panel wrapper and reading stack: scaled panel geometry,
 Close clearance, unchanged traffic lights while scrolling, editing-first Escape,
 DOM Escape return, the full Close circle and resize during an accepted return.
-Its original full-window HTML checks remain coverage for the standalone surface.
-The existing `--moku-landing` full-workspace case now opens both Report and Git,
-checking actual source-card geometry, wide/narrow panel frames, retained Moku
-identity/input, Settings exclusion, Close hit testing and resize completion.
+The `--moku-landing` full-workspace case opens Report, checking actual source-card
+geometry, wide/narrow panel frames, retained Moku identity/input, Settings
+exclusion, Close hit testing and resize completion. It also merges hidden catalog
+changes and requires the refreshed source-card frame before closing finishes.
 These workspace fixtures exercise loading/unavailable content without a Runtime.
-Report/Git cases also merge hidden catalog changes and require the refreshed
-source-card frame before their close animation completes.
-The Report fixture separately loads real HTML, and `GitNativeTests` retains diff,
-selection, refresh and cancellation coverage with scoped capability fixtures.
+Git has no reading panel. `GitNativeTests` decodes actual Go-produced metadata,
+including repository membership and known/failed line statistics; it does not
+claim diff-panel selection, refresh or cancellation coverage.
 
 The Settings panel uses an opaque native window background, independent of its
 small capsule controls. Pixel sampling in the Settings transition replay compares

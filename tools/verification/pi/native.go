@@ -24,8 +24,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/pi"
 	"github.com/hupao-creator/Mokusei/internal/services/moku"
-	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
-	"github.com/hupao-creator/Mokusei/tools/verification/discussioncheck"
 )
 
 // This mode runs the installed external Pi, including its real extension loader.
@@ -251,84 +249,6 @@ func runNative(ctx context.Context) error {
 		return fmt.Errorf("real Pi usage did not survive RPC/persistence/projection: %+v", usageProjection.ExecutionUsage)
 	}
 	fmt.Println("PASS real Pi usage: provider → native message_end → durable state → compact execution total (25 tokens)")
-	discussionTools, closeDiscussionTools, err := threadvoice.ProjectReadTools(ordinaryRecord.Cwd)
-	if err != nil {
-		return err
-	}
-	defer closeDiscussionTools()
-	if err = os.WriteFile(filepath.Join(ordinaryRecord.Cwd, "discussion-proof.txt"), []byte("project-read-canary"), 0600); err != nil {
-		return err
-	}
-	discussionFrozen := ordinaryStore.Read()
-	sourceJSONL, err := os.ReadFile(normal.SessionFile)
-	if err != nil {
-		return err
-	}
-	verifyDiscussion := func(private bool) error {
-		if string(ordinaryStore.Read()) != string(discussionFrozen) {
-			return errors.New("discussion changed source Thread state")
-		}
-		nativeAfter, e := os.ReadFile(normal.SessionFile)
-		if e != nil {
-			return e
-		}
-		if string(nativeAfter) != string(sourceJSONL) {
-			return errors.New("discussion changed native source JSONL")
-		}
-		dirs, e := filepath.Glob(filepath.Join(host.TemporaryWorkspaceRoot, "pi-discussion-*"))
-		if e != nil {
-			return e
-		}
-		expected := 0
-		if private {
-			expected = 1
-		}
-		if len(dirs) != expected {
-			return fmt.Errorf("discussion leaked private history directories: %v", dirs)
-		}
-		if _, e = os.Stat(filepath.Join(ordinaryRecord.Cwd, "discussion-must-not-exist.txt")); !errors.Is(e, os.ErrNotExist) {
-			return errors.New("discussion executed native write")
-		}
-		return nil
-	}
-	discussionRecord := ordinaryRecord
-	discussionRecord.SessionState = discussionFrozen
-	if err = discussioncheck.Run(ctx, adapter, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: discussionRecord}, Tools: discussionTools}, verifyDiscussion, provider.holding); err != nil {
-		return fmt.Errorf("real Pi discussion: %w", err)
-	}
-	// ForkSource carries a frozen branch without requiring a source session file.
-	lazyRecord := discussionRecord
-	lazyState := normal
-	lazyState.ForkSource = &pi.ForkSource{JSONL: normal.NativeSessionJSONL}
-	lazyState.NativeSessionJSONL = ""
-	lazyState.SessionFile = ""
-	lazyRecord.SessionState, _ = json.Marshal(lazyState)
-	lazyDiscussion, e := adapter.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: lazyRecord}, Tools: discussionTools, Instructions: threadvoice.DiscussionInstructions})
-	if e != nil {
-		return e
-	}
-	lazyAnswer, e := lazyDiscussion.Ask(ctx, "DISCUSSION_FIRST")
-	closeLazy := lazyDiscussion.Close()
-	if e != nil {
-		return e
-	}
-	if closeLazy != nil {
-		return closeLazy
-	}
-	if lazyAnswer != "discussion-first-canary" {
-		return errors.New("Pi lazy fork discussion lost native history")
-	}
-	broken := normal
-	broken.NativeSessionJSONL += "\n{broken"
-	lazyRecord.SessionState, _ = json.Marshal(broken)
-	if d, e := adapter.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: lazyRecord}}); e == nil {
-		d.Close()
-		return errors.New("Pi damaged JSONL admitted partial discussion")
-	}
-	if e = verifyDiscussion(false); e != nil {
-		return e
-	}
-	fmt.Println("PASS real Pi discussion relay: native source/history unchanged, continuous private fork, Core read, forbidden write, provider failure, cancellation, media failure and cleanup")
 	answer, err := handle.Read(ctx, "READ_PROOF: What exact answer did the source task give?")
 	if err != nil {
 		return fmt.Errorf("actual embedded read guard: %w", err)
@@ -373,48 +293,6 @@ func runNative(ctx context.Context) error {
 		return ctx.Err()
 	}
 	snapshot := ordinaryStore.Read()
-	activeRecord := ordinaryRecord
-	activeRecord.SessionState = snapshot
-	activeHistory, e := os.ReadFile(normal.SessionFile)
-	if e != nil {
-		return e
-	}
-	activeDiscussion, e := adapter.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: activeRecord}, Tools: discussionTools, Instructions: threadvoice.DiscussionInstructions})
-	if e != nil {
-		return e
-	}
-	activeAnswer, e := activeDiscussion.Ask(ctx, "DISCUSSION_FIRST")
-	closeActive := activeDiscussion.Close()
-	if e != nil {
-		return e
-	}
-	if closeActive != nil {
-		return closeActive
-	}
-	if activeAnswer != "discussion-first-canary" {
-		return errors.New("Pi active source discussion lost persisted history")
-	}
-	var activeSource pi.State
-	if e = json.Unmarshal(ordinaryStore.Read(), &activeSource); e != nil {
-		return e
-	}
-	stillRunning := false
-	for _, execution := range activeSource.Executions {
-		if execution.ExecutionID == "native-cancel" && execution.Status == "running" {
-			stillRunning = true
-		}
-	}
-	if !stillRunning {
-		return errors.New("Pi discussion interrupted active source execution")
-	}
-	afterActive, e := os.ReadFile(normal.SessionFile)
-	if e != nil {
-		return e
-	}
-	if string(afterActive) != string(activeHistory) {
-		return errors.New("Pi discussion changed active native source file")
-	}
-	fmt.Println("PASS Pi discussion during active source: persisted tree frozen read-only; source execution and JSONL unchanged after private close")
 	if err = handle.Interrupt(ctx); err != nil {
 		return err
 	}
@@ -703,14 +581,6 @@ func (p *nativeScriptProvider) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		if message.Role == "tool" {
 			toolResult = true
 		}
-	}
-	if strings.Contains(lastUser, "DISCUSSION_") {
-		discussionNames := []string{}
-		for _, tool := range request.Tools {
-			discussionNames = append(discussionNames, tool.Function.Name)
-		}
-		p.discussionReply(w, r, discussionNames, all, lastUser, toolResult)
-		return
 	}
 	marker := "NORMAL_PROOF"
 	for _, candidate := range []string{"HOST_TOOL_PROOF", "READ_PROOF", "GUARD_ATTACK_PROOF", "FORK_PROOF", "CANCEL_PROOF", "RECOVERY_PROOF", "JSON_PROOF"} {

@@ -89,7 +89,7 @@ def main():
         "MokuseiSettingsIntegrationTests.NativeMokuHistoryComposerTests/ordinaryClickFocusesAndPersistsExactUnicodeReplacement()",
         "MokuseiSettingsIntegrationTests.NativeBrowserViewportTests/annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets()",
         "MokuseiSettingsIntegrationTests.NativeBrowserViewportTests/focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom()",
-        "MokuseiSettingsIntegrationTests.NativeReportNavigationTests/reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack()",
+        "MokuseiSettingsIntegrationTests.NativeReportNavigationTests/reportPanelPreservesEditingReplacementSuppressionZoomAndClose()",
         "MokuseiSettingsIntegrationTests.NativeReportNavigationTests/reportNativeDialogsAndDownloadsPreserveTheDocument()",
     }
     allowed_skips = swift_launchers | {name.rsplit(".", 1)[0] + "/" + name.rsplit(".", 1)[1] for name in xctest_launchers}

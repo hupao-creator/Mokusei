@@ -200,12 +200,11 @@ private struct ExecutionLinkSurface: View {
                 if let view = try? fixture.plugin.threadView(input: .init(thread: fixture.thread, readingTarget: fixture.presentation.readingTarget), actions: actions, context: context) {
                     ThreadDetailFrame(navigation: fixture.back, onNavigationChange: { fixture.presentation.navigation = $0 }) {
                         view
-                    }.id(fixture.presentation.navigationRouteID)
+                    }
+                    .nativeReadingPanelClose(label: "Close thread", onClose: fixture.presentation.finishBack)
+                    .id(fixture.presentation.navigationRouteID)
                 }
             }
-        }
-        .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: fixture.presentation.navigation, managesNativeButtons: false)
         }
         .environment(\.nativeReadingInteractions, fixture.controls)
         .environment(\.nativeReadingInteractionVisit, fixture.visit)
@@ -242,9 +241,9 @@ struct NativeMokuExecutionLinkTests {
         _ = root.window?.accessibilityChildren()
         return find(root.window ?? root)
     }
-    private func back(in root: NSView) async throws {
-        try await SwiftUIReplay.wait { element(id: "window-navigation.back", in: root) != nil }
-        let button = try #require(element(id: "window-navigation.back", in: root))
+    private func closePanel(in root: NSView) async throws {
+        try await SwiftUIReplay.wait { element(id: "reading-panel-close", in: root) != nil }
+        let button = try #require(element(id: "reading-panel-close", in: root))
         _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
     }
     private func escape(in window: NSWindow) throws {
@@ -385,7 +384,7 @@ struct NativeMokuExecutionLinkTests {
     }
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"], ["prior", "target", "missing"])
-    func noteResultBackClosesTheRouteAndReopeningStillLoads(harness: String, execution: String) async throws {
+    func noteResultPanelCloseExitsAndReopeningStillLoads(harness: String, execution: String) async throws {
         let fixture = try ExecutionLinkFixture(harness)
         try fixture.update(successor: execution != "target", archived: true)
         fixture.noteText = "[View result](mokusei://execution?threadId=ordinary&executionId=\(execution))"
@@ -400,7 +399,7 @@ struct NativeMokuExecutionLinkTests {
             if execution != "missing" { try await ready(fixture) }
             try await SwiftUIReplay.wait { fixture.presentation.navigation != nil }
             #expect(fixture.presentation.navigation?.label == "Back to overview")
-            if attempt == 0 { try await back(in: root) }
+            if attempt == 0 { try await closePanel(in: root) }
             else {
                 // Wait for the document to be active before sending actual
                 // Escape events through AppKit's responder chain.
@@ -453,7 +452,7 @@ struct NativeMokuExecutionLinkTests {
     }
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"], [false, true])
-    func startPositionEntryBackExitsForOldCurrentAndMissingExecutions(harness: String, archived: Bool) async throws {
+    func startPositionEntryCloseExitsForOldCurrentAndMissingExecutions(harness: String, archived: Bool) async throws {
         let fixture = try ExecutionLinkFixture(harness)
         // Establish the successor before opening: target is already historical,
         // rather than becoming old only after a direct visit has begun.
@@ -487,7 +486,7 @@ struct NativeMokuExecutionLinkTests {
                 if entry == 1 && execution != "successor" {
                     let close = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.close") })
                     try fixture.perform(close, "activate")
-                } else { try await back(in: root) }
+                } else { try await closePanel(in: root) }
                 try await SwiftUIReplay.wait { fixture.presentation.selected == nil && fixture.presentation.navigation == nil }
                 #expect(fixture.presentation.readingTarget == nil && fixture.workspace.preferences.selectedThreadID == nil)
             }
@@ -496,7 +495,7 @@ struct NativeMokuExecutionLinkTests {
     }
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"], [false, true])
-    func selectingHistoryAfterDirectEntryResumesInternalBack(harness: String, result: Bool) async throws {
+    func selectingHistoryAfterDirectEntryRestoresInternalReturn(harness: String, result: Bool) async throws {
         let fixture = try ExecutionLinkFixture(harness)
         fixture.load()
         let reference = ApplicationExecutionRef(thread: .init(threadID: "ordinary", typeID: "agent"), executionID: "prior")
@@ -523,7 +522,8 @@ struct NativeMokuExecutionLinkTests {
             fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("history.sidebar") && $0["value"]?["currentRow"] != previousCurrent }
                 && fixture.conversation?["transitioning"] == .bool(false)
         }
-        try await back(in: root)
+        let historyClose = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.close") })
+        try fixture.perform(historyClose, "activate")
         try await SwiftUIReplay.wait {
             fixture.conversation?["destination"] == .text("current")
                 && fixture.conversation?["transitioning"] == .bool(false)
@@ -532,13 +532,13 @@ struct NativeMokuExecutionLinkTests {
         #expect(fixture.presentation.selected == reference.thread)
         let current = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.sidebar") }?["value"]?["currentRow"])
         #expect(fixture.conversation?["selectedRow"] == current)
-        try await back(in: root)
+        try await closePanel(in: root)
         try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
         window.close(); await fixture.close()
     }
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
-    func ordinaryHistoryBackRestoresCurrentBeforeClosingTheRoute(harness: String) async throws {
+    func ordinaryHistoryReturnRestoresCurrentBeforePanelClose(harness: String) async throws {
         let fixture = try ExecutionLinkFixture(harness)
         fixture.load()
         fixture.presentation.open(.init(threadID: "ordinary", typeID: "agent"))
@@ -553,14 +553,15 @@ struct NativeMokuExecutionLinkTests {
             fixture.conversation?["destination"] == .text("history") && fixture.conversation?["transitioning"] == .bool(false)
                 && fixture.presentation.navigation?.label != "Back to overview"
         }
-        try await back(in: root)
+        let historyClose = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.close") })
+        try fixture.perform(historyClose, "activate")
         try await SwiftUIReplay.wait {
             fixture.conversation?["destination"] == .text("current") && fixture.presentation.navigation?.label == "Back to overview"
         }
         #expect(fixture.presentation.selected?.threadID == "ordinary")
         #expect(fixture.conversation?["selectedRow"] == current)
         try await SwiftUIReplay.wait { fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("turn") && $0["value"]?["executionId"] == .text("target") && $0["value"]?["state"] == .text("ready") } }
-        try await back(in: root)
+        try await closePanel(in: root)
         try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
         window.close(); await fixture.close()
     }

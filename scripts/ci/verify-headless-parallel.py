@@ -29,7 +29,8 @@ if not (root / "overlap").exists():
         time.sleep(0.01)
     (root / "overlap").write_text("observed")
 for name in ["MOKUSEI_INITIAL_RESPONSE_FIXTURES", "MOKU_STATUS_NATIVE_FIXTURE", "MOKU_TIMER_NATIVE_FIXTURE",
-             "MOKUSEI_VOICE_EVENT_EXPORT", "MOKUSEI_CONVERSATION_CONTRACT_EXPORT", "MOKUSEI_HARNESS_FORM_FIXTURE"]:
+             "MOKUSEI_VOICE_EVENT_EXPORT", "MOKUSEI_CONVERSATION_CONTRACT_EXPORT", "MOKUSEI_HARNESS_FORM_FIXTURE",
+             "MOKUSEI_GIT_CONTRACT_EVIDENCE"]:
     # Real producers each own distinct exports; the controlled peer records that
     # all required files exist without executing product code on Linux.
     path = pathlib.Path(os.environ[name])
@@ -49,7 +50,7 @@ raise SystemExit(7 if os.environ.get("REPLAY_PEER_FAIL") else 0)
         subprocess.run(entry + ["--output", str(output)], env=environment, cwd=ROOT, check=True,
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=20)
         report = json.loads((output / "report.json").read_text())
-        assert report["jobs"] == 2 and len(report["checks"]) == 5
+        assert report["jobs"] == 2 and len(report["checks"]) == 6
         assert all(check["status"] == "passed" and check["exit_code"] == 0 for check in report["checks"])
         assert (root / "overlap").exists()
         output = root / "failed"

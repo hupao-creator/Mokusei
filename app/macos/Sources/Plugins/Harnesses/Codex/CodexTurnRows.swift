@@ -105,7 +105,10 @@ struct CodexTurnRows: View {
         }
         let interactions = firstByID(turn.interactions)
         let activities = workVisible ? firstByID(turn.activities) : [:]
-        let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && $0.status != "streaming" && (!agentDetail || $0.status != "failed") && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
+        let lastReplyID = turn.lastReaderReply?.id
+        let lastAssistant = timeline.lastIndex { item in
+            agentDetail ? item.id == lastReplyID : item.kind == "assistant" && item.status != "streaming" && !codexTrim(item.raw["content"]).codeUnits.isEmpty
+        }
         var result: [ThreadDetailRow] = []
         var interimReplies = Set<JSONText>()
         var index = 0

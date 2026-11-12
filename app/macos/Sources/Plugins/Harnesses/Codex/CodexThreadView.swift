@@ -52,7 +52,8 @@ public struct CodexThreadView: View {
             ThreadConversationRow(id: turn.rowID, createdAt: turn.createdAt,
                 execution: ThreadConversationExecution(id: turn.executionId, title: input.thread.executionTitles[turn.executionId]?.string,
                     prompt: turn.messages.first(where: { $0.role == "user" && !$0.isInternal })?.content ?? "",
-                    answer: turn.answer, completedAt: turn.status == "completed" ? turn.finishedAt : nil,
+                    // Manifests carry the selected reply; full state retains an aggregate answer.
+                    answer: context.content == .manifest ? turn.answer : turn.lastReaderReply?.content ?? "", completedAt: turn.status == "completed" ? turn.finishedAt : nil,
                     readable: ownIDs.contains(turn.executionId), isActive: turn.active), node: AnyView(turnView(turn, state: state)))
         } + supplementalRows(state)
         ThreadConversation(threadId: input.thread.id,

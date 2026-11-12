@@ -15,18 +15,14 @@ keys its front by that visit when reopening a retained thread. Settings belongs
 only to Overview and cannot cover a Thread or application reading route.
 
 [NativeWindowNavigationView](NativeWindowNavigationView.swift) owns shared
-window/back controls. [NativeWindowControlPlacement](NativeWindowControlPlacement.swift)
-positions native Mac traffic lights and retains the active Report reading offset
-per window. Report's navigation portal publishes its current 220 ms scroll offset
-to this bridge on every animation tick: all three native buttons retract with the
-capsule, become hidden at the endpoint, and return with their original sizes,
-actions and coordinates. Window/toolbar relayout and activation reapply that same
-offset rather than resetting to the expanded position. Suppressing, detaching or
-replacing the Report restores the controls; full-screen placement belongs to AppKit.
-The offset is in window points and does not scale with document or workspace zoom.
-Report HTML reserves that same physical top clearance after both workspace and
-document zoom. New main-frame documents start with expanded navigation, and
-HTTP(S) destinations report their own scroll state. WebKit retains Option-Left
+window/back controls. The workspace hides its Back control for Agent, Report and
+Moku history panels; those surfaces use their own production panel Close.
+[NativeWindowControlPlacement](NativeWindowControlPlacement.swift) retains native
+Mac traffic-light positions and actions through resize and workspace zoom.
+Current Report panels keep those controls visible while the HTML document
+scrolls, with document clearance owned by the panel Close. The retired full-window
+navigation portal and capsule expansion are excluded from product replays.
+WebKit retains Option-Left
 for native word movement, including editors hidden inside closed Shadow DOM.
 Escape stays with native form inputs, actual editable elements in the composed
 event path, and open HTML dialogs before the document's back action is considered.

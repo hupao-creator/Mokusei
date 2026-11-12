@@ -90,7 +90,7 @@ these identify candidate application boundaries, not framework cycle stacks.
 `scripts/query-attributegraph.py` joins that evidence without contacting the app.
 See the layout logging guide for capture availability, retention and loss markers.
 
-Thread, Report, Git and Moku history panels share
+Thread, Report and Moku history panels share
 [`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
 `nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's
 top-left edge. Pair it with `nativeReadingPanelViewport`: its default 48pt top
@@ -540,6 +540,12 @@ a cancellable 100ms pointer handoff, including the gap between them; leaving bot
 unmounting or deactivating the scene retires pointer previews. The
 viewport-bounded, independently scrollable index includes inherited history and
 the current turn, without mounting historical bodies or parsing every answer.
+Codex previews select the exact execution's last nonempty settled, non-error
+assistant reply, matching the Agent reader, before clipping the excerpt. A
+complete message does not require a completed execution: running/waiting turns
+retain their latest settled reply, and failed/interrupted turns retain their
+last readable reply. With no eligible reply the answer excerpt stays empty;
+neither streaming/error text nor another execution supplies a fallback.
 The shared `NativeScrollView` retains native viewport behavior with hidden TOC
 indicators. Up/Down and Home/End move focus; Return/Space activates the focused
 entry. One stable keyboard
@@ -618,13 +624,10 @@ and settled-page returns do not use this correction. This boundary accounts for
 a model value being ahead of committed native geometry; it does not treat AppKit
 bounds as proof of WindowServer pixels or assert that such lag caused a specific
 historical failure. Headless geometry tests cover both horizontal directions,
-nonzero bounds origins, stale metadata, invalid extents and weak ownership;
-the retained-Overview native replay keeps its original midpoint, 100ms return
-direction, latest-content and parent-retention assertions. Before closing, that
-replay synchronously requires the current two anchors to share one owner, produce
-a valid sample and agree with the already-qualified front within the original
-one-point tolerance. It records the native frames, progress and sampling times
-without forcing layout; a model-fallback-only run cannot certify this path.
+nonzero bounds origins, stale metadata, invalid extents and weak ownership.
+The former full-page horizontal-entry and mid-opening Overview-return visual
+replays have been retired: Agent, Report and Moku entry now uses panel
+presentation. General route lifecycle and vertical-history tests remain.
 
 Non-panel progress is written synchronously from a per-stack display callback in
 [NativeReadingPageFrames](Conversation/NativeReadingPageFrames.swift).

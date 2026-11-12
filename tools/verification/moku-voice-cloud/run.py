@@ -89,24 +89,31 @@ subprocess.run(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", str(app
 # The executable runs NSApplication's full event loop in an isolated process.
 report = application.parent / "result.json"
 report.unlink(missing_ok=True)
+stdout = application.parent / "stdout.log"
+stderr = application.parent / "stderr.log"
+stdout.touch()
+stderr.touch()
 try:
-    execution = subprocess.run(["/usr/bin/open", "-W", "-n", str(application)], cwd=repo, check=False,
+    execution = subprocess.run(["/usr/bin/open", "-W", "-n", "--stdout", str(stdout), "--stderr", str(stderr), str(application)], cwd=repo, check=False,
                                timeout=180 if os.environ.get("MOKU_VOICE_INSPECT") else 90)
 except subprocess.TimeoutExpired:
     # This exact disposable executable only; never the running production app.
     subprocess.run(["/usr/bin/pkill", "-TERM", "-f", str(executable)], check=False)
-    raise SystemExit("FAIL: own native voice replay timed out")
+    report.write_text(json.dumps({"ok": False, "message": "own native voice replay timed out"}))
+    execution = subprocess.CompletedProcess([], 124)
 if not report.is_file():
-    raise SystemExit("FAIL: replay exited without a result")
+    report.write_text(json.dumps({"ok": False, "message": "replay exited without a result"}))
 result = json.loads(report.read_text())
 passed = result["ok"] and execution.returncode == 0
 evidence = Path(os.environ.get("MOKU_VOICE_EVIDENCE", "/tmp/mokusei-moku-voice-cloud-evidence"))
 if not passed:
     evidence /= "failure"
+evidence.mkdir(parents=True, exist_ok=True)
 if (application.parent / "evidence").is_dir():
     shutil.copytree(application.parent / "evidence", evidence, dirs_exist_ok=True)
-    shutil.copy2(report, evidence / "result.json")
-    print("Evidence: " + str(evidence))
+for path in [report, stdout, stderr]:
+    shutil.copy2(path, evidence / path.name)
+print("Evidence: " + str(evidence))
 if passed:
     print((evidence / "measurements.json").read_text())
 print(("PASS: " if passed else "FAIL: ") + result["message"])

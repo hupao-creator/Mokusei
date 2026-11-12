@@ -55,6 +55,7 @@ HEADLESS_SUITES = {
 # remain intact. Without the producer's environment they retain ordinary
 # execution/deferral rather than introducing skips into the headless receipt.
 HEADLESS_FIXTURE_SUITES = {
+    "MokuseiGitIntegrationTests.GitNativeTests": "MOKUSEI_GIT_CONTRACT_EVIDENCE",
     "MokuseiSettingsIntegrationTests.NativeMokuDispatchTests": "MOKU_STATUS_NATIVE_FIXTURE",
     "MokuseiSettingsIntegrationTests.NativeMokuTimerTests": "MOKU_TIMER_NATIVE_FIXTURE",
     "MokuseiSettingsIntegrationTests.NativeOverviewTagEmojiTests": "MOKUSEI_CONVERSATION_CONTRACT_EXPORT",

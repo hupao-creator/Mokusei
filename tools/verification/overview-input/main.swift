@@ -9,16 +9,10 @@ import MokuseiPluginUI
 
 @MainActor @Observable private final class Replay {
     let state = NativeOverviewCanvasState()
-    let reading = NativeReadingPageMotion()
     var items: [NativeOverviewItem] = [.init(id: "first")]
     var scene = "replay"
     var selection: String? = "all"
-    var detail = false
-    @ObservationIgnored var detailMounted = false
     var dark = false
-    var query = String(repeating: "A long draft with a final visible line.\n", count: 24) + "FINAL LINE"
-    var focus = 1
-    var searches = false
     @ObservationIgnored var frames: [String: CGRect] = [:]
     @ObservationIgnored var frameTimes: [String: TimeInterval] = [:]
     @ObservationIgnored var appearances: [String: Int] = [:]
@@ -65,24 +59,6 @@ import MokuseiPluginUI
                 do { try verifyWindowChrome(); return true } catch { return false }
             }
             try verifyWindowChrome()
-        }
-    }
-
-    func clickNavigationBack() throws {
-        guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "replay" }),
-              let content = window.contentView else { throw Failure(message: "Replay window is missing") }
-        // Click the visible chevron through AppKit's normal event dispatch,
-        // including titlebar hit testing; invoking its action misses overlays.
-        let top = NativeWindowNavigationGeometry.top + NativeWindowNavigationGeometry.height / 2
-        let point = content.convert(CGPoint(x: NativeWindowNavigationGeometry.left + 104,
-            y: content.isFlipped ? top : content.bounds.height - top), to: nil)
-        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            guard let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
-                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0) else {
-                throw Failure(message: "Could not create navigation click")
-            }
-            window.sendEvent(event)
         }
     }
 
@@ -207,22 +183,7 @@ import MokuseiPluginUI
             try await verifyCardTransitions()
             try await verifySearchCameraRestoration()
             let firstAppearances = appearances["first"]
-            detail = true
-            try await Task.sleep(for: .milliseconds(400))
-            try verifyWindowChrome()
             try await verifyWindowResize()
-            try clickNavigationBack()
-            // A new user visit starts after the old reader has left the tree;
-            // the model can close a frame before SwiftUI commits that removal.
-            try await wait("reading return") { !detail && !detailMounted }
-            try check(appearances["first"] == firstAppearances && state.camera.manual, "Reading return lost overview state")
-            for _ in 0..<2 {
-                detail = true
-                try await Task.sleep(for: .milliseconds(400))
-                try clickNavigationBack()
-                try await wait("repeated reading return") { !detail && !detailMounted }
-                try check(appearances["first"] == firstAppearances && state.camera.manual, "Repeated return lost overview state")
-            }
             state.camera.returnToAuto()
             try await wait("automatic framing") { !state.camera.manual && !state.camera.returning && !state.camera.isAnimating }
             try verifyWindowChrome()
@@ -253,41 +214,23 @@ import MokuseiPluginUI
 private struct ReplaySurface: View {
     let replay: Replay
     var body: some View {
-        NativeReadingPageStack(open: replay.detail, identity: "detail", motion: replay.reading,
-            focusBlur: true, stationaryParent: true, emphasizedOpening: true,
-            onClose: { replay.detail = false }) {
-            NativeOverviewCanvas(items: replay.items, sceneKey: replay.scene, state: replay.state,
-                selectionID: replay.selection, visible: !replay.detail) { item in
-                VStack {
-                    Text("Conversation \(item.id)").font(.title2)
-                    Button("Open conversation") { replay.detail = true }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background { NativeCloudLoading(palette: .blueIndigo, isAnimating: !replay.detail) }
-                .overlay(alignment: .topTrailing) {
-                    ThreadCardProviderStatus(label: "Completed conversation", brandKey: "codex", emoji: "📏",
-                                             terminal: .completed)
-                        .padding(.top, 12).padding(.trailing, 17)
-                }
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("replay-canvas")) } action: { replay.frames[item.id] = $0; replay.frameTimes[item.id] = ProcessInfo.processInfo.systemUptime }
-                .onAppear { replay.appearances[item.id, default: 0] += 1 }
-            }.coordinateSpace(name: "replay-canvas")
-        } front: {
-            VStack {
-                Text("Conversation detail")
-                NativeComposerTextInput(value: Binding(get: { replay.query }, set: { replay.query = $0 }), placeholder: "Draft",
-                    automaticFocus: false, minHeight: 54, maxHeight: 180, onSubmit: {})
-                    .frame(width: 480)
-                Button("Back") { replay.reading.close() }
+        NativeOverviewCanvas(items: replay.items, sceneKey: replay.scene, state: replay.state,
+            selectionID: replay.selection, visible: true) { item in
+            Text("Conversation \(item.id)").font(.title2)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background { NativeCloudLoading(palette: .blueIndigo, isAnimating: true) }
+            .overlay(alignment: .topTrailing) {
+                ThreadCardProviderStatus(label: "Completed conversation", brandKey: "codex", emoji: "📏",
+                                         terminal: .completed)
+                    .padding(.top, 12).padding(.trailing, 17)
             }
-                .frame(maxWidth: .infinity, maxHeight: .infinity).background(.background)
-                .onAppear { replay.detailMounted = true }
-                .onDisappear { replay.detailMounted = false }
-        }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("replay-canvas")) } action: { replay.frames[item.id] = $0; replay.frameTimes[item.id] = ProcessInfo.processInfo.systemUptime }
+            .onAppear { replay.appearances[item.id, default: 0] += 1 }
+        }.coordinateSpace(name: "replay-canvas")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { replay.viewport = $0 }
         .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: replay.detail ? .init(label: "Back to overview", onBack: { replay.reading.close() }) : nil)
+            NativeWindowNavigationView(action: nil)
         }
         .modifier(NativeWorkspaceWindowSurface())
         .coordinateSpace(name: "replay")

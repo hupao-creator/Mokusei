@@ -10,8 +10,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/platform/sqlite"
 	oc "github.com/hupao-creator/Mokusei/internal/plugins/harness/opencode"
-	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
-	"github.com/hupao-creator/Mokusei/tools/verification/discussioncheck"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -151,7 +149,6 @@ func main() {
 	defer os.RemoveAll(root)
 	cwd := filepath.Join(root, "workspace")
 	must(os.MkdirAll(cwd, 0700))
-	discussionHolding := make(chan struct{}, 1)
 	cancelReadStarted := make(chan struct{}, 1)
 	cancelReadStopped := make(chan struct{}, 1)
 	activeSourceStarted := make(chan struct{})
@@ -219,10 +216,6 @@ func main() {
 			case <-r.Context().Done():
 				return
 			}
-		}
-		if strings.Contains(string(requestText), "DISCUSSION_") {
-			discussionReply(w, r, body, cwd, discussionHolding)
-			return
 		}
 		permission := strings.Contains(string(requestText), "PERMISSION_MARKER")
 		delta := map[string]any{"role": "assistant", "content": `{"reply":"fixture"}`}
@@ -330,49 +323,6 @@ func main() {
 		return len(rows)
 	}
 	check(countNativeSessions() == 1, "successful native fork read left a temporary native session")
-	discussionTools, closeTools, err := threadvoice.ProjectReadTools(cwd)
-	must(err)
-	defer closeTools()
-	must(os.WriteFile(filepath.Join(cwd, "discussion-proof.txt"), []byte("project-read-canary"), 0600))
-	discussionFrozen := state.Read()
-	sourceState, err := oc.DecodeState(discussionFrozen)
-	must(err)
-	inspector, err := oc.NewRuntime(ctx, oc.Options{CWD: cwd, ExecutablePath: nativeCLI, Environment: env, Config: config})
-	must(err)
-	must(inspector.ConfigureSession(ctx, sourceState.NativeSessionID, oc.BridgeConfiguration{}))
-	sourceBefore, err := inspector.Snapshot(ctx, sourceState.NativeSessionID)
-	must(err)
-	verifyDiscussion := func(private bool) error {
-		expected := 1
-		if private {
-			expected++
-		}
-		check(countNativeSessions() == expected, "discussion leaked or reused native session")
-		check(string(state.Read()) == string(discussionFrozen), "discussion changed source Thread state")
-		sourceAfter, err := inspector.Snapshot(ctx, sourceState.NativeSessionID)
-		if err != nil {
-			return err
-		}
-		a, _ := json.Marshal(sourceBefore)
-		b, _ := json.Marshal(sourceAfter)
-		check(string(a) == string(b), "discussion changed native source history")
-		_, err = os.Stat(filepath.Join(cwd, "discussion-must-not-exist.txt"))
-		check(errors.Is(err, os.ErrNotExist), "discussion executed write tool")
-		return nil
-	}
-	must(discussioncheck.Run(ctx, h, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: model.SessionRecord{ID: "thread", Cwd: cwd, Settings: settings, SessionState: discussionFrozen}}, Tools: discussionTools}, verifyDiscussion, discussionHolding))
-	// A lazy ordinary fork must be discussed without materializing its source.
-	lazy, err := h.Fork(ctx, plugin.ForkRequest{Source: model.ThreadRecord{SessionRecord: model.SessionRecord{SessionState: discussionFrozen, Settings: settings}}})
-	must(err)
-	lazyDiscussion, err := h.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: model.SessionRecord{ID: "lazy-fork", Cwd: cwd, Settings: settings, SessionState: lazy.SessionState}}, Tools: discussionTools, Instructions: threadvoice.DiscussionInstructions})
-	must(err)
-	lazyAnswer, err := lazyDiscussion.Ask(ctx, "DISCUSSION_FIRST")
-	must(err)
-	check(lazyAnswer == "discussion-first-canary", "lazy fork discussion lost native history")
-	must(lazyDiscussion.Close())
-	must(verifyDiscussion(false))
-	must(inspector.Close())
-	fmt.Println("PASS real OpenCode discussion relay: native source/history unchanged, continuous private branch, Core reads, forbidden write, native failure, cancellation, media failure and cleanup")
 	readContext, cancelRead := context.WithCancel(ctx)
 	readDone := make(chan error, 1)
 	go func() { _, err := handle.Read(readContext, "CANCEL_READ_MARKER"); readDone <- err }()
@@ -409,15 +359,6 @@ func main() {
 	must(err)
 	check(activeState.Active() != nil && activeState.Active().ExecutionID == "active-source", "reading interrupted the active source")
 	check(countNativeSessions() == 1, "active-source read left a temporary branch")
-	activeDiscussion, err := h.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: model.ThreadRecord{SessionRecord: model.SessionRecord{ID: "thread", Cwd: cwd, Settings: settings, SessionState: state.Read()}}, Tools: discussionTools, Instructions: threadvoice.DiscussionInstructions})
-	must(err)
-	_, err = activeDiscussion.Ask(ctx, "DISCUSSION_FIRST")
-	must(err)
-	must(activeDiscussion.Close())
-	activeAfter, err := oc.DecodeState(state.Read())
-	must(err)
-	check(activeAfter.Active() != nil && activeAfter.Active().ExecutionID == "active-source", "discussion stop interrupted active source")
-	check(countNativeSessions() == 1, "active-source discussion leaked private branch")
 	close(releaseActiveSource)
 	wait(ctx, state, "active-source")
 
