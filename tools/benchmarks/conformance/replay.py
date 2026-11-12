@@ -132,6 +132,13 @@ def provider_replay(directory):
 def cancellation_replay(directory,control):
     directory.mkdir();provider=Provider(directory,5);provider.model='fixture-model';provider.effort='low'
     gate=threading.Event();respond=provider.respond
+    accepted=[]
+    handler=provider.server.RequestHandlerClass
+    class ObservedConnection(handler):
+        def setup(self):
+            super().setup()
+            accepted.append(self.connection)
+    provider.server.RequestHandlerClass=ObservedConnection
     def delayed(request):
         events=respond(request)
         def send():
@@ -152,11 +159,25 @@ def cancellation_replay(directory,control):
             block=connection.recv(4096)
             assert block and len(received)<1024*1024,'disconnect control lost the initial response'
             received+=block
-        connection.setsockopt(socket.SOL_SOCKET,socket.SO_LINGER,struct.pack('ii',1,0));connection.close();gate.set()
+        connection.setsockopt(socket.SOL_SOCKET,socket.SO_LINGER,struct.pack('ii',1,0));connection.close()
+        # The peer's close returning does not prove the server TCP stack has
+        # observed its reset. Admit the next write only after this independent
+        # receiver-side observation, while the real HTTP writer is still gated.
+        assert len(accepted)==1,'disconnect control has no unique accepted socket'
+        accepted[0].settimeout(3)
+        try:
+            assert accepted[0].recv(1,socket.MSG_PEEK)==b'','peer remained readable after reset'
+            reset='end-of-stream'
+        except ConnectionResetError:
+            reset='connection-reset'
+        save(directory/'disconnect.json',{'control':control,'serverObserved':reset,'atNS':time.monotonic_ns()})
+        gate.set()
         deadline=time.monotonic()+3
         while not (provider.failures or provider.cancellations) and time.monotonic()<deadline:time.sleep(.01)
-        assert bool(provider.cancellations)==control
-        assert bool(provider.failures)!=control
+        observed={'control':control,'failures':list(provider.failures),'cancellations':list(provider.cancellations)}
+        save(directory/'disconnect-outcome.json',observed)
+        assert bool(provider.cancellations)==control,observed
+        assert bool(provider.failures)!=control,observed
     finally:gate.set();provider.close()
 
 

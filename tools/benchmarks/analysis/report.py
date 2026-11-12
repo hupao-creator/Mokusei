@@ -58,6 +58,13 @@ def analyze(directory):
                 if name not in sealed:mark('unsealed application evidence: '+name,'incomplete')
             if (root/'existing-fixture.json').exists() and load(root/'existing-fixture.json')!=plan['fixture']:
                 mark('fixture preparation differs from planned existing card set','invalid')
+            if plan['scenario'].startswith('reading.'):
+                for name in ('reading-fixture.json', 'body-corpus.json', 'public-content.json'):
+                    if name not in sealed: mark('unsealed reader evidence: '+name, 'incomplete')
+                if plan['scenario']=='reading.history' and 'history-preparation.json' not in sealed:
+                    mark('unsealed directory input preparation', 'incomplete')
+                if (root/'body-corpus.json').exists() and load(root/'body-corpus.json') != plan['reading']['corpus']:
+                    mark('reader corpus differs from the declared workload', 'invalid')
         for name in ('plan.json', 'observation.json', 'outcome.json', 'identity.json', 'clock.json', 'cleanup.json', 'collector-exit.json'):
             if name not in manifest['files']:
                 mark('unsealed required evidence: '+name, 'incomplete')
@@ -110,7 +117,7 @@ def analyze(directory):
             mark('input deadline mapping mismatch','invalid')
         if posted < planned or posted-planned > 50_000_000 or event.get('error'):
             mark('input dispatch missed deadline or failed','invalid')
-    if plan['targetKind']=='application' and any(e['kind']=='down' for e in plan['events']):
+    if plan['targetKind']=='application' and any(e['kind']=='drag' for e in plan['events']):
         if 'input-preparation.json' not in sealed:
             mark('mouse-down background target was not externally prepared','incomplete')
         else:
@@ -140,7 +147,7 @@ def analyze(directory):
     if plan['mode'] == 'observed':
         for name in ['frames.jsonl','hitch.json']+[f['image'] for f in observation['frames']]:
             if name not in sealed:mark('unsealed observed evidence: '+name,'incomplete')
-        if plan['scenario'].startswith('body') and 'source.json' not in sealed:
+        if (plan['scenario'].startswith('body') or plan['scenario']=='reading.output-scroll') and 'source.json' not in sealed:
             mark('unsealed body source evidence','incomplete')
         frames = []
         if (root/'frames.jsonl').exists():
@@ -167,6 +174,9 @@ def analyze(directory):
                 mark('pre-existing card count/identity/title changed',product='wrong-result')
             if 'workload' in plan and not completed_executions(plan,load(root/'active-preparation.json'),outcome['threads']):
                 mark('terminal business content does not match the requested executions',product='wrong-result')
+            if plan['scenario'].startswith('reading.'):
+                from reading.analysis import outcome as reading_outcome
+                reading_outcome(root, plan, outcome, mark)
         result['businessOutcome'] = outcome.get('status','unknown')
     else:
         mark('final public business outcome absent','incomplete')
@@ -183,7 +193,11 @@ def analyze(directory):
         result['comparison'] = 'not-comparable'
     if result['measurement']=='invalid' and result['product'] not in ('crash','timeout'):result['product']='unknown'
     if plan['targetKind']=='application' and plan['mode']=='observed':
-        calibrated=calibration(root, mark)
+        if plan['scenario'].startswith('reading.'):
+            from reading.analysis import calibration as reading_calibration
+            calibrated=reading_calibration(root, mark)
+        else:
+            calibrated=calibration(root, mark)
         result['collectorCalibration']=calibrated
         if 'hitches' in result['metrics']:
             result['metrics']['hitches']['capabilityValidated']=calibrated['hitchesPassed']
@@ -360,6 +374,10 @@ def pixels(root, plan, observation, frames, times, result, mark):
         mark('continuous capture coverage gap','incomplete')
     result['continuousQuality']='observed'
     result['metrics']['pixels']={'capturedFrames':len(rows),'captureCadenceIsDisplayFPS':False}
+    if plan['scenario'].startswith('reading.'):
+        from reading.analysis import pixels as reading_pixels
+        reading_pixels(root, plan, observation, frames, times, result, mark)
+        return
     if any(e['kind'] == 'drag' for e in plan['events']):
         result['motionEvidence']=False
         drag=[i for i in observation['inputs'] if i['kind'] in ('down','drag','up')]
@@ -594,8 +612,12 @@ def write_report(directory):
     framework=Path(__file__).resolve().parent.parent
     result['analysisFiles']={name:hash_file(framework/name) for name in
         ('analysis/report.py','contracts/model.py','input_region.py','workload.py')}
+    if result.get('scenario', '').startswith('reading.'):
+        result['analysisFiles'].update({name: hash_file(framework/name) for name in
+            ('reading/analysis.py', 'reading/contract.py', 'reading/corpus.py', 'reading/plan.py', 'reading/public.py')})
     (root/'report.json').write_text(json.dumps(result,indent=2)+'\n')
-    lines=['# External Overview benchmark','',f"Measurement: **{result['measurement']}** · Product: **{result['product']}** · Comparison: **{result['comparison']}**",'',
+    title = 'Agent Thread reading benchmark' if result.get('scenario','').startswith('reading.') else 'External Overview benchmark'
+    lines=['# '+title,'',f"Measurement: **{result['measurement']}** · Product: **{result['product']}** · Comparison: **{result['comparison']}**",'',
            'Measurements and scaling only. No layout score or statistical regression gate.','']
     lines += ['- '+reason for reason in result['reasons']]
     lines += ['','```json',json.dumps(result['metrics'],indent=2),'```','']

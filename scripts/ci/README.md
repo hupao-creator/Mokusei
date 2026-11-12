@@ -392,3 +392,9 @@ mismatched evidence. This does not certify GUI capability or production
 performance. Signed GUI experiments and live collector controls remain local
 under the verification policy; the older Overview performance workflow remains
 a separate diagnostic with its own baseline.
+The [reading extension](../../tools/benchmarks/reading/README.md) has a separate
+portable entry point in the same Linux job. It replays the real reading plan,
+pixel/source scorer and HTTP/SSE provider, including wrong execution identity,
+partial scroll distance, malformed gestures and omitted settled replies. The
+independent AppKit scroll controls and signed reader runs remain distinct local
+evidence; CI does not claim to have rendered or scrolled the production reader.

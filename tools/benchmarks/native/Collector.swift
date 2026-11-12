@@ -58,8 +58,10 @@ func validatePlan(_ plan: Record) throws {
     for key in ["sampleHz", "captureHz"] { try number(plan[key], key, 1...60) }
     let duration = (plan["formalSeconds"] as! Double) + (plan["tailSeconds"] as! Double)
     var previous = -1.0, down = false
+    var pressedKey: Int?
+    var scrollDirection: Int?
     for event in events {
-        guard let kind = event["kind"] as? String, ["move", "down", "drag", "up", "keyDown", "keyUp"].contains(kind) else { throw fail("unsupported plan input") }
+        guard let kind = event["kind"] as? String, ["move", "down", "drag", "up", "keyDown", "keyUp", "scroll"].contains(kind) else { throw fail("unsupported plan input") }
         try number(event["atSeconds"], "input time", 0...duration)
         let at = event["atSeconds"] as! Double
         guard at > previous else { throw fail("input deadlines out of order") }; previous = at
@@ -67,11 +69,37 @@ func validatePlan(_ plan: Record) throws {
         if kind == "down" { guard !down else { throw fail("duplicate down") }; down = true }
         if kind == "drag" || kind == "up" { guard down else { throw fail("unowned drag/up") } }
         if kind == "up" { down = false }
-        if kind == "keyDown" || kind == "keyUp" { guard event["keyCode"] as? Int == 40 else { throw fail("unsupported navigation key") } }
+        if kind == "keyDown" || kind == "keyUp" {
+            try number(event["keyCode"], "navigation key", 0...127)
+            guard let key = event["keyCode"] as? Int, [40, 115, 36].contains(key) else { throw fail("unsupported navigation key") }
+            if kind == "keyDown" {
+                guard pressedKey == nil else { throw fail("overlapping navigation keys") }
+                pressedKey = key
+            } else {
+                guard pressedKey == key else { throw fail("navigation key release mismatch") }
+                pressedKey = nil
+            }
+        }
+        if kind == "scroll" {
+            try number(event["deltaY"], "scroll delta", -20...20)
+            try number(event["phase"], "scroll phase", 1...4)
+            guard let delta = event["deltaY"] as? Int, let phase = event["phase"] as? Int else { throw fail("integral scroll input required") }
+            switch phase {
+            case 1:
+                guard scrollDirection == nil, delta != 0 else { throw fail("invalid scroll begin") }
+                scrollDirection = delta > 0 ? 1 : -1
+            case 2:
+                guard let direction = scrollDirection, delta * direction > 0 else { throw fail("invalid scroll change") }
+            case 4:
+                guard scrollDirection != nil, delta == 0 else { throw fail("invalid scroll ending") }
+                scrollDirection = nil
+            default: throw fail("unsupported scroll phase")
+            }
+        }
     }
-    guard !down else { throw fail("gesture lacks release") }
+    guard !down, pressedKey == nil, scrollDirection == nil else { throw fail("gesture lacks release") }
     let keys = events.compactMap { $0["kind"] as? String }.filter { $0 == "keyDown" || $0 == "keyUp" }
-    guard keys.isEmpty || keys == ["keyDown", "keyUp"] else { throw fail("navigation key lacks release") }
+    guard keys.isEmpty || keys == ["keyDown", "keyUp"] || keys == ["keyDown", "keyUp", "keyDown", "keyUp"] else { throw fail("unsupported navigation sequence") }
     var rootPIDs = Set<Int>()
     for root in roots {
         try number(root["pid"], "root pid", 1...Double(Int32.max))
@@ -177,9 +205,18 @@ func post(_ event: Record) throws {
     let mouse: CGEvent?
     switch kind {
     case "keyDown", "keyUp":
-        guard let key = event["keyCode"] as? Int, key == 40 else { throw fail("only Command-K is an allowed navigation key") }
+        guard let key = event["keyCode"] as? Int, [40, 115, 36].contains(key) else { throw fail("unsupported navigation key") }
         mouse = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(key), keyDown: kind == "keyDown")
-        mouse?.flags = kind == "keyDown" ? .maskCommand : []
+        mouse?.flags = key == 40 && kind == "keyDown" ? .maskCommand : []
+    case "scroll":
+        guard let delta = event["deltaY"] as? Int, (-20...20).contains(delta),
+              let phase = event["phase"] as? Int, [1, 2, 4].contains(phase) else { throw fail("invalid pixel scroll input") }
+        mouse = CGEvent(scrollWheelEvent2Source: source, units: .pixel, wheelCount: 1,
+                        wheel1: Int32(delta), wheel2: 0, wheel3: 0)
+        mouse?.location = point
+        mouse?.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+        mouse?.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(phase))
+        mouse?.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 0)
     case "move": mouse = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left)
     case "down": mouse = CGEvent(mouseEventSource: source, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left)
     case "drag": mouse = CGEvent(mouseEventSource: source, mouseType: .leftMouseDragged, mouseCursorPosition: point, mouseButton: .left)
