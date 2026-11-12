@@ -16,6 +16,7 @@ import SwiftUI
 }
 
 @MainActor private struct ReportThreadPlugin: ApplicationThreadPlugin {
+    private let coverCache = NativeReportCoverCache()
     var type: ApplicationValueKey<NativeReportView> { NativeReportContracts.thread }
     var requires: [ApplicationCapabilityRequirement] {
         [ApplicationCapabilities.executionReferencesUI.requirement, ApplicationCapabilities.threadUserActions.requirement,
@@ -40,7 +41,8 @@ import SwiftUI
                         onSelection: @escaping (ApplicationThreadRef) -> Void,
                         openThread: @escaping (ApplicationThreadRef) -> Void) -> AnyView {
         AnyView(NativeReportCollection(props: props, initialSelection: initialSelection, active: active,
-                                       onSelection: onSelection, openThread: openThread))
+                                       onSelection: onSelection, openThread: openThread)
+            .environment(\.nativeReportCoverCache, coverCache))
     }
     func projectCard(entry: ApplicationThreadCatalogEntry<NativeReportView>, availableColumns: Int,
                      capabilities: ApplicationCapabilityAccess<ApplicationProjectionPhase>) throws -> HarnessOverviewProjection<NativeReportCardProjection> {
@@ -49,6 +51,7 @@ import SwiftUI
     }
     func card(props: ApplicationThreadProps<NativeReportView>, projection: NativeReportCardProjection, openThread: @escaping () -> Void) -> some View {
         NativeReportCard(props: props, projection: projection, openThread: openThread)
+            .environment(\.nativeReportCoverCache, coverCache)
     }
     func detail(props: ApplicationThreadProps<NativeReportView>) -> some View {
         NativeReportDetail(props: props).id(props.entry.ref)

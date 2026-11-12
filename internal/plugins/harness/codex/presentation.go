@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -337,6 +338,23 @@ func stLastAssistant(turn Map) Map {
 	return nil
 }
 
+// Match the Agent reader's last non-error settled reply. Message settlement is
+// independent of execution settlement; never borrow another turn's reply.
+func stLastReaderReply(turn Map) Map {
+	timeline := stArray(turn["timeline"])
+	for i := len(timeline) - 1; i >= 0; i-- {
+		item := stMap(timeline[i])
+		// The native reader uses ECMAScript whitespace, including FEFF but not NEL.
+		text := strings.TrimFunc(stString(item["content"]), func(r rune) bool {
+			return unicode.IsSpace(r) && r != '\u0085' || r == '\ufeff'
+		})
+		if item["kind"] == "assistant" && item["status"] != "streaming" && item["status"] != "failed" && text != "" {
+			return item
+		}
+	}
+	return nil
+}
+
 func stCompactTurns(turns []any, previews map[int]bool, all, overview bool) []any {
 	result := []any{}
 	for i, value := range turns {
@@ -357,6 +375,11 @@ func stCompactTurn(turn Map, preview, current, overview bool) Map {
 	}
 	// Historical Report links need a bounded assistant excerpt in the catalog.
 	result["answer"] = stHead(stString(turn["answer"]), 600)
+	if !overview {
+		// The TOC consumes this manifest without loading the execution body.
+		// Select before clipping so early progress cannot hide the final reply.
+		result["answer"] = stHead(stString(stLastReaderReply(turn)["content"]), 600)
+	}
 	if preview {
 		messages := []Map{}
 		for _, value := range stArray(turn["messages"]) {

@@ -218,6 +218,13 @@ plugin fetches `report.cover` by the independent catalog cover revision instead
 of carrying HTML in the catalog. Its nonpersistent, input-transparent WebKit document
 blocks script execution, navigation and external resources. Closing/unmounting
 cancels the card's load; cover failure leaves the native open/archive actions usable.
+The Report plugin registration retains at most 16 cover documents/rendered images,
+keyed by source, cover revision and appearance, within its workspace. Tag-scoped
+collection remounts reuse those pixels while their new WebKit surface prepares;
+no cached browser or persistent user data is involved. WebKit stays hidden until
+its first rendered snapshot, and that image remains underneath it through native
+layer commits. Revision/theme changes use a fresh entry. See the
+[recording diagnosis and focused validation](../../design/super-thread-cover-flicker.md).
 The generation tool describes the cover's dimensions and standalone HTML/CSS
 environment: the author supplies all styles and spacing; the host injects no CSS
 or Report-reader safe-area handling. See the

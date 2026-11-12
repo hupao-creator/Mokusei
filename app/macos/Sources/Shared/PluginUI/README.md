@@ -540,6 +540,12 @@ a cancellable 100ms pointer handoff, including the gap between them; leaving bot
 unmounting or deactivating the scene retires pointer previews. The
 viewport-bounded, independently scrollable index includes inherited history and
 the current turn, without mounting historical bodies or parsing every answer.
+Codex previews select the exact execution's last nonempty settled, non-error
+assistant reply, matching the Agent reader, before clipping the excerpt. A
+complete message does not require a completed execution: running/waiting turns
+retain their latest settled reply, and failed/interrupted turns retain their
+last readable reply. With no eligible reply the answer excerpt stays empty;
+neither streaming/error text nor another execution supplies a fallback.
 The shared `NativeScrollView` retains native viewport behavior with hidden TOC
 indicators. Up/Down and Home/End move focus; Return/Space activates the focused
 entry. One stable keyboard
