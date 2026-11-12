@@ -122,6 +122,9 @@ public execution IDs, terminal results and stable titles provide a separate
 business oracle. A single immediate post-window observation checks that work
 finished within the declared catch-up tail; a later eventual result cannot erase
 backlog beyond that boundary. Full semantic snapshots are not polled during timed windows.
+Moku can preempt its own telemetry responses when new lifecycle notifications
+arrive. Those control-request disconnects are retained separately. Card/metadata
+transport errors and missing planned body delivery still invalidate the run.
 
 ## Evidence and status
 

@@ -27,11 +27,15 @@ def find_tool(declarations, wanted, namespace=""):
     return None
 
 
+def declared_tools(request):
+    return request.get('tools', []) + [t for item in request.get('input', []) for t in item.get('tools', [])]
+
+
 class Provider:
     def __init__(self, directory, count):
         self.directory, self.count = directory, count
         self.model, self.effort = None, None
-        self.receipts, self.failures = {}, []
+        self.receipts, self.failures, self.cancellations = {}, [], []
         self.request_count = 0
         self.streams = {}
         self.stopping = threading.Event()
@@ -43,17 +47,21 @@ class Provider:
                 pass
 
             def do_POST(self):
+                control=False;request_number=None;headers_sent=False
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
                     if (self.path != "/v1/responses" or not 0 < length <= 8 * 1024 * 1024
                             or self.headers.get("Authorization") != "Bearer fixture-only"):
                         raise ValueError("unexpected provider request")
                     request = json.loads(self.rfile.read(length))
+                    control=find_tool(declared_tools(request),'create_thread') is not None
                     with owner.lock:
                         events = owner.respond(request)
+                        request_number=owner.request_count
                     self.send_response(200)
                     self.send_header("Content-Type", "text/event-stream")
                     self.end_headers()
+                    headers_sent=True
                     for sequence, event in enumerate(events):
                         evidence = event.pop("_source", None)
                         if evidence:
@@ -68,10 +76,21 @@ class Provider:
                             evidence["sentNS"] = time.monotonic_ns()
                             with owner.lock:
                                 owner.streams[evidence.pop("token")][evidence.pop("ledger", "events")].append(evidence)
+                except (BrokenPipeError,ConnectionResetError) as error:
+                    with owner.lock:
+                        if control:
+                            # Moku may preempt a telemetry response when another
+                            # lifecycle notification arrives. Card delivery still
+                            # has its own complete source and execution oracles.
+                            owner.cancellations.append({'atNS':time.monotonic_ns(),'request':request_number,
+                                'role':'moku','error':str(error)})
+                            (owner.directory/'provider-cancellations.json').write_text(json.dumps(owner.cancellations,indent=2))
+                        else:owner.failure(error)
                 except Exception as error:
-                    owner.failures.append(str(error))
-                    (owner.directory / "provider-errors.json").write_text(json.dumps(owner.failures, indent=2))
-                    self.send_error(400, str(error))
+                    with owner.lock:owner.failure(error)
+                    if not headers_sent:
+                        try:self.send_error(400,str(error))
+                        except (BrokenPipeError,ConnectionResetError):pass
 
             def do_CONNECT(self):
                 self.send_error(403, "external model traffic denied")
@@ -84,13 +103,17 @@ class Provider:
     def url(self):
         return f"http://127.0.0.1:{self.server.server_port}"
 
+    def failure(self,error):
+        self.failures.append(str(error))
+        (self.directory/'provider-errors.json').write_text(json.dumps(self.failures,indent=2))
+
     def close(self):
         self.stopping.set()
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=10)
         (self.directory / "provider-outcome.json").write_text(json.dumps({
-            "receipts": self.receipts, "failures": self.failures}, indent=2))
+            "receipts": self.receipts, "failures": self.failures, "cancellations":self.cancellations}, indent=2))
 
     def respond(self, request):
         if request.get("model") != self.model or request.get("stream") is not True:
@@ -99,7 +122,7 @@ class Provider:
             stream.write(json.dumps(request) + "\n")
         self.request_count += 1
         inputs = request.get("input", [])
-        declarations = request.get("tools", []) + [t for i in inputs for t in i.get("tools", [])]
+        declarations = declared_tools(request)
         create = find_tool(declarations, "create_thread")
         properties = request.get("text", {}).get("format", {}).get("schema", {}).get("properties", {})
         payload = json.dumps(inputs)

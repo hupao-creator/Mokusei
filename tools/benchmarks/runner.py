@@ -246,7 +246,7 @@ def outcome(application, token=None, executions=None):
         raise ValueError('final public page is not the existing-card Overview')
     return {'status': 'passed', 'threads': [{'id':t['id'],'title':t.get('title'),'observation':t['observation']}
             for t in state['threads'] if t['id'] in application.threads.values()], 'ui': ui,
-            'observedNS': time.monotonic_ns()}
+            'observedNS': time.monotonic_ns(), 'controlCancellations':list(application.provider.cancellations)}
 
 
 def startup(application, tools, directory, count, mode, seconds):

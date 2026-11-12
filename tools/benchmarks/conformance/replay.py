@@ -7,12 +7,14 @@ import tempfile
 import struct
 import zlib
 import http.client
+import socket
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from provider import Provider
 
 from contracts.model import CLOCK, loads, plan as validate_plan
-from analysis.report import seal, write_report
+from analysis.report import seal, write_report, completed_executions
 from lifecycle import save
 from workload import schedule
 
@@ -126,6 +128,37 @@ def provider_replay(directory):
     finally:provider.close()
 
 
+def cancellation_replay(directory,control):
+    directory.mkdir();provider=Provider(directory,5);provider.model='fixture-model';provider.effort='low'
+    gate=threading.Event();respond=provider.respond
+    def delayed(request):
+        events=respond(request)
+        def send():
+            for index,event in enumerate(events):
+                if index==1:assert gate.wait(5),'disconnect control did not release the source'
+                yield event
+        return send()
+    provider.respond=delayed
+    try:
+        request={'model':'fixture-model','stream':True,'input':[{'role':'user','content':[
+            {'type':'input_text','text':'BENCHMARK CREATE 5' if control else 'BENCH ITEM 01'}]}],
+            'tools':[{'type':'function','name':'create_thread'}] if control else []}
+        body=json.dumps(request).encode()
+        connection=socket.create_connection(('127.0.0.1',provider.server.server_port),timeout=5)
+        connection.sendall(b'POST /v1/responses HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer fixture-only\r\nContent-Length: '+str(len(body)).encode()+b'\r\n\r\n'+body)
+        received=b''
+        while b'event: response.created' not in received:
+            block=connection.recv(4096)
+            assert block and len(received)<1024*1024,'disconnect control lost the initial response'
+            received+=block
+        connection.setsockopt(socket.SOL_SOCKET,socket.SO_LINGER,struct.pack('ii',1,0));connection.close();gate.set()
+        deadline=time.monotonic()+3
+        while not (provider.failures or provider.cancellations) and time.monotonic()<deadline:time.sleep(.01)
+        assert bool(provider.cancellations)==control
+        assert bool(provider.failures)!=control
+    finally:gate.set();provider.close()
+
+
 def main():
     count=0
     with tempfile.TemporaryDirectory(prefix='overview-contract-') as temp:
@@ -233,7 +266,17 @@ def main():
                 assert all(e['sha256']==hashlib.sha256(e['text'].encode()).hexdigest() for e in events)
             count+=1
         provider_replay(base/'provider-http');count+=1
+        for control in (False,True):cancellation_replay(base/('disconnect-'+str(control)),control);count+=1
         ownership_replay();count+=3
+        p={'count':5,'fixture':{'threads':[{'id':str(n)} for n in range(1,6)]},
+           'workload':{'terminal':[{'card':n,'text':f'actual result {n}'} for n in range(1,6)]}}
+        threads=[{'id':str(n),'observation':{'latestExecution':{'executionId':f'new-{n}','status':'completed','summary':f'actual result {n}'}}} for n in range(1,6)]
+        preparation={'executions':{str(n):f'new-{n}' for n in range(1,6)},'threads':copy.deepcopy(threads)}
+        assert completed_executions(p,preparation,threads);count+=1
+        threads[0]['observation']['latestExecution']['executionId']='previous-completed-execution'
+        assert not completed_executions(p,preparation,threads);count+=1
+        threads[0]['observation']['latestExecution'].update(executionId='new-1',summary='actual result 2')
+        assert not completed_executions(p,preparation,threads);count+=1
         sustained=schedule(5,8,'sustained');burst=schedule(5,8,'burst')
         assert [(e['text'],e['bytes']) for e in sustained['events']]==[(e['text'],e['bytes']) for e in burst['events']]
         assert [e['atSeconds'] for e in sustained['events']]!=[e['atSeconds'] for e in burst['events']]

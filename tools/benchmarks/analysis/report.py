@@ -120,6 +120,11 @@ def analyze(directory):
             if tail.get('status')=='pending':
                 mark('business work still pending beyond the declared catch-up tail','incomplete',product='overloaded')
             elif tail.get('status')!='completed':mark('post-window business observation unavailable','incomplete')
+            elif 'workload' in plan:
+                if 'active-preparation.json' not in sealed:
+                    mark('requested active execution identities absent','incomplete')
+                elif not completed_executions(plan,load(root/'active-preparation.json'),tail['threads']):
+                    mark('requested execution results incomplete at the catch-up boundary','incomplete',product='overloaded')
     resources(plan, observation, times, result, mark)
     if observation.get('productExited') is True:
         mark('application exited during observation',product='crash')
@@ -153,6 +158,8 @@ def analyze(directory):
             expected={t['id']:t['title'] for t in plan['fixture']['threads']}
             if actual!=expected or len(outcome['threads'])!=plan['count']:
                 mark('pre-existing card count/identity/title changed',product='wrong-result')
+            if 'workload' in plan and not completed_executions(plan,load(root/'active-preparation.json'),outcome['threads']):
+                mark('terminal business content does not match the requested executions',product='wrong-result')
         result['businessOutcome'] = outcome.get('status','unknown')
     else:
         mark('final public business outcome absent','incomplete')
@@ -178,6 +185,21 @@ def analyze(directory):
         if result['measurement']!='valid':result['comparison']='not-comparable'
     result['allRequiredCapabilitiesAvailable'] = result['measurement']=='valid'
     return result
+
+
+def completed_executions(plan, preparation, threads):
+    """Correlate the captured public result with each admitted execution/body."""
+    executions=preparation['executions']
+    if set(executions)!=set(map(str,range(1,plan['count']+1))) or len(set(executions.values()))!=plan['count']:
+        raise ValueError('active execution admission identities incomplete')
+    prepared={(t['observation'].get('latestExecution') or {}).get('executionId'):t['id'] for t in preparation['threads']}
+    if not set(executions.values())<=prepared.keys():raise ValueError('admitted executions did not reach the public preparation state')
+    terminal={e['card']:e['text'] for e in plan['workload']['terminal']}
+    if set(terminal)!=set(range(1,plan['count']+1)):raise ValueError('terminal payload identities incomplete')
+    actual={t['id']:t['observation'].get('latestExecution') or {} for t in threads}
+    if len(threads)!=plan['count'] or set(actual)!={t['id'] for t in plan['fixture']['threads']}:return False
+    return all((row:=actual.get(prepared[execution],{})).get('executionId')==execution and
+        row.get('status')=='completed' and row.get('summary')==terminal[int(card)] for card,execution in executions.items())
 
 
 def calibration(root, mark):
@@ -505,6 +527,7 @@ def write_report(directory):
     try:result=analyze(root)
     except (ValueError,KeyError,TypeError,OSError,ZeroDivisionError,OverflowError,AttributeError) as error:
         result={'version':1,'measurement':'invalid','product':'unknown','comparison':'not-comparable','reasons':[str(error)],'metrics':{}}
+    result['analysisSHA256']=hash_file(Path(__file__))
     (root/'report.json').write_text(json.dumps(result,indent=2)+'\n')
     lines=['# External Overview benchmark','',f"Measurement: **{result['measurement']}** · Product: **{result['product']}** · Comparison: **{result['comparison']}**",'',
            'Measurements and scaling only. No layout score or statistical regression gate.','']
