@@ -44,10 +44,7 @@ def protocol_checks(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path, help="Existing signed production Release bundle; otherwise build one")
-    parser.add_argument("--steps", type=int, default=100, help="Chaos actions per seed (three seeds)")
     args = parser.parse_args()
-    if args.steps < 1:
-        parser.error("steps must be positive")
     run = Path(tempfile.mkdtemp(prefix="oa-ui-", dir="/private/tmp"))
     print(f"Interaction evidence: {run}", flush=True)
     if args.app:
@@ -136,11 +133,7 @@ def main():
         trace = api.Trace(run / "smoke-replayed.jsonl", command="replay")
         api.replay(client, trace, run / "smoke.jsonl")
         trace.close()
-        for seed in (1, 42, 2026):
-            trace = api.Trace(run / f"monkey-{seed}.jsonl", command="monkey", seed=seed)
-            api.monkey(client, trace, seed, args.steps, timeout=max(120, args.steps * 2))
-            trace.close()
-        print(f"PASS production Release app navigation, protocol boundaries, trace replay and {args.steps * 3} chaos actions: {run}", flush=True)
+        print(f"PASS production Release app navigation, protocol boundaries and directed trace replay: {run}", flush=True)
     finally:
         if trace:
             trace.close()

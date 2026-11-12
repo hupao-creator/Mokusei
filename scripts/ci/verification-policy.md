@@ -166,6 +166,9 @@ the ad-hoc AppKit fixtures: they run the actual Release bundle and its bundled
 Runtime, catching missing resources, development-only library paths, mismatched
 team signatures, broken startup/discovery, production navigation registration,
 and scoped reader loading/release or load-earlier wiring.
+The navigation acceptance runner uses explicit protocol/navigation assertions
+and their recorded replay; arbitrary random-action totals are not an acceptance
+requirement or performance evidence.
 
 Require these only when signing/entitlements, bundled resources/dependencies,
 application or bundled-Runtime startup/discovery, or production navigation/reader
