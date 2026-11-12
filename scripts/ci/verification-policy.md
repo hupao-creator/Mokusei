@@ -43,8 +43,8 @@ cancellation and excerpt-mask replays belong to the existing
 with AppKit's event loop and real WindowServer delivery. The excerpt case
 requires observed ink movement through rewrite and an actual component-width
 change, and emits `EXCERPT_INK_MOTION_CONFIRMED`; timer completion and final text
-do not replace its moving-pixel evidence. The native cloud/scan composition,
-retained Overview return and Tag Settings first-frame cases share this owner
+do not replace its moving-pixel evidence. The native cloud/scan composition
+and Tag Settings first-frame cases share this owner
 with their own required markers. Tag entry and retained return must supply
 complete intermediate WindowServer frames before their unchanged pixel oracle
 can pass; the real AppKit event loop owns that capture.

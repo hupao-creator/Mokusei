@@ -1,5 +1,11 @@
 # Reading-page background presentation replay
 
+The default command runs twelve reading cases: six mounted lifecycle and
+vertical-history methods plus six windowless geometry and history methods.
+The former full-page horizontal entry and mid-opening Overview return visual
+replays have been retired; current Agent, Report and Moku entry uses panel
+presentation.
+
 ## Workspace Reload and rejected Quit
 
 ```sh
@@ -259,15 +265,16 @@ Run on macOS with the current Xcode toolchain:
 python3 tools/verification/reading-presentation/run.py
 ```
 
-The isolated AppKit app links the worktree's production reading stack and
-Overview canvas. It runs the native-only Swift integration suite with real
-window visibility, preserving the 420 ms opening animation and live glass.
-It checks retained native controls, deferred content/full environment updates,
-latest content during return, first-responder eligibility and activation,
-cloud visibility, and opening interrupted by reverse/cancel/resize/disable.
-It also opens the production history route at narrow and wide window sizes,
-checking that long Chinese/path and multiline prompt headings occupy the same
-height as a two-line title and keep the answer in place.
+The isolated AppKit app links the worktree's production reading stack and runs
+its six mounted integration cases with real window visibility. They check parent
+preparation and replacement ownership, retained parent/detail identity, accepted
+Close through focus loss or resize, and cancellation of obsolete returns.
+Vertical history navigation checks edge-to-edge travel and a stable horizontal
+position. The production history route also opens at narrow and wide window
+sizes, checking that long Chinese/path and multiline prompt headings occupy the
+same height as a two-line title and keep the answer in place. The six windowless
+geometry/history cases in the same source file execute too: Swift Testing's
+runtime method IDs include that filename and match the default filter.
 
 The launcher stages link objects, modules, headers, framework, replay sources
 and resource bundles outside the checkout. The app validates its temporary
@@ -461,23 +468,9 @@ with `mainHoldWindow` to identify the surrounding frames and excluded prefix.
 These diagnostic frames never contribute to the passing frame count or pixel
 assertions. This does not certify input responsiveness, physical FPS or energy.
 
-The same running AppKit host owns
-`NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
-This test requires an actual `NSApplication.run` loop before observing an opening
-midpoint, reversing the page and checking latest Overview content with no remount.
-Its display observer is installed before opening; the original 40–60% pose,
-native anchors and live identity are qualified in the same callback that requests
-the return. Asynchronous polling waits only for that recorded result, so its
-scheduling cannot delay the return past the admitted frame. The three-second
-observation budget is unchanged, and an unobserved midpoint still fails.
-Its original geometry and return assertions remain intact. Ordinary Swift execution
-excludes this exact method; complete coverage requires its native passing outcome
-and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
-These are AppKit geometry/content observations, not WindowServer pixel assertions.
-
-The capture launcher requires all seven assigned methods: two tag-glass captures,
-title reversal, excerpt reveal, native decorations, retained Overview return and
-Tag Settings first-frame capture. The last case mounts the production onboarding
+The capture launcher requires all six assigned methods: two tag-glass captures,
+title reversal, excerpt reveal, native decorations and Tag Settings first-frame
+capture. The last case mounts the production onboarding
 animation across initial entry and retained returns. Capture starts before
 insertion and keeps every entry frame; the 400ms observation window starts only
 after the native scene has prepared and begun playback (or resumed its settled

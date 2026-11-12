@@ -146,10 +146,8 @@ frames in the AppKit host. `EXCERPT_INK_MOTION_CONFIRMED` is emitted only after
 those pixel assertions. Its screenshots, frame times and source/binary provenance
 are retained under the capture evidence's `excerpt` directory. Task completion
 or final text alone cannot pass this exactly-once owner contract.
-The native cloud/scan composition and retained Overview return cases use that
-same `native/tag-glass-captures` owner, with
-`NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED` and
-`OVERVIEW_RETAINED_RETURN_CONFIRMED` respectively.
+The native cloud/scan composition uses that same `native/tag-glass-captures`
+owner, with `NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED`.
 The Tag Settings first-frame case uses that owner too, requiring
 `TAG_ONBOARDING_FIRST_FRAME_CONFIRMED` and retaining every entry/return frame.
 It needs the real AppKit event loop; ordinary SwiftPM sleeps do not guarantee
