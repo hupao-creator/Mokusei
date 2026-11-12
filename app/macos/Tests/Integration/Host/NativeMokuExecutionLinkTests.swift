@@ -257,7 +257,8 @@ struct NativeMokuExecutionLinkTests {
     private func textViews(_ root: NSView) -> [NSTextView] {
         (root as? NSTextView).map { [$0] } ?? root.subviews.flatMap(textViews)
     }
-    private func requireEveryReplyBlock(_ phrase: String, count: Int, fixture: ExecutionLinkFixture, in root: NSView) async throws {
+    private func requireEveryReplyBlock(_ phrase: String, count: Int, fixture: ExecutionLinkFixture, in root: NSView,
+                                       paragraphSuffix: String = "") async throws {
         // Completed replies defer offscreen blocks. Traverse the real reader
         // and require every distinct paragraph, not just the mounted subset.
         var seen = Set<String>()
@@ -278,7 +279,7 @@ struct NativeMokuExecutionLinkTests {
             if offset >= bottom { break }
             offset = min(bottom, offset + max(50, viewport / 2))
         }
-        #expect(seen == Set((0..<count).map { "\(phrase) \($0)" }))
+        #expect(seen == Set((0..<count).map { "\(phrase) \($0)\(paragraphSuffix)" }))
         try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
         try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5 }
     }
@@ -711,7 +712,8 @@ struct NativeMokuExecutionLinkTests {
         record("original")
         // Even enough closed blocks to fill several pages must stay withheld
         // until this message settles, independently of the execution status.
-        let firstInput = (0..<200).map { "STREAMING CONTENT \($0)" }.joined(separator: "\n\n")
+        let paragraphSuffix = " — The completed reply remains readable when the column changes width."
+        let firstInput = (0..<200).map { "STREAMING CONTENT \($0)\(paragraphSuffix)" }.joined(separator: "\n\n")
         try fixture.update(status: .running, text: firstInput, mixedParts: true)
         record("first-source", inputBytes: firstInput.utf8.count)
         try await Task.sleep(for: .milliseconds(200))
@@ -732,10 +734,21 @@ struct NativeMokuExecutionLinkTests {
             return h - y - v < 5
         }
         record("following-bottom")
+        for width in [1000.0, 700.0] {
+            window.setContentSize(NSSize(width: width, height: 640))
+            try await SwiftUIReplay.wait {
+                guard abs(root.bounds.width - width) < 1,
+                      let value = fixture.scroll?["value"], let h = value["height"]?.numberValue,
+                      let y = value["top"]?.numberValue, let v = value["viewport"]?.numberValue else { return false }
+                return value["following"] == .bool(true) && h - y - v < 5
+            }
+            record("following-resize-\(Int(width))")
+        }
         try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
         try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(false) && fixture.scroll?["pending"] == .bool(false) }
         record("user-scroll")
-        try await requireEveryReplyBlock("STREAMING CONTENT", count: 200, fixture: fixture, in: root)
+        try await requireEveryReplyBlock("STREAMING CONTENT", count: 200, fixture: fixture, in: root,
+                                        paragraphSuffix: paragraphSuffix)
         let secondInput = (0..<220).map { "NEW STREAMING CONTENT \($0)" }.joined(separator: "\n\n")
         try fixture.update(status: .running, text: firstInput, messageStatus: "complete", pendingText: secondInput)
         record("second-source", inputBytes: secondInput.utf8.count)

@@ -272,3 +272,143 @@ source/binary provenance and the final report are retained under the local main
 checkout's `.scratch/reader-8k-lazy-20261112/`. Earlier raw reports remain under
 `.scratch/reader-8k-performance-20261112/` with an explicit CPU-unit correction
 notice and separate derived correction file.
+
+
+## Rejected follow-up: reading-control observation
+
+A subsequent candidate moved exact scroll geometry out of Observation and
+resolved reading-control values on query/operation, with revisions preserving
+stale-handle rejection. The candidate passed its mounted control and reading
+replays, but its CPU benefit did not survive the reverse-order measurement.
+The production change and its candidate-only test were withdrawn.
+
+The unchanged 8 KiB workload ran in A/B/B/A order. The first pair followed the
+first-opening case in the same fixture; both runs of the reverse pair used
+fresh fixtures and opened the reader directly. Application-process CPU in each
+ten-second scroll window was:
+
+| Matched setup | Baseline | Candidate |
+| --- | ---: | ---: |
+| After first opening, A then B | 2.586 s | 2.458 s |
+| Fresh reader, B then A | 2.209 s | 2.451 s |
+| Mean of these two trials | 2.397 s | 2.455 s |
+
+The first pair's 4.9% saving reversed in the second pair; the candidate mean was
+2.4% higher. First opening was effectively unchanged (2.370 versus 2.364 s).
+All eight planned product outcomes passed, including candidate reopening and
+output-scrolling, but these observations do not justify retaining the added
+control mechanism. The rejected patch, full raw observations and logs are
+preserved with this round's Sidecard evidence.
+
+
+## Execution Sidecard output and divider resizing
+
+The user subsequently reported visible stalls with an Execution Sidecard and
+while adjusting its width. These are separate from the earlier steady-reader
+scroll case. The retained change has two parts:
+
+- Divider samples update the host's retained widths and layout snapshot without
+  rebuilding plugin views or their observation leases. Drag entry/exit still
+  reconcile suppression.
+- During an Execution Sidecard pointer drag, both native documents keep their
+  starting widths behind the live panel shells. Mouse release commits the final
+  widths. Content remains live and unscaled; a wider shell can temporarily expose
+  empty space, and a narrower shell clips the old wrapping. Selection changes,
+  workspace resizing and completion handoff stop retaining the drag widths.
+  Keyboard/accessibility changes and other Sidecard types resize normally.
+
+The user accepted this temporary wrapping behavior and confirmed that resizing
+must remain available. There is no change to stored width preferences or the
+responsive stacking breakpoint.
+
+A separate output-following candidate combined a bottom size-change anchor with
+an actual-distance correction. Its standard output-scroll CPU observation was
+5.459 s versus 5.483 s for the candidate; static divider CPU was 8.227 s versus
+8.274 s in the unprofiled pair. No stable benefit was established, so that
+production change was withdrawn. Earlier variants failed bottom following,
+including a Release case whose viewport stopped 1,039pt above the bottom while
+its logical edge still reported bottom. These failures and the rejected patch
+are preserved. The existing four-Harness replay now also checks bottom following
+when a wrapping reply's native window widens and narrows.
+
+### Sidecard measurement method
+
+The production baseline is local `e0b5117`. Both signed Release applications use
+the corrected collector and the same main reply, window and real system inputs.
+The standard `reading.output-scroll` case retains its original source schedule,
+capture cadence, semantic checks and eight visible reply checkpoints.
+
+Separate diagnostics enable native tracing, timeline construction counters and
+`sample`. Static resizing keeps one completed 8,552-byte message in an active
+Execution Sidecard, with its terminal response withheld. A real pointer drag
+widens the Sidecard by 140 points over four seconds, then returns over four
+seconds, at 60 scheduled events/second. The baseline reflows both readers continuously; the retained candidate changes
+only their shells until release. Another diagnostic combines the original ten-second output schedule
+with that drag. These profiling observations are not pooled with formal CPU
+trials, and the minimal diagnostic collector does not capture display frames.
+
+### Retained divider result
+
+Fresh unprofiled comparisons used the same signed baseline/candidate bundles,
+fixed 8 KiB content and 480-event real pointer gesture. Each observation covers
+a ten-second measurement window; these are one trial per application/case, not
+a statistical performance gate. Static runs used baseline then candidate;
+output runs used candidate then baseline.
+
+| Application-process CPU | Baseline | Retained candidate | Change |
+| --- | ---: | ---: | ---: |
+| Drag with a settled 8 KiB reply | 8.244 s | 7.542 s | −8.5% |
+| Drag while reply messages arrive | 9.733 s | 8.932 s | −8.2% |
+
+All four runs retained 141/141 application resource samples and exited cleanly.
+Both static runs remained at the active reply's bottom after release. In both
+output runs the source delivered all eight settled messages plus its terminal
+reply without errors, and the final reader admitted the completed execution.
+Those final-state checks do not certify every intermediate output frame.
+Process-exit CPU coverage remains incomplete, and no optical hitch/FPS score is
+available; the numbers describe only the continuously sampled app process.
+
+A separate traced candidate run recorded no uncached native `text.layout`
+spans in the measurement window, compared with 8,980 spans (1,054.994 ms total)
+in the earlier traced baseline. The gesture returns to its starting width, so
+this isolates continuous drag reflow; the mounted test separately releases at a
+new width and requires actual reflow. Profiling runs are not pooled with the CPU
+comparison. The remaining timeline/body and shell work is still substantial;
+these results do not establish that every visible stall has been eliminated.
+
+### Sidecard validation
+
+The mounted fold replay verifies that width samples do not rebuild plugin views
+and that both drag boundaries still update context. The production-reader replay
+also drives the native divider, checks fixed text widths at three intermediate
+positions, requires final reflow on release, retains native text identity and
+checks immediate accessibility resizing. Existing completion, stacked layout,
+manual-scroll interruption, jump-to-latest and composer-focus assertions remain.
+
+The first handoff replay exposed a Reduced Motion observation race: its
+transaction-complete flag could arrive while native geometry still had the
+source width. The replay now waits for the actual final native panel/aperture
+sizes in that mode; animated cases still require intermediate frames and all
+size assertions remain. The failed native poses, diagnostic images and logs are
+retained. An earlier Release attempt rejected a source edit during compilation;
+the settled source was subsequently rebuilt rather than reusing that artifact.
+
+The new accessibility-resize assertion initially assumed that text width always
+changes one-for-one with viewport width. Its extra 24pt step crossed the existing
+540pt responsive-padding breakpoint: main text changed by 116pt for a 144pt
+viewport change. The replay now requires the exact native viewport change and
+Sidecard text width, while preserving the existing responsive padding. The
+initial failed run and its native artifacts remain alongside the corrected run.
+
+Final-source local checks passed: Debug build with test targets, `make lint`,
+5 native Sidecard/handoff methods (39.156 s), 12 execution-link/routing methods
+(38.655 s), and the signed Release bundle verification. Hosted CI and the full
+local suite were not run: this delivery is explicitly local-main only. Existing
+remote run results are not used to certify these changes.
+
+Raw observations, input plans, sampled profiles, before/after WindowServer
+captures, failures, rejected patches, final source snapshots, binary hashes and
+verification logs are retained in local main's
+`.scratch/reader-sidecard-performance-20261112/`. Its manifest records hashes for
+copied files; sockets and symlinks are excluded. The benchmark protocol and
+previous sealed reports are unchanged.
