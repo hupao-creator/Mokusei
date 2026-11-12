@@ -85,6 +85,10 @@ jobs:
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: python3 scripts/ci/verify-ci-control.py
 
+      - name: External Overview benchmark contracts
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
+        run: python3 tools/benchmarks/benchmark.py conformance
+
       - name: Verify Go reporting against real failure and skip fixtures
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: python3 scripts/ci/verify-go-reporting.py

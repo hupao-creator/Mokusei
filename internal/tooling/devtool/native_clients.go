@@ -66,11 +66,15 @@ func (p nativeClientProcess) dataDirectory(ctx context.Context) (string, error) 
 		if strings.HasPrefix(flag, "-psn_") {
 			continue
 		}
-		if (flag != "--data-dir" && flag != "--runtime" && flag != "--automation-socket") ||
-			i+1 == len(args) || !filepath.IsAbs(args[i+1]) || options[flag] != "" {
+		benchmarkFlag := flag == "--benchmark-scenario"
+		if (!benchmarkFlag && flag != "--data-dir" && flag != "--runtime" && flag != "--automation-socket") ||
+			i+1 == len(args) || options[flag] != "" {
 			return "", errors.New("unrecognized native launch arguments")
 		}
 		i++
+		if (benchmarkFlag && args[i] != "overview") || (!benchmarkFlag && !filepath.IsAbs(args[i])) {
+			return "", errors.New("invalid native launch argument value")
+		}
 		options[flag] = args[i]
 	}
 	if directory := options["--data-dir"]; directory != "" {

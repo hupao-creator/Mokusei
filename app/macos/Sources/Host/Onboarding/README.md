@@ -105,3 +105,14 @@ and navigation changes also require the signed production package checks in the
 The Report role is displayed as Super Thread Agent through its application
 settings label. Onboarding progress keys and the `report.settings` binding stay
 stable, preserving completed onboarding and saved execution configuration.
+
+The explicit App launch option `--benchmark-scenario overview` prepares an
+isolated rendering experiment by recording completion before workspace creation.
+It requires `--data-dir` and the opt-in automation socket. The external runner
+does not navigate or measure this setup flow; ordinary launches retain the
+first-run admission above. Scenario preparation does not alter rendering or
+native Harness execution.
+
+The Overview benchmark entry also requests a fixed 1280 × 820 initial window
+and disables scene restoration for that explicit scenario. This removes saved
+window geometry as a startup variable; the OS bounds remain externally verified.

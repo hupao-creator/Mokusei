@@ -234,3 +234,17 @@ actions. Independent Harness seats use `<section>.harness.<id>`; inherited mode
 shows read-only execution fields, while off hides execution fields.
 Moku's model selection preferences switch (`moku.routingEnabled`) is
 directly visible; enabling it reveals the `moku.routingGuidance` editor.
+
+## External benchmark scenario entry
+
+`--benchmark-scenario overview` requires both an explicit `--data-dir` and
+`--automation-socket`. The App records onboarding completion in that profile
+before constructing its ordinary workspace. This prepares the scenario without
+changing card data, layout, renderer, input handling or Runtime behavior. Use a
+fresh isolated profile. The external [rendering benchmark](../benchmarks/README.md)
+creates tasks through public Moku/Runtime commands and uses OS input and pixels
+for measurement; it does not write preference/database/session files.
+
+The Overview benchmark entry also requests a fixed 1280 × 820 initial window
+and disables scene restoration for that explicit scenario. This removes saved
+window geometry as a startup variable; the OS bounds remain externally verified.
