@@ -31,6 +31,10 @@ Outputs must be new directories. Live experiments need Screen Recording,
 Accessibility and system input permission in the invoking context, an unlocked
 visible desktop and exclusive use of the foreground window during each trial.
 The collector records foreground loss, missed input deadlines and capture gaps.
+Response/stasis estimates retain sampling bounds. A bound that straddles the
+declared progress deadline is incomplete evidence; only a lower bound beyond
+the deadline establishes overload. Missing recognized body checkpoints are an
+observation gap, not proof that the content froze.
 Do not run two GUI experiments together. Exit 2 means incomplete/unsupported
 measurement, not a statistical performance regression. The current unprivileged
 process sampler always exposes incomplete descendant/exit accounting.

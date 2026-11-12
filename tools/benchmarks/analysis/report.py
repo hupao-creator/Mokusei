@@ -319,6 +319,7 @@ def pixels(root, plan, observation, frames, times, result, mark):
     if not isinstance(raw,list) or len(raw)>25_000:raise ValueError('invalid capture stream size')
     if len(frames)!=len(raw): mark('OCR/capture ledger mismatch','incomplete')
     previous=0; rows=[]
+    requests={}
     for frame, capture in zip(frames,raw):
         at=integer(frame['atNS'],'capture timestamp',previous+1);previous=at
         if any(frame.get(key)!=capture.get(key) for key in ('atNS','requestNS','image','width','height','pointsWidth','pointsHeight','windowBounds')):
@@ -326,6 +327,7 @@ def pixels(root, plan, observation, frames, times, result, mark):
         if capture.get('windowBounds')!=plan.get('windowBounds'):
             mark('WindowServer bounds changed during collection','invalid')
         request=integer(frame['requestNS'],'capture request',1,at)
+        requests[at]=request
         image=text(frame['image'],'image path')
         if Path(image).name!=image or not (root/image).is_file(): mark('raw frame absent','incomplete')
         if at-request>plan['maximumCaptureGapSeconds']*1e9: mark('capture request uncertainty exceeds declared budget','incomplete')
@@ -359,11 +361,16 @@ def pixels(root, plan, observation, frames, times, result, mark):
     result['continuousQuality']='observed'
     result['metrics']['pixels']={'capturedFrames':len(rows),'captureCadenceIsDisplayFPS':False}
     if any(e['kind'] == 'drag' for e in plan['events']):
+        result['motionEvidence']=False
         drag=[i for i in observation['inputs'] if i['kind'] in ('down','drag','up')]
         if drag:
             start=drag[0];baseline=next((r for r in reversed(rows) if r[0]<start['postedNS'] and r[1]),None)
             if baseline is None: mark('pre-input business anchor absent','incomplete');return
-            last_progress=start['postedNS'];maximum_stall=0;last_positions={};errors=[];first_response=None
+            last_progress=start['postedNS'];maximum_stall=0;last_positions={k:(0,0) for k in baseline[1]};errors=[];first_response=None
+            earliest_progress=latest_progress=start['postedNS']
+            previous_request=requests[baseline[0]]
+            stall_lower=stall_upper=0
+            response_bounds=None
             correspondence=[start['postedNS']];last_anchor=baseline[0]
             for at,anchors,scale,_ in relevant:
                 if at<start['postedNS']:continue
@@ -376,6 +383,13 @@ def pixels(root, plan, observation, frames, times, result, mark):
                 correspondence.append(at);last_anchor=at
                 positions={k:(anchors[k]['x']-baseline[1][k]['x'],anchors[k]['y']-baseline[1][k]['y']) for k in common}
                 moving=any(k not in last_positions or math.dist(p,last_positions[k])>1 for k,p in positions.items())
+                # A changed frame brackets when progress resumed; its previous
+                # frame only bounds the end of a stall. Keep both ends instead
+                # of treating the next sample's arrival as a proven freeze.
+                if latest_progress<drag[-1]['postedNS']:
+                    same_until=previous_request if moving else requests[at]
+                    stall_lower=max(stall_lower,max(0,min(same_until,drag[-1]['postedNS'])-latest_progress)/1e9)
+                    stall_upper=max(stall_upper,max(0,min(at,drag[-1]['postedNS'])-earliest_progress)/1e9)
                 if last_progress<drag[-1]['postedNS']:
                     maximum_stall=max(maximum_stall,max(0,min(at,drag[-1]['postedNS'])-last_progress)/1e9)
                 if moving:
@@ -384,15 +398,19 @@ def pixels(root, plan, observation, frames, times, result, mark):
                     # jitter before the first drag is not an input response.
                     if first_response is None and any(e['kind']=='drag' for e in occurred) and any(math.hypot(*p)>3 for p in positions.values()):
                         first_response=at
+                        response_bounds={'lower':max(0,previous_request-start['postedNS'])/1e9,'upper':(at-start['postedNS'])/1e9}
+                    earliest_progress=max(start['postedNS'],previous_request);latest_progress=at
                 if start['postedNS']<at<drag[-1]['postedNS']:
                     maximum_stall=max(maximum_stall,(at-last_progress)/1e9)
                 # The whole trajectory, including direction and return, is checked.
                 # Input motion within the declared lag window can explain lagged positions.
                 candidates=[e for e in drag if at-plan['maximumNoProgressSeconds']*1e9<=e['postedNS']<=at] or [expected]
                 err=min(max(math.hypot(p[0]-(e['x']-start['x'])*scale,p[1]-(e['y']-start['y'])*scale) for p in positions.values()) for e in candidates)
-                errors.append(err);last_positions=positions
+                errors.append(err);last_positions=positions;previous_request=requests[at]
             result['metrics']['pan']={'firstVisibleResponseSeconds':None if first_response is None else (first_response-start['postedNS'])/1e9,
-                'maximumNoProgressSeconds':maximum_stall,'maximumTrajectoryErrorPixels':max(errors,default=None)}
+                'firstVisibleResponseSecondsBounds':response_bounds,'responseDisplacementThresholdPixels':3,
+                'maximumNoProgressSeconds':maximum_stall,'noProgressSecondsBounds':{'lower':stall_lower,'upper':stall_upper},
+                'maximumTrajectoryErrorPixels':max(errors,default=None)}
             coverage_end=min(times[3],drag[-1]['postedNS']+round(plan['maximumNoProgressSeconds']*1e9))
             stamps=[t for t in correspondence if t<=coverage_end]+[coverage_end]
             missing=any(b-a>plan['maximumCaptureGapSeconds']*1e9 for a,b in zip(stamps,stamps[1:]))
@@ -405,11 +423,14 @@ def pixels(root, plan, observation, frames, times, result, mark):
                 # product's gesture recognizer accepted mouse-down. A completely
                 # inert probe cannot distinguish a blocked target from a freeze.
                 mark('no canvas motion established; input acceptance or product responsiveness is unknown','incomplete')
-            elif first_response is None or maximum_stall>plan['maximumNoProgressSeconds']:
+            elif first_response is None or stall_lower>plan['maximumNoProgressSeconds']:
                 mark('input did not produce timely business motion',product='overloaded')
             elif max(errors)>plan['motionTolerancePixels']:
                 mark('observed business displacement differs from the declared input trajectory',product='wrong-result')
+            elif stall_upper>plan['maximumNoProgressSeconds']:
+                mark('motion progress sampling uncertainty straddles the declared deadline','incomplete')
             else:
+                result['motionEvidence']=True
                 result['scenarioEvidence'] = True
             if plan['scenario'] in ('first-render','return'):
                 onset = (load(root/'launch.json')['requestedNS'] if plan['scenario'] == 'first-render'
@@ -430,12 +451,12 @@ def pixels(root, plan, observation, frames, times, result, mark):
         mark('no validated system magnification injector','unsupported')
         result['scenarioEvidence'] = False
     if plan['scenario'].startswith('body'):
-        body(root,plan,rows,times,result,mark)
+        body(root,plan,rows,times,requests,result,mark)
     if plan['targetKind']=='application' and any(e['kind']=='down' for e in plan['events']) and 'inputPreparation' not in result:
         result['scenarioEvidence']=False
 
 
-def body(root,plan,rows,times,result,mark):
+def body(root,plan,rows,times,requests,result,mark):
     if not (root/'source.json').exists():
         result['scenarioEvidence']=False;mark('body source ledger absent','incomplete');return
     source=load(root/'source.json')
@@ -490,16 +511,21 @@ def body(root,plan,rows,times,result,mark):
     if seen_messages!=expected_messages.keys():
         result['scenarioEvidence']=False;mark('progress/terminal message ledger incomplete','incomplete');return
     observed={};ages=[];last_progress=times[1];stall=0;card_progress={};card_seen={};card_stalls={}
+    marker_frames=[];uncertainty=0
     for at,_,_,texts in rows:
         if not times[1]<=at<=times[3]:continue
-        advanced=False
+        advanced=False;recognized=False
         for item in texts:
+            if item['confidence']<.5 or item.get('edgeClipped',False):continue
             for match in re.finditer(r'CHECK (\d{2})[. ](\d{4})',item['text']):
                 card,seq=map(int,match.groups());key=(card,seq)
                 if key not in sent:mark('pixels contain an unplanned business marker',product='wrong-result');continue
                 if at<sent[key]:mark('visible marker predates its source','invalid');continue
+                recognized=True
                 if at-card_seen.get(card,at)>plan['maximumCaptureGapSeconds']*1e9:
                     card_progress[card]=at
+                elif card in card_seen:
+                    uncertainty=max(uncertainty,(at-requests[card_seen[card]])/1e9)
                 card_seen[card]=at
                 if seq>observed.get(card,0):
                     observed[card]=seq;advanced=True;ages.append((at-sent[key])/1e9);card_progress[card]=at
@@ -507,10 +533,14 @@ def body(root,plan,rows,times,result,mark):
         if advanced:
             stall=max(stall,(at-last_progress)/1e9);last_progress=at
         if at<=times[2]:stall=max(stall,(at-last_progress)/1e9)
+        if recognized and at<=times[2]:marker_frames.append(at)
     # Visible checkpoints mark natural message boundaries. Fragments may be
     # coalesced or clipped by the ordinary excerpt; they are not expected frames.
     budget=plan['workload']['messageIntervalSeconds']+plan['maximumNoProgressSeconds']
+    held=max(card_stalls.values(),default=0)
+    held_bounds={'lower':max(0,held-uncertainty),'upper':held+uncertainty}
     result['metrics']['body']={'observedCheckpointLatenciesSeconds':ages,'maximumVisibleNoProgressSeconds':stall,
+        'checkpointLatenciesAreCaptureUpperBounds':True,'continuousCardStasisSecondsBounds':held_bounds,
         'expectedMessageIntervalSeconds':plan['workload']['messageIntervalSeconds'],
         'reasoningChunkEvents':len(source['events']),'reasoningChunkBytes':sum(e['bytes'] for e in source['events']),
         'progressAndTerminalMessages':len(source['messages']),'progressAndTerminalBytes':sum(e['bytes'] for e in source['messages']),
@@ -518,8 +548,13 @@ def body(root,plan,rows,times,result,mark):
         'continuouslyObservedCardStallsSeconds':card_stalls}
     if not ages or len(ages)<2:
         result['scenarioEvidence']=False;mark('insufficient changing business body checkpoints observed','incomplete')
-    elif max([stall,*card_stalls.values()])>budget:mark('supplied active body output stopped making visible progress',product='overloaded')
-    elif 'pan' not in plan['scenario']:result['scenarioEvidence']=True
+    elif not marker_frames or marker_frames[0]-times[1]>budget*1e9 or any(b-a>plan['maximumCaptureGapSeconds']*1e9
+            for a,b in zip(marker_frames,marker_frames[1:]+[times[2]])):
+        result['scenarioEvidence']=False;mark('business body checkpoint visibility has an observation gap','incomplete')
+    elif held_bounds['lower']>budget:mark('supplied active body output stopped making visible progress',product='overloaded')
+    elif held_bounds['upper']>budget:
+        result['scenarioEvidence']=False;mark('body progress sampling uncertainty straddles the declared deadline','incomplete')
+    elif 'pan' not in plan['scenario']:result['scenarioEvidence']=result.get('motionEvidence',True)
 
 
 def hitch(root,plan,times,result,mark):

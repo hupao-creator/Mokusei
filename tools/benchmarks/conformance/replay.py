@@ -207,6 +207,10 @@ def main():
         jitter=run('before-first-drag-jitter',lambda r,p,o,f:frames_change(r,p,o,f,
             lambda x:x['texts'][0].update(x=204) if x['atNS']==11_100_000_000 else None),expected_product='passed')
         assert jitter['metrics']['pan']['firstVisibleResponseSeconds']>=.2
+        uncertain=run('motion-deadline-inside-sampling-interval',lambda r,p,o,f:frames_change(r,p,o,f,
+            lambda x:x['texts'][0].update(x=196) if 11_300_000_000<=x['atNS']<=11_700_000_000 else None),expected_product='unknown')
+        assert uncertain['metrics']['pan']['noProgressSecondsBounds']['lower']<.5<uncertain['metrics']['pan']['noProgressSecondsBounds']['upper']
+        assert 'motion progress sampling uncertainty straddles the declared deadline' in uncertain['reasons']
         run('frozen',lambda r,p,o,f:frames_change(r,p,o,f,lambda x:x['texts'][0].update(x=200)),expected_product='overloaded')
         run('wrong-direction',lambda r,p,o,f:frames_change(r,p,o,f,lambda x:x['texts'][0].update(x=400-x['texts'][0]['x'])),expected_product='wrong-result')
         run('missing-frames',lambda r,p,o,f:(r/'frames.jsonl').unlink(),expected_product='unknown')
@@ -252,6 +256,23 @@ def main():
             save(root/'source.json',source)
             (root/'frames.jsonl').write_text(''.join(json.dumps(v)+'\n' for v in f))
         run('body-complete',body_case,expected_product='passed')
+        for observation in ({'confidence':.1},{'edgeClipped':True}):
+            run('ineligible-body-marker-'+str(observation),lambda r,p,o,f,change=observation:body_case(r,p,o,f,
+                lambda s,frames:[item.update(**change) for frame in frames for item in frame['texts']
+                    if item['text'].startswith('CHECK')]),expected_product='unknown')
+        run('body-progress-cannot-erase-uncertain-pan',lambda r,p,o,f:(body_case(r,p,o,f),frames_change(r,p,o,f,
+            lambda x:x['texts'][0].update(x=196) if 11_300_000_000<=x['atNS']<=11_700_000_000 else None)),expected_product='unknown')
+        absent=run('body-marker-observation-gap',lambda r,p,o,f:body_case(r,p,o,f,
+            lambda s,frames:[frame.update(texts=[t for t in frame['texts'] if not t['text'].startswith('CHECK')])
+                for frame in frames if 11_500_000_000<frame['atNS']<13_500_000_000]),expected_product='unknown')
+        assert 'business body checkpoint visibility has an observation gap' in absent['reasons']
+        def uncertain_body(source,frames):
+            for frame in frames:
+                if any(t['text'].startswith('CHECK') for t in frame['texts']):
+                    seq=1 if frame['atNS']<12_500_000_000 else int((frame['atNS']-11_000_000_000)/1e9)+1
+                    frame['texts'].append({'text':f'CHECK 02.{seq:04d}','x':400,'y':130,'width':120,'height':20,'confidence':1})
+        uncertain=run('body-deadline-inside-sampling-interval',lambda r,p,o,f:body_case(r,p,o,f,uncertain_body),expected_product='unknown')
+        assert 'body progress sampling uncertainty straddles the declared deadline' in uncertain['reasons']
         run('body-partial',lambda r,p,o,f:body_case(r,p,o,f,lambda s,f:s['events'].pop()),expected_product='unknown')
         run('body-wrong-bytes',lambda r,p,o,f:body_case(r,p,o,f,lambda s,f:s['events'][0].update(bytes=1)),invalid=True)
         run('body-late',lambda r,p,o,f:body_case(r,p,o,f,lambda s,f:s['events'][0].update(sentNS=s['events'][0]['sentNS']+1_000_000_000)),invalid=True)
