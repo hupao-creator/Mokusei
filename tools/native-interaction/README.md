@@ -216,8 +216,10 @@ The runner exercises history, work visibility, scrolling, rejected Settings
 entry and stale-handle rejection, then makes seeded choices from mounted controls.
 Its disclosure traversal only operates on controls actually mounted by the reader.
 Ordinary Agent detail shows execution summaries without tool/thinking disclosures;
-fixture tool records do not establish nested-tool coverage there. A fixture with
-more than 120 completed turns exercises the earlier-history window. The
+fixture tool records do not establish nested-tool coverage there. Large completed
+histories exercise the virtualized directory; selecting an entry loads only that
+execution's body. The ordinary Agent reader does not load preceding executions
+when the document reaches the top. The
 [production reading launcher](../verification/thread-interaction/README.md) provides
 that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from
 the same fixture before replay. Replay resolves each recorded logical control ID

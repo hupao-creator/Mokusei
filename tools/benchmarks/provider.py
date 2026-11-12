@@ -32,6 +32,22 @@ def declared_tools(request):
 
 
 class Provider:
+    @staticmethod
+    def title(index):
+        return title(index)
+
+    @staticmethod
+    def body(index):
+        return body(index)
+
+    def answer(self, index, request):
+        return self.body(index)
+
+    def initial_result(self, index, thread):
+        execution = thread.get('observation', {}).get('latestExecution') or {}
+        return (thread.get('title') == self.title(index) and execution.get('status') == 'completed'
+                and execution.get('summary') == self.body(index))
+
     def __init__(self, directory, count):
         self.directory, self.count = directory, count
         self.model, self.effort = None, None
@@ -140,7 +156,7 @@ class Provider:
         if "title" in properties and "emoji" in properties:
             if index is None:
                 raise ValueError("metadata request lacks independent fixture identity")
-            answer = json.dumps({"title": title(index), "emoji": "📄"})
+            answer = json.dumps({"title": self.title(index), "emoji": "📄"})
         elif create:
             for item in inputs:
                 if item.get("type") == "function_call_output" and item.get("call_id", "").startswith("bench_create_"):
@@ -171,7 +187,7 @@ class Provider:
             if stream:
                 card, token = stream[-1]
                 return self.stream(int(card), token, self.request_count)
-            answer = body(index)
+            answer = self.answer(index, request)
         else:
             raise ValueError("unrecognized model request role")
         sequence = self.request_count

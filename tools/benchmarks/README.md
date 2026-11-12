@@ -7,6 +7,12 @@ persistence. Copy this directory outside the repository to run it independently.
 Python 3.10+, macOS 26 and Xcode 26 are required for live collection; conformance
 and offline analysis use the Python standard library on Linux or macOS.
 
+The [Agent Thread reading extension](reading/README.md) shares these collectors,
+public fixture/lifecycle boundaries and evidence contracts. It separately measures
+existing-document entry, reopening, bidirectional scrolling, older-execution
+navigation and reading during meaningful Agent output. Its workload axes are
+single-reply length and history count, rather than Overview card count.
+
 The current scope is rendering under fixed total counts **5 / 10 / 20**, including
 real active-agent body output. There is **no layout score**, visible-card quota,
 onscreen/offscreen attribution or occupancy comparison. These are complete-app

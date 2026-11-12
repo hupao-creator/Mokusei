@@ -79,7 +79,7 @@ class UI:
         if snapshot is None: return None
         # Deliberately discard diagnostics of internal camera/layout/render state.
         return {key: snapshot[key] for key in ("page", "threads", "actions", "selectedThread", "settings",
-                "onboarding", "errors", "runtimeAvailable", "transitioning") if key in snapshot}
+                "onboarding", "errors", "runtimeAvailable", "transitioning", "reading", "mounted") if key in snapshot}
 
 
 def wait_for(read, predicate, seconds=90):

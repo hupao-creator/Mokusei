@@ -23,7 +23,7 @@ documentation scope are not claimed as executed.
 
 | Gate | Independent value | Execution |
 | --- | --- | --- |
-| External Overview benchmark contracts | Reject frozen/wrong/partial evidence, clock/identity/input mismatches and unsupported process/hitch claims | Portable Python replays in Linux; no signed GUI claim |
+| External Overview and reading benchmark contracts | Reject frozen/wrong/partial evidence, clock/identity/input mismatches, omitted reader output and unsupported process/hitch claims | Portable Python replays in Linux; no signed GUI claim |
 | Go checks, race tests and generated properties | Architecture boundaries, data races, admission schedules, terminal-state invariants | Linux, plus Darwin-only profile-lease/rotation tests on macOS |
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh, cache ownership and actual Pi read-guard tool refusal | Linux `adapters` replay group; scripted external peers, loopback services and Node execution of the bundled guard |
@@ -220,7 +220,8 @@ their historical assertions do not count as current production coverage.
 
 ## External rendering measurements
 
-The [artifact-only Overview benchmark](../../tools/benchmarks/README.md) has its
+The [artifact-only Overview benchmark](../../tools/benchmarks/README.md) and its
+[Agent reading extension](../../tools/benchmarks/reading/README.md) have their
 portable contract/adversarial replays in ordinary Linux CI. Changes to native
 collectors, input dispatch, fixture delivery or scenario entry trigger local
 collector controls and signed production experiments: these uniquely cover
@@ -229,3 +230,8 @@ ownership. Current hosted CI has no production signing credentials, so this
 GUI experiment is not a hosted performance or regression gate. Do not export
 signing keys. Missing positive hitch controls or complete descendant accounting
 remain unavailable/incomplete; they do not become passing metrics.
+Reading scroll controls additionally establish normal bidirectional pixel-wheel
+motion and detection of frozen, reversed, delayed and main-thread-stalled output.
+History navigation follows the actual directory/selected-execution path; generic
+timeline pagination is not a claimed Agent reader workload. Full reply hashes
+come from public scoped content, independently of sampled visible checkpoints.

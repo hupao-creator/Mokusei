@@ -11,7 +11,7 @@ import subprocess
 import time
 
 from adapter import Runtime, UI, wait_for
-from provider import Provider, title, body
+from provider import Provider
 
 
 def save(path, value):
@@ -34,7 +34,7 @@ def native(helper, *arguments):
 
 
 class Application:
-    def __init__(self, bundle, directory, count, helper):
+    def __init__(self, bundle, directory, count, helper, provider_factory=Provider):
         self.bundle, self.root, self.count, self.helper = bundle.resolve(), directory, count, helper
         self.profile = directory / "profile"
         self.socket = directory / "ui.sock"
@@ -44,6 +44,7 @@ class Application:
         self.env = {key: value for key, value in os.environ.items()
                     if key in ("PATH", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL")}
         self.log = None
+        self.provider_factory = provider_factory
 
     def start(self):
         self.root.mkdir(mode=0o700, parents=True, exist_ok=False)
@@ -64,7 +65,7 @@ class Application:
         save(self.root / "artifact.json", {"app": str(self.bundle), "provenance": provenance,
              "executableSHA256": sha256(self.executable), "signature": signature.stderr, "runtimeSignature":runtime_signature,
              "files": {str(p.relative_to(self.bundle)): sha256(p) for p in sorted((self.bundle / "Contents/MacOS").iterdir()) if p.is_file()}})
-        self.provider = Provider(self.root, self.count)
+        self.provider = self.provider_factory(self.root, self.count)
         for name in ("home", "native", "tmp", "config"):
             (self.root / name).mkdir(mode=0o700)
         config = '''model_provider = "fixture"
@@ -138,9 +139,7 @@ trace_exporter = "none"
             for n in range(1, self.count + 1):
                 receipt = self.provider.receipts[f"bench_create_{n:02d}"]
                 thread = threads.get(receipt["threadId"], {})
-                execution = thread.get("observation", {}).get("latestExecution") or {}
-                if (thread.get("title") != title(n) or execution.get("status") != "completed"
-                        or execution.get("summary") != body(n)):
+                if not self.provider.initial_result(n, thread):
                     return False
             return True
         state = wait_for(self.runtime.state, completed, 180)
