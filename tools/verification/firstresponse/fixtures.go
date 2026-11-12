@@ -219,6 +219,11 @@ func Verify(id string) ([]Fixture, error) {
 			if name == "second-answer" {
 				initial = false
 				next := base(id)
+				if id == "codex" {
+					// The second turn may cross a wall-clock millisecond. Its parent
+					// snapshot must cover both turns' timestamps, as production requires.
+					state["updatedAt"] = max(state["updatedAt"].(float64), next["updatedAt"].(float64))
+				}
 				nextTurn := first(next, id)
 				nextTurn["executionId"] = "second"
 				key := "executions"

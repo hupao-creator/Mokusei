@@ -109,8 +109,10 @@ struct NativeSettingsTransitionTests {
         }
         let target = try #require(settled, "WindowServer geometry must settle before visual sampling: observed \(observed), window \(window.frame), visible \(window.isVisible)")
         let configuration = SCStreamConfiguration()
-        configuration.width = Int(target.frame.width * 2)
-        configuration.height = Int(target.frame.height * 2)
+        // A 2x destination on a 1x runner can leave black padding instead of
+        // scaling the window. Match the source backing scale before sampling.
+        configuration.width = Int(target.frame.width * window.backingScaleFactor)
+        configuration.height = Int(target.frame.height * window.backingScaleFactor)
         configuration.showsCursor = false
         return NSBitmapImageRep(cgImage: try await SCScreenshotManager.captureImage(
             contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: configuration))

@@ -1124,6 +1124,10 @@ collapsed **Advanced options** disclosure. Pi execution snapshots have no
 secondary controls and therefore no empty disclosure. Field drafts remain owned
 by each Harness; collapse/expansion never saves, clears or replaces their values.
 Default mode retains its existing inheritance and explicit-toggle semantics.
+Read-only inherited profiles keep the disclosure and resource retry available.
+The host sets `nativeSettingsReadOnly`; the shared wrapper disables basic and
+advanced value controls without disabling inspection. The host also rejects
+value changes independently of the presentation state.
 Hosts can supply `nativeSettingsBeforeAdvanced` for one host-owned region between
 basic fields and the disclosure; Pi snapshots use the same wrapper without an
 empty disclosure. The slot clears itself for descendants to avoid recursive

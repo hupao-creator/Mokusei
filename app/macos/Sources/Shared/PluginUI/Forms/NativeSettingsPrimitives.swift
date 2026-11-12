@@ -21,6 +21,7 @@ struct NativeSettingsField: Sendable {
 }
 private struct NativeSettingsFieldKey: EnvironmentKey { static let defaultValue = NativeSettingsField() }
 private struct NativeSettingsPageKey: EnvironmentKey { static let defaultValue = false }
+private struct NativeSettingsReadOnlyKey: EnvironmentKey { static let defaultValue = false }
 private struct NativeSettingsViewportWidthKey: EnvironmentKey { static let defaultValue = CGFloat.infinity }
 private struct NativeSettingsLocalAgentDetailKey: EnvironmentKey { static let defaultValue = false }
 private struct NativeSettingsCLIKey: EnvironmentKey { static let defaultValue = false }
@@ -28,6 +29,11 @@ private struct NativeSettingsBeforeAdvancedKey: EnvironmentKey { static var defa
 private struct NativeSettingsRowVerticalPaddingKey: EnvironmentKey { static let defaultValue = CGFloat(15) }
 private struct NativeSettingsGroupBottomSpacingKey: EnvironmentKey { static let defaultValue = CGFloat(22) }
 public extension EnvironmentValues {
+    /// Locks configuration values while allowing disclosures and resource retries.
+    var nativeSettingsReadOnly: Bool {
+        get { self[NativeSettingsReadOnlyKey.self] }
+        set { self[NativeSettingsReadOnlyKey.self] = newValue }
+    }
     /// Host-owned fields between the Harness basics and its advanced disclosure.
     var nativeSettingsBeforeAdvanced: AnyView? {
         get { self[NativeSettingsBeforeAdvancedKey.self] }
@@ -455,6 +461,7 @@ public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
     private let hasAdvanced: Bool
     @State private var expanded = false
     @Environment(\.nativeSettingsBeforeAdvanced) private var beforeAdvanced
+    @Environment(\.nativeSettingsReadOnly) private var readOnly
     @Environment(\.locale) private var locale
     @Environment(\.nativeSettingsFormPage) private var formPage
     public init(defaults: Binding<Bool>? = nil, hasAdvanced: Bool = true,
@@ -463,8 +470,8 @@ public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
         self.basic = basic(); self.advanced = advanced()
     }
     public var body: some View {
-        if defaults?.wrappedValue != true { basic }
-        beforeAdvanced.environment(\.nativeSettingsBeforeAdvanced, nil)
+        if defaults?.wrappedValue != true { basic.disabled(readOnly) }
+        beforeAdvanced.environment(\.nativeSettingsBeforeAdvanced, nil).disabled(readOnly)
         if defaults != nil || hasAdvanced {
             DisclosureGroup(isExpanded: $expanded) {
                 if expanded {
@@ -476,7 +483,7 @@ public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
                             }
                         }
                         if defaults?.wrappedValue != true { advanced }
-                    }
+                    }.disabled(readOnly)
                 }
             } label: {
                 Text(NativePluginLocalization.localize("高级选项", locale: locale))

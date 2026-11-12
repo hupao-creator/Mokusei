@@ -264,3 +264,16 @@ the full native gate. Metal uses SwiftUI ImageRenderer directly without initiali
 or creating a window. Main-actor controls retain the shared gate; genuinely pure
 cases keep their ordinary scheduling. Tests for removed embedded selector
 presentations are not carried forward as headless coverage.
+
+## Native replay contract alignment
+
+Settings Undo uses the real Harness settings form and explicitly selects custom
+routing guidance, so the injected editor participates in the production binding.
+Settings WindowServer captures use the window's actual backing scale; forcing a
+2x destination on a 1x runner can leave black padding and misplace the existing
+background-luminance sample. The contrast and luminance thresholds are unchanged.
+
+Dock send replay checks immediate clearing of both live and retiring ink while
+keeping its duplicate-send, failure restoration and route-replacement assertions.
+The default Report view closes on one Escape; only a selected execution or Browser
+adds a nested return step, as specified by the production navigation contract.
