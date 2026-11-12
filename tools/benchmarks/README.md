@@ -9,9 +9,9 @@ and offline analysis use the Python standard library on Linux or macOS.
 
 The [Agent Thread reading extension](reading/README.md) shares these collectors,
 public fixture/lifecycle boundaries and evidence contracts. It separately measures
-existing-document entry, reopening, bidirectional scrolling, older-execution
-navigation and reading during meaningful Agent output. Its workload axes are
-single-reply length and history count, rather than Overview card count.
+existing-document entry, reopening, bidirectional scrolling and reading during
+meaningful Agent output. Its workload varies single-reply length: 8 / 32 KiB by
+default, with an explicitly selected 128 KiB stress workload.
 
 The current scope is rendering under fixed total counts **5 / 10 / 20**, including
 real active-agent body output. There is **no layout score**, visible-card quota,

@@ -12,7 +12,7 @@ import zlib
 from analysis.report import seal, write_report
 from conformance.replay import fixture as shared_fixture
 from lifecycle import save
-from reading.corpus import document, fixture_matrix
+from reading.corpus import document
 from reading.plan import interaction
 from reading.provider import ReadingProvider, workload
 from reading.contract import terminal_fragment
@@ -24,8 +24,8 @@ def fixture(root):
     corpus = document(1, 8)
     plan.update(scenario="reading.scroll", count=1, formalSeconds=10.0, tailSeconds=3.0,
                 anchors=list(corpus.anchors), events=schedule["events"],
-                reading={"historyCount": 1, "corpus": corpus.manifest(), "executionId": "execution-one",
-                         "storedHistoryIsVisibleBody": False, "entryTrigger": None, "segments": schedule["segments"]})
+                reading={"corpus": corpus.manifest(), "executionId": "execution-one",
+                         "entryTrigger": None, "segments": schedule["segments"]})
     plan["windowBounds"]["height"] = 1600
     start = plan["startNS"]
     formal = start + 1_000_000_000
@@ -89,10 +89,9 @@ def provider_replay(directory):
             assert events[-1]["type"] == "response.completed"
             return events
 
-        history = request("BENCH ITEM 01: READING EXEC 016. Review the selected execution.")
-        answer = history[-1]["response"]["output"][-1]["content"][0]["text"]
-        assert "READ 016 COMPLETE" in answer and "READ 001 COMPLETE" not in answer
-        assert len(answer.encode()) >= 8192
+        reply = request("BENCH ITEM 01: Review the document.")
+        answer = reply[-1]["response"]["output"][-1]["content"][0]["text"]
+        assert answer == document(1, 8).markdown
         token = provider.prepare_reading_stream(2)
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(request, f"BENCH ITEM 01: BENCH STREAM 01 {token}. Review the document.")
@@ -206,7 +205,6 @@ def main():
         run("changed-body-hash", lambda p, o, f: p["reading"]["corpus"].update(sha256="0" * 64), invalid=True)
         run("missing-input", lambda p, o, f: o["inputs"].pop(3), product="unknown")
         run("changed-input-direction", lambda p, o, f: o["inputs"][2].update(deltaY=5), invalid=True)
-        run("history-as-rendered-body", lambda p, o, f: p["reading"].update(storedHistoryIsVisibleBody=True), invalid=True)
         run("invalid-scroll-phase", lambda p, o, f: p["events"][2].update(phase=4), invalid=True)
         run("changed-input-volume", lambda p, o, f: p["reading"]["segments"][0].update(inputPixels=-1), invalid=True)
 
@@ -263,8 +261,7 @@ def main():
             "executionId": "execution-one", "status": "completed",
             "timeline": [{"kind": "assistant", "status": "completed", "content": corpus.markdown}]}}
         prepared = verify_reply(snapshot, "execution-one", corpus)
-        save(root / "reading-fixture.json", {"historyCount": 1, "bodyKiB": 8,
-             "executions": [prepared], "storedHistoryIsVisibleBody": False})
+        save(root / "reading-fixture.json", {"bodyKiB": 8, "reply": prepared})
         snapshot["atNS"] = o["boundaries"]["tailEnd"] + 100
         save(root / "public-content.json", snapshot)
         save(root / "outcome.json", {"status": "passed", "threads": [thread],
@@ -287,25 +284,6 @@ def main():
         report = write_report(root)
         assert report["measurement"] == "invalid" and any("fixture content" in reason for reason in report["reasons"]), report
         count += 1
-
-        assert fixture_matrix() == [(8, 1), (8, 16), (8, 64), (32, 1), (128, 1)]
-        from contracts.model import plan as validate_plan
-        root = base / "history-plan"
-        root.mkdir()
-        p, _, _ = fixture(root)
-        history = interaction("reading.history", {"x": 500, "y": 500},
-                              history_point={"x": 160, "y": 450}, history_entry_point={"x": 160, "y": 220})
-        p.update(scenario="reading.history", events=history["events"], formalSeconds=history["formalSeconds"])
-        p["reading"].update(historyCount=64, segments=history["segments"], entryTrigger=history["entryTrigger"])
-        validate_plan(p)
-        p["events"] = [event for event in p["events"] if event["atSeconds"] > 1.6]
-        p["reading"]["segments"].pop(0)
-        try:
-            validate_plan(p)
-        except ValueError as error:
-            assert "1800-point" in str(error), error
-        else:
-            raise AssertionError("history accepted a shortened directory workload")
 
         for name, fault in (("output-normal", None), ("output-omission", "omission"),
                             ("output-late", "late"), ("output-invisible", "invisible")):
@@ -342,7 +320,7 @@ def main():
                 assert report["measurement"] == "invalid", report
             count += 1
         provider_replay(base / "provider")
-    print(f"Reading conformance passed: {count} full scorer controls, history plan/input boundaries and real HTTP provider lifecycle")
+    print(f"Reading conformance passed: {count} full scorer controls and real HTTP provider lifecycle")
     return 0
 
 

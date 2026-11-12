@@ -10,7 +10,7 @@ from adapter import Runtime, UI, wait_for
 from analysis.report import seal, write_report
 from lifecycle import Application, native, save, sha256
 from runner import collect, existing_fixture, boundary_outcome
-from reading.corpus import document, fixture_matrix
+from reading.corpus import document
 from reading.plan import interaction
 from reading.provider import ReadingProvider
 from reading.public import content, verify_reply
@@ -54,40 +54,29 @@ def element(owner, predicate):
     return matches[0]
 
 
-def prepare_history(application, kib, count):
+def prepare_reply(application, kib):
     thread_id = application.threads[1]
-    ids = []
-    receipts = []
-    for ordinal in range(1, count + 1):
-        if ordinal > 1:
-            result = application.runtime.invoke("thread:follow-up", [{"threadId": thread_id,
-                "expectedExecutionId": ids[-1], "input": {"parts": [{"kind": "text",
-                "text": f"BENCH ITEM 01: READING EXEC {ordinal:03d}. Return the completed review document."}]}}])
-            expected = result["executionId"]
-        else:
-            expected = application.provider.receipts["bench_create_01"]["executionId"]
+    expected = application.provider.receipts["bench_create_01"]["executionId"]
 
-        def completed(state):
-            if application.provider.failures:
-                raise ValueError("reader provider failed: " + str(application.provider.failures))
-            threads = [thread for thread in state["threads"] if thread["id"] == thread_id]
-            if len(threads) != 1:
-                raise ValueError("prepared reader thread disappeared")
-            execution = threads[0].get("observation", {}).get("latestExecution") or {}
-            if execution.get("executionId") != expected:
-                return False
-            if execution.get("status") in ("failed", "interrupted"):
-                raise ValueError("fixture execution did not complete")
-            return execution.get("status") == "completed"
+    def completed(state):
+        if application.provider.failures:
+            raise ValueError("reader provider failed: " + str(application.provider.failures))
+        threads = [thread for thread in state["threads"] if thread["id"] == thread_id]
+        if len(threads) != 1:
+            raise ValueError("prepared reader thread disappeared")
+        execution = threads[0].get("observation", {}).get("latestExecution") or {}
+        if execution.get("executionId") != expected:
+            return False
+        if execution.get("status") in ("failed", "interrupted"):
+            raise ValueError("fixture execution did not complete")
+        return execution.get("status") == "completed"
 
-        wait_for(application.runtime.state, completed, 90)
-        snapshot = content(application.runtime, thread_id, {"kind": "turn", "key": "turn:" + expected})
-        receipts.append(verify_reply(snapshot, expected, document(ordinal, kib)))
-        save(application.root / f"execution-{ordinal:03d}.json", snapshot)
-        ids.append(expected)
-    save(application.root / "reading-fixture.json", {"historyCount": count, "bodyKiB": kib,
-         "executions": receipts, "storedHistoryIsVisibleBody": False})
-    return ids
+    wait_for(application.runtime.state, completed, 90)
+    snapshot = content(application.runtime, thread_id, {"kind": "turn", "key": "turn:" + expected})
+    reply = verify_reply(snapshot, expected, document(1, kib))
+    save(application.root / "prepared-reply.json", snapshot)
+    save(application.root / "reading-fixture.json", {"bodyKiB": kib, "reply": reply})
+    return expected
 
 
 def restart(application):
@@ -154,67 +143,18 @@ def roots(application):
     return result
 
 
-def prepare_directory(application, directory, ids, point):
-    evidence = {"dispatches": [], "directoryPoint": point}
-    entry_point = None
-    for direction in (1, -1):
-        events = [{"kind": "move", "atSeconds": .15, **point}]
-        events += [{"kind": "scroll", "atSeconds": .2 + index / 60, "deltaY": direction * 20,
-                    "phase": 1 if index == 0 else 2, **point}
-                   for index in range(90)]
-        events.append({"kind": "scroll", "atSeconds": 1.7, "deltaY": 0, "phase": 4, **point})
-        owner = native(application.helper, "inspect", application.app.pid)
-        dispatch = directory / ("prepare-beginning" if direction == 1 else "prepare-end")
-        dispatch.mkdir()
-        # Use the native dispatcher's process/foreground fence even outside
-        # timing, so a focus change suppresses input instead of scrolling another app.
-        save(dispatch / "plan.json", {"version": 1, "kind": "plan", "clock": "macos.mach_absolute_time.nanoseconds",
-             "scenario": "directory-input-preparation", "mode": "minimal", "pid": application.app.pid,
-             "processIdentity": owner["process"]["identity"], "windowID": owner["windowID"], "windowBounds": owner["bounds"],
-             "startNS": time.monotonic_ns() + 1_000_000_000, "warmupSeconds": .2, "formalSeconds": 2.0,
-             "tailSeconds": .5, "sampleHz": 10.0, "captureHz": 5.0, "events": events,
-             "processRoots": [{**owner["process"], "role": "application"}]})
-        receipt = native(application.helper, "collect", dispatch / "plan.json", dispatch)
-        observation = json.loads((dispatch / "observation.json").read_text())
-        if len(observation["inputs"]) != len(events) or any(event.get("error") for event in observation["inputs"]):
-            raise ValueError("directory preparation input lost its target; inspect the retained dispatcher observation")
-        evidence["dispatches"].append({"path": dispatch.name, "receipt": receipt})
-        state = settled(application)
-        owner = native(application.helper, "inspect", application.app.pid)
-        if direction == 1:
-            first = [item for item in controls(state, "history.open") if item["value"] == "turn:" + ids[0]]
-            if len(first) != 1:
-                raise ValueError("preparatory system scrolling did not reveal the oldest directory entry")
-            target = element(owner, lambda item: first[0]["label"] in (item.get("AXTitle"), item.get("AXDescription")))
-            entry_point = center(target["bounds"])
-            evidence.update(oldestPoint=entry_point, firstEntry=first[0], atBeginning=owner)
-        else:
-            current = controls(state, "history.current")
-            if len(current) != 1:
-                raise ValueError("current directory entry is ambiguous after restoring its end")
-            element(owner, lambda item: current[0]["label"] in (item.get("AXTitle"), item.get("AXDescription")))
-            if not any(item["value"].get("selectedRow") == "turn:" + ids[-1]
-                       for item in controls(state, "history.sidebar")):
-                raise ValueError("directory preparation changed the selected document")
-            evidence.update(atEnd=owner, semantic=state, completedNS=time.monotonic_ns())
-        save(directory / "history-preparation.json", evidence)
-    return entry_point
-
-
-def run_case(application, tools, directory, scenario, kib, ids, mode, capability):
+def run_case(application, tools, directory, scenario, kib, execution_id, mode, capability):
     directory.mkdir()
     for name in ("artifact.json", "native-cli.json", "selection.json", "reading-fixture.json"):
         shutil.copy2(application.root / name, directory / name)
-    count = len(ids)
-    ordinal = 1 if scenario == "reading.history" else count
-    corpus = document(ordinal, kib)
+    corpus = document(1, kib)
     save(directory / "body-corpus.json", corpus.manifest())
     token = None
     if scenario == "reading.first-open":
         save(directory / "restart-cleanup.json", restart(application))
     owner = native(application.helper, "prepare", application.app.pid)
     fixture = existing_fixture(application, directory)
-    card = history = history_entry = None
+    card = None
     body_point = center(owner["bounds"])
     if scenario in ("reading.first-open", "reading.reopen"):
         if scenario == "reading.reopen":
@@ -231,9 +171,9 @@ def run_case(application, tools, directory, scenario, kib, ids, mode, capability
     else:
         open_reader(application)
         if scenario == "reading.output-scroll":
-            token = application.provider.prepare_reading_stream(count + 1)
+            token = application.provider.prepare_reading_stream(2)
             result = application.runtime.invoke("thread:follow-up", [{"threadId": application.threads[1],
-                "expectedExecutionId": ids[-1], "input": {"parts": [{"kind": "text",
+                "expectedExecutionId": execution_id, "input": {"parts": [{"kind": "text",
                 "text": f"BENCH ITEM 01: BENCH STREAM 01 {token}. Review the document and report each completed stage."}]}}])
             save(directory / "active-execution.json", result)
             wait_for(lambda: application.provider.streams[token]["ready"], lambda ready: ready == {1}, 60)
@@ -244,23 +184,8 @@ def run_case(application, tools, directory, scenario, kib, ids, mode, capability
             wait_for(application.ui.request, lambda state: any(
                 "turn:" + result["executionId"] in item["value"].get("visibleRowIds", [])
                 for item in controls(state, "timeline")), 30)
-        body_point, owner = body_position(application, ids[-1], directory)
-        if scenario == "reading.history":
-            state = settled(application)
-            current = controls(state, "history.current")
-            if len(current) != 1:
-                raise ValueError("current directory entry is ambiguous")
-            label = current[0]["label"]
-            target = element(owner, lambda item: label in (item.get("AXTitle"), item.get("AXDescription")))
-            history = center(target["bounds"])
-            area = element(owner, lambda item: item.get("AXRole") == "AXScrollArea"
-                           and item.get("AXDescription") and item.get("bounds")
-                           and item["bounds"]["x"] <= history["x"] <= item["bounds"]["x"] + item["bounds"]["width"]
-                           and item["bounds"]["y"] <= history["y"] <= item["bounds"]["y"] + item["bounds"]["height"])
-            history = center(area["bounds"])
-            history_entry = prepare_directory(application, directory, ids, history)
-            owner = native(application.helper, "inspect", application.app.pid)
-    schedule = interaction(scenario, body_point, card, history, history_entry)
+        body_point, owner = body_position(application, execution_id, directory)
+    schedule = interaction(scenario, body_point, card)
     plan = {"version": 1, "kind": "plan", "clock": "macos.mach_absolute_time.nanoseconds",
             "scenario": scenario, "count": 1, "mode": mode, "targetKind": "application",
             "pid": application.app.pid, "processIdentity": owner["process"]["identity"],
@@ -271,9 +196,8 @@ def run_case(application, tools, directory, scenario, kib, ids, mode, capability
             "maximumCaptureGapSeconds": .65, "motionTolerancePixels": 14.0,
             "anchors": list(corpus.anchors), "processRoots": roots(application), "events": schedule["events"],
             "fixture": fixture,
-            "reading": {"corpus": corpus.manifest(), "historyCount": count, "executionId": ids[ordinal - 1],
-                        "segments": schedule["segments"], "entryTrigger": schedule["entryTrigger"],
-                        "storedHistoryIsVisibleBody": False}}
+            "reading": {"corpus": corpus.manifest(), "executionId": execution_id,
+                        "segments": schedule["segments"], "entryTrigger": schedule["entryTrigger"]}}
     if token:
         plan["reading"]["source"] = application.provider.streams[token]["workload"]
     save(directory / "prepared-window.json", owner)
@@ -284,8 +208,8 @@ def run_case(application, tools, directory, scenario, kib, ids, mode, capability
         save(directory / "source.json", application.provider.source_evidence(token))
     state = application.runtime.state()
     thread = next(item for item in state["threads"] if item["id"] == application.threads[1])
-    outcome_corpus = document(count + 1, kib) if token else corpus
-    outcome_id = thread["observation"]["latestExecution"]["executionId"] if token else ids[ordinal - 1]
+    outcome_corpus = document(2, kib) if token else corpus
+    outcome_id = thread["observation"]["latestExecution"]["executionId"] if token else execution_id
     snapshot = content(application.runtime, application.threads[1], {"kind": "turn", "key": "turn:" + outcome_id})
     reply = verify_reply(snapshot, outcome_id, outcome_corpus)
     save(directory / "public-content.json", snapshot)
@@ -294,7 +218,7 @@ def run_case(application, tools, directory, scenario, kib, ids, mode, capability
          "controlCancellations": list(application.provider.cancellations)})
 
 
-def run_suite(tools, bundle, directory, body_kib, history_counts, scenarios, mode, capability_dir=None):
+def run_suite(tools, bundle, directory, body_kib, scenarios, mode, capability_dir=None):
     directory.mkdir(parents=True, exist_ok=False, mode=0o700)
     capability = None
     if capability_dir:
@@ -303,27 +227,24 @@ def run_suite(tools, bundle, directory, body_kib, history_counts, scenarios, mod
             raise ValueError("calibration belongs to another collector")
         shutil.copytree(capability_dir, directory / "calibration")
     summaries = []
-    matrix = fixture_matrix(body_kib, history_counts)
-    planned = [f"body-{kib}-history-{count}/{index:02d}-{scenario}" for kib, count in matrix
-               for index, scenario in enumerate(scenarios) if not (scenario == "reading.history" and count == 1)]
-    for kib, count in matrix:
-        group = directory / f"body-{kib}-history-{count}"
+    planned = [f"body-{kib}/{index:02d}-{scenario}" for kib in sorted(body_kib)
+               for index, scenario in enumerate(scenarios)]
+    for kib in sorted(body_kib):
+        group = directory / f"body-{kib}"
         group.mkdir()
         application = Application(bundle, group / "fixture", 1, tools / "collector",
                                   provider_factory=lambda root, total: ReadingProvider(root, total, kib))
         trials = []
         try:
-            print(f"Preparing {kib} KiB replies and {count} executions through the real Harness", flush=True)
+            print(f"Preparing one {kib} KiB reply through the real Harness", flush=True)
             application.start()
-            ids = prepare_history(application, kib, count)
+            execution_id = prepare_reply(application, kib)
             for index, scenario in enumerate(scenarios):
-                if scenario == "reading.history" and count == 1:
-                    continue
                 case = group / f"{index:02d}-{scenario}"
                 trials.append(case)
-                print(f"Measuring {scenario}, body={kib} KiB, history={count}", flush=True)
+                print(f"Measuring {scenario}, body={kib} KiB", flush=True)
                 try:
-                    run_case(application, tools, case, scenario, kib, ids, mode, capability)
+                    run_case(application, tools, case, scenario, kib, execution_id, mode, capability)
                 except Exception as error:
                     case.mkdir(exist_ok=True)
                     save(case / "failure.json", {"error": str(error), "atNS": time.monotonic_ns()})
@@ -348,11 +269,11 @@ def run_suite(tools, bundle, directory, body_kib, history_counts, scenarios, mod
                               "comparison": "not-comparable", "reasons": ["not run after fixture or earlier trial failure"],
                               "metrics": {}})
     save(directory / "summary.json", {"version": 1, "results": summaries, "statisticalRegressionGate": False,
-         "requested": {"bodyKiB": body_kib, "historyCounts": history_counts, "scenarios": scenarios, "mode": mode},
-         "plannedTrials": planned, "oneExecutionHistoryNavigation": "inapplicable: no older execution"})
+         "requested": {"bodyKiB": body_kib, "scenarios": scenarios, "mode": mode}, "plannedTrials": planned})
     lines = ["# Agent Thread reading measurements", "",
-             "Entry, document scrolling and history navigation use the production reader.",
-             "Stored history bytes are not visible-body bytes. Capture cadence is not display FPS.",
+             "Entry and scrolling measure one prepared reply in the production reader.",
+             "Default reply sizes are 8 / 32 KiB; 128 KiB is an optional stress workload.",
+             "Capture cadence is not display FPS.",
              "Incomplete resource accounting or unvalidated hitch capability remains explicit.", "",
              "Intervals and upper bounds reflect sampled captures; these are individual trials, not confidence intervals.", "",
              "| Trial | Measurement | Product | First body ms (interval) | Scroll response ms (largest upper bound) | No progress ms (largest upper bound) |",

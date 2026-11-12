@@ -232,6 +232,6 @@ signing keys. Missing positive hitch controls or complete descendant accounting
 remain unavailable/incomplete; they do not become passing metrics.
 Reading scroll controls additionally establish normal bidirectional pixel-wheel
 motion and detection of frozen, reversed, delayed and main-thread-stalled output.
-History navigation follows the actual directory/selected-execution path; generic
-timeline pagination is not a claimed Agent reader workload. Full reply hashes
+Reading cases vary a single reply's size: 8 / 32 KiB by default, with 128 KiB
+available as an explicitly selected stress workload. Full reply hashes
 come from public scoped content, independently of sampled visible checkpoints.

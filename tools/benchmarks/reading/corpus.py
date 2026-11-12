@@ -1,10 +1,10 @@
-"""Deterministic business documents; stored history is not visible body work."""
+"""Deterministic single-reply documents at fixed body-size levels."""
 from dataclasses import dataclass
 import hashlib
 
 
 BODY_KIB = (8, 32, 128)
-HISTORY_COUNTS = (1, 16, 64)
+DEFAULT_BODY_KIB = (8, 32)
 
 
 @dataclass(frozen=True)
@@ -82,14 +82,3 @@ struct ReviewRecord {{
         size += len(block.encode("utf-8"))
     parts.append(f"READ {execution:03d} COMPLETE\n")
     return Corpus(execution, kib * 1024, "".join(parts), tuple(anchors), section)
-
-
-def fixture_matrix(body_kib=BODY_KIB, history_counts=HISTORY_COUNTS):
-    if (not body_kib or not history_counts or len(set(body_kib)) != len(body_kib)
-            or len(set(history_counts)) != len(history_counts)):
-        raise ValueError("nonempty, distinct workload levels are required")
-    for kib in body_kib:
-        document(1, kib)
-    if any(type(count) is not int or count not in HISTORY_COUNTS for count in history_counts):
-        raise ValueError("history levels must be 1, 16 or 64 executions")
-    return sorted({(kib, 1) for kib in body_kib} | {(8, count) for count in history_counts})

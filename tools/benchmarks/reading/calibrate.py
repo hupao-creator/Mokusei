@@ -42,8 +42,8 @@ def calibrate(tools, directory, modes=("normal", "frozen", "wrong", "delay", "st
                     "maximumCaptureGapSeconds": .65, "motionTolerancePixels": 14.0, "anchors": list(corpus.anchors),
                     "processRoots": [{**identity, "role": "application"},
                                      {**native(helper, "process", os.getpid()), "role": "source"}],
-                    "events": schedule["events"], "reading": {"historyCount": 1, "corpus": corpus.manifest(),
-                    "executionId": "control-execution", "storedHistoryIsVisibleBody": False,
+                    "events": schedule["events"], "reading": {"corpus": corpus.manifest(),
+                    "executionId": "control-execution",
                     "entryTrigger": None, "segments": schedule["segments"]}}
             collect(tools, root, plan, app)
             if not (root / "observation.json").is_file():

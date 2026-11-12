@@ -61,8 +61,6 @@ def analyze(directory):
             if plan['scenario'].startswith('reading.'):
                 for name in ('reading-fixture.json', 'body-corpus.json', 'public-content.json'):
                     if name not in sealed: mark('unsealed reader evidence: '+name, 'incomplete')
-                if plan['scenario']=='reading.history' and 'history-preparation.json' not in sealed:
-                    mark('unsealed directory input preparation', 'incomplete')
                 if (root/'body-corpus.json').exists() and load(root/'body-corpus.json') != plan['reading']['corpus']:
                     mark('reader corpus differs from the declared workload', 'invalid')
         for name in ('plan.json', 'observation.json', 'outcome.json', 'identity.json', 'clock.json', 'cleanup.json', 'collector-exit.json'):

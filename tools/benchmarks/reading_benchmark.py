@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import sys
 
-from reading.corpus import BODY_KIB, HISTORY_COUNTS
+from reading.corpus import BODY_KIB, DEFAULT_BODY_KIB
 from reading.plan import SCENARIOS
 
 
@@ -22,8 +22,8 @@ def main():
     for name in ("app", "tools", "output"):
         run.add_argument("--" + name, type=Path, required=True)
     run.add_argument("--capabilities", type=Path)
-    run.add_argument("--body-kib", type=int, nargs="+", choices=BODY_KIB, default=list(BODY_KIB))
-    run.add_argument("--history-count", type=int, nargs="+", choices=HISTORY_COUNTS, default=list(HISTORY_COUNTS))
+    run.add_argument("--body-kib", type=int, nargs="+", choices=BODY_KIB, default=list(DEFAULT_BODY_KIB),
+                     help="single-reply size in KiB (default: 8 32; 128 is an optional stress workload)")
     run.add_argument("--scenario", nargs="+", choices=SCENARIOS, default=list(SCENARIOS))
     run.add_argument("--mode", choices=("observed", "minimal"), default="observed")
     analyze = commands.add_parser("analyze", help="shared offline evidence analysis")
@@ -36,6 +36,13 @@ def main():
         from analysis.report import write_report
         print(json.dumps(write_report(args.directory), indent=2))
         return 0
+    if args.command == "run":
+        if len(set(args.body_kib)) != len(args.body_kib):
+            parser.error("repeat body sizes in separate experiment directories")
+        if len(set(args.scenario)) != len(args.scenario):
+            parser.error("repeat scenarios in separate experiment directories")
+        if "reading.output-scroll" in args.scenario and args.scenario[-1] != "reading.output-scroll":
+            parser.error("output-scroll must run last because it starts a subsequent execution")
     if sys.platform != "darwin":
         parser.error("live reading collection requires macOS")
     from build import build
@@ -49,13 +56,9 @@ def main():
         result = collect_controls(tools, args.output.resolve())
         print(json.dumps(result, indent=2))
         return 0 if result["readingScroll"]["passed"] else 2
-    if len(set(args.scenario)) != len(args.scenario):
-        parser.error("repeat scenarios in separate experiment directories")
-    if "reading.output-scroll" in args.scenario and args.scenario[-1] != "reading.output-scroll":
-        parser.error("output-scroll must run last because it creates a subsequent execution")
     from reading.runner import run_suite
     reports = run_suite(tools, args.app.resolve(), args.output.resolve(), args.body_kib,
-                        args.history_count, args.scenario, args.mode,
+                        args.scenario, args.mode,
                         args.capabilities.resolve() if args.capabilities else None)
     print(json.dumps([{key: row.get(key) for key in ("path", "measurement", "product", "comparison", "reasons")}
                       for row in reports], indent=2))

@@ -131,8 +131,7 @@ def plan(value):
         if kind in ('keyDown', 'keyUp'):
             key = integer(event.get('keyCode'), 'navigation key', 0, 127)
             if reading:
-                if value['scenario'] != 'reading.history' or key not in (115, 36) or event.get('modifiers') != []:
-                    raise ValueError('reading history permits only unmodified Home/Return')
+                raise ValueError('reading scenarios use pointer input only')
             elif key != 40:
                 raise ValueError('only Command-K is an allowed navigation key')
             if kind == 'keyDown':
@@ -152,7 +151,7 @@ def plan(value):
     if down or pressed_key is not None:
         raise ValueError('input gesture lacks a release')
     keys=[e['kind'] for e in events if e['kind'] in ('keyDown','keyUp')]
-    if keys and keys != (['keyDown','keyUp','keyDown','keyUp'] if reading else ['keyDown','keyUp']):
+    if keys and keys != ['keyDown','keyUp']:
         raise ValueError('navigation keyboard sequence incomplete')
     if 'pan' in value['scenario'] and not any(e['kind'] == 'drag' for e in events):
         raise ValueError('pan scenario lacks real drag inputs')

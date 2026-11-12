@@ -20,8 +20,7 @@ def pixels(root, plan, observation, frames, times, result, mark):
                 anchors[item["text"]] = item
         rows.append({"at": frame["atNS"], "request": frame["requestNS"],
                      "scale": frame["width"] / frame["pointsWidth"], "anchors": anchors})
-    metrics = {"historyCount": reading["historyCount"], "bodyBytes": reading["corpus"]["bytes"],
-               "storedHistoryIsVisibleBody": False, "scroll": [],
+    metrics = {"bodyBytes": reading["corpus"]["bytes"], "scroll": [],
                "captureCadenceIsDisplayFPS": False}
     result["metrics"]["reading"] = metrics
     successful = True
@@ -54,12 +53,6 @@ def pixels(root, plan, observation, frames, times, result, mark):
             mark("selected execution body never became recognizable", "incomplete")
             successful = False
     for segment in reading["segments"]:
-        if segment["viewport"] != "document":
-            # Repeated unlabelled TOC marks are not independent text anchors.
-            # Its system input is retained; the measured endpoint is opening the
-            # known oldest execution, not a claim of directory optical FPS.
-            metrics["historyDirectoryInputPixels"] = metrics.get("historyDirectoryInputPixels", 0) + segment["inputPixels"]
-            continue
         events = [event for event in observation["inputs"] if event["kind"] == "scroll"
                   and segment["startSeconds"] <= event["atSeconds"] <= segment["endSeconds"]]
         if len(events) < 3:
@@ -208,48 +201,21 @@ def outcome(root, plan, observed, mark):
     from reading.public import verify_reply
     reading = plan["reading"]
     fixture = load(root / "reading-fixture.json")
-    count, kib = reading["historyCount"], reading["corpus"]["targetBytes"] // 1024
-    executions = fixture["executions"]
-    if (fixture.get("historyCount") != count or fixture.get("bodyKiB") != kib
-            or fixture.get("storedHistoryIsVisibleBody") is not False or len(executions) != count
-            or len({item["executionId"] for item in executions}) != count):
-        raise ValueError("public reading fixture history is incomplete or inconsistent")
-    for ordinal, execution in enumerate(executions, 1):
-        corpus = document(ordinal, kib).manifest()
-        if (execution["bytes"] != corpus["bytes"] or execution["sha256"] != corpus["sha256"]
-                or execution["status"] != "completed" or execution["observedNS"] > plan["startNS"]):
-            raise ValueError("prepared history omitted or changed declared completed replies")
-    ordinal = reading["corpus"]["execution"]
-    expected_id = executions[ordinal - 1]["executionId"]
+    kib = reading["corpus"]["targetBytes"] // 1024
+    prepared = fixture["reply"]
+    corpus = document(1, kib).manifest()
+    if (fixture["bodyKiB"] != kib or prepared["bytes"] != corpus["bytes"]
+            or prepared["sha256"] != corpus["sha256"] or prepared["status"] != "completed"
+            or prepared["observedNS"] > plan["startNS"]):
+        raise ValueError("prepared reply differs from the declared completed body")
+    ordinal = 1
+    expected_id = prepared["executionId"]
     if expected_id != reading["executionId"]:
         raise ValueError("planned reader does not identify the prepared execution")
-    if plan["scenario"] == "reading.history":
-        preparation = load(root / "history-preparation.json")
-        integer(preparation["completedNS"], "directory preparation completion", 1, plan["startNS"])
-        if preparation["firstEntry"]["value"] != "turn:" + expected_id:
-            raise ValueError("prepared directory hit point identifies another execution")
-        label = preparation["firstEntry"]["label"]
-        targets = [item for item in preparation["atBeginning"]["accessibility"]
-                   if label in (item.get("AXTitle"), item.get("AXDescription")) and item.get("bounds")]
-        if len(targets) != 1:
-            raise ValueError("oldest directory hit point has no unique Accessibility evidence")
-        bounds = targets[0]["bounds"]
-        point = {axis: bounds[axis] + bounds[size] / 2 for axis, size in (("x", "width"), ("y", "height"))}
-        entry = next(event for event in plan["events"] if all(
-            event.get(key) == value for key, value in reading["entryTrigger"].items()))
-        if point != preparation["oldestPoint"] or any(entry[axis] != point[axis] for axis in ("x", "y")):
-            raise ValueError("history click differs from its observed entry geometry")
-        for name in ("atBeginning", "atEnd"):
-            owner = preparation[name]
-            if owner["process"]["identity"] != plan["processIdentity"] or owner["bounds"] != plan["windowBounds"]:
-                raise ValueError("history input geometry belongs to another process or window")
-        if not any(item["role"] == "history.sidebar" and item["value"].get("selectedRow") == "turn:" + executions[-1]["executionId"]
-                   for item in preparation["semantic"]["reading"]["controls"]):
-            raise ValueError("directory preparation did not preserve the latest selected document")
     if plan["scenario"] == "reading.output-scroll":
         expected_id = load(root / "active-execution.json")["executionId"]
-        ordinal = count + 1
-        if expected_id in {item["executionId"] for item in executions}:
+        ordinal = 2
+        if expected_id == prepared["executionId"]:
             raise ValueError("dynamic output did not start a subsequent execution")
     snapshot = load(root / "public-content.json")
     reply = verify_reply(snapshot, expected_id, document(ordinal, kib))

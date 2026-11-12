@@ -3,7 +3,7 @@ import re
 import hashlib
 
 from contracts.model import integer, number, text
-from reading.corpus import document, HISTORY_COUNTS
+from reading.corpus import document
 from reading.plan import SCENARIOS
 
 
@@ -11,11 +11,8 @@ def validate(plan):
     if plan["scenario"] not in SCENARIOS or plan["count"] != 1:
         raise ValueError("reading experiments require one existing Agent Thread")
     reading = plan["reading"]
-    count = reading["historyCount"]
-    if type(count) is not int or count not in HISTORY_COUNTS:
-        raise ValueError("unsupported reading history count")
     corpus = reading["corpus"]
-    execution = integer(corpus["execution"], "selected execution ordinal", 1, count)
+    execution = integer(corpus["execution"], "prepared reply ordinal", 1, 1)
     target = integer(corpus["targetBytes"], "target body bytes", 8192, 131072)
     expected = document(execution, target // 1024).manifest()
     if corpus != expected or target % 1024:
@@ -23,16 +20,10 @@ def validate(plan):
     if plan["anchors"] != expected["anchors"]:
         raise ValueError("reading anchors do not identify the selected body")
     text(reading["executionId"], "selected public execution identity")
-    if plan["scenario"] == "reading.history" and (count <= 1 or execution != 1):
-        raise ValueError("history navigation must open the oldest of multiple executions")
-    if plan["scenario"] != "reading.history" and execution != count:
-        raise ValueError("ordinary reading scenarios must target the latest prepared execution")
-    if reading.get("storedHistoryIsVisibleBody") is not False:
-        raise ValueError("stored history cannot be claimed as rendered body")
     trigger = reading["entryTrigger"]
-    if plan["scenario"] in ("reading.first-open", "reading.reopen", "reading.history"):
+    if plan["scenario"] in ("reading.first-open", "reading.reopen"):
         if type(trigger) is not dict or set(trigger) != {"kind", "atSeconds"} or trigger.get("kind") != "up":
-            raise ValueError("entry must begin at the declared card click or history activation")
+            raise ValueError("entry must begin at the declared card click")
         if len([event for event in plan["events"]
             if all(event.get(key) == value for key, value in trigger.items())]) != 1:
             raise ValueError("entry trigger must identify exactly one planned system input")
@@ -50,10 +41,7 @@ def validate(plan):
         previous = end
         if type(segment["direction"]) is not int or segment["direction"] not in (-1, 1):
             raise ValueError("scroll direction must be signed")
-        if segment["viewport"] not in ("document", "history"):
-            raise ValueError("unknown scroll viewport")
-        if segment["viewport"] == "document":
-            directions.add(segment["direction"])
+        directions.add(segment["direction"])
         events = [(index, event) for index, event in enumerate(plan["events"])
                   if event["kind"] == "scroll" and start <= event["atSeconds"] <= end]
         if len(events) < 3 or covered.intersection(index for index, _ in events):
@@ -75,13 +63,6 @@ def validate(plan):
             raise ValueError("pixel input and declared minimum scroll travel differ")
     if directions != {-1, 1}:
         raise ValueError("document scrolling must include both directions")
-    directory_segments = [segment for segment in segments if segment["viewport"] == "history"]
-    if plan["scenario"] == "reading.history":
-        if (len(directory_segments) != 5 or sum(segment["inputPixels"] for segment in directory_segments) != 1800
-                or plan["formalSeconds"] != 17):
-            raise ValueError("history navigation requires its fixed 1800-point directory trajectory and window")
-    elif directory_segments:
-        raise ValueError("directory scrolling belongs only to history navigation")
     if covered != {index for index, event in enumerate(plan["events"]) if event["kind"] == "scroll"}:
         raise ValueError("unaccounted scroll event")
     if plan["scenario"] == "reading.output-scroll":
@@ -91,7 +72,7 @@ def validate(plan):
         if source["durationSeconds"] != plan["formalSeconds"]:
             raise ValueError("source and measurement windows differ")
         validate_source(source)
-        if source["terminal"]["text"] != document(count + 1, target // 1024).markdown:
+        if source["terminal"]["text"] != document(2, target // 1024).markdown:
             raise ValueError("terminal output does not contain the declared next document")
     return plan
 

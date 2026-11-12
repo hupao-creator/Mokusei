@@ -1,7 +1,5 @@
 """Reader corpus and settled-message traffic over the common Responses peer."""
 import hashlib
-import json
-import re
 import threading
 import time
 import uuid
@@ -64,10 +62,6 @@ class ReadingProvider(Provider):
 
     def body(self, index):
         return document(1, self.kib).markdown
-
-    def answer(self, index, request):
-        turns = re.findall(r"READING EXEC (\d{3})", json.dumps(request.get("input", [])))
-        return document(int(turns[-1]) if turns else 1, self.kib).markdown
 
     def initial_result(self, index, thread):
         execution = thread.get("observation", {}).get("latestExecution") or {}

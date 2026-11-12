@@ -16,7 +16,7 @@ python3 tools/benchmarks/reading_benchmark.py run \
   --app /absolute/path/Mokusei.app --tools /private/tmp/reading-tools \
   --capabilities /private/tmp/reading-controls --output /private/tmp/reading-run
 python3 tools/benchmarks/reading_benchmark.py analyze \
-  /private/tmp/reading-run/body-8-history-1/00-reading.first-open
+  /private/tmp/reading-run/body-8/00-reading.first-open
 ```
 
 Output directories must be new. Live work requires an unlocked foreground Mac,
@@ -28,30 +28,28 @@ incomplete or unsuccessful observation, not a statistical regression gate.
 
 ## Workloads and scenarios
 
-The independent axes are a **single final reply** targeting 8 / 32 / 128 KiB and
-**1 / 16 / 64 completed executions** at a fixed 8 KiB per reply. The overlapping
-8 KiB / one-execution case is shared, yielding five fixture groups. Complete
-Markdown blocks can exceed the target slightly; every plan records actual UTF-8
+The workload varies only the size of a **single final reply**. Default runs use
+8 / 32 KiB, with four scenarios each, for eight trials. An explicit
+`--body-kib 128` selects the large-reply stress workload; `--body-kib 8 32 128`
+runs all twelve trials. These are chosen experimental sizes, not measured
+percentiles of user replies. 128 KiB is about 131,000 ASCII characters or 44,000
+three-byte Chinese characters: it represents an unusually large code/document
+reply, not a normal reply or a model's 128K-token context window.
+
+Each fixture starts with one completed reply. Complete Markdown blocks can
+exceed the target slightly; every plan records actual UTF-8
 bytes, section count and SHA-256. The fixed block mix contains paragraphs,
 Chinese/English text, headings, inline styles, lists, Swift code, tables and a
 blockquote. Business checkpoints are part of the declared document.
-The shared scenario requests a fixed 1280 × 820-point window. One execution is
-the baseline, 16 directory marks fit the viewport, and 64 require scrolling and
-cross the directory's mounted window; these are not invented pagination sizes.
-
-The Agent reader mounts the current or selected execution, rather than all
-stored history. History count exercises the directory and navigation; its total
-stored bytes are never reported as visible body bytes. The directory virtualizes
-its marks and currently does not page the manifest. The ordinary Agent document
-does not load preceding executions when its body reaches the top.
+The shared scenario requests a fixed 1280 × 820-point window. All four scenarios
+use a ten-second formal interval and a three-second observation tail.
 
 | Scenario | Timed work |
 | --- | --- |
 | `reading.first-open` | After a fresh process reaches Overview, click the existing card; observe recognizable body checkpoints and a later scheduled scroll probe. Fixture creation and application startup are outside this timer. |
 | `reading.reopen` | Return to Overview and click the same existing card in the retained application process. |
 | `reading.scroll` | Fixed-clock pixel-wheel input alternates down/up, with explicit pauses between gestures. |
-| `reading.history` | Supply five fixed directory scroll gestures (1800 points), click its oldest execution, then probe that document with system scrolling. One-execution groups have no older history and omit this case. The formal interval is 17 seconds; other scenarios use 10 seconds. |
-| `reading.output-scroll` | Read and scroll the existing completed document while a subsequent real execution emits complete, meaningful progress replies, then a final document. This case runs last because it changes execution history. |
+| `reading.output-scroll` | Read and scroll the prepared reply while one subsequent real execution emits complete, meaningful progress replies, then a final document. This case runs last because it starts another execution. |
 
 Preparation may read public semantic state, locate actual accessibility controls
 and reset a starting scroll position. Formal intervals do not poll complete
@@ -59,13 +57,6 @@ semantic snapshots or invoke internal scroll setters. The scheduled wheel
 events use [Core Graphics pixel scrolling](https://developer.apple.com/documentation/coregraphics/cgeventfield/scrollwheeleventiscontinuous),
 with explicit began/changed/ended phases and no synthetic momentum. This is not
 a claim about physical trackpad fidelity.
-
-History preparation scrolls the public directory to its beginning to observe the
-oldest mark's Accessibility hit point, then restores its end with system input.
-The selected document remains the latest execution; the oldest document is not
-opened during preparation. Both positions and preparatory input receipts are
-retained. Timed navigation uses only wheel input and a click, so it does not
-depend on keyboard focus restoration in the production window.
 
 Assistant fragments are intentionally hidden by the ordinary Agent reader until
 their message settles. The source therefore records fragments and completed
@@ -84,10 +75,9 @@ execution sidecard in an already mounted reader.
 The report retains entry-to-recognizable-content intervals, a scheduled usability
 upper bound, each scroll segment's first visible-response interval, direction,
 observed displacement, frame correspondence and longest observed no-progress
-interval. History navigation measures the selected old document's appearance;
-unlabelled directory marks do not establish optical frame rate. Dynamic cases
-also report source completion to observed checkpoint latency where the checkpoint
-is visible. Offscreen updates are not silently credited as rendered work.
+interval. Dynamic cases also report source completion to observed checkpoint
+latency where the checkpoint is visible. Offscreen updates are not silently
+credited as rendered work.
 
 Shared collectors record App/Runtime/helper CPU deltas and **sampled** physical
 footprint with separate collector/source roles. PNG request/return intervals and
