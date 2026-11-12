@@ -8,6 +8,9 @@ import SwiftUI
     let props: ApplicationThreadProps<NativeReportView>
     let projection: NativeReportCardProjection
     let openThread: () -> Void
+    var showsCover = true
+    var usesGlassBadge = false
+    var allowsActions: () -> Bool = { true }
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
     @State private var failure: String?
@@ -15,9 +18,11 @@ import SwiftUI
     @State private var archivePending = false
     private var locale: JSONText { props.context.locale }
     var body: some View {
-        Button(action: openThread) {
+        Button {
+            if allowsActions() { openThread() }
+        } label: {
             VStack(spacing: 4) {
-                if props.entry.view.hasCover {
+                if showsCover && props.entry.view.hasCover {
                     NativeReportCover(props: props)
                         .frame(height: 308)
                         .allowsHitTesting(false).accessibilityHidden(true)
@@ -31,7 +36,7 @@ import SwiftUI
             .contextMenu {
                 Button(applicationText(locale, props.entry.archived ? "恢复报告" : "归档报告", props.entry.archived ? "Restore report" : "Archive report")) {
                     Task { await archive() }
-                }.disabled(archivePending)
+                }.disabled(archivePending || !allowsActions())
             }
             .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
             .onDisappear { unsubscribe?(); unsubscribe = nil }
@@ -56,6 +61,7 @@ import SwiftUI
                     .help(applicationText(locale, "\(harness.displayName.string)：\(count) 个关联 Thread", "\(harness.displayName.string): \(count) related threads"))
                 }
                 TimelineView(.periodic(from: .now, by: 30)) { clock in Text(updatedLabel(now: clock.date)) }
+                    .help(applicationText(locale, "报告更新时间，不是最近打开时间。", "Report update time, not the last time you opened it."))
             }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.faint.swiftUI)
                 .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
             ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(3)
@@ -64,7 +70,7 @@ import SwiftUI
         }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .threadCardBadge {
                 ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
-                                         completedBackground: true)
+                                         completedBackground: true, usesRegularGlass: usesGlassBadge)
             }.contentShape(Rectangle())
     }
 
@@ -96,7 +102,9 @@ import SwiftUI
         catch { failure = error.localizedDescription }
     }
     private func archive() async {
-        guard !archivePending else { return }; archivePending = true
+        // Recheck at invocation: an already-open native menu can outlive the
+        // collection pose that admitted it. Accepted work still owns completion.
+        guard allowsActions(), !archivePending else { return }; archivePending = true
         defer { archivePending = false }
         do {
             try await props.context.capabilities.require(ApplicationCapabilities.threadUserActions)

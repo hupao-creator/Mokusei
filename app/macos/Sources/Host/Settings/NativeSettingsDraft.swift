@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import MokuseiCore
+import MokuseiPluginUI
 
 public enum NativeSettingsSaveResult: Sendable {
     case saved(settings: JSONValue, revision: Int)
@@ -18,6 +19,10 @@ public final class NativeSettingsDraft {
     public private(set) var status: Status = .idle
     public private(set) var error: String?
     public private(set) var conflicted = false
+    public let editorDrafts = NativeSettingsEditorDrafts()
+    /// Only a Settings visit defers role settings. Onboarding and other editors
+    /// retain their existing autosave/explicit-flush behavior.
+    @ObservationIgnored private var deferredBase: JSONValue?
     @ObservationIgnored public var diagnostics = SettingsDiagnostics()
     public var runtimeAvailable = false {
         didSet {
@@ -72,6 +77,14 @@ public final class NativeSettingsDraft {
         if textEdit || composing { schedule() } else { submit() }
     }
 
+    public func beginPageEditing() {
+        guard !retired, deferredBase == nil else { return }
+        // ready includes a previous close's accepted write, even if its reply
+        // has not arrived yet. New edits must not drain into that older write.
+        deferredBase = ready
+        editorDrafts.reset()
+    }
+
     public func validationError(_ field: String, locale: DesktopLocale) -> String? {
         let length = settingsTrimCodeUnits(value["moku"]?[field]).count
         guard length > 12_000 else { return nil }
@@ -83,12 +96,38 @@ public final class NativeSettingsDraft {
         validationError("routingGuidance", locale: .chinese) == nil ? nil : "routingGuidance"
     }
 
+    public var incompleteEditorScope: String? {
+        editorDrafts.incompleteScopes.first { scope in
+            if scope.hasPrefix("moku.") {
+                let host = value["moku"]?["hostHarnessPreference"]?.stringValue
+                return host == "auto" || scope == "moku." + (host ?? "")
+            }
+            for id in ["tag.settings", "report.settings"] where scope.hasPrefix(id + ".") {
+                let settings = value["pluginSettings"]?.arrayValue?.first { $0["id"]?.stringValue == id }?["value"]
+                return settings?["enabled"] != .bool(false) && settings?["mode"] == .text("override")
+                    && scope == id + "." + (settings?["harnessPreference"]?.stringValue ?? "")
+            }
+            return false
+        }
+    }
+
     public func flushText() { if !retired, !composing { submit() } }
 
     /// Quit must join the accepted settings write before Runtime teardown makes
     /// the draft unavailable. The application's existing quit deadline bounds it.
     public func flushForQuit() async throws {
         guard !retired else { return }
+        guard !composing, firstInvalidField == nil, incompleteEditorScope == nil else {
+            throw RuntimeError("SETTINGS_UNSAVED", "Finish the active settings edit before quitting.")
+        }
+        let wasDeferring = deferredBase != nil
+        deferredBase = nil
+        if wasDeferring {
+            submit()
+            // The quit deadline can reject termination before the write replies.
+            // Keep later page edits staged throughout that asynchronous wait.
+            deferredBase = ready
+        }
         try await flush()
     }
 
@@ -96,7 +135,7 @@ public final class NativeSettingsDraft {
     /// dependent user action, such as completing first-run configuration.
     public func flush() async throws {
         guard !retired else { throw CancellationError() }
-        guard !composing, firstInvalidField == nil else {
+        guard !composing, firstInvalidField == nil, incompleteEditorScope == nil else {
             throw RuntimeError("SETTINGS_UNSAVED", "Finish the active settings edit before continuing.")
         }
         if value == saved, running == nil, !failed { return }
@@ -126,9 +165,9 @@ public final class NativeSettingsDraft {
     /// The workspace must retain this object so the result can report globally.
     public func prepareClose() -> Bool {
         guard !retired else { return true }
-        guard runtimeAvailable else { return true }
-        guard !composing, firstInvalidField == nil else { diagnostics.record(.close, .blocked, revision: revision); return false }
+        guard !composing, firstInvalidField == nil, incompleteEditorScope == nil else { diagnostics.record(.close, .blocked, revision: revision); return false }
         diagnostics.record(.close, .started, revision: revision)
+        deferredBase = nil
         submit()
         let pending = running
         Task { [weak self] in
@@ -153,11 +192,14 @@ public final class NativeSettingsDraft {
         diagnostics.record(.conflict, keepDraft ? .keep : .discard, revision: remote.1)
         timer?.cancel(); timer = nil
         let authoritative = latest.1 > remote.1 ? latest : remote
+        if let base = deferredBase {
+            deferredBase = keepDraft ? Self.rebase(base: saved, draft: base, latest: authoritative.0) : authoritative.0
+        }
         value = keepDraft ? Self.rebase(base: saved, draft: value, latest: authoritative.0) : authoritative.0
         ready = keepDraft ? Self.rebase(base: saved, draft: ready, latest: authoritative.0) : authoritative.0
         saved = authoritative.0; revision = authoritative.1
         conflict = nil; conflicted = false; failed = false; error = nil
-        if keepDraft { submit() } else { status = .saved; dismissReport() }
+        if keepDraft { submit() } else { editorDrafts.reset(); status = .saved; dismissReport() }
     }
 
     private func schedule() {
@@ -174,19 +216,21 @@ public final class NativeSettingsDraft {
 
     private func submit() {
         timer?.cancel(); timer = nil
-        guard !retired, !composing, runtimeAvailable else { return }
-        var next = value
+        guard !retired, !composing else { return }
+        var next = committableValue
         if firstInvalidField != nil { diagnostics.record(.validation, .blocked, revision: revision,
             fields: [.routing]) }
-        next = settingsReplacing(next, path: ["moku", "routingGuidance"], value: firstInvalidField == nil
-            ? Self.normalizedText(value["moku"]?["routingGuidance"]) : ready["moku"]?["routingGuidance"])
+        next = settingsReplacing(next, path: ["moku", "routingGuidance"], value: deferredBase != nil || firstInvalidField == nil
+            ? Self.normalizedText(next["moku"]?["routingGuidance"]) : ready["moku"]?["routingGuidance"])
         ready = next
+        guard runtimeAvailable else { if ready != saved { status = .pending }; return }
         guard running == nil, conflict == nil else { return }
         if ready == saved {
             failed = false; error = nil; status = .saved
             if Self.comparableValue(value) == saved, latest.1 > revision {
                 adopt(settings: latest.0, revision: latest.1)
             }
+            if deferredBase != nil, Self.comparableValue(value) != saved { status = .pending }
             dismissReport(); return
         }
         status = .saving; failed = false; error = nil
@@ -232,6 +276,9 @@ public final class NativeSettingsDraft {
                         }
                         self.value = Self.rebase(base: snapshot, draft: current, latest: settings)
                         self.ready = Self.rebase(base: snapshot, draft: self.ready, latest: settings)
+                        if let base = self.deferredBase {
+                            self.deferredBase = Self.rebase(base: snapshot, draft: base, latest: settings)
+                        }
                         self.saved = settings; self.revision = revision
                     }
                 } catch {
@@ -245,12 +292,32 @@ public final class NativeSettingsDraft {
                     return false
                 }
             }
-            self.status = self.timer != nil || self.composing || self.firstInvalidField != nil ? .pending : .saved
+            self.status = self.timer != nil || self.composing || self.firstInvalidField != nil
+                || (self.deferredBase != nil && Self.comparableValue(self.value) != self.saved) ? .pending : .saved
             self.dismissReport(); return true
         }
     }
 
     private func dismissReport() { dismissReportedError?(); dismissReportedError = nil }
+    private var committableValue: JSONValue {
+        guard let base = deferredBase else { return value }
+        var result = settingsReplacing(value, path: ["moku"], value: base["moku"])
+        let stagedIDs: Set<String> = ["tag.settings", "report.settings"]
+        let original = base["pluginSettings"]?.arrayValue ?? []
+        var entries = (value["pluginSettings"]?.arrayValue ?? []).filter { !stagedIDs.contains($0["id"]?.stringValue ?? "") }
+        entries += original.filter { stagedIDs.contains($0["id"]?.stringValue ?? "") }
+        // Preserve record order: merely editing another section must not write
+        // an otherwise unchanged pluginSettings array.
+        let order = (value["pluginSettings"]?.arrayValue ?? []) + original
+        var ordered: [JSONValue] = []
+        for entry in order {
+            if let next = entries.first(where: { $0["id"] == entry["id"] }), !ordered.contains(next) { ordered.append(next) }
+        }
+        if value["pluginSettings"] != nil || base["pluginSettings"] != nil {
+            result = settingsReplacing(result, path: ["pluginSettings"], value: .array(ordered))
+        }
+        return result
+    }
     private func adopt(settings: JSONValue, revision: Int) {
         let routing = value["moku"]?["routingGuidance"]
         let keepEditableText = Self.normalizedText(routing) == saved["moku"]?["routingGuidance"]
@@ -258,6 +325,7 @@ public final class NativeSettingsDraft {
         value = settings
         if keepEditableText { value = settingsReplacing(value, path: ["moku", "routingGuidance"], value: routing) }
         saved = settings; ready = settings; self.revision = revision
+        if deferredBase != nil { deferredBase = settings }
     }
     private static func comparableValue(_ value: JSONValue) -> JSONValue {
         let routing = normalizedText(value["moku"]?["routingGuidance"])

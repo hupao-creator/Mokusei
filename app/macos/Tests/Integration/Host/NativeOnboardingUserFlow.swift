@@ -108,26 +108,27 @@ import MokuseiApplications
             try presentation.performInteraction(.openSettings)
             try await wait("Production Settings did not mount") { presentation.settingsNavigation.mounted && !presentation.scene.settingsTransitioning }
             #expect(presentation.interactionSnapshot()["settingsSections"] == .array([
-                .text("general"), .text("moku"), .text("tag.settings"), .text("report.settings"), .text("attention.settings")
+                .text("general"), .text("moku"), .text("tag.settings"), .text("report.settings")
             ]))
             let settings = workspace.settingsModel
+            let savedBeforeEditing = settings.savedSettings
             func application(_ id: String) -> JSONValue? {
-                settings.savedSettings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"]
+                settings.draft.value["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"]
             }
             try presentation.performInteraction(.selectSettingsSection("report.settings"))
             try await verifyInherited("report.settings", in: presentation, window: window)
             try await activate("independent", in: presentation)
             try await control("report.settings.codex.model", operation: "select", value: .text("settings-b"), in: presentation)
             try await control("report.settings.codex.effort", operation: "select", value: .text("medium"), in: presentation)
-            try await wait("Independent Report profile did not persist") {
+            try await wait("Independent Report profile did not enter the draft") {
                 application("report.settings")?["mode"] == .text("override") &&
                 application("report.settings")?["harnesses"]?["codex"]?["threadSettings"]?["model"] == .text("settings-b")
             }
             try presentation.performInteraction(.selectSettingsSection("tag.settings"))
             try await activate("independent", in: presentation)
-            try await wait("Independent Tag profile did not persist") { application("tag.settings")?["mode"] == .text("override") }
+            try await wait("Independent Tag profile did not enter the draft") { application("tag.settings")?["mode"] == .text("override") }
             try await activate("inherit", in: presentation)
-            try await wait("Tag inheritance did not persist") { application("tag.settings")?["mode"] == .text("inherit") }
+            try await wait("Tag inheritance did not enter the draft") { application("tag.settings")?["mode"] == .text("inherit") }
             try await verifyInherited("tag.settings", in: presentation, window: window)
             #expect(application("tag.settings")?["independent"] != nil)
             try presentation.performInteraction(.selectSettingsSection("report.settings"))
@@ -143,8 +144,8 @@ import MokuseiApplications
             try presentation.performInteraction(.selectSettingsSection("moku"))
             try await control("moku.codex.model", operation: "select", value: .text("settings-a"), in: presentation)
             try await control("moku.codex.effort", operation: "select", value: .text("low"), in: presentation)
-            try await wait("Moku effort change did not persist") {
-                settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"]?["effort"] == .text("low")
+            try await wait("Moku effort change did not enter the draft") {
+                settings.draft.value["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"]?["effort"] == .text("low")
             }
             try presentation.performInteraction(.selectSettingsSection("tag.settings"))
             try await verifyInherited("tag.settings", in: presentation, window: window)
@@ -155,14 +156,14 @@ import MokuseiApplications
                 application("report.settings")?["mode"] == .text("override") &&
                 application("report.settings")?["harnesses"]?["codex"]?["threadSettings"]?["model"] == .text("settings-b")
             }
-            // The real Settings controls persist independently and retain both
+            // The real Settings controls stage role changes together and retain both
             // inherited choices and the independent profile across close/reopen.
             let tagBefore = try #require(application("tag.settings"))
             let reportBefore = try #require(application("report.settings"))
             for id in ["report.settings", "tag.settings"] {
                 try presentation.performInteraction(.selectSettingsSection(id))
                 try await activate(id + ".off", in: presentation)
-                try await wait("Agent off did not persist and hide execution fields: \(id)") {
+                try await wait("Agent off did not enter the draft and hide execution fields: \(id)") {
                     let controls = presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? []
                     return application(id)?["enabled"] == .bool(false)
                         && controls.contains { $0["id"] == .text(id + ".off") && $0["value"] == .bool(true) }
@@ -172,8 +173,16 @@ import MokuseiApplications
                         }
                 }
             }
+            #expect(settings.savedSettings == savedBeforeEditing)
             try presentation.performInteraction(.closeSettings)
             try await wait("Disabled Settings did not close") { !presentation.scene.settingsOpen }
+            try await wait("Disabled role settings did not persist together on close") {
+                settings.draft.status == .saved &&
+                settings.savedSettings["pluginSettings"]?.arrayValue?.filter {
+                    ["tag.settings", "report.settings"].contains($0["id"]?.stringValue ?? "")
+                }.allSatisfy { $0["value"]?["enabled"] == .bool(false) } == true &&
+                settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"]?["effort"] == .text("low")
+            }
             try presentation.performInteraction(.openSettings)
             try await wait("Disabled Settings did not reopen") { presentation.settingsNavigation.mounted && !presentation.scene.settingsTransitioning }
             for (id, choice, before) in [("tag.settings", "inherit", tagBefore), ("report.settings", "independent", reportBefore)] {
@@ -183,6 +192,9 @@ import MokuseiApplications
             }
             try presentation.performInteraction(.closeSettings)
             try await wait("Settings did not release its modal gate") { !presentation.scene.settingsOpen }
+            try await wait("Restored role settings did not persist on close") {
+                settings.draft.status == .saved && settings.savedSettings == settings.draft.value
+            }
         } catch {
             try? presentation.interactionSnapshot().encodedData().write(to: directory.appendingPathComponent("onboarding-failure.json"))
             try? await capture(window, to: directory.appendingPathComponent("onboarding-failure.png"))
@@ -194,11 +206,14 @@ import MokuseiApplications
 
     private static func verifyInherited(_ settingID: String, in presentation: NativeWorkspacePresentation, window: NSWindow) async throws {
         let settings = presentation.workspace.settingsModel
-        let profile = try #require(settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"])
+        let profile = try #require(settings.draft.value["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"])
         let expected = ["model": try #require(profile["model"]), "effort": try #require(profile["effort"]),
                         "serviceTier": try #require(profile["serviceTier"])]
         func controls() -> [JSONValue] { presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? [] }
-        try await wait("Inherited \(settingID) fields did not show Moku's saved configuration as read-only") {
+        let before = settings.draft.value
+        try await control(settingID + ".codex.advancedOptions", operation: "set", value: .bool(true), in: presentation)
+        #expect(settings.draft.value == before)
+        try await wait("Inherited \(settingID) fields did not show Moku's draft configuration as read-only") {
             expected.allSatisfy { field, value in
                 controls().contains {
                     $0["id"] == .text(settingID + ".codex." + field) && $0["value"] == value
@@ -206,7 +221,6 @@ import MokuseiApplications
                 }
             }
         }
-        let before = settings.draft.value
         let model = try #require(controls().first { $0["id"] == .text(settingID + ".codex.model") })
         #expect(throws: NativeInteractionError.self) {
             try presentation.performInteraction(.settingsControl(id: settingID + ".codex.model",

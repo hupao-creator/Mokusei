@@ -816,9 +816,9 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			return current, collectErr
 		}
 		// Target options and worktree rules are already in the tool schemas.
-		// Only user-authored routing guidance extends the three-sentence base.
+		// Routing preferences are captured from the applied settings.
 		instructions := []string{DefaultSystemPrompt()}
-		if guidance := valueOrEmpty(applied.AppliedSettings.Moku.RoutingGuidance); guidance != "" {
+		if guidance := ModelRoutingGuidance(applied.AppliedSettings.Moku); guidance != "" {
 			instructions = append(instructions, "Model routing guidance:\n"+guidance)
 		}
 		tools := c.tools(current.ID, description)
@@ -982,7 +982,7 @@ func textInput(value string) model.AgentInput {
 }
 
 func sameMokuSettings(a, b model.Settings) bool {
-	return reflect.DeepEqual(a.Harnesses, b.Harnesses) && reflect.DeepEqual(a.Moku.ExecutionHarnesses, b.Moku.ExecutionHarnesses) && a.Moku.HostHarnessPreference == b.Moku.HostHarnessPreference && reflect.DeepEqual(a.Moku.TargetHarnessIDs, b.Moku.TargetHarnessIDs) && reflect.DeepEqual(a.Moku.RoutingGuidance, b.Moku.RoutingGuidance)
+	return reflect.DeepEqual(a.Harnesses, b.Harnesses) && reflect.DeepEqual(a.Moku.ExecutionHarnesses, b.Moku.ExecutionHarnesses) && a.Moku.HostHarnessPreference == b.Moku.HostHarnessPreference && reflect.DeepEqual(a.Moku.TargetHarnessIDs, b.Moku.TargetHarnessIDs) && reflect.DeepEqual(a.Moku.RoutingGuidance, b.Moku.RoutingGuidance) && a.Moku.RoutingPreset == b.Moku.RoutingPreset
 }
 
 func (c *Coordinator) harnessOrder() []string {

@@ -1,5 +1,11 @@
 # Window and reading navigation
 
+The shell publishes the selected route to Overview's shared application reading
+owner after hiding the canvas. A Super Thread and its associated ordinary Threads
+share collection eligibility and cumulative foreground dwell across route changes;
+leaving that owner records one close. Catalog rebinding and restored Agent routes
+use the same path. See the [reading contract](../Overview/README.md#viewed-application-collections).
+
 [Semantic workspace actions](../Interaction/README.md) expose navigation to scripts
 through the same presentation methods. Back dispatches the active reading action;
 Settings uses its shared draft close gate.
@@ -95,12 +101,12 @@ their existing behavior unless a host supplies these optional hooks.
 
 Validation uses the existing navigation, sidecard and reading suites and the [Overview native input replay](../../../../../tools/verification/overview-input/README.md).
 
-Agent entry now keeps line reveal separate from auxiliary presentation: after the
-outer panel/title handoff, only the active main document reveals; its last line
-and footer must complete before Moku input and Sidecard admission. Nested reading
-stacks retain the parent's entrance gate, and a moving empty/error history page
-also holds content readiness until its own travel finishes. Report admits its
-auxiliary card after primary travel and a committed folded layout. See the [three-stage contract and sprint validation limits](../../../../../design/reading-entrance-choreography.md).
+Agent entry waits for the panel/title handoff and active main-document readiness
+before admitting Moku input and Sidecards. Markdown draws in full once parsed
+and the panel is admitted. Nested history, including an empty/error page, holds
+content readiness until its own travel finishes. Report admits its auxiliary
+card after primary travel and a committed folded layout. See the
+[admission contract](../../../../../design/reading-entrance-choreography.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
@@ -163,7 +169,7 @@ The shared Close sits at the panel's upper-left. Viewports normally reserve
 insets and clears Close horizontally through its reserved 48pt history rail.
 The rail retains its own 64pt vertical padding. This applies to both opening
 heading preparation and the live current/history reader, retaining measured
-title handoff and the existing text-then-input/Sidecard entrance gates.
+title handoff and the existing content readiness gates for input and Sidecards.
 Agent Sidecards use their right-side launcher as
 the open/close toggle and have no independent Close icon. The main panel button
 owns its 32pt circular background and hit shape, so
@@ -227,10 +233,14 @@ Both cards share one active/pending selection: opening either replaces the
 other, including the related list. Close and replacement win over delayed
 admission; document revisions, retries, covering and departure retire old work.
 `NativeReadingAuxiliaryBackKey` forwards the current auxiliary Back action upward;
-native and HTML Escape first fold a linked browser, return from an execution to
-references, fold references with focus restored to their launcher, then close
-the report. The action also cancels a pending related card before it opens, and
-is removed when neither an active nor pending related card belongs to the visit.
+native and HTML Escape fold a linked browser or return from an opened execution
+to references before closing the Report. The related list is part of its default
+view: with no execution open, Escape closes the Report directly, including while
+the list is pending admission or after reopening it through its launcher. Folding
+the list remains an explicit launcher action. A pending related card with a
+retained execution still cancels before opening and restores launcher focus.
+The auxiliary action exists only for an active/pending related card with a
+selected execution; folding, replacement and visit identities retain their fences.
 Report HTML keeps its 8pt viewport inset and 14pt inner clipping independently
 of the Sidecard. For related-card width/height changes, the actual HTML viewport,
 inner clip and 22pt outer shell/border share one interpolated size. The retained

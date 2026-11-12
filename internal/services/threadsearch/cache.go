@@ -119,16 +119,17 @@ func (c *retrievalCache) remember(key string, generation uint64, value cachedRes
 // unrelated writes do not restart expensive retrieval work.
 func resultKey(snapshot store.Snapshot, config Config, request QueryRequest, sources []Source, scope map[string]bool) string {
 	type stamp struct {
-		Key, Owner, OwnerHash, CurrentOwnerHash, Identity, Title, Cwd, DocumentHash string
-		Tags                                                                        []string
+		Key, Owner, OwnerHash, CurrentOwnerHash, Identity, Title, Cwd, DocumentHash, VectorHash string
+		Tags                                                                                    []string
 	}
 	stamps := []stamp{}
 	for _, source := range sources {
 		key := RefKey(source.Ref)
 		if scope[key] {
 			hash, _ := snapshot.RecordHash(documentKey(source))
+			vectorHash, _ := snapshot.RecordHash(vectorStampPrefix + documentSuffix(source))
 			ownerHash, _ := snapshot.RecordHash(source.Owner)
-			stamps = append(stamps, stamp{key, source.Owner, source.OwnerHash, ownerHash, source.Identity, source.Title, source.Cwd, hash, source.Tags})
+			stamps = append(stamps, stamp{key, source.Owner, source.OwnerHash, ownerHash, source.Identity, source.Title, source.Cwd, hash, vectorHash, source.Tags})
 		}
 	}
 	raw, _ := json.Marshal([]any{config, request, stamps})

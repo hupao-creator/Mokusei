@@ -19,6 +19,25 @@ extension EnvironmentValues {
     @Entry public var nativeReadingContentPreparation: NativeReadingContentPreparation?
 }
 
+/// The active reader is ready once it has readable content and none of its
+/// contributing documents are still preparing. Hidden readers clear their value.
+public struct NativeReadingContentStatus: Equatable, Sendable {
+    var hasContent = false
+    var pending = false
+    public init() {}
+    public var ready: Bool { hasContent && !pending }
+}
+
+public struct NativeReadingContentStatusKey: PreferenceKey {
+    public static let defaultValue = NativeReadingContentStatus()
+    public static func reduce(value: inout NativeReadingContentStatus,
+                              nextValue: () -> NativeReadingContentStatus) {
+        let next = nextValue()
+        value.hasContent = value.hasContent || next.hasContent
+        value.pending = value.pending || next.pending
+    }
+}
+
 /// A handoff needs both an admitted row (or readable error) and its Markdown.
 /// This is visit-local bookkeeping, not another content loader or timeout.
 @MainActor public final class NativeReadingContentPreparation {
@@ -83,7 +102,7 @@ private struct NativeReadingContentReady: ViewModifier {
     @Environment(\.nativeReadingContentPreparation) private var preparation
     func body(content: Content) -> some View {
         content
-            .transformPreference(NativeReadingContentRevealStatusKey.self) { $0.hasContent = true }
+            .transformPreference(NativeReadingContentStatusKey.self) { $0.hasContent = true }
             .task(id: handoff?.id) {
                 guard let ready else { return }
                 await Task.yield()

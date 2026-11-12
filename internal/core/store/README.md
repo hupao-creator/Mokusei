@@ -133,7 +133,9 @@ store deliberately does not infer record keys from an order kind.
 ## Lifecycle delivery and idempotent effects
 
 `Tx.AppendEvent` appends a validated `store.Event` in the same transaction as the
-business change. Events use the existing lifecycle event names, millisecond
+business change. The event vocabulary includes `thread.title-changed` for actual
+ordinary active Thread title changes, separate from generic entity updates.
+Events use the registered lifecycle event names, millisecond
 timestamps, subject `{kind, id, typeId}`, source, and JSON data. Event IDs cannot
 be reused for different facts.
 

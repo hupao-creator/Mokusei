@@ -62,9 +62,6 @@ func (r *Runtime) projectMutation(snapshot store.Snapshot) (model.AppState, mode
 	for _, key := range snapshot.ChangedKeys(previous, "thread:") {
 		changed[strings.TrimPrefix(key, "thread:")] = true
 	}
-	for _, key := range snapshot.ChangedKeys(previous, attentionHiddenPrefix) {
-		changed[strings.TrimPrefix(key, attentionHiddenPrefix)] = true
-	}
 	patch := &model.CollectionPatch[model.ThreadRecord]{Upserts: []model.ThreadRecord{}, RemovedIDs: []string{}}
 	orderChanged := snapshot.OrderChanged(previous, "threads")
 	mokuChanged := false
@@ -293,7 +290,6 @@ func (r *Runtime) projectChangedThread(snapshot store.Snapshot, id string) (mode
 		r.overviewCache[id] = entry
 	}
 	thread = entry.record
-	thread.AttentionHidden = snapshot.Has(attentionHiddenPrefix + id)
 	thread.DirectoryTag = directorytag.Name(thread.Cwd)
 	thread.DirectoryScope = directorytag.Scope(thread.Cwd)
 	return thread, nil

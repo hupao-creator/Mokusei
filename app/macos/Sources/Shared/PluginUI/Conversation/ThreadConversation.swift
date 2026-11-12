@@ -108,10 +108,12 @@ public struct ThreadConversation: View {
     @Environment(\.threadDetailNavigation) private var navigation
     @Environment(\.threadDetailRootNavigation) private var rootNavigation
     @State private var authors: [JSONText: JSONValue] = [:]
+    @State private var workAvailability: [JSONText: Bool] = [:]
     @State private var sidebarFocusRevision = 0
     @State private var userMessages = false
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadRelatedExecution) private var relatedExecution
+    @Environment(\.nativeReportSidecards) private var reportSidecards
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
     @State private var consumedRequest: JSONText?
@@ -173,10 +175,16 @@ public struct ThreadConversation: View {
         return execution.isActive || execution.id == activeExecutionId
     }
     private var showsDocumentHeading: Bool {
+        if relatedSendTitle != nil { return true }
         // Main readers retain their heading; Report sidecards also suppress it
         // until the selected execution's activity is known.
-        (!executionCard || relatedExecution)
+        return (!executionCard || relatedExecution)
             && !(executionCard && agentDetail && (selectedIsActive || (relatedExecution && selectedRowID == nil)))
+    }
+    private var relatedSendTitle: NativeReportSidecardPresentation.SendTitle? {
+        guard relatedExecution, selectedIsActive, case let .execution(id) = context?.presentation else { return nil }
+        return reportSidecards?.sendTitles[ApplicationExecutionRef(
+            thread: .init(threadID: threadId, typeID: "agent"), executionID: id)]
     }
     private var allowsJumpToLatest: Bool {
         guard let activeExecutionId, !excluded.contains(activeExecutionId) else { return false }
@@ -335,11 +343,12 @@ public struct ThreadConversation: View {
                         .environment(\.threadDetailVisibility, visibility)
                         .environment(\.threadAuthorInHeader, true)
                         .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
+                        .onPreferenceChange(ThreadWorkPreference.self) { workAvailability = $0 }
                         .environment(\.nativeInteractionQuestionInDocument, true)
                         .allowsHitTesting(!readingPage).accessibilityHidden(readingPage)
                         .nativeReadingScope("current")
                         .nativeReadingActive(!readingPage && !pageMotion.active)
-                        .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+                        .transformPreference(NativeReadingContentStatusKey.self) { status in
                             if readingPage { status = .init() }
                         }
                         .onAppear { hasMountedCurrentDocument = true }
@@ -358,10 +367,10 @@ public struct ThreadConversation: View {
             }
             .clipped()
         }.padding(.vertical, (agentDetail && !executionCard) || (executionCard && !relatedExecution) ? 0 : 12)
-            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+            .transformPreference(NativeReadingContentStatusKey.self) { status in
                 // Empty/error history pages have no turn to hold the boundary
                 // while their own reading stack is still travelling.
-                status.revealing = status.revealing || pageMotion.active
+                status.pending = status.pending || pageMotion.active
             }
             .nativeReadingObservation("state", role: "conversation", value: .object([
                 "destination": .text(readingPage ? selectedPage == nil ? "unavailable" : "history" : "current"),
@@ -385,18 +394,25 @@ public struct ThreadConversation: View {
     }
     private func documentHeader() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if showsDocumentHeading { heading(documentTitle, emoji: icon ?? "📝") }
+            if showsDocumentHeading {
+                heading(relatedSendTitle?.text ?? documentTitle, emoji: relatedSendTitle?.emoji ?? icon ?? "📝")
+            }
             if let actions { actions.padding(.top, 15) }
             if !rows.isEmpty {
                 let selected = selectedRowID
                 let authorID = visibleRows.first { $0.id == selected }?.execution?.id
                 ThreadReadingHeader(author: authorID.flatMap { authors[$0] },
                     authorResolved: authorID.map { authors[$0] != nil } ?? false, showsAuthor: authorID != nil,
-                    showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning, users: userMessages, work: work,
+                    showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning && (!agentDetail || hasDisplayableWork), users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
                     .padding(.top, showsDocumentHeading ? 12 : 0).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
         }
+    }
+    private var hasDisplayableWork: Bool {
+        let ids = visibleRows.filter { !$0.history && (!historicalIDs.contains($0.id) || $0.id == inlineRow) }
+            .compactMap { $0.execution?.id }
+        return ids.isEmpty || ids.contains { workAvailability[$0] != false } || workAvailability.values.contains(true)
     }
     private var documentTitle: String {
         if relatedExecution, let row = visibleRows.first(where: { $0.id == selectedRowID }) {
@@ -588,6 +604,7 @@ private struct ThreadHistoryDocument: View {
     @Environment(\.threadAgentDetail) private var agentDetail
     @State private var users = false
     @State private var authors: [JSONText: JSONValue] = [:]
+    @State private var workAvailability: [JSONText: Bool] = [:]
     @State private var manualWork: Bool?
     private var work: Bool { running || (manualWork ?? (result && active)) }
     @Environment(\.nativeReadingInteractionActive) private var readingActive
@@ -603,6 +620,7 @@ private struct ThreadHistoryDocument: View {
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
+            .onPreferenceChange(ThreadWorkPreference.self) { workAvailability = $0 }
             .nativeReadingExitCommand(perform: readingActive ? onBack : nil).onAppear { if focusHeading && !hidesHeading { headingFocused = true } }
             .nativeReadingEscape(perform: readingActive ? onBack : nil)
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
@@ -627,7 +645,7 @@ private struct ThreadHistoryDocument: View {
                 ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] },
                     authorResolved: page?.execution.map { authors[$0.id] != nil } ?? false,
                     showsAuthor: page?.execution != nil,
-                    showsWorkFilter: !running, users: users, work: work, toggleUsers: { users.toggle() }, toggleWork: toggleWork)
+                    showsWorkFilter: !running && (!agentDetail || page?.execution.map { workAvailability[$0.id] != false } != false), users: users, work: work, toggleUsers: { users.toggle() }, toggleWork: toggleWork)
                 Divider().overlay(NativePalette.thread.lineSoft.swiftUI)
             }
         }.padding(.bottom, 28)

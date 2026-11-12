@@ -66,6 +66,7 @@ func ocCleanSettings(_ raw: JSONValue) -> JSONValue {
     for key in ["provider", "model", "agent", "variant", "permissionMode", "thinking"] {
         if let value = raw[key], value != .null, value != .text("") { result[JSONText(key)] = value }
     }
+    result["agent"] = .text("build")
     return .object(result)
 }
 private func ocReplacing(_ raw: JSONValue, key: String, value: JSONValue?) -> JSONValue {
@@ -125,6 +126,7 @@ private struct OpenCodeProfileFields: View {
     let resource: HarnessSettingsResource<OpenCodeSettingsPresentationData>
     var explicitThinking = false
     var executionSnapshot = false
+    var defaults: Binding<Bool>? = nil
     var disabled = false
     let change: (JSONValue) -> Void
     @Environment(\.locale) private var locale
@@ -132,52 +134,51 @@ private struct OpenCodeProfileFields: View {
     private var models: [JSONValue] { presentation?.models ?? [] }
     private var agents: [JSONValue] { (presentation?.agents ?? []).filter { $0["mode"] != .text("subagent") } }
     private var selected: JSONValue? { models.first { $0["id"] == value["model"] && $0["provider"] == value["provider"] } }
-    private var agent: JSONValue? { agents.first { $0["id"] == value["agent"] } }
+    private var agent: JSONValue? { agents.first { $0["id"] == .text("build") } }
     private var available: [JSONValue] { models.filter { value["provider"] == nil || $0["provider"] == value["provider"] } }
     private var capability: JSONValue? { selected.map { ocThinkingCapability(model: $0, agent: agent) } }
     private var choices: [JSONValue] { capability.map(ocThinkingChoices) ?? [] }
     private var exclusiveReason: String? { selected.flatMap { ocExclusiveModelReason($0, variant: value["variant"], agent: agent) } }
     var body: some View {
-        NativeSettingsRow(label: "Provider") {
-            NativeSettingsSelect(value: binding("provider") { next in
-                if next == value["provider"] { return }
-                change(ocReplacing(base, key: "provider", value: next))
-            }, options: providerOptions).nativeSettingsControl("provider").disabled(disabled)
-        }
-        NativeSettingsRow(label: t("模型")) {
-            NativeModelSelector(value: Binding(get: { selected.map { ocJSONStringID([$0["provider"]!, $0["id"]!]) } ?? value.ocText("model") ?? "" }, set: { key in
-                let model = models.first { ocJSONStringID([$0["provider"]!, $0["id"]!]) == key }
-                var next = base.objectValue ?? [:]
-                next["provider"] = model?["provider"] ?? value["provider"]; next["model"] = model?["id"]
-                if executionSnapshot {
-                    let variants = model?["variants"]?.arrayValue ?? []
-                    if value["variant"] == .text("default") || variants.contains(where: { $0["id"] == value["variant"] }) { next["variant"] = value["variant"] }
+        NativeHarnessSettingsFields(defaults: defaults) {
+            NativeSettingsRow(label: t("提供商")) {
+                NativeSettingsSelect(value: binding("provider") { next in
+                    if next == value["provider"] { return }
+                    change(ocReplacing(base, key: "provider", value: next))
+                }, options: providerOptions).nativeSettingsControl("provider").disabled(disabled)
+            }
+            NativeSettingsRow(label: t("模型")) {
+                NativeModelSelector(value: Binding(get: { selected.map { ocJSONStringID([$0["provider"]!, $0["id"]!]) } ?? value.ocText("model") ?? "" }, set: { key in
+                    let model = models.first { ocJSONStringID([$0["provider"]!, $0["id"]!]) == key }
+                    var next = base.objectValue ?? [:]
+                    next["provider"] = model?["provider"] ?? value["provider"]; next["model"] = model?["id"]
+                    if executionSnapshot {
+                        let variants = model?["variants"]?.arrayValue ?? []
+                        if value["variant"] == .text("default") || variants.contains(where: { $0["id"] == value["variant"] }) { next["variant"] = value["variant"] }
+                    }
+                    change(ocCleanSettings(.object(next)))
+                }), options: modelOptions).nativeSettingsControl("model").disabled(disabled || (explicitThinking && value["provider"] == nil))
+            }
+            if explicitThinking {
+                NativeSettingsRow(label: t("推理选择")) {
+                    NativeModelSelector(value: Binding(get: { value["thinking"].map { ocJSONStringID([$0]) } ?? "" }, set: { key in
+                        change(ocReplacing(value, key: "thinking", value: choices.first { ocJSONStringID([$0]) == key }))
+                    }), options: thinkingOptions, presentation: .reasoning).nativeSettingsControl("thinking").disabled(disabled || choices.isEmpty)
                 }
-                change(ocCleanSettings(.object(next)))
-            }), options: modelOptions).nativeSettingsControl("model").disabled(disabled || (explicitThinking && value["provider"] == nil))
-        }
-        if explicitThinking {
-            NativeSettingsRow(label: t("推理选择")) {
-                NativeModelSelector(value: Binding(get: { value["thinking"].map { ocJSONStringID([$0]) } ?? "" }, set: { key in
-                    change(ocReplacing(value, key: "thinking", value: choices.first { ocJSONStringID([$0]) == key }))
-                }), options: thinkingOptions, presentation: .reasoning).nativeSettingsControl("thinking").disabled(disabled || choices.isEmpty)
+            } else {
+                NativeSettingsRow(label: t("OpenCode 模型变体")) {
+                    NativeModelSelector(value: binding("variant") { change(ocReplacing(value, key: "variant", value: $0)) }, options: variantOptions).nativeSettingsControl("variant")
+                        .disabled(disabled || selected == nil || selected?["unavailableReason"] != nil)
+                }
             }
-        } else {
-            NativeSettingsRow(label: t("OpenCode 模型变体")) {
-                NativeModelSelector(value: binding("variant") { change(ocReplacing(value, key: "variant", value: $0)) }, options: variantOptions).nativeSettingsControl("variant")
-                    .disabled(disabled || selected == nil || selected?["unavailableReason"] != nil)
+            if capability?["kind"] == .text("unknown"), let reason = capability?["reason"]?.stringValue { NativeSettingsNotice(message: reason, kind: .warning) }
+            if let exclusiveReason { NativeSettingsNotice(message: t(exclusiveReason), kind: .warning) }
+        } advanced: {
+            NativeSettingsRow(label: t("权限模式")) {
+                NativeSettingsSelect(value: Binding(get: { value.ocText("permissionMode") ?? (executionSnapshot ? "" : "auto") }, set: { change(ocReplacing(value, key: "permissionMode", value: .string($0))) }),
+                    options: (executionSnapshot ? [.init(id: "", label: t("请选择"), disabled: true)] : []) + [
+                        .init(id: "auto", label: "auto · " + t("自动批准权限请求（保留拒绝规则）")), .init(id: "default", label: "default · " + t("按原生规则询问"))]).nativeSettingsControl("permissionMode").disabled(disabled)
             }
-        }
-        if capability?["kind"] == .text("unknown"), let reason = capability?["reason"]?.stringValue { NativeSettingsNotice(message: reason, kind: .warning) }
-        if let exclusiveReason { NativeSettingsNotice(message: t(exclusiveReason), kind: .warning) }
-        NativeSettingsRow(label: t("OpenCode Agent")) {
-            NativeSettingsSelect(value: binding("agent") { change(ocReplacing(value, key: "agent", value: $0)) }, options: agentOptions).nativeSettingsControl("agent").disabled(disabled)
-        }
-        if let description = agent?["description"]?.stringValue { NativeSettingsNotice(message: description) }
-        NativeSettingsRow(label: t("权限模式")) {
-            NativeSettingsSelect(value: Binding(get: { value.ocText("permissionMode") ?? (executionSnapshot ? "" : "auto") }, set: { change(ocReplacing(value, key: "permissionMode", value: .string($0))) }),
-                options: (executionSnapshot ? [.init(id: "", label: t("请选择"), disabled: true)] : []) + [
-                    .init(id: "auto", label: "auto · " + t("自动批准权限请求（保留拒绝规则）")), .init(id: "default", label: "default · " + t("按原生规则询问"))]).disabled(disabled)
         }
     }
     private var base: JSONValue { .object(["agent": value["agent"], "permissionMode": value["permissionMode"]].compactMapValues { $0 }) }
@@ -210,11 +211,7 @@ private struct OpenCodeProfileFields: View {
         if let variant = value.ocText("variant"), !(executionSnapshot && variant == "default"), !variants.contains(where: { $0.ocText("id") == variant }) { result.append(.init(id: variant, label: variant.string + " · " + t("目录中不可用"))) }
         return result + variants.filter { !executionSnapshot || $0["id"] != .text("default") }.map { .init(id: $0.ocID("id"), label: $0.ocID("id").string) }
     }
-    private var agentOptions: [NativeSettingsOption] {
-        var result: [NativeSettingsOption] = [.init(id: "", label: t(executionSnapshot ? "请选择" : "OpenCode 原生默认"), disabled: executionSnapshot)]
-        if let agent = value.ocText("agent"), !agents.contains(where: { $0.ocText("id") == agent }) { result.append(.init(id: agent, label: agent.string + " · " + t("目录中不可用"))) }
-        return result + agents.map { .init(id: $0.ocID("id"), label: $0["name"]?.stringValue ?? "") }
-    }
+
 }
 public struct OpenCodeThreadSettingsView: View {
     public let input: HarnessThreadInput
@@ -231,7 +228,7 @@ public struct OpenCodeThreadSettingsView: View {
         guard value.ocText("provider")?.codeUnits.isEmpty == false, value.ocText("model")?.codeUnits.isEmpty == false,
               let thinking = value["thinking"], case .ready(let data) = resource.state,
               let model = data.models.first(where: { $0["provider"] == value["provider"] && $0["id"] == value["model"] }), model["unavailableReason"] == nil else { return false }
-        return ocThinkingChoices(ocThinkingCapability(model: model, agent: data.agents.first { $0["id"] == value["agent"] })).contains(thinking)
+        return ocThinkingChoices(ocThinkingCapability(model: model, agent: data.agents.first { $0["id"] == .text("build") })).contains(thinking)
     }
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -251,13 +248,13 @@ public struct OpenCodeThreadSettingsView: View {
     private func save() {
         guard !busy, !input.thread.observation.isExecutionActive, complete else { return }
         busy = true; failure = nil
-        let payload: JSONValue = .object(["provider": value["provider"]!, "model": value["model"]!, "thinking": value["thinking"]!, "agent": value["agent"] ?? .null, "permissionMode": value["permissionMode"] ?? .text("auto")])
+        let payload: JSONValue = .object(["provider": value["provider"]!, "model": value["model"]!, "thinking": value["thinking"]!, "agent": .text("build"), "permissionMode": value["permissionMode"] ?? .text("auto")])
         Task { @MainActor in defer { busy = false }; do { try await update(OpenCodeThreadSettingsUpdate(raw: payload)) } catch { failure = error.localizedDescription } }
     }
 }
 public struct OpenCodeHarnessSettingsView: View {
     public let props: HarnessSettingsProps<OpenCodeHarnessSettings, OpenCodeSettingsPresentationData>
-    @State private var pendingProfile: JSONValue?
+    @NativeSettingsEditorState("pendingProfile", blocksCommit: { $0 != nil }) private var pendingProfile: JSONValue? = nil
     @Environment(\.locale) private var locale
     public init(props: HarnessSettingsProps<OpenCodeHarnessSettings, OpenCodeSettingsPresentationData>) { self.props = props }
     public var body: some View {
@@ -272,9 +269,7 @@ public struct OpenCodeHarnessSettingsView: View {
                         fields
                         if pendingProfile != nil { NativeSettingsNotice(message: ocLocalized("请补全模型相关配置；完成前不会保存此组修改。", locale: locale), kind: .warning) }
                     }
-                    else { NativeSettingsUseDefaults(value: Binding(get: { props.value.useDefaultThreadSettings }, set: { enabled in
-                        emit(profile: enabled ? .object([:]) : props.value.threadSettings, defaults: enabled)
-                    })) { fields } }
+                    else { fields }
                     if !props.executionSnapshot, props.value.useDefaultThreadSettings, case .ready(let data) = props.resource.state, let effective = data.raw["effectiveModel"] {
                         NativeSettingsNotice(message: ocLocalized("当前原生模型", locale: locale) + "：" + effective.ocID("provider").string + "/" + effective.ocID("model").string
                             + (effective["variant"]?.stringValue.map { " · " + $0 } ?? "")
@@ -288,9 +283,12 @@ public struct OpenCodeHarnessSettingsView: View {
         }
     }
     private var fields: some View { OpenCodeProfileFields(value: pendingProfile ?? props.value.threadSettings, resource: props.resource,
-        executionSnapshot: props.executionSnapshot, change: { emit(profile: $0, defaults: !props.executionSnapshot && props.value.useDefaultThreadSettings) }) }
+        executionSnapshot: props.executionSnapshot,
+        defaults: props.executionSnapshot ? nil : Binding(get: { props.value.useDefaultThreadSettings }, set: { enabled in
+            emit(profile: enabled ? .object([:]) : props.value.threadSettings, defaults: enabled)
+        }), change: { emit(profile: $0, defaults: !props.executionSnapshot && props.value.useDefaultThreadSettings) }) }
     private func emit(profile: JSONValue, defaults: Bool) {
-        if props.executionSnapshot && ["provider", "model", "variant", "agent", "permissionMode"].contains(where: { profile[$0] == nil }) {
+        if props.executionSnapshot && ["provider", "model", "variant", "permissionMode"].contains(where: { profile[$0] == nil }) {
             pendingProfile = profile; return
         }
         var fields: [JSONText: JSONValue] = ["threadSettings": profile]

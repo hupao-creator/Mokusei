@@ -23,7 +23,7 @@ public func projectClaudeOverview(input: HarnessThreadInput, availableColumns: I
     let state = try ClaudeState(input.thread.sessionState), turn = state.turns.last
     let pending = turn?.interactions.first { $0["status"]?.stringValue == "pending" }
     let publicInteraction = pending.flatMap { claudePublicInteractions(state, input.thread.observation)[$0.claudeID("id")] }
-    let agent = claudeOverviewAgentMessage(state)
+    let agent = claudeOverviewAgentMessage(state.turns)
     let message = agent ?? claudeOverviewFallback(state, fallback: input.thread.title), summary = claudeBoundedText(message.text, 600)
     let card = claudeCardProjection(turn: turn, tasks: state.tasks, pending: pending, publicInteraction: publicInteraction)
     let presentation = try composeThreadCard(card.0, git: input.git, layoutContext: ThreadCardLayoutContext(availableCols: availableColumns))
@@ -96,13 +96,13 @@ func claudeJSNumber(_ value: Double) -> String {
     }
     if string.hasSuffix(".0") { string.removeLast(2) }; return string
 }
-private struct ClaudeOverviewMessage {
+struct ClaudeOverviewMessage {
     let id: JSONText
     let text: JSONText
     var display: ThreadCardMessage { ThreadCardMessage(id: id, text: text.string) }
 }
-private func claudeOverviewAgentMessage(_ state: ClaudeState) -> ClaudeOverviewMessage? {
-    for turn in state.turns.reversed() {
+func claudeOverviewAgentMessage(_ turns: [ClaudeTurn]) -> ClaudeOverviewMessage? {
+    for turn in turns.reversed() {
         let unfinished = Set(turn.timeline.filter { $0.claudeKind == "assistant" && $0["messageId"] != nil && $0["status"]?.stringValue != "complete" }.map { $0.claudeID("messageId") })
         if let latest = turn.timeline.last(where: {
             ($0.claudeKind == "assistant" && $0["status"]?.stringValue == "complete" && !unfinished.contains($0.claudeID("messageId")) || $0.claudeKind == "reasoning" && ["running","completed"].contains(turn.status)) && !claudeTrim($0["content"]).isEmpty

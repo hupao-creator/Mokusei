@@ -94,7 +94,7 @@ struct ExecutionDocument: View {
                     .nativeReadingPanelViewport(topInset: 22)
             }
         }
-        .environment(\.nativeThreadContentReveal, false)
+        .environment(\.nativeThreadUsesLoadingSkeleton, false)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
         .font(NativeTypography.inter(size: 16))
         .foregroundStyle(NativePalette.thread.ink.swiftUI)

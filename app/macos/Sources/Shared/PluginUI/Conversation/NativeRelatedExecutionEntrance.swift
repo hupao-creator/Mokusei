@@ -29,9 +29,9 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
                 // Use the reader's content signal plus the existing parse gate;
                 // an onAppear fade would be consumed by the loading document.
                 .environment(\.nativeReadingContentPreparation, preparation)
-                .environment(\.nativeThreadContentReveal, false)
-                .onPreferenceChange(NativeReadingContentRevealStatusKey.self) { status in
-                    guard status.complete, !admitted else { return }
+                .environment(\.nativeThreadUsesLoadingSkeleton, false)
+                .onPreferenceChange(NativeReadingContentStatusKey.self) { status in
+                    guard status.ready, !admitted else { return }
                     preparation.admit {
                         admitted = true
                         onReady()

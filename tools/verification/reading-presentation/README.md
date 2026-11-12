@@ -35,9 +35,8 @@ the production aperture marker during travel, its folded launcher bounds and
 the expanded main-panel marker. An intentionally delayed destination row (or
 mounted read error) must keep the incoming host hidden after folding. Only content
 admission releases the downward page turn; native presentation-layer samples
-verify both moving pages before the same incoming host survives landing. Content
-identity and the absence of a second blank text reveal are also
-asserted. Wide and stacked layouts, including Reduced Motion policy, retain source,
+verify both moving pages before the same incoming host survives landing. The
+final reader must contain the destination content and retire the outgoing host. Wide and stacked layouts, including Reduced Motion policy, retain source,
 fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
 Motion still waits for content but settles without an intermediate page turn.
 The fold observer is installed before completion and samples native bounds on
@@ -243,7 +242,7 @@ starting a Runtime, reading a repository or loading WebKit.
 python3 tools/verification/reading-presentation/run.py --overview-search
 ```
 
-Runs the complete `NativeOverviewSearchTests` suite in the AppKit event loop,
+Runs all 16 tests in `NativeOverviewSearchTests` in the AppKit event loop,
 including the three cases skipped by ordinary SwiftPM: selected-chip search
 morph/reversal at 360/540/1100pt in light/dark appearance, fixture-backed Chinese
 body keyword search, and continuous query edits retaining mounted card identities.
@@ -745,7 +744,11 @@ Four integration cases consume actual overview payloads exported by all four Go
 adapters. They exercise first-scope eligibility, null/empty state, pending versus
 execution precedence, reasoning/completed-answer eligibility, incomplete text,
 no-text terminal states, second execution and fork exclusion, plans and bounded
-Unicode prompts. They require unchanged search excerpts and composition keys,
+Unicode prompts. The same Go-produced payloads also compare exact-execution
+previews with ordinary card messages during reasoning updates, completed
+messages, completion/failure/interruption, long Unicode replies and a later
+execution. OpenCode includes a child-session sentinel. Missing references and
+prompt-only/incomplete states must remain empty. They require unchanged search excerpts and composition keys,
 reject malformed flags, and conservatively disable missing flags and Moku.
 The mounted production plugin cards check body accessibility at their actual
 1×1/extended footprints and save light/dark
@@ -760,6 +763,16 @@ no installed app or paid model. These fixtures do not toggle the user's Reduce
 Motion preference, prove physical display frame pacing or cover real account
 startup. System Reduce Motion and the 120ms visual entrance require separate
 visual inspection; ordinary SwiftPM skips are not native replay evidence.
+
+`NativeLocalChangeFanoutTests.referencedCardsConsumeLiveCatalogAndRetireSelections`
+uses the same `MOKUSEI_INITIAL_RESPONSE_FIXTURES` export with the production
+workspace admission, Host reference capability and mounted Report row. It checks
+incremental text updates, exact-execution switching, folded/reopened rows,
+unrelated-change isolation, Moku/history exclusion, deletion and subscription
+retirement. It runs in the ordinary graphical Swift suite with the generated
+fixtures, independently of the four-case initial-response launcher. These
+assertions establish native text convergence and callback ownership, not physical
+frame pacing or a CPU benchmark.
 
 ## Markdown reading regressions
 
@@ -821,7 +834,7 @@ reading remains scrollable independently of the Dock-owned history button.
 
 For headless-only verification, run
 `MOKUSEI_TEST_HEADLESS=1 xcrun swift test --package-path app/macos --filter 'NativeMokuNoteTests|NativeMokuTalkTests'`.
-Windowless production-Dock tests exercise retained text and eyes across widths
+Windowless production-Dock tests exercise retained text across widths
 and verify minimum readable width when actions share the row. A mounted action
 stack checks compact and stacked controls at narrow-width boundaries. Display-gated
 button geometry/activation and rendered
@@ -935,7 +948,7 @@ is read-only, so its open state is checked by panel geometry rather than the
 input-sidecard `followUpVisible` flag. Return/interruption input waits for both
 the current visit's production `readingEntranceAdmitted` gate and the actual
 panel narrowing for its automatic Sidecard, within the existing three-second
-wait. A quiet full-width panel during main-text reveal is not final readiness.
+wait. A quiet full-width panel while the main document loads is not final readiness.
 The original 450ms stable-frame observation, 100ms exact-frame recheck, real Close
 click and five recovery-event cases remain. Phase, interruption, admission and
 actual/full geometry are logged on readiness or failure.
@@ -965,3 +978,7 @@ Report/Git cases also merge hidden catalog changes and require the refreshed
 source-card frame before their close animation completes.
 The Report fixture separately loads real HTML, and `GitNativeTests` retains diff,
 selection, refresh and cancellation coverage with scoped capability fixtures.
+
+The Settings panel uses an opaque native window background, independent of its
+small capsule controls. Pixel sampling in the Settings transition replay compares
+the panel margin with the native dark-window fill over the striped Overview.

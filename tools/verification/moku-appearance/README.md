@@ -1,6 +1,6 @@
 # Windowless Moku appearance replay
 
-Moku, the Settings page with its regular-glass shell, and first-run onboarding
+Moku, the Settings page with its opaque native shell, and first-run onboarding
 use the existing dark style on both light and dark systems. Application
 appearance preferences still belong to the workspace window and every other
 surface. Ordinary threads, Overview, Browser/Report rendering and Report Agent's

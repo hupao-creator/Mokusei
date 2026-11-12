@@ -87,6 +87,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 	next.ID = id
 	// A new fork was not the target of the source thread's interrupt command.
 	next.MokuInterruptedExecutionID = ""
+	next.UserInterruptedExecutionID = ""
 	next.Revision = 0
 	next.Worktree = nil
 	next.CreatedAt = time.Now().UnixMilli()
@@ -180,6 +181,12 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 		}
 		if t.MokuHistory && !value {
 			return errors.New("Moku history is read-only and cannot be unarchived")
+		}
+		// Archived label decoration is frozen outside the active pool. Restoring
+		// starts a new classification instead of reviving a retired category.
+		if archived(t) && !value {
+			t.Tags = []string{}
+			t.TagEmojis = map[string]string{}
 		}
 		t.Archived = &value
 		return nil
@@ -359,7 +366,7 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		if err := threadsearch.ClearHistory(tx); err != nil {
 			return err
 		}
-		for _, prefix := range []string{attentionPrefix, attentionHiddenPrefix, "attention-clock", mokuDeliveryPrefix, "directory-scope:", "thread:", "interaction-answer:", "telemetry:", "event:", "lifecycle-work:", "lifecycle-outcome:", "private-session:", "private-session-index:", "application-receipt:", "tag-receipt:", "semantic-tags:", "tag-redirects:", "tag-inventory-initialized:"} {
+		for _, prefix := range []string{mokuDeliveryPrefix, "directory-scope:", "thread:", "interaction-answer:", "telemetry:", "event:", "lifecycle-work:", "lifecycle-outcome:", "private-session:", "private-session-index:", "application-receipt:", "tag-receipt:", "semantic-tags:", "tag-redirects:", "tag-inventory-initialized:"} {
 			for _, key := range tx.Keys(prefix) {
 				if err := tx.Delete(key); err != nil {
 					return err
@@ -396,6 +403,11 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		return err
 	}
 	r.pruneCancellationStates()
+	if r.search != nil {
+		if err := r.search.ClearDerived(); err != nil {
+			return err
+		}
+	}
 	if err := r.clearVoice(ctx); err != nil {
 		return err
 	}

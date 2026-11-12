@@ -37,13 +37,13 @@ struct OverviewSearchMorphGeometry {
     struct Source: Identifiable {
         let id: String
         let title: String
-        let count: Int?
         let directory: Bool
         let selected: Bool
         let frame: CGRect
         let labelFrame: CGRect
         var childTitle: String? = nil
         var emoji: String? = nil
+        var hasActiveTasks = false
     }
     static func sources(bounds: [String: CGRect], filters: [NativeOverviewFilter], all: String,
                         selectedTag: String, selectedScope: String = "",
@@ -51,7 +51,7 @@ struct OverviewSearchMorphGeometry {
         guard let bar = bounds["__bar__"] else { return [] }
         var result: [Source] = []
         if let frame = bounds["__all__"]?.intersection(bar), !frame.isEmpty {
-            result.append(.init(id: "__all__", title: all, count: nil, directory: false,
+            result.append(.init(id: "__all__", title: all, directory: false,
                                 selected: selectedTag.isEmpty, frame: frame, labelFrame: frame))
         }
         let clip = (bounds["__scroll__"] ?? bar).intersection(bar)
@@ -60,10 +60,12 @@ struct OverviewSearchMorphGeometry {
             let visible = full.intersection(clip)
             guard !visible.isEmpty, visible.width >= 4 else { continue }
             let childSelected = filter.isDirectory && selectedKind == .semantic && !selectedTag.isEmpty && selectedScope == filter.scope
-            result.append(.init(id: filter.id, title: filter.displayTag, count: filter.count, directory: filter.isDirectory,
-                                selected: childSelected || filter.matches(selectedTag, kind: selectedKind, scope: selectedScope),
+            let selected = childSelected || filter.matches(selectedTag, kind: selectedKind, scope: selectedScope)
+            result.append(.init(id: filter.id, title: !filter.isDirectory && filter.emoji != nil ? filter.tag : filter.displayTag,
+                                directory: filter.isDirectory, selected: selected,
                                 frame: visible, labelFrame: full, childTitle: selectedChildren[filter.id]?.tag,
-                                emoji: selectedChildren[filter.id]?.emoji))
+                                emoji: filter.isDirectory ? selectedChildren[filter.id]?.emoji : filter.emoji,
+                                hasActiveTasks: filter.hasActiveTasks))
         }
         return result
     }
@@ -98,6 +100,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
     let target: CGRect
     @ViewBuilder let controls: (Bool) -> Controls
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     var animatableData: CGFloat { get { progress } set { progress = newValue } }
     private var selectedSource: OverviewSearchMorphGeometry.Source? {
         OverviewSearchMorphGeometry.carrier(in: sources)
@@ -137,14 +140,11 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
         return Group {
             if let source {
                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
-                    if source.directory { OverviewTagPrefix(emoji: source.emoji) }
+                    if source.directory { OverviewTagPrefix(emoji: source.emoji, selected: source.selected) }
+                    else if let emoji = source.emoji { OverviewTagPrefix(emoji: emoji, selected: source.selected) }
                     OverviewTagTitle(title: source.title, child: source.childTitle)
-                    if let count = source.count {
-                        Text(String(count)).font(NativeTypography.inter(size: OverviewTagMetrics.countFont, weight: 680))
-                            .frame(minWidth: OverviewTagMetrics.countMinWidth)
-                            .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
-                            .padding(.vertical, OverviewTagMetrics.countVerticalInset)
-                            .background(.foreground.opacity(0.08), in: Capsule())
+                    if source.hasActiveTasks {
+                        OverviewTagActivityIndicator(hasActiveTasks: progress < (isCarrier ? 0.4 : 0.75))
                     }
                 }
                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
@@ -157,7 +157,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
         .clipped()
         .background { if reduceTransparency { Capsule().fill(NativePalette.overview.surface.swiftUI) } }
         .glassEffect((!isCarrier || progress < 0.001 ? Glass.clear : Glass.regular)
-            .tint(source?.selected == true && progress < 0.5 ? NativePalette.overview.accent.swiftUI.opacity(0.16 * (1 - progress * 2)) : nil), in: .capsule)
+            .tint(source?.selected == true && progress < 0.5 ? NativePalette.overview.accent.swiftUI.opacity(OverviewTagMetrics.selectionTintOpacity(contrast: contrast) * (1 - progress * 2)) : nil), in: .capsule)
         .opacity(isCarrier ? 1 : OverviewSearchMorphGeometry.neighborOpacity(progress: progress))
         .overviewSearchAnchor(isCarrier ? "__search_carrier__" : "__search_neighbor__\(source?.id ?? "")")
         .position(x: rect.midX, y: rect.midY)

@@ -27,6 +27,18 @@ creation validation.
 
 [tools.go](tools.go) exposes injected tools through an authenticated local MCP bridge with a schema budget sized for the supplied definitions. Tool execution is bound to the admitted native thread/turn and cancellation context. Exclusive injection disables unrelated native/MCP tools. Stock resource-helper names do not confer authority: the bridge returns no resources/templates and has no resource-read implementation.
 
+Every injected tool's original input schema is also serialized into one
+`developerInstructions` contract block on native start, resume and fork. Codex's
+tool-parameter conversion can drop conditionals and obscure selector-only
+unions; the instruction copy preserves the full declarative contract, including
+references, exact numbers and nested native choices. This applies automatically
+to new tools, without tool-name checks, schema simplification or producer flags.
+MCP definitions and callback validation remain unchanged. The block is built
+from the current preparation's bindings and does not accumulate on caller
+instructions. Empty injections add nothing; output schemas are not duplicated.
+Full input schemas add context proportional to their serialized size. Schema
+descriptions and literals are explicitly framed as data, not new instructions.
+
 The bridge preserves JSON number precision in arguments, request identities and
 structured results. Retired turns cannot borrow a successor's admission window.
 Terminal settlement cancels and drains the turn's injected tool callbacks before
@@ -178,7 +190,20 @@ already observed version is reused. Standalone successful version probes cache
 by binary metadata/environment for five minutes and drain their own subprocess.
 
 Catalog keys include cwd, executable selection, native environment and selected
-config/auth file metadata; a source change during discovery rejects publication.
+config/auth file metadata. Routing additionally observes ancestor `config.toml`
+files and explicit file references, not the native home's desktop state, caches
+or worktrees. The shared login keychain file is not a Codex account identity;
+unobservable keychain/remote account changes still rely on TTL, refresh and live
+native authentication. A probe validates files against its captured executable
+and environment; a concurrent login-shell refresh cannot invalidate that launch
+merely by changing a session variable. Later acquisitions capture the new launch
+environment and cannot reuse the old key.
+
+A source change during discovery rejects publication. After the native process
+drains, one fresh acquisition can recover credential initialization or a settled
+configuration edit. Persistent changes fail after two attempts. Cancellation,
+native read errors and cleanup failures do not authorize a replacement. No task
+input is dispatched or replayed by catalog recovery.
 Per-key refresh, independent cancellation, success-only five-minute reuse and
 shutdown joining use [discovery](../../../platform/discovery/README.md). A failed
 partial observation can describe its own failure but earns no successful TTL.

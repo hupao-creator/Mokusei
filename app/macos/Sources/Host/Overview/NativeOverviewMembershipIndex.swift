@@ -139,7 +139,7 @@ final class NativeOverviewMembershipIndex {
         let ownIDs = applications[scope] ?? []
         let ownApplications = orderedApplications(ownIDs)
         let candidates = NativeOverviewSelection.candidates(threads: threadInputs, applications: ownApplications)
-        let browsing = NativeOverviewCollection(threads: candidates.threads.filter { !$0.attentionHidden }, applications: candidates.applications)
+        let browsing = NativeOverviewCollection(threads: candidates.threads, applications: candidates.applications)
         var keys: [String: String] = [:]
         func normalized(_ text: String) -> String {
             if let value = keys[text] { return value }

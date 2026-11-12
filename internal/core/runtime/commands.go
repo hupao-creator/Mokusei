@@ -31,7 +31,7 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 	}
 	arity := 1
 	switch channel {
-	case "search:status", "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
+	case "search:status", "search:retry", "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
 		arity = 0
 	case "attachment:preview", "thread:set-archived", "application:archive":
 		arity = 2
@@ -47,19 +47,13 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		return nil, err
 	}
 	switch channel {
-	case "thread:record-visit":
-		var visit attentionVisit
-		if err := model.Unmarshal(args[0], &visit); err != nil {
-			return nil, err
-		}
-		return nil, r.recordAttentionVisit(ctx, visit)
 	case "moku:record-note-exposure":
 		var receipt NoteExposureReceipt
 		if err := model.Unmarshal(args[0], &receipt); err != nil {
 			return nil, err
 		}
 		return r.RecordNoteExposure(ctx, receipt)
-	case "search:status", "search:query":
+	case "search:status", "search:query", "search:retry":
 		return r.searchCommand(ctx, channel, args)
 	case "moku:deliveries":
 		return r.PendingMokuDeliveries()

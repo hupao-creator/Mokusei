@@ -181,7 +181,6 @@ func (r *Runtime) projectThreads(snapshot store.Snapshot) ([]model.ThreadRecord,
 		}
 		next[threads[i].ID] = entry
 		threads[i] = entry.record
-		threads[i].AttentionHidden = snapshot.Has(attentionHiddenPrefix + entry.record.ID)
 		// Resolve against the host filesystem after copying the cached record.
 		// Derived values must not enter durable storage or depend on a client
 		// being able to resolve the host's symlinks and worktree metadata.

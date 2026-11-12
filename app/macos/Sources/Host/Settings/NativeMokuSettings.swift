@@ -20,8 +20,12 @@ import SwiftUI
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
+    @Environment(\.nativeSettingsInteractionScope) private var interactionScope
     @FocusState private var focusedHost: String?
 
+    // Settings uses the compact map too; routing visibility belongs to the
+    // page's explicit opt-in, independently of the map presentation.
+    private var includesRoutingGuidance: Bool { presentation == .settings || showsRoutingGuidance }
     private var moku: JSONValue { model.draft.value["moku"] ?? .object([:]) }
     private var selectedHost: String? {
         let preference = moku["hostHarnessPreference"]?.stringValue
@@ -57,7 +61,6 @@ import SwiftUI
         }.joined(separator: "\n")
         return errors.isEmpty ? nil : errors
     }
-    private var routingEnabled: Bool { if case .string = moku["routingGuidance"] { true } else { false } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -79,6 +82,7 @@ import SwiftUI
                     savedValue: model.savedSettings["moku"]?["executionHarnesses"]?[host.descriptor.id.string] ?? .null,
                     value: model.harnessValueBinding(host.descriptor.id.string, execution: true)))
                     .environment(\.nativeSettingsInteractionScope, "moku." + host.descriptor.id.string)
+                    .environment(\.nativeSettingsBeforeAdvanced, includesRoutingGuidance ? AnyView(routingGuidance.environment(\.nativeSettingsInteractionScope, interactionScope)) : nil)
             } else if rosterReady, !rosterPending, selectedHost.flatMap({ model.installations[$0]?.status }) == .checking {
                 NativeSettingsNotice(message: locale.text("正在读取所选 Agent 配置…", "Loading the selected Agent configuration…"))
             } else if rosterReady, !rosterPending, !pickable.isEmpty,
@@ -87,13 +91,12 @@ import SwiftUI
                     ? locale.text("当前值不可用，请选择", "The current value is unavailable. Please choose one.")
                     : locale.text("当前 Moku provider 值不可用，请重新选择。", "The selected Moku provider is unavailable. Please choose another."), error: selectedHost != nil)
             }
-            if presentation == .settings {
-                routingGuidance.padding(.top, -10)
-            } else if showsRoutingGuidance {
-                routingGuidance.padding(.top, 18)
+            if includesRoutingGuidance, !(rosterReady && !rosterPending && host != nil) {
+                routingGuidance
             }
         }
         .environment(\.nativeSettingsGroupBottomSpacing, 8)
+        .environment(\.nativeSettingsRowVerticalPadding, includesRoutingGuidance ? 12 : 15)
         .background(NativeSettingsWindowVisibility { motion.setVisible($0) })
         .onDisappear { motion.setVisible(false); onCoordinatorFrame(nil, true) }
         .onAppear {
@@ -122,18 +125,16 @@ import SwiftUI
 
     private var routingGuidance: some View {
         SettingsGroup {
-            SettingsRow(label: locale.text("模型选择偏好", "Model selection preferences"), inlineControl: true) {
-                NativeSettingsToggle(value: Binding(get: { routingEnabled }, set: { changeMoku("routingGuidance", $0 ? .text("") : .null) }))
-                    .nativeSettingsControl("routingEnabled")
-                    .accessibilityLabel(locale.text("模型选择偏好", "Model selection preferences"))
-            }
-            if routingEnabled {
+            NativeModelRoutingPreferences(value: Binding(get: { model.draft.value["moku"] ?? .object([:]) }, set: { next in
+                model.draft.change(settingsReplacing(model.draft.value, path: ["moku"], value: next))
+            }), locale: locale)
+            if NativeModelRoutingPreferences.selectedPreset(in: moku) == "custom" {
                 VStack(alignment: .leading, spacing: 12) {
                     textArea(field: "routingGuidance", label: locale.text("告诉 Moku 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。", "Tell Moku how to choose models for delegated tasks, for example favor speed for simple tasks and reasoning ability for complex tasks."), height: 112)
                     if let error = model.draft.validationError("routingGuidance", locale: locale) {
                         SettingsNotice(error, error: true)
                     }
-                }.padding(.bottom, 15).id("routingGuidance")
+                }.padding(.bottom, 12).id("routingGuidance")
             }
         }
     }

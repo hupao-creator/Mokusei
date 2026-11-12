@@ -63,11 +63,15 @@ func embeddedArrays(html string) []embedded {
 	return result
 }
 
-func validateIndexVersion(html string) error {
+func supportedIndexVersion(version string) bool {
+	return version == IntelligenceIndexVersion || version == "5.0"
+}
+
+func readIndexVersion(html string) (string, error) {
 	// The page's evaluation metadata identifies the methodology for both the
 	// headline score and task cost. Model field names alone survive major changes.
 	const marker = `\"intelligenceIndex\":{`
-	found := false
+	version := ""
 	for {
 		index := strings.Index(html, marker)
 		if index < 0 {
@@ -75,16 +79,20 @@ func validateIndexVersion(html string) error {
 		}
 		start := index + len(marker) - 1
 		var metadata map[string]any
-		if err := json.Unmarshal([]byte(readEmbeddedJSON(html, start)), &metadata); err != nil || metadata["slug"] != "artificial-analysis-intelligence-index" || metadata["name"] != "Artificial Analysis Intelligence Index v"+IntelligenceIndexVersion {
-			return fmt.Errorf("AA Intelligence Index version is unsupported or invalid")
+		if err := json.Unmarshal([]byte(readEmbeddedJSON(html, start)), &metadata); err != nil || metadata["slug"] != "artificial-analysis-intelligence-index" {
+			return "", fmt.Errorf("AA Intelligence Index metadata is invalid")
 		}
-		found = true
+		current := strings.TrimPrefix(text(metadata["name"]), "Artificial Analysis Intelligence Index v")
+		if metadata["name"] != "Artificial Analysis Intelligence Index v"+current || !supportedIndexVersion(current) || (version != "" && version != current) {
+			return "", fmt.Errorf("AA Intelligence Index version is unsupported or conflicting")
+		}
+		version = current
 		html = html[start+1:]
 	}
-	if !found {
-		return fmt.Errorf("AA Intelligence Index version is unavailable")
+	if version == "" {
+		return "", fmt.Errorf("AA Intelligence Index version is unavailable")
 	}
-	return nil
+	return version, nil
 }
 
 func configurationIdentity(value any) *target {
@@ -139,9 +147,10 @@ func parseIndex(html string) []target {
 	}
 	return configurations
 }
-func parsePage(html, expected string) (target, Facts, error) {
-	if err := validateIndexVersion(html); err != nil {
-		return target{}, Facts{}, err
+func parsePage(html, expected, version string) (target, Facts, error) {
+	pageVersion, err := readIndexVersion(html)
+	if err != nil || pageVersion != version {
+		return target{}, Facts{}, fmt.Errorf("AA detail methodology differs from roster or is invalid")
 	}
 	var model any
 	marker := `\"currentModel\":`

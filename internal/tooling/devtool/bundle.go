@@ -238,7 +238,11 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if err != nil {
 		return "", err
 	}
-	provenance, _ := json.MarshalIndent(map[string]any{"channel": opts.Channel, "configuration": opts.Configuration, "executableInputSHA256": nativeHash, "runtimeInputSHA256": runtimeHash}, "", "  ")
+	embeddingHash, err := stageEmbedding(ctx, repo, directory, app)
+	if err != nil {
+		return "", err
+	}
+	provenance, _ := json.MarshalIndent(map[string]any{"channel": opts.Channel, "configuration": opts.Configuration, "executableInputSHA256": nativeHash, "runtimeInputSHA256": runtimeHash, "embeddingInputSHA256": embeddingHash}, "", "  ")
 	if err = os.WriteFile(filepath.Join(resources, "build-provenance.json"), append(provenance, '\n'), 0644); err != nil {
 		return "", err
 	}
@@ -315,6 +319,12 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 		return "", err
 	}
 	fmt.Printf("Signing native %s bundle with %s\n", opts.Channel, identity.Name)
+	if err = sign(ctx, filepath.Join(frameworks, embeddingLibrary), identity, product.BundleIdentifier+".embedding.library", ""); err != nil {
+		return "", err
+	}
+	if err = sign(ctx, filepath.Join(executables, "MokuseiEmbedding"), identity, product.BundleIdentifier+".embedding", ""); err != nil {
+		return "", err
+	}
 	if err = sign(ctx, framework, identity, voiceFrameworkIdentifier, ""); err != nil {
 		return "", err
 	}
@@ -325,6 +335,15 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 		return "", err
 	}
 	if _, err = VerifySignature(ctx, app, product.BundleIdentifier, identity.Team); err != nil {
+		return "", err
+	}
+	if _, err = VerifySignature(ctx, filepath.Join(executables, "MokuseiEmbedding"), product.BundleIdentifier+".embedding", identity.Team); err != nil {
+		return "", err
+	}
+	if _, err = VerifySignature(ctx, filepath.Join(frameworks, embeddingLibrary), product.BundleIdentifier+".embedding.library", identity.Team); err != nil {
+		return "", err
+	}
+	if err = probeEmbedding(ctx, app); err != nil {
 		return "", err
 	}
 	if _, err = VerifySignature(ctx, framework, voiceFrameworkIdentifier, identity.Team); err != nil {

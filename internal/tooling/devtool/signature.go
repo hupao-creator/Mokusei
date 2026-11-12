@@ -172,6 +172,13 @@ func assertPortableMachO(ctx context.Context, path, frameworks string, allowUniv
 		if strings.HasPrefix(dep, "/usr/lib/") || strings.HasPrefix(dep, "/System/Library/") {
 			continue
 		}
+		if frameworks != "" && dep == embeddingDependency {
+			root, rootErr := filepath.EvalSymlinks(frameworks)
+			target, targetErr := filepath.EvalSymlinks(filepath.Join(frameworks, embeddingLibrary))
+			if rootErr == nil && targetErr == nil && filepath.Dir(target) == root {
+				continue
+			}
+		}
 		if frameworks != "" && dep == voiceFrameworkDependency {
 			root, err := filepath.EvalSymlinks(frameworks)
 			if err != nil {

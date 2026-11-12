@@ -6,6 +6,7 @@ type MokuSettings struct {
 	HostHarnessPreference string                     `json:"hostHarnessPreference"`
 	ExecutionHarnesses    map[string]json.RawMessage `json:"executionHarnesses"`
 	TargetHarnessIDs      []string                   `json:"targetHarnessIds"`
+	RoutingPreset         string                     `json:"routingPreset,omitempty"`
 	RoutingGuidance       *string                    `json:"routingGuidance"`
 }
 type PluginSettings struct {

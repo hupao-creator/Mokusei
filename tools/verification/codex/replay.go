@@ -34,6 +34,12 @@ func runSynthetic(ctx context.Context, root string) error {
 	if e = os.Symlink(self, binary); e != nil {
 		return e
 	}
+	if e = verifyCatalogSources(ctx, filepath.Join(root, "catalog"), binary); e != nil {
+		return e
+	}
+	if e = verifyToolSchemaInstructions(ctx, filepath.Join(root, "schema-instructions"), binary); e != nil {
+		return e
+	}
 	if e = verifyIsolatedAuthentication(ctx, filepath.Join(root, "auth"), binary); e != nil {
 		return e
 	}

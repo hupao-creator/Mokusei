@@ -20,11 +20,17 @@ native failures cannot authorize replay or clear an uncertain outbox attempt.
 
 ## Tools and creation
 
-[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. `create_thread` takes a `target` object with exactly one Harness key containing its native settings. Each Harness has its own named property, so model-facing fields and catalog descriptions retain their ownership even when a host discards root composition keywords. Inclusive property hints expose model/thinking choices only within that Harness; native fields are never merged across targets. The target's union selects a key without validating other Harnesses' options, keeping bounded error output focused on the supplied target. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution; the parser decodes the one key into the existing internal Harness/options pair.
+[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. `create_thread` takes a `target` object with exactly one Harness key containing its native settings. Each Harness has its own named property, so model-facing fields and catalog descriptions retain their ownership even when a host discards root composition keywords. Inclusive property hints expose model/thinking choices only within that Harness; native fields are never merged across targets. The target's union selects a key without validating other Harnesses' options, keeping bounded error output focused on the supplied target. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution; the parser decodes the one key into the existing internal Harness/options pair. Before validation, [schema_validation.go](schema_validation.go) repairs one narrow serialization fault: a container that a Harness stringified where the schema declares object/array is decoded, while declared strings, invalid JSON and values hidden behind `$ref`/`$defs` or conditional keywords pass through unchanged so the original schema error still surfaces. The same repair runs again against the native settings schema when `create_thread` resolves its target.
 
 Fixed tool schemas compile once per installed binding and are reused for that
 configuration generation. Dynamic target schemas remain freshly discovered and
 validated at creation admission.
+
+The Codex Harness additionally places the original injected input schemas in
+native developer instructions, so its model can read the complete creation
+contract even when native tool-schema conversion drops composition details.
+Moku retains the same named-target schema and authoritative validation; Pi,
+OpenCode and Claude continue receiving their existing definitions.
 
 [tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
 
@@ -150,8 +156,8 @@ tool descriptions or another Agent's prompt.
 
 The three-sentence budget is **not a cap on the provider's entire model input**:
 
-- Saved `Moku.RoutingGuidance` is appended verbatim as user configuration after
-  the built-in prompt and has no sentence cap within its existing settings
+- In omitted/custom mode, saved `Moku.RoutingGuidance` is appended verbatim as
+  user configuration after the built-in prompt and has no sentence cap within its existing settings
   limits; it neither replaces the base nor overrides explicit
   user routing choices.
 - Existing tool descriptions and schemas retain their full contracts: exact
@@ -432,3 +438,25 @@ accepted task work keep their existing lifetimes. Typed text/attachments capture
 playback fences before suspension; a vanished or mismatched media owner cannot
 redirect or block their ordinary submission. No tests or timing replays ran during
 this sprint.
+
+## Model routing preferences
+
+`routingPreset` selects economy, balanced or performance guidance. Omitted/custom
+uses the existing `routingGuidance` unchanged. Explicit custom is persisted even
+when empty; without a preset or manual text the balanced base policy applies.
+Presets never overwrite the user's
+retained manual text or Moku's own execution model. Economy prioritizes
+cost-effective models; balanced adds no routing guidance, retaining only the
+already-injected three-sentence base prompt and existing tool contracts, as the
+default did before routing presets. It neither duplicates the base prompt nor
+injects retained custom text. Performance prioritizes frontier capabilities even
+for routine tasks. These are general priorities, with
+no fixed model mapping, candidate groups or preset-specific admission restrictions.
+Native creation schemas and admission still own available model choices.
+
+[routing_preferences.go](routing_preferences.go) generates the guidance solely from
+settings. The coordinator appends nonempty guidance after the base prompt with the
+`Model routing guidance:` prefix. Explicit user Harness/model/thinking choices
+still take precedence through the creation/follow-up tool contracts.
+`tools/verification/moku` exercises real SQLite
+save/restart, retained custom text and production coordinator instruction injection.

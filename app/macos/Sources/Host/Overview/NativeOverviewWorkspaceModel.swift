@@ -39,6 +39,7 @@ public struct NativeOverviewPresentationFacts: Equatable, Sendable {
 public enum NativeOverviewCardSnapshot {
     case harness(HarnessOverviewSnapshot)
     case application(AnyApplicationThreadPlugin, ApplicationOverviewSnapshot)
+    case collection(AnyApplicationThreadPlugin, [ApplicationOverviewSnapshot])
 }
 
 /// Owns public catalog selection and the committed presentation session. Call receive
@@ -56,6 +57,7 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var selectedScope = ""
     public private(set) var selectedFilter: NativeOverviewFilter?
     public private(set) var filters: [NativeOverviewFilter] = []
+    public private(set) var allHasActiveTasks = false
     public var visibleFilters: [NativeOverviewFilter] {
         filters.filter { $0.count > 0 }.map { filter in
             var visible = filter
@@ -87,6 +89,10 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var searchMode = "keyword"
     public private(set) var searchReason = "disabled"
     public private(set) var searchIndexing = false
+    public private(set) var searchPreparation: NativeSearchPreparation?
+    @ObservationIgnored private var preparationRequest: Task<Void, Never>?
+    @ObservationIgnored private var preparationGeneration = 0
+    @ObservationIgnored private var preparationRetry: Task<Void, Never>?
     @ObservationIgnored private var contentRequest: Task<Void, Never>?
     @ObservationIgnored private var contentRequestKey: String?
     @ObservationIgnored private var contentContextKey: String?
@@ -97,6 +103,13 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var facts = NativeOverviewPresentationFacts()
     public private(set) var presentationActive = true
     @ObservationIgnored private var presentationDirty = false
+    @ObservationIgnored private var collectionSources: [ApplicationThreadRef: String] = [:]
+    @ObservationIgnored private var collectionReadingOwners: [ApplicationThreadRef: Set<ApplicationThreadRef>] = [:]
+    @ObservationIgnored private var collectionSelections: [String: ApplicationThreadRef] = [:]
+    @ObservationIgnored private var recentApplicationReading: [ApplicationThreadRef: ApplicationCollectionReading] = [:]
+    @ObservationIgnored private var applicationVisit: (reference: ApplicationThreadRef, elapsed: TimeInterval, foregroundSince: TimeInterval?)?
+    @ObservationIgnored private var applicationReadDeadline: Task<Void, Never>?
+    @ObservationIgnored private var collectionExpiryTask: Task<Void, Never>?
     @ObservationIgnored private var snapshots: [String: NativeOverviewCardSnapshot] = [:]
     @ObservationIgnored private var harnessCache: [JSONText: HarnessOverviewSnapshot] = [:]
     @ObservationIgnored private var applicationCache: [JSONText: (JSONValue, ApplicationOverviewSnapshot)] = [:]
@@ -116,6 +129,7 @@ public final class NativeOverviewWorkspaceModel {
     var membershipApplicationCandidateVisits: Int { membershipIndex.applicationCandidateVisits }
     @ObservationIgnored private var allMembers = NativeOverviewMembership()
     @ObservationIgnored private var allMembersDirty = false
+    @ObservationIgnored private var activeThreadIDs = Set<JSONText>()
     @ObservationIgnored private var globalApplicationIDs = Set<JSONText>()
     @ObservationIgnored private var establishedThreadIDs = Set<JSONText>()
     @ObservationIgnored private var pendingInsertedIDs = Set<String>()
@@ -195,18 +209,21 @@ public final class NativeOverviewWorkspaceModel {
     public func setPresentationActive(_ value: Bool) {
         guard active, presentationActive != value else { return }
         presentationActive = value
+        schedulePreparationStatus()
         revisions.removeAll()
         if value {
             recoveryEpoch += 1
             if presentationDirty { reconcile(captureMutation: false) }
         } else {
             presentationDirty = true
+            collectionExpiryTask?.cancel(); collectionExpiryTask = nil
             invalidateContentSearch()
         }
     }
 
     public func setPresentation(_ value: NativeOverviewPresentationFacts) {
         guard facts != value else { return }
+        let becameVisible = !facts.overviewVisible && value.overviewVisible
         if facts.overviewVisible != value.overviewVisible {
             revisions.removeAll()
             // Leaving retains the committed canvas as the reading backdrop.
@@ -214,8 +231,12 @@ public final class NativeOverviewWorkspaceModel {
             if value.overviewVisible { recoveryEpoch += 1 }
         }
         facts = value
+        if !value.overviewVisible { collectionExpiryTask?.cancel(); collectionExpiryTask = nil }
         // Direct navigation/recovery can bypass an animated return.
-        if value.overviewVisible { setPresentationActive(true) }
+        if value.overviewVisible {
+            setPresentationActive(true)
+            if presentationDirty || becameVisible { reconcile(captureMutation: false) }
+        }
         if isSearching {
             if searchAvailable { reconcile(captureMutation: false) }
             else { invalidateContentSearch() }
@@ -284,8 +305,148 @@ public final class NativeOverviewWorkspaceModel {
         retainedPresentationIDs = values
         pruneSnapshots()
     }
-    public func operation(for threadID: String) -> NativeOverviewMokuOperation? { operations.last { $0.threadID == threadID } }
     public func snapshot(for item: NativeOverviewItem) -> NativeOverviewCardSnapshot? { snapshots[item.presentationID] }
+
+    public func sourceCardID(for reference: ApplicationThreadRef) -> String? { collectionSources[reference] }
+
+    public func selectedCollectionMember(for item: NativeOverviewItem) -> ApplicationThreadRef? {
+        guard case .collection(_, let members) = snapshot(for: item) else { return nil }
+        if let selected = collectionSelections[item.id], members.contains(where: { $0.entry.ref == selected }) { return selected }
+        return members.first?.entry.ref
+    }
+
+    public func selectCollectionMember(_ reference: ApplicationThreadRef, cardID: String) {
+        guard collectionSources[reference] == cardID else { return }
+        collectionSelections[cardID] = reference
+    }
+
+    /// Report and associated Agent routes share one visit while their owner is
+    /// unchanged. Coverage is matched by Thread, not by its current execution.
+    public func recordReadingRoute(_ route: ApplicationThreadRef?, at date: Date = .now,
+                                   uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        let reference: ApplicationThreadRef?
+        if let route, route.typeID == "agent" {
+            let owners = collectionReadingOwners[route] ?? []
+            reference = owners.count == 1 ? owners.first : nil
+        } else { reference = route }
+        guard applicationVisit?.reference != reference else { return }
+        recordApplicationClose(at: date, uptime: uptime)
+        if let reference { recordApplicationOpen(reference, at: date, uptime: uptime) }
+    }
+
+    /// Repeated opens of the same reading owner do not reset foreground dwell.
+    public func recordApplicationOpen(_ reference: ApplicationThreadRef, at date: Date = .now,
+                                      uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard applicationVisit?.reference != reference,
+              let plugin = try? workspace.plugins.applications.requireThread(reference.typeID),
+              let policy = plugin.overviewCollection,
+              let entry = try? workspace.catalog.applicationEntry(reference) else { return }
+        let contentRevision: String?
+        do { contentRevision = try refreshApplicationReading(entry) }
+        catch { workspace.report(error); return }
+        recordApplicationClose(at: date, uptime: uptime)
+        let retained = collectionEligible(reference, policy: policy, at: date)
+        applicationVisit = (reference, 0, nil)
+        saveReading(reference, .init(retainsEligibility: retained, contentRevision: contentRevision))
+        readingChanged()
+    }
+
+    public func recordApplicationClose(at date: Date = .now, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard let visit = applicationVisit else { return }
+        updateApplicationReading(visible: false, uptime: uptime)
+        let retained = reading(visit.reference)?.retainsEligibility == true
+        applicationVisit = nil
+        saveReading(visit.reference, .init(lastClosedAt: date.timeIntervalSince1970, retainsEligibility: retained,
+                                          contentRevision: reading(visit.reference)?.contentRevision))
+        readingChanged()
+    }
+
+    /// Match Agent foreground evidence: covered, unfocused and disconnected time
+    /// pauses the visit. Uptime avoids wall-clock changes affecting reading dwell.
+    public func updateApplicationReading(visible: Bool, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        applicationReadDeadline?.cancel(); applicationReadDeadline = nil
+        guard var visit = applicationVisit else { return }
+        if let since = visit.foregroundSince { visit.elapsed += max(0, uptime - since) }
+        visit.foregroundSince = visible ? uptime : nil
+        applicationVisit = visit
+        if visit.elapsed > 120, reading(visit.reference)?.retainsEligibility == true {
+            saveReading(visit.reference, .init(contentRevision: reading(visit.reference)?.contentRevision))
+            readingChanged()
+        } else if visible, reading(visit.reference)?.retainsEligibility == true {
+            applicationReadDeadline = Task { [weak self] in
+                do {
+                    try await Task.sleep(for: .seconds(max(0.01, 120 - visit.elapsed + 0.01)))
+                    try Task.checkCancellation()
+                    self?.updateApplicationReading(visible: true)
+                } catch { }
+            }
+        }
+    }
+
+    private func reading(_ reference: ApplicationThreadRef) -> ApplicationCollectionReading? {
+        recentApplicationReading[reference] ?? workspace.preferences.applicationCollectionReading[readingHistoryKey(reference)]
+    }
+
+    private func updateCollectionReadingOwners(_ entry: NativeOverviewApplicationEntry, inserting: Bool) {
+        guard (try? workspace.plugins.applications.requireThread(entry.entry.ref.typeID))?.overviewCollection != nil else { return }
+        for reference in entry.coveredExecutions where reference.thread.typeID == "agent" {
+            if inserting { collectionReadingOwners[reference.thread, default: []].insert(entry.entry.ref) }
+            else {
+                collectionReadingOwners[reference.thread]?.remove(entry.entry.ref)
+                if collectionReadingOwners[reference.thread]?.isEmpty == true { collectionReadingOwners.removeValue(forKey: reference.thread) }
+            }
+        }
+    }
+
+    private func collectionEligible(_ reference: ApplicationThreadRef, policy: ApplicationOverviewCollectionPolicy, at now: Date) -> Bool {
+        guard let reading = reading(reference) else { return false }
+        return reading.retainsEligibility || policy.includes(lastClosed: reading.lastClosedAt.map(Date.init(timeIntervalSince1970:)), now: now)
+    }
+
+    @discardableResult
+    private func refreshApplicationReading(_ entry: ApplicationThreadCatalogEntry<JSONValue>) throws -> String? {
+        let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
+        guard plugin.overviewCollection != nil,
+              let revision = try plugin.collectionContentRevision(entry) else { return nil }
+        guard let previous = reading(entry.ref), previous.contentRevision != revision else { return revision }
+        // First observation establishes a baseline, never an update. A changed
+        // baseline revokes both close and short-visit retention, even offscreen or
+        // after reconnect. Only another actual close can start the interval again.
+        var next = previous.contentRevision == nil ? previous : .init()
+        next.contentRevision = revision
+        saveReading(entry.ref, next)
+        return revision
+    }
+
+    private func saveReading(_ reference: ApplicationThreadRef, _ value: ApplicationCollectionReading) {
+        // Failed writes preserve session evidence but cannot claim disk recovery.
+        recentApplicationReading[reference] = value
+        do { try workspace.preferences.recordApplicationReading(key: readingHistoryKey(reference), value: value) }
+        catch { workspace.report(error) }
+    }
+
+    private func readingChanged() {
+        presentationDirty = true
+        if facts.overviewVisible && presentationActive { reconcile(captureMutation: true) }
+    }
+
+    public func collectionEligibility(_ reference: ApplicationThreadRef, at now: Date = .now) -> JSONValue? {
+        guard let policy = (try? workspace.plugins.applications.requireThread(reference.typeID))?.overviewCollection else { return nil }
+        let state = reading(reference)
+        let closed = state?.lastClosedAt.map(Date.init(timeIntervalSince1970:))
+        let eligible = collectionEligible(reference, policy: policy, at: now)
+        let reason = eligible ? "eligible" : closed.map { $0 > now ? "future-close-record" : "within-close-interval" } ?? "no-close-record"
+        return .object([
+            "lastClosedAt": closed.map { .number($0.timeIntervalSince1970 * 1000) } ?? .null,
+            "retainsEligibility": .bool(state?.retainsEligibility == true),
+            "intervalSeconds": .number(policy.closedBefore), "eligible": .bool(eligible),
+            "reason": .text(reason), "collected": .bool(collectionSources[reference] != nil)
+        ])
+    }
+
+    private func readingHistoryKey(_ reference: ApplicationThreadRef) -> String {
+        reference.typeID.string + ":" + reference.threadID.string
+    }
 
     /// Await this before a user submission so its intent has crossed the runtime
     /// boundary. UTF-16 truncation matches JS slice(0, 4000), including surrogates.
@@ -317,6 +478,7 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func reconcile(captureMutation: Bool, refreshSelection: Bool = true) {
+        schedulePreparationStatus()
         do {
             if try applyCatalogChanges(captureMutation: captureMutation) { return }
             let previousCatalogIDs = catalogIDs
@@ -330,6 +492,7 @@ public final class NativeOverviewWorkspaceModel {
                     let ref = ApplicationThreadRef(threadID: id, typeID: type)
                     if let cached = overviewEntries[ref], cached.0 == raw { return cached.1 }
                     let entry = try NativeOverviewApplicationEntry(entry: workspace.catalog.applicationEntry(json: raw))
+                    try refreshApplicationReading(entry.entry)
                     overviewEntries[ref] = (raw, entry)
                     return entry
                 }
@@ -340,12 +503,19 @@ public final class NativeOverviewWorkspaceModel {
                 for item in nextApplications { applicationRecords.updateValue(item, forKey: item.entry.ref.threadID) }
                 catalogIDs = Set(catalogThreads.map { $0.id.string } + nextApplications.map { $0.entry.ref.threadID.string })
                 applicationsByRef = Dictionary(uniqueKeysWithValues: nextApplications.map { ($0.entry.ref, $0) })
+                collectionReadingOwners.removeAll()
+                for entry in nextApplications { updateCollectionReadingOwners(entry, inserting: true) }
                 catalogApplicationJSON = Dictionary(uniqueKeysWithValues: zip(nextApplications, workspace.catalog.applicationThreads).map { ($0.0.entry.ref.threadID, $0.1) })
                 directoryTags.update(threads: catalogThreads)
+                let nextActiveThreadIDs = Set(catalogThreads.filter { $0.moku != true && $0.observation.isExecutionActive }.map(\.id))
+                let changedActivity = activeThreadIDs != nextActiveThreadIDs
+                activeThreadIDs = nextActiveThreadIDs
                 let nextFacts = NativeOverviewMembershipFacts(threads: catalogThreads, applications: nextApplications)
                 if membershipFacts != nextFacts {
                     rebuildMembership()
                     membershipFacts = nextFacts
+                } else if changedActivity {
+                    refreshFilterActivity(filters)
                 }
                 let harnessIDs = Set(catalogThreads.map(\.id)), applicationIDs = Set(nextApplications.map { $0.entry.ref.threadID })
                 harnessCache = harnessCache.filter { harnessIDs.contains($0.key) }
@@ -428,6 +598,7 @@ public final class NativeOverviewWorkspaceModel {
         var changedThreads: [HarnessThread] = []
         var changedApplications: [(id: JSONText, raw: JSONValue?, old: NativeOverviewApplicationEntry?, next: NativeOverviewApplicationEntry?)] = []
         var membershipThreads = Set<JSONText>(), membershipApplications = Set<JSONText>()
+        var changedActivity = false
         for id in change.threadIDs {
             catalogChangeVisitCount += 1
             let thread = workspace.catalog.thread(id)
@@ -458,6 +629,11 @@ public final class NativeOverviewWorkspaceModel {
         }
         for id in change.threadIDs {
             let thread = workspace.catalog.thread(id)
+            if thread?.moku != true && thread?.observation.isExecutionActive == true {
+                changedActivity = activeThreadIDs.insert(id).inserted || changedActivity
+            } else {
+                changedActivity = activeThreadIDs.remove(id) != nil || changedActivity
+            }
             directoryTags.update(thread, id: id)
             if let thread, thread.moku != true {
                 if catalogIDs.insert(id.string).inserted { pendingInsertedIDs.insert(id.string) }
@@ -473,11 +649,14 @@ public final class NativeOverviewWorkspaceModel {
             }
         }
         for (id, raw, previous, next) in changedApplications {
+            if let previous { updateCollectionReadingOwners(previous, inserting: false) }
+            if let next { updateCollectionReadingOwners(next, inserting: true) }
             if let previous, previous.entry.ref != next?.entry.ref {
                 overviewEntries.removeValue(forKey: previous.entry.ref); applicationsByRef.removeValue(forKey: previous.entry.ref)
                 applicationCache.removeValue(forKey: id)
             }
             if let raw, let next {
+                try refreshApplicationReading(next.entry)
                 overviewEntries[next.entry.ref] = (raw, next); applicationsByRef[next.entry.ref] = next
                 applicationRecords.updateValue(next, forKey: id); catalogApplicationJSON[id] = raw
                 if catalogIDs.insert(id.string).inserted { pendingInsertedIDs.insert(id.string) }
@@ -497,6 +676,9 @@ public final class NativeOverviewWorkspaceModel {
             affectedScopes = membershipIndex.update(threadIDs: membershipThreads, applicationIDs: membershipApplications,
                 catalog: workspace.catalog, directoryTags: directoryTags.values, application: { applicationRecords[$0] })
             publishMembership(); refreshGlobalAvailability()
+        } else if changedActivity {
+            refreshFilterActivity(filters)
+            selectedFilter = matchingFilter(tag: selectedTag, scope: selectedScope, kind: tagSelection?.kind)
         }
         if !operationProjectionReady || operationThreadID != workspace.catalog.moku?.id
             || workspace.catalog.moku.map({ change.threadIDs.contains($0.id) }) == true { refreshMokuOperations() }
@@ -519,10 +701,16 @@ public final class NativeOverviewWorkspaceModel {
             reconcile(captureMutation: captureMutation, refreshSelection: false)
             return true
         }
+        if changedApplications.contains(where: { change in
+            collectionSources.keys.contains(where: { $0.threadID == change.id })
+        }) {
+            reconcile(captureMutation: captureMutation, refreshSelection: false)
+            return true
+        }
         let selected = NativeOverviewCollection(
             threads: changedThreads.filter { content.activeIDs.contains($0.id.string) },
             applications: changedApplications.compactMap(\.next).filter { content.activeIDs.contains($0.entry.ref.threadID.string) })
-        let next = try project(selected)
+        let next = try project(selected, groupCollections: false)
         let previousTokens = next.compactMap { content.records[$0.id]?.presentationID }
         guard content.update(next) else {
             reconcile(captureMutation: captureMutation, refreshSelection: false)
@@ -542,6 +730,50 @@ public final class NativeOverviewWorkspaceModel {
             operationProjectionReady = true
             operationTranscript = workspace.catalog.moku?.transcript
             operations = NativeOverviewMokuOperation.project(transcript: operationTranscript)
+        }
+    }
+
+    private var preparationAvailable: Bool {
+        active && presentationActive && isSearching && facts.overviewVisible && !facts.settingsOpen &&
+            facts.documentVisible && facts.focused && workspace.runtimeAvailable && searchRequest == nil
+    }
+    private func schedulePreparationStatus() {
+        guard preparationAvailable else {
+            preparationRequest?.cancel(); preparationRequest = nil
+            preparationGeneration += 1
+            return
+        }
+        guard preparationRequest == nil else { return }
+        let generation = preparationGeneration
+        preparationRequest = Task { [weak self] in
+            defer {
+                if let self, self.preparationGeneration == generation { self.preparationRequest = nil }
+            }
+            while !Task.isCancelled {
+                guard let self, self.preparationAvailable, self.preparationGeneration == generation else { return }
+                do {
+                    let status = try await self.workspace.client.invoke("search:status", args: [])
+                    try Task.checkCancellation()
+                    guard self.preparationAvailable, self.preparationGeneration == generation else { return }
+                    self.searchPreparation = NativeSearchPreparation(status["semantic"])
+                } catch is CancellationError { return }
+                catch { /* Query errors retain the existing search error presentation. */ }
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            }
+        }
+    }
+    public func retrySearchPreparation() {
+        guard preparationAvailable else { return }
+        preparationRetry?.cancel()
+        let generation = preparationGeneration
+        preparationRetry = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let status = try await self.workspace.client.invoke("search:retry", args: [])
+                try Task.checkCancellation()
+                guard self.preparationAvailable, self.preparationGeneration == generation else { return }
+                self.searchPreparation = NativeSearchPreparation(status["semantic"])
+            } catch { }
         }
     }
 
@@ -589,14 +821,16 @@ public final class NativeOverviewWorkspaceModel {
                         ranks[id.string] = index
                     }
                     self.contentRanks = ranks
-                    self.searchMode = "keyword"
+                    self.searchMode = result["mode"]?.stringValue == "hybrid" ? "hybrid" : "keyword"
+                    self.searchPreparation = NativeSearchPreparation(result["semantic"])
                     self.searchReason = result["reason"]?.stringValue ?? ""
                     self.searchIndexing = result["indexing"]?.boolValue == true
                     self.reconcile(captureMutation: false)
                     // Preparation and retries can finish without a catalog
                     // change. Keep the active query fresh even when its first
                     // response only had metadata matches; body indexing runs independently.
-                    try await Task.sleep(for: .seconds(3))
+                    let refresh = min(3000, max(300, result["refreshMs"]?.intValue ?? 3000))
+                    try await Task.sleep(for: .milliseconds(refresh))
                 }
             } catch is CancellationError { }
             catch {
@@ -609,7 +843,7 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func collection(tags: [String], kind: NativeOverviewTagKind?, scope: String? = nil) -> NativeOverviewCollection {
-        NativeOverviewSelection.select(threads: catalogThreads.filter { !$0.attentionHidden }, applications: catalogApplications,
+        NativeOverviewSelection.select(threads: catalogThreads, applications: catalogApplications,
             tags: tags, kind: kind, scope: scope, directoryTags: directoryTags.values)
     }
 
@@ -646,14 +880,35 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func publishMembership() {
-        let next = membershipIndex.filters
+        refreshFilterActivity(membershipIndex.filters)
+        filterContextFacts = membershipIndex.contextFacts(filters: filters)
+    }
+
+    private func refreshFilterActivity(_ source: [NativeOverviewFilter]) {
+        // Reuse the exact browsing memberships, including report coverage and
+        // hidden/archived exclusions. Activity never changes membership/context.
+        func hasActiveTasks(_ membership: NativeOverviewMembership) -> Bool {
+            membership.threads.contains { activeThreadIDs.contains($0) }
+        }
+        let next = source.map { filter in
+            var next = filter
+            next.hasActiveTasks = hasActiveTasks(filterMembers[filter.selectionKey]!)
+            next.children = filter.children.map { child in
+                var next = child
+                next.hasActiveTasks = hasActiveTasks(filterMembers[child.selectionKey]!)
+                return next
+            }
+            return next
+        }
         if filters != next { filters = next }
-        filterContextFacts = membershipIndex.contextFacts(filters: next)
+        // All uses its existing lazy membership too; an active task covered by
+        // a Report must not keep an otherwise settled All collection marked.
+        allHasActiveTasks = !activeThreadIDs.isEmpty && hasActiveTasks(allMembership())
     }
 
     func containsGlobalThread(_ id: JSONText) -> Bool { globalThreadIDs.contains(id) }
 
-    private func project(_ collection: NativeOverviewCollection) throws -> [NativeOverviewItem] {
+    private func project(_ collection: NativeOverviewCollection, groupCollections: Bool = true) throws -> [NativeOverviewItem] {
         projectionVisitCount += collection.count
         var entries: [(created: Double, index: Int, item: NativeOverviewItem)] = []
         for thread in collection.threads {
@@ -686,6 +941,51 @@ public final class NativeOverviewWorkspaceModel {
             entries.append((entry.createdAt, entries.count, .init(id: entry.ref.threadID.string,
                 columns: projection.envelope.footprint.columns, rows: projection.envelope.footprint.rows,
                 structureKey: projection.envelope.structureKey.string, presentationID: token)))
+        }
+        if groupCollections {
+            collectionSources.removeAll()
+            collectionExpiryTask?.cancel(); collectionExpiryTask = nil
+            if NativeOverviewSearch(isSearching ? searchQuery : "").terms.isEmpty {
+                let now = Date()
+                var candidates: [JSONText: (AnyApplicationThreadPlugin, ApplicationOverviewCollectionPolicy, [ApplicationOverviewSnapshot])] = [:]
+                var nextExpiry: Date?
+                for application in collection.applications {
+                    let entry = application.entry
+                    let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
+                    guard let policy = plugin.overviewCollection else { continue }
+                    if collectionEligible(entry.ref, policy: policy, at: now) {
+                        if candidates[plugin.id] == nil { candidates[plugin.id] = (plugin, policy, []) }
+                        candidates[plugin.id]!.2.append(applicationCache[entry.ref.threadID]!.1)
+                    } else if applicationVisit?.reference != entry.ref, let closed = reading(entry.ref)?.lastClosedAt {
+                        let expiry = Date(timeIntervalSince1970: closed).addingTimeInterval(policy.closedBefore + 0.01)
+                        nextExpiry = min(nextExpiry ?? expiry, expiry)
+                    }
+                }
+                for (_, (plugin, policy, members)) in candidates where members.count > 1 {
+                    let id = "\u{0}application-collection:\(plugin.id.string):\(browseSceneKey)"
+                    let ids = Set(members.map { $0.entry.ref.threadID.string })
+                    let origin = entries.filter { ids.contains($0.item.id) }.min {
+                        $0.created == $1.created ? $0.index < $1.index : $0.created < $1.created
+                    }!
+                    let token = id + ":" + members.map { String(describing: ObjectIdentifier($0)) }.joined(separator: ",")
+                    snapshots[token] = .collection(plugin, members)
+                    for member in members { collectionSources[member.entry.ref] = id }
+                    entries.removeAll { ids.contains($0.item.id) }
+                    entries.append((origin.created, origin.index, .init(id: id, columns: policy.footprint.columns,
+                        rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token,
+                        providesCardSurface: policy.providesCardSurface)))
+                }
+                if let expiry = nextExpiry, facts.overviewVisible, presentationActive {
+                    collectionExpiryTask = Task { [weak self] in
+                        do {
+                            try await Task.sleep(for: .seconds(min(86_400, max(0.01, expiry.timeIntervalSinceNow))))
+                            try Task.checkCancellation()
+                            guard let self, self.active else { return }
+                            self.reconcile(captureMutation: true)
+                        } catch { }
+                    }
+                }
+            }
         }
         let ordered = entries.sorted { a, b in
             if isSearching, let ranks = contentRanks {
@@ -770,12 +1070,20 @@ public final class NativeOverviewWorkspaceModel {
 
     public func stop() async {
         active = false
+        collectionExpiryTask?.cancel(); collectionExpiryTask = nil
+        collectionSources.removeAll(); collectionSelections.removeAll(); recentApplicationReading.removeAll()
+        collectionReadingOwners.removeAll()
+        applicationReadDeadline?.cancel(); applicationReadDeadline = nil
+        applicationVisit = nil
+        preparationRequest?.cancel(); preparationRequest = nil
+        preparationRetry?.cancel(); preparationRetry = nil
         invalidateContentSearch()
         await publication?.value
         try? await workspace.client.updateOverviewContext(nil)
         content.stop()
         snapshots.removeAll(); revisions.removeAll(); harnessCache.removeAll(); applicationCache.removeAll(); directoryTags.removeAll()
         membershipFacts = nil; membershipIndex = .init(); allMembers = .init(); allMembersDirty = false; applicationsByRef.removeAll()
+        activeThreadIDs.removeAll(); allHasActiveTasks = false
         globalThreadIDs.removeAll(); globalConversationCount = nil; hasEstablishedConversation = false
         applicationRecords = .init(); catalogIDs.removeAll(); keywordMemberIDs.removeAll()
         globalApplicationIDs.removeAll(); establishedThreadIDs.removeAll(); pendingInsertedIDs.removeAll()

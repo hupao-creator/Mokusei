@@ -13,6 +13,7 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 
 | Location | Responsibility |
 | --- | --- |
+| [Sources/Embedding](Sources/Embedding/README.md) | Runtime-owned local model download and LiteRT inference process |
 | Sources/App | Mac application entry, windows and application lifecycle |
 | [Sources/Composition](Sources/Composition/NativePlugins.swift) | Shared static Harness, Application and Sidecard registration |
 | [Sources/Core](Sources/Core/README.md) | Protocol, connections, public state, host files and offline recovery |
@@ -98,19 +99,20 @@ for evidence and the limits of the isolated measurements.
 Report HTML fades in over 200ms after its first successful WebKit load in a
 reader visit; later content revisions do not repeat the entrance. Reduce Motion
 shows the document immediately. Loading and error controls remain independent.
-The Super Thread's persistent composer does not suppress its document or
-sidecards; covering surfaces such as Settings still suppress them.
-This exemption belongs to the Report route, including the handoff from its Moku
-input to a selected Agent execution. Send context is revoked before the
-execution preference arrives and must not determine surface suppression.
+The Super Thread's selected associated execution uses a persistent composer
+without suppressing its document or sidecards; covering surfaces such as Settings
+still suppress them. The default document/list keeps Moku input closed and
+rejects expansion through the capsule, Compose shortcut/menu and scripted actions.
+Surface suppression belongs to the Report route rather than its send context,
+which is revoked before the execution preference arrives.
 See the [recording and local-log diagnosis](../../design/super-thread-associated-open.md).
 
 Report related executions target a 3:7 sidecard-to-Report width in list state
 and 5:5 in execution detail, subject to the shared width constraints and stacked
 layout. The related list uses individual 16pt Liquid Glass items without
 number prefixes or connector lines. Each item shows its source Thread's validated
-generated emoji (📝 when absent), its exact execution title, a four-line assistant
-excerpt, Harness identity, current Thread status and cited execution elapsed time
+generated emoji (📝 when absent), its exact execution title, a four-line agent
+message excerpt, Harness identity, current Thread status and cited execution elapsed time
 instead of token usage. Thread name, cited execution status and execution UUID
 are omitted from the card body. Current status includes background work and
 remains unknown when facts are unavailable; it updates through catalog
@@ -118,11 +120,18 @@ invalidation while the list is open. Binding-conflict warnings remain visible. A
 click queries `report.relations` again and opens the source Thread's latest
 execution, including running executions, in the existing sidecard reader.
 The card's title, excerpt and timing still describe the report's cited execution;
-this navigation never rewrites report references or Thread bindings. Missing,
-out-of-scope or execution-less Threads leave the list open with an unavailable
+this navigation never rewrites report references or Thread bindings. The excerpt
+uses the same Harness-owned message selector as the ordinary Overview card,
+restricted to the cited execution: eligible live reasoning and complete assistant
+messages refresh through existing catalog invalidation. Terminal compact history
+can fall back to its own retained reply summary; active incomplete assistant text
+and user-prompt fallbacks are excluded. The Host still excludes Moku and Moku
+history, and OpenCode retains its main-session/inherited-message filters. No
+conversation content lease, polling or additional catalog payload is introduced.
+Missing, out-of-scope or execution-less Threads leave the list open with an unavailable
 notice; query failures remain retryable by clicking again. Closing, covering or
 replacing the sidecard invalidates pending navigation. Unknown timing is
-explicit; absent assistant text leaves the excerpt empty. Reduced Transparency
+explicit; absent eligible agent text leaves the excerpt empty. Reduced Transparency
 uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list begins directly with its items. Returning preserves the existing sidecard navigation and
 execution reader scroll ownership. The list fades in on its first opening in a
 Report visit. Each selected execution waits for its scoped row and Markdown
@@ -194,9 +203,9 @@ so the first reverse step at either limit changes the visible scale.
 
 
 Agent panels now carry source title/emoji ink separately during deferred opening,
-show a scoped skeleton while loading, and reveal admitted native text top-down
-for completed executions or bottom-up for active executions. A per-execution
-presentation scope protects first paint and releases masks on change/cancellation.
+show a scoped skeleton while loading, and draw the full parsed Markdown body
+once the reader is admitted. Completed turns keep their footer in the normal layout; running turns keep
+their existing latest-message positioning.
 Closing retains the 420ms native return: reader content fades over the first
 80%, travel reaches the source card at 86%, and the shell crossfades to the
 refreshed card over the final 14%. See the shared PluginUI and WindowNavigation
@@ -214,3 +223,19 @@ environment: the author supplies all styles and spacing; the host injects no CSS
 or Report-reader safe-area handling. See the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
+
+
+Super Thread browsing groups documents closed more than five minutes ago into
+one collection per tag view, when at least two qualify. Eligible documents retain
+their place across short reopened visits; more than two minutes of foreground
+reading in one visit clears that eligibility. Collections are native view
+projections; close evidence and retained eligibility are profile-local desktop
+state. The Report renderer keeps a sliding cover, fading
+metadata and stationary Liquid Glass navigation. Collections also provide a
+continuous regular-glass backdrop and regular-glass emoji badges at the existing
+metadata seat; the Host omits only their opaque shell. The 4pt internal spacing
+shares the backdrop, preserving the card geometry without a visible seam.
+Reduce Transparency uses opaque palette fills. Single Report cards and search
+results retain their ordinary flat material. Search results remain individual.
+See [Overview collection ownership](Sources/Host/Overview/README.md#viewed-application-collections)
+and the [production fixture](../../demos/super-thread-carousel/README.md).

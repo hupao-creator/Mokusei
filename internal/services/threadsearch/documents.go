@@ -13,7 +13,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 )
 
-const indexVersion = "keyword-text-v2"
+const indexVersion = "keyword-text-v3"
 const documentPrefix = "search-document:"
 const stampPrefix = "search-document-stamp:"
 const configKey = "search-config"
@@ -78,6 +78,7 @@ type Document struct {
 	Fingerprint string          `json:"fingerprint"`
 	Version     string          `json:"version"`
 	LiteralText string          `json:"literalText"`
+	BodyOffset  int             `json:"bodyOffset"`
 	Truncated   bool            `json:"truncated"`
 }
 
@@ -90,13 +91,13 @@ func prepare(source Source) Document {
 	// Preserve the historical bounded continuous body coverage.
 	return Document{Ref: source.Ref, Owner: source.Owner, Fingerprint: source.fingerprint(), SourceHash: source.OwnerHash,
 		Version: indexVersion, Truncated: len(text) > maxContentRunes,
-		LiteralText: string(metadata) + "\n" + string(text[:min(len(text), maxContentRunes)])}
+		LiteralText: string(metadata) + "\n" + string(text[:min(len(text), maxContentRunes)]), BodyOffset: len(string(metadata)) + 1}
 }
 
 // DeleteOwner is called inside the same transaction that deletes its source.
 // Removing derived text atomically prevents reuse of a deleted owner.
 func DeleteOwner(tx *store.Tx, owner string) error {
-	for _, prefix := range []string{documentPrefix, stampPrefix} {
+	for _, prefix := range []string{documentPrefix, stampPrefix, vectorStampPrefix} {
 		for _, key := range tx.Keys(prefix + ownerSuffix(owner)) {
 			if err := tx.Delete(key); err != nil {
 				return err
@@ -109,7 +110,7 @@ func DeleteOwner(tx *store.Tx, owner string) error {
 // ClearHistory participates in runtime's fenced replacement transaction.
 // Derived content is removed atomically; automatic search remains ready for new threads.
 func ClearHistory(tx *store.Tx) error {
-	for _, prefix := range []string{documentPrefix, stampPrefix} {
+	for _, prefix := range []string{documentPrefix, stampPrefix, vectorStampPrefix} {
 		for _, key := range tx.Keys(prefix) {
 			if err := tx.Delete(key); err != nil {
 				return err

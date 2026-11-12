@@ -27,8 +27,9 @@ bounded by current catalog identities and exposed filters and are released on st
 Global conversation availability is updated from changed eligible records before
 filtering, search and report coverage, including directory-only documents. Moku
 uses these facts for its empty-workspace landing; an unloaded catalog remains
-unknown. The All membership is invalidated lazily and resolved when that view is
-requested. Filter chrome and Moku still receive the complete filter description
+unknown. The All membership is invalidated lazily and resolved when browsing or
+tag activity needs it. Filter chrome and Moku still receive the complete filter
+description
 when membership changes, so producing that public output scales with the output
 size; unrelated scope selections and card projections are reused. Selecting a
 filter, changing search membership/rank or changing card geometry retains the
@@ -44,31 +45,47 @@ normalizes its distinct labels once. The
 [CPU benchmark and scenario matrix](../../../../../tools/verification/overview-performance/README.md)
 distinguishes model work from GUI and GPU work.
 
-All Overview cards, including Agent Threads and Report, use opaque palette
-surfaces and a soft border, including completed cards.
-Shell and semantic planes contain no Liquid Glass containers. The card boundary
-supplies the shared flat-material policy to provider badges, terminal marks and
-plan highlights. Agent Thread emoji badges use static opaque palette fills
+Ordinary Overview cards, including Agent Threads and individual Reports, use
+opaque palette surfaces and a soft border, including completed cards.
+Super Thread collections provide one continuous regular Liquid Glass plate
+behind their cover, metadata and intervening layout space. Their policy's
+`providesCardSurface` omits the Canvas's opaque shell; glass remains in the
+semantic camera plane so pan/zoom update its backdrop geometry. Collection
+emoji badges opt into regular glass with a light mint tint at the unchanged
+44pt diameter / top 12pt / trailing 17pt metadata seat. Reduce Transparency
+uses opaque palette fills; the material helper falls back to system Material
+when Liquid Glass is unavailable. Other card content keeps the shared flat
+policy for provider badges, terminal marks and plan highlights.
+Agent Thread emoji badges use static opaque palette fills
 without an added border: adaptive accent-soft green when completed, neutral
 surface-strong otherwise. This also applies under Reduce Transparency. Removing
-per-card Liquid Glass avoids its spatial update cost during canvas movement.
+per-card Liquid Glass on ordinary cards avoids its spatial update cost during canvas movement.
 The terminal symbol and accessible status label remain independent of color.
-Card shells and all other card surfaces stay flat.
+Only Super Thread collections opt into the new card material; individual Report
+and ordinary Thread surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
 scan and spatial-animation ownership are unchanged.
 
 Overview cannot originate steer/send input for a specified Thread. Emoji badges
-are status content: they have no Send swap, button, keyboard focus stop or draft
-callback. The Harness overview renderer receives only an existing-interaction
+retain their status presentation. For an unarchived ordinary Thread whose latest
+execution was explicitly interrupted by user Stop, with no pending input or
+background work, the badge becomes an independent Archive conversation button.
+Hovering the card or focusing that button replaces the emoji with a close icon;
+Return/Space and accessibility activation archive without opening the reader.
+The Host rechecks current catalog eligibility, blocks duplicate requests and
+displays failures on the card. Other interruption sources, including unknown
+historical provenance, do not acquire this action. Badges have no Send swap or
+draft callback. The Harness overview renderer receives only an existing-interaction
 response callback plus ordinary reading navigation, rather than full thread
 actions. Permission/question responses remain available; those are bound to a
 current pending interaction. There is no per-card message editor, text/file drop
 target or send shortcut. Canvas drag/scroll/pinch, search, Return-to-open and
 card activation keep their navigation behavior. The independent Moku composer,
 Thread-detail Moku input, Browser annotation sends and general Runtime APIs
-remain owned by their existing boundaries; Moku operation decorations are observations,
-not card send controls.
+remain owned by their existing boundaries. Moku tool operations do not decorate
+card borders; returning from a reader must not replay an operation-completion
+edge flash. The workspace-level running list-refresh indicator remains separate.
 
 ## Card update isolation
 
@@ -258,7 +275,7 @@ Dev-only [transaction diagnostics](../../../build/layout-logging.md#overview-rel
 The tag bar omits a directory's sole semantic child when its actual selected
 Agent Thread ID set and application thread reference set both equal the
 directory's sets. This uses eligible catalog membership after the ordinary
-visibility/archive and report-coverage rules, before search; equal badge counts
+visibility/archive and report-coverage rules, before search; equal member counts
 alone are insufficient. Untagged members or directory-only documents that change
 those sets keep the child visible. Multiple semantic names (including a name
 equal to the directory label) prevent this omission. Inbox tags are unaffected.
@@ -268,23 +285,52 @@ child stays visible and selected even if it becomes redundant, preserving its
 filtering meaning when later threads arrive; selecting its directory then omits
 the redundant child. Global search and its return-to-browsing behavior are unchanged.
 
-Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview. Settings has no archive-restoration section; archive data and Runtime commands remain independent of that page. Tag-bar transitions explicitly read Reduce Motion; see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
+Filter capsules omit visible member counts, including in directory menus and the search transition; counts remain available as accessibility values. Filter tags do not show hover tips; their accessibility labels, values and actions remain available. Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview. Settings has no archive-restoration section; archive data and Runtime commands remain independent of that page. Tag-bar transitions explicitly read Reduce Motion; see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
 
 Menu opening uses a 220ms smooth spring with zero extra bounce, both after initial measurement and when retargeting a mounted menu. Closing retains its existing timing. Menu closure morphs each mounted child capsule back into the measured parent capsule over 320ms. Position and size interpolate continuously; labels retire earlier than the glass, and the surface only disappears as it overlaps the parent. Reopening retargets the same mounted identities from their current presentation. Removed children remain in their old row slots during the return, then surviving children reflow smoothly. A removed directory fades its whole menu envelope because its return destination no longer exists. Retiring controls cannot receive clicks or accessibility actions. After menu exit, title, divider and prefix changes use a 280ms smooth, non-bouncing transition. Reopening still invalidates the earlier close completion. The measured scroll width carries its resize transaction across the layout boundary so the centered bar follows the chips. Initial measurements and Reduce Motion updates are immediate.
 
 The child menu's clip contains both its viewport and the visible parent in viewport coordinates. A single short child can therefore expand from, and return to, a wider selected-directory capsule without cutting off its rounded ends. Scroll offset affects the morph's content-space target but not that clip. Overflowing rows retain horizontal clipping because their viewport already contains the parent. The native tag-glass replay samples WindowServer pixels during this transition.
 
+Child-menu motion samples one retained progress for label scale/opacity and the
+surface's actual frame/offset. Natural child widths still own row measurement.
+Only the label scales; the material fill and clear glass receive the same
+interpolated frame without another geometry animation. Applying a GeometryEffect
+to captured glass lets its compositor geometry drift from the view-layer material,
+creating offset capsule rims during opening and closing. Stable child glass IDs,
+selection tint, viewport clipping and interrupted-return ownership are retained.
+
 The directory's own glass capsule uses its current animated frame plus only the leading/trailing overflow outside the scroll viewport. Using an absolute measured source width here can slice off its right rounded end while switching from a selected child to another top-level tag. The native replay samples both capsule edges during that shrink and the return to the child; the source still clips at the real viewport when scrolled partly offscreen.
 
-Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar reserves the actual action envelope plus 16pt clearance on both sides; at 620pt and narrower the actions occupy a separate row. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Names only truncate when their individual viewport cannot hold them. Search’s temporary visual layer reuses the same title, divider and prefix components. Presentation does not change tag identity or membership.
+Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar reserves the actual action envelope plus 16pt clearance on both sides; at 620pt and narrower the actions occupy a separate row. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Selected All, directory and semantic chips use the overview accent with 22% tint alpha, or 34% with Increased Contrast; unselected chips have no tint. Selected directory chips replace their folder or child emoji prefix with a check icon. Selected semantic chips replace their emoji prefix with the same check, including in child menus and the search transition; All remains prefix-free. Accessibility labels retain the original tag names and emoji. The search transition starts from the same tint strength and fades it out over the first half. Label font weights remain unchanged; the shared selected check uses a 2-unit Lucide stroke instead of the default 1.5-unit stroke. Names only truncate when their individual viewport cannot hold them. Search’s temporary visual layer reuses the same title, divider and prefix components. Presentation does not change tag identity or membership.
 
-The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder keeps its original size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
+All, directory and semantic capsules (including child menus and search-transition labels) use the same 1.1× enlargement of the previous tag metrics. Their measured frames, hit areas and canvas clearance follow the larger height; independent action controls retain their size. Semantic labels always lay out the emoji separately from the plain title, in both selection states and the search carrier. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
 
 [NativeOverviewSearchMorph](NativeOverviewSearchMorph.swift) expands the visible selected tag into the search field. If the selected tag is clipped, it falls back to visible All, then the first visible tag. Neighbor tags move outward and fade while keeping their measured size; the carrier label crossfades. Reversal preserves the actual mounted controls, focus and clipping.
 
+## Tag activity
+
+Directory and semantic tag chips append an 11pt native status ring only when
+their existing browsing membership contains a Thread whose public
+`isExecutionActive` is true (running or waiting for user). Inactive tags omit both
+the ring and its adjacent HStack spacing. Active tags retain the ring's measured
+width while menu/search transitions temporarily hide it, keeping their source
+geometry consistent. Background work alone does not redefine active. Selection tint, task counts,
+membership, ordering, search scope and Runtime filter context remain independent.
+Archive/visibility and Report-coverage exclusions come from the
+same membership used to browse each tag; a Report does not itself become an active
+Agent Thread. A changed-ID activity cache refreshes these booleans when active
+participation changes, without rebuilding membership or reacting to every streamed
+payload. Membership changes also refresh the markers, including the existing lazy
+All membership for its accessibility value. The All chip has no visible activity
+ring. Submenus and search's transient label plane share the other tags' indicator;
+the covered original chrome suspends its rings during search. Native window
+visibility and Reduce Motion remain owned by the production spinner. Tooltips and
+accessibility values announce active presence in the selected UI language. The
+shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActivity.swift).
+
 ## Search results
 
-[NativeOverviewSearch](NativeOverviewSearch.swift) combines immediate keyword matches with the Runtime's [indexed body keyword search](../../../../../internal/services/threadsearch/README.md). Query, scene and search configuration define context; streaming thread revisions do not repeatedly clear rankings. Within one context, periodic refresh and temporary failures retain the last successful body result until a replacement arrives. Every nonempty query uses the global eligible catalog for both metadata matching and the Runtime `threads` request, including directory-only documents and tasks otherwise covered by reports. Archived and terminal-ineligible records remain excluded, and removed items disappear immediately. Attention-collapsed ordinary threads retain search eligibility. The search scene and request context are independent of the browsing tag: switching directory or semantic tags retains the query, rankings and in-flight request. A new query/configuration context clears old rankings, and cancelled or stale responses cannot replace current results. The search field always shows a localized global placeholder, without a tag scope badge.
+[NativeOverviewSearch](NativeOverviewSearch.swift) combines immediate keyword matches with the Runtime's [local hybrid thread search](../../../../../internal/services/threadsearch/README.md). Query, scene and search configuration define context; streaming thread revisions do not repeatedly clear rankings. Within one context, periodic refresh and temporary failures retain the last successful body result until a replacement arrives. Every nonempty query uses the global eligible catalog for both metadata matching and the Runtime `threads` request, including directory-only documents and tasks otherwise covered by reports. Archived and terminal-ineligible records remain excluded, and removed items disappear immediately. The search scene and request context are independent of the browsing tag: switching directory or semantic tags retains the query, rankings and in-flight request. A new query/configuration context clears old rankings, and cancelled or stale responses cannot replace current results. The search field always shows a localized global placeholder, without a tag scope badge.
 
 Empty or whitespace-only queries hide the canvas cards and their attention indicator while retaining the current tag membership and browsing scene without issuing body searches. The search field stays focused, and the empty-results message appears only for a nonempty query. Clearing or closing search returns to the current browsing tag. The first nonempty query bookmarks the browsing camera. Without an intervening tag selection, clearing or closing search restores that camera into the current browsing scene, even when visible result cards survive the transition. Explicit tag selection retains its existing camera-reset behavior. Explicit bookmark restoration takes precedence over preserving the result scene's framing.
 
@@ -297,6 +343,13 @@ for growth beyond the old row height before asserting the shrink barrier.
 Membership freshness uses Report's authored introduction and independent cover
 revision, preserving the two-row covered-card footprint without rebuilding membership.
 The subsequent coverage/filter cases retain the ordinary one-row card without a cover.
+
+The search chrome shows model download/preparation and indexing progress, plus a
+retry action for recoverable failures. Status observation is scoped to the visible
+search presentation and resumes after covering/uncovering it. Immediate metadata
+and keyword results remain available while semantic evidence loads. The Runtime's
+`hybrid` ranking is admitted without changing cards, result identity or navigation;
+no snippet, model selector or historical-execution jump is added.
 
 ## Production control chaos
 
@@ -376,4 +429,142 @@ plugin-owned application visibility and explicit result-reading links keep
 their existing rules. Refresh and restart consume the retained envelope rather
 than guessing from terminal status or local UI actions.
 
-Attention-hidden ordinary threads remain in the search candidate catalog. Browsing memberships exclude them, including tag children. The window reports a stable visit identity and cumulative foreground time across history navigation. A completed execution observed in the foreground can start a read deadline without requiring another open.
+Ordinary browsing and search ignore retired agent-authored visibility markers. Archive, execution eligibility and Report coverage retain their own selection rules. Detail reading no longer sends per-thread visit or foreground-time receipts to Runtime; application collection reading remains independently owned by the desktop.
+
+
+## Viewed application collections
+
+Application plugins can opt into `ApplicationOverviewCollectionPolicy`; Super
+Thread opts in with a 300-second last-close interval and a 1×2 footprint. After
+normal scope/tag filtering and report coverage, two or more eligible reports
+become one view-only card. At exactly 300 seconds a report remains individual;
+reports without close evidence and future-dated closes are ineligible. All is its own view. Nonempty
+search queries retain individual results and rank. Canonical filters/counts and
+report execution coverage still describe underlying documents.
+
+The collection has a reserved canvas identity per type/filter, never a Runtime
+record. Its snapshot retains the exact member projections. Content changes to a
+collected member refresh the selected projection (including that collection);
+unrelated deltas keep the ordinary incremental path. Selection changes within
+the card do not create layout revisions. Only the nearest eligibility deadline
+owns a cancellable timer; read-hidden or inactive canvas presentation cancels it and
+return recomputes eligibility and rearms the deadline. No one-second catalog poll.
+
+Admitted detail navigation is validated against `NativeWorkspaceCatalog`, even
+before the first Overview projection. Each actual route departure (Close, Back,
+replacement or orderly release) records a wall-clock close time. Opening clears
+the previous close deadline, so time spent reading cannot age into a collection.
+Every new close restarts the strict five-minute interval unless a short visit
+retains eligibility that was already established at opening.
+
+Reading an associated ordinary Thread uses the same Super Thread reading owner,
+whether opened in the Report sidecard, from search, through an execution link or
+as a restored Agent route. Ownership comes from the full catalog's declared
+execution coverage, independently of filters, collection membership and archive
+visibility. It matches Thread identity even when reading a newer/current or older
+execution than the report cites. Ordinary execution updates never edit the report
+or reset its reading evidence. Unassociated Threads have no collection owner.
+
+Moving between a Report and its associated Threads (or between its associated
+Threads) continues one visit; loading/admission pauses its foreground clock.
+Closing the route or moving to another owner records the close. Covers, previews,
+carousel rotation and data prefetch do not open visits. Catalog binding changes
+reconcile the active route: departure from the old owner closes that visit, and
+the new owner starts a fresh visit with no transferred dwell. Unlinking leaves no
+owner. A newly generated report can become the current associated reading owner,
+but gains no eligibility until an actual departure and the normal close interval.
+The reverse ownership index updates with application deltas, without a full scan
+for ordinary execution/status events. Ambiguous ownership earns no read credit.
+
+A document eligible at opening retains that eligibility through a short visit,
+independently of tag/search projection or whether a second candidate is present.
+Only **more than 120 seconds** of cumulative foreground reading in that visit
+clears it. Exactly 120 seconds retains it. Focus loss, covering by Moku/Settings,
+missing reader admission, inactive window and disconnection pause reading time;
+resuming the same route accumulates time using monotonic uptime. Reopening the
+same admitted route does not reset dwell. Actual close then reopen starts a new
+visit, so separate short visits do not add up to a long read. One cancellable
+deadline clears retained eligibility during uninterrupted reading. After a long
+read, closing starts a fresh five-minute wait. Cover rotation is never a visit.
+
+`desktop-preferences.json` stores profile-local `applicationCollectionReading`
+entries (`lastClosedAt` in Unix seconds and `retainsEligibility`). Open writes a
+marker without a close timestamp; a crash cannot invent a close. A retained
+eligibility marker survives restart, but foreground duration does not. Orderly
+release records its actual close. Ordinary preference writes preserve both the
+new state and historical `applicationLastOpened`; the latter supplies **no close
+evidence**. Old profiles therefore start unknown until a real open/close, without
+inferring anything from creation, update or execution times. Invalid new reading
+state reports a preferences read error. Failed writes report errors and preserve
+session evidence without claiming disk recovery. These facts are local to the
+client, not cross-device state; collection membership and selection remain
+unpersisted view projections.
+
+The Report plugin supplies a stable content fingerprint covering title, document
+and cover revisions, emoji, introduction and the set of exact execution bindings.
+A changed fingerprint clears both the old close and retained eligibility, so an
+updated member appears individually until another actual visit closes and the
+normal five-minute interval elapses. Updates during a short visit also revoke
+retention; closing that visit starts a new interval. Tags, archive state, catalog
+timestamps/revisions, source execution status and reference reordering do not
+change this fingerprint. Runtime no-op writes retain document/cover revisions.
+
+The fingerprint is saved as optional `contentRevision` in the same reading entry.
+Both full snapshots/reconnects and incremental catalog changes compare it before
+projection, including hidden presentation and other browsing filters. Unknown
+fingerprints establish a baseline without claiming an update; initial generation
+never counts as a revision of previously read content. Existing reading entries
+without a fingerprint cannot detect edits predating that first baseline. Unvisited
+documents acquire their first reading entry only when opened. Failed persistence
+keeps the same session-only fallback as close evidence. Content invalidation does
+not alter canonical counts, report coverage, creation ordering or other members;
+a collection with one survivor dissolves under the existing minimum-two rule.
+
+Opening captures the collection's displayed geometry and keeps its backdrop
+through travel. Prepared return samples the refreshed collection for a short
+visit, or the member's individual card after a long visit. One remaining
+candidate dissolves the collection. Semantic interaction targets include every
+real member, never the synthetic ID; snapshots expose membership and selection.
+
+The Report plugin owns `NativeReportCollection`: a 308pt cover slides horizontally
+while the 144pt metadata stays in place and switches through the shared
+`ThreadCardInkMask`. Cover and ink use one 460ms ease-in-out progress; backward
+paging mirrors only the mask so the reveal follows cover travel. Outgoing ink
+stays above incoming ink. The 4pt layout spacing and card shell stay fixed;
+the spacing is filled by the same glass plate as the body, without an exposed
+background seam or a separate body glass edge. It reuses `NativeReportCover` and `NativeReportCard`
+with `showsCover: false`, rather than duplicating metadata. Coverless reports use
+their emoji on the ordinary surface. Arrow/dot/menu controls use native Liquid
+Glass; the collection owns its regular-glass outer plate while the Canvas
+retains geometry, clipping and hit testing. During page travel,
+metadata gates pointer/accessibility/actions without disabling its visual label.
+Open and archive callbacks recheck the current collection pose, including an
+already-open context menu; accepted archive work may finish across page changes.
+Carousel buttons and menu remain natively disabled, with the disabled boundary
+inside the surrounding glass surface rather than around it; this preserves
+keyboard/accessibility safety without restyling the material. Their ButtonStyle
+keeps the ink appearance stable during the temporary lock.
+The page menu uses the button menu style to inherit that same ButtonStyle;
+the native borderless menu style would dim the x/x label during every turn.
+The count and navigation glass inherit the workspace color scheme; selected
+page markers use primary ink and unselected markers use secondary ink, retaining
+the capsule/dot shape distinction in both light and dark appearances.
+A native cover input region retains pointer drag and trackpad input instead of
+moving the canvas; its scroll/pinch region is intentionally reserved for the
+collection cover.
+
+The selected ID is shared by cover, metadata, opening and semantic navigation.
+Automatic advance is every 8 seconds while foreground, visible and not in a
+cover gesture; manual advance resets the dwell. Offscreen and hidden collections
+stop advancing. Reduce Motion switches immediately, including during travel.
+Active/visibility loss and membership replacement settle the current selection and cancel its
+motion owner. Only the stateless mask identity is replaced; settled metadata
+subscriptions and in-flight card actions remain mounted. Cover geometry ignores
+interpolated offsets once settled, preserving
+mounted WebKit identities instead of reloading them to cancel travel. Transition ownership
+prevents overlapping turns and opening intermediate content. At most four covers
+mount (current, retiring and neighbors), regardless of collection size; larger
+collections use the page menu instead of an overflowing dot row.
+
+The [production-backed demo](../../../../../demos/super-thread-carousel/README.md)
+provides headless model exports and manual viewing without running a Runtime.

@@ -35,6 +35,8 @@ headless lifecycle checks and optional installed-CLI mock-provider verification,
 see [release runtime health](release-health/README.md).
 
 For shared native loading-cloud motion, see the [Swift cloud replay](cloud-motion/README.md).
+For the existing Moku three-dot orbit and lifecycle checks, see the
+[orbit regression](moku-orbit/README.md); eye/blink cases removed during the orb rebrand remain absent after the visual rollback.
 For Moku's fixed dark appearance and native caret without windows, see the
 [windowless appearance replay](moku-appearance/README.md).
 For the windowless shared native scrollbar/control-state replay, run
@@ -159,6 +161,12 @@ mounted Moku page by its saved fixture value, independently of localized help
 text, then checks native editing, autosave normalization and Undo persistence.
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
+
+The Tag statusbar replay uses the production scoped participant and injected tools
+to verify complete ID/title-only active membership, stable tag IDs, atomic batch
+assignment, stale-revision conflicts, five-slot reorganization, archive decoration
+freeze, restoration, and title-change steering/idle wake. Report replay also checks
+that restoring a source clears its historical label projection atomically.
 
 The Runtime replay also drives the production Tag and Report participants with
 inherited and independent execution profiles. After accepted inputs settle, real

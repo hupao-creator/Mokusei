@@ -27,6 +27,7 @@ type modelPresentation struct {
 	Description      string                   `json:"description,omitempty"`
 	SupportedEfforts []string                 `json:"supportedEfforts"`
 	Thinking         model.ThinkingCapability `json:"thinking"`
+	disabled         bool
 }
 type catalog struct {
 	sourceProof plugin.CatalogSourceEvidence
@@ -407,13 +408,15 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 			}
 		}
 		thinking := model.ThinkingCapability{Kind: "unknown", Reason: "Claude native catalog does not provide accurately encodable thinking controls"}
-		if len(advertised) > 0 {
+		if m["supportsEffort"] == false {
+			thinking = model.ThinkingCapability{Kind: "fixed"}
+		} else if len(advertised) > 0 {
 			thinking = model.ThinkingCapability{Kind: "effort", Efforts: advertised}
 		}
 		if m["disabled"] == true {
 			thinking = model.ThinkingCapability{Kind: "unknown", Reason: "Model is disabled in the native catalog"}
 		}
-		result.Models = append(result.Models, modelPresentation{Value: id, DisplayName: nonempty(str(m["displayName"]), nonempty(str(m["display_name"]), id)), Description: str(m["description"]), SupportedEfforts: advertised, Thinking: thinking})
+		result.Models = append(result.Models, modelPresentation{Value: id, DisplayName: nonempty(str(m["displayName"]), nonempty(str(m["display_name"]), id)), Description: str(m["description"]), SupportedEfforts: advertised, Thinking: thinking, disabled: m["disabled"] == true})
 	}
 	if len(result.Models) == 0 {
 		return result, errors.New("Claude native catalog is empty")
@@ -564,21 +567,30 @@ func (a *settingsAdapter) SnapshotExecution(ctx context.Context, r plugin.Settin
 	if e != nil {
 		return nil, e
 	}
+	if str(catalog.CLI["status"]) != "available" || len(catalog.Models) == 0 {
+		return nil, errors.New(nonempty(str(catalog.CLI["message"]), "Claude model catalog unavailable"))
+	}
 	var capability *model.ThinkingCapability
 	for _, m := range catalog.Models {
 		if m.Value == concrete {
+			if m.disabled {
+				return nil, errors.New("Claude concrete model is disabled")
+			}
 			c := m.Thinking
 			capability = &c
 			break
 		}
 	}
-	if capability == nil || capability.Kind == "unknown" {
-		return nil, errors.New("Claude concrete model thinking capability is unknown")
+	// A custom or newly resolved model may have no advertised thinking controls.
+	// Capture only what this native session actually applied, without promoting
+	// that observation into catalog-wide capability evidence.
+	if applied["effort"] != nil && !contains(efforts, captured.Effort) {
+		return nil, errors.New("Claude applied an invalid effort")
 	}
-	if capability.Kind == "fixed" && applied["effort"] != nil {
+	if capability != nil && capability.Kind == "fixed" && applied["effort"] != nil {
 		return nil, errors.New("Claude fixed model unexpectedly applied effort")
 	}
-	if capability.Kind == "effort" && (!contains(capability.Efforts, captured.Effort) || !initial && s.Effort == "") {
+	if capability != nil && capability.Kind == "effort" && (!contains(capability.Efforts, captured.Effort) || !initial && s.Effort == "") {
 		return nil, errors.New("Claude actual effort is not explicitly supported")
 	}
 	if s.Effort != "" && s.Effort != captured.Effort {

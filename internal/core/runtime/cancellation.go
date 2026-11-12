@@ -231,9 +231,9 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 			// A restored Moku owner is cleanup-only. Normal preparation must
 			// retire it when idle and reopen with the full tool injection.
 			owner, err = r.openThread(ctx, thread, nil)
-			if err == nil && mokuTool {
+			if err == nil {
 				// Restore may settle abandoned native work. That outcome did
-				// not come from the interrupt tool we have yet to invoke.
+				// not come from the cancellation request we have yet to invoke.
 				restored, readErr := r.Thread(id)
 				err = readErr
 				if latest := restored.Observation.LatestExecution; latest == nil || latest.Terminal() {
@@ -249,14 +249,20 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 	if err != nil {
 		return model.CancellationResult{}, err
 	}
-	if mokuTool && executionID != "" {
+	if executionID != "" {
 		// All native stop paths settle before acknowledging success. Require
 		// that outcome too: a no-op/late acknowledgement must never mark a
 		// still-running execution that a later manual stop or restart settles.
 		err = r.UpdateThread(context.WithoutCancel(ctx), id, func(t *model.ThreadRecord) error {
 			latest := t.Observation.LatestExecution
 			if t.CancellationID == expected && latest != nil && latest.ExecutionID == executionID && latest.Status == "interrupted" {
-				t.MokuInterruptedExecutionID = executionID
+				if mokuTool {
+					t.MokuInterruptedExecutionID = executionID
+					t.UserInterruptedExecutionID = ""
+				} else {
+					t.UserInterruptedExecutionID = executionID
+					t.MokuInterruptedExecutionID = ""
+				}
 			}
 			return nil
 		})

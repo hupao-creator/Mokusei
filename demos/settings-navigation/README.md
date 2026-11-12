@@ -2,7 +2,7 @@
 
 直接链接当前 checkout 的生产 `NativeMokuScene`、`NativeMokuDock` 和
 `NativeSettingsPage`，以 fixture 配置展示 Overview 内的设置面板。
-面板复用 Dock 的容器，展开时采用居中的原色 glass 表面（780 点宽、默认 900 点高，随内容增高并受视口约束），背景模糊且不可操作，右上角关闭按钮走现有 draft gate。
+面板复用 Dock 的容器，展开时采用居中的不透明原生窗口背景（无 tint、无 Liquid Glass；780 点宽、默认 900 点高，随内容增高并受视口约束），背景模糊且不可操作，右上角关闭按钮走现有 draft gate。
 顶部 tab、共享 onboarding 配置交互和表单直接使用生产实现；主窗口只保留自己的原生窗口按钮。
 
 ```sh
@@ -21,8 +21,17 @@ IME 阻止关闭、分类键盘导航，以及无效分类回退 General。
 [Settings 回放](../../tools/verification/reading-presentation/README.md#settings-capsule-and-return)。
 另存四个 Harness 的 Moku 页浅色、深色及单目标截图，验证透明图标座位、
 派发短横线和虚线路径，以及生产协调/派发绑定和最后目标保护。
-“模型选择偏好”开关直接可见，启用后另存常规、紧凑中文及紧凑英文截图，并验证编辑器保留独立无障碍名称。
+“模型选择偏好”四个独立胶囊按钮复用 Agent 运行方式样式，选中项带勾，窄窗口自动换行。分别操作经济、平衡、性能、自定义，检查绑定并保存紧凑中英文截图；说明只使用“高性价比模型／前沿模型”，实际路由策略不变。
+截图覆盖浅色、深色工作区；面板固定深色，始终使用系统不透明背景，无降低透明度分支。回放不修改用户的系统辅助功能偏好。
 
 数据和保存使用内存 fixture；偏好写入 demo 私有 profile。
 不启动 Runtime、模型服务或麦克风。Harness 子表单为空，不代表其功能已验证。
 需要 macOS 26 / Xcode 26；不安装或重启 Dev 应用。
+
+交互预览可直接打开生产版 Moku Map。切换协调 Agent 可以查看带眼睛角色的换乘和注视动画。
+
+```sh
+swift build --package-path app/macos
+python3 demos/settings-navigation/build.py --moku-map
+.build/settings-moku-map-logo/MokuMapLogoDemo.app/Contents/MacOS/MokuMapLogoDemo
+```

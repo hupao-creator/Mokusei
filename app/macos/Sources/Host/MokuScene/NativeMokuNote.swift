@@ -127,7 +127,7 @@ struct NativeMokuNoteContent: View {
             if let note {
                 Text(note.date, format: .dateTime.month().day().hour().minute())
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white)
                     .lineLimit(1)
                     .accessibilityIdentifier("moku-note-updated")
             }
@@ -166,7 +166,7 @@ struct NativeMokuNoteContent: View {
             } else {
                 Text(localize("Moku 还没有写笔记。", "Moku has not written a note yet."))
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white)
                     .accessibilityIdentifier("moku-note-empty")
             }
         }

@@ -1,4 +1,5 @@
 """Link the real Debug MokuseiUI into an isolated native visual replay."""
+import argparse
 from pathlib import Path
 import platform
 import plistlib
@@ -9,11 +10,16 @@ preview = Path(__file__).resolve().parent
 repo = preview.parents[1]
 package = repo / "app/macos"
 build = package / f".build/{platform.machine()}-apple-macosx/debug"
-application = repo / ".build/settings-navigation/SettingsNavigationDemo.app"
-executable = application / "Contents/MacOS/SettingsNavigationDemo"
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--moku-map", action="store_true", help="Build a preview that opens directly to Moku Map.")
+options = parser.parse_args()
+name = "MokuMapLogoDemo" if options.moku_map else "SettingsNavigationDemo"
+slug = "settings-moku-map-logo" if options.moku_map else "settings-navigation"
+application = repo / ".build" / slug / f"{name}.app"
+executable = application / "Contents/MacOS" / name
 link_list = build / "Mokusei.product/Objects.LinkFileList"
 if not link_list.is_file():
-    raise SystemExit("Build current production modules first: make check")
+    raise SystemExit("Build current production modules first: swift build --package-path app/macos")
 executable.parent.mkdir(parents=True, exist_ok=True)
 resources = application / "Contents/Resources"
 resources.mkdir(exist_ok=True)
@@ -21,13 +27,14 @@ for bundle in build.glob("*.bundle"):
     shutil.copytree(bundle, resources / bundle.name, dirs_exist_ok=True)
 with (application / "Contents/Info.plist").open("wb") as output:
     plistlib.dump({
-        "CFBundleIdentifier": "com.mokusei.settings-navigation-demo",
-        "CFBundleName": "SettingsNavigationDemo",
-        "CFBundleExecutable": "SettingsNavigationDemo",
+        "CFBundleIdentifier": f"com.mokusei.{slug}-demo",
+        "CFBundleName": name,
+        "CFBundleExecutable": name,
         "CFBundlePackageType": "APPL",
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "26.0",
         "SettingsDemoDirectory": str(application.parent.resolve()),
+        "SettingsDemoOpensMoku": options.moku_map,
     }, output)
 objects = [line.strip().strip('"') for line in link_list.read_text().splitlines()
            if "/Mokusei.build/" not in line]

@@ -114,11 +114,13 @@ public struct NativeOverviewWorkspaceView: View {
             .overlay(alignment: .top) {
                 NativeOverviewChrome(filters: landing ? [] : model.visibleFilters, selectedTag: model.selectedTag,
                     selectedScope: model.selectedScope, selectedKind: model.tagSelection?.kind,
+                    allHasActiveTasks: model.allHasActiveTasks,
                     cameraManual: model.canvasState.camera.manual,
                     focusFilterRequestKey: model.focusFilterRequestKey, strings: chromeStrings,
                     isSearching: model.isSearching, searchQuery: model.searchQuery,
                     searchFocusRequest: model.searchFocusRequest, onSearchChange: model.updateSearch,
                     onSearchExit: model.endSearch,
+                    searchPreparation: model.searchPreparation, onSearchRetry: model.retrySearchPreparation,
                     onTagChange: model.selectTag,
                     onReturnToAuto: { model.canvasState.camera.returnToAuto() }, onSettings: callbacks.onSettings,
                     onRestart: callbacks.onRestart, onFocusFilterRequestConsumed: model.consumeFilterFocus,
@@ -175,7 +177,8 @@ public struct NativeOverviewWorkspaceView: View {
             strings.settings = "Settings"; strings.restart = "Restart development app"; strings.actions = "Overview actions"
             strings.search = "Search all conversations"; strings.closeSearch = "Close search (Esc)"
             strings.closeFilter = "Close child tag menu"
-            strings.filter = "Filter by tag"; strings.directoryPrefix = "Working directory: "; strings.aliasPrefix = "; aliases: "
+            strings.filter = "Filter by tag"
+            strings.containsActiveTasks = "Contains active tasks"
         }
         return strings
     }
@@ -188,6 +191,7 @@ private struct NativeOverviewWorkspaceCard: View {
     let callbacks: NativeOverviewWorkspaceCallbackStore
     @State private var lifetime = PluginLifetime()
     @State private var error: String?
+    @State private var archivePending = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.locale) private var locale
 
@@ -197,6 +201,8 @@ private struct NativeOverviewWorkspaceCard: View {
             case .harness(let snapshot):
                 let thread = snapshot.input.thread
                 snapshot.card(respond: { try await respond($0, thread: thread) }, openThread: { open(thread.id) })
+                    .environment(\.threadCardArchiveAction, archiveAction(for: thread))
+                    .environment(\.threadCardArchivePending, archivePending)
                     .environment(\.nativeThreadIdentityKey, thread.id.string)
                     .environment(\.threadCardLogo, { @MainActor in
                         (try? model.workspace.harnessHost.registry.require(thread.harnessID))?.logo(size: 12) ?? AnyView(EmptyView())
@@ -213,6 +219,8 @@ private struct NativeOverviewWorkspaceCard: View {
                     .accessibilityAction(named: Text(model.workspace.preferences.locale.text("打开会话", "Open conversation"))) { open(thread.id) }
             case .application(let plugin, let snapshot):
                 applicationCard(plugin: plugin, snapshot: snapshot)
+            case .collection(let plugin, let members):
+                collectionCard(plugin: plugin, members: members)
             case nil:
                 // Removed entities retain an inert geometric slot until the queued
                 // exit/reflow commits. They never acquire fresh execution authority.
@@ -221,9 +229,6 @@ private struct NativeOverviewWorkspaceCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .environment(\.locale, locale)
-        .overlay {
-            NativeOverviewWorkspaceCardOperation(itemID: item.id, model: model)
-        }
         .overlay(alignment: .bottomTrailing) {
             if let rank = model.searchRank(for: item.id) {
                 Text(model.workspace.preferences.locale.text("相关度 #\(rank + 1)", "Match #\(rank + 1)"))
@@ -238,15 +243,64 @@ private struct NativeOverviewWorkspaceCard: View {
         .onDisappear { lifetime.cancel() }
     }
     private func open(_ id: JSONText) {
-        guard model.canvasState.allowsActivation(cardID: item.id) else { return }
+        guard !archivePending, model.canvasState.allowsActivation(cardID: item.id) else { return }
         callbacks.current.openThread(id, nil)
         Task { await model.recordUserAction(kind: "open-thread", thread: .init(threadID: id, typeID: JSONText("agent"))) }
+    }
+    private func archiveAction(for thread: HarnessThread) -> (@MainActor () -> Void)? {
+        guard canArchive(thread) else { return nil }
+        return { Task { await archive(thread.id) } }
+    }
+    private func canArchive(_ thread: HarnessThread) -> Bool {
+        guard thread.moku != true, !thread.mokuHistory, thread.archived != true,
+              !thread.pendingInput, thread.observation.backgroundWork == nil,
+              let execution = thread.observation.latestExecution else { return false }
+        return execution.status == .interrupted && thread.userInterruptedExecutionID == execution.executionID
+    }
+    private func archive(_ id: JSONText) async {
+        guard !archivePending, model.canvasState.allowsActivation(cardID: item.id),
+              let current = model.workspace.catalog.thread(id), canArchive(current) else { return }
+        archivePending = true
+        error = nil
+        model.canvasState.beginInteraction(cardID: item.id)
+        defer {
+            archivePending = false
+            model.canvasState.endInteraction(cardID: item.id)
+        }
+        do {
+            try lifetime.checkCancellation()
+            _ = try await model.workspace.client.invoke("thread:set-archived", args: [.string(id), .bool(true)])
+        } catch {
+            if !lifetime.isCancelled { self.error = error.localizedDescription }
+        }
     }
     private func respond(_ request: HarnessRespondRequest, thread: HarnessThread) async throws {
         model.canvasState.beginInteraction(cardID: item.id)
         defer { model.canvasState.endInteraction(cardID: item.id) }
         try await model.workspace.harnessHost.actions(for: thread).respond(request)
     }
+    private func collectionCard(plugin: AnyApplicationThreadPlugin, members: [ApplicationOverviewSnapshot]) -> AnyView {
+        do {
+            let props = try members.map { snapshot in
+                ApplicationThreadProps(entry: snapshot.entry,
+                    context: try model.applicationFactories.rendererContext(plugin, snapshot.entry, lifetime))
+            }
+            return try plugin.collectionCard(props: props, initialSelection: model.selectedCollectionMember(for: item),
+                active: model.presentationActive && model.facts.overviewVisible && model.facts.focused
+                    && model.facts.documentVisible && !model.facts.settingsOpen,
+                onSelection: { model.selectCollectionMember($0, cardID: item.id) }, openThread: { reference in
+                    guard plugin.hasDetail, model.canvasState.allowsActivation(cardID: item.id),
+                          members.contains(where: { $0.entry.ref == reference }) else { return }
+                    callbacks.current.openApplication(reference, nil)
+                })
+        } catch {
+            return AnyView(Text(error.localizedDescription).font(NativeTypography.inter(size: 11))
+                .foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(NativePalette.overview.surface.swiftUI))
+        }
+    }
+
     private func applicationCard(plugin: AnyApplicationThreadPlugin, snapshot: ApplicationOverviewSnapshot) -> AnyView {
         do {
             let provided = try model.applicationFactories.rendererContext(plugin, snapshot.entry, lifetime)
@@ -268,18 +322,6 @@ private struct NativeOverviewWorkspaceCard: View {
                 Text(snapshot.entry.title.string).font(NativeTypography.inter(size: 15, weight: 620))
                 Text(error.localizedDescription).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.danger.swiftUI)
             }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
-        }
-    }
-}
-
-/// Keep operation/visibility observation out of the card's focusable subtree.
-private struct NativeOverviewWorkspaceCardOperation: View {
-    let itemID: String
-    let model: NativeOverviewWorkspaceModel
-    var body: some View {
-        if let operation = model.operation(for: itemID) {
-            NativeOverviewOperationDecoration(operation: operation,
-                visible: model.facts.overviewVisible && model.facts.documentVisible).allowsHitTesting(false)
         }
     }
 }

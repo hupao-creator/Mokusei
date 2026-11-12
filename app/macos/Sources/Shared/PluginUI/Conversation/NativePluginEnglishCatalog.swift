@@ -139,6 +139,8 @@ enum NativePluginEnglishCatalog {
         "审查": "Review",
         "可执行文件": "Executable",
         "该值在 Thread 创建时确定。": "This value is fixed when the thread is created.",
+        "高级选项": "Advanced options",
+        "提供商": "Provider",
         "使用默认配置": "Use default configuration",
         "关闭后可自定义新建 Thread 使用的配置。": "Turn this off to configure new threads yourself.",
         "该 Thread 正在运行，请等待完成或停止后再修改。": "This thread is running. Wait for completion or stop it before making changes.",

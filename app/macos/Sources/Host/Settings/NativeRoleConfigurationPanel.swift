@@ -79,15 +79,10 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
     }
 }
 
-struct NativeSettingsPanelGlass: View {
-    @Environment(\.accessibilityReduceTransparency) private var opaque
-    @Environment(\.colorScheme) private var scheme
+/// Settings owns an opaque reading surface even when transparency is available.
+struct NativeSettingsPanelBackground: View {
     var body: some View {
-        if opaque {
-            RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-                .fill(Color(white: scheme == .dark ? 0.12 : 0.97))
-        } else {
-            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
-        }
+        RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
+            .fill(Color(nsColor: .windowBackgroundColor))
     }
 }

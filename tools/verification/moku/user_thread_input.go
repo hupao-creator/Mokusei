@@ -171,7 +171,6 @@ func runUserThreadInputReplay() error {
 	annotationNotification := h.awaitUserNotifications(2)[1]
 	line = strings.SplitN(strings.TrimPrefix(annotationNotification.input.Parts[0].Text, userThreadEventPrefix), "\n", 2)[0]
 	mokuReplayMust(json.Unmarshal([]byte(line), &notification))
-	events := userInputEvents(s)
 	var annotated model.UserThreadInput
 	mokuReplayMust(json.Unmarshal(notification.Event.Data, &annotated))
 	canonicalPath, err := filepath.EvalSymlinks(file.Path)
@@ -265,7 +264,7 @@ func runUserThreadInputReplay() error {
 	all := h.awaitUserNotifications(5)
 	preview := all[4].input.Parts[0].Text
 	mokuReplayCheck(utf8.ValidString(preview) && len(preview) < 150000 && strings.Contains(preview, `"truncated":true`), "large notification not bounded or explicit")
-	events = userInputEvents(s)
+	events := userInputEvents(s)
 	mokuReplayMust(json.Unmarshal(events[4].Data, &accepted))
 	mokuReplayCheck(accepted.Parts[0].Text == large, "durable input was truncated")
 	ids := map[string]bool{}

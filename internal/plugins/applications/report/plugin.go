@@ -22,7 +22,7 @@ type Plugin struct{}
 
 func New() *Plugin { return &Plugin{} }
 func (*Plugin) Manifest() plugin.ApplicationManifest {
-	return plugin.ApplicationManifest{ID: "report", DisplayName: "Super Thread Agent", APIVersion: 1, Contributes: plugin.Contributions{BackgroundAgents: []string{"report.agent"}, ThreadTypes: []string{ThreadTypeID}, Settings: []string{SettingsID}, Collections: []string{CollectionID}, Queries: []string{"report.read", "report.list", "report.html", "report.cover", "report.relations", "report.context"}, Commands: []string{"report.create", "report.update", "report.unlink"}}}
+	return plugin.ApplicationManifest{ID: "report", DisplayName: "Super Thread Agent", APIVersion: 1, Contributes: plugin.Contributions{BackgroundAgents: []string{"report.agent"}, ThreadTypes: []string{ThreadTypeID}, Settings: []string{SettingsID}, Collections: []string{CollectionID}, Queries: []string{"report.read", "report.list", "report.statusbar", "report.html", "report.cover", "report.relations", "report.context"}, Commands: []string{"report.create", "report.update", "report.unlink"}}}
 }
 func (*Plugin) Register(registry plugin.Registry) error {
 	if err := background.RegisterSettings(registry, "report", SettingsID); err != nil {
@@ -31,19 +31,16 @@ func (*Plugin) Register(registry plugin.Registry) error {
 	if err := RegisterDomain(registry); err != nil {
 		return err
 	}
-	return registry.BackgroundAgent(plugin.BackgroundAgentDefinition{ID: "report.agent", ExecutionSettingsID: SettingsID, InstancePolicy: plugin.PerDirectoryScope, Requires: []plugin.CapabilityKey{plugin.BackgroundConfigurationCapabilityKey, plugin.BackgroundEnvironmentCapabilityKey, plugin.BackgroundSessionsCapabilityKey, plugin.LifecycleCapabilityKey, plugin.OrdinaryTaskReadCapabilityKey}, Create: newAgent})
+	return registry.BackgroundAgent(plugin.BackgroundAgentDefinition{ID: "report.agent", ExecutionSettingsID: SettingsID, InstancePolicy: plugin.PerDirectoryScope, Requires: []plugin.CapabilityKey{plugin.BackgroundConfigurationCapabilityKey, plugin.BackgroundEnvironmentCapabilityKey, plugin.BackgroundSessionsCapabilityKey, plugin.LifecycleCapabilityKey}, Create: newAgent})
 }
 func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, error) {
 	if _, err := reportScope(ctx.Owner); err != nil {
 		return nil, err
 	}
 
-	tasks, err := plugin.Require[plugin.OrdinaryTaskReadCapability](ctx.Capabilities, plugin.OrdinaryTaskReadCapabilityKey)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	var runner *background.Runner
-	runner, err = background.NewRunner(ctx, background.Behavior{SettingsID: SettingsID, ID: ctx.Owner.AgentID, LazyInitialize: true, IdleDispose: true, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Filter: plugin.LifecycleScope{{Sources: []string{"application"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"execution.completed"}}}}, Instructions: []string{instructions, eli5Instructions}, Message: func(_ context.Context, request background.BatchRequest) (model.AgentInput, error) {
+	runner, err = background.NewRunner(ctx, background.Behavior{SettingsID: SettingsID, ID: ctx.Owner.AgentID, LazyInitialize: true, IdleDispose: true, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Filter: plugin.LifecycleScope{{Sources: []string{"application"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"execution.completed"}}}}, Instructions: []string{instructions, eli5Instructions}, Message: func(callCtx context.Context, request background.BatchRequest) (model.AgentInput, error) {
 		instruction := "Review this lifecycle batch and decide what reports need work."
 		if request.Steering {
 			instruction = "Incorporate these additional lifecycle events into your current batch now. Revisit earlier reporting decisions using the new evidence, and continue all unfinished report work."
@@ -52,9 +49,13 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 		if err != nil {
 			return model.AgentInput{}, err
 		}
-		return background.Input(fmt.Sprintf("You maintain reports only for scope %q (%s). Never read or aggregate evidence or reports from another scope. %s Read relevant context as needed. Batch: %s\n%s", ctx.Owner.ScopeLabel, ctx.Owner.Binding.Scope, instruction, request.BatchID, events)), nil
+		status, err := ctx.Domain.Query(callCtx, "report.statusbar", json.RawMessage(`{}`))
+		if err != nil {
+			return model.AgentInput{}, err
+		}
+		return background.Input(fmt.Sprintf("You maintain reports only for scope %q (%s). Never read or aggregate evidence or reports from another scope. %s Read relevant context as needed. Batch: %s\n%s\nStatusbar: %s", ctx.Owner.ScopeLabel, ctx.Owner.Binding.Scope, instruction, request.BatchID, events, status)), nil
 	}, Tools: func(lifetime context.Context) []plugin.ToolBinding {
-		return append(background.EvidenceTools(lifetime, tasks, runner), reportTools(lifetime, ctx.Domain, runner)...)
+		return reportTools(lifetime, ctx.Domain, runner)
 	}})
 	return runner, err
 }

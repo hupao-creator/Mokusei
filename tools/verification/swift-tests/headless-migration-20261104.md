@@ -88,7 +88,7 @@ Each row below names the existing source, not a replacement test.
 | `NativeCloudMetalTests` | 5 | [NativeCloudMetalTests.swift](../../../app/macos/Tests/Integration/Host/NativeCloudMetalTests.swift) |
 | `NativeComposerAdmissionReplay` | 8 | [NativeComposerAdmissionReplay.swift](../../../app/macos/Tests/Integration/Host/NativeComposerAdmissionReplay.swift) |
 | `NativeMarkdownHTTPMediaTests` | 1 | [NativeBrowserViewportTests.swift](../../../app/macos/Tests/Integration/Host/NativeBrowserViewportTests.swift) |
-| `NativeMokuBlinkTests` | 4 | [NativeMokuBlinkTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuBlinkTests.swift) |
+| `NativeMokuBlinkTests` | 4（历史记录；rebrand 后移除） | 眼睛与眨眼已退役 |
 | `NativeMokuDirectoryMentionsTests` | 3 | [NativeMokuDirectoryMentionsTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuDirectoryMentionsTests.swift) |
 | `NativeMokuExecutionLinkRoutingTests` | 2 | [NativeMokuExecutionLinkTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuExecutionLinkTests.swift) |
 | `NativeMokuOperationTests` | 2 | [NativeMokuOperationTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuOperationTests.swift) |

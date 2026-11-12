@@ -105,7 +105,6 @@ func SnapshotNote(note *ThreadNote) NoteState {
 }
 
 type ThreadRecord struct {
-	AttentionHidden bool `json:"attentionHidden,omitempty"`
 	SessionRecord
 	// DirectoryTag and DirectoryScope are host-derived presentation metadata.
 	// The runtime fills them on public projection, never from client filesystem state.
@@ -125,6 +124,8 @@ type ThreadRecord struct {
 	// Only a successful Moku interrupt tool call supplies this exact execution ID.
 	// Absence is unknown provenance, never evidence of a tool interruption.
 	MokuInterruptedExecutionID string `json:"mokuInterruptedExecutionId,omitempty"`
+	// Only an acknowledged user Stop supplies this exact execution ID.
+	UserInterruptedExecutionID string `json:"userInterruptedExecutionId,omitempty"`
 }
 
 type ThreadRef struct {

@@ -29,7 +29,7 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored private lazy var executionContinuation = NativeExecutionContinuation(workspace: workspace)
     @ObservationIgnored private lazy var mokuSubmission = NativeMokuSubmission(workspace: workspace)
     @ObservationIgnored private var reportInputBack: (() -> Void)?
-    private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef, reportSelection: UUID?)?
+    private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef, reportSelection: UUID?, text: String)?
     var awaitingExecutionContinuation: Bool {
         guard let pending = executionSendNavigation else { return false }
         return pending.route == navigationRouteID && pending.generation == scene.composerGeneration
@@ -45,10 +45,6 @@ public final class NativeWorkspacePresentation {
     public private(set) var selected: ApplicationThreadRef?
     public fileprivate(set) var mountedReadingThread: ApplicationThreadRef?
     public private(set) var performanceOperation: UInt64?
-    @ObservationIgnored private lazy var attentionVisits = NativeThreadVisitTracker { [weak self] payload in
-        guard let self else { throw CancellationError() }
-        _ = try await self.workspace.invoke("thread:record-visit", args: [payload])
-    }
     @ObservationIgnored private var performanceVisit: NativePerformanceSpan?
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readingPanelSource: CGRect?
@@ -248,7 +244,7 @@ public final class NativeWorkspacePresentation {
             followUpVisible = false; resetNavigation(); nativeApplicationNavigation = false
         }
         if selected != ref {
-            readingPanelSourceCardID = selected == nil ? sourceCardID ?? ref.threadID.string : nil
+            readingPanelSourceCardID = selected == nil ? sourceCardID ?? overview.sourceCardID(for: ref) ?? ref.threadID.string : nil
             readingPanelSource = readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
             threadIdentityVisit = ref.typeID == "agent" && target == nil
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
@@ -316,6 +312,14 @@ public final class NativeWorkspacePresentation {
         let route = navigationRouteID, target = selected
         await canvas.prepareForPresentation()
         guard !Task.isCancelled, navigationRouteID == route, selected == target else { return }
+        // A recently opened collection member returns as an individual card.
+        // Resolve its current visual slot after reflow, rather than shrinking the
+        // reader into a different report now showing in the old collection.
+        if let target, target.typeID != "agent", readingPanelSourceCardID != nil,
+           (try? workspace.plugins.applications.requireThread(target.typeID).overviewCollection) != nil {
+            let id = overview.sourceCardID(for: target) ?? target.threadID.string
+            readingPanelSourceCardID = overview.items.contains(where: { $0.id == id }) ? id : nil
+        }
         if overview.error == nil, canvas.layoutError == nil, usesReadingPanel, let id = readingPanelSourceCardID {
             readingPanelSource = canvas.displayedFrame(for: id)
         } else { readingPanelSource = nil }
@@ -324,6 +328,7 @@ public final class NativeWorkspacePresentation {
     public func finishBack() {
         performanceVisit?.end(); performanceVisit = nil; performanceOperation = nil
         let previous = selected
+        overview.recordApplicationClose()
         selected = nil; readingTarget = nil; threadIdentityVisit = nil; resetNavigation(); followUpVisible = false
         nativeApplicationNavigation = false
         if let previous, previous.typeID == "agent" { workspace.voice.releaseThread(previous.threadID) }
@@ -380,7 +385,8 @@ public final class NativeWorkspacePresentation {
     }
     public func openSettings() {
         guard canOpenSettings else { workspace.settingsOpen = scene.settingsOpen; return }
-        if !scene.settingsOpen {
+        if !scene.settingsOpen || scene.settingsClosing {
+            workspace.settingsModel.draft.beginPageEditing()
             settingsNavigation.visit = UUID()
             settingsNavigation.section = workspace.settingsModel.runtimeAvailable ? "moku" : "general"
         }
@@ -389,14 +395,13 @@ public final class NativeWorkspacePresentation {
 
     public func setFollowUpVisible(_ value: Bool) { followUpVisible = value; publishPresence() }
 
+    private var readingForeground: Bool {
+        focused && documentVisible && readingWindowActive && workspace.connection == .connected
+            && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen
+    }
+
     public func publishPresence() {
         guard started else { return }
-        let agentID = selected?.typeID == "agent" ? selected?.threadID : nil
-        let latest = agentID.flatMap { workspace.catalog.thread($0)?.observation.latestExecution }
-        attentionVisits.update(thread: agentID,
-            visible: focused && documentVisible && readingWindowActive && workspace.connection == .connected && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen,
-            completed: latest?.status == .completed ? latest?.executionID : nil,
-            fromSearch: overview.isSearching && !overview.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         configureThreadVoice()
         // Keep Dock eligibility continuous while moving between its two routes.
         if selected == nil { scene.overviewVisible = true; scene.readingPanelVisible = false }
@@ -412,6 +417,10 @@ public final class NativeWorkspacePresentation {
             followUpThread: followUpVisible ? selected : nil,
             focused: focused, documentVisible: documentVisible,
             available: workspace.runtimeAvailable))
+        // Hide Overview before writing the open marker to retain its backdrop.
+        // Catalog changes also reconcile association ownership while reading.
+        overview.recordReadingRoute(selected)
+        overview.updateApplicationReading(visible: readingForeground)
     }
 
     private func configureThreadVoice() {
@@ -543,7 +552,7 @@ public final class NativeWorkspacePresentation {
         guard let thread = workspace.catalog.thread(pending.destination.thread.threadID) else { return }
         executionSendNavigation = nil
         if let selection = pending.reportSelection {
-            reportSidecards.continueExecution(pending.destination, from: pending.reference, selection: selection)
+            reportSidecards.continueExecution(pending.destination, from: pending.reference, selection: selection, text: pending.text)
             return
         }
         let previousDockFrame = scene.executionDockPlacement.frame
@@ -629,8 +638,12 @@ public final class NativeWorkspacePresentation {
             normalDraft = superThreadDrafts[superThread]!
         } else { normalDraft = draft }
         dockDraft = sidecardComposer != nil ? sidecardDraft ?? normalDraft : normalDraft
-        state.setComposerContext(dockDraft, opensInput: thread != nil || superThread != nil, keepsInputOpen: thread != nil || superThread != nil,
-            inputAdmissionReady: (selected == nil || readingEntranceAdmitted) && (reportExecution == nil || reportInputReady),
+        // A Report lends input only to its selected Thread. Keep the default
+        // document/list closed at the shared admission boundary so capsule,
+        // keyboard and scripted open requests obey the same route policy.
+        state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil,
+            inputAdmissionReady: (selected == nil || readingEntranceAdmitted)
+                && (selected?.typeID != "report.document" || (thread != nil && reportInputReady)),
             autofocus: autofocus)
         if started {
             workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner,
@@ -648,7 +661,7 @@ public final class NativeWorkspacePresentation {
         readingEntranceAdmitted = true
         publishPresence()
         configureDockInput(in: scene)
-        if dockThreadID != nil || mokuSuperThreadID != nil, !scene.dockCovered, !scene.dockInteractionVisible {
+        if dockThreadID != nil, !scene.dockCovered, !scene.dockInteractionVisible {
             scene.setInputOpen(true)
         }
         return true
@@ -680,7 +693,7 @@ public final class NativeWorkspacePresentation {
             if let executionID, navigationRouteID == route, scene.composerGeneration == generation {
                 let reference = ApplicationExecutionRef(thread: .init(threadID: id, typeID: "agent"), executionID: executionID)
                 if dockExecution == reference {
-                    executionSendNavigation = (route, generation, reference, accepted, reportSelection)
+                    executionSendNavigation = (route, generation, reference, accepted, reportSelection, submission.text)
                     finishExecutionSendNavigation()
                 }
             }
@@ -768,6 +781,7 @@ public final class NativeWorkspacePresentation {
         performanceVisit?.end(.cancelled); performanceVisit = nil; performanceOperation = nil
         if let releaseTask { await releaseTask.value; return }
         guard started else { return }
+        overview.recordApplicationClose()
         started = false
         workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner, active: false, allowed: false)
         clearSidecardComposer()
@@ -777,7 +791,6 @@ public final class NativeWorkspacePresentation {
         themeTransition.cancel(); scene.settle(); moku.stop(); applicationHost.release()
         if let voiceOwner { workspace.voice.releaseThread(voiceOwner); self.voiceOwner = nil }
         let task = Task {
-            await attentionVisits.finish()
             await overview.stop(); await draft.dispose(discardRemoteAttachments: !runtimeStopped)
             for draft in threadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
             for draft in superThreadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
@@ -1202,7 +1215,7 @@ public struct NativeWorkspaceCommands: Commands {
             Button("Moku") { presentation?.scene.toggleMoku() }.keyboardShortcut("b")
                 .disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.settingsOpen == true)
             Button(locale.text("输入", "Compose")) { presentation?.scene.toggleInput() }
-                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.dockRouteVisible != true || presentation?.scene.settingsOpen == true)
+                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.dockRouteVisible != true || presentation?.scene.inputInteractionReady != true || presentation?.scene.settingsOpen == true)
             Button(locale.text("Moku 笔记", "Moku Note")) { presentation?.toggleMokuNote() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(presentation?.canToggleMokuNote != true)

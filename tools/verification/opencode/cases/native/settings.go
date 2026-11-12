@@ -14,7 +14,7 @@ import (
 )
 
 // Exercise the settings and Thread adapters against the installed engine. A
-// protocol-shaped fake alone cannot establish native default-agent ordering or
+// protocol-shaped fake alone cannot establish native build selection or
 // prove that changing models preserves the native conversation.
 func verifyNativeSettings(parent context.Context, nativeCLI, cwd string, env map[string]string, config oc.Object, requests func() []map[string]any) {
 	ctx, cancel := context.WithTimeout(parent, 60*time.Second)
@@ -40,7 +40,7 @@ func verifyNativeSettings(parent context.Context, nativeCLI, cwd string, env map
 	must(err)
 	var pinned oc.HarnessSettings
 	must(json.Unmarshal(snapshot, &pinned))
-	if pinned.ThreadSettings.Agent == "" || pinned.ThreadSettings.Provider != "fixture" || pinned.ThreadSettings.Model != "fixture-model" || pinned.ThreadSettings.Variant == "" || pinned.ThreadSettings.PermissionMode != "auto" {
+	if pinned.ThreadSettings.Agent != "build" || pinned.ThreadSettings.Provider != "fixture" || pinned.ThreadSettings.Model != "fixture-model" || pinned.ThreadSettings.Variant == "" || pinned.ThreadSettings.PermissionMode != "auto" {
 		panic(fmt.Sprintf("native defaults were not fully pinned: %s", snapshot))
 	}
 	saved, err := api.SnapshotExecution(ctx, plugin.SettingsRequest{Settings: snapshot, Cwd: cwd}, false)
@@ -135,7 +135,7 @@ func verifyNativeSettings(parent context.Context, nativeCLI, cwd string, env map
 	}
 	must(handle.Close())
 	must(api.Close())
-	fmt.Println("PASS native settings: default-agent snapshot/save, credential-free catalog and thinking capability, exact cross-provider model update, preserved session/history, wire model/variant, terminal events and execution attribution")
+	fmt.Println("PASS native settings: build snapshot/save, credential-free catalog and thinking capability, exact cross-provider model update, preserved session/history, wire model/variant, terminal events and execution attribution")
 }
 
 type settingsState struct {

@@ -80,7 +80,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
 
     private var locale: DesktopLocale { preferences.locale }
     private var activeApplications: [NativeApplicationSettingsSection] {
-        applicationSections.filter { definition in model.plugins.first { $0.key == "extension:\(definition.owner)" }?.enabled != false }
+        applicationSections.filter { definition in sections.contains(definition.id) }
     }
     private var sections: [String] { NativeSettingsNavigation.sections(model: model, applications: applicationSections) }
     private var activeSection: String { sections.contains(navigation.section) ? navigation.section : "general" }
@@ -110,9 +110,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             .nativeLayoutLog("settings.page")
             .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
-            // Settings is the dark Moku expanded into a page. The scope keeps
-            // SwiftUI tokens and hosted AppKit controls dark at every window
-            // appearance without recoloring the surrounding workspace.
+            // Settings scopes its dark appearance without recoloring the workspace.
             .environment(\.colorScheme, .dark)
             .environment(\.locale, Locale(identifier: locale.rawValue))
             .environment(\.nativeSettingsInteractions, navigation.interactions)
@@ -126,6 +124,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             })
             .background(SettingsNavigationInputObserver { keyboardNavigation = $0 })
             .onAppear {
+                model.draft.beginPageEditing()
                 model.draft.diagnostics.record(.page, .opened, revision: model.draft.revision)
                 navigation.mounted = true
                 focusedBack = true
@@ -218,7 +217,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
 
     private var header: some View {
         HStack(spacing: 0) {
-            // Reserved for the resident face, which the Dock centres here.
+            // The Dock moves its resident eyes into this reserved header seat.
             Color.clear.frame(width: NativeSettingsHeaderLayout.faceSlot.width, height: NativeSettingsHeaderLayout.faceSlot.height)
                 .accessibilityHidden(true)
             GeometryReader { geometry in
@@ -318,7 +317,8 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 } else if let application = activeApplications.first(where: { $0.id == activeSection }) {
                     applicationContent(application)
                 }
-            }.id(activeSection)
+            }.environment(\.nativeSettingsEditorDrafts, model.draft.editorDrafts)
+                .id(activeSection + model.draft.editorDrafts.generation.uuidString)
         } else if let application = activeApplications.first(where: { $0.id == activeSection }), model.runtimeAvailable {
             applicationContent(application)
         }
@@ -510,6 +510,9 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
         navigation.section = sections[next]; focusedTab = navigation.section
     }
     private func localizedError(_ text: String) -> String {
+        if text == NativeSettingsNavigation.incompleteEditError {
+            return locale.text(text, "Complete the model configuration before closing Settings.")
+        }
         if model.draft.conflicted { return locale.text(text, "Settings changed in another client. Your draft is retained. Keep my changes and retry merges independent changes and keeps your edits for overlapping fields.") }
         return text
     }

@@ -2,11 +2,13 @@ package threadsearch
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/internal/services/embedding"
 )
 
 type Config struct {
@@ -18,18 +20,22 @@ type Config struct {
 func defaultConfig() Config { return Config{Pipeline: indexVersion} }
 
 type Status struct {
-	Config           Config `json:"config"`
-	Working          bool   `json:"working"`
-	Eligible         int    `json:"eligible"`
-	Indexed          int    `json:"indexed"`
-	PendingDocuments int    `json:"pendingDocuments"`
-	Truncated        int    `json:"truncated"`
-	Reason           string `json:"reason,omitempty"`
+	Config           Config          `json:"config"`
+	Working          bool            `json:"working"`
+	Eligible         int             `json:"eligible"`
+	Indexed          int             `json:"indexed"`
+	PendingDocuments int             `json:"pendingDocuments"`
+	Truncated        int             `json:"truncated"`
+	Reason           string          `json:"reason,omitempty"`
+	Semantic         *SemanticStatus `json:"semantic,omitempty"`
 }
 type Options struct {
-	Trace   func(plugin.SearchDiagnostic)
-	Store   *store.Store
-	Sources func(store.Snapshot, bool) ([]Source, error)
+	Trace      func(plugin.SearchDiagnostic)
+	Store      *store.Store
+	Embedding  embedding.Provider
+	VectorPath string
+	Tuning     Tuning
+	Sources    func(store.Snapshot, bool) ([]Source, error)
 	// SourceChanges projects only owner keys that differ between immutable
 	// snapshots. A zero previous snapshot requests initial enumeration.
 	SourceChanges func(current, previous store.Snapshot, includeContent bool) ([]Source, error)
@@ -58,6 +64,7 @@ type Manager struct {
 	sourceSnapshot          store.Snapshot
 	sourceGeneration        uint64
 	builtGeneration         uint64
+	semantic                *semanticIndex
 }
 
 func readConfig(snapshot store.Snapshot) (Config, error) {
@@ -66,6 +73,10 @@ func readConfig(snapshot store.Snapshot) (Config, error) {
 	return c, err
 }
 func New(ctx context.Context, options Options) (*Manager, error) {
+	options.Tuning = options.Tuning.defaults()
+	if err := options.Tuning.validate(); err != nil {
+		return nil, err
+	}
 	// Only derived search records migrate. Source records and on-disk assets
 	// remain untouched; retired configuration fields are deliberately ignored.
 	if _, err := options.Store.Update(ctx, func(tx *store.Tx) error {
@@ -104,6 +115,13 @@ func New(ctx context.Context, options Options) (*Manager, error) {
 	}
 	m := &Manager{options: options, ctx: life, cancel: cancel, watcherDone: make(chan struct{}), maintenanceWake: make(chan struct{}, 1)}
 	m.requestCtx, m.requestCancel = context.WithCancel(life)
+	if options.Embedding != nil {
+		if options.VectorPath == "" {
+			cancel()
+			return nil, errors.New("vector index path is required")
+		}
+		m.semantic = newSemanticIndex(m)
+	}
 	go m.watch()
 	return m, nil
 }
@@ -136,6 +154,11 @@ func (m *Manager) Status(ctx context.Context) (Status, error) {
 		} else {
 			s.PendingDocuments++
 		}
+
+	}
+	s.Semantic, err = m.semanticStatus(snapshot, c, sources)
+	if err != nil {
+		return Status{}, err
 	}
 	return s, nil
 }
@@ -201,6 +224,9 @@ func (m *Manager) Pause() error {
 	m.requestCancel()
 	m.mu.Unlock()
 	m.stopWorker()
+	if m.semantic != nil {
+		m.semantic.stop()
+	}
 	m.retrieval.clear()
 	return nil
 }
@@ -211,6 +237,9 @@ func (m *Manager) Resume() {
 	defer m.mu.Unlock()
 	if !m.closed && m.paused {
 		m.requestCtx, m.requestCancel = context.WithCancel(m.ctx)
+		if m.semantic != nil {
+			m.semantic.start(m.requestCtx)
+		}
 		m.paused = false
 		m.reason = ""
 		m.retryAttempts = 0
@@ -225,7 +254,35 @@ func (m *Manager) Close() error {
 	m.cancel()
 	m.mu.Unlock()
 	<-m.watcherDone
+	if m.semantic != nil {
+		err = errors.Join(err, m.semantic.closeStore())
+	}
 	return err
+}
+
+// ClearDerived runs only after Pause joined all publishers and the authoritative
+// history transaction revoked every stamp. Model weights are not conversation data.
+func (m *Manager) ClearDerived() error {
+	if m.semantic != nil {
+		return m.semantic.clearStore()
+	}
+	return nil
+}
+func (m *Manager) Retry() {
+	if m.options.Embedding != nil {
+		m.options.Embedding.Retry()
+	}
+	if m.semantic != nil {
+		select {
+		case m.semantic.retry <- struct{}{}:
+		default:
+		}
+	}
+	m.mu.Lock()
+	m.retryAttempts = 0
+	m.retryAfter = time.Time{}
+	m.mu.Unlock()
+	m.Invalidate()
 }
 func (m *Manager) build(ctx context.Context) (err error) {
 	m.buildMu.Lock()

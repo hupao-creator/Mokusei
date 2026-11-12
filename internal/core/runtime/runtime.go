@@ -21,6 +21,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
 	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
 	"github.com/hupao-creator/Mokusei/internal/services/attachments"
+	"github.com/hupao-creator/Mokusei/internal/services/embedding"
 	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
@@ -61,6 +62,8 @@ type Config struct {
 	Diagnostic         func(string)
 	SettingsTrace      func(string, model.Object)
 	SearchTrace        func(plugin.SearchDiagnostic)
+	Embedding          embedding.Provider
+	SearchTuning       threadsearch.Tuning
 	ToolTrace          func(plugin.ToolInvocation) error
 	ProcessFactory     func(string) plugin.ApplicationProcessCapability
 	ExtraCapabilities  map[string]any
@@ -227,10 +230,14 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 	defer func() {
 		if !initialized {
 			cancel()
+			if config.Embedding != nil {
+				_ = config.Embedding.Close()
+			}
 			_ = r.compute.Close(context.Background())
 		}
 	}()
-	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Sources: r.searchSources, SourceChanges: r.searchSourceChanges, Trace: config.SearchTrace})
+	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Sources: r.searchSources, SourceChanges: r.searchSourceChanges, Trace: config.SearchTrace,
+		Embedding: config.Embedding, VectorPath: filepath.Join(config.DataDir, "search-index.sqlite"), Tuning: config.SearchTuning})
 	if err != nil {
 		cancel()
 		return nil, err
@@ -484,10 +491,15 @@ func (r *Runtime) Close(ctx context.Context) error {
 		}
 		r.mu.Unlock()
 		var errs []error
+		// Revoking search first joins its publishers; the provider then joins
+		// native inference before the Runtime can release its profile lease.
 		if r.search != nil {
 			if err := r.search.Close(); err != nil {
 				errs = append(errs, err)
 			}
+		}
+		if r.config.Embedding != nil {
+			errs = append(errs, r.config.Embedding.Close())
 		}
 		if err := r.closeVoice(ctx); err != nil {
 			errs = append(errs, err)

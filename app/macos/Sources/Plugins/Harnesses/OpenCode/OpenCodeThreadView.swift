@@ -313,6 +313,7 @@ private struct OpenCodeChildSessionContent: View {
         let visible = workVisible ? rows : rows.filter { $0.execution == nil && ($0.kind == .attention || $0.kind == .content && targetedReplyIDs.contains($0.id)) }
         let displayed = agentDetail ? groupThreadExecutionRows(visible) : visible
         ThreadActivityList(items: displayed.map { ThreadActivitySlot(id: $0.id, node: AnyView($0.node.threadReadingAnchor($0.id))) }, spacing: 12)
+            .preference(key: ThreadWorkPreference.self, value: [executionID: rows.contains { $0.execution != nil || $0.kind == .work }])
     }
 }
 

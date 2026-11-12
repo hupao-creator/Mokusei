@@ -118,15 +118,13 @@ struct NativeMokuNoteTests {
     @Test func touchSwipeCannotAcquireMicNoteReadingOrCanvasTouches() {
         let row = CGRect(x: 100, y: 300, width: 168, height: 44)
         let mic = CGRect(x: 221, y: 300, width: 44, height: 44)
-        func allowed(_ point: CGPoint, message: Bool = false) -> Bool {
-            NativeMokuSwipeTarget.contains(point, row: row, eyesOnly: message, excluding: [mic])
+        func allowed(_ point: CGPoint) -> Bool {
+            NativeMokuSwipeTarget.contains(point, row: row, eyesOnly: false, excluding: [mic])
         }
         #expect(allowed(CGPoint(x: 160, y: 322)))
         #expect(!allowed(CGPoint(x: 243, y: 322))) // Mic tap and long press.
         #expect(!allowed(CGPoint(x: 160, y: 280))) // Note's reading/scrolling area.
         #expect(!allowed(CGPoint(x: 293, y: 322))) // Separate note button.
-        #expect(allowed(CGPoint(x: 132, y: 322), message: true))
-        #expect(!allowed(CGPoint(x: 180, y: 322), message: true)) // Voice transcript/dispatch prose.
 
         var touch = NativeMokuTouchSwipeSequence()
         #expect(touch.begin(at: CGPoint(x: 95, y: 322), eligible: true, inside: false) == false)
@@ -209,10 +207,10 @@ struct NativeMokuNoteTests {
             scroll.reflectScrolledClipView(scroll.contentView)
             #expect(swipe(at: CGPoint(x: overflowRow.minX + 80, y: overflowRow.midY)) != nil)
             #expect(!state.notePanelOpen)
-            _ = swipe(at: CGPoint(x: overflowRow.minX + 32, y: overflowRow.midY), phase: .changed)
+            _ = swipe(at: CGPoint(x: overflowRow.minX + 9, y: overflowRow.midY), phase: .changed)
             #expect(!state.notePanelOpen)
         }
-        #expect(swipe(at: CGPoint(x: overflowRow.minX + 32, y: overflowRow.midY)) == nil)
+        #expect(swipe(at: CGPoint(x: overflowRow.minX + 9, y: overflowRow.midY)) == nil)
         #expect(state.notePanelOpen && state.talkPresentation.message?.id == "overflow")
     }
 

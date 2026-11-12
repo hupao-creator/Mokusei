@@ -15,14 +15,12 @@ final class NativeOverviewMembershipFacts: Equatable {
         let tags: [JSONText]
         let emojis: [JSONText: JSONText]
         let visible: Bool
-        let attentionHidden: Bool
         let executionID: JSONText?
 
         init(_ thread: HarnessThread) {
             id = thread.id; createdAt = thread.createdAt; cwd = thread.cwd
             directoryScope = thread.directoryScope; directoryTag = thread.directoryTag
             tags = thread.tags; emojis = thread.tagEmojis
-            attentionHidden = thread.attentionHidden
             visible = !thread.isHiddenFromUser && thread.archived != true
             executionID = thread.observation.latestExecution?.executionID
         }

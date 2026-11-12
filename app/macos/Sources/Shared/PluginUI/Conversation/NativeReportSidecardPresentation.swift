@@ -47,6 +47,10 @@ public extension EnvironmentValues {
 /// captures a card: the latest user choice (including closing) wins at completion.
 @MainActor @Observable
 public final class NativeReportSidecardPresentation {
+    struct SendTitle {
+        let text: String?
+        let emoji: String
+    }
     public enum Card { case relatedExecutions, browser }
     public private(set) var active: Card?
     public private(set) var pending: Card? = .relatedExecutions
@@ -56,6 +60,7 @@ public final class NativeReportSidecardPresentation {
     public private(set) var executionVisit = UUID()
     public private(set) var continuedExecution = false
     public private(set) var executionReady = false
+    private(set) var sendTitles: [ApplicationExecutionRef: SendTitle] = [:]
     @ObservationIgnored private var document: NativeApplicationHTMLReadiness?
     @ObservationIgnored private var layoutReady = false
     @ObservationIgnored private var suppressed = false
@@ -71,9 +76,16 @@ public final class NativeReportSidecardPresentation {
         selectedExecution = reference; continuedExecution = false; executionReady = false
     }
 
-    public func continueExecution(_ reference: ApplicationExecutionRef, from source: ApplicationExecutionRef, selection: UUID) {
+    public func continueExecution(_ reference: ApplicationExecutionRef, from source: ApplicationExecutionRef, selection: UUID, text: String) {
         guard !retainingForReturn, !suppressed, active == .relatedExecutions,
-              selectionID == selection, selectedExecution == source, reference != source else { return }
+              selectionID == selection, selectedExecution == source else { return }
+        let text = NativeComposerSubmissionPolicy.trimmedText(text).split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        // A receipt can steer the same execution. Keep its emoji while updating
+        // only the accepted text; catalog refreshes never generate another one.
+        let emoji = sendTitles[reference]?.emoji
+            ?? ["🌿", "🪐", "🧩", "🎨", "🦊", "🌊", "🍋", "🪁", "💡", "🌻", "🐳", "🏕️"].randomElement()!
+        sendTitles[reference] = SendTitle(text: text.isEmpty ? nil : text, emoji: emoji)
+        guard reference != source else { return }
         selectExecution(reference)
         continuedExecution = true
     }
@@ -128,6 +140,7 @@ public final class NativeReportSidecardPresentation {
 
     public func cancel() {
         retainingForReturn = false
+        sendTitles.removeAll()
         selectExecution(nil)
         close(); invalidateAdmission(); document = nil; layoutReady = false
     }

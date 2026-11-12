@@ -284,6 +284,7 @@ jobs:
           path: |
             ${{ runner.temp }}/native-evidence
             !${{ runner.temp }}/native-evidence/**/mokusei-runtime
+            !${{ runner.temp }}/native-evidence/**/embedding-model/**
           if-no-files-found: error
           retention-days: 7
 

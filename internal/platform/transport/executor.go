@@ -37,8 +37,6 @@ func newCommandExecutor(host Host, path string, ctx context.Context) (*commandEx
 	return &commandExecutor{accepting: true, drained: done, host: host, receipts: receipts, context: ctx}, nil
 }
 func (e *commandExecutor) execute(ctx context.Context, channel string, raw []byte) (Result, error) {
-	if channel == "moku:submit" {
-	}
 	var request commandRequest
 	if err := json.Unmarshal(raw, &request); err != nil || request.Args == nil || len(request.Args) > 32 || !commandIDPattern.MatchString(request.CommandID) {
 		return Result{}, model.NewError("INVALID_REQUEST", "A valid commandId and args array are required")

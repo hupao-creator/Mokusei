@@ -53,6 +53,11 @@ public protocol ApplicationThreadPlugin {
     var requires: [ApplicationCapabilityRequirement] { get }
     var hasDetail: Bool { get }
     var allowsManualArchiving: Bool { get }
+    var overviewCollection: ApplicationOverviewCollectionPolicy? { get }
+    func collectionContentRevision(entry: ApplicationThreadCatalogEntry<Value>) throws -> String?
+    func collectionCard(props: [ApplicationThreadProps<Value>], initialSelection: ApplicationThreadRef?, active: Bool,
+                        onSelection: @escaping (ApplicationThreadRef) -> Void,
+                        openThread: @escaping (ApplicationThreadRef) -> Void) -> AnyView
     func projectCard(entry: ApplicationThreadCatalogEntry<Value>, availableColumns: Int,
                      capabilities: ApplicationCapabilityAccess<ApplicationProjectionPhase>) throws -> HarnessOverviewProjection<CardProjection>
     @ViewBuilder func card(props: ApplicationThreadProps<Value>, projection: CardProjection, openThread: @escaping () -> Void) -> Card
@@ -62,6 +67,11 @@ extension ApplicationThreadPlugin {
     public var requires: [ApplicationCapabilityRequirement] { [] }
     public var hasDetail: Bool { true }
     public var allowsManualArchiving: Bool { true }
+    public var overviewCollection: ApplicationOverviewCollectionPolicy? { nil }
+    public func collectionContentRevision(entry: ApplicationThreadCatalogEntry<Value>) throws -> String? { nil }
+    public func collectionCard(props: [ApplicationThreadProps<Value>], initialSelection: ApplicationThreadRef?, active: Bool,
+                               onSelection: @escaping (ApplicationThreadRef) -> Void,
+                               openThread: @escaping (ApplicationThreadRef) -> Void) -> AnyView { AnyView(EmptyView()) }
 }
 extension ApplicationThreadPlugin where Detail == EmptyView {
     public var hasDetail: Bool { false }
@@ -104,11 +114,35 @@ public struct AnyApplicationThreadPlugin {
     public let requires: [ApplicationCapabilityRequirement]
     public let hasDetail: Bool
     public let allowsManualArchiving: Bool
+    public let overviewCollection: ApplicationOverviewCollectionPolicy?
+    public let collectionContentRevision: (ApplicationThreadCatalogEntry<JSONValue>) throws -> String?
+    private let collectionBody: ([ApplicationThreadProps<JSONValue>], ApplicationThreadRef?, Bool,
+                                @escaping (ApplicationThreadRef) -> Void, @escaping (ApplicationThreadRef) -> Void) throws -> AnyView
     private let project: (ApplicationThreadCatalogEntry<JSONValue>, Int, ApplicationCapabilityAccess<ApplicationProjectionPhase>) throws -> ApplicationOverviewSnapshot
     private let detailBody: (ApplicationThreadProps<JSONValue>) throws -> AnyView
     public init<P: ApplicationThreadPlugin>(_ plugin: P) {
         id = plugin.type.id; ownerPluginID = plugin.type.ownerPluginID; requires = plugin.requires; hasDetail = plugin.hasDetail
         allowsManualArchiving = plugin.allowsManualArchiving
+        overviewCollection = plugin.overviewCollection
+        collectionContentRevision = { entry in
+            guard entry.ref.typeID == plugin.type.id else { throw PluginContractError("Application collection type mismatch") }
+            let revision = try plugin.collectionContentRevision(entry: entry.mapView(plugin.type.codec.decode))
+            guard revision.map({ !$0.isEmpty && $0.utf16.count <= 512 }) ?? true else {
+                throw PluginContractError("Invalid application collection content revision")
+            }
+            return revision
+        }
+        collectionBody = { props, initial, active, selection, open in
+            guard plugin.overviewCollection != nil, props.count > 1 else { throw PluginContractError("Application collection requires at least two members") }
+            let typed = try props.map { props in
+                try props.context.capabilities.validateRequirements(plugin.requires)
+                try validateApplicationScope(props.context.capabilities.scope, owner: plugin.type.ownerPluginID,
+                                             entry: props.entry.ref, type: plugin.type.id)
+                guard props.context.domain.pluginID == plugin.type.ownerPluginID else { throw PluginContractError("Application domain owner mismatch") }
+                return ApplicationThreadProps(entry: try props.entry.mapView(plugin.type.codec.decode), context: props.context)
+            }
+            return plugin.collectionCard(props: typed, initialSelection: initial, active: active, onSelection: selection, openThread: open)
+        }
         project = { entry, columns, capabilities in
             try capabilities.validateRequirements(plugin.requires)
             try validateApplicationScope(capabilities.scope, owner: plugin.type.ownerPluginID, entry: entry.ref, type: plugin.type.id)
@@ -139,6 +173,11 @@ public struct AnyApplicationThreadPlugin {
         try project(entry, availableColumns, capabilities)
     }
     public func detail(props: ApplicationThreadProps<JSONValue>) throws -> AnyView { try detailBody(props) }
+    public func collectionCard(props: [ApplicationThreadProps<JSONValue>], initialSelection: ApplicationThreadRef?, active: Bool,
+                               onSelection: @escaping (ApplicationThreadRef) -> Void,
+                               openThread: @escaping (ApplicationThreadRef) -> Void) throws -> AnyView {
+        try collectionBody(props, initialSelection, active, onSelection, openThread)
+    }
 }
 @MainActor
 public struct AnyApplicationSettingsPlugin {

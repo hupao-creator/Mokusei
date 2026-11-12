@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -23,7 +24,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/environment"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
-	"github.com/hupao-creator/Mokusei/internal/plugins/applications/attention"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/git"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/report"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/tag"
@@ -33,6 +33,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/opencode"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/pi"
 	"github.com/hupao-creator/Mokusei/internal/services/attachments"
+	"github.com/hupao-creator/Mokusei/internal/services/embedding"
 	"github.com/hupao-creator/Mokusei/internal/services/moku"
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
 )
@@ -63,6 +64,7 @@ type Bootstrap struct {
 	resolver          *environment.Resolver
 	processes         *applicationprocess.Manager
 	attachments       *attachments.Repository
+	embedding         *embedding.Native
 	harnesses         map[string]plugin.Harness
 	disabled          map[string]string
 	enabled           map[string]bool
@@ -198,7 +200,7 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	if b.options.Headless {
 		aaOptions.CacheRoot = filepath.Join(stateRoot, "model-evaluation")
 	}
-	applications := []plugin.Application{report.New(), tag.New(), attention.New(), git.New()}
+	applications := []plugin.Application{report.New(), tag.New(), git.New()}
 	contextPlugins := []plugin.ContextPlugin{artificialanalysis.NewWithOptions(aaOptions)}
 	b.contexts, err = contexthost.New(contexthost.Config{Plugins: contextPlugins, PluginEnabled: b.enabled})
 	if err != nil {
@@ -280,6 +282,17 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	runtimeConfig.TelemetryLedger = b.ledger
 	runtimeConfig.SettingsTrace = b.options.SettingsTrace
 	runtimeConfig.SearchTrace = b.options.SearchTrace
+	if runtime.GOOS == "darwin" && !b.options.Headless {
+		executable, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		b.embedding = embedding.NewNative(ctx, embedding.NativeOptions{
+			Executable:     filepath.Join(filepath.Dir(executable), "MokuseiEmbedding"),
+			ModelDirectory: filepath.Join(stateRoot, "search-models"),
+		})
+		runtimeConfig.Embedding = b.embedding
+	}
 	runtimeConfig.ToolTrace = b.options.ToolTrace
 	runtimeConfig.ProcessFactory = b.processes.ForCwd
 	runtimeConfig.Diagnostic = b.publishDiagnostic
@@ -335,6 +348,9 @@ func (b *Bootstrap) Close(ctx context.Context) error {
 		if b.runtime != nil {
 			failures = append(failures, b.runtime.Close(ctx))
 		} else {
+			if b.embedding != nil {
+				failures = append(failures, b.embedding.Close())
+			}
 			if b.coordinator != nil {
 				failures = append(failures, b.coordinator.Stop(ctx))
 			}

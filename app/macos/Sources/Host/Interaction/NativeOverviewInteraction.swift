@@ -203,6 +203,18 @@ extension NativeWorkspacePresentation {
             case .application(_, let snapshot):
                 value["ref"] = snapshot.entry.ref.json
                 value["title"] = .string(snapshot.entry.title)
+                value["collectionEligibility"] = overview.collectionEligibility(snapshot.entry.ref)
+            case .collection(_, let members):
+                value["members"] = .array(members.map { $0.entry.ref.json })
+                value["memberEligibility"] = .array(members.map { member in
+                    .object(["ref": member.entry.ref.json,
+                             "eligibility": overview.collectionEligibility(member.entry.ref) ?? .null])
+                })
+                if let selected = overview.selectedCollectionMember(for: item),
+                   let member = members.first(where: { $0.entry.ref == selected }) {
+                    value["ref"] = selected.json
+                    value["title"] = .string(member.entry.title)
+                }
             case nil: break
             }
             return .object(value)

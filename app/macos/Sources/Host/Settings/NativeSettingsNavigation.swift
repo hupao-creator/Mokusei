@@ -7,6 +7,7 @@ import MokuseiPluginUI
 /// The page and programmatic navigation share the same section and close gate.
 @MainActor @Observable
 public final class NativeSettingsNavigation {
+    static let incompleteEditError = "请补全当前模型配置后再关闭设置。"
     public var section: String
     public private(set) var focusRequest = 0
     public var mounted = false
@@ -27,18 +28,25 @@ public final class NativeSettingsNavigation {
 
     public func closeBlockReason(model: NativeSettingsModel) -> String? {
         if model.clearing { return "Settings are clearing history" }
-        if model.runtimeAvailable, model.draft.firstInvalidField != nil { return "Settings contain an invalid field" }
-        if model.runtimeAvailable, model.draft.composing { return "Settings contain an active text composition" }
+        if model.draft.firstInvalidField != nil { return "Settings contain an invalid field" }
+        if model.draft.composing { return "Settings contain an active text composition" }
+        if model.draft.incompleteEditorScope != nil { return "Settings contain an incomplete model configuration" }
         return nil
     }
 
     @discardableResult
     public func requestClose(model: NativeSettingsModel, onClose: (CGRect) -> Void) -> Bool {
         guard !model.clearing else { return false }
-        if model.runtimeAvailable, model.draft.firstInvalidField != nil {
+        if model.draft.firstInvalidField != nil {
             section = "moku"; focusRequest += 1
             return false
         }
+        if let scope = model.draft.incompleteEditorScope {
+            section = scope.hasPrefix("tag.settings") ? "tag.settings" : scope.hasPrefix("report.settings") ? "report.settings" : "moku"
+            model.operationError = Self.incompleteEditError
+            return false
+        }
+        model.operationError = nil
         guard model.draft.prepareClose() else { return false }
         onClose(returnRect)
         return true

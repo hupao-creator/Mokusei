@@ -92,6 +92,9 @@ func RegisterDomain(registry plugin.Registry) error {
 	if err := registry.Collection(plugin.CollectionDefinition{ID: CollectionID, OwnerPluginID: "report", Retention: "history", Contract: dataContract(), Indexes: []plugin.RecordIndex{{ID: bindingIndex, Keys: bindingKeys}}}); err != nil {
 		return err
 	}
+	if err := registerStatusbarQuery(registry); err != nil {
+		return err
+	}
 	if err := registerContextQueries(registry); err != nil {
 		return err
 	}

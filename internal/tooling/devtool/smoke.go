@@ -181,6 +181,14 @@ func Smoke(ctx context.Context, repo, application, channel, report string) error
 		return err
 	}
 	frameworks := filepath.Join(application, "Contents/Frameworks")
+	for _, path := range []string{filepath.Join(application, "Contents/MacOS/MokuseiEmbedding"), filepath.Join(frameworks, embeddingLibrary)} {
+		if _, err := assertPortableMachO(ctx, path, frameworks, false); err != nil {
+			return err
+		}
+	}
+	if err := probeEmbedding(ctx, application); err != nil {
+		return err
+	}
 	deps, err := assertPortableMachO(ctx, filepath.Join(application, "Contents/MacOS/Mokusei"), frameworks, false)
 	if err != nil {
 		return err

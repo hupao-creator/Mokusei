@@ -8,6 +8,12 @@ go run -race ./tools/verification/codex
 
 The executable reuses itself as a scripted external Codex CLI. It creates an isolated temporary HOME, native data directory and workspace, and removes them when the run finishes. No installed Codex, credentials, Node, Python, model service or external network is needed. A failed assertion exits nonzero. This is an integration command, not a unit-test suite.
 
+The shared first-response `second-answer` fixture advances the enclosing Codex
+snapshot timestamp when appending its independently created second turn. Crossing
+a wall-clock millisecond must not make the fixture violate the production
+`turn.updatedAt <= state.updatedAt` contract. The unchanged production adapter
+validates every exported state before the Swift consumers receive it.
+
 Voice fixtures set `GORACE=atexit_sleep_ms=0` only in their scripted CLI child
 environments, avoiding the race detector's one-second post-main delay on each
 version/catalog probe and app-server exit. Child race instrumentation remains
@@ -20,6 +26,15 @@ discovery selects it ahead of a locally installed app bundle. Its protocol
 user-agent fixtures remain independent of that discovery version.
 
 The synthetic replay checks:
+
+- Production Adapter catalog acquisition tolerates desktop state and unrelated
+  keychain writes, captures one environment per native probe, and observes real
+  config/auth/ancestor/referenced-model changes even beside a large runtime tree.
+  A single source edit recovers after the old process drains; continuous churn
+  stops after two acquisitions and never publishes an old snapshot. RPC failures
+  and cancellation do not retry, every peer is reaped, and stable catalogs reuse
+  their cache. Run `./scripts/go.sh run -race ./tools/verification/codex -catalog-only`
+  for this focused replay. It uses isolated fixtures, not the user's native home.
 
 - Exclusive authentication delegates source access credentials without copying
   refresh tokens. Two isolated processes observe source rotation, coalesce a
@@ -137,6 +152,18 @@ tools include the real Moku-composed Codex creation schema; the captured
 model-facing declaration must expose `target.codex.serviceTier` as required and
 retain the target selector as an object with required `codex`. The scripted
 Provider never calls that creation tool.
+
+The captured native request must also carry the complete original creation
+schema in developer instructions, including `allOf`/`if`/`then` constraints
+that native tool-parameter conversion discards, plus the unrelated echo tool's
+schema. The ordinary replay observes production start/resume/fork RPCs and
+authenticated MCP `tools/list` for arbitrary future tool names, changed
+contracts and empty injections. It preserves schema-valued properties, literal
+marker text, references and integers beyond float64 precision. These checks
+exercise the generic Codex injection boundary; the loopback provider does not
+prove live model interpretation. A targeted live headless dispatch remains the
+diagnostic check for regressions in model/provider schema interpretation and
+does not become a paid or credential-dependent hosted gate.
 
 `-voice-only` additionally checks launch-catalog reuse and account/configuration
 invalidation, idle fresh-process prewarming, repeated direct calls, consuming a

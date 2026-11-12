@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 struct NativeComposerImageChip: View {
     let attachment: NativeComposerAttachment
     let containerRadius: CGFloat
+    let onPreview: (() -> Void)?
     let onRemove: () -> Void
     let removeLabel: String
     @State private var thumbnail: CGImage?
@@ -19,9 +20,10 @@ struct NativeComposerImageChip: View {
     @State private var removeHovered = false
 
     init(attachment: NativeComposerAttachment, containerRadius: CGFloat,
-         onRemove: @escaping () -> Void, removeLabel: String) {
+         onPreview: (() -> Void)? = nil, onRemove: @escaping () -> Void, removeLabel: String) {
         self.attachment = attachment
         self.containerRadius = containerRadius
+        self.onPreview = onPreview
         self.onRemove = onRemove
         self.removeLabel = removeLabel
         // Only an O(1) cache lookup here, never a synchronous decode. A surface
@@ -67,7 +69,10 @@ struct NativeComposerImageChip: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            thumbnailSurface
+            Button { onPreview?() } label: { thumbnailSurface }
+                .buttonStyle(.plain)
+                .disabled(onPreview == nil)
+                .accessibilityLabel(name)
             removeButton.padding(3)
         }
         .frame(width: side, height: side)

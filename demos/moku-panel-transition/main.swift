@@ -131,7 +131,7 @@ private struct Controls: View {
                 "input": model.scene.inputOpen, "transitionsDisabled": model.reducedMotion,
                 "systemReduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
                 "window": NSStringFromSize(window.contentLayoutRect.size),
-                "faces": faces(content).filter { $0.seat == .face }.map { NSStringFromRect($0.convert($0.bounds, to: nil)) },
+                "decorations": faces(content).filter { $0.seat == .decorations }.map { NSStringFromRect($0.convert($0.bounds, to: nil)) },
                 "editors": editors(content).map { NSStringFromRect($0.convert($0.bounds, to: nil)) },
                 "editorViewports": editors(content).compactMap { $0.enclosingScrollView }.map { NSStringFromRect($0.convert($0.bounds, to: nil)) },
                 "editorIDs": editors(content).map { String(describing: ObjectIdentifier($0)) },

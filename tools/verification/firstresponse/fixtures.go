@@ -86,13 +86,13 @@ func first(state map[string]any, id string) map[string]any {
 func Verify(id string) ([]Fixture, error) {
 	a := adapter(id)
 	fixtures := []Fixture{}
-	for _, name := range []string{"empty", "running", "incomplete", "reasoning", "answer", "failed", "interrupted", "completed", "second", "fork", "tool-plan", "long-prompt"} {
+	for _, name := range []string{"empty", "running", "incomplete", "reasoning", "answer", "failed", "interrupted", "completed", "second", "fork", "tool-plan", "long-prompt", "reasoning-update", "final-answer", "failed-answer", "interrupted-answer", "long-answer", "second-answer", "child-session"} {
 		state := base(id)
 		turn := first(state, id)
 		initial, agent := true, false
 		switch name {
-		case "incomplete", "reasoning", "answer":
-			complete := name == "answer"
+		case "incomplete", "reasoning", "answer", "reasoning-update", "final-answer", "failed-answer", "interrupted-answer", "long-answer", "second-answer", "child-session":
+			complete := name != "incomplete" && name != "reasoning" && name != "reasoning-update"
 			agent = name != "incomplete"
 			status := "streaming"
 			if complete {
@@ -100,7 +100,7 @@ func Verify(id string) ([]Fixture, error) {
 			}
 			if id == "codex" || id == "claude" {
 				kind := "assistant"
-				if name == "reasoning" {
+				if name == "reasoning" || name == "reasoning-update" {
 					kind = "reasoning"
 				}
 				item := map[string]any{"id": "agent", "kind": kind, "createdAt": turn["createdAt"], "content": Answer}
@@ -117,7 +117,7 @@ func Verify(id string) ([]Fixture, error) {
 				m := map[string]any{"id": "agent", "executionId": "first", "role": "assistant", "status": status, "text": ""}
 				if complete {
 					m["text"] = Answer
-				} else if name == "reasoning" {
+				} else if name == "reasoning" || name == "reasoning-update" {
 					m["thinking"] = Answer
 				} else {
 					m["text"] = Answer
@@ -176,6 +176,74 @@ func Verify(id string) ([]Fixture, error) {
 			} else {
 				state["messages"].([]any)[0].(map[string]any)["text"] = strings.Repeat(Prompt+"😀", 1000)
 			}
+		}
+		if name == "reasoning-update" || name == "long-answer" {
+			text := Answer + " UPDATED"
+			if name == "long-answer" {
+				text = strings.Repeat(Answer+"😀", 100)
+			}
+			if id == "codex" || id == "claude" {
+				items := turn["timeline"].([]any)
+				items[len(items)-1].(map[string]any)["content"] = text
+			} else {
+				items := state["messages"].([]any)
+				key := "text"
+				if name == "reasoning-update" {
+					key = "thinking"
+				}
+				items[len(items)-1].(map[string]any)[key] = text
+			}
+		}
+		if name == "final-answer" || name == "failed-answer" || name == "interrupted-answer" || name == "second-answer" {
+			outcome := "completed"
+			if name == "failed-answer" {
+				outcome = "failed"
+			}
+			if name == "interrupted-answer" {
+				outcome = "interrupted"
+			}
+			turn["status"] = outcome
+			if at, ok := turn["updatedAt"].(float64); ok {
+				turn["finishedAt"] = at
+			} else {
+				turn["finishedAt"] = turn["startedAt"]
+			}
+			// Historical compact projections keep these exact-execution summaries.
+			if id == "codex" {
+				turn["answer"] = Answer
+			} else if id == "claude" {
+				turn["text"] = Answer
+			} else {
+				turn["summary"] = Answer
+			}
+			if name == "second-answer" {
+				initial = false
+				next := base(id)
+				if id == "codex" {
+					// The second turn may cross a wall-clock millisecond. Its parent
+					// snapshot must cover both turns' timestamps, as production requires.
+					state["updatedAt"] = max(state["updatedAt"].(float64), next["updatedAt"].(float64))
+				}
+				nextTurn := first(next, id)
+				nextTurn["executionId"] = "second"
+				key := "executions"
+				if id == "codex" || id == "claude" {
+					key = "turns"
+					nextTurn["timeline"] = append(nextTurn["timeline"].([]any), map[string]any{"id": "second-reasoning", "kind": "reasoning", "createdAt": nextTurn["createdAt"], "content": Answer + " SECOND"})
+				} else {
+					message := map[string]any{"id": "second-reasoning", "executionId": "second", "role": "assistant", "status": "streaming", "text": "", "thinking": Answer + " SECOND"}
+					if id == "opencode" {
+						message["parts"] = []any{}
+					}
+					state["messages"] = append(state["messages"].([]any), message)
+					state["latestExecutionId"] = "second"
+				}
+				state[key] = append(state[key].([]any), nextTurn)
+			}
+		}
+		if name == "child-session" && id == "opencode" {
+			state["nativeSessionId"] = "main-session"
+			state["messages"] = append(state["messages"].([]any), map[string]any{"id": "child", "executionId": "first", "role": "assistant", "status": "complete", "text": "PRIVATE_CHILD_MESSAGE", "nativeSessionId": "child-session", "parts": []any{}})
 		}
 		raw := encode(state)
 		if name == "empty" {

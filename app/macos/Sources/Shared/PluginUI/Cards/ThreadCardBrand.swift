@@ -9,11 +9,13 @@ public struct ThreadCardProviderStatus: View {
     public let emoji: String?
     public let terminal: ThreadCardTerminalStatus?
     public let completedBackground: Bool
+    public let usesRegularGlass: Bool
     @Environment(\.threadCardProviderColor) private var providerColor
     public init(label: String, brandKey: String, emoji: String? = nil,
-                terminal: ThreadCardTerminalStatus? = nil, completedBackground: Bool = false) {
+                terminal: ThreadCardTerminalStatus? = nil, completedBackground: Bool = false, usesRegularGlass: Bool = false) {
         self.label = label; self.brandKey = brandKey; self.emoji = emoji; self.terminal = terminal
         self.completedBackground = completedBackground
+        self.usesRegularGlass = usesRegularGlass
     }
     public var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -24,7 +26,8 @@ public struct ThreadCardProviderStatus: View {
             if let terminal { TerminalBadge(terminal: terminal, tone: tone).id(terminal) }
         }
         .frame(width: Self.diameter, height: Self.diameter).foregroundStyle(tone)
-        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false, completed: terminal == .completed || completedBackground))
+        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false,
+            completed: terminal == .completed || completedBackground, usesRegularGlass: usesRegularGlass))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .help(label)
@@ -41,10 +44,14 @@ public struct ThreadCardProviderStatus: View {
 private struct ThreadCardBadgeMaterial: ViewModifier {
     let hasEmoji: Bool
     let completed: Bool
+    let usesRegularGlass: Bool
     @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
 
     @ViewBuilder func body(content: Content) -> some View {
-        if flatMaterials && hasEmoji {
+        if usesRegularGlass {
+            content.nativeRegularCardGlass(in: Circle(), opaque: NativePalette.overview.accentSoft.swiftUI,
+                tint: .mint.opacity(0.12), interactive: true)
+        } else if flatMaterials && hasEmoji {
             content.background(completed ? NativePalette.overview.accentSoft.swiftUI
                 : NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
         } else if flatMaterials {
@@ -162,6 +169,60 @@ public extension View {
     func threadCardBadge<Badge: View>(@ViewBuilder badge: () -> Badge) -> some View {
         overlay(alignment: .topTrailing) {
             badge().padding(.top, 12).padding(.trailing, 17)
+        }
+    }
+}
+
+private struct ThreadCardArchiveActionKey: EnvironmentKey {
+    static let defaultValue: (@MainActor () -> Void)? = nil
+}
+private struct ThreadCardArchivePendingKey: EnvironmentKey {
+    static let defaultValue = false
+}
+public extension EnvironmentValues {
+    /// Host-owned archive capability, supplied only for a manually stopped Thread.
+    var threadCardArchiveAction: (@MainActor () -> Void)? {
+        get { self[ThreadCardArchiveActionKey.self] }
+        set { self[ThreadCardArchiveActionKey.self] = newValue }
+    }
+    var threadCardArchivePending: Bool {
+        get { self[ThreadCardArchivePendingKey.self] }
+        set { self[ThreadCardArchivePendingKey.self] = newValue }
+    }
+}
+
+struct ThreadCardArchiveBadge<Content: View>: View {
+    let hovered: Bool
+    @ViewBuilder let content: () -> Content
+    @Environment(\.threadCardArchiveAction) private var archive
+    @Environment(\.threadCardArchivePending) private var pending
+    @Environment(\.locale) private var locale
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        if let archive {
+            Button(action: archive) {
+                ZStack {
+                    content().opacity(hovered || focused ? 0 : 1)
+                    NativeIcon(name: "X", size: 20)
+                        .frame(width: ThreadCardProviderStatus.diameter, height: ThreadCardProviderStatus.diameter)
+                        .foregroundStyle(NativePalette.overview.ink.swiftUI)
+                        .background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
+                        .opacity(hovered || focused ? 1 : 0)
+                }
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .focused($focused)
+            .disabled(pending)
+            .onKeyPress(.return) {
+                if !pending { archive() }
+                return .handled
+            }
+            .accessibilityLabel((locale.language.languageCode?.identifier == "en" ? "Archive conversation" : "归档会话"))
+            .help((locale.language.languageCode?.identifier == "en" ? "Archive conversation" : "归档会话"))
+        } else {
+            content()
         }
     }
 }

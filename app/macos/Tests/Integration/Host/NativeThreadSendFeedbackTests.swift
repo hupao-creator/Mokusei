@@ -600,11 +600,6 @@ struct NativeThreadSendFeedbackTests {
         print("THREAD_SEND_GEOMETRY width=\(width) mode=\(mode) source=\(sourceFrame) travel=\(travelFrame) folded=\(foldedFrame) waiting=\(landedFrame) main=\(mainFrame)")
         #expect(abs(mainFrame.width - landedFrame.width) < 1 && abs(mainFrame.height - landedFrame.height) < 1)
         #expect(abs(mainFrame.minX - landedFrame.minX) < 1 && abs(mainFrame.minY - landedFrame.minY) < 1)
-        func blockedText(in view: NSView) -> Bool {
-            if let text = view as? MarkdownTextView, text.awaitsLineReveal { return true }
-            return view.subviews.contains { blockedText(in: $0) }
-        }
-        #expect(!blockedText(in: root), "Promoted content must not restart the initial-entry reveal and become blank")
         try await capture(window, name: prefix + "-main")
         print("THREAD_SEND_NATIVE_HANDOFF_CONFIRMED width=\(width) mode=\(mode)")
         await fixture.close()
@@ -921,7 +916,9 @@ struct NativeThreadSendFeedbackTests {
         editor.keyDown(with: enter)
         try await SwiftUIReplay.wait { receipt != nil }
         #expect(!state.inputOpen && state.inputLeaving)
-        #expect(state.retainedText == "Follow up") // retiring editor keeps its ink during travel
+        #expect(state.retainedText.isEmpty && draft.inputText.isEmpty) // submission clears both live and retiring ink
+        #expect(draft.text == "Follow up") // pending admission still owns the durable payload
+        #expect(state.retainedAttachments.isEmpty && state.retainedDirectories.isEmpty)
         #expect(draft.submitting)
         editor.keyDown(with: enter)
         #expect(submissions == 1)
@@ -945,6 +942,14 @@ struct NativeThreadSendFeedbackTests {
 
     @Test(.requiresDisplay, arguments: [false, true], [false, true])
     func completedSendAllowsClickingAndTypingIntoTheResidentComposer(exactExecution: Bool, cancelHandoff: Bool) async throws {
+        // This foreground replay must not ingest unrelated physical typing while
+        // its asynchronous reader handoff runs. Only this app's test key is tagged;
+        // other applications and system input-source preferences are untouched.
+        let keyTag: Int64 = 0x4D4F4B555245504C
+        let keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
+            event.cgEvent?.getIntegerValueField(.eventSourceUserData) == keyTag ? event : nil
+        }
+        defer { if let keyMonitor { NSEvent.removeMonitor(keyMonitor) } }
         let fixture = try Fixture()
         defer { fixture.pump?.cancel(); fixture.model.release() }
         let preferences = DesktopPreferences(directory: fixture.directory)
@@ -1018,6 +1023,11 @@ struct NativeThreadSendFeedbackTests {
         let input = try #require(editor(in: root))
         #expect(input === initialEditor)
         try #require(input.isEditable && input.isSelectable)
+        // An inactive-window click may only activate the app. Establish the
+        // fixture's foreground window without focusing the editor under test.
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        try await SwiftUIReplay.wait { NSApp.isActive && window.isKeyWindow }
         window.makeFirstResponder(nil)
         let visible = input.visibleRect
         let point = input.convert(CGPoint(x: visible.minX + 20, y: visible.midY), to: nil)
@@ -1038,10 +1048,19 @@ struct NativeThreadSendFeedbackTests {
         print("COMPOSER_CLICK_RESULT time=\(ProcessInfo.processInfo.systemUptime) editable=\(input.isEditable) available=\(presentation.dockInputAvailable) focus=\(window.firstResponder === input)")
         if window.firstResponder !== input { try await capture(window, name: "composer-focus-failure-\(exactExecution)-\(cancelHandoff)") }
         try #require(window.firstResponder === input)
-        NSApp.sendEvent(try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
-            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-            characters: "x", charactersIgnoringModifiers: "x", isARepeat: false, keyCode: 7)))
-        try await SwiftUIReplay.wait { draft.text == "x" && input.string == "x" }
+        let typedKey = try #require(CGEvent(keyboardEventSource: nil, virtualKey: 7, keyDown: true))
+        typedKey.setIntegerValueField(.eventSourceUserData, value: keyTag)
+        typedKey.setIntegerValueField(.eventTargetUnixProcessID, value: Int64(ProcessInfo.processInfo.processIdentifier))
+        let characters: [UniChar] = [0x78]
+        characters.withUnsafeBufferPointer { typedKey.keyboardSetUnicodeString(stringLength: $0.count, unicodeString: $0.baseAddress!) }
+        NSApp.sendEvent(try #require(NSEvent(cgEvent: typedKey)))
+        print("COMPOSER_TYPE_DISPATCH exact=\(exactExecution) cancel=\(cancelHandoff) text=\(input.string.debugDescription) draft=\(draft.text.debugDescription) marked=\(input.hasMarkedText()) key=\(window.isKeyWindow)")
+        do { try await SwiftUIReplay.wait { draft.text == "x" && input.string == "x" } }
+        catch {
+            print("COMPOSER_TYPE_FAILURE text=\(input.string.debugDescription) draft=\(draft.text.debugDescription) marked=\(input.hasMarkedText()) owns=\(scene.ownsComposer(draft)) leaving=\(scene.inputLeaving) sealed=\(scene.capsuleSealed)")
+            try await capture(window, name: "composer-typing-failure-\(exactExecution)-\(cancelHandoff)")
+            throw error
+        }
         #expect(submissions.count == 1)
         mount.visible = false
         try await SwiftUIReplay.wait { presentation.agentInputTarget == nil }

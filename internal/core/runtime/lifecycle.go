@@ -44,19 +44,6 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 		return nil
 	}
 	if !record.Moku && !record.MokuHistory {
-		beforeVisible := old != nil && attentionEligible(*old) && !tx.Has(attentionHiddenPrefix+record.ID)
-		// Streaming content does not change the execution used for read deadlines.
-		if old == nil || next == nil || !same(old.Observation.LatestExecution, next.Observation.LatestExecution) {
-			if err := trackAttentionExecution(tx, record.ID, next); err != nil {
-				return err
-			}
-		}
-		afterVisible := next != nil && attentionEligible(*next) && !tx.Has(attentionHiddenPrefix+record.ID)
-		if beforeVisible != afterVisible {
-			if err := attentionChanged(tx, beforeVisible, afterVisible); err != nil {
-				return err
-			}
-		}
 		if err := rememberDirectoryScope(tx, *record); err != nil {
 			return err
 		}
@@ -87,6 +74,11 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 			return err
 		}
 	} else {
+		if old.Title != next.Title && !next.Moku && !next.MokuHistory && !archived(next) {
+			if err := emit("thread.title-changed", map[string]any{}); err != nil {
+				return err
+			}
+		}
 		if old.Title != next.Title || !same(old.Tags, next.Tags) || !same(old.TagEmojis, next.TagEmojis) || !same(old.Settings, next.Settings) {
 			if err := emit("entity.updated", map[string]any{"harnessId": next.HarnessID, "title": next.Title, "tags": next.Tags, "tagEmojis": next.TagEmojis}); err != nil {
 				return err
@@ -99,6 +91,11 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 			}
 			if err := emit(kind, map[string]any{}); err != nil {
 				return err
+			}
+			if !archived(next) {
+				if err := r.refreshApplicationTagSources(tx); err != nil {
+					return err
+				}
 			}
 		}
 	}

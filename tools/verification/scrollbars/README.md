@@ -74,6 +74,9 @@ WebKit still needs access to its system XPC services; a sandbox denial or timeou
 is incomplete execution, not a pass. Run with the environment's normal WebKit
 service access while retaining the no-window constraint.
 
+The standalone compiler includes the production layout writer and AttributeGraph
+observer dependencies used by NativeScrollView diagnostics, just as SwiftPM does.
+
 This checks native control state and track-part pixels, not composed
 overlay/WebKit pixels or physical input. It does not simulate a real
 preference/device change; the notification reuses the current

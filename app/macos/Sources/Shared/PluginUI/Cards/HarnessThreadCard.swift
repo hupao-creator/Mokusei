@@ -14,6 +14,7 @@ public struct HarnessThreadCard: View {
     private let providerStatus: AnyView?
     private let state: AnyView?
     private let harnessLogo: AnyView?
+    @State private var hovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var cloudAnimationsEnabled
 
@@ -42,7 +43,7 @@ public struct HarnessThreadCard: View {
                 ThreadCardIdentity(identity: identity, projection: presentation.projection.identity,
                                    expanded: presentation.composition.identitySize.rows > 1,
                                    status: status, emoji: emoji, providerStatus: providerStatus, state: state,
-                                   harnessLogo: harnessLogo)
+                                   harnessLogo: harnessLogo, hovered: hovered)
                     .frame(width: span(presentation.composition.identitySize.cols, cell.width),
                            height: span(presentation.composition.identitySize.rows, cell.height), alignment: .topLeading)
                 switch presentation.composition {
@@ -75,6 +76,7 @@ public struct HarnessThreadCard: View {
             ThreadCardCloud(running: status?.kind == .running)
                 .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled && !(identity.initialResponse != nil && reduceMotion))
         }
+        .onHover { hovered = $0 }
         .environment(\.threadCardUsesFlatMaterials, true)
         .animation(.easeOut(duration: 0.22), value: presentation.key)
     }
@@ -105,6 +107,7 @@ private struct ThreadCardIdentity: View {
     let providerStatus: AnyView?
     let state: AnyView?
     let harnessLogo: AnyView?
+    let hovered: Bool
     @Environment(\.locale) private var locale
     @Environment(\.threadCardProviderColor) private var providerColor
     private var cornerClearance: CGFloat { ThreadCardProviderStatus.cornerClearance }
@@ -168,15 +171,17 @@ private struct ThreadCardIdentity: View {
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .threadCardBadge {
-            Group {
-                if let providerStatus { providerStatus }
-                else if let status {
-                    ThreadCardProviderStatus(label: status.providerLabel(identity.harness?.label, locale: locale), brandKey: identity.harness?.brandKey ?? "", emoji: emoji,
-                                             terminal: status.terminal)
-                } else if let providerStatus = identity.providerStatus {
-                    ThreadCardProviderStatus(label: providerStatus, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
-                } else if emoji != nil {
-                    ThreadCardProviderStatus(label: identity.title, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
+            ThreadCardArchiveBadge(hovered: hovered) {
+                Group {
+                    if let providerStatus { providerStatus }
+                    else if let status {
+                        ThreadCardProviderStatus(label: status.providerLabel(identity.harness?.label, locale: locale), brandKey: identity.harness?.brandKey ?? "", emoji: emoji,
+                                                 terminal: status.terminal)
+                    } else if let providerStatus = identity.providerStatus {
+                        ThreadCardProviderStatus(label: providerStatus, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
+                    } else if emoji != nil {
+                        ThreadCardProviderStatus(label: identity.title, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
+                    }
                 }
             }
         }

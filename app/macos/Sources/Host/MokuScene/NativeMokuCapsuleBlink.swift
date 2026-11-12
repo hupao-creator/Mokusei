@@ -29,28 +29,3 @@ enum NativeMokuCapsuleBlinkTiming {
         return 1 - sin(date.timeIntervalSince(start) / duration * .pi) * 0.91
     }
 }
-
-struct NativeMokuCapsuleBlinkClock {
-    private(set) var nextBlink: Double
-    private(set) var blinkAt = -Double.infinity
-    private var pausedAt: Double?
-
-    init(now: Double) { nextBlink = now + 3400 }
-    mutating func setActive(_ active: Bool, now: Double) {
-        if active, let pausedAt {
-            let pause = max(0, now - pausedAt)
-            nextBlink += pause
-            if blinkAt.isFinite { blinkAt += pause }
-            self.pausedAt = nil
-        } else if !active, pausedAt == nil { pausedAt = now }
-    }
-    mutating func advance(now: Double) {
-        guard pausedAt == nil else { return }
-        if now >= nextBlink { blinkAt = now; nextBlink = now + 4200 }
-    }
-    func factor(now: Double) -> Double {
-        let progress = ((pausedAt ?? now) - blinkAt) / 320
-        return progress >= 0 && progress <= 1 ? 1 - sin(progress * .pi) * 0.91 : 1
-    }
-    func nextWake(now: Double) -> Double { now - blinkAt < 320 ? now : nextBlink }
-}

@@ -68,3 +68,21 @@ and persisted completion state. Only its mounted `settings.control` actions are
 admitted, using an independent visit/step registry. The handoff reports
 `transitioning` until the real Dock is revealed; workspace navigation remains
 blocked throughout setup and the morph.
+
+
+Super Thread collections expose every real member as a `thread.open` target.
+Overview card observations include `members` and the currently displayed member's
+`ref`/`title`; the synthetic collection identity is only a canvas slot. Opening
+uses the same source/return geometry resolution and profile-local reading fact
+as native card activation. Selecting a carousel page is not a reading event.
+
+
+Collection diagnostics are read-only: individual application cards expose
+`collectionEligibility`; collections expose `memberEligibility` keyed by real
+references. Values contain `lastClosedAt` (Unix milliseconds or null), `retainsEligibility`,
+`intervalSeconds`, the time-condition `eligible` flag, a `reason`
+(`no-close-record`, `future-close-record`, `within-close-interval`, `eligible`) and
+current `collected` membership. Time eligibility alone does not establish two
+eligible members in the same browsing view; search remains individual. During
+reading travel the retained collection can temporarily differ from live
+eligibility. These observations neither create opens nor migrate unknown history.

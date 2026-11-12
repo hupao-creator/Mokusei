@@ -4,6 +4,6 @@ import MokuseiPluginAPI
 /// The host receives only public module contracts, never concrete app DTOs.
 @MainActor public enum NativeApplicationModules {
     public static func make() throws -> [ApplicationPluginModule] {
-        try [NativeReportApplication.make(), NativeTagApplication.make(), NativeAttentionApplication.make()]
+        try [NativeReportApplication.make(), NativeTagApplication.make()]
     }
 }

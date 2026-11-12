@@ -128,10 +128,6 @@ private struct Scene: View {
     if let view = view as? NativeMokuCharacterCanvas, view.seat == .decorations { return view }
     return view.subviews.lazy.compactMap { canvas($0) }.first
 }
-@MainActor private func eye(_ view: NSView) -> NativeMokuCharacterCanvas? {
-    if let view = view as? NativeMokuCharacterCanvas, view.seat == .face { return view }
-    return view.subviews.lazy.compactMap { eye($0) }.first
-}
 private func png(_ image: CGImage, _ url: URL) throws {
     try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: url)
 }
@@ -143,7 +139,7 @@ private func loadingPixels(_ image: CGImage) -> [UInt8] {
             bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         cg.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
     }
-    // Isolate the saturated running dots from glass, eyes and shadows.
+    // Isolate saturated dots from the fixture's neutral glass and shadows.
     return stride(from: 0, to: count, by: 4).map { index in
         let r = Int(pixels[index]), g = Int(pixels[index + 1]), b = Int(pixels[index + 2])
         return max(r, g, b) - min(r, g, b) > 45 && pixels[index + 3] > 240 ? 1 : 0
@@ -187,8 +183,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try await fixture.send(text: text)
     try await wait("live reasoning uses loading") { canvas(host)?.controller.input?.running == true && fixture.presentation.reasoning?.sourceText == text }
     let controller = canvas(host)!.controller
-    let residentEye = eye(host)
-    try require(residentEye != nil, "Production eyes missing")
+    let residentCanvas = canvas(host)
     func noTrace() throws {
         try require(controller.currentReasoning == nil && controller.paintedReasoningGlyphs.isEmpty
             && controller.pose["arcAlpha"] == 0, "Moku exposed reasoning text")
@@ -286,7 +281,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         do {
             try await wait("dots retire") { !controller.isTransitioning }
         } catch {
-            throw Failure(description: "\(error); status=\(status), clock=\(controller.clock), scheduled=\(controller.hasScheduledFrame), canvasVisible=\(canvas(host)?.motionVisible == true), eyeVisible=\(eye(host)?.motionVisible == true), sameController=\(canvas(host)?.controller === controller), frame=\(canvas(host)?.frame ?? .zero), windowVisible=\(window.occlusionState.contains(.visible))")
+            throw Failure(description: "\(error); status=\(status), clock=\(controller.clock), scheduled=\(controller.hasScheduledFrame), canvasVisible=\(canvas(host)?.motionVisible == true), sameController=\(canvas(host)?.controller === controller), frame=\(canvas(host)?.frame ?? .zero), windowVisible=\(window.occlusionState.contains(.visible))")
         }
         try require((0..<3).allSatisfy { controller.pose["d\($0)a"] < 0.001 }, "Terminal left loading dots")
         try noTrace()
@@ -305,8 +300,8 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         try await Task.sleep(for: .milliseconds(100))
         try require(controller.clock == pausedClock, "Hidden/inactive display clock advanced")
         if hideWindow { window.makeKeyAndOrderFront(nil) } else { fixture.phase = .active }
-        try await wait("terminal handoff resumes") { controller.hasScheduledFrame && !controller.isTransitioning }
-        try require(canvas(host)?.controller === controller && eye(host) === residentEye,
+        try await wait("terminal handoff resumes") { !controller.hasScheduledFrame && !controller.isTransitioning }
+        try require(canvas(host)?.controller === controller && canvas(host) === residentCanvas,
             "Pause/resume replaced the character host")
         try require((0..<3).allSatisfy { controller.pose["d\($0)a"] < 0.001 }, "Restored terminal left loading dots")
         try noTrace()
@@ -318,7 +313,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try await fixture.send(text: "answer", execution: "reply", status: .completed, sequence: 2, kind: "assistant-text")
     try await wait("completed reply stops loading") { controller.input?.running == false && !controller.isTransitioning }
     _ = try await capture("04-completed")
-    try require(eye(host) === residentEye, "Loading replaced the persistent eye view")
+    try require(canvas(host) === residentCanvas, "Loading replaced the persistent decoration view")
     let result: [String: Any] = ["input": "Runtime fixtures through production workspace, Codex projection, presentation and Dock",
         "movingLoadingPixels": count, "reasoningTraceVisible": false,
         "lifecycle": "append, source offset, tool handoff, composer, note, voice, disconnect/reconnect, completed, failed, interrupted, waiting and reply completion",

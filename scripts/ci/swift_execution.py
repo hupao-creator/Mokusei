@@ -30,7 +30,6 @@ HEADLESS_SUITES = {
     "MokuseiSettingsIntegrationTests.NativeCloudMetalTests",
     "MokuseiSettingsIntegrationTests.NativeComposerAdmissionReplay",
     "MokuseiSettingsIntegrationTests.NativeMarkdownHTTPMediaTests",
-    "MokuseiSettingsIntegrationTests.NativeMokuBlinkTests",
     "MokuseiSettingsIntegrationTests.NativeMokuDirectoryMentionsTests",
     "MokuseiSettingsIntegrationTests.NativeMokuExecutionLinkRoutingTests",
     "MokuseiSettingsIntegrationTests.NativeMokuOperationTests",

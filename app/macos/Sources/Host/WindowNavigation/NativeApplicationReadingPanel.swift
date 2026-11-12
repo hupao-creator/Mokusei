@@ -103,7 +103,6 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                         if returning != nil { return true }
                         if sidecards.active == .browser || sidecards.pending == .browser { sidecards.close(); return true }
                         if let auxiliaryBack { auxiliaryBack.perform(); return true }
-                        if sidecards.active != nil || sidecards.pending != nil { sidecards.close(); return true }
                         return false
                     })
                     .environment(\.nativeReadingAuxiliarySuppressed, suppressed)
@@ -184,7 +183,6 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
         .nativeReadingEscape(perform: suppressed || returning != nil ? nil : {
             if sidecards.active == .browser || sidecards.pending == .browser { sidecards.close() }
             else if let auxiliaryBack { auxiliaryBack.perform() }
-            else if sidecards.active != nil || sidecards.pending != nil { sidecards.close() }
             else { onClose() }
         })
     }

@@ -125,7 +125,7 @@ or written to diagnostic logs by this serializer. Missing data serializes as
 
 Report uses this complete representation. Tag deliberately retains its existing
 metadata plus bounded accepted-input/inventory excerpts through `EventEvidence`;
-Attention retains its capability-produced observations. Moku uses its separate
+Moku uses its separate
 live input subscription and durable notification outbox. Their model inputs,
 filters and confirmation behavior do not change. Report still subscribes only to
 application-authored successful completion facts for ordinary Agent Threads in

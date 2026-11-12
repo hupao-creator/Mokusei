@@ -9,6 +9,7 @@ public struct NativeOverviewFilter: Identifiable, Equatable, Sendable {
     public var emoji: String?
     public var scope: String
     public var count: Int
+    public var hasActiveTasks: Bool
     public var aliases: [String]
     public var isDirectory: Bool
     public var selectionKey: String
@@ -19,10 +20,11 @@ public struct NativeOverviewFilter: Identifiable, Equatable, Sendable {
     public var id: String { "\(isDirectory ? "directory" : "semantic"):\(scope):\(Self.key(tag))" }
 
     public init(tag: String, displayTag: String? = nil, emoji: String? = nil, scope: String = "", count: Int, aliases: [String] = [],
-                isDirectory: Bool = false, selectionKey: String = "", children: [NativeOverviewFilter] = []) {
+                isDirectory: Bool = false, selectionKey: String = "", children: [NativeOverviewFilter] = [], hasActiveTasks: Bool = false) {
         self.tag = tag; self.displayTag = displayTag ?? tag; self.emoji = emoji
         self.scope = scope; self.count = count; self.aliases = aliases
         self.isDirectory = isDirectory; self.selectionKey = selectionKey; self.children = children
+        self.hasActiveTasks = hasActiveTasks
     }
 
     public func matches(_ selectedTag: String, kind: NativeOverviewTagKind? = nil, scope: String? = nil) -> Bool {
@@ -40,6 +42,7 @@ public struct NativeOverviewFilter: Identifiable, Equatable, Sendable {
 /// Floating Liquid Glass controls. The host owns collection filtering.
 public struct NativeOverviewChrome: View {
     public var filters: [NativeOverviewFilter]
+    public var allHasActiveTasks: Bool
     public var selectedTag: String
     public var selectedScope: String
     public var selectedKind: NativeOverviewTagKind?
@@ -61,6 +64,8 @@ public struct NativeOverviewChrome: View {
     public var searchFocusRequest: Int
     public var onSearchChange: (String) -> Void
     public var onSearchExit: () -> Void
+    public var searchPreparation: NativeSearchPreparation?
+    public var onSearchRetry: () -> Void
     @FocusState private var focusedTag: String?
     @Namespace private var tagGlass
     @Namespace private var actionGlass
@@ -86,11 +91,14 @@ public struct NativeOverviewChrome: View {
     @Environment(\.overviewSearchMorphDuration) private var searchMorphDuration
 
     public init(filters: [NativeOverviewFilter], selectedTag: String = "", selectedScope: String = "", selectedKind: NativeOverviewTagKind? = nil,
+                allHasActiveTasks: Bool = false,
                 cameraManual: Bool = false, focusFilterRequestKey: Int = 0,
                 strings: NativeOverviewChromeStrings = .init(),
                 isSearching: Bool = false, searchQuery: String = "", searchFocusRequest: Int = 0,
                 onSearchChange: @escaping (String) -> Void = { _ in },
                 onSearchExit: @escaping () -> Void = {},
+                searchPreparation: NativeSearchPreparation? = nil,
+                onSearchRetry: @escaping () -> Void = {},
                 onTagChange: @escaping (NativeOverviewFilter?) -> Void,
                 onReturnToAuto: (() -> Void)? = nil,
                 onSettings: (() -> Void)? = nil, onRestart: (() -> Void)? = nil,
@@ -99,6 +107,7 @@ public struct NativeOverviewChrome: View {
                 onSettingsFrameChange: ((CGRect?) -> Void)? = nil,
                 clickExclusions: NativeClickExclusions? = nil, interactions: NativeOverviewChromeInteractions? = nil) {
         self.filters = filters; self.selectedTag = selectedTag; self.selectedScope = selectedScope; self.selectedKind = selectedKind
+        self.allHasActiveTasks = allHasActiveTasks
         let selection = selectedKind.map { NativeOverviewTagSelection(tag: selectedTag, kind: $0, scope: selectedScope) }
         _displayedSelection = State(initialValue: selection)
         _latestSelection = State(initialValue: selection)
@@ -116,6 +125,7 @@ public struct NativeOverviewChrome: View {
         _searchMorphVisible = State(initialValue: isSearching)
         self.isSearching = isSearching; self.searchQuery = searchQuery
         self.searchFocusRequest = searchFocusRequest; self.onSearchChange = onSearchChange; self.onSearchExit = onSearchExit
+        self.searchPreparation = searchPreparation; self.onSearchRetry = onSearchRetry
     }
 
     public var body: some View {
@@ -229,6 +239,9 @@ public struct NativeOverviewChrome: View {
                 placeholder: strings.search,
                 focusRequest: focusReady ? searchFocusRequest : 0, onChange: onSearchChange, onExit: onSearchExit)
                 .frame(minWidth: 40, maxWidth: .infinity).frame(height: OverviewTagMetrics.buttonHeight)
+            if let searchPreparation {
+                OverviewSearchPreparation(state: searchPreparation, retry: onSearchRetry)
+            }
             Button(action: onSearchExit) {
                 Image(systemName: "escape").font(.system(size: 11, weight: .medium))
                     .frame(width: 24, height: OverviewTagMetrics.buttonHeight)
@@ -360,42 +373,42 @@ public struct NativeOverviewChrome: View {
                         ForEach(menu.children.filter { $0.count > 0 }) { child in
                             let current = parent.children.contains { $0.id == child.id && $0.count > 0 }
                             let childProgress = current ? progress : 0
+                            let childSelected = displayedSelection.map {
+                                $0.kind == .semantic && child.matches($0.tag, kind: .semantic, scope: $0.scope)
+                            } ?? false
+                            let activitySuffix = child.hasActiveTasks ? " · \(strings.containsActiveTasks)" : ""
                             Button {
                                 selectChild(child, of: parent)
                             } label: {
                                 HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
-                                    Text(child.displayTag)
+                                    if let emoji = child.emoji {
+                                        OverviewTagPrefix(emoji: emoji, selected: childSelected)
+                                    }
+                                    Text(child.emoji != nil ? child.tag : child.displayTag)
                                         .font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
                                         .lineLimit(1)
                                         .contentTransition(.opacity)
-                                    Text(String(child.count))
-                                        .font(NativeTypography.inter(size: OverviewTagMetrics.countFont, weight: 680))
-                                        .frame(minWidth: OverviewTagMetrics.countMinWidth)
-                                        .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
-                                        .padding(.vertical, OverviewTagMetrics.countVerticalInset)
-                                        .background(.foreground.opacity(0.08), in: Capsule())
+                                    if child.hasActiveTasks {
+                                        OverviewTagActivityIndicator(hasActiveTasks: active && current)
+                                    }
                                 }
                                 .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                                 .frame(height: OverviewTagMetrics.chipHeight)
                                 .frame(maxWidth: maximumWidth)
-                                .modifier(OverviewSubmenuLabel(progress: childProgress))
                             }
-                            // Keep the retiring tint with the displayed title;
-                            // a new tint transaction would compete with its return.
-                            .buttonStyle(OverviewTagButtonStyle(active: displayedSelection.map {
-                                $0.kind == .semantic && child.matches($0.tag, kind: .semantic, scope: $0.scope)
-                            } ?? false))
-                            .glassEffectID(child.id, in: namespace)
-                            .glassEffectTransition(.identity)
+                            .buttonStyle(OverviewTagButtonStyle(active: false, rendersGlass: false))
                             .background {
                                 GeometryReader { geometry in
                                     Color.clear.preference(key: OverviewSubmenuWidths.self, value: [child.id: geometry.size.width])
                                 }
                             }
                             .modifier(OverviewSubmenuMorph(progress: reduceMotion ? 1 : childProgress,
-                                target: target, originX: menu.children.filter { $0.count > 0 }.prefix { $0.id != child.id }
-                                    .reduce(0) { $0 + (widths[$1.id] ?? 0) + OverviewTagMetrics.submenuSpacing }))
-                            .modifier(OverviewSubmenuSurface(progress: reduceMotion ? 1 : childProgress))
+                                target: target, width: widths[child.id] ?? 1,
+                                originX: menu.children.filter { $0.count > 0 }.prefix { $0.id != child.id }
+                                    .reduce(0) { $0 + (widths[$1.id] ?? 0) + OverviewTagMetrics.submenuSpacing },
+                                // Retire the tint with the displayed title so a
+                                // selection change cannot compete with the return.
+                                active: childSelected, id: child.id, namespace: namespace))
                             .opacity(reduceMotion && childProgress == 0 ? 0 : 1)
                             .transition(.identity)
                             .allowsHitTesting(active && current)
@@ -403,8 +416,9 @@ public struct NativeOverviewChrome: View {
                             .focused($focusedTag, equals: child.id)
                             .overviewSearchAnchor(child.id)
                             .accessibilityIdentifier(child.id)
+                            .accessibilityLabel(Text(child.displayTag))
                             .accessibilityAddTraits(child.matches(selectedTag, kind: .semantic, scope: selectedScope) ? .isSelected : [])
-                            .help(child.displayTag)
+                            .accessibilityValue(Text("\(child.count)\(activitySuffix)"))
                         }
                     }
                 }
@@ -506,15 +520,18 @@ public struct NativeOverviewChrome: View {
             Button {
                 selectFilter(nil)
             } label: {
-                Text(strings.all).font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
-                    .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
-                    .frame(height: OverviewTagMetrics.chipHeight)
+                HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
+                    Text(strings.all).font(NativeTypography.inter(size: OverviewTagMetrics.chipFont, weight: 620))
+                }
+                .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
+                .frame(height: OverviewTagMetrics.chipHeight)
             }
             .buttonStyle(OverviewTagButtonStyle(active: selectedTag.isEmpty))
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measuredAllWidth = $0 }
             .overviewSearchAnchor("__all__")
             .focused($focusedTag, equals: "__all__")
             .accessibilityAddTraits(selectedTag.isEmpty ? .isSelected : [])
+            .accessibilityValue(Text(allHasActiveTasks ? strings.containsActiveTasks : ""))
             OverviewHorizontalScroll(interactions: interactions, owner: interactionOwner, ids: presentedFilters.map(\.id), enabled: !isSearching && !searchMorphVisible) {
                 // Keep the effect container inside the scroll viewport. A
                 // container outside it can draw captured labels beyond its clip.
@@ -533,20 +550,21 @@ public struct NativeOverviewChrome: View {
         HStack(spacing: OverviewTagMetrics.spacing) {
             ForEach(presentedFilters) { filter in
                 let active = isActive(filter)
+                let activitySuffix = filter.hasActiveTasks ? " · \(strings.containsActiveTasks)" : ""
                 Button {
                     selectFilter(filter)
                 } label: {
                     HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
                         if filter.isDirectory {
-                            OverviewTagPrefix(emoji: displayedChild(of: filter)?.emoji)
+                            OverviewTagPrefix(emoji: displayedChild(of: filter)?.emoji, selected: active)
+                        } else if let emoji = filter.emoji {
+                            OverviewTagPrefix(emoji: emoji, selected: active)
                         }
-                        OverviewTagTitle(title: filter.displayTag, child: displayedChild(of: filter)?.tag)
-                        Text(String(filter.count))
-                            .font(NativeTypography.inter(size: OverviewTagMetrics.countFont, weight: 680))
-                            .frame(minWidth: OverviewTagMetrics.countMinWidth)
-                            .padding(.horizontal, OverviewTagMetrics.countHorizontalInset)
-                            .padding(.vertical, OverviewTagMetrics.countVerticalInset)
-                            .background(.foreground.opacity(0.08), in: Capsule())
+                        OverviewTagTitle(title: !filter.isDirectory && filter.emoji != nil ? filter.tag : filter.displayTag,
+                                         child: displayedChild(of: filter)?.tag)
+                        if filter.hasActiveTasks {
+                            OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
+                        }
                     }
                     .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
                     .frame(height: OverviewTagMetrics.chipHeight)
@@ -558,8 +576,9 @@ public struct NativeOverviewChrome: View {
                 .overviewSearchAnchor(filter.id)
                 .focused($focusedTag, equals: filter.id)
                 .accessibilityIdentifier(filter.id)
+                .accessibilityLabel(Text(filterTitle(filter)))
                 .accessibilityAddTraits(active ? .isSelected : [])
-                .accessibilityValue("\(filterTitle(filter)) · \(filter.count)")
+                .accessibilityValue(Text("\(filterTitle(filter)) · \(filter.count)\(activitySuffix)"))
                 .accessibilityHint(filter.isDirectory && filter.children.contains(where: { $0.count > 0 }) ? strings.filter : "")
                 .accessibilityAction(named: Text(hoveredScope == filter.scope ? strings.closeFilter : strings.filter)) {
                     if hoveredScope == filter.scope {
@@ -570,7 +589,6 @@ public struct NativeOverviewChrome: View {
                     guard filter.isDirectory, filter.children.contains(where: { $0.count > 0 }) else { return }
                     if inside { revealChildren(of: filter) } else { scheduleHoverClear() }
                 }
-                .help(filterHint(filter))
             }
         }
         .fixedSize(horizontal: true, vertical: true)
@@ -603,13 +621,6 @@ public struct NativeOverviewChrome: View {
         .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
         .help(title).accessibilityLabel(title)
         .accessibilityAddTraits(active ? .isSelected : [])
-    }
-
-    private func filterHint(_ filter: NativeOverviewFilter) -> String {
-        let label = filter.isDirectory && !filter.scope.isEmpty && filter.scope != NativeOverviewSelection.inboxScope
-            ? "\(filterTitle(filter)) — \(filter.scope)" : filterTitle(filter)
-        return (filter.isDirectory ? strings.directoryPrefix : "") + label +
-            (filter.aliases.isEmpty ? "" : strings.aliasPrefix + filter.aliases.joined(separator: "、"))
     }
 
     private func consumeFocus(_ request: Int) {
@@ -668,7 +679,7 @@ struct OverviewTagTitle: View {
         HStack(spacing: OverviewTagMetrics.chipContentSpacing) {
             Text(title).contentTransition(.opacity)
             if let child {
-                Divider().frame(height: 14).accessibilityHidden(true).transition(.opacity)
+                Divider().frame(height: 14 * OverviewTagMetrics.enlargement).accessibilityHidden(true).transition(.opacity)
                 Text(child).contentTransition(.opacity).transition(.opacity)
             }
         }
@@ -681,18 +692,24 @@ struct OverviewTagTitle: View {
 
 struct OverviewTagPrefix: View {
     var emoji: String?
+    var selected = false
     var body: some View {
         ZStack {
-            if let emoji, !emoji.isEmpty {
-                Text(emoji).font(.system(size: OverviewTagMetrics.folderIcon))
-                    .id(emoji).transition(.opacity)
-            } else {
-                NativeIcon(name: "Folder", size: OverviewTagMetrics.folderIcon).opacity(0.72)
-                    .transition(.opacity)
+            // Both layers participate in layout even when invisible. Keep the
+            // complete emoji's native bounds so selection cannot resize the chip
+            // or clip wide/combined glyphs to the check's icon-sized square.
+            Group {
+                if let emoji, !emoji.isEmpty {
+                    Text(emoji).font(.system(size: OverviewTagMetrics.folderIcon))
+                        .id(emoji).transition(.opacity)
+                } else {
+                    NativeIcon(name: "Folder", size: OverviewTagMetrics.folderIcon).opacity(0.72)
+                }
             }
+            .opacity(selected ? 0 : 1)
+            NativeIcon(name: "Check", size: OverviewTagMetrics.folderIcon, strokeWidth: 2)
+                .opacity(selected ? 1 : 0)
         }
-        // Emoji advance and line bounds can exceed the point size. Preserve
-        // native glyph layout instead of proposing an icon-sized square to Text.
         .fixedSize()
         .frame(minWidth: OverviewTagMetrics.folderIcon)
         .accessibilityHidden(true)
@@ -709,8 +726,7 @@ public struct NativeOverviewChromeStrings: Sendable {
     public var closeSearch = "退出搜索（Esc）"
     public var filter = "按标签筛选"
     public var closeFilter = "关闭子标签菜单"
-    public var directoryPrefix = "工作目录标签："
-    public var aliasPrefix = "；别名："
+    public var containsActiveTasks = "包含活跃任务"
     public init() {}
 }
 
@@ -750,6 +766,9 @@ public struct NativeOverviewAttentionIndicator: View {
 }
 
 enum OverviewTagMetrics {
+    static func selectionTintOpacity(contrast: ColorSchemeContrast) -> Double {
+        contrast == .increased ? 0.34 : 0.22
+    }
     static let iconButtonSize: CGFloat = 30
     static let actionInset: CGFloat = 5
     static let buttonHeight = iconButtonSize + actionInset * 2
@@ -759,24 +778,16 @@ enum OverviewTagMetrics {
     // Match both the row gap and child gap to the native morph distance. Each
     // directory has its own container, so unrelated parents never fuse at rest.
     static let submenuSpacing: CGFloat = 10
-    /// Tag-filter chips only. Typography, icon and spacing are 12.5% above the
-    /// 10.5 / 8.5 / 11 / 12 metrics they previously used; the height is pinned
-    /// independently so the bar and the circular action buttons stay in step.
-    static let chipScale: CGFloat = 1.125
+    /// Enlarge the existing tag presentation without changing action controls.
+    static let enlargement: CGFloat = 1.1
+    static let chipScale: CGFloat = 1.125 * enlargement
     static let chipFont = 10.5 * chipScale
-    static let countFont = 8.5 * chipScale
     static let folderIcon = 11 * chipScale
     static let chipContentSpacing = 6 * chipScale
     static let chipLabelInset = labelInset * chipScale
-    static let countHorizontalInset = 4 * chipScale
-    static let countVerticalInset = 1 * chipScale
-    static let countMinWidth = 6 * chipScale
-    /// Shared by the tag-filter bar and the action buttons.
-    static let chipHeight: CGFloat = 42
-    /// Action buttons are circles matching the tag bar height. Equal width and
-    /// height keep the glass from stretching into a vertical ellipse, while
-    /// the shared diameter keeps both controls aligned edge to edge.
-    static let actionDiameter = chipHeight
+    static let chipHeight: CGFloat = 42 * enlargement
+    /// Keep the independent action buttons circular and at their existing size.
+    static let actionDiameter: CGFloat = 42
     static let barHeight = chipHeight
     /// Always reserve a caption band below the narrow action row, including
     /// when no child is selected. Its appearance cannot move the filter bar.
@@ -903,7 +914,7 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
 
     private var selectionTint: Color {
         NativePalette.overview.accent.swiftUI
-            .opacity(contrast == .increased ? 0.34 : 0.22)
+            .opacity(OverviewTagMetrics.selectionTintOpacity(contrast: contrast))
     }
 }
 
@@ -968,7 +979,7 @@ private struct OverviewTagMenuViewport<Content: View>: View {
                 content(active && entered ? 1 : 0, target, widths)
                     .fixedSize(horizontal: true, vertical: true)
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-                        withAnimation(reduceMotion || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
+                        withAnimation(reduceMotion || !entered || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
                             contentWidth = width
                         }
                     }
@@ -993,7 +1004,11 @@ private struct OverviewTagMenuViewport<Content: View>: View {
     }
 
     private func revealMeasuredMenu() {
-        guard contentWidth != nil, !widths.isEmpty, !entered else { return }
+        guard let contentWidth, !widths.isEmpty, !entered else { return }
+        // The first natural-width preferences replace the temporary morph
+        // slots. Admit ink only after the viewport has measured those slots.
+        let measuredWidth = widths.values.reduce(0, +) + CGFloat(widths.count - 1) * OverviewTagMetrics.submenuSpacing
+        guard abs(contentWidth - measuredWidth) < 0.5 else { return }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.22, extraBounce: 0)) { entered = true }
     }
 }
@@ -1005,37 +1020,46 @@ private struct OverviewSubmenuWidths: PreferenceKey {
     }
 }
 
-/// Visual geometry never feeds back into row measurement. Retargeting samples
-/// this same mounted modifier, including a close interrupted by reopening.
-private struct OverviewSubmenuMorph: GeometryEffect {
+/// Keep natural row measurement outside the morph. The glass needs an actual
+/// presented frame: transforming captured glass with a GeometryEffect lets its
+/// compositor geometry lag behind the view-layer material and produces two rims.
+/// Reopening still retargets the same mounted, interpolated progress.
+private struct OverviewSubmenuMorph: ViewModifier, @preconcurrency Animatable {
     var progress: CGFloat
     let target: CGRect
+    let width: CGFloat
     let originX: CGFloat
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        let p = min(1, max(0, progress))
-        return ProjectionTransform(CGAffineTransform(
-            translationX: (target.midX - originX - size.width / 2) * (1 - p),
-            y: (target.midY - size.height / 2) * (1 - p))
-            .translatedBy(x: size.width / 2, y: size.height / 2)
-            .scaledBy(x: 1 + (target.width / max(1, size.width) - 1) * (1 - p),
-                      y: 1 + (target.height / max(1, size.height) - 1) * (1 - p))
-            .translatedBy(x: -size.width / 2, y: -size.height / 2))
-    }
-}
-
-private struct OverviewSubmenuSurface: ViewModifier, @preconcurrency Animatable {
-    var progress: CGFloat
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
-    func body(content: Content) -> some View { content.opacity(min(1, max(0, progress) / 0.25)) }
-}
-
-private struct OverviewSubmenuLabel: ViewModifier, @preconcurrency Animatable {
-    var progress: CGFloat
+    let active: Bool
+    let id: String
+    let namespace: Namespace.ID
     var animatableData: CGFloat { get { progress } set { progress = newValue } }
     func body(content: Content) -> some View {
         let p = min(1, max(0, progress))
-        content.opacity(p * p * p)
+        let naturalWidth = max(1, width)
+        let height = OverviewTagMetrics.chipHeight
+        let presentedWidth = naturalWidth + (target.width - naturalWidth) * (1 - p)
+        let presentedHeight = height + (target.height - height) * (1 - p)
+        let surfaceOpacity = min(1, p / 0.25)
+        content
+            // Do not propose the sampled glass width back to the label's
+            // measurement; it owns the row's natural width at every progress.
+            .fixedSize(horizontal: true, vertical: true)
+            .opacity(p * p * p)
+            .scaleEffect(x: presentedWidth / naturalWidth, y: presentedHeight / height)
+            // Glass captures the label too; a separate background glass plane
+            // can composite over it. Resize that capture before restoring the
+            // natural layout slot, rather than scaling the captured surface.
+            .frame(width: presentedWidth, height: presentedHeight)
+            .modifier(OverviewTagGlassSurface(active: active, shape: Capsule()))
+            .glassEffectID(id, in: namespace)
+            .glassEffectTransition(.identity)
+            .opacity(surfaceOpacity)
+            .frame(width: naturalWidth, height: height)
+            .offset(x: (target.midX - originX - naturalWidth / 2) * (1 - p),
+                    y: (target.midY - height / 2) * (1 - p))
+            // These are presentation samples, not new animation destinations.
+            // The surface's own selection-tint animation remains independent.
+            .transaction { $0.animation = nil }
     }
 }
 

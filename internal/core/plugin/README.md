@@ -63,7 +63,13 @@ Boolean input; `BackgroundExecutionEnabled` treats omitted values as enabled, an
 admission. A disabled execution binding does not disable its application reader
 or remove retained settings and history.
 
-The Overview capability exposes only `ReadClients` for background classification evidence; it grants no filter-selection authority.
+The Overview capability exposes only `ReadClients`; it grants no filter-selection authority. Tag does not request it. [tag_statusbar.go](tag_statusbar.go) defines its scoped title-only status and revision-fenced mutation contract, alongside the semantic-tag read/write capabilities.
+
+`OrdinaryTaskInventorySnapshotCapability` supplies only IDs and titles of
+unarchived ordinary Threads in a trusted directory scope. It has no execution,
+history or write API. Report's background-only wake snapshot combines it with
+record binding lookups from the same host snapshot, without acquiring the broad
+runtime task-read capability or exposing a task-enumeration tool to the model.
 
 ## Other plugin categories
 

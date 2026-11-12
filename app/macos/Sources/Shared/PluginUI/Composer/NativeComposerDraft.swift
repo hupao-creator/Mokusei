@@ -24,6 +24,33 @@ public final class NativeComposerDraft {
             persist(semanticChange: attachments != oldValue)
         }
     }
+    private struct OptimisticInput {
+        let revision: UInt64
+        let text: String
+        let attachmentIDs: Set<JSONText>
+        let directories: [JSONText: UUID]
+    }
+    private var optimisticInput: OptimisticInput?
+
+    /// The pending command keeps its durable draft and attachment leases until
+    /// admission. Clearing the editor projection does not release files or
+    /// consume persistence. Later edits keep their own revision.
+    public var inputText: String {
+        get {
+            let current = text
+            return optimisticInput?.revision == editRevision ? "" : current
+        }
+        set { text = newValue }
+    }
+    public var inputAttachments: [NativeComposerAttachment] {
+        guard let optimisticInput else { return attachments }
+        return attachments.filter { !optimisticInput.attachmentIDs.contains($0.id) }
+    }
+    public var inputDirectories: [NativeComposerDirectory] {
+        guard let optimisticInput else { return directories }
+        return directories.filter { optimisticInput.directories[$0.path] != directoryRevisions[$0.path] }
+    }
+
     public var importing: Bool { staging || pastePreparation != nil }
     private var staging = false
     private var pastePreparation: NativeComposerPastePreparation?
@@ -210,9 +237,10 @@ public final class NativeComposerDraft {
         }
     }
 
-    /// Clearing a successful send compares its captured revision and contents.
-    /// Edits and files added while the runtime admits the input remain intact.
+    /// Admission consumes only the captured revision and identities. Moku can
+    /// optimistically clear the editor while retaining the durable send payload.
     public func submit(_ send: (NativeComposerSubmission) async throws -> Void,
+                       optimisticallyClear: Bool = false,
                        didConsume: ((NativeComposerSubmission) async -> Void)? = nil) async {
         guard canSubmit else { return }
         let revision = editRevision, persistedRevision = savedRevision
@@ -229,7 +257,11 @@ public final class NativeComposerDraft {
         defer { try? submissionOwner?.release() }
         submitting = true; error = nil
         protectedAttachmentIDs = Set(submission.attachments.map(\.id))
-        defer { submitting = false }
+        if optimisticallyClear {
+            optimisticInput = OptimisticInput(revision: revision, text: submission.text,
+                attachmentIDs: Set(sentAttachments.map(\.id)), directories: mentionedRevisions)
+        }
+        defer { optimisticInput = nil; submitting = false }
         var accepted = false
         var consumed = false
         do {
@@ -242,7 +274,15 @@ public final class NativeComposerDraft {
                 try consumeAcceptedAttachments(sentAttachments)
             }
             consumed = error == nil
-        } catch { record(error) }
+        } catch {
+            // A transport success followed by a storage failure must never
+            // restore an already accepted send or make it available to retry.
+            if !accepted, let optimisticInput {
+                do { try restoreOptimisticText(optimisticInput) }
+                catch { record(error) }
+            }
+            record(error)
+        }
         // Retained command receipts outlive transport success. Release them
         // only after this revision has been consumed without a storage error.
         if consumed { await didConsume?(submission) }
@@ -316,6 +356,33 @@ public final class NativeComposerDraft {
             protectedAttachmentIDs.removeAll(); retiredAttachmentIDs.removeAll()
         }
         await discard(unused)
+    }
+
+    private func restoreOptimisticText(_ input: OptimisticInput) throws {
+        // Attachments/directories were only hidden, so their current identities
+        // and any new imports already survive failure. Text edited in the empty
+        // editor is preserved after the failed message rather than overwritten.
+        func recovered(_ current: String) -> String {
+            if current.isEmpty || current == input.text { return input.text }
+            if input.text.isEmpty { return current }
+            return input.text + "\n\n" + current
+        }
+        if !isDisposed {
+            if editRevision != input.revision { text = recovered(text) }
+            return
+        }
+        // A replacement view may now own the same persisted draft. Load and
+        // patch synchronously on the main actor, then update matching live
+        // owners; never resurrect the disposed object or overwrite newer text.
+        guard let persistence,
+              let restored = try persistence.recoverText(expectedRevision: savedRevision, recovered) else { return }
+        for owner in Self.owners.compactMap(\.value) where !owner.isDisposed
+            && owner.persistence?.identity == persistence.identity && owner.savedRevision == restored.previousRevision {
+            owner.restoring = true
+            owner.text = restored.text
+            owner.savedRevision = restored.revision
+            owner.restoring = false
+        }
     }
 
     private func beginImport(count: Int?) -> AttachmentImport? {

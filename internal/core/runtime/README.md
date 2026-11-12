@@ -107,6 +107,15 @@ The field records the successful host cancellation request, not native forensic
 evidence of which event physically stopped a process if an external native stop
 races that request. It changes presentation only, never status or archive state.
 
+User Stop retains `userInterruptedExecutionId` through the same cancellation gate
+and acknowledged terminal-outcome checks as tool provenance. Successful retention
+clears the other source marker. Lifecycle teardown, recovery settlement, failed or
+uncertain stops and background-only cancellation supply no user marker. Forks
+clear both markers; a later execution cannot reuse an earlier marker for archive
+eligibility. The native Overview offers quick archive only for this exact user
+interruption with no pending input or background work, using the existing
+`thread:set-archived` command and normal catalog invalidation.
+
 ## Settings
 
 [settings.go](settings.go) separates saved settings revision from streaming thread revisions. `app:update-settings` normalizes through the owning Harness and compares `expectedSettingsRevision` in the store transaction. A conflict returns the latest settings; invalid writes leave state unchanged. An unchanged save does not advance the revision.
@@ -188,6 +197,13 @@ select requested event identities before pagination and join only their outcomes
 
 [scope_agents.go](scope_agents.go), [background_scope.go](background_scope.go) and [lifecycle_capability.go](lifecycle_capability.go) bind background instances to explicit directory scopes. Inbox is a valid scope, distinct from global authority. Task reads, events and private-session access intersect the owner's binding. Report and Tag use per-directory instances; their native sessions initialize lazily and are disposed when idle.
 
+The title-only ordinary-task inventory snapshot in [capabilities.go](capabilities.go)
+reads the host-captured immutable snapshot, filters by the explicitly bound
+directory and excludes archived Threads, Moku and retained Moku history. Report
+joins those identities with its binding index before each actual background send
+to list unclassified Threads; inventory does not expose execution status or
+history and cannot substitute for successful-execution evidence.
+
 ## Coordination state lifetime
 
 Command locks count both holders and waiters. Only the final lease release
@@ -248,7 +264,7 @@ Overview index, then fences returned hits by source hash. Directory Scope filter
 reuse the existing scope resolver. No native history is opened. See the
 [grep contract](../../services/threadsearch/README.md#moku-deterministic-grep).
 
-Attention visits, the scheduler clock and hidden-card projections are profile-local. Search reads the ordinary source independently of the attention marker. New executions and search visits fence old decisions through the same SQLite writer. See the [Attention Agent contract](../../plugins/applications/attention/README.md).
+Overview browsing does not apply agent-authored hidden-card markers. Retired visibility and reading-evidence records are left untouched; ordinary archive, execution eligibility and Report coverage still determine browsing membership.
 
 
 Thread voice calls are removed at the command authority boundary: prepare, start
@@ -282,3 +298,27 @@ rejection remains explicitly unconsumed; interaction replies reject before
 claiming an answer. Cleanup failure leaves the owner fenced and prevents a new
 native owner from overlapping it. No new execution ID or input is reserved merely
 by replacing the idle recovery handle.
+
+## Tag classification state
+
+[tag_statusbar.go](tag_statusbar.go) captures one scope's active title-only Threads,
+stable-ID tags and assignments from one immutable snapshot. Its content revision
+fences atomic mutations without reacting to unrelated stream writes. The writer
+checks revision, active membership and scope in the receipt transaction and returns
+current status on conflicts. [tags.go](tags.go) keeps public name/emoji projections
+and report source decoration synchronized while preserving stable tag identity.
+Archived Threads retain frozen decoration and do not consume active membership;
+restoration clears assignment before emitting `thread.restored`. Actual title
+changes emit `thread.title-changed`, independently of execution terminal facts.
+
+Moku model routing presets are validated settings fields, participate in settings
+change diagnostics and configuration equality, and are captured at execution
+admission. Missing/custom keeps existing manual routing guidance. Selecting a
+preset preserves that guidance for later restoration; the Moku service owns
+general routing priorities and instruction generation.
+
+The composed macOS Runtime owns a replaceable local embedding provider and joins
+its native process before releasing the profile. Thread search owns its derived
+vector database and publication fences; history reset drains search and clears
+vector rows while retaining verified model weights. See [search](../../services/threadsearch/README.md)
+and [embedding](../../services/embedding/README.md) for preparation and fallback.

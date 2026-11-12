@@ -12,6 +12,10 @@ settling, without restoring the retired AppKit scene host.
 The Settings content suppresses inherited animation only for changes to the
 expanded state, so its final layout remains stable during the shell morph while
 subsequent child-owned animations retain their own transactions.
+A geometry group outside that transaction resolves the shell's animated page
+placement first. Closing therefore carries the fixed-size page with the shell
+instead of immediately centering its Map, title and form in the collapsed Dock's
+width. Compositing alone does not provide this layout boundary.
 
 Moku history uses the same bounded reading stack and panel shell as Agent, Git
 and Report reading: shared margins, rounded surface, border, dimmed/blurred
@@ -39,71 +43,64 @@ layout/closing motion, scrollbar policy and Agent composer motion are independen
 
 Dock and history composer placeholders stay on one line and truncate at the tail,
 including the Agent-target title. The native draft editor remains multiline.
-The composer layout reserves the face, attachment and action seats before giving
+The composer layout reserves attachment/action seats and the resident eye seat
+(the actual Harness logo in Agent detail) before giving
 the remaining width to the editor; long placeholder text cannot displace Stop.
-Dispatch status already uses a single line with tail truncation and retains the
-Dock's separate trailing control inset. This repair is verified by source/layout
-review, Swift parsing and diff checks only; no tests, replays, builds or CI run.
+Dispatch status remains a single line with tail truncation and retains the
+Dock's separate trailing control inset. Its configuration adapts within that
+reserved content seat as described below.
 
 Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
-panel, dispatch details and history input capsule keep their existing dark
+panel and history input capsule keep their existing dark
 appearance independently of the system and workspace preference.
 The current and archived Moku conversation reading cards inherit the workspace
 appearance: light, dark or system. No local reader override or separate theme
 state masks the window preference. The dark capsule override is a local SwiftUI
 environment, not a window/application appearance preference.
-The Settings page and its regular-glass shell are always dark, including in a
-light workspace. The page scopes `\.colorScheme` to `.dark`, so SwiftUI tokens,
-hosted AppKit popups/editors, scrollers and native controls resolve the dark
-settings palette; the Dock's expanded regular-glass shell no longer inherits
-the workspace appearance, and onboarding does the same for its own panel. The
-theme preference still owns the window and every other surface. Moku's face
-keeps its existing ink when it moves into the page's header, because that panel
-is now the same dark surface as the capsule.
+Settings and onboarding retain their fixed dark appearance. Settings uses an
+opaque native window background in its local dark appearance,
+including with Reduce Transparency; the expanded panel has no tint or glass.
+The resident eyes travel into its reserved header seat during expansion.
 
-The collapsed Dock, composer, Talk and dispatch use the approved warm-black
-gradient over native clear glass, fading toward the bottom with a fine warm
-edge. Production density is 85%. Expanded Note uses dark Regular Liquid Glass
-without the clear surface's fading gradient, keeping text readable over light
-and detailed backgrounds. The same glass node changes material as the capsule
-expands/contracts; Note does not add a second shell or a window.
-Reduce Transparency uses the existing opaque warm-black fill. Content ink, eyes,
-voice cloud and reasoning feedback use their existing dark palette.
-The material does not change layout, clipping, voice ownership or motion clocks.
-The historical [material demo](../../../../../demos/moku-gradient-material/README.md)
-compiles this production material; its old light/dark comparison is no longer a
-product contract. No light-cursor demo is part of this implementation.
-Material validation includes [card-material captures](../../../../../tools/verification/overview-input/README.md#flat-card-materials-and-native-lifetime)
-for both appearances, the mounted history composer/note suites, and the native
-Talk, character-transition and voice-cloud replays described below.
+The collapsed Overview Dock is the original 168×44-point eye capsule. Its warm
+capsule material and Note's Regular glass share one persistent native glass node.
+The character's state colors, expressions, blink timing and Settings/onboarding
+handoff and target-gaze animations use the original vector renderer. No Harness
+sphere artwork or palette is loaded. Agent detail retains its actual Harness
+logo; Overview and history input reserve the eye seat. The Stop control remains
+at the trailing edge with its existing cancellation and accessibility semantics.
 
-The shared input row places the attachment plus between Moku's eyes and the editor. It reuses the workspace draft's device file chooser; hosts with file browsing also offer host files and directories through the existing picker. The control has a localized help/accessibility label and is disabled while attachment import or the owning surface is unavailable.
+The shared input row places the attachment plus directly before the editor,
+after the identity seat. Attachment import, file/directory picking, native input
+ownership and the zero-size event-monitor origin are unchanged.
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services and send callback; it has no voice entrance. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
-The eyes retain the last open editor seat while the composer retires. Geometry
-reported by the shrinking, read-only composer cannot move that seat; reopening
-resumes live editor measurements. The Dock mounts directory completion above
-the input as a separate overlay,
-sharing its menu chrome with the history composer. Its measured target height
-expands the shell without inserting rows into the editor's own layout. The
-editor and the single persistent eye seat therefore share the shell's bottom
-edge throughout the animation. The eye inset uses the input row's local height
-and the error footer's height; it does not resolve an anchor through animated
-ancestors, which would feed the shell's transient translation back into the face.
-The native transition replay checks the mounted eye seat's window-space trajectory through full and
-interrupted input transitions, plus its alignment with the actual editor during
-menu opening, filtering, Escape and rapid reversal in bottom and landing layouts.
+Dock and history clear submitted text, directory mentions and ready attachment
+chips immediately through the shared draft's optimistic editor projection. The
+retiring Dock capsule also clears its sealed ink snapshot before collapse.
+Admission still owns persistence consumption and staged-file release. Failure
+reveals the retained draft, preserving any new text after the failed message;
+no automatic retry occurs. Ready image chips use system Quick Look with the
+shared strip's local managed-file URLs and independent preview/remove actions.
+Sprint validation is limited to headless compilation and affected existing
+windowless cases; it does not certify Quick Look window, focus or pointer behavior.
+
+The identity seat retains the last open editor position while the composer
+retires. Directory completion stays above the same bottom-anchored native editor.
+Its measured height changes the shell without replacing the editor or its
+selection owner. Existing completion regression cases check native editor drift
+through entry, exit and rapid reversal.
 
 Input collapse fades the retained editor within 120ms of the close intent, even
 while `inputLeaving` keeps its native lifetime for 420ms. The shell and the single
-face seat share destination geometry in the same animation transaction; no
-delayed expansion fraction or intrinsic/fixed row switch drives the eyes.
+identity seat share destination geometry in the same animation transaction; no
+delayed expansion fraction or intrinsic/fixed row switch moves the identity.
 The shell is positioned by its bottom edge so height changes cannot first move
 AppKit text to a new row and then translate it back. Native editor internals lay
 out at their destination width while the shell reveals/clips them. Below 260pt
 of capsule width a persistent four-seat Layout gives text/attachment and
-eyes/actions separate rows, preserving the same native editor through resize.
+identity/actions separate rows, preserving the same native editor through resize.
 The surface height stays within the available viewport. Reduce Motion disables
 shell and ink animation. The [isolated panel preview](../../../../../demos/moku-panel-transition/README.md)
 records this repair's source-video evidence, local validation and limits.
@@ -133,7 +130,7 @@ Talk notifications and retire when the notification hides or the Dock unmounts.
 The same persistent capsule and character host own running, thinking, Talk and
 dispatch. There is no separate landing notice. A manually opened editor defers
 notifications until it closes, without losing its draft. The centered compact
-resident, eyes and running orbit scale together by 76/58. Expanded landing rows
+resident eyes and running orbit scale together by 76/58. Expanded landing rows
 retain the 680-point composer width and 76-point minimum height.
 
 A durable first-task shell can precede native admission, so it remains behind
@@ -203,10 +200,11 @@ row remain note entry points for a long message. The monitor checks the actual
 hit-tested AppKit viewport, so resizing and persistent scroller gutters do not
 depend on a predicted text height. Stop and voice controls retain their measured
 exclusions. Live voice transcripts and dispatch cards keep their eye-only entry.
+Dispatch status is informational; clicking it does not open a detail sheet.
 
 The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The choreography comes from Bart commits `2c3125ac7` and `45578f321`; the eyes retain their seat while the 5-point dots follow the capsule's outer contour, with 3 points of clear space. [NativeMokuRunningGeometry](NativeMokuRunningGeometry.swift) supplies that authored path to the persistent character host. Decorations paint outside the glass clip. Input, note, tool, message, interaction and voice ownership retire the running decoration through the same host rather than replacing the eye view.
 
-[NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock; Reduce Motion snaps to static open eyes and static running dots. Blink shape uses the continuous timestamp rather than fixed-rate samples. The production transition replay checks rapid redirection, persistent eye identity, text-clock continuity, viewport fitting and retirement; the existing blink replay retains natural-blink and running-orbit pixel coverage.
+[NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock; Reduce Motion snaps to static open eyes and static running dots. Blink shape uses the continuous timestamp rather than fixed-rate samples. The existing orbit replay retains loading coverage. The removed eye-only regression suites are not restored or claimed as executed by this rollback.
 
 Static character targets are cached until their input changes. The native display
 link sleeps between the existing absolute-time blinks (4.2-second period,
@@ -214,8 +212,12 @@ link sleeps between the existing absolute-time blinks (4.2-second period,
 identity with no face and no moving decoration has neither frames nor a blink
 wake. Role transitions, loading, visible reasoning and retiring ink keep their
 frames through the final paint. Resuming starts a fresh wall-time interval, so
-sleep cannot advance a new transition. The production transition replay checks
-idle sleep, blink resumption and the empty Harness decoration across a full cycle.
+sleep cannot advance a new transition. Eye-only checks removed by the orb
+rebrand remain absent; this rollback adds no test cases.
+
+Talk and live transcript prose retain their later semibold, centered layout.
+Symmetric 64-point insets reserve the restored eye seat without shifting text
+away from the capsule center.
 
 Overview derives its persistent bottom reservation from the same idle capsule
 geometry. Expanding the composer, note or notification does not change that
@@ -243,8 +245,8 @@ unchanged; this is a Dock presentation policy, not a data/schema change.
 
 Validation uses the [native reasoning replay](../../../../../tools/verification/moku-reasoning/README.md),
 which drives Runtime fixture transactions through the real Harness, workspace
-projection and Dock, and the [transition replay](../../../../../tools/verification/moku-transitions/README.md)
-for interrupted loading/input handoffs. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
+projection and Dock, and the [orbit replay](../../../../../tools/verification/moku-orbit/README.md)
+for loading ownership exits. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
 retains the Arc for comparison only.
 
 ## Talk, dispatch and notes
@@ -252,9 +254,9 @@ retains the Arc for comparison only.
 The expanded note's **Moku history** button opens the existing conversation
 reader. It remains available when the note or conversation is empty and supports keyboard and accessibility activation
 with localized labels. History sits before Stop or voice controls in the trailing
-action row beside the persistent eyes. Note covers Talk, dispatch and voice
+action row. Note covers Talk, dispatch and voice
 transcript ink rather than reserving a second message row. The Dock measures
-the actions; narrower capsules put them below the eyes. If the full label
+the actions; narrower capsules put them in a separate control band. If the full label
 cannot fit beside the other control, History becomes an icon with the same
 accessible label and help; if even that pair cannot fit, the controls stack.
 The note body stays clipped above these rows; its header scrolls with the body
@@ -264,18 +266,10 @@ without changing its exposure receipt or the workspace draft.
 
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. The live voice transcript shares that layout but, because dictation has no Talk-style length cap, it grows to an eight-line viewport before the same scroller takes over; a multi-line sentence is never reduced to its last line. Its trailing control seat stays reserved for the whole message so retiring Stop does not shift centered text or change its wrapping. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
 
-The two vertical strokes to the left of Talk are Moku's eyes, drawn by
-`NativeMokuCharacterSurface` in its `.face` seat, rather than a pause button.
-The row reserves a 34-point eye seat and a 15-point gap; with its 15-point
-leading inset, the message viewport starts 64 points from the capsule's left
-edge. The eye drawing uses its own centered 58×49-point canvas (scaled in
-landing), so its painted bounds, rather than that canvas's frame, determine
-clearance. `NativeMokuTalkTests.longMessagesKeepClearOfEyesWithoutOpeningAWindow`
-mounts the production Dock in windowless hosting views at 188, 320 and 900
-points, with Chinese/English long messages, ordinary/landing sizes and idle/running states. It checks
-settled eye-path and native message-clip separation. This headless check does
-not certify animation frames, rendered pixels or native scrolling behavior;
-those remain in the display-gated transcript and transition replays.
+Talk uses an 18-point leading inset with no eye reservation and selectable text viewport.
+Its retired eye painting has been removed. The existing windowless long-message
+regression now checks actual text clip bounds and Stop clearance without asserting
+an obsolete eye path. Native scrolling remains covered by the transcript suite.
 
 Talk and voice transcript prose wrap within the native clip width, including
 AppKit's mini-scroller gutter when the system uses persistent scrollbars. The
@@ -291,7 +285,7 @@ cannot expand it into the note's history/voice actions.
 Set `MOKU_TALK_CLIPPING_EVIDENCE` to retain mounted-view PNGs of the reported sentence;
 these are AppKit display-cache images, not WindowServer glass captures.
 
-Text shorter than the Talk viewport is vertically centered beside the eyes.
+Text shorter than the Talk viewport is vertically centered in its row.
 Overflow keeps its bottom anchor and follows new text only while the reader is
 at the tail; the same layout applies to the voice transcript. The Dock's Stop
 square is revealed by pointer hover, keyboard focus or VoiceOver focus and fades
@@ -317,7 +311,20 @@ captured operation identity before expiry. Timeout consumes only the notificatio
 using the existing dismissal and capsule transition; it never deletes transcript
 history or changes the persistent note, ordinary replies or voice transcript.
 
-[NativeMokuDispatch](NativeMokuDispatch.swift) projects the same operation while pending and settled. Success requires `completedAt`, no error, `ok:true` and a nonempty `threadId`; it confirms dispatch, not task completion. The 400×58-point layout contracts for narrow viewports. Configuration comes from that call's arguments. Details resolve the selected operation identity in the full transcript, preserving its original prompt and outcome when newer notifications arrive.
+[NativeMokuDispatch](NativeMokuDispatch.swift) projects the same operation while pending and settled. Success requires `completedAt`, no error, `ok:true` and a nonempty `threadId`; it confirms dispatch, not task completion. The 400×58-point layout contracts for narrow viewports. Configuration comes from that call's arguments. The notification is informational and does not open a detail sheet.
+
+The notification first fits the complete status and configuration on one line.
+When their intrinsic width exceeds the available content seat, configuration
+moves below status inside a 32-point row, without changing capsule dimensions,
+eye placement or the 48-point trailing control reservation. Model and thinking
+use 11-point text with no fixed configuration width. The model keeps its exact
+identifier across Codex, Claude, Pi and OpenCode; there are no display aliases
+or provider-prefix stripping. Thinking retains the requested effort or mode
+(`on`, `off`, `fixed`), with no inferred defaults. Only an overlong model on the
+second line truncates in the middle; thinking has higher layout priority, and
+extreme widths can still truncate either field. Hover help and accessibility
+retain the complete configuration. Provider remains separate from model identity
+in the stored operation; the notification has no clickable detail sheet.
 
 The selected Harness is the single key in `arguments.target`, with its native
 fields nested under that key. Empty, ambiguous or non-object selections do not
@@ -337,16 +344,15 @@ viewport height, independently of the document's fitted height. An initially
 empty Markdown layout must not replace the scroll container when parsing
 finishes: replacing it retires the mounted renderer and its armed read session.
 
-Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface/eye expansion explicitly respects Reduce Motion.
+Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface expansion explicitly respects Reduce Motion.
 
 Talk and Note take turns owning the same reading surface. Opening first fades
 message ink in place over 100ms, expands the single glass shell with the existing
 420ms geometry curve, then fades Note and History in over 120ms. Closing reverses
-that sequence. The footer retains only the same eyes and History/Stop/voice
-actions; Note prose never travels through a visible Talk row. The message's native
+that sequence. The footer retains History/Stop/voice actions; Note prose never travels through a visible Talk row. The message's native
 viewport remains mounted with its ordinary 48-point control inset, preserving
 wrapping and scroll state while hidden. This also applies to dispatch and live
-voice transcript ink, without changing dispatch detail or voice media ownership.
+voice transcript ink, without changing dispatch state or voice media ownership.
 
 A generation fences each animation completion, so a rapid reversal cannot finish
 an older intent. Input, covering routes, inactive/hidden scenes and Reduce Motion
@@ -355,7 +361,7 @@ receive pointer or accessibility activation. Note gains interaction and reading
 exposure eligibility only after its entrance completes; a close intent revokes
 both immediately. Its native viewport claims a user-open arm when eligible,
 including a quick reopen that retained the same renderer. Escape, outside click
-and the eye-to-input action remain available during the handoff.
+and the existing input command remain available during the handoff.
 
 Covering a notification with Note does not consume it. An already presented
 Talk keeps its original deadline and can expire while covered; a new operation
@@ -368,23 +374,23 @@ for source-video evidence and this change's validation limits. The earlier
 records the preceding repair, whose simultaneous Talk/Note presentation is
 superseded by this handoff.
 
-Note's Regular material is noninteractive; text selection, links, scrolling,
-history and dismissal retain their existing native targets. Returning to the
-collapsed Dock restores its clear interactive material. The warm gradient and
-fine edge remain mounted at zero opacity while Note is open, then fade back
-on the same resizing shell. Inserting them only at dismissal would give them
-the final small layout while glass is still contracting, visibly separating
-the black pill from the eyes. The persistent layers follow opening, closing
-and interrupted reversals without a second shell or delayed completion.
-Reduce Motion removes the inherited geometry/opacity animation; Reduce Transparency
-uses the same opaque warm-black fill in both states. The targeted
-[performance investigation](../../../../../tools/verification/moku-note-performance/README.md)
-records measured layout savings and the limits of its offscreen evidence.
+Note uses the same uniform Harness tint and a noninteractive clear glass surface;
+selection, links, scrolling and dismissal retain their existing targets. The
+material stays mounted through opening, closing and reversal. Reduce Motion
+removes inherited geometry/opacity animation; Reduce Transparency retains the
+same opaque tint. The existing Note lifecycle and viewport regressions remain.
 The [Note transition preview](../../../../../demos/moku-note-transition/README.md)
 records the production Dock with synthetic notes, including intermediate frames,
 rapid reversals, narrow/centered layouts and a local no-animation fixture.
 
 ## Voice display
+
+Voice controls alone keep the ordinary 168×44pt capsule, fitted to the viewport.
+A visible transcript expands to the message width (up to 560pt in the ordinary
+Overview Dock) and grows to eight lines before scrolling. When it disappears,
+the capsule becomes compact again unless a pending Talk/dispatch or another
+surface needs expansion. The 34×34pt voice control remains inside the compact
+row. See the [width regression investigation](../../../../../design/moku-voice-compact-width.md).
 
 The current user transcript takes precedence over Talk/dispatch while present. Partial/final snapshots replace the same session/item; final or handoff alone does not hide it. The first nonempty assistant item or explicitly associated Moku answer consumes it once. Duplicate assistant fragments cannot hide a newer input, and a late final cannot resurrect a consumed item. Owner/media termination clears the projection. [Native voice](../../Voice/README.md) owns these identities and microphone lifecycle; mounting the Dock/history or cloud never starts media.
 
@@ -398,7 +404,7 @@ controls; both active and inactive legacy states retain their normal text editor
 and draft. The native press recognizer
 preserves ordinary click/focus and cancels on movement, early release,
 lost window activity, unavailable input or unmount. AppKit tracks the delivered
-event stream, including native text selection. Only the editor is eligible; eyes, attachment/send controls,
+event stream, including native text selection. Only the editor is eligible; identity logos, attachment/send controls,
 notes and directory suggestions are excluded. Release after activation keeps the
 voice session running and retains the draft. The localized placeholder/help and
 VoiceOver Start voice action expose the entrance. Force Touch and the former
@@ -406,7 +412,7 @@ Ctrl+Option+V menu command no longer start or stop Moku voice. Its preparing thr
 stopping phases drive presentation. The cloud fades over the existing 0.42-second
 smooth capsule timing; the drawing stays mounted with its timeline paused while
 inactive, so resizing does not insert a final-width cloud mid-collapse. Overview Dock
-editor text fades out in 0.12 seconds before the eyes cross its seat, and its
+editor text fades out in 0.12 seconds before the shell changes shape, and its
 composer opens a 34-point control seat without replacing the editor or draft.
 Transitions reverse directly from current presentation values, without timers,
 delayed audio, or a second voice-session lifecycle. Reduce Motion disables these
@@ -456,14 +462,12 @@ for the production note-to-reader replay across all four Harnesses.
 
 ## Settings expansion
 
-Settings occupies the resident Dock's existing glass capsule, with a stable
+Settings expands from the resident Dock's existing capsule, with a stable
 viewport-bounded centered surface with a 780-point preferred width and a
-900-point minimum preferred height that grows with its active form. Its full panel uses untinted
-regular glass and keeps the persistent face mounted: the same eye view leaves
-the composer row for `NativeSettingsHeaderLayout.faceCenter` in the page's
-leading header column and returns as the shell contracts, so the character is
-never replaced or duplicated and its blink clock survives the visit. The other
-Dock surfaces retain their existing gradient material and anchors.
+900-point minimum preferred height that grows with its active form. Its full
+panel uses the opaque adaptive Settings fill and a subtle border, without Liquid
+Glass. Its header has no character or reserved eye slot. The other Dock surfaces
+retain their Harness tint and anchors.
 The scene blurs and disables Overview, while the capsule and retained input/Note
 visit stay mounted. Closing uses the Settings draft gate and restores the
 previous valid surface; pending interventions resume only after Settings exits.
@@ -483,12 +487,11 @@ successor. Equal text in separate successful calls remains separate messages.
 Ordinary Talk keeps its existing silent, latest-only, 60-second presentation.
 
 [NativeMokuTimerBar](NativeMokuTimerBar.swift) reserves a small seat above the
-current workspace route with Moku's surprised eyes, the complete scrollable text,
+current workspace route with the complete scrollable text,
 a queue count and an always-present **已收到 / Received** button. It does not
 navigate, replace the Dock editor, grab focus, or close voice/permission surfaces.
 Its click region is excluded from composer outside-click dismissal. It has no
-Escape, outside-click, focus-loss or timeout acknowledgment. Static eyes and
-nonanimated presentation respect Reduce Motion. Native text/buttons expose the
+Escape, outside-click, focus-loss or timeout acknowledgment. Nonanimated presentation respects Reduce Motion. Native text/buttons expose the
 content and action to accessibility; acknowledgment does not require audio.
 Like the other Moku surfaces, the Timer bar uses a local dark environment even
 in a light workspace; it does not override the window appearance.
@@ -589,7 +592,7 @@ once, inside its own geometry group, while the shell retains its existing size
 and vertical animation. The complete Dock owns its state and geometry within
 one hosting tree, including Settings height preferences and input hit regions.
 The hosting root stays fixed while observable content carries outer updates;
-replacing the root can settle the shell before its face finishes moving.
+replacing the root can settle the shell before its content finishes moving.
 
 The [horizontal transition replay](../../../../../tools/verification/moku-transitions/README.md)
 uses WindowServer pixels to check continued travel during a controlled main-actor
@@ -606,7 +609,7 @@ for that adjustment; its rendered feel remains to be confirmed in the app.
 
 Primary reading entry uses the shared 420ms emphasized curve for the collapsed
 Dock's position. Its composer stays unmounted until the reading panel/title handoff
-and main-document line/footer reveal finish, then the folded Agent workspace
+finishes and the main document is ready, then the folded Agent workspace
 commits. That visit-scoped boundary admits the Sidecard reveal (380ms). If its
 execution column owns the Dock, the compact Moku travels there first; the actual
 horizontal animation's removed completion then admits input expansion (420ms).
@@ -625,7 +628,8 @@ accepted Close also suspends input hit testing/focus through the panel's live
 motion state without folding the retained shell. Reduce Motion removes the focus
 delay and spatial animations. The fitted Dock
 bottom moves down by up to 16pt, keeping at least
-12pt below it; Super Thread pins Moku input open when no execution is selected; Git retains its normal input policy in that same lower seat.
+12pt below it; Super Thread admits the expanded composer only for a selected
+associated Thread; Git retains its normal input policy in that same lower seat.
 Landing and Settings keep their existing positions. The bottom-anchored editor,
 reasoning envelope and hit regions still use the fitted surface. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md).
@@ -637,16 +641,16 @@ The composer, Talk, voice visuals and pending interventions use that shared
 eligibility; other application pages and covering routes still hide it.
 Returning to Overview publishes eligibility in an order that retains native
 input/hit-region ownership. Agent detail keeps its input expanded, with a localized
-placeholder naming that Thread. Its left Moku eye seat flips downward into the
+placeholder naming that Thread. Its leading identity seat reveals the
 actual Harness plugin's native logo, which remains visible while typing.
 The host resolves the current target's `harnessID` on each render, including target
 changes; unknown/empty IDs use a neutral terminal mark, never Moku's Harness.
 Registered custom Harnesses supply their own mark through the same registry.
-The passive logo occupies the same 34×25pt seat as the eyes and ignores pointer
-and accessibility hit testing. A 420ms horizontal-axis flip retires the old face
-in its first half and reveals the new face in its second half. Changing Harness
+The passive logo occupies a 34×25pt seat only in Agent input and ignores pointer
+and accessibility hit testing. A 420ms horizontal-axis flip retires the old mark
+in its first half and reveals the new mark in its second half. Changing Harness
 flips to the new mark; changing Threads within the same Harness keeps it steady.
-Overview, Report/Git and Settings restore Moku's eyes. Reduce Motion replaces
+Overview and Report/Git restore Moku's theme without a logo; Settings has no header identity slot. Reduce Motion replaces
 marks without spatial travel. Identity transitions use SwiftUI's retained views,
 without delayed callbacks that could restore a stale Harness or acquire focus.
 The logo is separate from placeholder/draft text and never replaces the editor.
@@ -672,7 +676,8 @@ open it. Card choices, navigation, suppression and failed admission retire the
 request; a fresh send may reveal again even when steering the same execution.
 Navigation resets retained editor ink, selection and completion ownership before
 admitting the replacement draft. Returning to Overview, Git or Moku history restores the existing Moku send route.
-An unselected Super Thread restores Moku with that document as its send source. No Overview card send entrance is added.
+An unselected Super Thread keeps the resident Moku capsule compact and denies
+input expansion. No Overview card send entrance is added.
 
 Agent detail pins the composer open: Escape, outside clicks, the input toggle
 and successful sends cannot fold it. The editor's Escape callback closes the
@@ -761,7 +766,7 @@ same orbit clock; unrelated Moku execution updates cannot restart it. Reduce
 Motion retains static dots.
 
 An accepted exact-execution continuation retains the previous Dock column,
-expanded shell and face seat while its new reading visit prepares. Native column
+expanded shell and Harness logo seat while its new reading visit prepares. Native column
 markers belong to a route and publish only after auxiliary layout admission;
 retained outgoing Report markers cannot overwrite the destination. The Dock
 travels once to that committed column with a monotone curve. Replacements use
@@ -787,16 +792,17 @@ the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
 
-Super Thread document/list input pins the resident Moku composer open with an
-explicit Moku/Super Thread placeholder and Moku's eyes. Escape follows the report's
-auxiliary Back or normal close; IME, completions, covering routes and input-admission
-gates keep their existing precedence. Each report has a persisted Moku draft;
-Overview and exact-execution drafts retain their existing storage identities.
-Send captures `superThreadId` before suspending, while the Runtime resolves the
-current report and its precise source references. Route fences prevent a retiring
-composer from assigning its input to another report. Selecting an execution still
-borrows the ordinary Agent composer with its existing historical continuation,
-Stop authority and receipt handling. No associated Agent receives unselected input.
+Super Thread document/list state does not admit Moku input. The shared scene
+admission gate blocks capsule clicks, Compose menu/shortcut actions, scripted
+toggles and direct open requests; its compact capsule exposes no input launcher
+or hint. Selecting an associated execution still borrows and pins the ordinary
+Agent composer after reading/content admission, with its existing historical
+continuation, Stop authority and receipt handling. Returning to the list, folding
+or replacing the associated reader immediately retires input, including pending
+focus work. Escape retains the report's auxiliary Back or normal close; IME,
+completions and covering routes keep their existing precedence. Overview and
+exact-execution drafts retain their existing storage identities. No associated
+Agent receives unselected input.
 Voice is now restricted to Overview. Entering an ordinary Agent, Super Thread or
 Moku history reader stops the global call before its controls are hidden, retaining
 a visible cleanup notice and received transcript. Reader inputs mount no long-press

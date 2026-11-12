@@ -12,7 +12,7 @@ public struct SettingsDiagnostic: Sendable {
     }
     public enum Field: String, Sendable, CaseIterable {
         case host = "moku.hostHarnessPreference", execution = "moku.executionHarnesses", targets = "moku.targetHarnessIds"
-        case routing = "moku.routingGuidance"
+        case routing = "moku.routingGuidance", routingPreset = "moku.routingPreset"
         case harnesses, pluginSettings, pluginEnabled, appearance, locale
     }
     private static let logger = Logger(subsystem: "com.mokusei.desktop", category: "settings")

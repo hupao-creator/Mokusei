@@ -22,12 +22,13 @@ public extension NativeWorkspacePresentation {
     }
 
     private var interactionThreads: [ApplicationThreadRef] {
-        overview.items.compactMap { item in
+        overview.items.flatMap { item -> [ApplicationThreadRef] in
             switch overview.snapshot(for: item) {
             case .harness(let snapshot):
-                return ApplicationThreadRef(threadID: snapshot.input.thread.id, typeID: "agent")
-            case .application(let plugin, let snapshot): return plugin.hasDetail ? snapshot.entry.ref : nil
-            case nil: return nil
+                return [ApplicationThreadRef(threadID: snapshot.input.thread.id, typeID: "agent")]
+            case .application(let plugin, let snapshot): return plugin.hasDetail ? [snapshot.entry.ref] : []
+            case .collection(let plugin, let members): return plugin.hasDetail ? members.map { $0.entry.ref } : []
+            case nil: return []
             }
         }.sorted { ($0.typeID.string, $0.threadID.string) < ($1.typeID.string, $1.threadID.string) }
     }

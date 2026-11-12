@@ -293,12 +293,14 @@ func (s *Source) refreshGeneration(identities []AcquisitionIdentity) error {
 	if response.status != "ok" {
 		return errors.New("Artificial Analysis model index is unavailable")
 	}
-	if err := validateIndexVersion(response.body); err != nil {
-		return err
+	version, err := readIndexVersion(response.body)
+	if err != nil {
+		return fmt.Errorf("%w: %v", invalidDocument, err)
 	}
+	upgrading := previous != nil && previous.IntelligenceIndexVersion != version
 	index := parseIndex(response.body)
 	if len(index) == 0 {
-		return errors.New("Artificial Analysis model index has no configurations")
+		return fmt.Errorf("%w: model index has no configurations", invalidDocument)
 	}
 	all := append([]target{}, index...)
 	for _, entry := range previousConfigurations {
@@ -325,20 +327,21 @@ func (s *Source) refreshGeneration(identities []AcquisitionIdentity) error {
 			matched[match.Release.Slug] = true
 		}
 	}
+	prior := map[string]persistedConfiguration{}
+	for _, entry := range previousConfigurations {
+		prior[entry.Slug] = entry
+	}
 	targets := []target{}
 	seen := map[string]bool{}
 	for _, entry := range all {
-		if matched[entry.ReleaseSlug] && !seen[entry.Slug] {
+		if (matched[entry.ReleaseSlug] || (upgrading && prior[entry.Slug].Slug != "")) && !seen[entry.Slug] {
 			seen[entry.Slug] = true
 			targets = append(targets, entry)
 		}
 	}
 	s.log("aa.facts.refresh.targets", map[string]any{"identities": len(identities), "indexConfigurations": len(index), "matchedReleases": len(matched), "targets": len(targets)})
-	prior := map[string]persistedConfiguration{}
-	for _, entry := range previousConfigurations {
-		prior[entry.Slug] = entry
-	}
 	results := make([]*persistedConfiguration, len(targets))
+	failures := make([]error, len(targets))
 	jobs := make(chan int)
 	var workers sync.WaitGroup
 	for range min(4, len(targets)) {
@@ -350,10 +353,10 @@ func (s *Source) refreshGeneration(identities []AcquisitionIdentity) error {
 					return
 				}
 				var previous *persistedConfiguration
-				if value, ok := prior[targets[index].Slug]; ok {
+				if value, ok := prior[targets[index].Slug]; ok && !upgrading {
 					previous = &value
 				}
-				results[index] = s.refreshConfiguration(targets[index], previous)
+				results[index], failures[index] = s.refreshConfiguration(targets[index], previous, version)
 			}
 		}()
 	}
@@ -373,6 +376,15 @@ dispatch:
 	if err = s.ctx.Err(); err != nil {
 		return err
 	}
+	// Regrading changes scores even within a patch version. Replace the whole
+	// cached cohort together, and retain its original version on any failure.
+	if upgrading {
+		for _, failure := range failures {
+			if failure != nil {
+				return failure
+			}
+		}
+	}
 	configurations := []persistedConfiguration{}
 	for _, entry := range previousConfigurations {
 		if !seen[entry.Slug] {
@@ -389,7 +401,7 @@ dispatch:
 		return errors.New("Artificial Analysis configuration cache is too large")
 	}
 	now := isoNow(s.options.Now())
-	next := persistedSnapshot{SchemaVersion: cacheSchemaVersion, IntelligenceIndexVersion: IntelligenceIndexVersion, Source: SourceID, ObservedAt: now, FetchedAt: now, Configurations: configurations}
+	next := persistedSnapshot{SchemaVersion: cacheSchemaVersion, IntelligenceIndexVersion: version, Source: SourceID, ObservedAt: now, FetchedAt: now, Configurations: configurations}
 	data, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -419,7 +431,7 @@ dispatch:
 	}
 	return nil
 }
-func (s *Source) refreshConfiguration(target target, previous *persistedConfiguration) *persistedConfiguration {
+func (s *Source) refreshConfiguration(target target, previous *persistedConfiguration, version string) (*persistedConfiguration, error) {
 	started := time.Now()
 	observed := isoNow(s.options.Now())
 	fallback := func() *persistedConfiguration {
@@ -442,32 +454,37 @@ func (s *Source) refreshConfiguration(target target, previous *persistedConfigur
 	if err == nil {
 		switch response.status {
 		case "gone":
-			return nil
+			return nil, nil
 		case "not-modified":
 			entry := fallback()
 			if entry != nil && response.etag != "" {
 				entry.ETag = response.etag
 			}
-			return entry
+			if previous == nil {
+				return entry, fmt.Errorf("%w: unsolicited 304", invalidDocument)
+			}
+			return entry, nil
 		}
 	}
 	if err == nil {
-		identity, facts, parseErr := parsePage(response.body, target.Slug)
-		err = parseErr
+		identity, facts, parseErr := parsePage(response.body, target.Slug, version)
+		if parseErr != nil {
+			err = fmt.Errorf("%w: %v", invalidDocument, parseErr)
+		}
 		class = "invalid-document"
 		if err == nil && (identity.Slug != target.Slug || identity.ReleaseSlug != target.ReleaseSlug) {
 			err = errors.New("AA detail page does not match requested configuration")
 			class = "identity-mismatch"
 		}
 		if err == nil {
-			return &persistedConfiguration{Slug: identity.Slug, ReleaseSlug: identity.ReleaseSlug, ReleaseName: identity.ReleaseName, Configuration: *identity.Configuration, ObservedAt: observed, ETag: response.etag, Facts: &facts}
+			return &persistedConfiguration{Slug: identity.Slug, ReleaseSlug: identity.ReleaseSlug, ReleaseName: identity.ReleaseName, Configuration: *identity.Configuration, ObservedAt: observed, ETag: response.etag, Facts: &facts}, nil
 		}
 	}
 	// Source shutdown is reported once per generation, not once per queued model.
 	if s.ctx.Err() == nil {
 		s.log("aa.facts.configuration.failed", map[string]any{"class": class, "durationMs": time.Since(started).Milliseconds(), "retained": previous != nil})
 	}
-	return fallback()
+	return fallback(), err
 }
 
 type document struct{ status, body, etag string }

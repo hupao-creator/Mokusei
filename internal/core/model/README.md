@@ -58,11 +58,28 @@ entries from durable lifecycle evidence at startup.
 successful Moku interrupt tool request for that exact execution. Missing means
 unknown; neither clients nor migrations infer it from `interrupted`. It travels
 with the durable envelope independently of opaque Harness state.
-
-The public thread envelope projects the optional attentionHidden browsing flag. The thread:record-visit command accepts an identified detail visit, cumulative foreground milliseconds, search-entry provenance and the completed execution actually observed by the reader.
+`userInterruptedExecutionId` carries the equivalent evidence for an acknowledged
+user Stop. Missing tool provenance does not establish user provenance. Forks
+clear both fields; consumers match the exact latest interrupted execution.
 
 
 `moku:submit.superThreadId` is an optional nonempty bounded document ID. It selects
 send context only; Moku remains the destination. The application-owned query
 resolves the actual report and related executions rather than trusting client
 content. Existing requests may omit it.
+
+Archived ordinary Thread `tags` and `tagEmojis` form frozen historical decoration,
+not active Tag pool membership. Restoration clears them for reclassification;
+public field shapes are unchanged.
+
+`MokuSettings.routingPreset` optionally selects `economy`, `balanced`,
+`performance` or `custom`; explicit Custom is retained even with empty guidance.
+Omission preserves existing manual guidance; without manual text the balanced
+base policy applies.
+`routingGuidance` retains the user's manual text independently while a preset is
+active. Runtime validates preset IDs and captures changes at the next Moku
+execution admission, alongside the existing configuration fields.
+
+`search:retry` is a zero-argument write command that wakes local model/index
+recovery. `search:status` and `search:query` remain read channels; their responses
+include bounded semantic preparation state and may report `hybrid` mode.

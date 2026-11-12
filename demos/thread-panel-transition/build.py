@@ -24,7 +24,7 @@ if not options.skip_build:
     subprocess.run(['xcrun', 'swift', 'build', '--package-path', str(repo / 'app/macos')], check=True)
 replay = NativeReplay(repo, 'ThreadPanelDemo', 'com.mokusei.thread-panel-demo')
 try:
-    replay.compile([source / 'Sidecards.swift', source / 'LineReveal.swift', source / 'main.swift'])
+    replay.compile([source / 'Sidecards.swift', source / 'main.swift'])
     if options.verify:
         replay.acquire()
         status = replay.run(['--verify'] + (['--production'] if options.production else []), timeout=90)

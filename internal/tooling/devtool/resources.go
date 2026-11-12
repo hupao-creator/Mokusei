@@ -104,7 +104,7 @@ func validatePackagedResources(app string) error {
 	if len(data) < 8 || string(data[:4]) != "icns" || int(binary.BigEndian.Uint32(data[4:8])) != len(data) {
 		return fmt.Errorf("invalid application icon")
 	}
-	for _, name := range []string{"Go-LICENSE", "LiveKitWebRTC-LICENSE"} {
+	for _, name := range []string{"Go-LICENSE", "LiveKitWebRTC-LICENSE", "LiteRT-LM-LICENSE"} {
 		if _, err = requiredResource(filepath.Join(resources, "licenses"), name, ""); err != nil {
 			return err
 		}

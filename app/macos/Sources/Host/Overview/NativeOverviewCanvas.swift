@@ -3,7 +3,7 @@ import MokuseiPluginUI
 import Observation
 import SwiftUI
 
-/// Geometry and structural identity only. The owning plugin supplies semantic card content.
+/// Geometry, shell ownership and projection identity. The plugin supplies semantic content.
 public struct NativeOverviewItem: Identifiable, Equatable, Sendable {
     public let id: String
     public var columns: Int
@@ -13,9 +13,11 @@ public struct NativeOverviewItem: Identifiable, Equatable, Sendable {
     /// Opaque identity of the owning plugin projection; excluded from structural layout signatures.
     public var presentationID: String
     public var completed: Bool
+    public var providesCardSurface: Bool
 
     public init(id: String, columns: Int = 1, rows: Int = 1, structureKey: String = "",
-                needsAttention: Bool = false, presentationID: String = "", completed: Bool = false) {
+                needsAttention: Bool = false, presentationID: String = "", completed: Bool = false,
+                providesCardSurface: Bool = false) {
         self.id = id
         self.columns = columns
         self.rows = rows
@@ -23,6 +25,7 @@ public struct NativeOverviewItem: Identifiable, Equatable, Sendable {
         self.needsAttention = needsAttention
         self.presentationID = presentationID
         self.completed = completed
+        self.providesCardSurface = providesCardSurface
     }
 
     var member: NativeOverviewMember { .init(id: id, columns: columns, rows: rows) }
@@ -884,7 +887,7 @@ private struct OverviewCameraPlane<Content: View>: View {
     }
 }
 
-/// The static shell keeps a neutral surface across execution states.
+/// Ordinary static shells keep a neutral surface across execution states.
 /// Structural/environment updates retain the same spatial frame and identity.
 private struct OverviewCardShell: View, Equatable {
     let slot: OverviewCardContentState
@@ -898,12 +901,18 @@ private struct OverviewCardShell: View, Equatable {
 
     var body: some View {
         OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
-            RoundedRectangle(cornerRadius: 22)
+            if slot.item.providesCardSurface {
+                // Glass belongs in the semantic camera plane so backdrop geometry
+                // tracks pan/zoom; a flat decorative shell would occlude its sample.
+                Color.clear
+            } else {
+                RoundedRectangle(cornerRadius: 22)
                 .fill(NativePalette.overview.surface.swiftUI)
                 .overlay {
                     RoundedRectangle(cornerRadius: 22)
                         .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
                 }
+            }
         }
     }
 }

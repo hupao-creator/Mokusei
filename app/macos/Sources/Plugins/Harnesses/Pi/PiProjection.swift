@@ -69,10 +69,11 @@ func piOverview(input: HarnessThreadInput, availableColumns: Int) throws -> Harn
         structureKey: JSONText(presentation.key), excerpt: excerpt, view: view)
 }
 
-private func piOverviewMessage(_ state: PiState, executionID: JSONText?, status: PublicExecution.Status?) -> (id: JSONText, text: JSONText)? {
+func piOverviewMessage(_ state: PiState, executionID: JSONText?, status: PublicExecution.Status?, exactExecution: Bool = false) -> (id: JSONText, text: JSONText)? {
     let completed = Set(state.executions.filter { $0.status == .completed }.map(\.executionID))
     let live = status == .running || status == .waitingForUser
     for message in state.messages.reversed() where message.role == "assistant" {
+        if exactExecution && message.executionID != executionID { continue }
         let current = message.executionID == executionID
         let complete = message.status == "complete"
         guard complete || (current && live) else { continue }

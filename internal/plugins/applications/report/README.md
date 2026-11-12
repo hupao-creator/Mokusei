@@ -10,20 +10,22 @@ documents, native history and mutation receipts.
 
 [domain.go](domain.go) and [model.go](model.go) define document commands, queries and projections. Mutations use the Application host's planned transaction scopes, CAS and batch receipts. Report source references and semantic tag/emoji snapshots are maintained with the document; a source deletion does not rewrite the report as an executing task. HTML and full document content are queried on demand rather than embedded in the overview catalog.
 
-Super Thread Agent's exclusive tool bindings are `list_threads`,
-`get_thread_status`, `read_lifecycle_events`, `create_report`, `list_reports`,
-`read_report` and `update_report`. It exposes no `read_thread` binding or
-alternative binding for model-based source-history questions. Moku's separate
-`read_thread` tool and the shared ordinary-task read capability are independent.
+Super Thread Agent's exclusive tool bindings are `create_report`, `list_reports`,
+`read_report` and `update_report`. It uses automatically delivered successful
+execution evidence, saved reports and the scoped title-only inventory described
+below. It cannot query current task status, look up historical lifecycle events
+or ask model-based source-history questions. Earlier evidence absent from its
+current context and saved reports cannot be recovered by the agent. Moku's task
+tools are independent.
 
-The operational prompt describes scope, available evidence and report content
-requirements without naming bindings or prescribing their invocation. It does
-not request a source-history question after that binding's removal. This narrow
-cleanup retains the existing writing/host-integration requirements and the
-verbatim ELI5 snapshot; it does not adopt the pending shortened prompt draft.
+The operational prompt describes the delivered evidence and report content
+requirements without prescribing tool invocation. The verbatim ELI5 snapshot
+and existing writing/host-integration requirements remain unchanged.
 
 The agent uses the shared [background runner](../background/runner.go), initializing native work lazily and disposing idle sessions. It follows Moku's saved execution profile or an independent configuration via [background settings](../background/settings.go). Admitted batches retain their configuration and request/receipt identity across retries. Settings-retention data survives history clearing.
 
+The runner retains its internal lifecycle history reads for initial batches and
+retry recovery; removing model-facing queries does not remove that authority.
 Automatic batches and active-execution steering embed the shared runner's
 complete lifecycle event JSON, including `data`, rather than metadata requiring
 a second journal read. For `execution.completed`, `data` is the persisted
@@ -33,6 +35,52 @@ an empty summary stays empty. Delivery does not synthesize a final reply or
 substitute the thread's current execution. See the host's
 [shared delivery contract](../../../hosts/applicationhost/README.md#lifecycle-batch-delivery)
 for size, retry and disclosure limits.
+
+## Wake statusbar
+
+Every actual initial, retry or steering send captures `report.statusbar` afresh
+and appends its JSON after the unchanged lifecycle event array. The snapshot is
+`scope`, opaque content `revision`, and `unassignedThreads` (ID/title only, sorted
+by ID). It lists all current unarchived ordinary Threads in the instance's
+Directory Scope, including Inbox, that have no Super Thread owner. It does not
+filter by execution status or by the triggering event. Moku, retained Moku history,
+private sessions and other scopes are excluded. A bound Thread remains classified
+when its current execution changes or its Super Thread is archived. Historical
+bindings in other scopes also exclude it, without exposing those owners. User
+unlink, report-reference edits, archive/restore, title changes and deletion are
+reflected at the next send; they do not create new wake triggers.
+
+[statusbar.go](statusbar.go) joins title-only inventory and the host's complete
+binding index from one immutable store snapshot. The background-only query has
+no model tool binding and accepts no scope supplied by the model. It requires
+only a snapshot inventory capability, without task history or current execution
+reads. Apart from the existing host-owned scope identity, full reports, HTML,
+covers, per-Thread working directories, private sessions, tools and diagnostic
+bodies are absent. The existing four report tools remain unchanged.
+
+The version changes only when the scoped unassigned ID/title content changes;
+it is not an `expectedRevision` for report writes. Membership is advisory and
+can change concurrently. Existing full-report read, record CAS, binding checks
+and durable write receipts remain authoritative. An unassigned Thread is not
+evidence of completion and does not require a report. Titles are untrusted text;
+snapshot content is evidence, never instructions granting authority.
+Delivered successful-execution data and saved reports
+remain the only report-content evidence; missing historic execution evidence
+is not reconstructed from this inventory.
+
+The shared `sendEvents` path covers lazy first admission, later idle batches,
+failure retries, pending work after restart, re-enablement after pause, and new
+events steering a running execution. Each send takes a new snapshot after native
+configuration preparation. Merely reconnecting an already admitted running
+execution does not send input, replay events, spend an attempt or replace its
+in-flight context. Its next actual send refreshes the snapshot. Already completed
+recovered work settles without an unnecessary model wake. Query failures prevent
+the send and follow existing retry/cancellation handling; no empty success is
+substituted. Delivery keeps the existing input-size limits and never silently
+truncates the unassigned list. Oversized input fails through the same retry path.
+
+No UI status bar or new completion, polling, title-change or report-write wake is
+introduced. The verbatim writing skill and report presentation remain unchanged.
 
 `report.settings.enabled` defaults to true when omitted and operates independently
 of Tag. Disabling revokes the active attempt and tool lifetime, interrupts/closes
@@ -74,7 +122,8 @@ adoption and independent profiles that remain unaffected by Moku edits.
 The Swift [Report application](../../../../app/macos/Sources/Plugins/Applications/Report/) supplies cards and a native HTML reading route using the shared navigation stack. Report documents have no ordinary task execution lifecycle. Their tags decorate the document and do not independently create Overview filter membership.
 
 Verification: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh run -race ./tools/verification/runtime` and `./scripts/go.sh test -race ./internal/plugins/applications/report` from the repository root.
-The headless Runtime replay checks the actual Report session's injected skill
+The headless Runtime replay checks the exact four-tool exclusive binding set,
+scoped completed-execution data delivery and the actual Report session's injected skill
 against the upstream SHA-256 and rejects the removed style/language guidance in
 system instructions, tool descriptions and initial/steering batch messages.
 
@@ -259,3 +308,16 @@ The passive native WebKit surface uses a nonpersistent store, disabled JavaScrip
 a host-owned document response with a sandbox CSP blocking external resources.
 It neither navigates nor handles input; theme follows the native appearance.
 A failed cover leaves the native card usable with an unavailable label.
+
+
+## Updated collection members
+
+The native plugin exposes a stable reading fingerprint for title, emoji,
+introduction, document/cover revisions and the set of exact execution references.
+The desktop Host persists this fingerprint with its close/retained-reading facts;
+a change revokes the old collection eligibility even across reconnect/restart.
+Tag propagation, archive/restore, source status, record timestamps/revisions and
+reference order alone do not split a collection. Initial observation establishes
+a baseline rather than an edit. No report record, write receipt or CAS changes.
+See the [desktop reading contract](../../../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+for close/dwell rules and the limit of reading evidence without a prior fingerprint.

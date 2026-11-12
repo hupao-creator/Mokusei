@@ -15,7 +15,7 @@ import (
 )
 
 func searchVisible(thread model.ThreadRecord) bool {
-	if thread.Moku || archived(&thread) {
+	if thread.Moku || thread.MokuHistory || archived(&thread) {
 		return false
 	}
 	return true
@@ -106,6 +106,9 @@ func (r *Runtime) searchCommand(ctx context.Context, channel string, args []json
 	}
 	switch channel {
 	case "search:status":
+		return r.search.Status(ctx)
+	case "search:retry":
+		r.search.Retry()
 		return r.search.Status(ctx)
 	case "search:query":
 		var request threadsearch.QueryRequest

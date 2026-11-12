@@ -23,7 +23,9 @@ public struct OpenCodeHarnessPlugin: HarnessPlugin {
     public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
         let state = try OpenCodeState(thread.sessionState)
         guard let turn = state.executions.first(where: { $0.executionID == executionID }) else { return nil }
-        return try .init(startedAt: turn.startedAt, finishedAt: turn.finishedAt, running: turn.status == .running || turn.status == .waitingForUser, excerpt: turn.summary ?? "")
+        let messages = state.messages.filter { $0.executionID == executionID && !$0.inherited }
+        let excerpt = ocOverviewMessage(messages, sessionID: state.nativeSessionID, status: turn.status)?.text ?? ([.running, .waitingForUser].contains(turn.status) ? "" : turn.summary ?? "")
+        return try .init(startedAt: turn.startedAt, finishedAt: turn.finishedAt, running: turn.status == .running || turn.status == .waitingForUser, excerpt: excerpt)
     }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? {
         let state = try OpenCodeState(thread.sessionState)
@@ -50,7 +52,7 @@ private let ocEnglish: [String: String] = [
     "请补全模型相关配置；完成前不会保存此组修改。": "Complete the model settings to save these changes.",
     "基础模型变体": "Base model variant", "OpenCode Thread 配置": "OpenCode Thread settings", "OpenCode Thread 默认配置": "Default OpenCode Thread settings",
     "OpenCode 原生默认": "OpenCode native default", "自动批准权限请求（保留拒绝规则）": "Approve permission requests automatically (keep deny rules)",
-    "按原生规则询问": "Ask according to native rules", "当前原生模型": "Current native model", "OpenCode 模型变体": "OpenCode model variant", "OpenCode Agent": "OpenCode agent",
+    "按原生规则询问": "Ask according to native rules", "当前原生模型": "Current native model", "OpenCode 模型变体": "OpenCode model variant",
     "OpenCode 状态不可用": "OpenCode state unavailable", "OpenCode 请求已失效": "This OpenCode request is no longer available",
     "OpenCode 回复失败": "OpenCode reply failed",
     "正在读取 OpenCode 环境…": "Loading the OpenCode environment…", "正在刷新 OpenCode…": "Refreshing OpenCode…",

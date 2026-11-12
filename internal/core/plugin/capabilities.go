@@ -8,18 +8,19 @@ import (
 )
 
 var (
-	LifecycleCapabilityKey               = CapabilityKey{"mokusei.lifecycle", 1, "runtime"}
-	BackgroundSessionsCapabilityKey      = CapabilityKey{"mokusei.background-sessions", 1, "runtime"}
-	BackgroundConfigurationCapabilityKey = CapabilityKey{"mokusei.background-configuration", 1, "runtime"}
-	BackgroundEnvironmentCapabilityKey   = CapabilityKey{"mokusei.background-environment", 1, "runtime"}
-	OrdinaryTaskReadCapabilityKey        = CapabilityKey{"mokusei.tasks.read", 1, "runtime"}
-	ClassificationReadCapabilityKey      = CapabilityKey{"mokusei.classification.read", 1, "runtime"}
-	SemanticTagsReadCapabilityKey        = CapabilityKey{"mokusei.tags.read", 1, "runtime"}
-	SemanticTagsWriteCapabilityKey       = CapabilityKey{"mokusei.tags.write", 1, "runtime"}
-	OrdinaryTaskSnapshotCapabilityKey    = CapabilityKey{"mokusei.tasks.snapshot", 1, "snapshot"}
-	SemanticTagsSnapshotCapabilityKey    = CapabilityKey{"mokusei.tags.snapshot", 1, "snapshot"}
-	OverviewControlCapabilityKey         = CapabilityKey{"mokusei.overview-control", 1, "runtime"}
-	ApplicationProcessCapabilityKey      = CapabilityKey{"mokusei.process", 1, "runtime"}
+	LifecycleCapabilityKey                     = CapabilityKey{"mokusei.lifecycle", 1, "runtime"}
+	BackgroundSessionsCapabilityKey            = CapabilityKey{"mokusei.background-sessions", 1, "runtime"}
+	BackgroundConfigurationCapabilityKey       = CapabilityKey{"mokusei.background-configuration", 1, "runtime"}
+	BackgroundEnvironmentCapabilityKey         = CapabilityKey{"mokusei.background-environment", 1, "runtime"}
+	OrdinaryTaskReadCapabilityKey              = CapabilityKey{"mokusei.tasks.read", 1, "runtime"}
+	ClassificationReadCapabilityKey            = CapabilityKey{"mokusei.classification.read", 1, "runtime"}
+	SemanticTagsReadCapabilityKey              = CapabilityKey{"mokusei.tags.read", 1, "runtime"}
+	SemanticTagsWriteCapabilityKey             = CapabilityKey{"mokusei.tags.write", 1, "runtime"}
+	OrdinaryTaskSnapshotCapabilityKey          = CapabilityKey{"mokusei.tasks.snapshot", 1, "snapshot"}
+	OrdinaryTaskInventorySnapshotCapabilityKey = CapabilityKey{"mokusei.tasks.inventory-snapshot", 1, "snapshot"}
+	SemanticTagsSnapshotCapabilityKey          = CapabilityKey{"mokusei.tags.snapshot", 1, "snapshot"}
+	OverviewControlCapabilityKey               = CapabilityKey{"mokusei.overview-control", 1, "runtime"}
+	ApplicationProcessCapabilityKey            = CapabilityKey{"mokusei.process", 1, "runtime"}
 )
 
 type LifecycleSubject struct {
@@ -201,6 +202,17 @@ type OrdinaryTaskSnapshotCapability interface {
 	Get(model.ThreadRef) (*OrdinaryTaskSnapshot, error)
 	ResolveExecution(model.ExecutionRef) (*model.PublicExecution, error)
 }
+
+// OrdinaryTaskIdentity is title-only inventory, not execution evidence.
+type OrdinaryTaskIdentity struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+type OrdinaryTaskInventorySnapshotCapability interface {
+	// List excludes archived Threads, Moku and private sessions. The caller must
+	// derive the directory scope from its trusted background owner.
+	List(scope string) ([]OrdinaryTaskIdentity, error)
+}
 type ClassificationThreadSnapshot struct {
 	Ref              model.ThreadRef     `json:"ref"`
 	Title            string              `json:"title"`
@@ -239,6 +251,7 @@ type SemanticTagUsage struct {
 	Threads       []SemanticTagThread `json:"threads"`
 }
 type SemanticTagsReadCapability interface {
+	CaptureStatusbar(context.Context) (TagStatusbar, error)
 	CaptureList(context.Context) ([]SemanticTagSummary, error)
 	CaptureUsage(context.Context, string) (SemanticTagUsage, error)
 }
@@ -272,6 +285,7 @@ type BackgroundWriteOptions struct {
 	Batch     BatchWriteContext
 }
 type SemanticTagsWriteCapability interface {
+	Mutate(context.Context, TagMutation, BackgroundWriteOptions) (json.RawMessage, error)
 	EnsureInventory(context.Context) error
 	Execute(context.Context, SemanticTagOperation, BackgroundWriteOptions) (json.RawMessage, error)
 }
@@ -339,13 +353,4 @@ func (e *ApplicationProcessError) Error() string { return e.Message }
 
 type ApplicationProcessCapability interface {
 	Run(context.Context, ApplicationProcessInput) (ApplicationProcessResult, error)
-}
-
-var AttentionCapabilityKey = CapabilityKey{"mokusei.thread-attention", 1, "runtime"}
-
-type AttentionCapability interface {
-	Pending(context.Context, []LifecycleEvent) ([]LifecycleEvent, error)
-	Schedule(context.Context) error
-	Evidence(context.Context, []LifecycleEvent) ([]model.Object, error)
-	Hide(context.Context, string, uint64, BackgroundWriteOptions) (json.RawMessage, error)
 }

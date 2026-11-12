@@ -1,0 +1,311 @@
+{
+  "base": "d646bcf343d22c6eb65505f05057e7a97b875117",
+  "mode": "headless production projection; no NSApplication or window",
+  "sourceSHA256": {
+    "app/macos/Sources/Host/Overview/NativeOverviewCanvas.swift": "62263e9c4ec04582124dc250eb6c49dd2425a3c775ccb7309adb2782cfeb0b8f",
+    "app/macos/Sources/Host/Overview/NativeOverviewWorkspaceModel.swift": "5f3811c579be98ab8aae4951ea7a4c374a0852e96b7c1258ede6b78e11b8c48e",
+    "app/macos/Sources/Host/Overview/NativeOverviewWorkspaceView.swift": "98a154079d9e77c2e6e86e0108ee2a97248e70d750718002e0a1452d0d8232a3",
+    "app/macos/Sources/Plugins/Applications/Report/NativeReportApplication.swift": "6377665cef261604f3216fe1dbec06d0838b849600bed50d51e54cce1afc9a8f",
+    "app/macos/Sources/Plugins/Applications/Report/NativeReportCard.swift": "348fa0609e71f20022b2edb9119d225f7c7fc2bfe8e61983214dff131db40325",
+    "app/macos/Sources/Plugins/Applications/Report/NativeReportCollection.swift": "52469f5873cbda53198ba493bbe0e17c51b48692f5ab9cd437bd342c48e72857",
+    "app/macos/Sources/Shared/PluginAPI/ApplicationOverviewCollection.swift": "19200919dc8c7ff6e9f378f8b70448163fd1d70d0b765d28fc885a1efaff7deb",
+    "app/macos/Sources/Shared/PluginUI/Cards/ThreadCardBrand.swift": "395dc79c01b5260cd86082e7f74cf1043c114bbbec183f68c8551445a3e5d62e",
+    "app/macos/Sources/Shared/PluginUI/Cards/ThreadCardMaterials.swift": "3af69526b4c6778570cbd2b536cc7811b3aee559ba240453307661fa434f33a7",
+    "demos/super-thread-carousel/ProductionProjection.swift": "0ddeb906c0cafcd2e4db4e289da1e416db69f1fdf3a88d8688544db0dc78e114",
+    "demos/super-thread-carousel/main.swift": "d84acce13811c63d2aa9c6cb0e3a764a8089ecdf12a814d06e6ed37175d68d2e"
+  },
+  "scenarios": [
+    {
+      "collections": [
+        [
+          "navigation",
+          "typography",
+          "delivery"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [
+        "让导航回到内容本身",
+        "阅读的节奏",
+        "一次可靠的交付"
+      ],
+      "scenario": "production-initial",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:\u0000default": true,
+        "recent": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [
+        [
+          "navigation",
+          "typography"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "recent"
+      ],
+      "memberTitles": [
+        "让导航回到内容本身",
+        "阅读的节奏"
+      ],
+      "scenario": "production-tag-产品",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:scope:/fixture/carousel:tag:产品\u0000default": true,
+        "recent": false
+      }
+    },
+    {
+      "collections": [],
+      "error": "",
+      "individual": [
+        "navigation",
+        "unread"
+      ],
+      "memberTitles": [],
+      "scenario": "production-tag-原生",
+      "surfaceOwners": {
+        "navigation": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [],
+      "error": "",
+      "individual": [
+        "delivery"
+      ],
+      "memberTitles": [],
+      "scenario": "production-tag-工程",
+      "surfaceOwners": {
+        "delivery": false
+      }
+    },
+    {
+      "collections": [],
+      "error": "",
+      "individual": [
+        "unread"
+      ],
+      "memberTitles": [],
+      "scenario": "production-tag-未读",
+      "surfaceOwners": {
+        "unread": false
+      }
+    },
+    {
+      "collections": [
+        [
+          "navigation",
+          "typography",
+          "delivery"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [
+        "让导航回到内容本身",
+        "阅读的节奏",
+        "一次可靠的交付"
+      ],
+      "scenario": "production-opening-retains-backdrop",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:\u0000default": true,
+        "recent": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [
+        [
+          "navigation",
+          "typography",
+          "delivery"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [
+        "让导航回到内容本身",
+        "阅读的节奏",
+        "一次可靠的交付"
+      ],
+      "scenario": "production-short-return-retains-member",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:\u0000default": true,
+        "recent": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [
+        [
+          "typography",
+          "delivery"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "navigation",
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [
+        "阅读的节奏",
+        "一次可靠的交付"
+      ],
+      "scenario": "production-long-return-releases-member",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:\u0000default": true,
+        "navigation": false,
+        "recent": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [],
+      "error": "",
+      "individual": [
+        "navigation",
+        "typography",
+        "delivery",
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [],
+      "scenario": "production-single-candidate-dissolves",
+      "surfaceOwners": {
+        "delivery": false,
+        "navigation": false,
+        "recent": false,
+        "typography": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [],
+      "error": "",
+      "individual": [
+        "navigation",
+        "typography",
+        "delivery",
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [],
+      "scenario": "production-restored-open-history",
+      "surfaceOwners": {
+        "delivery": false,
+        "navigation": false,
+        "recent": false,
+        "typography": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [],
+      "error": "",
+      "individual": [
+        "typography",
+        "delivery",
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [],
+      "scenario": "production-search-uncollected",
+      "surfaceOwners": {
+        "delivery": false,
+        "recent": false,
+        "typography": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [
+        [
+          "navigation",
+          "typography",
+          "delivery"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [
+        "Updated collection member",
+        "阅读的节奏",
+        "一次可靠的交付"
+      ],
+      "scenario": "production-member-content-update",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:\u0000default": true,
+        "recent": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [
+        [
+          "typography",
+          "delivery"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "navigation",
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [
+        "阅读的节奏",
+        "一次可靠的交付"
+      ],
+      "scenario": "production-before-expiry",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:\u0000default": true,
+        "navigation": false,
+        "recent": false,
+        "unread": false
+      }
+    },
+    {
+      "collections": [
+        [
+          "navigation",
+          "typography",
+          "delivery"
+        ]
+      ],
+      "error": "",
+      "individual": [
+        "recent",
+        "unread"
+      ],
+      "memberTitles": [
+        "Updated collection member",
+        "阅读的节奏",
+        "一次可靠的交付"
+      ],
+      "scenario": "production-deadline-regroups-without-catalog-event",
+      "surfaceOwners": {
+        "\u0000application-collection:report.document:\u0000default": true,
+        "recent": false,
+        "unread": false
+      }
+    }
+  ]
+}

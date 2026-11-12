@@ -116,7 +116,10 @@ The catalog title remains independent metadata and cannot fill a missing history
 entry. This envelope also persists through ordinary offline catalog recovery.
 
 `HarnessThread.mokuInterruptedExecutionID` decodes the optional nonblank
-`mokuInterruptedExecutionId` envelope field. Missing provenance remains unknown;
+`mokuInterruptedExecutionId` envelope field. `userInterruptedExecutionID` similarly
+decodes `userInterruptedExecutionId`, written only after an acknowledged user Stop
+of that exact execution. The two sources are never inferred from one another.
+Missing provenance remains unknown;
 the client preserves it through catalog snapshots, deltas and offline storage
 without inspecting private Harness state.
 
@@ -124,9 +127,16 @@ without inspecting private Harness state.
 validated ordinary execution reference. The mounted host observes deletion and excludes private Moku conversations, while `NativeHarnessThreadView` owns acquisition/release and the
 single-execution presentation. Report plugins never decode Harness timelines.
 
-`HarnessPlugin.executionPreview` projects bounded assistant text and validated
-start/end timestamps for the requested execution ID. Each Harness interprets
-its own private state; Host/Report never parse another Harness's timeline.
+`HarnessPlugin.executionPreview` projects bounded agent message text and validated
+start/end timestamps for the requested execution ID. It reuses the Harness's
+Overview message selector on that execution only, including eligible live
+reasoning and complete assistant messages. It never uses Overview's prompt/title
+fallback or another execution's content. When compact terminal history no longer
+contains a selected message, its own retained reply summary remains available;
+active incomplete assistant text is not a summary fallback. Each Harness
+interprets its own private state; Host/Report never parse another Harness's
+timeline. Existing catalog notifications drive updates without new content
+subscriptions, polling or broader wire payloads.
 `ApplicationExecutionPresentation.preview` carries that value to the related
 list. `ApplicationExecutionPresentation.emoji` uses the same validated generated
 Thread metadata as all Harness cards/readers. Emoji is Thread-scoped, not an
@@ -139,3 +149,39 @@ text is capped at 600 characters; a non-running execution with no end time is
 shown as unknown duration rather than ticking indefinitely. Super Thread relations
 now obtain authoritative exact-execution state/timing from `report.relations`,
 separate from current Thread state. Bounded native previews remain exact-ID-only.
+
+
+### Application overview collections
+
+`ApplicationThreadPlugin.overviewCollection` is optional native presentation
+policy: an elapsed last-close interval and a footprint. The Host computes one
+collection per opted-in type in the current browsing filter; it does not publish
+or persist a collection entity. `collectionCard` receives the exact member
+snapshots, each with its own scoped capabilities/context, initial selection,
+visibility/foreground gate, selection callback and real-reference open callback.
+The erased boundary checks each member's type, owner, domain and capability scope.
+A renderer must keep member identities intact and must not treat selection or
+automatic paging as opening a document. Individual card/detail contracts are
+unchanged. Super Thread is the only current opt-in.
+
+`providesCardSurface` defaults to false. An opted-in collection renderer may
+provide its complete card backdrop; the Host then omits its opaque decorative
+shell while retaining geometry, clipping, input, and visibility ownership.
+This is a native presentation fact, not persisted data or a thread-kind check.
+Super Thread opts in to draw one regular-glass plate behind its cover and body.
+If collection rendering fails, the Host's error view supplies its own opaque
+surface so this opt-in cannot leave error ink without a readable backdrop.
+
+`ApplicationOverviewCollectionPolicy.closedBefore` is a strict elapsed interval
+from a known close (`includes(lastClosed:now:)`). Unknown/future closes do not
+qualify. The Host owns foreground reading visits and retained eligibility; the
+plugin supplies the grouping interval and footprint. Super Thread uses 300 seconds.
+
+`collectionContentRevision(entry:)` optionally returns a stable, nonempty opaque
+fingerprint (at most 512 UTF-16 units). The erased boundary decodes the plugin's
+typed entry before requesting it. The Host saves it with local reading evidence;
+a change revokes the close deadline and retained eligibility. A first observation
+establishes a baseline. Plugins choose meaningful content independently of record
+revision, timestamps, tags or source execution status; nil preserves interval-only
+behavior. Super Thread fingerprints title, authored metadata, HTML/cover revisions
+and exact execution bindings. This adds no Runtime record or model execution.

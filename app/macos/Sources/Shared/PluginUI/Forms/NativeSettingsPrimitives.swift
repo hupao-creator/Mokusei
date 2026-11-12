@@ -21,11 +21,28 @@ struct NativeSettingsField: Sendable {
 }
 private struct NativeSettingsFieldKey: EnvironmentKey { static let defaultValue = NativeSettingsField() }
 private struct NativeSettingsPageKey: EnvironmentKey { static let defaultValue = false }
+private struct NativeSettingsReadOnlyKey: EnvironmentKey { static let defaultValue = false }
 private struct NativeSettingsViewportWidthKey: EnvironmentKey { static let defaultValue = CGFloat.infinity }
 private struct NativeSettingsLocalAgentDetailKey: EnvironmentKey { static let defaultValue = false }
 private struct NativeSettingsCLIKey: EnvironmentKey { static let defaultValue = false }
+private struct NativeSettingsBeforeAdvancedKey: EnvironmentKey { static var defaultValue: AnyView? { nil } }
+private struct NativeSettingsRowVerticalPaddingKey: EnvironmentKey { static let defaultValue = CGFloat(15) }
 private struct NativeSettingsGroupBottomSpacingKey: EnvironmentKey { static let defaultValue = CGFloat(22) }
 public extension EnvironmentValues {
+    /// Locks configuration values while allowing disclosures and resource retries.
+    var nativeSettingsReadOnly: Bool {
+        get { self[NativeSettingsReadOnlyKey.self] }
+        set { self[NativeSettingsReadOnlyKey.self] = newValue }
+    }
+    /// Host-owned fields between the Harness basics and its advanced disclosure.
+    var nativeSettingsBeforeAdvanced: AnyView? {
+        get { self[NativeSettingsBeforeAdvancedKey.self] }
+        set { self[NativeSettingsBeforeAdvancedKey.self] = newValue }
+    }
+    var nativeSettingsRowVerticalPadding: CGFloat {
+        get { self[NativeSettingsRowVerticalPaddingKey.self] }
+        set { self[NativeSettingsRowVerticalPaddingKey.self] = newValue }
+    }
     var nativeSettingsFieldActivation: NativeSettingsFieldActivation? { nativeSettingsField.activation }
     var nativeSettingsFormPage: Bool {
         get { self[NativeSettingsPageKey.self] }
@@ -109,6 +126,7 @@ public struct NativeSettingsRow<Content: View>: View {
     @Environment(\.nativeSettingsViewportWidth) private var viewportWidth
     @Environment(\.nativeSettingsLocalAgentDetail) private var localAgentDetail
     @Environment(\.nativeSettingsFormPage) private var settingsFormPage
+    @Environment(\.nativeSettingsRowVerticalPadding) private var verticalPadding
     @State private var hintVisible = false
     @State private var activation = NativeSettingsFieldActivation()
     public init(label: String, description: String? = nil, error: String? = nil,
@@ -147,7 +165,7 @@ public struct NativeSettingsRow<Content: View>: View {
                         .padding(.top, localAgentDetail ? 10 : 12).padding(.bottom, localAgentDetail ? 0 : 12)
                 }
             }
-        }.padding(.top, localAgentDetail ? 14 : 15).padding(.bottom, localAgentDetail ? 0 : 15)
+        }.padding(.top, localAgentDetail ? 14 : verticalPadding).padding(.bottom, localAgentDetail ? 0 : verticalPadding)
             .zIndex(hintVisible ? 6 : 0)
             .accessibilityElement(children: .contain)
             .onChange(of: error) { _, error in
@@ -405,20 +423,87 @@ private struct NativeSettingsSwitchStyle: ToggleStyle {
     private static var pointerEvent: Bool { NativePlatformInput.isPointerEvent }
 }
 
-public struct NativeSettingsUseDefaults<Content: View>: View {
-    @Binding private var value: Bool
-    public let label: String?
-    private let content: Content
-    @Environment(\.locale) private var locale
-    public init(value: Binding<Bool>, label: String? = nil, @ViewBuilder content: () -> Content) {
-        _value = value; self.label = label; self.content = content()
+/// Shared capsule choice used by role modes and model routing preferences.
+public struct NativeSettingsChoiceButton: View {
+    private let title: String
+    private let selected: Bool
+    private let action: () -> Void
+    public init(_ title: String, selected: Bool, action: @escaping () -> Void) {
+        self.title = title; self.selected = selected; self.action = action
     }
     public var body: some View {
-        NativeSettingsRow(label: label ?? NativePluginLocalization.localize("使用默认配置", locale: locale),
-                          description: NativePluginLocalization.localize("关闭后可自定义新建 Thread 使用的配置。", locale: locale), inlineControl: true) {
-            NativeSettingsToggle(value: $value)
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Text(title).multilineTextAlignment(.center)
+                if selected {
+                    Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold))
+                        .accessibilityHidden(true)
+                }
+            }
+            .font(.system(size: 12, weight: selected ? .medium : .regular))
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity).frame(minHeight: 42)
+            .glassEffect(.regular.interactive(), in: .capsule)
+            .contentShape(Capsule())
         }
-        if !value { content }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Keeps model choices visible while optional controls share one disclosure.
+/// Draft values belong to the caller, so collapsing never resets them.
+public struct NativeHarnessSettingsFields<Basic: View, Advanced: View>: View {
+    private let defaults: Binding<Bool>?
+    private let basic: Basic
+    private let advanced: Advanced
+    private let hasAdvanced: Bool
+    @State private var expanded = false
+    @Environment(\.nativeSettingsBeforeAdvanced) private var beforeAdvanced
+    @Environment(\.nativeSettingsReadOnly) private var readOnly
+    @Environment(\.locale) private var locale
+    @Environment(\.nativeSettingsFormPage) private var formPage
+    public init(defaults: Binding<Bool>? = nil, hasAdvanced: Bool = true,
+                @ViewBuilder basic: () -> Basic, @ViewBuilder advanced: () -> Advanced) {
+        self.defaults = defaults; self.hasAdvanced = hasAdvanced
+        self.basic = basic(); self.advanced = advanced()
+    }
+    public var body: some View {
+        if defaults?.wrappedValue != true { basic.disabled(readOnly) }
+        beforeAdvanced.environment(\.nativeSettingsBeforeAdvanced, nil).disabled(readOnly)
+        if defaults != nil || hasAdvanced {
+            DisclosureGroup(isExpanded: $expanded) {
+                if expanded {
+                    VStack(alignment: .leading, spacing: formPage ? 0 : 14) {
+                        if let defaults {
+                            NativeSettingsRow(label: NativePluginLocalization.localize("使用默认配置", locale: locale),
+                                description: NativePluginLocalization.localize("关闭后可自定义新建 Thread 使用的配置。", locale: locale), inlineControl: true) {
+                                NativeSettingsToggle(value: defaults).nativeSettingsControl("useDefaults")
+                            }
+                        }
+                        if defaults?.wrappedValue != true { advanced }
+                    }.disabled(readOnly)
+                }
+            } label: {
+                Text(NativePluginLocalization.localize("高级选项", locale: locale))
+                    .font(NativeTypography.settings(size: 13))
+                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                    .contentShape(Rectangle())
+                    // Keep the native chevron/keyboard/AX behavior and let the
+                    // full label row toggle the same retained expansion state.
+                    .onTapGesture { expanded.toggle() }
+                    .accessibilityIdentifier("harness-advanced-options")
+            }
+            .background(NativeSettingsControlRegistration(descriptor: .object([
+                "kind": .text("disclosure"), "label": .text(NativePluginLocalization.localize("高级选项", locale: locale)),
+                "value": .bool(expanded), "operations": .array([.text("set")])
+            ])) { _, value in
+                guard let next = value.boolValue else { throw NativeSettingsControlError("invalid_request", "Expected a boolean disclosure value") }
+                expanded = next
+            }.nativeSettingsControl("advancedOptions"))
+            .padding(.vertical, 10)
+        }
     }
 }
 

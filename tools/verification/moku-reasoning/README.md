@@ -36,3 +36,8 @@ builds and graphical replays serially. No real model request, account, microphon
 or WebRTC session is used. Voice mode uses presentation fixtures only.
 Window hide/show covers terminal retirement and clock resumption; physical
 minimize behavior remains outside this replay's scope.
+
+The fixture uses the production warm capsule and restored persistent eye seat.
+Its existing saturated-dot oracle remains independent of the shell. It follows
+the decoration canvas without adding eye-seat assertions. The native resident
+sleeps between its cancellable idle blink wakes after the handoff.

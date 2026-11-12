@@ -106,7 +106,6 @@ type CatalogSnapshot struct {
 	Version             string
 	Models              []CatalogModel
 	Agents              []CatalogAgent
-	DefaultAgent        string
 	DefaultModel        *CatalogSelection
 	NativeAccounts      map[string]bool `json:"-"`
 	ExcludedModels      map[string]string
@@ -292,11 +291,6 @@ func readCatalog(ctx context.Context, host plugin.HostContext, runtime *Runtime,
 				value.DefaultModel = parseCatalogSelection(entry.Info.Model)
 			}
 		}
-	}
-	// Agent.list places the resolved native default first, including defaults
-	// supplied by native plugins rather than an explicit default_agent setting.
-	if len(value.Agents) > 0 {
-		value.DefaultAgent = value.Agents[0].ID
 	}
 	if value.DefaultModel == nil && defaultModel != nil {
 		value.DefaultModel = &CatalogSelection{Provider: defaultModel.ProviderID, Model: defaultModel.ID}

@@ -1,3 +1,5 @@
+import CryptoKit
+import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
@@ -18,6 +20,27 @@ import SwiftUI
     var requires: [ApplicationCapabilityRequirement] {
         [ApplicationCapabilities.executionReferencesUI.requirement, ApplicationCapabilities.threadUserActions.requirement,
          ApplicationCapabilities.isolatedHTML.requirement]
+    }
+    var overviewCollection: ApplicationOverviewCollectionPolicy? {
+        .init(closedBefore: 300, footprint: .init(columns: 1, rows: 2), providesCardSurface: true)
+    }
+    func collectionContentRevision(entry: ApplicationThreadCatalogEntry<NativeReportView>) throws -> String? {
+        // Record revisions also advance for tag propagation. Only authored content
+        // and exact execution bindings invalidate the document's reading evidence.
+        let view = entry.view
+        let references = view.relatedExecutions.sorted {
+            $0.thread.threadID.codeUnits.lexicographicallyPrecedes($1.thread.threadID.codeUnits)
+        }
+        let content = JSONValue.array([.string(entry.title), .string(view.contentRevision),
+            .string(view.coverRevision), .string(view.emoji), .string(view.shortDescription),
+            .array(references.map { .array([.string($0.thread.threadID), .string($0.executionID)]) })])
+        return SHA256.hash(data: try content.encodedData()).map { String(format: "%02x", $0) }.joined()
+    }
+    func collectionCard(props: [ApplicationThreadProps<NativeReportView>], initialSelection: ApplicationThreadRef?, active: Bool,
+                        onSelection: @escaping (ApplicationThreadRef) -> Void,
+                        openThread: @escaping (ApplicationThreadRef) -> Void) -> AnyView {
+        AnyView(NativeReportCollection(props: props, initialSelection: initialSelection, active: active,
+                                       onSelection: onSelection, openThread: openThread))
     }
     func projectCard(entry: ApplicationThreadCatalogEntry<NativeReportView>, availableColumns: Int,
                      capabilities: ApplicationCapabilityAccess<ApplicationProjectionPhase>) throws -> HarnessOverviewProjection<NativeReportCardProjection> {
@@ -271,14 +294,15 @@ struct NativeReportDetail: View {
     }
 
     private var auxiliaryBack: NativeReadingAuxiliaryBackAction? {
-        guard expanded || sidecards.pending == .relatedExecutions else { return nil }
+        // The reference list belongs to the Report's default view. Only an
+        // explicitly opened execution adds a nested Back step.
+        guard let reference = selected, expanded || sidecards.pending == .relatedExecutions else { return nil }
         let selectionID = sidecards.selectionID
-        let reference = selected
-        let referenceID = reference.map { $0.thread.threadID.string + ":" + $0.executionID.string } ?? ""
+        let referenceID = reference.thread.threadID.string + ":" + reference.executionID.string
         return NativeReadingAuxiliaryBackAction(id: selectionID.uuidString + referenceID) {
             guard !sidecards.retainingForReturn, selectionID == sidecards.selectionID, reference == selected,
                   sidecards.active == .relatedExecutions || sidecards.pending == .relatedExecutions else { return }
-            if expanded && selected != nil { sidecards.selectExecution(nil) }
+            if expanded { sidecards.selectExecution(nil) }
             else { sidecards.close(); launcherFocused = true }
         }
     }

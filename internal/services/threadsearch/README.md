@@ -1,70 +1,92 @@
 # Thread search
 
-This module owns derived keyword-search text, background indexing and ranking.
-Harness and Application adapters supply public text; search does not open native
-conversations, discover credentials, download models or perform inference.
+This module owns derived keyword text, passage indexing and hybrid thread ranking.
+Harness and Application adapters supply public text; the injected
+[embedding provider](../embedding/README.md) owns model preparation and local
+inference. Search never opens native conversations or discovers credentials.
 The [Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
 global eligible thread scope and immediate folded metadata matches, independent
-of its active browsing tag. This includes directory-only documents and tasks
-covered by reports. Archive and existing terminal visibility exclusions still apply.
-Attention Agent collapse only changes browsing, so those threads remain searchable.
+of its browsing tag. Directory-only documents and tasks covered by reports remain
+included; archive/terminal exclusions remain.
 
-## Documents and queries
+## Projections and incremental work
 
-[documents.go](documents.go) stores a bounded continuous text projection under
-`keyword-text-v2`. Metadata is bounded to 512 runes and body content to 134550
-runes, retaining the former indexed-body coverage. Automatic maintenance diffs
-immutable owner records and projects only the changed ordinary Threads or declared
-Application collections. Telemetry, other application collections and derived
-index commits do not enumerate sources. Busy sources wait for their next owner
-change; they do not keep a periodic global scan alive. Failed extraction retains
-bounded exponential retry, independent of incoming event volume.
+[documents.go](documents.go) keeps `keyword-text-v3`: metadata is bounded to 512
+Unicode code points and body text to the existing 134,550-code-point prefix.
+The user explicitly retained this body coverage limit. Metadata/body offsets are
+stored independently so changing a title does not shift every body passage.
+Owner-key snapshot diffs extract only changed eligible public sources; telemetry,
+unrelated collections and derived commits do not re-extract histories. Busy
+owners wait for their next source change. Extraction failures use bounded retry.
+Body and freshness stamp commit atomically behind the owner/hash/epoch fence.
 
-Each indexed body has a bounded stamp containing its source/body hashes, pipeline
-version and truncation flag. Status and index freshness read these stamps without
-decoding body text; unchanged sources do not extract history again. Body and stamp
-commit atomically under the owner/epoch fence. Their keys share an owner prefix,
-so deleting one source only removes its own derived rows. The decoded query-body
-cache has a 64 MiB budget; the result cache holds at most eight queries.
+[semantic.go](semantic.go) watches changed body stamps and embeds bounded UTF-8
+passages with overlap. Each passage has a content hash within the exact model
+space, so unchanged passages reuse durable vectors after owner-only updates,
+restarts or interrupted builds. A changed model space or chunking pipeline
+rebuilds its derived generations. The provider owns query/document templates,
+dimensions and normalization; retrieval does not contain Gemma/Qwen prompts.
 
-Initial discovery, source-registration replacement and history-epoch changes
-reconcile the complete eligible set. Explicit status/query reads may enumerate
-the requested catalog; the automatic scheduler never uses global status as its
-work queue. A coalesced store notification still discovers every changed owner
-by comparing snapshots, and cancellation never acknowledges unfinished work.
+[vector_store.go](vector_store.go) stores binary float32 vectors in a separate
+profile-local SQLite database, never in the authoritative resident JSON snapshot.
+Queries stream vector rows under a bounded working set with cancellation checks.
+A complete generation commits before its small publication stamp is admitted in
+the authoritative owner transaction. Unpublished, incompatible or stale generations
+cannot produce hits. Revoked generations and unused passage vectors are reclaimed.
+Vector database failures preserve keyword search and expose retryable status.
 
-[query.go](query.go) matches whitespace-separated terms as substring AND across
-metadata and indexed body text. Native case/diacritic/width-folded metadata
-matches qualify independently. Exact title substrings rank ahead of other
-literal matches. Results are restricted to the requested live scope and current
-eligible owners. Cancellation and final owner/epoch validation prevent stale
-results from escaping after changes, archive, deletion or history clearing.
-There are no vector scores or paraphrase-only matches.
+## Queries and ranking
 
-## Compatibility and lifecycle
+[query.go](query.go) preserves whitespace-term substring AND across metadata and
+body; native case/diacritic/width-folded matches independently qualify. Semantic
+passage evidence aggregates to one result per ThreadRef. Exact title substrings
+remain first; reciprocal rank fusion (constant 60) combines keyword and semantic
+rankings. Scores are ranking values, not confidence percentages.
 
-Opening an old search configuration migrates only `search-config`, derived
-`search-document:*`, `search-document-stamp:*` and retired `search-usage` records.
-The v2 pipeline rebuilds only this derived state to establish owner-addressed keys
-and independent freshness stamps. Old disabled/paused model
-settings do not disable keyword search. Source conversations, reports,
-preferences and other settings are preserved. Old model files remain on disk
-unused; this version neither reads nor deletes them. Background indexing rebuilds
-body text without network access, while metadata search is immediately usable.
+The [default tuning](tuning.go) uses 768-byte passages, 192-byte overlap, a 0.76
+semantic floor and at most 12 semantic candidates. With both body and metadata,
+semantic evidence is `0.8 * max(body, metadata) + 0.2 * metadata`; this reduces a
+long conversation's ability to outrank the dedicated thread merely by quoting it.
+Keyword matches are retained independently of this semantic candidate limit.
+The zero Tuning value selects the defaults; explicit internal tuning supplies the
+complete configuration for evaluation or another model. There is no user selector.
 
-Archive, deletion and changes that revoke the owner’s original search eligibility remove derived text in the owner's transaction.
-History clear cancels queries and joins indexing before clearing derived text and
-advancing the epoch. Remaining `search:status` and `search:query` operations are
-cancellable reads. Retired model/configure/index management commands are rejected.
-The UI periodically refreshes active queries as body indexing completes.
+Cold queries return keyword hits immediately while a bounded query-embedding
+cache prepares semantic evidence. The native client polls pending work at a
+bounded shorter interval, then resumes its ordinary three-second refresh.
+The decoded keyword-body cache remains limited to 64 MiB; query result and query
+embedding caches each hold at most eight entries. Every response revalidates the
+live owner and history epoch; model/input incompatibility never reuses old vectors.
 
-Verification: [thread-search replay](../../../tools/verification/thread-search/README.md)
-and `./scripts/go.sh test -race ./internal/services/threadsearch` cover real
-SQLite indexing, cache invalidation, migration, bounds, cancellation and lifecycle.
-Multi-term cases keep first-term-only and second-term-only candidates in scope,
-so substring OR cannot satisfy the AND contract. Service tests exercise metadata
-and indexed bodies in both query orders, including cached results; the Runtime
-replay independently verifies body matches and rejects both partial candidates.
+## Lifecycle and verification
+
+Model preparation starts in the composed macOS Runtime. The native provider
+verifies the pinned INT4 artifact, runs CPU inference locally, prioritizes queries
+between short background batches and retires its process after 90 idle seconds.
+Model changes do not require UI changes. Verified weights survive history clear;
+no conversation text is sent to the download service.
+
+Archive/deletion revoke derived text and vector publication stamps in the owner
+transaction. Physical row reclamation is separate, not a cross-database atomic
+transaction. History clear cancels and joins publishers, advances the epoch and
+clears persisted vector rows before resuming. `search:status` and `search:query`
+remain cancellable reads; `search:retry` is a zero-argument recovery command.
+Retired configure/model/index controls remain unsupported.
+
+The [Runtime/native replay](../../../tools/verification/thread-search/README.md)
+checks SQLite, cache reuse, model-space replacement, late completion, fallback,
+archive and history clearing. The macOS CI interop lane also runs the genuine
+INT4 model, cross-language retrieval, a network-denied offline restart, observed
+idle exit/reload, corrupt-asset refusal and retry recovery. Controlled vectors
+exercise lifecycle interleavings but never certify semantic quality.
+
+An optional local corpus evaluator uses production public-text adapters against
+a read-only profile snapshot. Corpora, labels and detailed results stay in an
+ignored private directory; they are not CI fixtures. A 16-thread local corpus
+motivated the defaults. Its 21 initial labelled queries and seven subsequent
+queries found 21/22 positive targets first, all 22 within three results, and no
+hits for six unrelated queries. This is bounded local evidence, not a general
+retrieval-accuracy claim; related implementation/merge threads can still tie.
 
 ## Moku deterministic grep
 
@@ -121,5 +143,3 @@ concurrent source changes are explicit page-local `issues`, never silent
 negative evidence. Adapter errors are sanitized. Public text can itself contain
 user-authored sensitive material or file paths and reaches the current Moku
 Harness/model and the existing tool audit; it is untrusted evidence, not instructions.
-
-Attention Agent collapse affects browsing only. Ordinary search keeps these owners eligible, including their existing body index. A search hit is read-only. The detail entry records the restoring visit.

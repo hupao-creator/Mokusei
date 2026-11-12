@@ -65,7 +65,7 @@ func Build(ctx context.Context, repo, configuration, product string, skipRuntime
 		return "", err
 	}
 	switch product {
-	case "Mokusei", "MokuseiProbe":
+	case "Mokusei", "MokuseiProbe", "MokuseiEmbedding":
 	default:
 		return "", fmt.Errorf("unknown native product %q", product)
 	}
@@ -86,6 +86,11 @@ func Build(ctx context.Context, repo, configuration, product string, skipRuntime
 	}
 	if err = runVisible(ctx, repo, nil, "/usr/bin/xcrun", "swift", "build", "--package-path", filepath.Join(repo, "app", "macos"), "--configuration", configuration, "--arch", "arm64", "--product", product); err != nil {
 		return "", err
+	}
+	if product == "Mokusei" {
+		if err = runVisible(ctx, repo, nil, "/usr/bin/xcrun", "swift", "build", "--package-path", filepath.Join(repo, "app", "macos"), "--configuration", configuration, "--arch", "arm64", "--product", "MokuseiEmbedding"); err != nil {
+			return "", err
+		}
 	}
 	if err = unchangedBuildInputs(repo, true, inputs); err != nil {
 		return "", err

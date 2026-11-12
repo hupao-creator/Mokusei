@@ -113,13 +113,16 @@ private extension EnvironmentValues {
     }
 }
 
+/// Mounted turns report independently of the current disclosure state. Missing
+/// entries mean the scoped content is still loading, not that it is empty.
+public struct ThreadWorkPreference: PreferenceKey {
+    public static let defaultValue: [JSONText: Bool] = [:]
+    public static func reduce(value: inout [JSONText: Bool], nextValue: () -> [JSONText: Bool]) {
+        value.merge(nextValue(), uniquingKeysWith: { $0 || $1 })
+    }
+}
+
 public struct ThreadDetailTurn: View {
-    @Environment(\.nativeThreadContentReveal) private var revealsContent
-    @Environment(\.nativeThreadContentRevealAnimated) private var animatesContentReveal
-    @Environment(\.accessibilityReduceMotion) private var reducedMotion
-    @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
-    @State private var entrance = NativeThreadContentReveal()
-    @Environment(\.threadDetailFooterReveal) private var footerReveal
     @Environment(\.threadExecutionGroup) private var executionGroup
     public let id: JSONText
     public let author: JSONValue?
@@ -139,6 +142,7 @@ public struct ThreadDetailTurn: View {
     /// Steer cards belong to the live execution. Read-only inherited transcripts
     /// reuse this turn without an owning execution and keep their input visible.
     public let showsSteerMessages: Bool
+    public let workAvailable: Bool?
 
     @Environment(\.threadAuthorInHeader) private var authorInHeader
     @Environment(\.threadDetailVisibility) private var visibility
@@ -149,7 +153,7 @@ public struct ThreadDetailTurn: View {
                 reasoningUsage: ThreadReasoningUsage? = nil, createdAt: Double,
                 updatedAt: Double, status: String, completedAt: Double? = nil,
                 usage: AnyView? = nil, active: Bool, executionRunning: Bool = false,
-                executionTailIsWork: Bool = false, showsSteerMessages: Bool? = nil) {
+                executionTailIsWork: Bool = false, showsSteerMessages: Bool? = nil, workAvailable: Bool? = nil) {
         self.id = id
         self.author = author
         self.rows = rows
@@ -163,6 +167,7 @@ public struct ThreadDetailTurn: View {
         self.executionRunning = executionRunning
         self.executionTailIsWork = executionTailIsWork
         self.showsSteerMessages = showsSteerMessages ?? executionRunning
+        self.workAvailable = workAvailable
     }
 
     private var filteredRows: [ThreadDetailRow] {
@@ -184,10 +189,7 @@ public struct ThreadDetailTurn: View {
         }
     }
 
-    private var entranceWithoutAnimation: Bool { reducedMotion || !animatesContentReveal }
-
     public var body: some View {
-        let revealInProgress = revealsContent && !entrance.settled
         if let executionGroup {
             ThreadExecutionGroupContent(groupID: executionGroup, rows: filteredRows)
         } else {
@@ -212,38 +214,10 @@ public struct ThreadDetailTurn: View {
                 // Catalog activity and scoped Harness content update independently.
                 // A still-running execution must not expose the terminal footer.
                 if !active && !executionRunning {
-                    Group {
-                        if revealsContent {
-                            // Join the line clock instead of waiting for the body to finish fading.
-                            NativeThreadRevealRow(contentID: nativeReadingInteractionKey(id)) {
-                                footer.opacity(footerReveal)
-                            }
-                        } else {
-                            footer.opacity(footerReveal)
-                        }
-                    }
-                    .padding(.top, displayed.last?.kind == .user ? 26 : 18)
+                    footer.padding(.top, displayed.last?.kind == .user ? 26 : 18)
                 }
             }
-            .environment(\.nativeThreadReveal, revealsContent ? entrance : nil)
-            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
-                status.hasContent = true
-                status.revealing = status.revealing || revealInProgress
-            }
-            .onAppear {
-                if revealsContent {
-                    if primaryEntranceReady { entrance.begin(bottomUp: active, reducedMotion: entranceWithoutAnimation) }
-                }
-                else { entrance.finish() }
-            }
-            .onChange(of: revealsContent) { _, value in if !value { entrance.finish() } }
-            .onChange(of: primaryEntranceReady) { _, ready in
-                if ready && revealsContent { entrance.begin(bottomUp: active, reducedMotion: entranceWithoutAnimation) }
-            }
-            .onChange(of: entranceWithoutAnimation) { _, value in
-                if value && primaryEntranceReady && revealsContent { entrance.begin(bottomUp: active, reducedMotion: true) }
-            }
-            .onDisappear { entrance.cancel() }
+            .transformPreference(NativeReadingContentStatusKey.self) { $0.hasContent = true }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(localize("对话轮次"))
@@ -253,8 +227,14 @@ public struct ThreadDetailTurn: View {
                 "userMessages": .bool(!agentDetail && visibility.userMessages), "work": .bool(visibility.work)
             ]))
             .preference(key: ThreadAuthorPreference.self, value: [id: author ?? .null])
+            .preference(key: ThreadWorkPreference.self, value: [id: workAvailable ?? hasDisplayableWork])
             .id(id)
         }
+    }
+
+    private var hasDisplayableWork: Bool {
+        let workRows = rows.filter { $0.execution != nil || $0.kind == .work }
+        return !groupThreadExecutionRows(workRows, reasoningUsage: reasoningUsage, summaryOnly: agentDetail).isEmpty
     }
 
     private var footer: some View {

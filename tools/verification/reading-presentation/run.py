@@ -284,7 +284,7 @@ def main():
              10 if "--browser-viewport" in sys.argv else
              11 if "--markdown" in sys.argv else
              7 if glass_captures else
-             8 if "--moku-composer" in sys.argv else
+             7 if "--moku-composer" in sys.argv else
              7 if tag_glass else
              12 if "--moku-note-tests" in sys.argv else 14)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
