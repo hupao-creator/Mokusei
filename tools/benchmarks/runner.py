@@ -195,11 +195,16 @@ def calibrate(tools, directory):
 
 
 def existing_fixture(application,directory):
+    from adapter import wait_for
     state=application.runtime.state()
     threads=[{'id':t['id'],'title':t.get('title')} for t in state['threads'] if not t.get('moku') and not t.get('archived')]
     if len(threads)!=application.count or {t['id'] for t in threads}!=set(application.threads.values()):
         raise ValueError('all fixed fixture cards must already exist before the scenario')
+    ui=wait_for(application.ui.request,lambda snapshot:snapshot and not snapshot.get('transitioning') and
+        len(snapshot.get('threads',[]))==application.count and
+        {t['threadId'] for t in snapshot['threads']}==set(application.threads.values()),15)
     fixture={'count':application.count,'threads':sorted(threads,key=lambda t:t['id']),
+             'uiThreadIDs':sorted(t['threadId'] for t in ui['threads']),
              'observedNS':time.monotonic_ns(),'runtimeInsertionDeletion':False}
     save(directory/'existing-fixture.json',fixture)
     return fixture

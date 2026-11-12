@@ -178,6 +178,7 @@ def main():
         run('one-card-freezes-among-progress',lambda r,p,o,f:body_case(r,p,o,f,one_card_frozen),expected_product='overloaded')
         def application_case(root,p,o,f,status='completed'):
             fixture={'count':5,'threads':[{'id':str(n),'title':f'BENCH CARD {n:02d}'} for n in range(1,6)],
+                     'uiThreadIDs':[str(n) for n in range(1,6)],
                      'observedNS':p['startNS']-1,'runtimeInsertionDeletion':False}
             p.update(targetKind='application',fixture=fixture)
             save(root/'plan.json',p);save(root/'existing-fixture.json',fixture)
@@ -185,6 +186,9 @@ def main():
             save(root/'outcome.json',{'status':'passed','threads':fixture['threads']})
             save(root/'tail-outcome.json',{'beforeNS':o['boundaries']['tailEnd']+1,'afterNS':o['boundaries']['tailEnd']+2,'status':status})
         run('uncalibrated-application',application_case,expected_product='unknown')
+        def pending_projection(root,p,o,f):
+            application_case(root,p,o,f);p['fixture']['uiThreadIDs'].pop();save(root/'plan.json',p)
+        run('cards-not-projected-before-timing',pending_projection,invalid=True)
         late=run('work-beyond-tail',lambda r,p,o,f:application_case(r,p,o,f,'pending'))
         assert 'business work still pending beyond the declared catch-up tail' in late['reasons']
         changed=run('changed-card-set',lambda r,p,o,f:(application_case(r,p,o,f),save(r/'outcome.json',{'status':'passed','threads':[]})))

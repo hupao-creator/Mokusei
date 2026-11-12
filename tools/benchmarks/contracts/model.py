@@ -71,6 +71,8 @@ def plan(value):
         threads=fixture['threads']
         if len(threads)!=value['count'] or len({t['id'] for t in threads})!=value['count']:
             raise ValueError('fixture identities/count incomplete')
+        if fixture.get('uiThreadIDs')!=sorted(t['id'] for t in threads):
+            raise ValueError('pre-existing card set has not reached the public UI projection')
         for thread in threads:text(thread['id'],'fixture identity');text(thread['title'],'fixture title')
         integer(fixture['observedNS'],'fixture observation',1,value['startNS'])
     for key in ('pid', 'windowID', 'startNS'):
