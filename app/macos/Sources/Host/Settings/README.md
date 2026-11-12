@@ -36,7 +36,9 @@ and the saved profile in onboarding. The Agent icon/title is centered in the sam
 32-point first-row content area as the model label/control, using the form's
 vertical padding. The read-only details reuse the Harness's native
 fields and catalog statuses, including model, reasoning and other execution
-parameters. They join Moku's saved resource even while a role-mode save is pending,
+parameters. Advanced options remain expandable in inherited read-only mode;
+opening them does not edit or save the configuration. All exposed value controls
+remain disabled. They join Moku's saved resource even while a role-mode save is pending,
 so a retained independent profile cannot supply the inherited details or catalog.
 Resource loading, errors and retry remain visible; retry stays enabled while
 configuration fields are read-only. Missing/unavailable Agents and unready

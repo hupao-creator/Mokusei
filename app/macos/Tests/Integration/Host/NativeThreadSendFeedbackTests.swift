@@ -916,7 +916,9 @@ struct NativeThreadSendFeedbackTests {
         editor.keyDown(with: enter)
         try await SwiftUIReplay.wait { receipt != nil }
         #expect(!state.inputOpen && state.inputLeaving)
-        #expect(state.retainedText == "Follow up") // retiring editor keeps its ink during travel
+        #expect(state.retainedText.isEmpty && draft.inputText.isEmpty) // submission clears both live and retiring ink
+        #expect(draft.text == "Follow up") // pending admission still owns the durable payload
+        #expect(state.retainedAttachments.isEmpty && state.retainedDirectories.isEmpty)
         #expect(draft.submitting)
         editor.keyDown(with: enter)
         #expect(submissions == 1)

@@ -210,6 +210,9 @@ import MokuseiApplications
         let expected = ["model": try #require(profile["model"]), "effort": try #require(profile["effort"]),
                         "serviceTier": try #require(profile["serviceTier"])]
         func controls() -> [JSONValue] { presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? [] }
+        let before = settings.draft.value
+        try await control(settingID + ".codex.advancedOptions", operation: "set", value: .bool(true), in: presentation)
+        #expect(settings.draft.value == before)
         try await wait("Inherited \(settingID) fields did not show Moku's draft configuration as read-only") {
             expected.allSatisfy { field, value in
                 controls().contains {
@@ -218,7 +221,6 @@ import MokuseiApplications
                 }
             }
         }
-        let before = settings.draft.value
         let model = try #require(controls().first { $0["id"] == .text(settingID + ".codex.model") })
         #expect(throws: NativeInteractionError.self) {
             try presentation.performInteraction(.settingsControl(id: settingID + ".codex.model",

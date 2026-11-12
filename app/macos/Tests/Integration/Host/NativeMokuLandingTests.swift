@@ -694,18 +694,8 @@ struct NativeMokuLandingTests {
                     // Window.sendEvent bypasses the production application-level owner.
                     NSApp.sendEvent(escape)
                 }
-                if type == "report.document" {
-                    // Report now opens its related-execution card on entry. Its
-                    // first Escape folds that activity and retains the report.
-                    try await SwiftUIReplay.wait {
-                        SwiftUIReplay.text(in: root).contains { $0 == "已展开" || $0 == "Expanded" }
-                    }
-                    try sendEscape()
-                    try await SwiftUIReplay.wait {
-                        fixture.presentation.selected == ref && !fixture.presentation.messageMotion.active
-                            && !SwiftUIReplay.text(in: root).contains { $0 == "已展开" || $0 == "Expanded" }
-                    }
-                }
+                // The automatic reference list is part of the default Report
+                // view. With no selected execution or Browser, one Escape closes it.
                 try sendEscape()
                 try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
             }

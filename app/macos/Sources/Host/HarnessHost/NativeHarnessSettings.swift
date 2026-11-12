@@ -354,7 +354,7 @@ public struct NativeHarnessSettingsView: View {
         switch Result(catching: { try surface.harnessSettings(section: section, executionSnapshot: executionSnapshot,
             settingsFormPage: settingsFormPage, value: value, change: { if !readOnly { value = $0 } }) }) {
         // Keep resource retry outside the disabled configuration controls.
-        case .success(let content): content.disabled(readOnly)
+        case .success(let content): content.environment(\.nativeSettingsReadOnly, readOnly)
         case .failure(let error): NativeHarnessStatusView(message: "此 Harness 的设置暂时不可用。", english: "This Harness settings view is unavailable.", detail: error.localizedDescription)
                 .nativeSettingsEditorReady(false)
         }

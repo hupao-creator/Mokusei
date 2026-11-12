@@ -187,7 +187,7 @@ struct NativeSettingsUserFlows {
             #expect(draft.status == .saved && draft.revision > beforeQuitFlush)
             #expect(draft.value["moku"]?["routingGuidance"] == .text("  immediate quit edit  "))
             #expect(try await state(client)["settings"]?["moku"]?["routingGuidance"] == .text("immediate quit edit"))
-            try await routingUndoFlow(model: model, presentation: presentation, preferences: preferences)
+            try await routingUndoFlow(model: model, presentation: presentation, preferences: preferences, harnessHost: workspace.harnessHost)
 
             // IME composition blocks close/save; finishing and closing flushes
             // immediately, even before the debounce timer would fire.
@@ -306,14 +306,24 @@ struct NativeSettingsUserFlows {
     /// The real page binds its production NSTextView to the Runtime-backed
     /// draft. Accepting a quit snapshot must not shift native Undo ranges.
     private func routingUndoFlow(model: NativeSettingsModel, presentation: NativeWorkspacePresentation,
-                                 preferences: DesktopPreferences) async throws {
+                                 preferences: DesktopPreferences, harnessHost: NativeHarnessHost) async throws {
         let draft = model.draft
-        draft.change(replace(draft.value, ["moku", "routingGuidance"], .text("ABC")), textEdit: true)
+        let custom = replace(draft.value, ["moku", "routingPreset"], .text("custom"))
+        draft.change(replace(custom, ["moku", "routingGuidance"], .text("ABC")), textEdit: true)
         try await draft.flushForQuit()
         try #require(presentation.settingsNavigation.section == "moku")
         let window = SwiftUIReplay.window(NativeSettingsPage(model: model,
             navigation: presentation.settingsNavigation, preferences: preferences,
-            harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], harnessSettings: { _ in AnyView(EmptyView()) },
+            harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], harnessSettings: { request in
+                // Routing guidance is inserted into the production Harness form.
+                // An empty replacement drops that editor and cannot test its Undo.
+                AnyView(NativeHarnessSettingsView(host: harnessHost,
+                    configuration: NativeHarnessSettingsConfiguration(harnessID: request.harnessID,
+                        cwd: JSONText(model.defaultCwd), source: request.savedValue,
+                        scope: .global(applicationSettings: request.scopeID, executionOwner: request.executionSnapshot ? .moku : nil)),
+                    section: request.section, executionSnapshot: request.executionSnapshot, settingsFormPage: true,
+                    refreshSequence: request.refreshSequence, value: request.value))
+            },
             onSetAppearance: { try preferences.setAppearance($0) },
             onSetLocale: { try preferences.setLocale($0) },
             onClose: { _ in presentation.scene.closeSettings() }))
