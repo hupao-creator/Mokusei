@@ -17,6 +17,33 @@ from lifecycle import save
 from workload import schedule
 
 
+def ownership_replay():
+    import lifecycle
+    original=lifecycle.native
+    root={'pid':101,'ppid':1,'identity':'101:1000'}
+    child={'pid':102,'ppid':101,'identity':'102:1001'}
+    try:
+        for mode in ('stable','reused','exited'):
+            calls=0
+            def boundary(helper,command,*args):
+                nonlocal calls
+                if command=='tree':return {'processes':[root,child]}
+                calls+=1
+                if calls>1 and mode=='exited':raise RuntimeError('process unavailable')
+                return {**root,'identity':'101:2000'} if calls>1 and mode=='reused' else root
+            lifecycle.native=boundary
+            app=lifecycle.Application(Path('/synthetic.app'),Path('/synthetic'),5,Path('/collector'))
+            app.owned={101:root}
+            if mode=='reused':
+                try:app.discover_owned()
+                except RuntimeError:pass
+                else:raise AssertionError('reused root adopted another process tree')
+            else:app.discover_owned()
+            assert (102 in app.owned)==(mode=='stable')
+            assert app.owned[101]['identity']==root['identity']
+    finally:lifecycle.native=original
+
+
 def fixture(root):
     # Synthetic protocol evidence; this verifies analysis, never host capability.
     pid=101;identity='101:1000';start=10_000_000_000;formal=start+1_000_000_000
@@ -206,6 +233,7 @@ def main():
                 assert all(e['sha256']==hashlib.sha256(e['text'].encode()).hexdigest() for e in events)
             count+=1
         provider_replay(base/'provider-http');count+=1
+        ownership_replay();count+=3
         sustained=schedule(5,8,'sustained');burst=schedule(5,8,'burst')
         assert [(e['text'],e['bytes']) for e in sustained['events']]==[(e['text'],e['bytes']) for e in burst['events']]
         assert [e['atSeconds'] for e in sustained['events']]!=[e['atSeconds'] for e in burst['events']]

@@ -188,11 +188,33 @@ trace_exporter = "none"
             if actual["identity"]==self.owned[pid]["identity"]:roots.append(pid)
         return roots
 
+    def discover_owned(self):
+        roots={pid:self.owned[pid]['identity'] for pid in self.live_roots()}
+        if not roots:return []
+        rows=native(self.helper,'tree',*roots)['processes']
+        # A PID-only tree query must not replace our birth identities. Fence
+        # roots again after enumeration before adopting any new descendants.
+        admitted={}
+        for pid,identity in roots.items():
+            try:current=native(self.helper,'process',pid)
+            except RuntimeError:continue
+            if current['identity']!=identity:
+                raise RuntimeError('process root changed during descendant discovery')
+            admitted[pid]=identity
+        owned={p['pid']:p for p in rows if admitted.get(p['pid'])==p['identity']}
+        changed=True
+        while changed:
+            changed=False
+            for row in rows:
+                if row['pid'] not in roots and row['pid'] not in owned and row['ppid'] in owned:
+                    owned[row['pid']]=row;changed=True
+        self.owned.update(owned)
+        return list(owned.values())
+
     def stop(self):
         receipt = {"owned": self.owned.copy(), "actions": [], "errors": []}
-        if self.app and self.alive(self.app.pid):
-            tree = native(self.helper, "tree", *self.live_roots())
-            self.owned.update({p["pid"]: p for p in tree["processes"]})
+        try:self.discover_owned()
+        except Exception as error:receipt['errors'].append(str(error))
         # Ask the app to shut down first. Surviving owned descendants are then
         # joined separately; every signal is fenced by PID plus OS birth time.
         for pid in list(self.owned):

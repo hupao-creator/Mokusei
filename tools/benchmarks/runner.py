@@ -339,7 +339,7 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                         if state.get('page')!='overview':
                             application.ui.request({'name':'overview.show'})
                         wait_for(application.ui.request,lambda s:s.get('page')=='overview' and not s.get('transitioning'),15)
-                    tree=native(tools/'collector','tree',*application.live_roots())['processes']
+                    tree=application.discover_owned()
                     roots=[]
                     for row in tree:
                         if row['pid']==application.app.pid:role='application'
