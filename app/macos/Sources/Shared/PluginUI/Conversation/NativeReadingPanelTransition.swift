@@ -28,6 +28,14 @@ struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
 
     func makeNSView(context: Context) -> ReadingPanelView { ReadingPanelView() }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: ReadingPanelView, context: Context) -> CGSize? {
+        // The workspace owns this viewport; fitting its hosted document would
+        // traverse every native text view without changing the panel's size.
+        guard let width = proposal.width, let height = proposal.height,
+              width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
+    }
+
     func updateNSView(_ view: ReadingPanelView, context: Context) {
         var environment = context.environment
         environment.nativeThreadPreparing = !contentReady && identity != nil
@@ -125,6 +133,9 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             if let hosting { hosting.rootView = content }
             else {
                 let view = NSHostingView(rootView: content)
+                // The compositor supplies the host's frame, independently of
+                // the document's minimum, ideal and maximum content sizes.
+                view.sizingOptions = []
                 view.wantsLayer = true
                 hosting = view
                 // The lightweight identity ink remains above the newly admitted

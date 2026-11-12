@@ -1438,6 +1438,15 @@ There is no additional cross-visit attributed-string or native-view cache.
 Existing immutable parse/content caches and layout-local measurements retain their
 own lifetimes; every reader owns fresh native text, callbacks and selection.
 
+The outer native reading panel and Agent completion-handoff reader accept the
+workspace's finite width/height proposals directly. Their dimensions belong to
+the workspace, not the hosted document; AppKit must not traverse all native text
+descendants to infer another viewport size. Unspecified/unbounded proposals still
+use the default fitting path. The panel's manually framed `NSHostingView` disables
+content-derived sizing constraints, matching the retained handoff seats.
+Content layout, selection, scroll position and compositor travel remain owned by
+their existing implementations. See the [8 KiB reader investigation](../../../../../design/reader-8k-performance.md).
+
 Report uses `NativeReadingAuxiliaryBackKey` to offer an opened referenced
 execution's Back action to the outer reading workspace. Its default reference
 list adds no Back step, even while pending admission or explicitly reopened.
