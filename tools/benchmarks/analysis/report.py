@@ -380,7 +380,10 @@ def pixels(root, plan, observation, frames, times, result, mark):
                     maximum_stall=max(maximum_stall,max(0,min(at,drag[-1]['postedNS'])-last_progress)/1e9)
                 if moving:
                     last_progress=at
-                    if first_response is None and any(math.hypot(*p)>3 for p in positions.values()):first_response=at
+                    # A mouse-down alone has no declared translation. OCR/body
+                    # jitter before the first drag is not an input response.
+                    if first_response is None and any(e['kind']=='drag' for e in occurred) and any(math.hypot(*p)>3 for p in positions.values()):
+                        first_response=at
                 if start['postedNS']<at<drag[-1]['postedNS']:
                     maximum_stall=max(maximum_stall,(at-last_progress)/1e9)
                 # The whole trajectory, including direction and return, is checked.

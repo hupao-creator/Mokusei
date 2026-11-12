@@ -204,6 +204,9 @@ def main():
         def frames_change(root,p,o,f,change):
             for frame in f:change(frame)
             (root/'frames.jsonl').write_text(''.join(json.dumps(v)+'\n' for v in f))
+        jitter=run('before-first-drag-jitter',lambda r,p,o,f:frames_change(r,p,o,f,
+            lambda x:x['texts'][0].update(x=204) if x['atNS']==11_100_000_000 else None),expected_product='passed')
+        assert jitter['metrics']['pan']['firstVisibleResponseSeconds']>=.2
         run('frozen',lambda r,p,o,f:frames_change(r,p,o,f,lambda x:x['texts'][0].update(x=200)),expected_product='overloaded')
         run('wrong-direction',lambda r,p,o,f:frames_change(r,p,o,f,lambda x:x['texts'][0].update(x=400-x['texts'][0]['x'])),expected_product='wrong-result')
         run('missing-frames',lambda r,p,o,f:(r/'frames.jsonl').unlink(),expected_product='unknown')
