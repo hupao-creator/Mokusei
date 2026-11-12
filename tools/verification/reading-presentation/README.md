@@ -46,9 +46,10 @@ final reader must contain the destination content and retire the outgoing host. 
 fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
 Motion still waits for content but settles without an intermediate page turn.
 The wide animated case also drives the native Execution Sidecard divider: both
-document widths must remain fixed while its shell moves, then reflow to the
-released width without replacing their native text views. An accessibility width
-increment must still reflow immediately outside a pointer drag.
+documents must reflow at each intermediate width without replacing their native
+text views. A new settled reply must appear while the execution is still running
+and the divider remains held, then survive completion into main. An accessibility
+width increment must also reflow immediately outside a pointer drag.
 The fold observer is installed before completion and samples native bounds on
 display callbacks, retaining the original travel interval and deadline. Input
 focus is verified by the resident-composer flow below; the layout-only fixture

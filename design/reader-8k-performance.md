@@ -303,9 +303,15 @@ preserved with this round's Sidecard evidence.
 
 ## Execution Sidecard output and divider resizing
 
+**Superseded interaction policy:** the deferred wrapping described below was
+measured at `8f4e7d6` and subsequently removed at the user's request. Current
+Execution Sidecards reflow continuously during divider movement. The CPU savings
+in this section describe the withdrawn deferred-wrapping behavior, not the current
+live-resizing implementation. See the final section for the retained scope.
+
 The user subsequently reported visible stalls with an Execution Sidecard and
 while adjusting its width. These are separate from the earlier steady-reader
-scroll case. The retained change has two parts:
+scroll case. The candidate committed at `8f4e7d6` had two parts:
 
 - Divider samples update the host's retained widths and layout snapshot without
   rebuilding plugin views or their observation leases. Drag entry/exit still
@@ -347,7 +353,7 @@ only their shells until release. Another diagnostic combines the original ten-se
 with that drag. These profiling observations are not pooled with formal CPU
 trials, and the minimal diagnostic collector does not capture display frames.
 
-### Retained divider result
+### Deferred-divider result (superseded)
 
 Fresh unprofiled comparisons used the same signed baseline/candidate bundles,
 fixed 8 KiB content and 480-event real pointer gesture. Each observation covers
@@ -400,7 +406,7 @@ viewport change. The replay now requires the exact native viewport change and
 Sidecard text width, while preserving the existing responsive padding. The
 initial failed run and its native artifacts remain alongside the corrected run.
 
-Final-source local checks passed: Debug build with test targets, `make lint`,
+Local checks for the deferred-reflow revision `8f4e7d6` passed: Debug build with test targets, `make lint`,
 5 native Sidecard/handoff methods (39.156 s), 12 execution-link/routing methods
 (38.655 s), and the signed Release bundle verification. Hosted CI and the full
 local suite were not run: this delivery is explicitly local-main only. Existing
@@ -412,3 +418,48 @@ verification logs are retained in local main's
 `.scratch/reader-sidecard-performance-20261112/`. Its manifest records hashes for
 copied files; sockets and symlinks are excluded. The benchmark protocol and
 previous sealed reports are unchanged.
+
+## Restore live resizing and inspect running execution
+
+The deferred-width mechanism specifically applied to the selected Execution
+Sidecard, which normally owns a running/waiting execution when earlier context
+exists. It froze both that execution's document width and main's document width
+during a pointer drag. It did not freeze the execution's content subscriptions.
+The earlier shared completed-Markdown optimizations also apply to settled replies
+within running executions; a message's streaming/settled state is independent of
+whether the execution has ended. Existing streaming admission remains unchanged.
+
+At the user's request, remove all drag-start document width retention and restore
+live reflow in both columns at every divider position. Keep the host-only width
+update that preserves plugin views and observation leases; regular content and
+execution-state changes continue through their existing subscriptions. Keep width
+retention across card choices and the original responsive stacking behavior.
+
+The production handoff replay now requires both native text widths to follow
+three intermediate drag positions. While the divider is held and the execution
+remains running, it injects another complete assistant message through the real
+Harness content resource and requires it to appear at the current column width.
+After release, the existing completion replay requires that reply to become main's
+final content. Native text identity and immediate accessibility resizing remain
+asserted. This is a display-contract change; no new performance improvement is
+claimed for restored live reflow.
+
+The first two live-reflow replay attempts failed because their saved native text
+reference still pointed to the previous result row after another reply arrived.
+At the 120pt drag position, the shell had correctly widened from 363pt to 483pt
+and main's viewport narrowed from 725pt to 605pt; the detached previous text view
+still held its earlier 391pt width. `ExecutionResultAnchor` changes its wrapped
+branch when the final row changes. The replay now observes the new tail after
+content delivery, then requires further width changes to retain that view.
+Width, content-admission and same-content identity checks remain. The diagnostic
+AppKit capture was blank; the recorded native geometry and production anchor
+path establish this diagnosis, not that image.
+
+Current live-resizing checks: Debug build including test targets and `make lint`
+passed, and all 5 native Sidecard/handoff replay methods passed in 38.998 s. The
+replay emitted `THREAD_SIDECARD_LIVE_REFLOW_CONFIRMED` with `runningReply=true`.
+The two failed attempts, diagnostic native bounds, blank diagnostic capture,
+passing replay evidence and final source snapshot are retained under
+`.scratch/reader-sidecard-performance-20261112/live-resize-followup/` in local
+main. No Release benchmark, full local suite or hosted CI was run for this
+behavior reversal; prior performance percentages are not attributed to it.

@@ -165,12 +165,6 @@ struct NativeSidecardWorkspaceLayout: View {
     @State private var foldedCardID: JSONText?
     @State private var inputTarget: ThreadConversationInputTarget?
     @State private var inputOwner = UUID()
-    private struct DragWidths {
-        let card: JSONText
-        let main: CGFloat
-        let sidecard: CGFloat
-    }
-    @State private var dragWidths: DragWidths?
     private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
 
     private var animation: Animation? {
@@ -190,11 +184,6 @@ struct NativeSidecardWorkspaceLayout: View {
             let mainSize = CGSize(
                 width: layout.mainWidth + (panelSize.width - layout.mainWidth) * handoffProgress,
                 height: layout.mainHeight + (panelSize.height - layout.mainHeight) * handoffProgress)
-            // Keep native document widths stable while the divider moves the
-            // shells. Release or replacement commits one real text reflow.
-            let retained = snapshot.dragging && snapshot.handoff == nil && !layout.stacked
-                && dragWidths?.card == snapshot.selected ? dragWidths : nil
-            let readerSize = CGSize(width: retained?.main ?? mainSize.width, height: mainSize.height)
             launchers
                 .position(x: panelSize.width + 38, y: panelSize.height / 2)
                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -203,7 +192,7 @@ struct NativeSidecardWorkspaceLayout: View {
                         let frames = anchors.mapValues { proxy[$0] }
                         ZStack(alignment: .topLeading) {
                             NativeExecutionHandoffReader(handoff: snapshot.handoff,
-                                destinationSize: snapshot.handoff == nil ? readerSize : panelSize,
+                                destinationSize: snapshot.handoff == nil ? mainSize : panelSize,
                                 workspaceSize: geometry.size, reduceMotion: reduceMotion || handoffResized || scenePhase != .active,
                                 onComplete: model.finishHandoff, onInputTargetChange: { target in
                                     inputTarget = target
@@ -211,7 +200,7 @@ struct NativeSidecardWorkspaceLayout: View {
                                 }) {
                                 mainConversation
                             }
-                                .frame(width: readerSize.width, height: readerSize.height, alignment: .topLeading)
+                                .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
                                 // Reflow the reader once at its destination width.
                                 // Animate its center and the surrounding shell
                                 // independently, without rescaling native text or
@@ -219,7 +208,7 @@ struct NativeSidecardWorkspaceLayout: View {
                                 .offset(x: -mainSize.width / 2)
                                 // Only the size change loses inherited travel;
                                 // later reader-owned animations keep their transaction.
-                                .transaction(value: readerSize) { $0.animation = nil }
+                                .transaction(value: mainSize) { $0.animation = nil }
                                 .offset(x: mainSize.width / 2)
                                 .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
                                 .background(NativePalette.thread.canvas.swiftUI)
@@ -233,13 +222,7 @@ struct NativeSidecardWorkspaceLayout: View {
                             if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
                                 NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
                                     onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
-                                    onDraggingChange: { dragging in
-                                        if dragging, let selected = snapshot.selected,
-                                           snapshot.cards.contains(where: { $0.id == selected && $0.view.excludeExecutionID != nil }) {
-                                            dragWidths = DragWidths(card: selected, main: mainSize.width, sidecard: layout.surfaceWidth)
-                                        } else { dragWidths = nil }
-                                        model.setDragging(dragging)
-                                    })
+                                    onDraggingChange: model.setDragging)
                                     .frame(width: dividerHitWidth, height: geometry.size.height)
                                     .offset(x: layout.mainWidth + (16 - dividerHitWidth) / 2)
                                     .zIndex(2)
@@ -248,8 +231,7 @@ struct NativeSidecardWorkspaceLayout: View {
                             // All sessions remain in this ForEach, including folded and
                             // suppressed cards, so child Harness interaction state survives.
                             ForEach(snapshot.cards) { card in
-                                sidecard(card, layout: layout, source: frames[card.id] ?? launcherFrames[card.id],
-                                    documentWidth: retained?.card == card.id ? retained?.sidecard : nil)
+                                sidecard(card, layout: layout, source: frames[card.id] ?? launcherFrames[card.id])
                             }
                         }
                         .onChange(of: frames, initial: true) { _, current in
@@ -271,7 +253,6 @@ struct NativeSidecardWorkspaceLayout: View {
                         .allowsHitTesting(false)
                 }
                 .onChange(of: geometry.size) { _, _ in
-                    dragWidths = nil
                     guard let handoff = snapshot.handoff else { return }
                     handoffResized = true
                     foldForHandoff(handoff.id, animated: false)
@@ -284,7 +265,6 @@ struct NativeSidecardWorkspaceLayout: View {
         // host. Removing the outgoing host must not clear the incoming target.
         .onDisappear { inputTargetChanged?(inputOwner, nil) }
         .onChange(of: snapshot.selected) { previous, selected in
-            dragWidths = nil
             if selected == nil, snapshot.focusLauncherOnClose { focusedLauncher = previous }
             else { focusedLauncher = nil }
             if selected != nil && selected == foldedCardID { foldedCardID = nil }
@@ -388,8 +368,7 @@ struct NativeSidecardWorkspaceLayout: View {
         else { model.closeThread() }
     }
 
-    private func sidecard(_ card: NativeSidecardWorkspaceCard, layout: NativeSidecardWorkspaceGeometry, source: CGRect?,
-                          documentWidth: CGFloat?) -> some View {
+    private func sidecard(_ card: NativeSidecardWorkspaceCard, layout: NativeSidecardWorkspaceGeometry, source: CGRect?) -> some View {
         let expanded = snapshot.selected == card.id
         let promoting = snapshot.handoff?.cardID == card.id
         let progress = promoting ? 1 - handoffProgress : (expanded ? 1.0 : 0.0)
@@ -398,8 +377,6 @@ struct NativeSidecardWorkspaceLayout: View {
         return Group {
             if preparing { Color.clear } else { card.view.content }
         }
-            .frame(width: documentWidth, alignment: .topLeading)
-            .transaction(value: documentWidth) { $0.animation = nil }
             // Only the main reading body may drive the window's navigation chrome.
             // Sidecards reuse timelines and can contain further nested reading views.
             .environment(\.nativeReadingNavigation, nil)
