@@ -12,6 +12,7 @@ from contracts.model import CLOCK, plan as validate_plan
 from lifecycle import native, save, sha256
 from analysis.report import seal, write_report
 from hitches import Hitches
+from input_region import background_point
 
 FRAMEWORK_FILES = {str(p.relative_to(Path(__file__).parent)): sha256(p)
                    for p in sorted(Path(__file__).parent.rglob('*'))
@@ -25,7 +26,7 @@ def clock_bracket(helper):
 
 
 def trajectory(bounds, seconds):
-    # This operates a blank canvas margin, not a card's text selection surface.
+    # Application plans are reanchored to a prepared public AX background gap.
     x, y = bounds['x'] + bounds['width'] - 70, bounds['y'] + bounds['height'] - 110
     events = [{'kind': 'move', 'atSeconds': .15, 'x': x, 'y': y},
               {'kind': 'down', 'atSeconds': .4, 'x': x, 'y': y}]
@@ -37,6 +38,25 @@ def trajectory(bounds, seconds):
         events.append({'kind': 'drag', 'atSeconds': .4 + t, 'x': x + dx, 'y': y + .3 * dx})
     events.append({'kind': 'up', 'atSeconds': seconds - .4, 'x': x, 'y': y})
     return events
+
+
+def prepare_input(application, directory, fixture, context):
+    # AX preparation is outside all measured phases. Preserve the raw geometry
+    # even if no usable gap is available; absence is not a product freeze.
+    before=time.monotonic_ns()
+    owner=native(application.helper,'inspect',application.app.pid)
+    record={'beforeNS':before,'afterNS':time.monotonic_ns(),'owner':owner,'context':context}
+    save(directory/'input-preparation.json',record)
+    record['point']=background_point(owner,fixture)
+    save(directory/'input-preparation.json',record)
+    return record
+
+
+def reanchor(events, point, bounds):
+    down=next(e for e in events if e['kind']=='down')
+    delta={axis:bounds[axis]+point[axis]-down[axis] for axis in ('x','y')}
+    return [{**e,**{axis:e[axis]+delta[axis] for axis in ('x','y')}}
+            if e['kind'] in ('move','down','drag','up') else e for e in events]
 
 
 def make_plan(owner, roots, scenario, count, mode, seconds=8, anchors=None):
@@ -254,6 +274,9 @@ def startup(application, tools, directory, count, mode, seconds):
     from types import SimpleNamespace
     helper = tools/'collector'
     fixture=existing_fixture(application,directory)
+    native(helper,'prepare',application.app.pid)
+    time.sleep(.5)
+    preparation=prepare_input(application,directory,fixture,'reopen')
     cleanup = application.stop(); save(directory/'prelaunch-cleanup.json', cleanup)
     if cleanup['errors']: raise RuntimeError('prelaunch owned shutdown failed')
     application.owned.clear()
@@ -266,6 +289,12 @@ def startup(application, tools, directory, count, mode, seconds):
         'runtimeConnection':str(application.profile/'runtime/connection.json'),
         'runtimePath':str(application.bundle/'Contents/MacOS/mokusei-runtime')}
     relative = trajectory({'x':70,'y':110,'width':0,'height':0}, seconds-2)
+    # The startup collector translates offsets from its default window-relative
+    # point after discovering the new OS window. Keep its fixed timing intact.
+    bounds=preparation['owner']['bounds']
+    offset={axis:preparation['point'][axis]-(bounds[size]-margin)
+            for axis,size,margin in (('x','width',70),('y','height',110))}
+    relative=reanchor(relative,offset,{'x':0,'y':0})
     plan['events'] = [{**event,'atSeconds':event['atSeconds']+2} for event in relative]
     config = {'plan':plan, 'launch': {'app':str(application.bundle), 'arguments':['--data-dir',str(application.profile),
               '--automation-socket',str(application.socket),'--benchmark-scenario','overview'], 'environment':application.env}}
@@ -330,7 +359,11 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                         save(case/'outcome.json',outcome(application))
                         continue
                     owner=native(tools/'collector','prepare',application.app.pid)
+                    fixture=existing_fixture(application,case)
+                    preparation=None
                     if scenario=='return':
+                        time.sleep(.5)
+                        preparation=prepare_input(application,case,fixture,'return')
                         application.ui.request({'name':'thread.open','threadId':application.threads[1],'typeId':'agent'})
                         wait_for(application.ui.request,lambda s:s.get('page')=='thread' and not s.get('transitioning'),15)
                         owner=native(tools/'collector','inspect',application.app.pid)
@@ -349,7 +382,7 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                         application.owned[row['pid']]=row
                     roots.append({**native(tools/'collector','process',os.getpid()),'role':'source'})
                     plan=make_plan(owner,roots,scenario,count,mode,seconds)
-                    plan['fixture']=existing_fixture(application,case)
+                    plan['fixture']=fixture
                     if scenario=='return':
                         key={'keyCode':40,'x':owner['bounds']['x']+50,'y':owner['bounds']['y']+50}
                         plan['events']=[{'kind':'keyDown','atSeconds':.1,**key},{'kind':'keyUp','atSeconds':.15,**key}]
@@ -371,6 +404,10 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                         save(case/'active-preparation.json',{'executions':executions,'threads':[
                             {'id':t['id'],'title':t.get('title'),'observation':t['observation']}
                             for t in state['threads'] if t['id'] in application.threads.values()]})
+                    if preparation is None:
+                        time.sleep(.5)
+                        preparation=prepare_input(application,case,fixture,'same-window')
+                    plan['events']=reanchor(plan['events'],preparation['point'],plan['windowBounds'])
                     collect(tools,case,plan,bundle,capability,
                             arm=(lambda start:application.provider.arm(token,start)) if token else None,
                             checkpoint=lambda:boundary_outcome(application))

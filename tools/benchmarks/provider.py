@@ -43,6 +43,10 @@ class Provider:
         owner = self
 
         class Handler(BaseHTTPRequestHandler):
+            def setup(self):
+                super().setup()
+                self.connection.settimeout(15)
+
             def log_message(self, *args):
                 pass
 
@@ -96,6 +100,9 @@ class Provider:
                 self.send_error(403, "external model traffic denied")
 
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        # close() must join request writers before evidence is sealed. A daemon
+        # request could otherwise append a late cancellation/error after return.
+        self.server.daemon_threads = False
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 

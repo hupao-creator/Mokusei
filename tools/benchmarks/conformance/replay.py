@@ -17,6 +17,7 @@ from contracts.model import CLOCK, loads, plan as validate_plan
 from analysis.report import seal, write_report, completed_executions
 from lifecycle import save
 from workload import schedule
+from input_region import background_point, validate_preparation
 
 
 def ownership_replay():
@@ -159,6 +160,28 @@ def cancellation_replay(directory,control):
     finally:gate.set();provider.close()
 
 
+def shutdown_replay(directory):
+    directory.mkdir();provider=Provider(directory,5);provider.model='fixture-model';provider.effort='low'
+    token=provider.prepare_stream(schedule(5,2,'sustained'))
+    connection=http.client.HTTPConnection('127.0.0.1',provider.server.server_port,timeout=5)
+    try:
+        connection.request('POST','/v1/responses',json.dumps({'model':'fixture-model','stream':True,
+            'input':[{'role':'user','content':[{'type':'input_text','text':f'BENCH ITEM 01: BENCH STREAM 01 {token}'}]}]}),
+            {'Authorization':'Bearer fixture-only','Content-Type':'application/json'})
+        response=connection.getresponse()
+        assert response.status==200
+        provider.close()
+        # The still-gated producer must finish and retain its failure before
+        # close returns; a later evidence seal must have no live request writer.
+        assert b'response.completed' not in response.read()
+        receipt=json.loads((directory/'provider-outcome.json').read_text())
+        assert receipt['failures'] and receipt['failures']==provider.failures
+        assert json.loads((directory/'provider-errors.json').read_text())==receipt['failures']
+    finally:
+        connection.close()
+        if not provider.stopping.is_set():provider.close()
+
+
 def main():
     count=0
     with tempfile.TemporaryDirectory(prefix='overview-contract-') as temp:
@@ -198,6 +221,12 @@ def main():
         run('late-input',lambda r,p,o,f:save(r/'observation.json',{**o,'inputs':[{**e,'postedNS':e['postedNS']+1_000_000_000} for e in o['inputs']]}),invalid=True)
         run('reordered-capture',lambda r,p,o,f:(r/'frames.jsonl').write_text(''.join(json.dumps(v)+'\n' for v in reversed(f))),invalid=True)
         run('out-of-bounds-ocr',lambda r,p,o,f:frames_change(r,p,o,f,lambda x:x['texts'][0].update(width=10000)),invalid=True)
+        run('detached-point-scale',lambda r,p,o,f:frames_change(r,p,o,f,lambda x:x.update(pointsWidth=500)),invalid=True)
+        def wrong_scale(root,p,o,f):
+            for frame in o['frames']:frame['pointsWidth']=500
+            save(root/'observation.json',o)
+            frames_change(root,p,o,f,lambda x:x.update(pointsWidth=500))
+        run('wrong-window-point-scale',wrong_scale,invalid=True)
         run('crash',lambda r,p,o,f:save(r/'observation.json',{**o,'productExited':True}),expected_product='crash')
         run('failed-outcome',lambda r,p,o,f:save(r/'outcome.json',{'status':'wrong-result'}),expected_product='wrong-result')
         run('minimal',lambda r,p,o,f:save(r/'plan.json',{**p,'mode':'minimal'}),expected_product='unknown')
@@ -246,6 +275,10 @@ def main():
             save(root/'outcome.json',{'status':'passed','threads':fixture['threads']})
             save(root/'tail-outcome.json',{'beforeNS':o['boundaries']['tailEnd']+1,'afterNS':o['boundaries']['tailEnd']+2,'status':status})
         run('uncalibrated-application',application_case,expected_product='unknown')
+        unprepared=run('unprepared-mouse-down',lambda r,p,o,f:(application_case(r,p,o,f),
+            frames_change(r,p,o,f,lambda x:x['texts'][0].update(x=200))),expected_product='unknown')
+        assert 'unverified mouse-down target cannot establish canvas responsiveness' in unprepared['reasons']
+        assert 'input did not produce timely business motion' not in unprepared['reasons']
         def pending_projection(root,p,o,f):
             application_case(root,p,o,f);p['fixture']['uiThreadIDs'].pop();save(root/'plan.json',p)
         run('cards-not-projected-before-timing',pending_projection,invalid=True)
@@ -267,16 +300,47 @@ def main():
             count+=1
         provider_replay(base/'provider-http');count+=1
         for control in (False,True):cancellation_replay(base/('disconnect-'+str(control)),control);count+=1
+        shutdown_replay(base/'shutdown-gated-stream');count+=1
         ownership_replay();count+=3
+        fixed={'threads':[{'id':str(n)} for n in range(5)]}
+        owner={'active':True,'axTruncated':False,'windowID':2,'process':{'identity':'101:1000'},
+               'bounds':{'x':50,'y':60,'width':1000,'height':700},'accessibility':[
+                   {'AXIdentifier':'overview.canvas','bounds':{'x':50,'y':160,'width':1000,'height':600}}]+[
+                   {'AXIdentifier':f'overview-card-{n}','bounds':{'x':50+300*(n%3),'y':160+190*(n//3),'width':280,'height':180}}
+                   for n in range(5)]}
+        point=background_point(owner,fixed)
+        record={'beforeNS':1,'afterNS':2,'owner':owner,'context':'same-window','point':point}
+        planned={'scenario':'pan','processIdentity':'101:1000','windowID':2,'windowBounds':owner['bounds'],
+                 'fixture':fixed,'startNS':3,'events':[{'kind':'down','x':50+point['x'],'y':60+point['y']}]}
+        assert validate_preparation(record,planned)=='same-window';count+=1
+        for change in ('missing-card','covered','wrong-point','late-preparation'):
+            changed=copy.deepcopy(record)
+            if change=='missing-card':changed['owner']['accessibility'].pop()
+            elif change=='covered':changed['owner']['accessibility'].append({'AXRole':'AXTextArea','bounds':owner['bounds']})
+            elif change=='wrong-point':changed['point']['x']+=10
+            else:changed['afterNS']=4
+            try:validate_preparation(changed,planned)
+            except ValueError:count+=1
+            else:raise AssertionError('unverified input target accepted: '+change)
+        from runner import trajectory,reanchor
+        offsets={'x':point['x']-(1000-70),'y':point['y']-(700-110)}
+        relative=reanchor(trajectory({'x':70,'y':110,'width':0,'height':0},6),offsets,{'x':0,'y':0})
+        down=next(e for e in relative if e['kind']=='down')
+        assert down['x']+(1000-70)==point['x'] and down['y']+(700-110)==point['y'];count+=1
         p={'count':5,'fixture':{'threads':[{'id':str(n)} for n in range(1,6)]},
            'workload':{'terminal':[{'card':n,'text':f'actual result {n}'} for n in range(1,6)]}}
         threads=[{'id':str(n),'observation':{'latestExecution':{'executionId':f'new-{n}','status':'completed','summary':f'actual result {n}'}}} for n in range(1,6)]
         preparation={'executions':{str(n):f'new-{n}' for n in range(1,6)},'threads':copy.deepcopy(threads)}
+        for row in preparation['threads']:row['observation']['latestExecution']['status']='running'
         assert completed_executions(p,preparation,threads);count+=1
         threads[0]['observation']['latestExecution']['executionId']='previous-completed-execution'
         assert not completed_executions(p,preparation,threads);count+=1
         threads[0]['observation']['latestExecution'].update(executionId='new-1',summary='actual result 2')
         assert not completed_executions(p,preparation,threads);count+=1
+        preparation['threads'][0]['observation']['latestExecution']['status']='completed'
+        try:completed_executions(p,preparation,threads)
+        except ValueError:count+=1
+        else:raise AssertionError('inactive card accepted as prepared running work')
         sustained=schedule(5,8,'sustained');burst=schedule(5,8,'burst')
         assert [(e['text'],e['bytes']) for e in sustained['events']]==[(e['text'],e['bytes']) for e in burst['events']]
         assert [e['atSeconds'] for e in sustained['events']]!=[e['atSeconds'] for e in burst['events']]

@@ -49,6 +49,14 @@ Fixture creation and metadata settling happen before timing. No timed scenario
 creates/deletes cards or deliberately reveals them one at a time. First rendering
 reopens the already-populated profile. Before/after public card IDs, titles and
 counts are retained and checked; a changed set cannot produce a passing outcome.
+Before timing, one public Accessibility observation locates a mouse-down gap
+outside the existing card/control rectangles. This is input preparation, not a
+layout score or visible-card quota. Missing geometry or a blocked point cannot
+be interpreted as a frozen canvas. Entry probes reuse geometry from the preceding
+Overview. AX bounds are not gesture-acceptance receipts: a completely inert
+product probe reports unknown input acceptance/responsiveness, never a pass.
+The raw observation and selected point are retained, and the full mouse trajectory
+remains fixed. No full accessibility/semantic snapshot is polled while measuring.
 
 ## Scenarios and metrics
 

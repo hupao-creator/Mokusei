@@ -7,6 +7,7 @@ import re
 import struct
 
 from contracts.model import CLOCK, ROLES, envelope, integer, load, loads, number, plan as validate_plan, text
+from input_region import validate_preparation
 
 
 def hash_file(path):
@@ -109,6 +110,12 @@ def analyze(directory):
             mark('input deadline mapping mismatch','invalid')
         if posted < planned or posted-planned > 50_000_000 or event.get('error'):
             mark('input dispatch missed deadline or failed','invalid')
+    if plan['targetKind']=='application' and any(e['kind']=='down' for e in plan['events']):
+        if 'input-preparation.json' not in sealed:
+            mark('mouse-down background target was not externally prepared','incomplete')
+        else:
+            context=validate_preparation(load(root/'input-preparation.json'),plan)
+            result['inputPreparation']={'context':context,'publicAccessibilityGeometry':True}
     if plan['targetKind']=='application':
         if 'tail-outcome.json' not in sealed:
             mark('immediate post-window business observation absent','incomplete')
@@ -192,8 +199,12 @@ def completed_executions(plan, preparation, threads):
     executions=preparation['executions']
     if set(executions)!=set(map(str,range(1,plan['count']+1))) or len(set(executions.values()))!=plan['count']:
         raise ValueError('active execution admission identities incomplete')
+    if len(preparation['threads'])!=plan['count'] or {t['id'] for t in preparation['threads']}!={t['id'] for t in plan['fixture']['threads']}:
+        raise ValueError('active preparation does not cover the existing card set')
+    if any((t['observation'].get('latestExecution') or {}).get('status')!='running' for t in preparation['threads']):
+        raise ValueError('all requested card executions must be running before timing')
     prepared={(t['observation'].get('latestExecution') or {}).get('executionId'):t['id'] for t in preparation['threads']}
-    if not set(executions.values())<=prepared.keys():raise ValueError('admitted executions did not reach the public preparation state')
+    if set(executions.values())!=prepared.keys():raise ValueError('admitted executions did not reach the public preparation state')
     terminal={e['card']:e['text'] for e in plan['workload']['terminal']}
     if set(terminal)!=set(range(1,plan['count']+1)):raise ValueError('terminal payload identities incomplete')
     actual={t['id']:t['observation'].get('latestExecution') or {} for t in threads}
@@ -310,7 +321,7 @@ def pixels(root, plan, observation, frames, times, result, mark):
     previous=0; rows=[]
     for frame, capture in zip(frames,raw):
         at=integer(frame['atNS'],'capture timestamp',previous+1);previous=at
-        if any(frame.get(key)!=capture.get(key) for key in ('atNS','requestNS','image','width','height')):
+        if any(frame.get(key)!=capture.get(key) for key in ('atNS','requestNS','image','width','height','pointsWidth','pointsHeight','windowBounds')):
             mark('OCR detached from capture record','invalid')
         if capture.get('windowBounds')!=plan.get('windowBounds'):
             mark('WindowServer bounds changed during collection','invalid')
@@ -324,6 +335,11 @@ def pixels(root, plan, observation, frames, times, result, mark):
             if len(header)!=24 or header[:8]!=b'\x89PNG\r\n\x1a\n' or header[12:16]!=b'IHDR' or struct.unpack('!II',header[16:24])!=(width,height):
                 mark('raw PNG dimensions/format disagree with capture','invalid')
         points=number(frame['pointsWidth'],'capture points width',1,16384)
+        points_height=number(frame['pointsHeight'],'capture points height',1,16384)
+        if points!=plan['windowBounds']['width'] or points_height!=plan['windowBounds']['height']:
+            mark('capture point scale disagrees with the OS window','invalid')
+        if abs(width/points-height/points_height)>max(1/points,1/points_height):
+            mark('capture pixel scaling differs between axes','invalid')
         anchors={}
         for item in frame['texts']:
             text(item['text'],'recognized text',20_000)
@@ -379,6 +395,13 @@ def pixels(root, plan, observation, frames, times, result, mark):
             missing=any(b-a>plan['maximumCaptureGapSeconds']*1e9 for a,b in zip(stamps,stamps[1:]))
             if not errors or missing or last_anchor<drag[-1]['postedNS']:
                 mark('motion anchor correspondence unavailable across the full gesture','incomplete')
+            elif plan['targetKind']=='application' and 'inputPreparation' not in result:
+                mark('unverified mouse-down target cannot establish canvas responsiveness','incomplete')
+            elif first_response is None and plan['targetKind']=='application':
+                # AX rectangles guide input; they are not a receipt that the
+                # product's gesture recognizer accepted mouse-down. A completely
+                # inert probe cannot distinguish a blocked target from a freeze.
+                mark('no canvas motion established; input acceptance or product responsiveness is unknown','incomplete')
             elif first_response is None or maximum_stall>plan['maximumNoProgressSeconds']:
                 mark('input did not produce timely business motion',product='overloaded')
             elif max(errors)>plan['motionTolerancePixels']:
@@ -405,6 +428,8 @@ def pixels(root, plan, observation, frames, times, result, mark):
         result['scenarioEvidence'] = False
     if plan['scenario'].startswith('body'):
         body(root,plan,rows,times,result,mark)
+    if plan['targetKind']=='application' and any(e['kind']=='down' for e in plan['events']) and 'inputPreparation' not in result:
+        result['scenarioEvidence']=False
 
 
 def body(root,plan,rows,times,result,mark):
@@ -528,6 +553,9 @@ def write_report(directory):
     except (ValueError,KeyError,TypeError,OSError,ZeroDivisionError,OverflowError,AttributeError) as error:
         result={'version':1,'measurement':'invalid','product':'unknown','comparison':'not-comparable','reasons':[str(error)],'metrics':{}}
     result['analysisSHA256']=hash_file(Path(__file__))
+    framework=Path(__file__).resolve().parent.parent
+    result['analysisFiles']={name:hash_file(framework/name) for name in
+        ('analysis/report.py','contracts/model.py','input_region.py','workload.py')}
     (root/'report.json').write_text(json.dumps(result,indent=2)+'\n')
     lines=['# External Overview benchmark','',f"Measurement: **{result['measurement']}** · Product: **{result['product']}** · Comparison: **{result['comparison']}**",'',
            'Measurements and scaling only. No layout score or statistical regression gate.','']
