@@ -765,14 +765,15 @@ frame pacing or a CPU benchmark.
 python3 tools/verification/reading-presentation/run.py --markdown
 ```
 
-Runs eleven native integration cases against production `ThreadMessage` and
+Runs twelve native integration cases against production `ThreadMessage` and
 `NativeMarkdownView`. They check complete bare URLs, source-aware escaped/entity
 footnotes, whitespace-containing ordinary reference labels, Unicode code preservation,
 NFC-to-NFD link replacement in a mounted reader, text growth/shrink and native
 window resizing, left-to-right/right-to-left marker placement, paced-mount revision
 supersession, folded labels and lazy continuations,
-plain alternative text, partial/native copy, empty table columns, Command-arrow
-selection collapse, long ordered markers, inline-code table geometry, tight lists
+plain alternative text, partial/native copy, cell-local table selection, Command-arrow
+selection collapse in the active paragraph, deferred document end/top access
+and copying after native resize, long ordered markers, inline-code table geometry, tight lists
 with empty quoted lines, and a percent-label footnote round trip through a
 horizontally scrolling table in the outer reading viewport. The replay needs a
 graphical session; it opens no external websites and makes no model requests.
@@ -840,7 +841,10 @@ requires that none appear before message completion, including while waiting
 for input. OpenCode's mixed text/reasoning/tool fixture must retain both execution
 rows while withholding reply text. It then settles a message
 while execution remains running, retains that reply while a successor message
-streams, and checks full successor text after completion. Terminal cases retain
+streams, and scrolls through every uniquely numbered paragraph after completion,
+requiring the complete 200/220-paragraph sets despite deferred native mounting.
+Capsule Select All/copy stays in its paragraph; mouse, keyboard and accessibility
+activation still open the execution. Terminal cases retain
 failed/cancelled reply text, including Pi's stale streaming marker after execution
 settlement. The generic Markdown streaming path remains available to other readers.
 The twelve tests include mounted `ThreadDetailFrame` and production panel Close controls:

@@ -449,7 +449,7 @@ Markdown renderer or other conversation surfaces.
 
 A streaming page is the visible content height of the owning `HarnessMessageTimeline` (viewport minus its fixed top/bottom insets, in points). Only complete top-level blocks are parsed, so a page break can never fall inside a fenced code block, table, list, blockquote or indented code block; an atomic block that alone exceeds a page is revealed whole. The open page stays invisible until the next settled block would not fit (or its measured height already fills the page), and completion flushes the remainder after reparsing the whole source. The reparse resolves reference definitions and footnotes that point at later chunks; pages rebuild only when that whole-document result differs from the already displayed blocks. Flushes reuse `NativeReadingPageTiming.replacementAnimation` for the vertical page entrance and honor Reduce Motion. A message that is one unsplittable block (for example a single long list or an unfinished paragraph) therefore appears when that block closes or at completion; multiple chunks in one state update coalesce into one flush. Because only closed blocks render, a following timeline's content height and follow scroll change at page flushes, not once per streamed token; the follow, pause-on-user-scroll and jump-to-latest contract is unchanged and settles after each flush.
 
-[Reading/NativeMarkdownParser.swift](Reading/NativeMarkdownParser.swift), [NativeMarkdownText.swift](Reading/NativeMarkdownText.swift) and [NativeMarkdownTypography.swift](Reading/NativeMarkdownTypography.swift) own parsing and native text layout. Inline-code URL links retain link actions and selection; tables derive height from laid-out content. Mermaid fences display source. Native selection uses the active reading selection palette consistently across blocks. Local absolute paths and local `file:` URLs render image syntax and add an inline preview below ordinary file links, while retaining native link actions. Local files bypass attachment resolvers and network loading; the composer ImageIO thumbnail loader decodes off the main actor (2048px maximum edge, 64MiB source limit). Text attachments fit the reading width and a 480pt height while preserving aspect ratio. Missing, unreadable and non-image sources retain their link/alternative text. Remote file hosts and executable URL schemes are rejected; relative paths have no inferred filesystem base. Local rasters live only with mounted Markdown blocks and refresh on remount.
+[Reading/NativeMarkdownParser.swift](Reading/NativeMarkdownParser.swift), [NativeMarkdownText.swift](Reading/NativeMarkdownText.swift) and [NativeMarkdownTypography.swift](Reading/NativeMarkdownTypography.swift) own parsing and native text layout. Inline-code URL links retain link actions and selection; tables derive height from laid-out content. Mermaid fences display source. Native selection follows the active text view and the system window/application focus. Local absolute paths and local `file:` URLs render image syntax and add an inline preview below ordinary file links, while retaining native link actions. Local files bypass attachment resolvers and network loading; the composer ImageIO thumbnail loader decodes off the main actor (2048px maximum edge, 64MiB source limit). Text attachments fit the reading width and a 480pt height while preserving aspect ratio. Missing, unreadable and non-image sources retain their link/alternative text. Remote file hosts and executable URL schemes are rejected; relative paths have no inferred filesystem base. Local rasters live only with mounted Markdown blocks and refresh on remount.
 
 Markdown tables reserve the native mini horizontal-scroller gutter in their
 measured content height when the system prefers persistent scrollbars. SwiftUI's
@@ -472,9 +472,10 @@ before entity decoding; escaped syntax stays literal. Labels containing whitespa
 case folding and opaque URL-safe destination identities, including literal percent
 sequences. Lazy paragraph continuations remain in their note. Bare HTTP(S) URLs
 retain Markdown punctuation in their paths. Image alternative text flattens inline
-formatting and is shared by native partial and whole-document copies. Whole-table
-copies retain empty columns; keyboard navigation clears joined selection in every
-block. List marker widths and table inline-code padding participate in actual
+formatting and is preserved by native partial copies. Selection, Select All and
+copy belong to the active paragraph, code block or table cell; dragging does not
+join selections across blocks. The document context menu's Copy Markdown action
+still copies the complete source. List marker widths and table inline-code padding participate in actual
 layout measurements. Footnote returns reveal references through nested table and
 conversation viewports. Run the [Markdown native replay](../../../../../tools/verification/reading-presentation/README.md#markdown-reading-regressions)
 for production rendering, selection, copying and navigation fixtures.
@@ -1422,13 +1423,19 @@ and placement share those results. List markers, quote rules and footnote number
 use a fixed leading slot, so horizontal flexibility negotiation no longer probes
 their paragraph at one-point width. SwiftUI owns right-to-left mirroring.
 
-Once admitted, all blocks and native text views remain mounted. Whole-document selection/copy,
-footnote navigation, media loading and scroll ownership retain their existing
-lifetimes. The native Markdown replay includes actual text growth/shrink and
-window resize, both writing directions, table copy/geometry and footnote return;
-the local-image and execution-link replays cover asynchronous media and streaming
-admission. This optimization does not use viewport virtualization or stale
-cross-document height caches.
+Completed replies in a reading viewport mount top-level blocks near the visible
+area through a lazy vertical stack. Nested list/quote content and atomic tables
+or code blocks retain their width-driven layout. Documents with footnotes keep
+all native anchors mounted; exposure-tracked notes and streaming pages retain
+their exact geometry and existing admission policy. No cross-document height
+cache or cross-block selection registry remains.
+
+The native Markdown replay includes actual text growth/shrink, reaching both
+ends of a deferred document after window resize, both writing directions,
+block-local selection/copy, table geometry and footnote return. Local-image and
+execution-link replays cover asynchronous media, native attachment actions and
+streaming admission. Image failure hints use the native text view's tooltip and
+accessibility help; ordinary text adds no SwiftUI help responder.
 
 Markdown publishes the complete parsed document and acknowledges its token in
 the same update. A newer revision supersedes pending parse results, including

@@ -146,3 +146,129 @@ Delivery is explicitly local-main only. Hosted CI, the full Swift suite and the
 full `make check` were not run; the scoped replays above are the executed checks.
 The read-only remote rule snapshot had no required status checks and no PR for
 this branch. No remote mutation or temporary protection exemption was used.
+
+
+## Follow-up: block-local selection and deferred rendering
+
+The user explicitly accepted removing cross-paragraph selection. Native Select
+All, drag selection and copy now stay within one paragraph, code block or table
+cell. The document context menu still copies its complete Markdown source.
+The shared selection registry, cross-view responder ownership and custom
+cross-block mouse tracking loop are removed. Execution capsules use native
+attachment-click delegation and retain keyboard/accessibility activation.
+
+Completed replies with a reading viewport now defer top-level blocks through
+`LazyVStack`. Nested list/quote content and atomic code/table blocks keep their
+existing layout. Footnote documents retain eager native anchors, exposure-tracked
+notes retain exact geometry, and streamed page admission remains unchanged.
+Offscreen native views can be retained at their old size; entering the viewport
+must reflow them at the current width. This is visit-local SwiftUI state, with
+no global native-view or cross-document height cache.
+
+Ordinary inline text also drops its empty SwiftUI help wrapper. Image failures
+set the existing native text view's tooltip and accessibility help instead.
+The mixed successful-image/missing-file fixture requires the failure hint, while
+image-only paragraphs require no hint.
+
+The new native viewport replay verifies that the last of 60 paragraphs is not
+mounted initially, reaches it and copies its text, narrows the window from 700
+to 350 points, and revisits top/bottom/top requiring actual text reflow. Existing
+execution-link coverage now traverses all 200/220 uniquely numbered paragraphs
+through each of the four production Harness readers, requiring exact complete
+sets instead of assuming every native paragraph is mounted simultaneously.
+
+The first version of the viewport replay invoked responder-chain scrolling on
+a SwiftUI scroll bridge and hung/crashed. It now uses the same native clip-view
+scroll operation as existing replays. Subsequent diagnostics showed visible
+paragraphs correctly reflowed while deferred hidden views retained old widths;
+the final replay requires both ends to reflow on return. The old all-mounted
+and whole-document-selection expectations were updated for the explicitly
+changed contract, without skipping content, click or navigation checks.
+
+
+### Follow-up measurement method
+
+This round uses signed Release applications from `b6877d3` (viewport sizing
+already fixed) and the deferred-rendering candidate, with the same 8,552-byte
+corpus and input/capture schedules. Both use the corrected collector, whose
+independent CPU-clock ratio was 1.000068 on this host. Fresh normal, frozen,
+reverse-direction, delayed-input and real main-thread-stall controls all produced
+the expected reading outcomes, matching both native input receipts and pixels.
+
+The baseline is recaptured for first opening and steady scrolling; the candidate
+runs all four scenarios. Reopening and output-scrolling have no fresh baseline
+in this round and are reported without a new percentage comparison. There is
+one formal trial per listed build/scenario, with the same process-tree and
+hitch limitations described above. Original pre-correction reports are preserved;
+`cpu-unit-correction.json` beside the original evidence records explicit derived
+values and the SHA-256 of each original report and timebase record.
+
+These measurements compare the combined selection, deferred-block and native-help
+change. They do not separately attribute CPU savings to each of those changes.
+
+
+### Follow-up external results
+
+All six trials passed product outcomes and visible-motion checks. The table
+reports observed **application-process CPU seconds in each ten-second formal
+window** and sampled peak physical footprint; it is not opening latency or
+complete task cost.
+
+| Scenario | Baseline CPU | Candidate CPU | CPU reduction | Baseline / candidate peak footprint |
+| --- | ---: | ---: | ---: | ---: |
+| First opening | 3.570 s | 2.401 s | 32.8% | 95.39 / 82.35 MiB |
+| Steady scrolling | 4.345 s | 2.617 s | 39.8% | 100.35 / 88.25 MiB |
+| Reopening | Not recaptured | 2.239 s | — | — / 87.69 MiB |
+| Scrolling during output | Not recaptured | 5.442 s | — | — / 98.42 MiB |
+
+First recognizable content was bounded by 0.766–1.024 s before and
+0.565–0.815 s after; the intervals overlap, so this trial does not establish
+an end-to-end latency improvement. Steady-scroll response bounds also overlap
+(maximum upper bound 0.2605 s before and 0.2579 s after). CPU and footprint
+savings therefore do not certify smoother display-frame pacing or an FPS gain.
+
+The corrected fresh baseline is consistent with the earlier derived correction
+(3.570 versus 3.649 s for opening; 4.345 versus 4.387 s for scrolling). No old raw
+report or capture was rewritten to obtain the new results.
+
+The candidate's steady-scroll trace additionally records the `MokuseiEmbedding`
+helper disappearing after about three formal seconds. Its exit CPU is unavailable;
+that trace therefore retains the explicit missing-root/incomplete accounting
+reason. The application process is present in all 141 samples, so the table is
+restricted to that observed process and makes no aggregate helper/runtime claim.
+
+
+### Follow-up diagnostic and validation evidence
+
+Separate two-visit diagnostic captures use the same reply and scroll script,
+with native tracing and `sample`; their timings are not pooled into the formal
+resource measurements.
+
+| Observation | Viewport-sizing baseline | Deferred candidate |
+| --- | ---: | ---: |
+| Native text views created before each sampled scroll visit | 156 / 156 | 25 / 25 |
+| Native text creation / actual text layout across both visits and scrolling | 312 / 312 | 88 / 88 |
+| Markdown parse across both visits | 1 call, 4.553 ms | 1 call, 4.646 ms |
+| Main-thread stacks containing `NSHostingView.layout`, visits 1 / 2 | 991 / 1,024 | 525 / 736 |
+| Main-thread stacks containing panel hit testing, visits 1 / 2 | 492 / 497 | 122 / 186 |
+
+The sampling runs contain 9,243/9,339 main-thread samples before and 8,599/9,470
+after. Counts describe sampled stacks, not exact call counts. This locates a
+reduction in native views and layout/hit-testing work; parsing remains unchanged.
+The native preparation phases do not show a further consistent improvement,
+so no additional preparation-latency claim is made.
+
+The production candidate passed a signed Release build and 32 native integration
+tests: 12 Markdown, 3 local-image, 12 execution-link and 5 completion-handoff
+methods (parameterized methods cover multiple cases). The shared benchmark
+passes 67 contract controls and the reading extension passes 23 scorer/provider
+controls. Native CPU units and all five reading-input controls passed. Static
+lint, diff review and local document links are checked before local-main merge.
+Hosted CI, a full Swift suite and full `make check` are outside this local-only
+delivery; no remote push or merge is performed.
+
+Raw formal captures, calibration, native diagnostics, initial failure logs,
+source/binary provenance and the final report are retained under the local main
+checkout's `.scratch/reader-8k-lazy-20261112/`. Earlier raw reports remain under
+`.scratch/reader-8k-performance-20261112/` with an explicit CPU-unit correction
+notice and separate derived correction file.
