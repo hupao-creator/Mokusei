@@ -19,8 +19,21 @@ int bench_process(int pid, BenchProcess *r) {
     }
     r->ppid = info.pbi_ppid;
     r->birth_us = info.pbi_start_tvsec * 1000000ULL + info.pbi_start_tvusec;
-    r->user_ns = usage.ri_user_time;
-    r->system_ns = usage.ri_system_time;
+    // proc_pid_rusage reports CPU time in Mach absolute ticks, unlike the
+    // nanosecond observation clock. They differ on Apple Silicon.
+    mach_timebase_info_data_t timebase;
+    if (mach_timebase_info(&timebase) != KERN_SUCCESS || timebase.denom == 0) {
+        r->error = EIO;
+        return -1;
+    }
+    __uint128_t user_ns = (__uint128_t)usage.ri_user_time * timebase.numer / timebase.denom;
+    __uint128_t system_ns = (__uint128_t)usage.ri_system_time * timebase.numer / timebase.denom;
+    if (user_ns + system_ns > UINT64_MAX) {
+        r->error = EOVERFLOW;
+        return -1;
+    }
+    r->user_ns = (uint64_t)user_ns;
+    r->system_ns = (uint64_t)system_ns;
     r->footprint_bytes = usage.ri_phys_footprint;
     proc_pidpath(pid, r->path, sizeof(r->path));
     return 0;

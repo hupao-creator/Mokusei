@@ -531,7 +531,7 @@ final class Sampler: @unchecked Sendable {
         }
         let resources = await resourceTask.value, inputs = await inputTask.value
         let bounds: Record = ["warmupStart": start, "formalStart": formalStart, "formalEnd": formalEnd, "tailEnd": end]
-        try write(["version": 1, "kind": "observation", "clock": "macos.mach_absolute_time.nanoseconds",
+        try write(["version": 1, "kind": "observation", "clock": "macos.mach_absolute_time.nanoseconds", "cpuTimeUnit": "nanoseconds",
                    "boundaries": bounds, "windowBounds": actualBounds, "inputs": inputs, "resources": resources["samples"]!,
                    "processCoverage": resources["coverage"]!, "frames": frames, "captureErrors": errors,
                    "owner": owner, "productExited": process(pid)?["identity"] as? String != owner["identity"] as? String], directory + "/observation.json")

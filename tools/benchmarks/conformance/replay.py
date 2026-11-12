@@ -72,7 +72,7 @@ def fixture(root):
     def chunk(kind,data):return struct.pack('!I',len(data))+kind+data+struct.pack('!I',zlib.crc32(kind+data)&0xffffffff)
     image=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('!2I5B',1000,700,8,0,0,0,0))+chunk(b'IDAT',zlib.compress(b'\x00'*(1001*700)))+chunk(b'IEND',b'')
     (root/'frame.png').write_bytes(image)
-    observation={'version':1,'kind':'observation','clock':CLOCK,'owner':{'pid':pid,'identity':identity},
+    observation={'version':1,'kind':'observation','clock':CLOCK,'cpuTimeUnit':'nanoseconds','owner':{'pid':pid,'identity':identity},
         'windowBounds':p['windowBounds'],'boundaries':{'warmupStart':start,'formalStart':formal,'formalEnd':formal+4_000_000_000,'tailEnd':formal+5_000_000_000},
         'inputs':inputs,'resources':resources,'processCoverage':{'complete':False,'gaps':['polling cannot capture all exits']},
         'frames':[{k:v for k,v in f.items() if k!='texts'} for f in frames],'captureErrors':[],'productExited':False}
@@ -244,6 +244,13 @@ def main():
         run('wrong-owner',lambda r,p,o,f:save(r/'observation.json',{**o,'owner':{'pid':102,'identity':'102:1000'}}),invalid=True)
         run('wrong-role',lambda r,p,o,f:save(r/'observation.json',{**o,'resources':[{**x,'processes':[{**v,'role':'collector'} for v in x['processes']]} for x in o['resources']]}),invalid=True)
         run('negative-cpu',lambda r,p,o,f:save(r/'observation.json',{**o,'resources':[{**x,'processes':[{**v,'cpuNS':-1} for v in x['processes']]} for x in o['resources']]}),invalid=True)
+        for unit in (None, 'mach-ticks'):
+            untrusted=run('untrusted-cpu-unit-'+str(unit),lambda r,p,o,f:save(r/'observation.json',
+                {**{k:v for k,v in o.items() if k!='cpuTimeUnit'},**({'cpuTimeUnit':unit} if unit else {})}))
+            role=untrusted['metrics']['formal']['roles']['application']
+            assert 'observedCPUSeconds' not in role and 'singleCoreCPUPercent' not in role
+            assert role['sampledPeakFootprintBytes']==1024
+            assert 'resource CPU units absent or unsupported; CPU metrics withheld' in untrusted['reasons']
         run('dishonest-coverage',lambda r,p,o,f:save(r/'observation.json',{**o,'processCoverage':{'complete':True,'gaps':[]}}),invalid=True)
         run('wrong-input',lambda r,p,o,f:save(r/'observation.json',{**o,'inputs':[{**e,'x':0} for e in o['inputs']]}),invalid=True)
         run('late-input',lambda r,p,o,f:save(r/'observation.json',{**o,'inputs':[{**e,'postedNS':e['postedNS']+1_000_000_000} for e in o['inputs']]}),invalid=True)

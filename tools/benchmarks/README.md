@@ -88,6 +88,18 @@ children, reparenting uncertainty and absent exit CPU prevent a complete task
 cost claim. Startup resource sampling begins after the OS returns the launch
 owner; pre-attachment XCTest hitches are unavailable. Reports retain these gaps.
 
+`proc_pid_rusage` CPU counters are Mach absolute ticks. The native sampler
+converts them with the host's timebase before emitting `cpuNS`. Every collector
+build links the real sampler into a busy-process check against the independent
+`CLOCK_PROCESS_CPUTIME_ID` clock and retains `cpu-clock-check.json` (also embedded
+in `build.json`). This validates units, not a performance threshold or complete
+descendant accounting. Collectors before this correction mislabeled ticks as
+nanoseconds: their absolute CPU seconds and single-core percentages are invalid
+on non-1:1 timebases. Keep their sealed evidence intact; any derived correction
+must name the old collector and use that run's recorded timebase explicitly.
+The observation declares `cpuTimeUnit: nanoseconds`; the analyzer withholds CPU
+metrics when that declaration is absent or unsupported, retaining footprint data.
+
 Pixels are sampled continuously at 5 Hz by default using ScreenCaptureKit's
 screenshot API. Request/return timestamps bracket capture uncertainty; they are
 **not WindowServer presentation timestamps or physical FPS**. PNG/OCR processing

@@ -10,7 +10,8 @@ SOURCE = Path(__file__).resolve().parent
 
 def build(directory):
     directory.mkdir(parents=True, exist_ok=True)
-    source_files = sorted([Path(__file__), *SOURCE.glob('native/*'), *SOURCE.glob('conformance/*.swift'), *SOURCE.glob('hitch/*.swift')])
+    source_files = sorted([Path(__file__), *SOURCE.glob('native/*'), *SOURCE.glob('conformance/*.swift'),
+                           *SOURCE.glob('conformance/*.c'), *SOURCE.glob('hitch/*.swift')])
     toolchain = subprocess.check_output(['xcodebuild', '-version'], text=True)
     digest = hashlib.sha256(toolchain.encode())
     for path in source_files:
@@ -20,6 +21,10 @@ def build(directory):
     if stamp.exists() and json.loads(stamp.read_text()).get('sourceHash') == identity:
         return directory
     subprocess.run(['xcrun', 'clang', '-O2', '-c', str(SOURCE/'native/Support.c'), '-o', str(directory/'Support.o')], check=True)
+    subprocess.run(['xcrun', 'clang', '-O2', '-I', str(SOURCE/'native'), str(SOURCE/'conformance/CPUClock.c'),
+                    str(directory/'Support.o'), '-o', str(directory/'cpu-clock-check')], check=True)
+    cpu_clock = json.loads(subprocess.check_output([str(directory/'cpu-clock-check')], text=True, timeout=15))
+    (directory/'cpu-clock-check.json').write_text(json.dumps(cpu_clock, indent=2) + '\n')
     subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-O', '-parse-as-library', '-import-objc-header',
                     str(SOURCE/'native/Support.h'), str(SOURCE/'native/Collector.swift'), str(directory/'Support.o'),
                     '-o', str(directory/'collector')], check=True)
@@ -38,7 +43,7 @@ def build(directory):
             'CODE_SIGN_IDENTITY=-','build-for-testing'],stdout=log,stderr=subprocess.STDOUT)
     if process.returncode:
         raise RuntimeError('independent hitch build failed; see '+str(directory/'hitch-build.log'))
-    stamp.write_text(json.dumps({'sourceHash':identity,'toolchain':toolchain},indent=2))
+    stamp.write_text(json.dumps({'sourceHash':identity,'toolchain':toolchain,'cpuClockCheck':cpu_clock},indent=2))
     return directory
 
 

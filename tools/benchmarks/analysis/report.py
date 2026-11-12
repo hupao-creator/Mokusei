@@ -273,6 +273,9 @@ def calibration(root, mark):
 
 
 def resources(plan, observation, times, result, mark):
+    cpu_unit_known = observation.get('cpuTimeUnit') == 'nanoseconds'
+    if not cpu_unit_known:
+        mark('resource CPU units absent or unsupported; CPU metrics withheld','incomplete')
     coverage=observation['processCoverage']
     # Current external proc sampler cannot establish a complete lifecycle ledger.
     # A bare 'complete: true' from an edited/mismatched collector is not evidence.
@@ -316,10 +319,11 @@ def resources(plan, observation, times, result, mark):
         roles={};wall=(rows[-1]['atNS']-rows[0]['atNS'])/1e9
         for identity in first.keys()&last.keys():
             a,b=first[identity],last[identity]
-            role=roles.setdefault(b['role'],{'observedCPUSeconds':0,'singleCoreCPUPercent':0,'sampledPeakFootprintBytes':0})
-            delta=(b['cpuNS']-a['cpuNS'])/1e9
-            role['observedCPUSeconds']+=delta
-            role['singleCoreCPUPercent']+=100*delta/wall
+            role=roles.setdefault(b['role'],{'sampledPeakFootprintBytes':0})
+            if cpu_unit_known:
+                delta=(b['cpuNS']-a['cpuNS'])/1e9
+                role['observedCPUSeconds']=role.get('observedCPUSeconds',0)+delta
+                role['singleCoreCPUPercent']=role.get('singleCoreCPUPercent',0)+100*delta/wall
         for key,role in roles.items():
             role['sampledPeakFootprintBytes']=max(sum(p['footprintBytes'] for p in s['processes'] if p['role']==key) for s in rows)
             role['finalSampledFootprintBytes']=sum(p['footprintBytes'] for p in rows[-1]['processes'] if p['role']==key)

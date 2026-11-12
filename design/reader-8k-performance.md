@@ -1,6 +1,6 @@
 # Agent reader: 8 KiB performance investigation
 
-The 2026-11-12 experiment uses the existing single-reply external benchmark.
+The first 2026-11-12 experiment uses the existing single-reply external benchmark.
 Baseline source is local `b8dd7f5`; the retained signed Release application was
 built at `fbec437`, with identical production sources at that baseline. The
 candidate changes only native viewport sizing; it does not simplify the corpus,
@@ -65,7 +65,16 @@ counts or a conversion to CPU milliseconds. The preparation spans are existing
 instrumented native phases, not the external entry-to-visible-content endpoint.
 The diagnostic evidence is retained as `mkr-prof-base` and `mkr-prof-candidate`.
 
-## External 8 KiB results
+## External 8 KiB results (CPU units corrected)
+
+The first report mislabeled `proc_pid_rusage` CPU ticks as nanoseconds. A native
+process-clock control subsequently reproduced the error: 200,013,000 ns of CPU
+versus 4,800,598 reported "ns". All eight runs recorded a Mach timebase of 125/3.
+The CPU values below are derived corrections using that factor; they are not new
+captures. The original sealed reports retain the erroneous absolute CPU values
+for audit. Same-host percentage reductions are unchanged. Opening/scroll timing,
+native diagnostic spans and footprint values use independent units and are
+unaffected by this correction.
 
 One formal trial per build and scenario was collected. Both builds passed all
 four product outcomes and visible-motion checks. Every prepared reply retained
@@ -78,10 +87,10 @@ statistically established regression threshold:
 
 | Scenario | Baseline CPU | Candidate CPU | Observed reduction |
 | --- | ---: | ---: | ---: |
-| First opening | 120.08 ms | 87.58 ms | 27.1% |
-| Reopening | 118.57 ms | 82.98 ms | 30.0% |
-| Steady scrolling | 153.94 ms | 105.28 ms | 31.6% |
-| Scrolling during output | 237.87 ms | 207.35 ms | 12.8% |
+| First opening | 5.003 s | 3.649 s | 27.1% |
+| Reopening | 4.941 s | 3.458 s | 30.0% |
+| Steady scrolling | 6.414 s | 4.387 s | 31.6% |
+| Scrolling during output | 9.911 s | 8.640 s | 12.8% |
 
 First recognizable content remained in the same sampled interval: 0.562–0.820 s
 before and 0.565–0.820 s after. Reopening changed from 0.761–1.017 s to
@@ -114,7 +123,7 @@ unavailable, so the original reports retain `measurement: incomplete` and
 application process during the declared formal window, not complete task cost
 or renderer-only attribution. No hitch count or score is certified by this work.
 
-## Validation
+## Validation of viewport sizing
 
 The final production source passed the signed Release build and these existing
 native integration replays, run serially before the external candidate capture:
