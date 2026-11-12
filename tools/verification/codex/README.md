@@ -8,6 +8,12 @@ go run -race ./tools/verification/codex
 
 The executable reuses itself as a scripted external Codex CLI. It creates an isolated temporary HOME, native data directory and workspace, and removes them when the run finishes. No installed Codex, credentials, Node, Python, model service or external network is needed. A failed assertion exits nonzero. This is an integration command, not a unit-test suite.
 
+The shared first-response `second-answer` fixture advances the enclosing Codex
+snapshot timestamp when appending its independently created second turn. Crossing
+a wall-clock millisecond must not make the fixture violate the production
+`turn.updatedAt <= state.updatedAt` contract. The unchanged production adapter
+validates every exported state before the Swift consumers receive it.
+
 Voice fixtures set `GORACE=atexit_sleep_ms=0` only in their scripted CLI child
 environments, avoiding the race detector's one-second post-main delay on each
 version/catalog probe and app-server exit. Child race instrumentation remains
