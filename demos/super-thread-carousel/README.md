@@ -11,6 +11,7 @@
 - Liquid Glass 轮播控件固定在封面上。每 8 秒自动切换，手动切换重新计时；离屏、阅读页、失焦或封面手势暂停自动轮播。Reduce Motion 直接切换。
 - 集合采用已确认的 regular Liquid Glass：同一背板连续覆盖封面、4pt 布局间距和 body，不露出背景缝。emoji badge 保持生产 44pt 直径、距 metadata 顶部 12pt / 右边 17pt；单篇 Report 仍为不透明材质。降低透明度时新表面使用实色。
 - 大集合最多挂载四个封面；超过七篇以菜单代替圆点列表。无封面报告使用自身 emoji 占位。
+- 预览根视图注入与生产 Report plugin 相同的封面缓存，标签重建时用已绘制图像衔接 WebKit 首帧；缓存最多 16 项，仅存在于当前预览，不保留浏览器或写入 profile。封面 revision / 主题变更独立加载。见[闪烁定位与验证](../../design/super-thread-cover-flicker.md)。
 
 生产边界和输入归属见 [Overview README](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)。没有 Thinking Effort 控件改动。
 
