@@ -48,7 +48,15 @@ import MokuseiApplications
         });
         const closedInput = closedRoot.querySelector('input');
         window.focusClosedInput = () => { closedInput.focus(); closedInput.setSelectionRange(16, 16); };
+        window.closedInputHasFocus = () => closedRoot.activeElement === closedInput;
         window.readClosedInput = () => closedInput.value;
+        window.reportKeyEvents = [];
+        for (const type of ['keydown', 'keyup']) window.addEventListener(type, event => {
+          const target = event.composedPath()[0];
+          window.reportKeyEvents.push({type, key:event.key, trusted:event.isTrusted, at:performance.now(),
+            target:target?.id || target?.tagName, focused:document.hasFocus(),
+            closedInputFocused:window.closedInputHasFocus(), alt:event.altKey, shift:event.shiftKey});
+        });
         document.querySelector('#post button').addEventListener('click', event => window.postClickTrusted = event.isTrusted);
         document.getElementById('post').addEventListener('submit', () => window.postSubmitted = true);
         window.postInputEvents = [];
@@ -199,6 +207,39 @@ struct NativeReportNavigationTests {
                 window.sendEvent(event)
             }
         }
+        func focusEditor(_ id: String) async throws {
+            try await SwiftUIReplay.wait { app.isActive && window.isKeyWindow }
+            try #require(window.makeFirstResponder(document))
+            let state = try await document.callAsyncJavaScript("""
+                window.reportKeyEvents = [];
+                const target = id === 'shadowInput'
+                  ? document.getElementById('shadowHost').shadowRoot.getElementById('shadowInput')
+                  : document.getElementById(id);
+                if (id === 'closedInput') window.focusClosedInput();
+                else target.focus();
+                const framed = await new Promise(resolve => {
+                  const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
+                  const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
+                });
+                return {framed, focused:document.hasFocus(), active:document.activeElement?.id,
+                  ownsFocus:id === 'closedInput' ? window.closedInputHasFocus()
+                    : target.getRootNode().activeElement === target};
+                """, arguments: ["id": id], in: nil, contentWorld: .page) as? [String: Any]
+            print("REPORT_EDITING_FOCUS id=\(id) state=\(String(describing: state)) key=\(window.isKeyWindow) active=\(app.isActive) responder=\(String(describing: window.firstResponder))")
+            try #require(state?["framed"] as? Bool == true && state?["focused"] as? Bool == true
+                         && state?["ownsFocus"] as? Bool == true,
+                         "The actual WebKit editor must own focus before native keys are sent")
+        }
+        func requireKeyReceipt(_ keys: [String], editor id: String) async throws {
+            let events = try #require(try await document.evaluateJavaScript("window.reportKeyEvents") as? [[String: Any]])
+            print("REPORT_EDITING_KEYS id=\(id) events=\(events)")
+            let expected = keys.flatMap { ["keydown:" + $0, "keyup:" + $0] }
+            let observed = events.map { ($0["type"] as? String ?? "") + ":" + ($0["key"] as? String ?? "") }
+            try #require(observed == expected && events.allSatisfy {
+                $0["trusted"] as? Bool == true && $0["focused"] as? Bool == true
+                    && (id == "closedInput" ? $0["closedInputFocused"] as? Bool == true : $0["target"] as? String == id)
+            }, "Every native key must finish in its intended editor before the next focus change")
+        }
         _ = try await document.evaluateJavaScript("""
             document.body.dispatchEvent(new KeyboardEvent('keydown', {
               key: 'Escape', bubbles: true, cancelable: true
@@ -207,23 +248,21 @@ struct NativeReportNavigationTests {
         try await Task.sleep(for: .milliseconds(80))
         try #require(fixture.backs == 0 && fixture.open,
             "Document scripts cannot synthesize trusted host navigation shortcuts")
-        window.makeFirstResponder(document)
         for id in ["ordinary", "editableTrue", "editableEmpty", "editablePlain", "shadowInput"] {
-            let target = id == "shadowInput"
-                ? "document.getElementById('shadowHost').shadowRoot.getElementById('shadowInput')"
-                : "document.getElementById('\(id)')"
-            _ = try await document.evaluateJavaScript("\(target).focus()")
+            try await focusEditor(id)
             try key(123, "\u{F702}", modifiers: .option)
             try key(53, "\u{1b}")
             try await Task.sleep(for: .milliseconds(80))
+            try await requireKeyReceipt(["ArrowLeft", "Escape"], editor: id)
             try #require(fixture.backs == 0 && fixture.open,
                 "Report navigation must leave the native editing keys with \(id)")
         }
-        _ = try await document.evaluateJavaScript("window.focusClosedInput()")
+        try await focusEditor("closedInput")
         #expect(try await document.evaluateJavaScript("document.getElementById('closedShadowHost').shadowRoot === null") as? Bool == true)
         try key(123, "\u{F702}", modifiers: .option)
         try key(7, "X", modifiers: .shift)
         try await Task.sleep(for: .milliseconds(80))
+        try await requireKeyReceipt(["ArrowLeft", "X"], editor: "closedInput")
         try #require(fixture.backs == 0 && fixture.open)
         #expect(try await document.evaluateJavaScript("window.readClosedInput()") as? String == "alpha beta Xgamma",
             "Option-Left must retain native word movement even when the editor is hidden by a closed shadow root")
