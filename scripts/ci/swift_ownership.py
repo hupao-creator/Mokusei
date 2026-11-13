@@ -2,6 +2,9 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeMarkdownLocalImageTests/localImagesRenderInProductionMessageAndKeepLinks()": {
+        "group": "native", "check": "local-images", "marker": "MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/completedSendAllowsClickingAndTypingIntoTheResidentComposer(exactExecution:cancelHandoff:)": {
         "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SEND_COMPOSER_REFOCUS_CONFIRMED",
     },
