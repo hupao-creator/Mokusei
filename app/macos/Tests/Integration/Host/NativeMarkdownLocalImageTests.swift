@@ -41,10 +41,11 @@ struct NativeMarkdownLocalImageTests {
     @Test func localImagesRenderInProductionMessageAndKeepLinks() async throws {
         let file = try fixture()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+        let missing = file.deletingLastPathComponent().appendingPathComponent("document.txt")
         for width: CGFloat in [360, 900] {
             var opened: [URL] = []
             let source = """
-            [截图证据](<\(file.path)>) · [普通文件](/tmp/document.txt)
+            [截图证据](<\(file.path)>) · [普通文件](<\(missing.path)>)
 
             ![标准图片](<\(file.path)>)
 
@@ -58,7 +59,12 @@ struct NativeMarkdownLocalImageTests {
             defer { window.close() }
             let root = try #require(window.contentView)
             try await SwiftUIReplay.wait(timeout: .seconds(10)) { attachments(root).count == 3 }
+            let mixed = try #require(texts(root).first { $0.string.contains("普通文件") })
+            try await SwiftUIReplay.wait { mixed.toolTip?.hasPrefix("图片加载失败：") == true }
             for (view, attachment, range) in attachments(root) {
+                if view === mixed { #expect(view.toolTip?.hasPrefix("图片加载失败：") == true) }
+                else { #expect(view.toolTip == nil) }
+                #expect(view.accessibilityHelp() == view.toolTip)
                 #expect(attachment.bounds.width <= width - 40 + 1)
                 #expect(attachment.bounds.height <= 480)
                 #expect(abs(attachment.bounds.width / attachment.bounds.height - 2) < 0.01)
@@ -71,6 +77,21 @@ struct NativeMarkdownLocalImageTests {
                 #expect(view.delegate?.textView?(view, clickedOnLink: link, at: range.location) == true)
             }
             #expect(opened.count == 3)
+            let (imageView, _, imageRange) = try #require(attachments(root).first)
+            let layout = try #require(imageView.layoutManager), container = try #require(imageView.textContainer)
+            let box = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: imageRange, actualCharacterRange: nil), in: container)
+            let point = imageView.convert(NSPoint(x: box.midX + imageView.textContainerOrigin.x,
+                y: box.midY + imageView.textContainerOrigin.y), to: nil)
+            let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                eventNumber: 1, clickCount: 1, pressure: 1))
+            let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                eventNumber: 2, clickCount: 1, pressure: 0))
+            NSApp.postEvent(up, atStart: true)
+            imageView.mouseDown(with: down)
+            #expect(opened.count == 4)
+            #expect(opened.last == file)
             #expect(texts(root).contains { $0.string.contains("截图证据") && $0.string.contains("普通文件") })
             if let directory = ProcessInfo.processInfo.environment["MOKUSEI_LOCAL_IMAGES_ARTIFACTS"] {
                 try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
@@ -156,6 +177,9 @@ struct NativeMarkdownLocalImageTests {
         try await SwiftUIReplay.wait { texts(root).contains { $0.string.contains("失败后保留替代文字") } }
         try await Task.sleep(for: .milliseconds(300))
         #expect(attachments(root).isEmpty)
+        let failedImage = try #require(texts(root).first { $0.string.contains("失败后保留替代文字") })
+        try await SwiftUIReplay.wait { failedImage.toolTip?.hasPrefix("图片加载失败：") == true }
+        #expect(failedImage.accessibilityHelp() == failedImage.toolTip)
         var links: [URL] = []
         for view in texts(root) {
             view.textStorage?.enumerateAttribute(.link, in: NSRange(location: 0, length: view.textStorage?.length ?? 0)) { value, _, _ in

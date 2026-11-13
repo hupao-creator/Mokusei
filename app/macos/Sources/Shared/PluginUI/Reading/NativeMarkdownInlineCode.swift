@@ -34,7 +34,7 @@ func markdownCodePadding(attributes: [NSAttributedString.Key: Any]) -> NSAttribu
     return value
 }
 
-final class MarkdownCodeLayoutManager: MarkdownSelectionLayoutManager {
+final class MarkdownCodeLayoutManager: NSLayoutManager {
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
         guard let storage = textStorage, let container = textContainers.first else {
             super.drawBackground(forGlyphRange: glyphsToShow, at: origin); return

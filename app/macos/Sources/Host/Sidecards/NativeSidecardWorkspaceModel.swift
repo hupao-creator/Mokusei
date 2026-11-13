@@ -41,7 +41,7 @@ struct NativeSidecardWorkspaceSnapshot {
     let selectionRevision: Int
     let transitioning: Bool
     let dragging: Bool
-    let widths: [JSONText: CGFloat]
+    var widths: [JSONText: CGFloat]
     let executionDisabled: Bool
     let suppressed: Bool
     let entranceReady: Bool
@@ -195,9 +195,14 @@ final class NativeSidecardWorkspaceModel {
     func close(_ id: JSONText) { if selected == id { _ = choose(nil) } }
 
     func resize(_ width: CGFloat, maximum: CGFloat) {
-        guard let id = selected ?? lastSelected, width.isFinite else { return }
-        widths[id] = min(max(320, maximum), max(320, width))
-        reconcile()
+        guard !isReleased, let id = selected ?? lastSelected, width.isFinite else { return }
+        let next = min(max(320, maximum), max(320, width))
+        guard widths[id] != next else { return }
+        widths[id] = next
+        // Width belongs to the host's layout, not to plugin context. Retain
+        // their views and observation leases through each native drag sample;
+        // setDragging still reconciles the suppression change at both ends.
+        snapshot?.widths = widths
     }
 
     func setDragging(_ value: Bool) {

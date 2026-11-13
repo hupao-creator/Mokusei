@@ -53,7 +53,10 @@ live, loaded historical, inherited/fork and deferred execution content (includin
 OpenCode child sessions). Canonical history, transport, Overview, Moku, search
 and other conversation surfaces retain their data and policies. Adjacent
 execution entries remain grouped across hidden entries. Running/waiting
-executions retain settled assistant replies and existing streaming disclosure.
+executions retain settled assistant replies. Unfinished assistant messages do
+not display incrementally: each message renders its complete body only after
+it settles, even if the execution continues. This also applies to the Execution
+Sidecard.
 After termination, intermediate ordinary replies belong to summary-only execution
 work; only the last non-error reply, independent errors, pending interactions
 and an explicitly targeted reply remain separate from summaries.

@@ -19,7 +19,7 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     var alignment: MarkdownAlignment = .left
     var code = false
     var images: [String: NativePlatformImage] = [:]
-    var selectionScope: String? = nil
+    var helpText: String? = nil
     var executionLinkHarnesses: [JSONText: AnyHarnessPlugin]? = nil
     var openLink: (URL) -> Void
     @Environment(\.locale) private var locale
@@ -76,16 +76,17 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
 
     func updateTextView(_ view: MarkdownTextView) {
         view.executionLocale = locale
-        view.setSelectionScope(selectionScope)
+        // Image failures use the existing native element, without adding a
+        // separate SwiftUI help responder around every ordinary text block.
+        if view.toolTip != helpText {
+            view.toolTip = helpText
+            view.setAccessibilityHelp(helpText)
+        }
         view.setContent(MarkdownTextInput(spans: spans, fontSize: fontSize, weight: weight,
             muted: muted, strongInk: strongInk, tracking: tracking, lineHeight: lineHeight,
             alignment: alignment, code: code, images: images.mapValues(MarkdownTextInput.Image.init),
             executionHarnesses: executionLinkHarnesses?.mapValues(ObjectIdentifier.init)),
             build: { width in attributedString(width: width) })
-    }
-
-    static func dismantleNSView(_ view: MarkdownTextView, coordinator: Coordinator) {
-        view.setSelectionScope(nil)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: MarkdownTextView, context: Context) -> CGSize? {
@@ -183,6 +184,11 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
         init(openLink: @escaping (URL) -> Void) { self.openLink = openLink }
         func textViewDidChangeSelection(_ notification: Notification) {
             (notification.object as? MarkdownTextView)?.updateExecutionSurfaces()
+        }
+        func textView(_ textView: NSTextView, clickedOn cell: any NSTextAttachmentCellProtocol,
+                      in cellFrame: NSRect, at charIndex: Int) {
+            guard let attachment = cell.attachment as? MarkdownExecutionAttachment else { return }
+            _ = self.textView(textView, clickedOnLink: attachment.url, at: charIndex)
         }
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
             guard let url = link as? URL ?? (link as? String).flatMap({ MarkdownURLPolicy.url($0) }) else { return true }
@@ -290,85 +296,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
         }
     }
 
-    private var selectionScopeID: String?
-    private var selectionScope: MarkdownSelectionScope?
-
-    func setSelectionScope(_ id: String?) {
-        guard id != selectionScopeID else { return }
-        selectionScope?.unregister(self)
-        selectionScopeID = id
-        selectionScope = id.map { MarkdownSelectionScope.register(self, id: $0) }
-        invalidateSelectionAppearance()
-    }
-
-    func selectionScopeOwnsFirstResponder(in window: NSWindow) -> Bool {
-        self.window === window && !isHiddenOrHasHiddenAncestor
-            && selectionScope?.ownsFirstResponder(in: window) == true
-    }
-
-    override func becomeFirstResponder() -> Bool {
-        let accepted = super.becomeFirstResponder()
-        if accepted { selectionScope?.invalidateSelectionAppearance() }
-        return accepted
-    }
-
-    override func resignFirstResponder() -> Bool {
-        let accepted = super.resignFirstResponder()
-        if accepted { selectionScope?.invalidateSelectionAppearance() }
-        return accepted
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard let selectionScope, let window, !event.modifierFlags.contains(.control) else {
-            super.mouseDown(with: event); return
-        }
-        window.makeFirstResponder(self)
-        selectionScope.begin(self, event: event)
-        let localPoint = convert(event.locationInWindow, from: nil)
-        var linkTarget: (Any, Int)?
-        if let layoutManager, let textContainer {
-            let point = NSPoint(x: localPoint.x - textContainerOrigin.x, y: localPoint.y - textContainerOrigin.y)
-            let glyph = layoutManager.glyphIndex(for: point, in: textContainer)
-            if glyph < layoutManager.numberOfGlyphs,
-               layoutManager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: textContainer).contains(point) {
-                let index = layoutManager.characterIndexForGlyph(at: glyph)
-                if let link = textStorage?.attribute(.link, at: index, effectiveRange: nil)
-                    ?? textStorage?.attribute(.nativeMarkdownExecution, at: index, effectiveRange: nil) { linkTarget = (link, index) }
-            }
-        }
-        var dragged = false
-        var lastDrag: NSEvent?
-        NSEvent.startPeriodicEvents(afterDelay: 0.1, withPeriod: 0.05)
-        defer { NSEvent.stopPeriodicEvents() }
-        func extend(_ drag: NSEvent) {
-            selectionScope.extend(to: drag.locationInWindow)
-            var ancestor: NSView? = self
-            while let view = ancestor {
-                if let scroll = view as? NSScrollView { _ = scroll.autoscroll(with: drag) }
-                ancestor = view.superview
-            }
-        }
-        // NSTextView's own tracking loop consumes events before local monitors.
-        // Track this document's selection directly while retaining TextKit's
-        // word/paragraph boundaries and native selected-range drawing.
-        while let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp, .periodic],
-                                          until: .distantFuture, inMode: .eventTracking, dequeue: true) {
-            if next.type == .leftMouseDragged {
-                dragged = true; lastDrag = next
-                extend(next)
-            } else if next.type == .periodic {
-                if let lastDrag { extend(lastDrag) }
-            } else {
-                if dragged { selectionScope.extend(to: next.locationInWindow) }
-                break
-            }
-        }
-        selectionScope.end()
-        if !dragged, !event.modifierFlags.contains(.shift), event.clickCount == 1, let (link, index) = linkTarget {
-            _ = delegate?.textView?(self, clickedOnLink: link, at: index)
-        }
-    }
-
     override func keyDown(with event: NSEvent) {
         let selection = selectedRange()
         if [36, 49, 76].contains(event.keyCode), selection.length == 1,
@@ -377,34 +304,20 @@ final class MarkdownTextView: MarkdownPlatformTextView {
             _ = delegate?.textView?(self, clickedOnLink: url, at: selection.location)
             return
         }
-        if !event.modifierFlags.contains(.command) || [123, 124, 125, 126, 115, 119, 116, 121].contains(event.keyCode) {
-            selectionScope?.clearOtherSelections(keeping: self)
-        }
         super.keyDown(with: event)
     }
 
 
-    override func selectAll(_ sender: Any?) {
-        if let selectionScope { selectionScope.selectAll() } else { super.selectAll(sender) }
-    }
-
     override func copy(_ sender: Any?) {
-        if selectionScope?.copy() != true, !copyMarkdownSelection() { super.copy(sender) }
+        if !copyMarkdownSelection() { super.copy(sender) }
     }
 
     var markdownStorage: NSTextStorage? { textStorage }
     var markdownTextContainer: NSTextContainer? { textContainer }
     var markdownLayoutManager: NSLayoutManager? { layoutManager }
     var markdownSelectedRange: NSRange { selectedRange() }
-    var markdownString: String { string }
     var markdownDisplayScale: CGFloat { window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
-    var markdownHidden: Bool { isHiddenOrHasHiddenAncestor }
-    var markdownHasFocus: Bool { window?.firstResponder === self }
-    func setMarkdownSelectedRange(_ range: NSRange) { setSelectedRange(range) }
-    func invalidateSelectionAppearance() { needsDisplay = true; updateExecutionSurfaces() }
     private func invalidateMarkdownLayout() { needsLayout = true }
-    func setDocumentSelectionActive(_ active: Bool) {}
-    private func updateDocumentSelectionDisplay() { updateExecutionSurfaces() }
 
     private var buildText: ((CGFloat) -> NSAttributedString)?
     private var input: MarkdownTextInput?
@@ -518,7 +431,7 @@ final class MarkdownTextView: MarkdownPlatformTextView {
             let width = max(1, floor(bounds.width * scale) / scale)
             applyText(width: width)
             _ = layoutHeight(width: width, scale: scale)
-            updateDocumentSelectionDisplay()
+            updateExecutionSurfaces()
         }
     }
 

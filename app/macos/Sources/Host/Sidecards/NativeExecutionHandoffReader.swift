@@ -16,6 +16,13 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
     @ViewBuilder let content: Content
 
     func makeNSView(context: Context) -> ExecutionHandoffReaderView { ExecutionHandoffReaderView() }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: ExecutionHandoffReaderView, context: Context) -> CGSize? {
+        // The workspace fixes the reader's seat, including during handoff.
+        // Its retained documents must not participate in outer Auto Layout fitting.
+        guard let width = proposal.width, let height = proposal.height,
+              width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
+    }
     func updateNSView(_ view: ExecutionHandoffReaderView, context: Context) {
         view.update(content: AnyView(content), environment: context.environment,
             handoff: handoff, destinationSize: destinationSize, workspaceSize: workspaceSize,

@@ -27,6 +27,7 @@ struct NativeMarkdownRegressionTests {
     private func window(_ source: String, width: CGFloat = 900, height: CGFloat = 700) -> NSWindow {
         SwiftUIReplay.window(ScrollView {
             ThreadMessage(id: "markdown-regression", author: .assistant, content: source)
+                .environment(\.nativeReadingPageCapacity, height)
                 .padding(24)
         }, width: width, height: height)
     }
@@ -216,7 +217,7 @@ struct NativeMarkdownRegressionTests {
         #expect(NSPasteboard.general.string(forType: .string) == "Before IMPORTANT ALT after")
     }
 
-    @Test func fullTableCopyPreservesEmptyColumns() async throws {
+    @Test func tableSelectionAndCopyStayWithinTheActiveCell() async throws {
         let window = window("""
             | H1 | H2 | H3 |
             | --- | --- | --- |
@@ -230,10 +231,11 @@ struct NativeMarkdownRegressionTests {
         window.makeFirstResponder(cell)
         cell.selectAll(nil)
         cell.copy(nil)
-        #expect(NSPasteboard.general.string(forType: .string) == "H1\tH2\tH3\nA\t\tC\n\tB\t")
+        #expect(NSPasteboard.general.string(forType: .string) == "A")
+        #expect(texts(root).filter { $0.selectedRange().length > 0 }.count == 1)
     }
 
-    @Test func commandArrowClearsEveryJoinedSelection() async throws {
+    @Test func selectAllAndCommandArrowStayWithinTheActiveParagraph() async throws {
         let window = window("First paragraph.\n\nSecond paragraph.\n\n```text\nCODE_BLOCK\n```\n\nThird paragraph.")
         defer { window.close() }
         let root = try #require(window.contentView)
@@ -241,11 +243,53 @@ struct NativeMarkdownRegressionTests {
         let first = try #require(texts(root).first { $0.string == "First paragraph." })
         window.makeFirstResponder(first)
         first.selectAll(nil)
-        #expect(texts(root).filter { $0.selectedRange().length > 0 }.count == 4)
+        #expect(texts(root).filter { $0.selectedRange().length > 0 }.count == 1)
         let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0,
             windowNumber: window.windowNumber, context: nil, characters: "\u{F703}", charactersIgnoringModifiers: "\u{F703}", isARepeat: false, keyCode: 124))
         first.keyDown(with: event)
         #expect(texts(root).allSatisfy { $0.selectedRange().length == 0 })
+    }
+
+    @Test func deferredBlocksReachBothEndsAfterWindowResize() async throws {
+        let source = (0..<60).map { "BLOCK_\($0) " + String(repeating: "Readable paragraph text. ", count: 8) }
+            .joined(separator: "\n\n")
+        let window = SwiftUIReplay.window(EmptyView(), width: 700, height: 500)
+        defer { window.close() }
+        let host = NSHostingView(rootView: ScrollView {
+            ThreadMessage(id: "deferred", author: .assistant, content: source)
+                .environment(\.nativeReadingPageCapacity, 500)
+                .padding(24)
+        })
+        host.sizingOptions = []
+        window.contentView = host
+        try await SwiftUIReplay.wait { texts(host).contains { $0.string.hasPrefix("BLOCK_0 ") } }
+        let mounted = texts(host).map { String($0.string.prefix(9)) }
+        let lastMounted = mounted.contains { $0.hasPrefix("BLOCK_59 ") }
+        #expect(!lastMounted)
+        let first = try #require(texts(host).first { $0.string.hasPrefix("BLOCK_0 ") })
+        let scroll = try #require(first.enclosingScrollView)
+        let document = try #require(scroll.documentView)
+        scroll.contentView.scroll(to: CGPoint(x: 0, y: max(0, document.bounds.maxY - scroll.contentView.bounds.height)))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        try await SwiftUIReplay.wait { texts(host).contains { $0.string.hasPrefix("BLOCK_59 ") && !$0.visibleRect.isEmpty } }
+        let last = try #require(texts(host).first { $0.string.hasPrefix("BLOCK_59 ") })
+        let wideHeight = last.bounds.height
+        window.makeFirstResponder(last)
+        last.selectAll(nil); last.copy(nil)
+        #expect(NSPasteboard.general.string(forType: .string) == last.string)
+        window.setContentSize(CGSize(width: 350, height: 500))
+        try await SwiftUIReplay.wait { host.bounds.width == 350 }
+        // Lazy stacks may retain offscreen native views at their old width.
+        // Visit both ends again to require reflow when each becomes visible.
+        for index in [0, 59, 0] {
+            scroll.contentView.scroll(to: CGPoint(x: 0, y: index == 0 ? 0
+                : max(0, document.bounds.maxY - scroll.contentView.bounds.height)))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            try await SwiftUIReplay.wait { texts(host).contains {
+                $0.string.hasPrefix("BLOCK_\(index) ") && !$0.visibleRect.isEmpty
+                    && $0.bounds.width <= 350 && $0.bounds.height > wideHeight
+            } }
+        }
     }
 
     @Test func tableCodeAndLongListMarkersKeepSingleLines() async throws {

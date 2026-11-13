@@ -74,6 +74,7 @@ private struct SendFeedbackComposerLayout: View {
     var available: Set<JSONText> = ["a", "b", "c"]
     var presses = 0
     var size: CGSize?
+    @ObservationIgnored var viewBuilds = 0
 }
 
 private struct FoldProbeLayout: View {
@@ -94,7 +95,8 @@ private struct FoldProbeCard: SidecardPlugin {
     var icon: some View { Text(id.string) }
     func makePresentation(context: SidecardContext, lifetime: PluginLifetime) -> SendFeedbackOtherPresentation { .init() }
     func sidecard(context: SidecardContext, presentation: SendFeedbackOtherPresentation) throws -> SidecardView<some View> {
-        try SidecardView(available: state.available.contains(id), label: id, preferredWidth: 0.4) {
+        state.viewBuilds += 1
+        return try SidecardView(available: state.available.contains(id), label: id, preferredWidth: 0.4) {
             Color(red: 1, green: 0, blue: 1).overlay {
                 Button("Probe action") { state.presses += 1 }
             }
@@ -127,6 +129,7 @@ struct NativeThreadSendFeedbackTests {
         var sourceSubscriptions: Set<String> = []
         var settleNewRow = false
         var publishedSettledNewRow = false
+        var additionalReply: String?
 
         init(execution: JSONText = "old", status: PublicExecution.Status = .completed, allCards: Bool = false, foldProbe: FoldProbeState? = nil) throws {
             client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
@@ -226,7 +229,7 @@ struct NativeThreadSendFeedbackTests {
             }
         }
         var contentState: JSONValue {
-            .object(["schema": .text("mokusei.harness.codex.thread.v1"), "updatedAt": .integer(4),
+            .object(["schema": .text("mokusei.harness.codex.thread.v1"), "updatedAt": .integer(additionalReply == nil ? 4 : 5),
                 "backgroundTerminals": .array([]), "turns": .array(["old", "new"].map { id in
                     let latest = configuration.input.thread.observation.latestExecution
                     let active = latest?.executionID == JSONText(id) && configuration.input.thread.observation.isExecutionActive && !(id == "new" && settleNewRow)
@@ -240,6 +243,16 @@ struct NativeThreadSendFeedbackTests {
                         "timeline": .array([.object(["id": .text(id + "-reply"), "kind": .text("assistant"), "itemId": .text(id + "-native-reply"),
                             "content": .text(text), "status": .text("complete"), "createdAt": .integer(3)])]),
                         "activities": .array([]), "interactions": .array([]), "plan": .array([]), "notices": .array([])]
+                    if id == "new", let additionalReply {
+                        turn["updatedAt"] = .integer(5)
+                        turn["answer"] = .text(text + "\n\n" + additionalReply)
+                        turn["messages"] = .array(turn["messages"]!.arrayValue! + [.object([
+                            "id": .text("new-reply-2"), "role": .text("assistant"), "kind": .text("answer"),
+                            "content": .text(additionalReply), "createdAt": .integer(4), "attachments": .array([])])])
+                        turn["timeline"] = .array(turn["timeline"]!.arrayValue! + [.object([
+                            "id": .text("new-reply-2"), "kind": .text("assistant"), "itemId": .text("new-native-reply-2"),
+                            "content": .text(additionalReply), "status": .text("complete"), "createdAt": .integer(4)])])
+                    }
                     if !active { turn["finishedAt"] = .integer(4) }
                     return .object(turn)
                 })])
@@ -497,6 +510,9 @@ struct NativeThreadSendFeedbackTests {
             throw error
         }
         try await Task.sleep(for: .milliseconds(450))
+        if width == 1180 && mode == "animated" {
+            try await resizeExecutionReader(window, fixture: fixture)
+        }
         let sourceFrame = try #require(nativeFrame("sidecard-aperture-conversation-frame", in: root))
         let sourceMainFrame = try #require(nativeFrame("agent-reading-panel-frame", in: root))
         let launcherFrame = try #require(accessibilityFrame("sidecard-toggle-conversation", in: root))
@@ -523,7 +539,16 @@ struct NativeThreadSendFeedbackTests {
                   let main = nativeFrame("agent-reading-panel-frame", in: root) else { return false }
             if foldSamples.count < 120 { foldSamples.append(frame) }
             let fraction = (sourceFrame.width - frame.width) / (sourceFrame.width - launcherFrame.width)
-            let observed = reduceMotion ? current.travelComplete : fraction > 0.08 && fraction < 0.92
+            // A nil animation completes its state transaction before the
+            // hosting tree necessarily commits the destination geometry.
+            // Reduced Motion must observe that native final pose, while the
+            // animated case still requires an actual intermediate frame.
+            let observed = reduceMotion
+                ? current.travelComplete && abs(main.width - (root.bounds.width - 76)) < 2
+                    && abs(main.height - root.bounds.height) < 2
+                    && abs(frame.width - launcherFrame.width) < 2
+                    && abs(frame.height - launcherFrame.height) < 2
+                : fraction > 0.08 && fraction < 0.92
             guard observed else { return false }
             sampledFold = frame; sampledMain = main; sampledHandoff = current.id
             return true
@@ -594,7 +619,8 @@ struct NativeThreadSendFeedbackTests {
         #expect(fixture.model.snapshot?.selected == nil)
         #expect(fixture.model.snapshot?.excludedExecutionIDs.isEmpty == true)
         #expect(reader.subviews.count == 1 && reader.subviews.first === incoming && outgoing.superview == nil)
-        #expect(SwiftUIReplay.text(in: incoming).contains { $0.contains(mode == "error" ? "Destination fixture error" : "New execution becomes the main result") })
+        let finalReply = fixture.additionalReply ?? "New execution becomes the main result"
+        #expect(SwiftUIReplay.text(in: incoming).contains { $0.contains(mode == "error" ? "Destination fixture error" : finalReply) })
         #expect(!SwiftUIReplay.text(in: root).contains("Previous main execution"))
         let mainFrame = try #require(nativeFrame("agent-reading-panel-frame", in: root))
         print("THREAD_SEND_GEOMETRY width=\(width) mode=\(mode) source=\(sourceFrame) travel=\(travelFrame) folded=\(foldedFrame) waiting=\(landedFrame) main=\(mainFrame)")
@@ -603,6 +629,84 @@ struct NativeThreadSendFeedbackTests {
         try await capture(window, name: prefix + "-main")
         print("THREAD_SEND_NATIVE_HANDOFF_CONFIRMED width=\(width) mode=\(mode)")
         await fixture.close()
+    }
+
+    private func resizeExecutionReader(_ window: NSWindow, fixture: Fixture) async throws {
+        let root = try #require(window.contentView)
+        func divider(in view: NSView) -> NSView? {
+            if view.accessibilityRole() == .splitter { return view }
+            return view.subviews.lazy.compactMap { divider(in: $0) }.first
+        }
+        func reply(_ text: String, in view: NSView) -> NSTextView? {
+            if let result = view as? NSTextView, result.string == text { return result }
+            return view.subviews.lazy.compactMap { reply(text, in: $0) }.first
+        }
+        let divider = try #require(divider(in: root))
+        let main = try #require(reply("Previous main execution", in: root))
+        var sidecardReply = "New execution becomes the main result"
+        var sidecard = try #require(reply(sidecardReply, in: root))
+        let originalMain = main.bounds.width
+        let originalSidecard = sidecard.bounds.width
+        let mainReader = try #require(handoffReader(in: root))
+        let originalReaderWidth = mainReader.bounds.width
+        let originalShell = try #require(nativeFrame("sidecard-aperture-conversation-frame", in: root))
+        let origin = divider.convert(CGPoint(x: divider.bounds.midX, y: divider.bounds.midY), to: nil)
+        func event(_ type: NSEvent.EventType, delta: CGFloat) throws -> NSEvent {
+            try #require(NSEvent.mouseEvent(with: type, location: CGPoint(x: origin.x - delta, y: origin.y),
+                modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        divider.mouseDown(with: try event(.leftMouseDown, delta: 0))
+        let liveReply = "A new settled reply arrives while the execution is running and the divider is held. Its content must appear immediately and wrap to the current column width."
+        for delta in [CGFloat(40), 80, 120] {
+            divider.mouseDragged(with: try event(.leftMouseDragged, delta: delta))
+            do {
+                try await SwiftUIReplay.wait {
+                    guard let shell = nativeFrame("sidecard-aperture-conversation-frame", in: root) else { return false }
+                    return abs(shell.width - originalShell.width - delta) < 1
+                        && abs(main.bounds.width - originalMain + delta) < 1
+                        && abs(sidecard.bounds.width - originalSidecard - delta) < 1
+                }
+            } catch {
+                print("THREAD_SIDECARD_LIVE_REFLOW_FAILURE delta=\(delta) shell=\(String(describing: nativeFrame("sidecard-aperture-conversation-frame", in: root))) originalShell=\(originalShell) main=\(originalMain)->\(main.bounds.width) reader=\(originalReaderWidth)->\(mainReader.bounds.width) sidecard=\(originalSidecard)->\(sidecard.bounds.width) mainRetained=\(reply("Previous main execution", in: root) === main) sidecardRetained=\(reply("New execution becomes the main result", in: root) === sidecard) widths=\(String(describing: fixture.model.snapshot?.widths))")
+                try? await capture(window, name: "live-resize-failure")
+                throw error
+            }
+            #expect(fixture.model.snapshot?.dragging == true)
+            #expect(reply(sidecardReply, in: root) === sidecard)
+            if delta == 80 {
+                fixture.additionalReply = liveReply
+                try await SwiftUIReplay.wait { reply(liveReply, in: root) != nil }
+                #expect(fixture.model.snapshot?.input.thread.observation.latestExecution?.status == .running)
+                // New content moves the result anchor to a different row.
+                // Track that new native tail before checking further resizing;
+                // the previous tail may be remounted by the anchor change.
+                sidecardReply = liveReply
+                sidecard = try #require(reply(sidecardReply, in: root))
+            }
+            if delta >= 80 {
+                try await SwiftUIReplay.wait {
+                    guard let newReply = reply(liveReply, in: root) else { return false }
+                    return abs(newReply.bounds.width - sidecard.bounds.width) < 1
+                }
+            }
+        }
+        divider.mouseUp(with: try event(.leftMouseUp, delta: 120))
+        try await SwiftUIReplay.wait {
+            abs(main.bounds.width - originalMain + 120) < 1 && abs(sidecard.bounds.width - originalSidecard - 120) < 1
+        }
+        #expect(fixture.model.snapshot?.dragging == false)
+        #expect(reply("Previous main execution", in: root) === main)
+        #expect(reply(sidecardReply, in: root) === sidecard)
+        // Keyboard/accessibility adjustments do not enter a pointer drag and
+        // must still commit their width immediately. Measure the viewport here:
+        // main's responsive text padding can change at the narrower width.
+        #expect(divider.accessibilityPerformIncrement())
+        try await SwiftUIReplay.wait {
+            abs(mainReader.bounds.width - originalReaderWidth + 144) < 1
+                && abs(sidecard.bounds.width - originalSidecard - 144) < 1
+        }
+        print("THREAD_SIDECARD_LIVE_REFLOW_CONFIRMED main=\(originalMain)->\(main.bounds.width) sidecard=\(originalSidecard)->\(sidecard.bounds.width) runningReply=true")
     }
 
     @Test(.requiresDisplay, arguments: ["conversation", "iab", "voice"])
@@ -783,7 +887,15 @@ struct NativeThreadSendFeedbackTests {
         try await Task.sleep(for: .milliseconds(40))
         probe.size = CGSize(width: width == 1180 ? 800 : 700, height: 500)
         try await Task.sleep(for: .milliseconds(450))
-        fixture.model.resize(360, maximum: 600)
+        let beforeDrag = probe.viewBuilds
+        fixture.model.setDragging(true)
+        #expect(probe.viewBuilds > beforeDrag)
+        let duringDrag = probe.viewBuilds
+        for dragWidth in 351...360 { fixture.model.resize(CGFloat(dragWidth), maximum: 600) }
+        #expect(probe.viewBuilds == duringDrag)
+        #expect(fixture.model.snapshot?.widths["c"] == 360)
+        fixture.model.setDragging(false)
+        #expect(probe.viewBuilds > duringDrag)
         try await Task.sleep(for: .milliseconds(80))
         let resizedSource = try launcher("c")
         let resizedTarget = try destination()
