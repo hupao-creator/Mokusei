@@ -160,7 +160,8 @@ attachment-click delegation and retain keyboard/accessibility activation.
 Completed replies with a reading viewport now defer top-level blocks through
 `LazyVStack`. Nested list/quote content and atomic code/table blocks keep their
 existing layout. Footnote documents retain eager native anchors, exposure-tracked
-notes retain exact geometry, and streamed page admission remains unchanged.
+notes retain exact geometry. These Agent Thread cases render completed messages;
+they do not exercise the shared renderer's streaming-page path.
 Offscreen native views can be retained at their old size; entering the viewport
 must reflow them at the current width. This is visit-local SwiftUI state, with
 no global native-view or cross-document height cache.
@@ -426,8 +427,11 @@ Sidecard, which normally owns a running/waiting execution when earlier context
 exists. It froze both that execution's document width and main's document width
 during a pointer drag. It did not freeze the execution's content subscriptions.
 The earlier shared completed-Markdown optimizations also apply to settled replies
-within running executions; a message's streaming/settled state is independent of
-whether the execution has ended. Existing streaming admission remains unchanged.
+within running executions. Agent Thread main and Execution Sidecard readers do
+not display unfinished assistant messages incrementally, either as tokens or as
+streamed pages. Each message renders its complete Markdown after it settles,
+without waiting for its execution to end. The output/resize cases measure those
+complete-message arrivals, not streaming text rendering.
 
 At the user's request, remove all drag-start document width retention and restore
 live reflow in both columns at every divider position. Keep the host-only width
