@@ -230,15 +230,39 @@ struct NativeReportNavigationTests {
                          && state?["ownsFocus"] as? Bool == true,
                          "The actual WebKit editor must own focus before native keys are sent")
         }
-        func requireKeyReceipt(_ keys: [String], editor id: String) async throws {
-            let events = try #require(try await document.evaluateJavaScript("window.reportKeyEvents") as? [[String: Any]])
-            print("REPORT_EDITING_KEYS id=\(id) events=\(events)")
+        func requireKeyReceipt(_ keys: [String], in document: WKWebView, editor id: String? = nil) async throws {
+            // WebKit queues native keys behind the previous event's acknowledgement.
+            // An independent JavaScript evaluation can overtake the final keyup.
+            // Await delivered events before starting the existing host-observation
+            // interval; its 80/100 ms is not a deadline for cross-process delivery.
+            let receipt = try await document.callAsyncJavaScript("""
+                const started = performance.now();
+                return await new Promise(resolve => {
+                  const finish = complete => {
+                    clearTimeout(timeout);
+                    window.removeEventListener('keydown', observe);
+                    window.removeEventListener('keyup', observe);
+                    resolve({complete, waited:performance.now() - started,
+                      focused:document.hasFocus(), active:document.activeElement?.id,
+                      events:window.reportKeyEvents});
+                  };
+                  const observe = () => {
+                    if (window.reportKeyEvents.length >= count) finish(true);
+                  };
+                  const timeout = setTimeout(() => finish(false), 3000);
+                  window.addEventListener('keydown', observe);
+                  window.addEventListener('keyup', observe);
+                  observe();
+                });
+                """, arguments: ["count": keys.count * 2], in: nil, contentWorld: .page) as? [String: Any]
+            print("REPORT_EDITING_KEYS id=\(id ?? "dialog") receipt=\(String(describing: receipt)) key=\(window.isKeyWindow) active=\(app.isActive) responder=\(String(describing: window.firstResponder)) backs=\(fixture.backs) open=\(fixture.open)")
+            let events = try #require(receipt?["events"] as? [[String: Any]])
             let expected = keys.flatMap { ["keydown:" + $0, "keyup:" + $0] }
             let observed = events.map { ($0["type"] as? String ?? "") + ":" + ($0["key"] as? String ?? "") }
-            try #require(observed == expected && events.allSatisfy {
+            try #require(receipt?["complete"] as? Bool == true && observed == expected && events.allSatisfy {
                 $0["trusted"] as? Bool == true && $0["focused"] as? Bool == true
-                    && (id == "closedInput" ? $0["closedInputFocused"] as? Bool == true : $0["target"] as? String == id)
-            }, "Every native key must finish in its intended editor before the next focus change")
+                    && (id == nil || (id == "closedInput" ? $0["closedInputFocused"] as? Bool == true : $0["target"] as? String == id))
+            }, "Every native key must finish in its focused document/editor before the next input stage")
         }
         _ = try await document.evaluateJavaScript("""
             document.body.dispatchEvent(new KeyboardEvent('keydown', {
@@ -252,8 +276,8 @@ struct NativeReportNavigationTests {
             try await focusEditor(id)
             try key(123, "\u{F702}", modifiers: .option)
             try key(53, "\u{1b}")
+            try await requireKeyReceipt(["ArrowLeft", "Escape"], in: document, editor: id)
             try await Task.sleep(for: .milliseconds(80))
-            try await requireKeyReceipt(["ArrowLeft", "Escape"], editor: id)
             try #require(fixture.backs == 0 && fixture.open,
                 "Report navigation must leave the native editing keys with \(id)")
         }
@@ -261,8 +285,8 @@ struct NativeReportNavigationTests {
         #expect(try await document.evaluateJavaScript("document.getElementById('closedShadowHost').shadowRoot === null") as? Bool == true)
         try key(123, "\u{F702}", modifiers: .option)
         try key(7, "X", modifiers: .shift)
+        try await requireKeyReceipt(["ArrowLeft", "X"], in: document, editor: "closedInput")
         try await Task.sleep(for: .milliseconds(80))
-        try await requireKeyReceipt(["ArrowLeft", "X"], editor: "closedInput")
         try #require(fixture.backs == 0 && fixture.open)
         #expect(try await document.evaluateJavaScript("window.readClosedInput()") as? String == "alpha beta Xgamma",
             "Option-Left must retain native word movement even when the editor is hidden by a closed shadow root")
@@ -270,6 +294,7 @@ struct NativeReportNavigationTests {
         // Wait for the modal's focused frame before sending Escape, then observe
         // its real close event rather than assuming completion after 80 ms.
         let modalFocused = try await document.callAsyncJavaScript("""
+            window.reportKeyEvents = [];
             const modal = document.getElementById('modal');
             modal.showModal();
             await new Promise(resolve => requestAnimationFrame(() => resolve()));
@@ -277,6 +302,9 @@ struct NativeReportNavigationTests {
             """, arguments: [:], in: nil, contentWorld: .page) as? Bool
         try #require(modalFocused == true)
         try key(53, "\u{1b}")
+        // The modal's default close restores focus before keyup, so this stage
+        // requires both trusted events without pinning them to one editor.
+        try await requireKeyReceipt(["Escape"], in: document)
         let modalState = try await document.callAsyncJavaScript("""
             const modal = document.getElementById('modal');
             if (modal.open) await new Promise(resolve => {
@@ -466,6 +494,7 @@ struct NativeReportNavigationTests {
         // As with the modal above, native WebKit focus crosses processes. The
         // focused document frame must own each key before testing cancellation.
         let editorFocused = try await panelDocument.callAsyncJavaScript("""
+            window.reportKeyEvents = [];
             window.panelEscapeEvents = [];
             document.addEventListener('keydown', event => {
               if (event.key === 'Escape') window.panelEscapeEvents.push({
@@ -481,6 +510,7 @@ struct NativeReportNavigationTests {
             """, arguments: [:], in: nil, contentWorld: .page) as? Bool
         try #require(editorFocused == true)
         try key(53, "\u{1b}")
+        try await requireKeyReceipt(["Escape"], in: panelDocument, editor: "ordinary")
         try await Task.sleep(for: .milliseconds(100))
         #expect(fixture.open && fixture.backs == 0, "Editing still owns Escape inside the panel")
         let documentFocused = try await panelDocument.callAsyncJavaScript("""
