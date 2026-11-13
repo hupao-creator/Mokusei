@@ -20,7 +20,7 @@ public struct NativeBrowserSidecard: SidecardPlugin {
     }
     public func sidecard(context: SidecardContext, presentation: BrowserSidecardPresentation) throws -> SidecardView<BrowserSidecardPane> {
         try SidecardView(available: presentation.requestedURL != nil, label: JSONText(context.translate("网页")),
-                        preferredWidth: 2.0 / 3, focusContentOnOpen: false, composer: presentation.composer) {
+                        preferredWidth: 0.5, focusContentOnOpen: false, composer: presentation.composer) {
             BrowserSidecardPane(presentation: presentation)
         }
     }
