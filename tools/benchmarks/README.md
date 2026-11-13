@@ -236,6 +236,12 @@ uses the later default collector for two 10-card scenarios. It records signed
 before/after artifacts and App CPU samples, while retaining incomplete process
 coverage and unavailable hitch status. It is not a statistical regression result.
 
+The [rendering-cost investigation](baselines/2026-11-13-rendering-costs.md)
+separates six scenario profiles from measured style candidates. It includes a
+120 fps pre-rendered cloud prototype, actual 60/120 Hz window transitions and
+paired App CPU observations on the 120 Hz display. Playback configuration is
+not physical FPS evidence; the product changes remain unshipped experiments.
+
 ## Verification boundary
 
 `conformance` exercises the real parsers, source schedules and offline scorer

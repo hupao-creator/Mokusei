@@ -1,0 +1,1293 @@
+{
+  "version": 1,
+  "date": "2026-11-13",
+  "kind": "diagnostic profiles and descriptive App-only observations",
+  "baseRevision": "6a26e2e34887c5ca579fbad2c5e50448dff6b3b0",
+  "environment": {
+    "machine": "Apple M1 Pro",
+    "memoryGiB": 16,
+    "macOS": "26.5.1",
+    "Xcode": "26.5",
+    "windowPoints": [
+      1280,
+      820
+    ],
+    "backingScale": 2,
+    "reportedScreenMaximumFPS": [
+      {
+        "name": "Mi Monitor",
+        "maximum": 60
+      },
+      {
+        "name": "Built-in Retina",
+        "maximum": 120
+      }
+    ],
+    "screenRateSource": "Public NSScreen.maximumFramesPerSecond via JXA; not a measured display FPS",
+    "adaptivePlaybackDisplays": [
+      {
+        "frame": {
+          "height": 1440,
+          "width": 2560,
+          "x": 0,
+          "y": 0
+        },
+        "id": 3,
+        "maximumFPS": 60,
+        "modeHz": 60,
+        "name": "Mi Monitor",
+        "scale": 2,
+        "visible": {
+          "height": 1440,
+          "width": 2560,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "frame": {
+          "height": 982,
+          "width": 1512,
+          "x": 427,
+          "y": 1440
+        },
+        "id": 1,
+        "maximumFPS": 120,
+        "modeHz": 120,
+        "name": "Built-in Retina Display",
+        "scale": 2,
+        "visible": {
+          "height": 950,
+          "width": 1512,
+          "x": 427,
+          "y": 1472
+        }
+      }
+    ]
+  },
+  "method": {
+    "count": 10,
+    "formalSeconds": 8,
+    "pacing": "sparse",
+    "reasoningPacketsPerSecondPerCard": 2,
+    "reasoningPacketBytes": 64,
+    "progressMessageEveryBytes": 512,
+    "cardsPreexist": true,
+    "sourceAndTitlesUnchanged": true,
+    "styleRunOrder": [
+      "baseline (idle.active, body, body.pan)",
+      "cloud-30 (idle.active; body preparation failed before timing)",
+      "cloud-static (idle.active, body)",
+      "text-direct (idle.active, body)",
+      "cloud-30-body-retry (body only, after an untimed waiting-execution precondition)"
+    ],
+    "nativeHitches": false,
+    "statisticalAB": false,
+    "pixelEquivalenceTests": false,
+    "profilingSeparatedFromStyleMeasurements": true,
+    "adaptivePlaybackRunOrder": [
+      "baseline idle.active, body",
+      "cloud-baked idle.active, body"
+    ],
+    "adaptivePlaybackScreenHz": 120,
+    "screenTransitionsOutsideTimedWindow": true
+  },
+  "artifacts": {
+    "style-experiment": {
+      "baseRevision": "6a26e2e34887c5ca579fbad2c5e50448dff6b3b0",
+      "patchSHA256": "b93387f2d6790e8e0663d2a26fa806d5ab7b2e3f75c932db6735b45bff9f20ae",
+      "appSHA256": "47fd063d08f6815116f68f06d5ffd3451a338a47b88100060211dd5e1ec2cbe6",
+      "variants": [
+        "baseline",
+        "cloud-30",
+        "cloud-static",
+        "text-direct"
+      ],
+      "scope": "temporary signed artifact; no production source change retained"
+    },
+    "canvas-experiment": {
+      "baseRevision": "6a26e2e34887c5ca579fbad2c5e50448dff6b3b0",
+      "patchSHA256": "9c7233fd5bd577ab977c5048b252c576f86e679c192ba700ba0f016c9cf84a93",
+      "appSHA256": "60f9d1f4e9e8cc23878d03fca2e25bff780bacb106f08aaad97374bcf367be68",
+      "variants": [
+        "baseline",
+        "suspend-hit-testing"
+      ],
+      "cardStyles": "baseline",
+      "scope": "temporary signed artifact; no product source change retained"
+    },
+    "baked-experiment": {
+      "baseRevision": "6a26e2e34887c5ca579fbad2c5e50448dff6b3b0",
+      "patchSHA256": "abe8619364a4651a573c712c1230a7a29e9bdf66bfce3df4bc3927c6475016a7",
+      "additionalFilesSHA256": {
+        "app/macos/Sources/Shared/PluginUI/Design/NativeBakedCloudView.swift": "3dcdaefdfb5022de26dfcb7e87a30cc3fa2ef6d20470766c80d478f0db37b89a",
+        "app/macos/Sources/Shared/PluginUI/Resources/OverviewCloudLoop-dark.png": "47359d43171bc8e6572bbc4171d00cf639bf5401c5ee46b8794be9b1eb14f05b",
+        "app/macos/Sources/Shared/PluginUI/Resources/OverviewCloudLoop.json": "2f5ec02c8c6bd2ad7e68423089ae4f7fc0b2aa6c3471eede9392ebb5cf9138f1",
+        "app/macos/Sources/Shared/PluginUI/Resources/OverviewCloudLoop-light.png": "11199127c8a5192e9ae99266fb4d7443935ee60ea800fc13d819bc9a271cd721"
+      },
+      "appSHA256": "530d18ff21683c7fd75fa2e29e2748fff1d78c6107dfda591558fffd16747eec",
+      "variants": [
+        "baseline",
+        "cloud-baked"
+      ],
+      "method": "offline native field and shader bake, shared PNG atlas, CAKeyframeAnimation(contentsRect)",
+      "scope": "temporary signed artifact, source restored; not a shipped feature"
+    },
+    "baked-120-experiment": {
+      "baseRevision": "6a26e2e34887c5ca579fbad2c5e50448dff6b3b0",
+      "patchSHA256": "5c644904266f12c11c85ee1efe1db6a55f7e6dccf0a91f13075711f4b58c7277",
+      "additionalFilesSHA256": {
+        "app/macos/Sources/Shared/PluginUI/Design/NativeBakedCloudView.swift": "fe1181d170d8d3461ddd6de2b87cd3d10f87aa0b05b47a7b71f52117d24f9b62",
+        "app/macos/Sources/Shared/PluginUI/Resources/OverviewCloudLoop-dark.png": "2c0045ac767318cfe524f68ccd83c01c4d3533abc93fa1ddbe8ad9840d97f448",
+        "app/macos/Sources/Shared/PluginUI/Resources/OverviewCloudLoop.json": "0bae7d02d003315aca0323bb9a7a5e5be75cbfcbe539811bc6b1a5bdc169284c",
+        "app/macos/Sources/Shared/PluginUI/Resources/OverviewCloudLoop-light.png": "ba95ce4a68b6b2e42c5b2b69fa2e2d6672cbc346de7912461f06d05871f7b320"
+      },
+      "appSHA256": "d7e402c640b250a79819682185678b51eaf99fc346468434faa025cccf484864",
+      "variants": [
+        "baseline",
+        "cloud-baked"
+      ],
+      "method": "120 fps offline atlas; screen-aware CA contentsRect animation; shared background decode",
+      "scope": "temporary signed artifact; production source restored"
+    }
+  },
+  "profiles": [
+    {
+      "scene": "first-render",
+      "nonWaitLeafSamples": {
+        "main": 182,
+        "other": 29,
+        "metal/driver": 2
+      },
+      "overlappingInclusiveNonWaitSamples": {
+        "AG::Graph::UpdateStack::update": 117,
+        "CA::Transaction::commit": 89,
+        "NSView layoutSubtree": 65,
+        "CTFont": 12,
+        "CardTextLayout": 9,
+        "ThreadCardExcerpt": 2,
+        "NativeOverviewCloud": 1,
+        "NativeWorkspaceModel.installPrepared": 3
+      }
+    },
+    {
+      "scene": "idle.completed",
+      "nonWaitLeafSamples": {
+        "main": 8,
+        "other": 14
+      },
+      "overlappingInclusiveNonWaitSamples": {
+        "CA::Transaction::commit": 6
+      },
+      "mainCPUSeconds": 0.025185,
+      "mainCPUPercent": 0.3146548857885092,
+      "profiledAppCPUPercent": 0.6643161375
+    },
+    {
+      "scene": "pan",
+      "nonWaitLeafSamples": {
+        "main": 1299,
+        "other": 19
+      },
+      "overlappingInclusiveNonWaitSamples": {
+        "CA::Transaction::commit": 1161,
+        "NSView layoutSubtree": 1079,
+        "AG::Graph::UpdateStack::update": 450,
+        "NativeOverviewCanvas": 20,
+        "NativeOverviewCamera": 7
+      },
+      "mainCPUSeconds": 2.954192,
+      "mainCPUPercent": 36.91315363597456,
+      "profiledAppCPUPercent": 37.9664448
+    },
+    {
+      "scene": "idle.active",
+      "nonWaitLeafSamples": {
+        "main": 132,
+        "other": 89,
+        "cloud-render": 261,
+        "metal/driver": 367
+      },
+      "overlappingInclusiveNonWaitSamples": {
+        "AG::Graph::UpdateStack::update": 66,
+        "CA::Transaction::commit": 66,
+        "NSView layoutSubtree": 46,
+        "CardTextLayout": 2,
+        "NativeWorkspaceModel.installPrepared": 2,
+        "NativeOverviewCloud": 253,
+        "NativeCloudField": 46
+      },
+      "mainCPUSeconds": 0.276668,
+      "mainCPUPercent": 3.458305131949218,
+      "profiledAppCPUPercent": 29.601271114602852
+    },
+    {
+      "scene": "body",
+      "nonWaitLeafSamples": {
+        "main": 1283,
+        "cloud-render": 122,
+        "metal/driver": 160,
+        "other": 55
+      },
+      "overlappingInclusiveNonWaitSamples": {
+        "AG::Graph::UpdateStack::update": 956,
+        "CA::Transaction::commit": 500,
+        "NSView layoutSubtree": 408,
+        "CTFont": 3,
+        "NativeOverviewCanvas": 14,
+        "ThreadCardExcerpt": 13,
+        "CardTextLayout": 48,
+        "NativeWorkspaceModel.installPrepared": 44,
+        "NativeOverviewCloud": 121,
+        "NativeCloudField": 8
+      },
+      "mainCPUSeconds": 2.865582,
+      "mainCPUPercent": 35.82683586925033,
+      "profiledAppCPUPercent": 51.58650947543013
+    },
+    {
+      "scene": "body.pan",
+      "nonWaitLeafSamples": {
+        "main": 1776,
+        "other": 86,
+        "cloud-render": 88,
+        "metal/driver": 134
+      },
+      "overlappingInclusiveNonWaitSamples": {
+        "AG::Graph::UpdateStack::update": 1147,
+        "CA::Transaction::commit": 889,
+        "NSView layoutSubtree": 764,
+        "CTFont": 3,
+        "NativeOverviewCanvas": 19,
+        "ThreadCardExcerpt": 18,
+        "CardTextLayout": 55,
+        "NativeOverviewCamera": 5,
+        "NativeWorkspaceModel.installPrepared": 45,
+        "NativeOverviewCloud": 87,
+        "NativeCloudField": 3
+      },
+      "mainCPUSeconds": 4.025427,
+      "mainCPUPercent": 50.269248344190316,
+      "profiledAppCPUPercent": 67.86869664333874
+    }
+  ],
+  "profileMethod": "Diagnostic sample stack residency, filtered wait leaves; category counts overlap and are not CPU percentages. Sample overhead present. Main CPU from libproc; new/exited worker threads not completely counted.",
+  "observations": {
+    "style-experiment": [
+      {
+        "variant": "baseline",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 147408024,
+          "observedCPUSeconds": 2.296159,
+          "singleCoreCPUPercent": 28.699956081233623,
+          "finalSampledFootprintBytes": 147408024
+        },
+        "sampledSeconds": 8.00056625,
+        "manifestSHA256": "104f2a63973f26fe496fd8be708f7672f21446562da3f248212d1a289a5ebb64",
+        "evidencePath": "style-experiment/baseline/n-10/00-idle.active",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": []
+      },
+      {
+        "variant": "baseline",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 152454296,
+          "observedCPUSeconds": 3.979911499,
+          "singleCoreCPUPercent": 49.75446598269842,
+          "finalSampledFootprintBytes": 150619288
+        },
+        "sampledSeconds": 7.999104041,
+        "manifestSHA256": "fe5703a3f3777252edcdabb5864b226498dfce371d4b73d23e0d21c0a0de730a",
+        "evidencePath": "style-experiment/baseline/n-10/01-body",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [],
+        "body": {
+          "scheduleVersion": 2,
+          "loadKind": "low-rate",
+          "pacing": "sparse",
+          "reasoningChunkEvents": 160,
+          "reasoningChunkBytes": 10240,
+          "progressAndTerminalMessages": 30,
+          "progressAndTerminalBytes": 2990,
+          "cardsWithPixelEvidence": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "checkpointLatenciesAreCaptureUpperBounds": true,
+          "observedCheckpoints": 20,
+          "checkpointCaptureUpperBoundMedianSeconds": 0.429720375,
+          "checkpointCaptureUpperBoundMaximumSeconds": 0.5519155
+        }
+      },
+      {
+        "variant": "baseline",
+        "scenario": "body.pan",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "wrong-result",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "observed business displacement differs from the declared input trajectory",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 153158808,
+          "observedCPUSeconds": 5.205644458,
+          "singleCoreCPUPercent": 65.07929532932364,
+          "finalSampledFootprintBytes": 151274648
+        },
+        "sampledSeconds": 7.998925667,
+        "manifestSHA256": "262b7d18bd6476c618c0cf1305939e08cdd0d8df1669bbc36273b8005c143bf6",
+        "evidencePath": "style-experiment/baseline/n-10/02-body.pan",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [],
+        "body": {
+          "scheduleVersion": 2,
+          "loadKind": "low-rate",
+          "pacing": "sparse",
+          "reasoningChunkEvents": 160,
+          "reasoningChunkBytes": 10240,
+          "progressAndTerminalMessages": 30,
+          "progressAndTerminalBytes": 2990,
+          "cardsWithPixelEvidence": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "checkpointLatenciesAreCaptureUpperBounds": true,
+          "observedCheckpoints": 20,
+          "checkpointCaptureUpperBoundMedianSeconds": 0.455359854,
+          "checkpointCaptureUpperBoundMaximumSeconds": 3.052779334
+        }
+      },
+      {
+        "variant": "cloud-30",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "declared process root missing from sample",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 129467496,
+          "observedCPUSeconds": 1.823882333,
+          "singleCoreCPUPercent": 22.797980110195763,
+          "finalSampledFootprintBytes": 126977128
+        },
+        "sampledSeconds": 8.000192667,
+        "manifestSHA256": "ef9791781a3b8e0db4f6c5cbbe13c9968fee6c4fb7054897b433fa06cf8f55ba",
+        "evidencePath": "style-experiment/cloud-30/n-10/00-idle.active",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [
+          {
+            "identity": "57713:1794543288162628",
+            "pid": 57713,
+            "role": "helper",
+            "path": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+          }
+        ]
+      },
+      {
+        "variant": "cloud-30",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "unknown",
+        "comparison": "not-comparable",
+        "reasons": [
+          "scenario preparation failed; see failure.json"
+        ],
+        "evidencePath": "style-experiment/cloud-30/n-10/01-body",
+        "appPresentEverySample": null
+      },
+      {
+        "variant": "cloud-static",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 119506048,
+          "observedCPUSeconds": 0.287286083,
+          "singleCoreCPUPercent": 3.590139179461935,
+          "finalSampledFootprintBytes": 119473280
+        },
+        "sampledSeconds": 8.002087625,
+        "manifestSHA256": "c8409ca968511f3327c758b9be3b57a74a02e6ea868d3ab947dcdefdb2c91ef6",
+        "evidencePath": "style-experiment/cloud-static/n-10/00-idle.active",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": []
+      },
+      {
+        "variant": "cloud-static",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 124290200,
+          "observedCPUSeconds": 2.8495405,
+          "singleCoreCPUPercent": 35.63011062917089,
+          "finalSampledFootprintBytes": 122799256
+        },
+        "sampledSeconds": 7.997562875,
+        "manifestSHA256": "776a66eb6b5c44b1058cf6c42a1d37f32f0d6185e2d1ce608c759e1371340f44",
+        "evidencePath": "style-experiment/cloud-static/n-10/01-body",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [],
+        "body": {
+          "scheduleVersion": 2,
+          "loadKind": "low-rate",
+          "pacing": "sparse",
+          "reasoningChunkEvents": 160,
+          "reasoningChunkBytes": 10240,
+          "progressAndTerminalMessages": 30,
+          "progressAndTerminalBytes": 2990,
+          "cardsWithPixelEvidence": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "checkpointLatenciesAreCaptureUpperBounds": true,
+          "observedCheckpoints": 20,
+          "checkpointCaptureUpperBoundMedianSeconds": 0.423794333,
+          "checkpointCaptureUpperBoundMaximumSeconds": 0.548436583
+        }
+      },
+      {
+        "variant": "text-direct",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "declared process root missing from sample",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 148292760,
+          "observedCPUSeconds": 2.264538209,
+          "singleCoreCPUPercent": 28.303433213163572,
+          "finalSampledFootprintBytes": 145835160
+        },
+        "sampledSeconds": 8.000931166,
+        "manifestSHA256": "559b2b1ab777dd3450ec2e8a4cf8c6964d7ab107cbf1aae9b7de14ef109e080d",
+        "evidencePath": "style-experiment/text-direct/n-10/00-idle.active",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [
+          {
+            "identity": "62260:1794543685872989",
+            "pid": 62260,
+            "role": "helper",
+            "path": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+          }
+        ]
+      },
+      {
+        "variant": "text-direct",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 152749208,
+          "observedCPUSeconds": 3.708980125,
+          "singleCoreCPUPercent": 46.36134389431406,
+          "finalSampledFootprintBytes": 150684824
+        },
+        "sampledSeconds": 8.000156625,
+        "manifestSHA256": "005f829846b6e37d7f99849404d42f8b30e4d33cb4df0476589722b4f3ea3215",
+        "evidencePath": "style-experiment/text-direct/n-10/01-body",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [],
+        "body": {
+          "scheduleVersion": 2,
+          "loadKind": "low-rate",
+          "pacing": "sparse",
+          "reasoningChunkEvents": 160,
+          "reasoningChunkBytes": 10240,
+          "progressAndTerminalMessages": 30,
+          "progressAndTerminalBytes": 2990,
+          "cardsWithPixelEvidence": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "checkpointLatenciesAreCaptureUpperBounds": true,
+          "observedCheckpoints": 20,
+          "checkpointCaptureUpperBoundMedianSeconds": 0.176946729,
+          "checkpointCaptureUpperBoundMaximumSeconds": 0.253183167
+        }
+      },
+      {
+        "variant": "cloud-30-body-retry",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "declared process root missing from sample",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 134546656,
+          "observedCPUSeconds": 3.42546875,
+          "singleCoreCPUPercent": 42.82174296178371,
+          "finalSampledFootprintBytes": 132515040
+        },
+        "sampledSeconds": 7.999367875,
+        "manifestSHA256": "6b6fc846eec0fbdf1321a87cbf87e04256c3dc291c6c229a473815def531a07b",
+        "evidencePath": "style-experiment/cloud-30-body-retry/n-10/00-body",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [
+          {
+            "identity": "65207:1794543840134776",
+            "pid": 65207,
+            "role": "helper",
+            "path": "/usr/local/bin/node"
+          },
+          {
+            "identity": "65208:1794543840140943",
+            "pid": 65208,
+            "role": "helper",
+            "path": "/usr/local/bin/node"
+          }
+        ],
+        "body": {
+          "scheduleVersion": 2,
+          "loadKind": "low-rate",
+          "pacing": "sparse",
+          "reasoningChunkEvents": 160,
+          "reasoningChunkBytes": 10240,
+          "progressAndTerminalMessages": 30,
+          "progressAndTerminalBytes": 2990,
+          "cardsWithPixelEvidence": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "checkpointLatenciesAreCaptureUpperBounds": true,
+          "observedCheckpoints": 20,
+          "checkpointCaptureUpperBoundMedianSeconds": 0.42685962499999996,
+          "checkpointCaptureUpperBoundMaximumSeconds": 0.552286167
+        }
+      }
+    ],
+    "canvas-experiment": [
+      {
+        "variant": "baseline",
+        "scenario": "pan",
+        "measurement": "incomplete",
+        "product": "wrong-result",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "observed business displacement differs from the declared input trajectory",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 104465560,
+          "observedCPUSeconds": 2.326954082,
+          "singleCoreCPUPercent": 29.07799499144458,
+          "finalSampledFootprintBytes": 104449176
+        },
+        "sampledSeconds": 8.002457125,
+        "manifestSHA256": "2d936400664763e49de7b88e07fa3c97818ce80c0e48366e41bf392dfd390474",
+        "evidencePath": "canvas-experiment/baseline/n-10/00-pan",
+        "appPresentEverySample": true,
+        "pan": {
+          "firstVisibleResponseSeconds": 0.250466375,
+          "firstVisibleResponseSecondsBounds": {
+            "lower": 0.003943833,
+            "upper": 0.250466375
+          },
+          "responseDisplacementThresholdPixels": 3,
+          "maximumNoProgressSeconds": 0.250466375,
+          "noProgressSecondsBounds": {
+            "lower": 0.003943833,
+            "upper": 0.455834583
+          },
+          "maximumTrajectoryErrorPixels": 21.406042717294063
+        },
+        "postPanClick": {
+          "status": "failed",
+          "reason": "public outcome timeout on both baseline and candidate; probe not validated"
+        }
+      },
+      {
+        "variant": "suspend-hit-testing",
+        "scenario": "pan",
+        "measurement": "incomplete",
+        "product": "wrong-result",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "observed business displacement differs from the declared input trajectory",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 89867416,
+          "observedCPUSeconds": 2.363020041,
+          "singleCoreCPUPercent": 29.53766743781033,
+          "finalSampledFootprintBytes": 89457816
+        },
+        "sampledSeconds": 8.0000225,
+        "manifestSHA256": "4297036f6cbb3100f6bc96a628921a4639dc66a4aec2d6aba4e4f96ec177bdd3",
+        "evidencePath": "canvas-experiment/suspend-hit-testing/n-10/00-pan",
+        "appPresentEverySample": true,
+        "pan": {
+          "firstVisibleResponseSeconds": 0.252554875,
+          "firstVisibleResponseSecondsBounds": {
+            "lower": 0.000135042,
+            "upper": 0.252554875
+          },
+          "responseDisplacementThresholdPixels": 3,
+          "maximumNoProgressSeconds": 0.252554875,
+          "noProgressSecondsBounds": {
+            "lower": 0.000135042,
+            "upper": 0.473272042
+          },
+          "maximumTrajectoryErrorPixels": 21.51391921981334
+        },
+        "postPanClick": {
+          "status": "failed",
+          "reason": "public outcome timeout on both baseline and candidate; probe not validated"
+        }
+      }
+    ],
+    "baked-experiment": [
+      {
+        "variant": "baseline",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 148653232,
+          "observedCPUSeconds": 2.2627085,
+          "singleCoreCPUPercent": 28.292093669897575,
+          "finalSampledFootprintBytes": 146179248
+        },
+        "sampledSeconds": 7.99767075,
+        "manifestSHA256": "ae97bbf4b70cf4e62ea648623d3cf0e31dcef8edd91fd5688ce01361e05ad935",
+        "evidencePath": "baked-experiment/baseline/n-10/00-idle.active",
+        "appPresentEverySample": true
+      },
+      {
+        "variant": "baseline",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 153240752,
+          "observedCPUSeconds": 4.037641501,
+          "singleCoreCPUPercent": 50.47851566359865,
+          "finalSampledFootprintBytes": 151667888
+        },
+        "sampledSeconds": 7.998732625,
+        "manifestSHA256": "92b9fe4abb03642356ab1f0c16cf70b8000e86db04dd9809180227af1fc4bf29",
+        "evidencePath": "baked-experiment/baseline/n-10/01-body",
+        "appPresentEverySample": true,
+        "body": {
+          "observedCheckpoints": 0,
+          "checkpointCaptureUpperBoundMedianSeconds": null,
+          "checkpointCaptureUpperBoundMaximumSeconds": null
+        }
+      },
+      {
+        "variant": "cloud-baked",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 85853360,
+          "observedCPUSeconds": 0.294593208,
+          "singleCoreCPUPercent": 3.682970653104454,
+          "finalSampledFootprintBytes": 85525680
+        },
+        "sampledSeconds": 7.99879325,
+        "manifestSHA256": "8693649a7fa84b1ba4a21b80f8e22899caabee6d47fdbe6a1297ecb774bb70f5",
+        "evidencePath": "baked-experiment/cloud-baked/n-10/00-idle.active",
+        "appPresentEverySample": true
+      },
+      {
+        "variant": "cloud-baked",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 90490032,
+          "observedCPUSeconds": 2.960511625,
+          "singleCoreCPUPercent": 37.01145566676458,
+          "finalSampledFootprintBytes": 88458416
+        },
+        "sampledSeconds": 7.998906208,
+        "manifestSHA256": "cf45736cd3ed66ca1963eb1c62f492f5be2bd391d7c222bfbc8ea7596fb5c575",
+        "evidencePath": "baked-experiment/cloud-baked/n-10/01-body",
+        "appPresentEverySample": true,
+        "body": {
+          "observedCheckpoints": 0,
+          "checkpointCaptureUpperBoundMedianSeconds": null,
+          "checkpointCaptureUpperBoundMaximumSeconds": null
+        }
+      }
+    ],
+    "baked-120-experiment": [
+      {
+        "variant": "baseline",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 148292784,
+          "observedCPUSeconds": 3.5952495,
+          "singleCoreCPUPercent": 44.94101712964635,
+          "finalSampledFootprintBytes": 148194480
+        },
+        "sampledSeconds": 7.999929084,
+        "manifestSHA256": "959e8c1a376faafbc7dbe87da2358dfae0afac8f52a87bfd867310ff372e04da",
+        "sourceSHA256": "81ef6303e64ca0d07bd2b6df67bdcd995a613e99ef6127f35e8b231734c3dfbb",
+        "sourceComplete": true,
+        "sourceCounts": {
+          "reasoningChunks": 0,
+          "reasoningBytes": 0,
+          "messages": 10,
+          "messageBytes": 1290
+        },
+        "windowBounds": {
+          "height": 820,
+          "width": 1280,
+          "x": 477,
+          "y": 1522
+        },
+        "evidencePath": "baked-120-experiment/baseline/n-10/00-idle.active",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": []
+      },
+      {
+        "variant": "baseline",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 152831152,
+          "observedCPUSeconds": 5.004363375,
+          "singleCoreCPUPercent": 62.55698223823145,
+          "finalSampledFootprintBytes": 151012528
+        },
+        "sampledSeconds": 7.999687958,
+        "manifestSHA256": "67d40003314ebc12902e71215e204f614ece711ef83f21edc9e0dda56d45667e",
+        "sourceSHA256": "09737b8e0566b5a100bd158d7f6cff296850cb9e5a7d532de52c9603c153147b",
+        "sourceComplete": true,
+        "sourceCounts": {
+          "reasoningChunks": 160,
+          "reasoningBytes": 10240,
+          "messages": 30,
+          "messageBytes": 2990
+        },
+        "windowBounds": {
+          "height": 820,
+          "width": 1280,
+          "x": 477,
+          "y": 1522
+        },
+        "evidencePath": "baked-120-experiment/baseline/n-10/01-body",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [],
+        "body": {
+          "scheduleVersion": 2,
+          "loadKind": "low-rate",
+          "pacing": "sparse",
+          "reasoningChunkEvents": 160,
+          "reasoningChunkBytes": 10240,
+          "progressAndTerminalMessages": 30,
+          "progressAndTerminalBytes": 2990,
+          "cardsWithPixelEvidence": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "checkpointLatenciesAreCaptureUpperBounds": true,
+          "observedCheckpoints": 20,
+          "checkpointCaptureUpperBoundMedianSeconds": 0.4526944585,
+          "checkpointCaptureUpperBoundMaximumSeconds": 0.550136209
+        }
+      },
+      {
+        "variant": "cloud-baked",
+        "scenario": "idle.active",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 147965152,
+          "observedCPUSeconds": 0.264011042,
+          "singleCoreCPUPercent": 3.3000620031216648,
+          "finalSampledFootprintBytes": 147621088
+        },
+        "sampledSeconds": 8.000184292,
+        "manifestSHA256": "60e273946d0a6526f7bb8f3b7827927c76d3bfc5292da7b669f22a27e0007f18",
+        "sourceSHA256": "9ab8527fb8d335ff6af4074e14c40581a2ddab0b544a3e43e56d4c32c3812745",
+        "sourceComplete": true,
+        "sourceCounts": {
+          "reasoningChunks": 0,
+          "reasoningBytes": 0,
+          "messages": 10,
+          "messageBytes": 1290
+        },
+        "windowBounds": {
+          "height": 820,
+          "width": 1280,
+          "x": 477,
+          "y": 1522
+        },
+        "evidencePath": "baked-120-experiment/cloud-baked/n-10/00-idle.active",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": []
+      },
+      {
+        "variant": "cloud-baked",
+        "scenario": "body",
+        "count": 10,
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "application": {
+          "sampledPeakFootprintBytes": 150078688,
+          "observedCPUSeconds": 2.994627917,
+          "singleCoreCPUPercent": 37.43973670406177,
+          "finalSampledFootprintBytes": 147866848
+        },
+        "sampledSeconds": 7.99852825,
+        "manifestSHA256": "e555e4a19b44997c02a824028d356cb799b8367bfb90450411d80d8a423d32e9",
+        "sourceSHA256": "e921a01ec942cb4ec05b41ad30a55d60bbdd433127f8e60dc5d663cb99d59587",
+        "sourceComplete": true,
+        "sourceCounts": {
+          "reasoningChunks": 160,
+          "reasoningBytes": 10240,
+          "messages": 30,
+          "messageBytes": 2990
+        },
+        "windowBounds": {
+          "height": 820,
+          "width": 1280,
+          "x": 477,
+          "y": 1522
+        },
+        "evidencePath": "baked-120-experiment/cloud-baked/n-10/01-body",
+        "appPresentEverySample": true,
+        "missingDeclaredRoots": [],
+        "body": {
+          "scheduleVersion": 2,
+          "loadKind": "low-rate",
+          "pacing": "sparse",
+          "reasoningChunkEvents": 160,
+          "reasoningChunkBytes": 10240,
+          "progressAndTerminalMessages": 30,
+          "progressAndTerminalBytes": 2990,
+          "cardsWithPixelEvidence": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "checkpointLatenciesAreCaptureUpperBounds": true,
+          "observedCheckpoints": 20,
+          "checkpointCaptureUpperBoundMedianSeconds": 0.43035616649999997,
+          "checkpointCaptureUpperBoundMaximumSeconds": 0.552680333
+        }
+      }
+    ]
+  },
+  "screenFollowing120FPSAsset": {
+    "scope": "App layer configuration and elapsed-time continuity, not physical presentation FPS",
+    "backgroundDecode": [
+      {
+        "atlasHeight": 4480,
+        "atlasWidth": 4368,
+        "dark": true,
+        "decodedBytes": 78274560,
+        "decodeOnMainThread": false,
+        "encodedBytes": 15979083,
+        "frameCount": 960,
+        "loadMilliseconds": 180.27691665338352
+      }
+    ],
+    "surfaces": [
+      {
+        "file": "baked-cloud-rate-AEE723BE-B905-4D62-A107-BDD0EBC6122C.json",
+        "installedRates": [
+          60,
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          3,
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-04495315-C5A2-4328-A903-38A7C9F03054.json",
+        "installedRates": [
+          60,
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          3,
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-26CE7A4A-437A-47AA-9CD4-84BE257E7FD4.json",
+        "installedRates": [
+          60,
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          3,
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-E2555E8C-742D-4AE1-AABE-35AEB5B75460.json",
+        "installedRates": [
+          60,
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          3,
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-C5C043D1-A641-4832-BB9A-CBD47B5FD180.json",
+        "installedRates": [
+          60,
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          3,
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 8.881784197001252e-16
+      },
+      {
+        "file": "baked-cloud-rate-2836BE77-69E0-4610-A92E-5CB30661F19F.json",
+        "installedRates": [
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-3AA15142-751C-4422-BC6A-B961E596BE9F.json",
+        "installedRates": [
+          60,
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          3,
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-A85DFDCE-D45C-4A78-BDE9-5A30E300D08A.json",
+        "installedRates": [
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-AAC2DB3E-23DD-4F7C-8413-186D5284B87B.json",
+        "installedRates": [
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      },
+      {
+        "file": "baked-cloud-rate-33A14DA2-0E21-4336-97D6-95160D20856B.json",
+        "installedRates": [
+          120,
+          60,
+          120,
+          120
+        ],
+        "displays": [
+          1,
+          3,
+          1,
+          1
+        ],
+        "maximumTimelinePhaseErrorSeconds": 0.0
+      }
+    ],
+    "evidencePath": "baked-120-experiment/screen-following.json",
+    "evidenceSHA256": "58098e3c416cae5e80db9b6083771116a437d02b85de8db576f0d62fb6162a3d"
+  },
+  "limitations": [
+    "Single-machine, one observation per configuration; no statistical performance gate.",
+    "App CPU only. Native hitches and complete descendant lifecycle/exit CPU are unavailable.",
+    "All full benchmark measurement states remain incomplete and comparisons not-comparable.",
+    "Pan rows failed declared trajectory checks and cannot certify optimization gains.",
+    "Post-pan click probe failed on both baseline and candidate, so the probe does not establish restored input capability.",
+    "First-render stack sampling misses approximately the first 0.293 s after process launch; the replacement 1 s sample ends before the scheduled drag probe.",
+    "Original 4 s startup sample overlaps the interaction probe and is retained only as mixed startup/interaction evidence.",
+    "Diagnostic sample stack counts include sampling bias; non-wait counts are not exact CPU percentages and inclusive categories overlap.",
+    "The cloud-30 body retry repeats only the failed scene after an untimed waiting-execution preparation; it does not replace the successful idle observation.",
+    "No GPU time, FPS, energy, N=5/N=20 scaling or combination of candidates was measured.",
+    "30 fps alternatives are superseded by the user requirement; their numbers do not certify the 120 fps candidate.",
+    "120 fps paired observations use the built-in display; older observations use the 60 Hz external display. Do not pool them.",
+    "Configured CA frame-rate requests and 120 fps asset sampling are not physical presentation evidence. Existing capture runs at 5 Hz.",
+    "WindowServer resource inspection was unavailable without elevation. No privileged performance service was started.",
+    "Background decode timing is not end-to-end first-use latency. Initial texture submission/presentation was not measured.",
+    "Fixed 8 s loop, one palette/path, per-card phase, 180x110 frame resolution and opacity fade are prototype styling tradeoffs.",
+    "Display changes were tested by moving the actual owned window; changing system refresh settings, display removal and >120 Hz panels were not tested.",
+    "Production source is unchanged; only this investigation record is committed and merged locally.",
+    "The prototype retains up to two decoded appearance atlases until process exit; all-completed warm-cache footprint was not measured."
+  ],
+  "sources": [
+    "https://developer.apple.com/documentation/xcode/understanding-and-improving-swiftui-performance",
+    "https://developer.apple.com/videos/play/wwdc2025/306/",
+    "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/bsd_kern.c",
+    "https://developer.apple.com/documentation/quartzcore/calayer/contentsrect",
+    "https://developer.apple.com/documentation/quartzcore/caanimation/preferredframeraterange",
+    "https://developer.apple.com/documentation/appkit/nsscreen/maximumframespersecond",
+    "https://developer.apple.com/documentation/appkit/nswindow/didchangescreennotification",
+    "https://developer.apple.com/documentation/appkit/nsapplication/didchangescreenparametersnotification"
+  ],
+  "rawArchive": "/Users/felixwang/Desktop/Mokusei/.scratch/overview-costs-and-styles-20261113",
+  "verification": {
+    "temporaryProductionBundleBuildAndSignature": "passed",
+    "fullLocalSuite": "not-run; unaffected production source",
+    "remoteCI": "not-run; user requested local-only",
+    "workflowDocumentationOnly": false,
+    "documentDiffJSONAndLinks": "passed",
+    "experimentalBuildWarnings": [
+      "One optional-Float diagnostic coercion warning; actual JSON rates were recorded and verified."
+    ],
+    "archivedManifestHashChecks": {
+      "manifests": 119,
+      "sealedFiles": 9860
+    }
+  }
+}
