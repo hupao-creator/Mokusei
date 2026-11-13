@@ -623,14 +623,23 @@ Overview and keeps reading routes and their back actions intact.
 
 The editing-key sequence first observes the native key window/responder and the
 intended DOM editor's focused frame, including the closed-shadow editor. Its
-original 80ms input-observation windows, no-navigation assertions and exact
-word-movement result remain. Each stage additionally requires the actual trusted
-keydown/keyup receipt at that editor before changing focus; elapsed sleep alone
-does not certify that WebKit consumed the previous Escape. Focus and keyboard
-receipts remain in the replay log. The DOM observer only records delivered events;
-it neither dispatches keyboard events nor prevents their default handling.
-Run 43408062312 failed after the closed-shadow keys without such receipts, so
-the old result does not identify the actual event or focus that caused navigation.
+original 80ms host-observation windows, no-navigation assertions and exact
+word-movement result remain. Each stage first requires the actual trusted
+keydown/keyup receipt at that editor before starting that observation interval or
+changing focus. WebKit serializes native keys behind earlier acknowledgements;
+an independent JavaScript snapshot does not flush that queue. An event-driven
+Promise uses the same three-second delivery bound as the existing focus/modal
+synchronization, and fails with the actual receipts if a key never arrives. This
+delivery bound is separate from the unchanged 80/100ms host-observation windows.
+Modal Escape also awaits both events; its native default close intentionally
+restores focus before keyup. The later panel editor completes its receipt before
+the original 100ms observation and body-focus transition. Focus, delivery wait and
+keyboard receipts remain in the replay log. The DOM observer only records delivered
+events; it neither dispatches keyboard events nor prevents their default handling.
+Run 43408062312 failed after the closed-shadow keys without such receipts;
+run 43414088309 sampled only the first three of four events. Those snapshots do
+not establish whether the final event was delayed or lost, nor which event or
+focus caused the earlier navigation.
 
 ```sh
 python3 tools/verification/reading-presentation/run.py --report-navigation
