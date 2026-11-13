@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Observation
+import Synchronization
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -69,6 +70,12 @@ struct NativeLocalChangeFanoutTests {
         let threads = try [thread("target")] + (0..<unrelatedCount).map { try thread(JSONText("thread-\($0)")) }
         let applications = [report("report-target")] + (0..<unrelatedCount).map { report("report-\($0)") }
         try await withFixture(threads: threads, applications: applications) { fixture in
+            let plugin: JSONValue = .object(["key": .text("harness:codex"), "enabled": .bool(true)])
+            try await fixture.patch(["plugins": .array([plugin])])
+            let settingsChanges = Mutex(0)
+            withObservationTracking { _ = fixture.workspace.settingsModel.plugins } onChange: {
+                settingsChanges.withLock { $0 += 1 }
+            }
             let model = fixture.model
             let originalItems = model.items
             let projections = model.projectionVisitCount, visits = model.catalogChangeVisitCount
@@ -120,6 +127,12 @@ struct NativeLocalChangeFanoutTests {
             let previousApplications = try #require(beforeActivity["applicationThreads"]?.catalogValue)
             #expect(currentThreads.sharesStorage(with: previousThreads))
             #expect(currentApplications.sharesStorage(with: previousApplications))
+            #expect(settingsChanges.withLock { $0 } == 0)
+            try await fixture.patch(["plugins": .array([
+                .object(["key": .text("harness:codex"), "enabled": .bool(false)])
+            ])])
+            #expect(settingsChanges.withLock { $0 } == 1)
+            #expect(fixture.workspace.settingsModel.plugins.first?.enabled == false)
             print("LOCAL_CHANGE_FANOUT unrelated=\(unrelatedCount) replacement=\(replacement) contentVisits=1 contentProjections=1 activityVisits=0")
         }
     }
