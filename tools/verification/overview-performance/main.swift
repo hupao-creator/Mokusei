@@ -46,20 +46,20 @@ private func cpuSeconds() -> Double {
     }
 }
 
-private func snapshot(count: Int, variant: Int = 0) throws -> JSONValue {
+private func snapshot(count: Int) throws -> JSONValue {
     let threads = try (0..<count).map { index -> JSONValue in
         let scope = index % 10, tag = (index / 10) % 5
         let name = "主题 \(tag)"
-        return try HarnessThread(id: JSONText("card-\(index)"), harnessID: "codex", revision: index == 0 ? variant : 0,
+        return try HarnessThread(id: JSONText("card-\(index)"), harnessID: "codex", revision: 0,
             sessionState: .null, observation: .init(latestExecution: try PublicExecution(
-                executionID: JSONText("execution-\(index)"), status: index == 0 && variant == 1 ? .running : .completed,
-                startedAt: 1, finishedAt: index == 0 && variant == 1 ? nil : 2)),
-            cwd: JSONText("/fixture/目录-\(scope)"), settings: .object([:]), createdAt: Double(index), updatedAt: Double(index + 2 + (index == 0 ? variant : 0)),
-            title: JSONText("Card \(index) — 界面设计 Café \(index == 0 ? variant : 0)"), tags: [JSONText(name)],
+                executionID: JSONText("execution-\(index)"), status: .completed,
+                startedAt: 1, finishedAt: 2)),
+            cwd: JSONText("/fixture/目录-\(scope)"), settings: .object([:]), createdAt: Double(index), updatedAt: Double(index + 2),
+            title: JSONText("Card \(index) — 界面设计 Café"), tags: [JSONText(name)],
             tagEmojis: [JSONText(name): "🔧"], directoryTag: JSONText("目录-\(scope)"),
             directoryScope: JSONText("/fixture/目录-\(scope)")).json
     }
-    return .object(["revision": .integer(variant), "settingsRevision": .integer(0),
+    return .object(["revision": .integer(0), "settingsRevision": .integer(0),
         "defaultCwd": .text("/fixture"), "settings": .object([:]), "threads": .array(threads),
         "applicationThreads": .array([]), "executions": .array([])])
 }
@@ -85,28 +85,25 @@ private func snapshot(count: Int, variant: Int = 0) throws -> JSONValue {
         let initialThermalState = ProcessInfo.processInfo.thermalState.rawValue
         var records: [[String: Any]] = []
         for count in [0, 5, 30, 100, 500] {
-            let variants = try [snapshot(count: count), snapshot(count: count, variant: 1)]
+            let catalog = try snapshot(count: count)
             var fresh: [Double] = []
             for _ in 0..<5 {
                 let fixture = try Fixture()
                 let start = DispatchTime.now().uptimeNanoseconds
-                try fixture.install(variants[0])
+                try fixture.install(catalog)
                 fresh.append(Double(DispatchTime.now().uptimeNanoseconds - start) / 1e6)
                 guard fixture.model.items.count == count else { throw Failure(message: "Initial membership mismatch") }
                 await fixture.close()
             }
             records.append(["scenario": "fresh-model", "count": count, "iterations": 5, "elapsedMs": fresh])
             let fixture = try Fixture()
-            try fixture.install(variants[0])
+            try fixture.install(catalog)
             let n = count < 100 ? 50 : 20
-            records.append(try measure("catalog-admission", count: count, iterations: n) { i in
-                try fixture.workspace.catalog.install(variants[i % 2])
-            })
-            records.append(try measure("status-update", count: count, iterations: n) { i in
-                try fixture.install(variants[i % 2])
+            records.append(try measure("unchanged-catalog-admission", count: count, iterations: n) { _ in
+                try fixture.workspace.catalog.install(catalog)
             })
             records.append(try measure("unchanged-delivery", count: count, iterations: n) { _ in
-                try fixture.install(variants[0])
+                try fixture.install(catalog)
             })
             records.append(measure("warm-reconcile", count: count, iterations: n) { _ in
                 fixture.model.refreshCardExtensions()
@@ -116,10 +113,6 @@ private func snapshot(count: Int, variant: Int = 0) throws -> JSONValue {
                 fixture.model.selectTag(i.isMultiple(of: 3) || filters.isEmpty ? nil : filters[i % filters.count])
             })
             fixture.model.selectTag(nil)
-            records.append(measure("leave-return", count: count, iterations: n) { _ in
-                fixture.model.setPresentation(.init(overviewVisible: false))
-                fixture.model.setPresentation(.init(overviewVisible: true))
-            })
             fixture.model.beginSearch()
             records.append(measure("keyword-search", count: count, iterations: n) { i in
                 fixture.model.updateSearch(i.isMultiple(of: 2) ? "Café" : "no-match")

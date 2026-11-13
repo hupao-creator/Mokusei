@@ -1,0 +1,16 @@
+# External measurement references
+
+These sources inform measurement boundaries, not the product oracle. The
+benchmark does not link them into Mokusei or replace its production renderer.
+Reviewed 2026-11-12; source revisions are pinned below.
+
+- [ordo-one Benchmark](https://github.com/ordo-one/benchmark/blob/7d991b052ae06c4065c54cafedb8c9b9667ffed0/Sources/Benchmark/Documentation.docc/WritingBenchmarks.md): explicit setup/measurement/teardown, configurable metric sets, declared units and warmups. Its [Darwin producer](https://github.com/ordo-one/benchmark/blob/7d991b052ae06c4065c54cafedb8c9b9667ffed0/Sources/Benchmark/OperatingSystemStats/OperatingSystemStatsProducer%2BDarwin.swift) samples peaks separately from cumulative CPU. Adopt these distinctions and retain probe cost. Its own-process accounting and allocator instrumentation do not establish complete external process-tree accounting.
+- [Swift Collections Benchmark timer](https://github.com/apple/swift-collections-benchmark/blob/e9e8df493e3d8f9285103415176e52966c37a764/Sources/CollectionsBenchmark/Basics/Timer.swift): explicit nested timing boundaries and repeated workload sizes. Adopt fixed inputs and separately declared phases. Do not import its microbenchmark zero-duration substitution into an evidence protocol: missing/invalid clock values here fail validation.
+- [TCA benchmarks](https://github.com/pointfreeco/swift-composable-architecture/blob/bf66bd83f3165fe4f5fdb9a6c99249276505723e/Benchmarks/Benchmarks/swift-composable-architecture-benchmark/Benchmarks.swift): construct state outside timed send/access operations, while timing construction in its own case. Likewise fixture creation is outside first-render measurement; application launch, idle, navigation and active output are distinct cases. TCA's internal Store benchmark cannot substitute for external presentation evidence.
+- [Nonstrict ScreenCaptureKit example](https://github.com/nonstrict-hq/ScreenCaptureKit-Recording-example/blob/5387e82340d961302cef4550178e211fd7f49d22/Sources/sckrecording/main.swift): dedicated sample queue, complete-frame validation, pixel/point scaling and explicit writer backpressure. Preserve original capture times and frame status. The example repeats the final frame to finish a video; such a repeated frame must never be counted as new presented progress by this benchmark. Dropped frames are accounting gaps, not silently repaired samples.
+- [Apple frame display time](https://developer.apple.com/documentation/screencapturekit/scstreamframeinfo/displaytime): distinguish WindowServer display time from callback arrival and OCR completion. Neither capture cadence nor callback count is physical display FPS.
+- [Apple application hitch metric](https://developer.apple.com/documentation/xctest/xcthitchmetric): target the application externally, retain the real identifiers/units, and prove capability with live normal/stalled/wrong-owner controls. XCTest's local SDK explicitly documents `iterationCount + 1` invocations with the first discarded; only the measured invocation may dispatch formal product load.
+
+The inference applied here is to combine explicit timed phases, raw OS evidence
+and business-content observations. In-process library benchmarks, single final
+snapshots, or playback-friendly recordings alone do not cover the same boundary.

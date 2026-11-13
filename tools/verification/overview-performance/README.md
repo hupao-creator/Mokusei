@@ -13,7 +13,24 @@ and continuing foreground measurements use the
 [Actions Release comparison](../overview-ci-performance/README.md). The historical
 numbers are not reinterpreted as current measurements.
 
-## Contract and scenario matrix
+## Current diagnostic boundary
+
+The runnable CPU probe no longer includes `status-update` or `leave-return`.
+Its former two-snapshot loop toggled one execution between running/completed
+while also changing its title; that is not a normal task lifecycle or a useful
+rendering workload. Catalog admission now repeats one stable completed snapshot
+and is named `unchanged-catalog-admission`. Other remaining cases measure initial
+projection, unchanged delivery, reconciliation, filters, search and the layout
+solver as separate internal CPU diagnostics, not external rendering scenarios.
+
+`run.py measure` rejects cached binaries built from an obsolete workload source,
+so removing the loop cannot leave it active through a previously built label.
+Historical `status-update`, `catalog-admission` and `leave-return` records remain
+archived; they are not reclassified as current business-performance evidence.
+Use the [standalone benchmark](../../benchmarks/README.md) for existing-card first
+render, completed/running idle, pan, body output and body output during pan.
+
+## Historical contract and scenario matrix
 
 Reduce measured work without changing card membership, content, ordering,
 geometry, transitions, glass, controls, focus or accessibility. No frame-rate

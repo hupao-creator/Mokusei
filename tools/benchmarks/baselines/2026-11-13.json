@@ -1,0 +1,842 @@
+{
+  "version": 1,
+  "baselineId": "overview-20261113-bf567ec-observed",
+  "baselineKind": "single-observation-incomplete",
+  "sourceRevision": "bf567ec77ccc5058a3384e288135302dfb91d81d",
+  "artifact": {
+    "channel": "production",
+    "configuration": "release",
+    "executableSHA256": "c38c09e8f29bb51f86f5237c06e335d9db398de66aa3cb04e7792498374f0ea6",
+    "files": {
+      "Contents/MacOS/Mokusei": "c38c09e8f29bb51f86f5237c06e335d9db398de66aa3cb04e7792498374f0ea6",
+      "Contents/MacOS/MokuseiEmbedding": "0db30a1a3627cb33521e280dc07ebe83dd7c2f244a60c553d42d7e134eb9fcc0",
+      "Contents/MacOS/mokusei-runtime": "f2353fb25f0451eb51c49219626e3d6241c2ccd20d6996e38da4ae29ca2f42a2"
+    },
+    "provenance": {
+      "channel": "production",
+      "configuration": "release",
+      "embeddingInputSHA256": "abcab7b955563397e3c8b82d7ad114650dde81ee50d4f3a7265e80b16b3027e2",
+      "executableInputSHA256": "405645bf643b975f5a8c468eda101c0c5049017da2ae3eb6834cf3890704b6e4",
+      "runtimeInputSHA256": "9ee211180db393487a8dbeaa7ceed942e7bb274f70c9d5408d4de8af9d4d8a8e"
+    }
+  },
+  "nativeCLI": {
+    "version": "codex-cli 0.167.0-alpha.3.2",
+    "sha256": "a636331ed87605efc4cf84028ac2884a75363f9d10ead63cffb57ea0016d486e"
+  },
+  "collectorSHA256": "2f4d441fb15c6d158289124b2701df77e82aed43056c3719a98ba0c3d0185b2a",
+  "toolBuild": {
+    "sourceHash": "cfbdba245c62c63a24fab5fd27da0f5b1d5cd4fdb28d2bb88a8a9721557818b9",
+    "toolchain": "Xcode 26.5\nBuild version 17F42\n",
+    "cpuClockCheck": {
+      "processClockNS": 200005000,
+      "samplerNS": 200018541,
+      "ratio": 1.000067703,
+      "timebaseNumer": 125,
+      "timebaseDenom": 3
+    }
+  },
+  "host": {
+    "hardware": {
+      "hw.model": "MacBookPro18,3",
+      "hw.ncpu": "10",
+      "hw.memsize": "17179869184",
+      "machdep.cpu.brand_string": "Apple M1 Pro"
+    },
+    "os": "Version 26.5.1 (Build 25F80)",
+    "screens": [
+      {
+        "height": 1440,
+        "scale": 2,
+        "width": 2560
+      },
+      {
+        "height": 982,
+        "scale": 2,
+        "width": 1512
+      }
+    ],
+    "powerSource": "AC Power"
+  },
+  "collection": {
+    "startedAt": "2026-11-13T09:16:20.068443+08:00",
+    "finishedAt": "2026-11-13T09:27:12.404815+08:00",
+    "exitStatus": 2,
+    "elapsedSeconds": 652.3343574160244,
+    "mode": "observed",
+    "nativeHitches": "attempted-unvalidated",
+    "windowPoints": {
+      "width": 1280,
+      "height": 820
+    },
+    "scale": 2,
+    "sampleHz": 10,
+    "captureHz": 5,
+    "formalSeconds": 8,
+    "warmupSeconds": 1,
+    "tailSeconds": 2,
+    "pacing": "sparse",
+    "workloadScheduleVersion": 2,
+    "repetitionsPerCollectedCell": 1
+  },
+  "plannedCellCount": 18,
+  "collectedCellCount": 12,
+  "completeValidCellCount": 0,
+  "statisticalRegressionGate": false,
+  "layoutScore": false,
+  "completeProcessTreeCost": false,
+  "localEvidenceDirectory": ".scratch/overview-baseline-20261113-bf567ec",
+  "rawSummarySHA256": "861ce020b1d303c3cc0e62003a20871a62ffe73eb9bfd901545582807d21e465",
+  "limitations": [
+    "Native hitch sensitivity was not established; reported zeros cannot certify responsiveness.",
+    "Descendant lifecycle and exit CPU accounting are incomplete.",
+    "Six startup/pan/body.pan cells have retained motion-trajectory failures.",
+    "Startup first-content times are left-censored capture upper bounds; startup resource boundaries were not covered.",
+    "The repaired default collector does not run XCTest. Do not pool this original collector configuration with later admin-free runs as a strict scaling comparison."
+  ],
+  "results": [
+    {
+      "count": 5,
+      "scenario": "first-render",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "wrong-result",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "warmup resource boundary coverage absent",
+        "formal resource boundary coverage absent",
+        "wholeObservation resource boundary coverage absent",
+        "unsealed observed evidence: hitch.json",
+        "continuous capture coverage gap",
+        "observed business displacement differs from the declared input trajectory",
+        "application hitch collector unavailable",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": null,
+      "presentation": {
+        "firstRecognizableBusinessContentSeconds": 1.086893667,
+        "firstSuccessfulInteractionProbeSeconds": null,
+        "usableTimeIsUpperBoundAtScheduledProbe": true,
+        "firstContentObservationIsUpperBound": true,
+        "firstContentLeftCensored": true
+      },
+      "pan": {
+        "firstVisibleResponseSeconds": 0.294223291,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.028576208,
+          "upper": 0.294223291
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.294223291,
+        "noProgressSecondsBounds": {
+          "lower": 0.028576208,
+          "upper": 0.453249708
+        },
+        "maximumTrajectoryErrorPixels": 20.160620469673145
+      },
+      "body": null,
+      "rawReport": "run/n-5/00-first-render/report.json"
+    },
+    {
+      "count": 5,
+      "scenario": "idle.completed",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 53412920,
+        "observedCPUSeconds": 0.033287541,
+        "singleCoreCPUPercent": 0.416140915797982,
+        "finalSampledFootprintBytes": 53380152
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.211871334,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.0,
+          "upper": 0.211871334
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.211871334,
+        "noProgressSecondsBounds": {
+          "lower": 0.004983583,
+          "upper": 0.462701291
+        },
+        "maximumTrajectoryErrorPixels": 8.177628379096824
+      },
+      "body": null,
+      "rawReport": "run/n-5/01-idle.completed/report.json"
+    },
+    {
+      "count": 5,
+      "scenario": "idle.active",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 92619856,
+        "observedCPUSeconds": 2.278865792,
+        "singleCoreCPUPercent": 28.481165134956115,
+        "finalSampledFootprintBytes": 92537936
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.201014,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.0,
+          "upper": 0.201014
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.201014,
+        "noProgressSecondsBounds": {
+          "lower": 2.7875e-05,
+          "upper": 0.452476959
+        },
+        "maximumTrajectoryErrorPixels": 11.857823704745273
+      },
+      "body": null,
+      "rawReport": "run/n-5/02-idle.active/report.json"
+    },
+    {
+      "count": 5,
+      "scenario": "pan",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "wrong-result",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "observed business displacement differs from the declared input trajectory",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 83559504,
+        "observedCPUSeconds": 1.57707425,
+        "singleCoreCPUPercent": 19.71257257963747,
+        "finalSampledFootprintBytes": 83444816
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.258636417,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.005599542,
+          "upper": 0.258636417
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.258636417,
+        "noProgressSecondsBounds": {
+          "lower": 0.005599542,
+          "upper": 0.457926292
+        },
+        "maximumTrajectoryErrorPixels": 22.5404866416648
+      },
+      "body": null,
+      "rawReport": "run/n-5/03-pan/report.json"
+    },
+    {
+      "count": 5,
+      "scenario": "body",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "declared process root missing from sample",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 97715280,
+        "observedCPUSeconds": 2.914417625,
+        "singleCoreCPUPercent": 36.43447119056843,
+        "finalSampledFootprintBytes": 96568400
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.199734125,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.0,
+          "upper": 0.199734125
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.204749959,
+        "noProgressSecondsBounds": {
+          "lower": 0.003229958,
+          "upper": 0.457287125
+        },
+        "maximumTrajectoryErrorPixels": 11.162794555924677
+      },
+      "body": {
+        "scheduleVersion": 2,
+        "loadKind": "low-rate",
+        "pacing": "sparse",
+        "cardTiming": "staggered-within-packet-interval",
+        "observedCheckpointLatenciesSeconds": [
+          0.446397292,
+          0.450167666,
+          0.550955291,
+          0.547956958,
+          0.449138583,
+          0.44766425,
+          0.347711458,
+          0.449413084,
+          0.351076834,
+          0.450691417
+        ],
+        "maximumVisibleNoProgressSeconds": 3.599491208,
+        "checkpointLatenciesAreCaptureUpperBounds": true,
+        "continuousCardStasisSecondsBounds": {
+          "lower": 3.546772042,
+          "upper": 4.055198542
+        },
+        "expectedMessageIntervalSeconds": 4.0,
+        "reasoningChunkEvents": 80,
+        "reasoningChunkBytes": 5120,
+        "progressAndTerminalMessages": 15,
+        "progressAndTerminalBytes": 1495,
+        "cardsWithPixelEvidence": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "perFragmentFrameRequired": false,
+        "continuouslyObservedCardStallsSeconds": {
+          "1": 3.800606667,
+          "3": 3.7980385,
+          "2": 3.597625834,
+          "4": 3.599491208,
+          "5": 3.800985292
+        }
+      },
+      "rawReport": "run/n-5/04-body/report.json"
+    },
+    {
+      "count": 5,
+      "scenario": "body.pan",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "wrong-result",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "observed business displacement differs from the declared input trajectory",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 99255376,
+        "observedCPUSeconds": 4.190634166,
+        "singleCoreCPUPercent": 52.38292134561798,
+        "finalSampledFootprintBytes": 94782544
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.250551375,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.007874125,
+          "upper": 0.250551375
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.250551375,
+        "noProgressSecondsBounds": {
+          "lower": 0.007874125,
+          "upper": 0.464833042
+        },
+        "maximumTrajectoryErrorPixels": 23.72764788906533
+      },
+      "body": {
+        "scheduleVersion": 2,
+        "loadKind": "low-rate",
+        "pacing": "sparse",
+        "cardTiming": "staggered-within-packet-interval",
+        "observedCheckpointLatenciesSeconds": [
+          0.454275916,
+          0.450557125,
+          0.549246791,
+          0.549956708,
+          0.451996375,
+          0.364985666,
+          0.364537375,
+          0.44914375,
+          1.663447458,
+          1.461963041
+        ],
+        "maximumVisibleNoProgressSeconds": 3.6132,
+        "checkpointLatenciesAreCaptureUpperBounds": true,
+        "continuousCardStasisSecondsBounds": {
+          "lower": 3.5465318330000004,
+          "upper": 4.078899667
+        },
+        "expectedMessageIntervalSeconds": 4.0,
+        "reasoningChunkEvents": 80,
+        "reasoningChunkBytes": 5120,
+        "progressAndTerminalMessages": 15,
+        "progressAndTerminalBytes": 1495,
+        "cardsWithPixelEvidence": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "perFragmentFrameRequired": false,
+        "continuouslyObservedCardStallsSeconds": {
+          "1": 2.197569042,
+          "3": 2.197569042,
+          "2": 3.615436334,
+          "4": 3.6132,
+          "5": 3.81271575
+        }
+      },
+      "rawReport": "run/n-5/05-body.pan/report.json"
+    },
+    {
+      "count": 10,
+      "scenario": "first-render",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "wrong-result",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "warmup resource boundary coverage absent",
+        "formal resource boundary coverage absent",
+        "wholeObservation resource boundary coverage absent",
+        "unsealed observed evidence: hitch.json",
+        "continuous capture coverage gap",
+        "observed business displacement differs from the declared input trajectory",
+        "application hitch collector unavailable",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": null,
+      "presentation": {
+        "firstRecognizableBusinessContentSeconds": 1.071393792,
+        "firstSuccessfulInteractionProbeSeconds": null,
+        "usableTimeIsUpperBoundAtScheduledProbe": true,
+        "firstContentObservationIsUpperBound": true,
+        "firstContentLeftCensored": true
+      },
+      "pan": {
+        "firstVisibleResponseSeconds": 0.249511917,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.004902584,
+          "upper": 0.249511917
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.249511917,
+        "noProgressSecondsBounds": {
+          "lower": 0.004902584,
+          "upper": 0.44923275
+        },
+        "maximumTrajectoryErrorPixels": 23.40065269695923
+      },
+      "body": null,
+      "rawReport": "run/n-10/00-first-render/report.json"
+    },
+    {
+      "count": 10,
+      "scenario": "idle.completed",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 65799248,
+        "observedCPUSeconds": 0.041542167,
+        "singleCoreCPUPercent": 0.5192497835939106,
+        "finalSampledFootprintBytes": 65586256
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.203475542,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.0,
+          "upper": 0.203475542
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.203475542,
+        "noProgressSecondsBounds": {
+          "lower": 0,
+          "upper": 0.452652167
+        },
+        "maximumTrajectoryErrorPixels": 11.6337591850265
+      },
+      "body": null,
+      "rawReport": "run/n-10/01-idle.completed/report.json"
+    },
+    {
+      "count": 10,
+      "scenario": "idle.active",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "declared process root missing from sample",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 147948696,
+        "observedCPUSeconds": 2.757200125,
+        "singleCoreCPUPercent": 34.47246161864716,
+        "finalSampledFootprintBytes": 145425560
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.205569875,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.0,
+          "upper": 0.205569875
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.201914583,
+        "noProgressSecondsBounds": {
+          "lower": 0.000817708,
+          "upper": 0.454449459
+        },
+        "maximumTrajectoryErrorPixels": 8.44338265455447
+      },
+      "body": null,
+      "rawReport": "run/n-10/02-idle.active/report.json"
+    },
+    {
+      "count": 10,
+      "scenario": "pan",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "wrong-result",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "observed business displacement differs from the declared input trajectory",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 124617880,
+        "observedCPUSeconds": 2.004606041,
+        "singleCoreCPUPercent": 25.058891624282275,
+        "finalSampledFootprintBytes": 124601496
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.261513459,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.004344292,
+          "upper": 0.261513459
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.261513459,
+        "noProgressSecondsBounds": {
+          "lower": 0.004344292,
+          "upper": 0.457775875
+        },
+        "maximumTrajectoryErrorPixels": 23.62375719928798
+      },
+      "body": null,
+      "rawReport": "run/n-10/03-pan/report.json"
+    },
+    {
+      "count": 10,
+      "scenario": "body",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "declared process root missing from sample",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 155059376,
+        "observedCPUSeconds": 5.190066875,
+        "singleCoreCPUPercent": 64.86761430794145,
+        "finalSampledFootprintBytes": 150750384
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.217774916,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.0,
+          "upper": 0.217774916
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.204766583,
+        "noProgressSecondsBounds": {
+          "lower": 0,
+          "upper": 0.454572167
+        },
+        "maximumTrajectoryErrorPixels": 8.4104073347548
+      },
+      "body": {
+        "scheduleVersion": 2,
+        "loadKind": "low-rate",
+        "pacing": "sparse",
+        "cardTiming": "staggered-within-packet-interval",
+        "observedCheckpointLatenciesSeconds": [
+          0.413266875,
+          0.462256334,
+          0.408389792,
+          0.458921,
+          0.359238625,
+          0.50792175,
+          0.559141084,
+          0.506960458,
+          0.4058765,
+          0.457859458,
+          0.407103875,
+          0.457266959,
+          0.359020625,
+          0.40885525,
+          0.359556291,
+          0.458545375,
+          0.509829791,
+          0.506873917,
+          0.406838625,
+          0.457402125
+        ],
+        "maximumVisibleNoProgressSeconds": 3.601422459,
+        "checkpointLatenciesAreCaptureUpperBounds": true,
+        "continuousCardStasisSecondsBounds": {
+          "lower": 3.534801625,
+          "upper": 4.069701375
+        },
+        "expectedMessageIntervalSeconds": 4.0,
+        "reasoningChunkEvents": 160,
+        "reasoningChunkBytes": 10240,
+        "progressAndTerminalMessages": 30,
+        "progressAndTerminalBytes": 2990,
+        "cardsWithPixelEvidence": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "perFragmentFrameRequired": false,
+        "continuouslyObservedCardStallsSeconds": {
+          "2": 3.795411833,
+          "1": 3.795411833,
+          "6": 3.800086,
+          "5": 3.800086,
+          "7": 3.800086,
+          "4": 3.800086,
+          "3": 3.599542208,
+          "8": 3.8022515,
+          "10": 3.8022515,
+          "9": 3.8022515
+        }
+      },
+      "rawReport": "run/n-10/04-body/report.json"
+    },
+    {
+      "count": 10,
+      "scenario": "body.pan",
+      "execution": "collected",
+      "measurement": "incomplete",
+      "product": "wrong-result",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "observed business displacement differs from the declared input trajectory",
+        "hitch capability lacks successful normal/stall/ownership controls",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "appFormal": {
+        "sampledPeakFootprintBytes": 155845808,
+        "observedCPUSeconds": 6.647224209,
+        "singleCoreCPUPercent": 83.07375232726635,
+        "finalSampledFootprintBytes": 149013656
+      },
+      "presentation": null,
+      "pan": {
+        "firstVisibleResponseSeconds": 0.263111666,
+        "firstVisibleResponseSecondsBounds": {
+          "lower": 0.007635916,
+          "upper": 0.263111666
+        },
+        "responseDisplacementThresholdPixels": 3,
+        "maximumNoProgressSeconds": 0.425775917,
+        "noProgressSecondsBounds": {
+          "lower": 0.007635916,
+          "upper": 0.862209667
+        },
+        "maximumTrajectoryErrorPixels": 20.244726847902832
+      },
+      "body": {
+        "scheduleVersion": 2,
+        "loadKind": "low-rate",
+        "pacing": "sparse",
+        "cardTiming": "staggered-within-packet-interval",
+        "observedCheckpointLatenciesSeconds": [
+          0.415130791,
+          0.4639105,
+          0.464036375,
+          0.51373175,
+          0.563028708,
+          0.4140545,
+          0.464418833,
+          0.412360375,
+          0.462345041,
+          0.461468958,
+          0.5113065,
+          0.562649417,
+          0.41114025,
+          0.462632792
+        ],
+        "maximumVisibleNoProgressSeconds": 3.598121,
+        "checkpointLatenciesAreCaptureUpperBounds": true,
+        "continuousCardStasisSecondsBounds": {
+          "lower": 3.3208847919999998,
+          "upper": 4.285903626
+        },
+        "expectedMessageIntervalSeconds": 4.0,
+        "reasoningChunkEvents": 160,
+        "reasoningChunkBytes": 10240,
+        "progressAndTerminalMessages": 30,
+        "progressAndTerminalBytes": 2990,
+        "cardsWithPixelEvidence": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          9,
+          10
+        ],
+        "perFragmentFrameRequired": false,
+        "continuouslyObservedCardStallsSeconds": {
+          "2": 3.803394209,
+          "1": 3.803394209,
+          "5": 3.7994955,
+          "4": 3.7994955,
+          "3": 3.7994955,
+          "10": 3.797407667,
+          "9": 3.797407667
+        }
+      },
+      "rawReport": "run/n-10/05-body.pan/report.json"
+    },
+    {
+      "count": 20,
+      "scenario": "first-render",
+      "execution": "not-measured",
+      "measurement": "incomplete",
+      "product": "unknown",
+      "comparison": "not-comparable",
+      "reasons": [
+        "N=20 preparation did not complete; no formal measurements exist. Further collection was stopped at the user request."
+      ],
+      "appFormal": null,
+      "presentation": null,
+      "pan": null,
+      "body": null
+    },
+    {
+      "count": 20,
+      "scenario": "idle.completed",
+      "execution": "not-measured",
+      "measurement": "incomplete",
+      "product": "unknown",
+      "comparison": "not-comparable",
+      "reasons": [
+        "N=20 preparation did not complete; no formal measurements exist. Further collection was stopped at the user request."
+      ],
+      "appFormal": null,
+      "presentation": null,
+      "pan": null,
+      "body": null
+    },
+    {
+      "count": 20,
+      "scenario": "idle.active",
+      "execution": "not-measured",
+      "measurement": "incomplete",
+      "product": "unknown",
+      "comparison": "not-comparable",
+      "reasons": [
+        "N=20 preparation did not complete; no formal measurements exist. Further collection was stopped at the user request."
+      ],
+      "appFormal": null,
+      "presentation": null,
+      "pan": null,
+      "body": null
+    },
+    {
+      "count": 20,
+      "scenario": "pan",
+      "execution": "not-measured",
+      "measurement": "incomplete",
+      "product": "unknown",
+      "comparison": "not-comparable",
+      "reasons": [
+        "N=20 preparation did not complete; no formal measurements exist. Further collection was stopped at the user request."
+      ],
+      "appFormal": null,
+      "presentation": null,
+      "pan": null,
+      "body": null
+    },
+    {
+      "count": 20,
+      "scenario": "body",
+      "execution": "not-measured",
+      "measurement": "incomplete",
+      "product": "unknown",
+      "comparison": "not-comparable",
+      "reasons": [
+        "N=20 preparation did not complete; no formal measurements exist. Further collection was stopped at the user request."
+      ],
+      "appFormal": null,
+      "presentation": null,
+      "pan": null,
+      "body": null
+    },
+    {
+      "count": 20,
+      "scenario": "body.pan",
+      "execution": "not-measured",
+      "measurement": "incomplete",
+      "product": "unknown",
+      "comparison": "not-comparable",
+      "reasons": [
+        "N=20 preparation did not complete; no formal measurements exist. Further collection was stopped at the user request."
+      ],
+      "appFormal": null,
+      "presentation": null,
+      "pan": null,
+      "body": null
+    }
+  ]
+}

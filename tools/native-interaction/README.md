@@ -216,8 +216,10 @@ The runner exercises history, work visibility, scrolling, rejected Settings
 entry and stale-handle rejection, then makes seeded choices from mounted controls.
 Its disclosure traversal only operates on controls actually mounted by the reader.
 Ordinary Agent detail shows execution summaries without tool/thinking disclosures;
-fixture tool records do not establish nested-tool coverage there. A fixture with
-more than 120 completed turns exercises the earlier-history window. The
+fixture tool records do not establish nested-tool coverage there. Large completed
+histories exercise the virtualized directory; selecting an entry loads only that
+execution's body. The ordinary Agent reader does not load preceding executions
+when the document reaches the top. The
 [production reading launcher](../verification/thread-interaction/README.md) provides
 that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from
 the same fixture before replay. Replay resolves each recorded logical control ID
@@ -234,3 +236,17 @@ actions. Independent Harness seats use `<section>.harness.<id>`; inherited mode
 shows read-only execution fields, while off hides execution fields.
 Moku's model selection preferences switch (`moku.routingEnabled`) is
 directly visible; enabling it reveals the `moku.routingGuidance` editor.
+
+## External benchmark scenario entry
+
+`--benchmark-scenario overview` requires both an explicit `--data-dir` and
+`--automation-socket`. The App records onboarding completion in that profile
+before constructing its ordinary workspace. This prepares the scenario without
+changing card data, layout, renderer, input handling or Runtime behavior. Use a
+fresh isolated profile. The external [rendering benchmark](../benchmarks/README.md)
+creates tasks through public Moku/Runtime commands and uses OS input and pixels
+for measurement; it does not write preference/database/session files.
+
+The Overview benchmark entry also requests a fixed 1280 × 820 initial window
+and disables scene restoration for that explicit scenario. This removes saved
+window geometry as a startup variable; the OS bounds remain externally verified.
