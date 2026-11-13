@@ -94,4 +94,15 @@ def validate_hit(record):
                 'AXButton','AXTextField','AXTextArea','AXComboBox','AXPopUpButton','AXLink','AXSlider'):
             raise ValueError('mouse-down hit a card or interactive control')
         if identifier=='overview.canvas':return
-    raise ValueError('mouse-down does not hit the public Overview canvas')
+    # SwiftUI's hit-test can return its full-window hosting containers instead
+    # of the separately exposed semantic canvas. Accept only that specific
+    # container chain, after the point was checked inside the canvas bounds.
+    # This is still a candidate, not a gesture-acceptance receipt; actual pixel
+    # motion must establish acceptance during the measured interaction.
+    chain=hit['elements']
+    if len(chain)>=2 and chain[-1].get('AXRole')=='AXApplication':
+        window=chain[-2]
+        if window.get('AXRole')=='AXWindow' and window.get('AXIdentifier')=='workspace' and window.get('bounds')==owner['bounds'] and all(
+                row.get('AXRole')=='AXGroup' and not row.get('AXIdentifier') and row.get('bounds')==owner['bounds'] for row in chain[:-2]):
+            return
+    raise ValueError('mouse-down does not hit the canvas or its verified workspace container')

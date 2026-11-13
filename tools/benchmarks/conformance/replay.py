@@ -433,6 +433,18 @@ def main():
         partial['hitTest']=hit
         partial_plan={**planned,'events':[{'kind':'down',**hit['point']}]}
         assert validate_preparation(partial,partial_plan)=='same-window';count+=1
+        hosted=copy.deepcopy(partial)
+        hosted['hitTest']['elements']=[{'AXRole':'AXGroup','bounds':copy.deepcopy(owner['bounds'])},
+            {'AXRole':'AXWindow','AXIdentifier':'workspace','bounds':copy.deepcopy(owner['bounds'])},{'AXRole':'AXApplication'}]
+        assert validate_preparation(hosted,partial_plan)=='same-window';count+=1
+        for fault in ('unbounded-group','other-window','text-hit'):
+            bad=copy.deepcopy(hosted)
+            if fault=='unbounded-group':bad['hitTest']['elements'][0]['bounds']['width']-=10
+            elif fault=='other-window':bad['hitTest']['elements'][-2]['AXIdentifier']='settings'
+            else:bad['hitTest']['elements'][0]['AXRole']='AXStaticText'
+            try:validate_preparation(bad,partial_plan)
+            except ValueError:count+=1
+            else:raise AssertionError('unverified hosting-container hit accepted: '+fault)
         for fault in ('card','control','wrong-owner','moved-window','wrong-point','incomplete','no-canvas'):
             bad=copy.deepcopy(partial)
             h=bad['hitTest']

@@ -72,7 +72,11 @@ counts are retained and checked; a changed set cannot produce a passing outcome.
 Before timing, one public Accessibility observation locates a mouse-down gap
 outside exposed card/control rectangles. A separate system-wide AX hit-test
 checks the selected point's complete ancestry, owner and unchanged window,
-requiring the public canvas and rejecting cards or interactive controls.
+rejecting cards and interactive controls. A semantic canvas hit is accepted;
+SwiftUI may instead return only full-window anonymous hosting groups under the
+public `workspace` window. That specific bounded container chain is accepted
+as a candidate inside the independently observed canvas bounds, not as proof
+that a gesture was accepted. Unknown/smaller containers and other windows fail.
 Virtualized cards need not all appear in the AX tree; the fixed existing card
 set is checked separately through public fixture/UI identities. This is input preparation, not a
 layout score or visible-card quota. Missing geometry or a blocked point cannot
@@ -220,6 +224,12 @@ Incomplete measurements cannot produce a passing comparison. No statistical
 regression gate, formal A/B inference, physical FPS, energy or GPU claims are
 made. Fixed-count summaries permit inspection of scaling of individual observed
 metrics with their coverage limitations.
+
+The retained [2026-11-13 observation](baselines/2026-11-13.md) and
+[machine-readable data](baselines/2026-11-13.json) preserve the original
+incomplete 5/10-card measurements. N=20 is explicitly unmeasured; the user
+stopped further collection. This snapshot is not a regression gate and belongs
+to the original collector configuration, not the later default without XCTest.
 
 ## Verification boundary
 
