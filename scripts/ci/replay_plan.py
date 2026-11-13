@@ -61,8 +61,8 @@ def replay_groups(go_executable, output):
                                "-artifacts", str(output / "settings")]),
             ("note-exposure", go + ["./tools/verification/moku", "-swift-note-exposure"]),
             *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name]
-                     + (["--native-owned"] if name in {"moku-execution-links", "rolling-numbers"} else []))
-              for name in ["browser-dialogs", "application-navigation", "workspace-lifecycle", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
+                     + (["--native-owned"] if name in {"local-images", "moku-execution-links", "rolling-numbers"} else []))
+              for name in ["browser-dialogs", "application-navigation", "workspace-lifecycle", "local-images", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
                            "settings-transition", "isolated-input"]],
             ("thread-send-feedback", [sys.executable, "tools/verification/reading-presentation/run.py", "--thread-send-feedback-native"]),
             ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
