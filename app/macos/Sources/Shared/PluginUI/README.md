@@ -1015,6 +1015,15 @@ timeline or nested hosting graph. The existing seeded, point-space
 Palette colors resolve from the current SwiftUI environment into premultiplied
 linear components; the native drawable declares the same linear working space.
 
+The soft cloud field renders at half the backing-pixel width and height, then
+scales to the same layer bounds. The shader maps actual drawable pixels back to
+logical points, preserving positions, radii and the live motion path. Text and
+card borders keep their own original resolution. The existing maximum-rate
+driver is unchanged; this reduces spatial samples, not animation frequency.
+The tradeoff is softer cloud detail, particularly under magnification. The
+[candidate measurements](../../../../../tools/benchmarks/baselines/2026-11-13-live-cloud-candidates.md)
+record the observed GPU/memory benefit and the absence of body-update CPU gains.
+
 The native view retains its seed and epoch across running, palette and visibility
 updates. It interpolates light intensity over 0.4 seconds, including reversals,
 without publishing per-frame SwiftUI state; fading final layer opacity would not
