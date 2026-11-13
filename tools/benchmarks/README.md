@@ -231,6 +231,29 @@ incomplete 5/10-card measurements. N=20 is explicitly unmeasured; the user
 stopped further collection. This snapshot is not a regression gate and belongs
 to the original collector configuration, not the later default without XCTest.
 
+The [runtime-clock optimization observation](baselines/2026-11-13-runtime-clock.md)
+uses the later default collector for two 10-card scenarios. It records signed
+before/after artifacts and App CPU samples, while retaining incomplete process
+coverage and unavailable hitch status. It is not a statistical regression result.
+
+The [rendering-cost investigation](baselines/2026-11-13-rendering-costs.md)
+separates six scenario profiles from measured style candidates. It includes a
+120 fps pre-rendered cloud prototype, actual 60/120 Hz window transitions and
+paired App CPU observations on the 120 Hz display. Playback configuration is
+not physical FPS evidence; the product changes remain unshipped experiments.
+
+The historical [production combination](baselines/2026-11-13-combined-rendering.md)
+paired equal voice-availability notification suppression with pre-rendered clouds.
+Pre-rendered playback has since been removed after reported stutter; the live
+Metal cloud, notification suppression and original body reveal are retained.
+Its CPU figures apply to the recorded combination, not the current product.
+The original incomplete measurement status and invalid startup remain explicit.
+
+The [shared pre-rendered follow-up](baselines/2026-11-13-shared-prebaked.md)
+tests one masked player per palette on top of that production change. N10 App
+CPU was effectively unchanged after a matched idle warmup. Both pre-rendered
+approaches are now historical; the prototype and failed preparation are archived.
+
 ## Verification boundary
 
 `conformance` exercises the real parsers, source schedules and offline scorer

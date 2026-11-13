@@ -167,7 +167,11 @@ final class NativeOverviewCloudSurface: NSView {
     @discardableResult
     private func updateGeometry() -> Bool {
         let scale = window?.backingScaleFactor ?? 1
-        let size = CGSize(width: max(0, ceil(bounds.width * scale)), height: max(0, ceil(bounds.height * scale)))
+        // The soft field needs fewer spatial samples, not fewer animation frames.
+        // The renderer maps this drawable back to the unchanged point-space field.
+        let drawableScale = scale * 0.5
+        let size = CGSize(width: max(0, ceil(bounds.width * drawableScale)),
+                          height: max(0, ceil(bounds.height * drawableScale)))
         let changed = metal.frame != bounds || metal.drawableSize != size || metal.contentsScale != scale
         if changed {
             CATransaction.begin(); CATransaction.setDisableActions(true)

@@ -917,10 +917,21 @@ below over 260ms, for both increasing and decreasing totals; clocks retain their
 still, and added/removed positions follow the formatted width (including compact
 units). Retained positions change only glyph identity; card and usage-part
 identity stay stable.
-SwiftUI owns outgoing glyph lifetimes, including interrupted updates. The text
+SwiftUI owns outgoing usage glyph lifetimes, including interrupted updates. The text
 raster tier suppresses animation only when its scale changes; it must not clear
 unrelated glyph-motion transactions. This number path retains the existing
 always-animate policy even with system Reduce Motion enabled.
+
+[Runtime clocks](Cards/ThreadCardClock.swift) use the same SwiftUI numeric cells
+as their glyph source and layout/baseline strut. A bounded immutable bitmap cache
+shares digits and colons across cards, keyed by resolved ink, legibility and
+display/text raster scales. Core Animation owns the 180ms digit and colon fades;
+no per-frame SwiftUI text layout or additional clock timer is required. Initial
+values mount settled, positions retain identity from the right, and stopping a
+clock retires any colon fade. Style changes replace ink without replaying it.
+The bitmap seat uses the native host's backing-pixel rounding rather than stretching
+the 13.75pt logical cell. The cache retains at most four styles and 32 MiB, except
+for one individually oversized zoom tier; no card or execution is retained.
 
 The native overview retains offscreen cards and the overview behind a reading
 page. `ThreadCardAnimationVisibility` reports their actual viewport/page visibility
@@ -1004,6 +1015,15 @@ timeline or nested hosting graph. The existing seeded, point-space
 Palette colors resolve from the current SwiftUI environment into premultiplied
 linear components; the native drawable declares the same linear working space.
 
+The soft cloud field renders at half the backing-pixel width and height, then
+scales to the same layer bounds. The shader maps actual drawable pixels back to
+logical points, preserving positions, radii and the live motion path. Text and
+card borders keep their own original resolution. The existing maximum-rate
+driver is unchanged; this reduces spatial samples, not animation frequency.
+The tradeoff is softer cloud detail, particularly under magnification. The
+[candidate measurements](../../../../../tools/benchmarks/baselines/2026-11-13-live-cloud-candidates.md)
+record the observed GPU/memory benefit and the absence of body-update CPU gains.
+
 The native view retains its seed and epoch across running, palette and visibility
 updates. It interpolates light intensity over 0.4 seconds, including reversals,
 without publishing per-frame SwiftUI state; fading final layer opacity would not
@@ -1046,13 +1066,16 @@ resuming aligns to the current wall-clock phase. It needs no application
 per-frame callback. The existing scene, visibility and Reduce Motion gates stay
 in the card, while native views exclude themselves from input and accessibility.
 
-Acceptance compares the complete enabled Overview scene on a fixed target Mac.
-The native path's submit counts and scan presentation positions replace the old
-Timeline counters; neither establishes display FPS. Native WindowServer frames
-must cover cloud color, static card surfaces, rounded clipping, camera transforms, exit
-opacity and interrupted intensity fades. AppKit self-rendering and model values
-alone cannot certify that composition. The native path is a performance
-candidate until that evidence and a repeatable process-CPU benefit are recorded.
+Pre-rendered atlas playback was removed after reported stutter. The production
+path again uses the live field; there are no baked loop resources or playback
+rate-selection branches. Equal voice-availability notification suppression and
+the existing body reveal, runtime-clock and scan animations remain unchanged.
+
+The mounted decoration replay requires the real Metal layer, fresh GPU work and
+independent WindowServer cloud/scan movement, including during a main-thread hold.
+It also checks retained native identities through a camera change. These are
+rendering-progress controls, not style-equivalence goldens or physical FPS
+measurements. Historical pre-rendered CPU results do not describe this version.
 
 Fonts, icon licenses and attribution live under [Resources](Resources/). Metal assets are compiled through the package's build plugin. Tests under `app/macos/Tests` and [functional replays](../../../../../tools/verification/README.md) exercise native components; macOS window tests require an actual graphical session.
 

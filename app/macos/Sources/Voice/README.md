@@ -4,6 +4,11 @@
 
 Media starts only through an explicit action and successful current-owner preparation. Workspace/device/attempt/session identity rejects old asynchronous completions. Replacing owners, disconnecting or ending the media attempt cancels its resources; merely rendering a cloud, Dock or Sidecard does not start capture. Moku task work already accepted by the host survives ending Moku media.
 
+Repeated catalog delivery updates voice availability only when the Boolean
+changes. An equal member write still enters Observation's modify accessor and
+would invalidate the workspace's voice-dependent UI during unrelated Agent
+output. Owner replacement and unavailable-owner stop handling remain immediate.
+
 A late occupied-owner preparation response cannot change the current device
 notice or takeover token. A late response that allocated a session still cleans
 up that obsolete session using its own request identity.

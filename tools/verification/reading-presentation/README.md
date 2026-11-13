@@ -975,3 +975,14 @@ claim diff-panel selection, refresh or cancellation coverage.
 The Settings panel uses an opaque native window background, independent of its
 small capsule controls. Pixel sampling in the Settings transition replay compares
 the panel margin with the native dark-window fill over the striped Overview.
+
+### Focused Overview cloud replay
+
+`python3 tools/verification/reading-presentation/run.py --overview-decorations`
+runs only the existing native cloud/scan composition case. The production cloud
+uses the live Metal field again; the case requires fresh completed GPU work and
+WindowServer movement during the main-thread hold. It checks retained surfaces
+through a camera change and the spinner's hide/resume behavior. No pre-rendered
+assets, style-equivalence golden or physical FPS claim is involved. The ordinary
+native owner still runs this case inside `--tag-glass-captures`; the focused flag
+does not replace full CI coverage.
