@@ -8,7 +8,9 @@ outside them. Separate 42pt round Liquid Glass launchers, spaced 14pt vertically
 remain centered in the right background margin and indicate the active card.
 Opening a different launcher switches the retained plugin session; selecting it
 again folds it. Per-plugin preferred widths and retained drag widths still belong
-to the host. Below 760pt of available panel width the two panels stack vertically.
+to the host. Browser defaults to an equal split with the Agent reader, subject to
+the shared minimum widths; a retained drag width takes precedence. Below 760pt of
+available panel width the two panels stack vertically.
 Only their shells change; plugin forms, browser behavior and voice ownership remain
 with the existing sessions. Nested history Back belongs inside the main panel;
 its independent Close returns to Overview.
