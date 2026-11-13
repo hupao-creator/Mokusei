@@ -182,11 +182,34 @@ def analyze(directory):
         mark('owned process cleanup incomplete','incomplete')
     if plan['scenario']=='first-render' and (root/'launch.json').exists():
         launched=load(root/'launch.json')
+        if 'launch.json' not in sealed:mark('startup launch receipt is unsealed','incomplete')
         if launched.get('process',{}).get('identity')!=plan['processIdentity']:
             mark('launch receipt belongs to another process','invalid')
         result['metrics']['startupCoverage']={
             'resourceObservationStartsAfterLaunch':True,'preAttachmentHitches':'unavailable',
             'wholeLaunchCostCertified':False}
+        # A new process's cumulative CPU counter includes work before attachment.
+        # Report that independently from an observed interval delta; pre-attach
+        # memory peaks and descendant costs remain unknown.
+        if 'launch.json' in sealed and 'requestedWallUS' in launched and observation.get('cpuTimeUnit')=='nanoseconds':
+            requested=integer(launched['requestedNS'],'launch request',times[1],times[2])
+            returned=integer(launched['returnedNS'],'launch returned',requested)
+            requested_wall=integer(launched['requestedWallUS'],'launch wall start',1)
+            returned_wall=integer(launched['returnedWallUS'],'launch wall end',requested_wall)
+            integer(launched['process']['birthUS'],'new application birth',requested_wall,returned_wall)
+            app_samples=[(s,p) for s in observation['resources'] for p in s['processes'] if p['identity']==plan['processIdentity']]
+            boundary=[(s,p) for s,p in app_samples if times[2]<=s['atNS']<=times[2]+100_000_000]
+            if boundary:
+                sample,process=boundary[0]
+                sampled=[(s,p) for s,p in app_samples if s['atNS']<=sample['atNS']]
+                result['metrics']['startupApplication']={
+                    'cpuSecondsSinceProcessBirth':process['cpuNS']/1e9,
+                    'cpuObservedAtSecondsAfterLaunch':(sample['atNS']-requested)/1e9,
+                    'resourceAttachmentDelaySeconds':(sampled[0][0]['atNS']-requested)/1e9,
+                    'osLaunchReturnDelaySeconds':(returned-requested)/1e9,
+                    'sampledPeakFootprintBytes':max(p['footprintBytes'] for _,p in sampled),
+                    'preAttachmentMemoryPeakAvailable':False,'completeTaskCost':False}
+            else:mark('startup application CPU end boundary unavailable','incomplete')
     if result['measurement'] != 'valid' or result['product'] not in ('passed',):
         result['comparison'] = 'not-comparable'
     if result['measurement']=='invalid' and result['product'] not in ('crash','timeout'):result['product']='unknown'
@@ -232,8 +255,16 @@ def calibration(root, mark):
     if not (directory/'manifest.json').is_file():
         mark('retained collector calibration absent','unsupported');return unavailable
     manifest=load(directory/'manifest.json')
-    required={'capabilities.json','wrong-owner/launch.json','wrong-owner/hitch.json','wrong-owner/hitch-config.json',
-              'wrong-owner/hitch-xcodebuild.log','stall/stall-events.jsonl'}
+    capabilities=load(directory/'capabilities.json')
+    modern=capabilities.get('version')==2
+    required={'capabilities.json','stall/stall-events.jsonl'}
+    if modern:
+        required.update(('wrong-owner/launch.json','wrong-owner/plan.json','wrong-owner/collector-exit.json','swiftui/manifest.json'))
+    else:
+        required.update(('wrong-owner/launch.json','wrong-owner/hitch.json','wrong-owner/hitch-config.json','wrong-owner/hitch-xcodebuild.log'))
+    hitch_owner='wrong-hitch-owner' if modern else 'wrong-owner'
+    if modern and capabilities.get('nativeHitchesRequested') is True:
+        required.update(hitch_owner+'/'+name for name in ('launch.json','hitch.json','hitch-config.json','hitch-xcodebuild.log'))
     required.update(name+'/manifest.json' for name in ('normal','frozen','wrong','delay','stall'))
     if manifest.get('version')!=1 or not required<=manifest['files'].keys():
         mark('calibration manifest lacks required control evidence','incomplete');return unavailable
@@ -243,7 +274,7 @@ def calibration(root, mark):
             raise ValueError('calibration evidence path escapes control directory')
         if not path.is_file() or hash_file(path)!=digest:
             mark('calibration evidence absent or modified: '+name,'invalid');return unavailable
-    capabilities=load(directory/'capabilities.json');identity=load(root/'identity.json')
+    identity=load(root/'identity.json')
     if any(capabilities.get(k)!=identity.get(k) for k in ('collectorSHA256','toolBuild')) or capabilities['host']['os']!=identity['host']['os']:
         mark('calibration belongs to another collector/toolchain/OS','unsupported');return unavailable
     reports={}
@@ -252,16 +283,26 @@ def calibration(root, mark):
         reports[name]=analyze(directory/name)
     pixels=reports['normal']['product']=='passed' and all(
         reports[name]['product']==('wrong-result' if name=='wrong' else 'overloaded') for name in ('frozen','wrong','delay','stall'))
+    owner_rejected=False
+    if modern:
+        launch=load(directory/'wrong-owner/launch.json');wrong_plan=load(directory/'wrong-owner/plan.json')
+        rejected_process=load(directory/'wrong-owner/collector-exit.json')
+        owner_rejected=(launch['process']['pid']==wrong_plan['pid'] and launch['process']['identity']!=wrong_plan['processIdentity'] and
+            rejected_process['exitStatus']!=0 and 'target identity changed' in rejected_process['stdout'] and
+            not (directory/'wrong-owner/observation.json').exists())
+        pixels=pixels and owner_rejected and analyze(directory/'swiftui')['product']=='passed'
     normal=reports['normal'].get('metrics',{}).get('hitches',{}).get('measurements',[])
     stalled=reports['stall'].get('metrics',{}).get('hitches',{}).get('measurements',[])
     baseline={(v['identifier'],v['unit']):v['value'] for v in normal}
     increases=any(v['value']>baseline.get((v['identifier'],v['unit']),math.inf) for v in stalled)
-    wrong=load(directory/'wrong-owner/hitch.json')
-    expected=load(directory/'wrong-owner/hitch-config.json')
-    actual=load(directory/'wrong-owner/launch.json')
-    rejected=wrong['exitStatus']!=0 and not wrong['batches'] and not (directory/'wrong-owner/hitch-ready.json').exists() and (
-        expected['pid']==actual['process']['pid'] and abs(expected['launchDate']-actual['launchDate'])>=1 and
-        'Error Domain=benchmark-owner Code=1' in (directory/'wrong-owner/hitch-xcodebuild.log').read_text())
+    rejected=False
+    if not modern or capabilities.get('nativeHitchesRequested') is True:
+        wrong=load(directory/hitch_owner/'hitch.json')
+        expected=load(directory/hitch_owner/'hitch-config.json')
+        actual=load(directory/hitch_owner/'launch.json')
+        rejected=wrong['exitStatus']!=0 and not wrong['batches'] and not (directory/hitch_owner/'hitch-ready.json').exists() and (
+            expected['pid']==actual['process']['pid'] and abs(expected['launchDate']-actual['launchDate'])>=1 and
+            'Error Domain=benchmark-owner Code=1' in (directory/hitch_owner/'hitch-xcodebuild.log').read_text())
     faults=[loads(line) for line in (directory/'stall/stall-events.jsonl').read_text().splitlines()]
     boundaries=load(directory/'stall/observation.json')['boundaries']
     real_stall=len(faults)==2 and faults[1]['atNS']-faults[0]['atNS']>=1_000_000_000 and (
@@ -269,7 +310,7 @@ def calibration(root, mark):
     hitches=pixels and increases and rejected and real_stall
     if not pixels:mark('pixel normal/frozen/wrong/delayed/stall controls did not establish capability','unsupported')
     if not hitches:mark('native hitch sensitivity/ownership controls did not establish capability','unsupported')
-    return {'pixelsPassed':pixels,'hitchesPassed':hitches,'wrongOwnerRejected':rejected}
+    return {'pixelsPassed':pixels,'hitchesPassed':hitches,'wrongOwnerRejected':rejected,'processOwnerRejected':owner_rejected}
 
 
 def resources(plan, observation, times, result, mark):
@@ -286,7 +327,7 @@ def resources(plan, observation, times, result, mark):
         mark('process lifecycle/exit CPU coverage incomplete','incomplete')
     samples=observation['resources']
     if not isinstance(samples,list) or len(samples)>25_000:raise ValueError('invalid resource stream size')
-    previous=0; identities={}; roots={r['identity']:r['role'] for r in plan['processRoots']}
+    previous=0; identities={}; roots={r['identity']:r['role'] for r in plan['processRoots']};foreground_seen=False
     if not samples:mark('resource sample stream empty','incomplete')
     for sample in samples:
         at=integer(sample['atNS'],'resource timestamp',previous+1);previous=at
@@ -307,8 +348,17 @@ def resources(plan, observation, times, result, mark):
             identities[identity]=p
         if not roots.keys() <= seen: mark('declared process root missing from sample','incomplete')
         if sample.get('ownerAlive') is False: mark('application owner disappeared',product='crash')
-        if sample.get('frontmostPID') != plan['pid']: mark('application lost foreground during measurement','invalid')
+        if sample.get('frontmostPID')==plan['pid']:foreground_seen=True
+        elif plan['scenario']!='first-render' or foreground_seen:
+            mark('application lost foreground during measurement','invalid')
+    if plan['scenario']=='first-render' and not foreground_seen:
+        mark('launched application never acquired foreground','invalid')
     intervals=[('warmup',times[0],times[1]),('formal',times[1],times[2]),('tail',times[2],times[3]),('wholeObservation',times[0],times[3])]
+    if plan['scenario']=='first-render' and samples:
+        # There is no application process in the prelaunch warmup. Keep the
+        # observed resource interval separate from the launch/birth CPU counter.
+        intervals=[('postAttachment',samples[0]['atNS'],times[3]),('tail',times[2],times[3])]
+        if samples[0]['atNS']>times[1]:mark('startup resource samples begin after OS launch attachment','incomplete')
     for name,start,end in intervals:
         rows=[s for s in samples if start<=s['atNS']<=end+100_000_000]
         if len(rows)<2 or rows[0]['atNS']-start>1.5e9/plan['sampleHz'] or end-rows[-1]['atNS']>1.5e9/plan['sampleHz']:
@@ -371,7 +421,11 @@ def pixels(root, plan, observation, frames, times, result, mark):
     relevant=[r for r in rows if times[1]<=r[0]<=times[3]+100_000_000]
     if not relevant or not any(r[1] for r in relevant):
         mark('no observable business-content anchor; no layout failure inferred','incomplete');return
-    stamps=[times[1]]+[r[0] for r in relevant]+[max(times[3],relevant[-1][0])]
+    capture_start=times[1]
+    if plan['scenario']=='first-render' and requests[relevant[0][0]]>times[1]:
+        capture_start=requests[relevant[0][0]]
+        mark('startup pixels before window capture attachment are unobserved','incomplete')
+    stamps=[capture_start]+[r[0] for r in relevant]+[max(times[3],relevant[-1][0])]
     if any(b-a>plan['maximumCaptureGapSeconds']*1e9 for a,b in zip(stamps,stamps[1:])):
         mark('continuous capture coverage gap','incomplete')
     result['continuousQuality']='observed'
@@ -583,6 +637,9 @@ def hitch(root,plan,times,result,mark):
     record=load(root/'hitch.json')
     if record['pid']!=plan['pid'] or record['processIdentity']!=plan['processIdentity']:
         mark('hitch collector targets another process','invalid');return
+    if record.get('status')=='unavailable':
+        result['metrics']['hitchCapability']={'status':'unavailable','reason':text(record['reason'],'hitch unavailability')}
+        mark('native hitch unavailable: '+record['reason'],'unsupported');return
     if record.get('exitStatus')!=0:mark('XCTest hitch collection failed','unsupported');return
     if not (root/'hitch-owner.json').exists() or load(root/'hitch-owner.json').get('invocations')!=2:
         mark('XCTest lifecycle lacks warmup/measurement ownership receipt','incomplete')

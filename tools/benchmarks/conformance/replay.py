@@ -260,6 +260,35 @@ def main():
             assert role['sampledPeakFootprintBytes']==1024
             assert 'resource CPU units absent or unsupported; CPU metrics withheld' in untrusted['reasons']
         run('dishonest-coverage',lambda r,p,o,f:save(r/'observation.json',{**o,'processCoverage':{'complete':True,'gaps':[]}}),invalid=True)
+        unavailable=run('native-hitch-not-requested',lambda r,p,o,f:save(r/'hitch.json',{
+            'version':1,'pid':p['pid'],'processIdentity':p['processIdentity'],'status':'unavailable','reason':'not requested'}))
+        assert unavailable['metrics']['hitchCapability']['status']=='unavailable'
+        assert 'hitches' not in unavailable['metrics'] and unavailable['measurement']!='valid'
+        def startup_case(root,p,o,f,birth=1100,remove_boundary=False):
+            p['scenario']='first-render';p['events']=[];o['inputs']=[]
+            onset=o['boundaries']['formalStart'];end=o['boundaries']['formalEnd']
+            o['resources']=[s for s in o['resources'] if s['atNS']>=onset+200_000_000 and
+                            not (remove_boundary and end<=s['atNS']<=end+100_000_000)]
+            save(root/'plan.json',p);save(root/'observation.json',o)
+            save(root/'launch.json',{'requestedNS':onset,'returnedNS':onset+200_000_000,
+                'requestedWallUS':1000,'returnedWallUS':1200,'process':{'identity':p['processIdentity'],'birthUS':birth}})
+        startup=run('startup-lifetime-cpu',startup_case)
+        assert startup['metrics']['startupApplication']['cpuSecondsSinceProcessBirth']>0
+        assert startup['metrics']['startupApplication']['resourceAttachmentDelaySeconds']==.2
+        assert startup['metrics']['startupApplication']['preAttachmentMemoryPeakAvailable'] is False
+        assert 'formal' not in startup['metrics'] and 'postAttachment' in startup['metrics']
+        run('startup-reused-process',lambda r,p,o,f:startup_case(r,p,o,f,birth=900),invalid=True)
+        absent=run('startup-missing-cpu-boundary',lambda r,p,o,f:startup_case(r,p,o,f,remove_boundary=True))
+        assert 'startupApplication' not in absent['metrics']
+        assert 'startup application CPU end boundary unavailable' in absent['reasons']
+        def startup_foreground(root,p,o,f,lose=False):
+            startup_case(root,p,o,f)
+            o['resources'][0]['frontmostPID']=999
+            if lose:o['resources'][5]['frontmostPID']=999
+            save(root/'observation.json',o)
+        acquired=run('startup-foreground-acquisition',startup_foreground)
+        assert acquired['measurement']!='invalid'
+        run('startup-lost-foreground',lambda r,p,o,f:startup_foreground(r,p,o,f,lose=True),invalid=True)
         run('wrong-input',lambda r,p,o,f:save(r/'observation.json',{**o,'inputs':[{**e,'x':0} for e in o['inputs']]}),invalid=True)
         run('removed-overview-return',lambda r,p,o,f:save(r/'plan.json',{**p,'scenario':'return'}),invalid=True)
         run('removed-navigation-input',lambda r,p,o,f:save(r/'plan.json',{**p,'events':[
@@ -395,7 +424,34 @@ def main():
             try:validate_preparation(changed,planned)
             except ValueError:count+=1
             else:raise AssertionError('unverified input target accepted: '+change)
+        partial=copy.deepcopy(record);partial['version']=2
+        partial['owner']['accessibility'].pop()
+        partial['point']=background_point(partial['owner'],fixed,require_all=False)
+        hit={'beforeNS':1,'afterNS':2,'processIdentity':'101:1000','windowID':2,'bounds':owner['bounds'],
+             'active':True,'point':{axis:partial['point'][axis]+owner['bounds'][axis] for axis in ('x','y')},
+             'complete':True,'elements':[{'AXIdentifier':'overview.canvas','AXRole':'AXGroup'},{'AXRole':'AXApplication'}]}
+        partial['hitTest']=hit
+        partial_plan={**planned,'events':[{'kind':'down',**hit['point']}]}
+        assert validate_preparation(partial,partial_plan)=='same-window';count+=1
+        for fault in ('card','control','wrong-owner','moved-window','wrong-point','incomplete','no-canvas'):
+            bad=copy.deepcopy(partial)
+            h=bad['hitTest']
+            if fault=='card':h['elements'].insert(0,{'AXIdentifier':'overview-card-4'})
+            elif fault=='control':h['elements'].insert(0,{'AXRole':'AXButton'})
+            elif fault=='wrong-owner':h['processIdentity']='other'
+            elif fault=='moved-window':h['bounds']['x']+=1
+            elif fault=='wrong-point':h['point']['x']+=1
+            elif fault=='incomplete':h['complete']=False
+            else:h['elements']=h['elements'][1:]
+            try:validate_preparation(bad,partial_plan)
+            except ValueError:count+=1
+            else:raise AssertionError('unsafe partial-tree hit-test accepted: '+fault)
         from runner import trajectory,reanchor
+        for seconds in (2,5,8):
+            events=trajectory(owner['bounds'],seconds)
+            assert events[-2]['kind']=='drag' and events[-1]['kind']=='up'
+            assert all(events[-2][axis]==events[-1][axis]==events[1][axis] for axis in ('x','y'))
+            assert all(a['atSeconds']<b['atSeconds'] for a,b in zip(events,events[1:]));count+=1
         offsets={'x':point['x']-(1000-70),'y':point['y']-(700-110)}
         relative=reanchor(trajectory({'x':70,'y':110,'width':0,'height':0},6),offsets,{'x':0,'y':0})
         down=next(e for e in relative if e['kind']=='down')

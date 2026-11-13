@@ -1,4 +1,37 @@
 import AppKit
+import SwiftUI
+
+// Exercise the public recognizer used by SwiftUI apps as well as AppKit's raw
+// mouse callbacks. A source that only moves an NSView can hide gesture faults.
+struct DragControl: View {
+    let ledger: Canvas
+    @State private var translation = CGSize.zero
+    @GestureState private var origin: CGSize?
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color(nsColor: .windowBackgroundColor)
+            ForEach(0..<4) { n in
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(String(format: "BENCH CARD %02d", n + 1)).font(.system(size: 18))
+                    Text("Reviewing the launch settings.\nChecking the response.").font(.system(size: 14))
+                }
+                .padding(16).frame(width: 250, height: 150, alignment: .topLeading)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .offset(x: 160 + CGFloat(n % 2) * 290 + translation.width,
+                        y: 100 + CGFloat(n / 2) * 190 + translation.height)
+            }
+        }.contentShape(Rectangle()).gesture(DragGesture(minimumDistance: 4)
+            .updating($origin) { _, value, _ in if value == nil { value = translation } }
+            .onChanged { value in
+                guard let origin else { return }
+                translation = CGSize(width: origin.width + value.translation.width, height: origin.height + value.translation.height)
+                ledger.record(["kind": "gesture", "atNS": clock_gettime_nsec_np(CLOCK_UPTIME_RAW),
+                               "x": translation.width, "y": translation.height,
+                               "startX": value.startLocation.x, "startY": value.startLocation.y,
+                               "locationX": value.location.x, "locationY": value.location.y])
+            })
+    }
+}
 
 // A separate physical control, never linked into the product. Faults affect
 // the real main thread or drawn business content, not collector observations.
@@ -85,10 +118,18 @@ final class Delegate: NSObject, NSApplicationDelegate {
         window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 1000, height: 700), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Benchmark Collector Control"
         let canvas = Canvas(mode: mode, gate: gate)
-        window.contentView = canvas
+        if mode == "swiftui" {
+            window.contentView = NSHostingView(rootView: DragControl(ledger: canvas))
+            NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
+                canvas.record(["kind": "mouse", "type": event.type.rawValue, "atNS": clock_gettime_nsec_np(CLOCK_UPTIME_RAW),
+                               "x": event.locationInWindow.x, "y": event.locationInWindow.y,
+                               "deltaX": event.deltaX, "deltaY": event.deltaY])
+                return event
+            }
+        } else { window.contentView = canvas }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { _ in canvas.advance() }
+        if mode != "swiftui" { timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { _ in canvas.advance() } }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }

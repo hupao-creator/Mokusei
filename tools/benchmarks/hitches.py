@@ -12,8 +12,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from lifecycle import native, save
 
 
+def preflight():
+    status=subprocess.run(['/usr/sbin/DevToolsSecurity','-status'],capture_output=True,text=True,timeout=5)
+    if status.returncode or 'Developer mode is currently enabled.' not in status.stdout:
+        raise RuntimeError('native hitches require pre-authorized Developer Tools access; interactive authorization is disabled by this CLI; omit --native-hitches for the default run')
+
+
 class Hitches:
     def __init__(self, tools, bundle, pid, directory, expected_launch_date=None):
+        preflight()
         self.directory = directory
         directory.mkdir(parents=True, exist_ok=True)
         self.owner = native(tools/'collector', 'inspect', pid)

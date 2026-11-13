@@ -12,7 +12,7 @@ from contracts.model import CLOCK, plan as validate_plan
 from lifecycle import native, save, sha256
 from analysis.report import seal, write_report
 from hitches import Hitches
-from input_region import background_point
+from input_region import background_point, validate_hit
 from workload import DEFAULT_PACING
 
 FRAMEWORK_FILES = {str(p.relative_to(Path(__file__).parent)): sha256(p)
@@ -37,6 +37,9 @@ def trajectory(bounds, seconds):
         phase = t / duration
         dx = -120 * (2 * phase if phase <= .5 else 2 * (1 - phase))
         events.append({'kind': 'drag', 'atSeconds': .4 + t, 'x': x + dx, 'y': y + .3 * dx})
+    # Mouse-up does not deliver a final onChanged to SwiftUI DragGesture.
+    # Reach the declared endpoint with an actual drag before releasing.
+    events.append({'kind':'drag','atSeconds':seconds-.5,'x':x,'y':y})
     events.append({'kind': 'up', 'atSeconds': seconds - .4, 'x': x, 'y': y})
     return events
 
@@ -46,10 +49,15 @@ def prepare_input(application, directory, fixture, context):
     # even if no usable gap is available; absence is not a product freeze.
     before=time.monotonic_ns()
     owner=native(application.helper,'inspect',application.app.pid)
-    record={'beforeNS':before,'afterNS':time.monotonic_ns(),'owner':owner,'context':context}
+    record={'version':2,'beforeNS':before,'afterNS':time.monotonic_ns(),'owner':owner,'context':context}
     save(directory/'input-preparation.json',record)
-    record['point']=background_point(owner,fixture)
+    record['point']=background_point(owner,fixture,require_all=False)
+    point=record['point'];bounds=owner['bounds']
+    record['hitTest']=native(application.helper,'hit-test',application.app.pid,
+                            bounds['x']+point['x'],bounds['y']+point['y'])
+    record['afterNS']=time.monotonic_ns()
     save(directory/'input-preparation.json',record)
+    validate_hit(record)
     return record
 
 
@@ -79,7 +87,7 @@ def recognize_frames(helper, directory):
             stream.write(json.dumps({**capture, 'texts': ocr['texts']}) + '\n')
 
 
-def collect(tools, directory, plan, bundle, capability=None, arm=None, fault=None, checkpoint=None):
+def collect(tools, directory, plan, bundle, capability=None, arm=None, fault=None, checkpoint=None, native_hitches=False):
     helper = tools/'collector'
     before = clock_bracket(helper)
     save(directory/'identity.json', {'owner': native(helper, 'process', plan['pid']),
@@ -87,7 +95,7 @@ def collect(tools, directory, plan, bundle, capability=None, arm=None, fault=Non
          'host': before['helper']})
     hitches = None
     hitch_error = None
-    if plan['mode'] == 'observed':
+    if plan['mode'] == 'observed' and native_hitches:
         try:
             hitches = Hitches(tools, bundle, plan['pid'], directory)
             ready = hitches.ready()
@@ -118,13 +126,15 @@ def collect(tools, directory, plan, bundle, capability=None, arm=None, fault=Non
             if capability: record['capability'] = capability
             if hitch_error: record['error'] = hitch_error
             save(directory/'hitch.json', record)
-        elif hitch_error: save(directory/'hitch-error.json', {'error': hitch_error})
+        elif plan['mode']=='observed':
+            save(directory/'hitch.json',{'version':1,'pid':plan['pid'],'processIdentity':plan['processIdentity'],
+                'status':'unavailable','reason':hitch_error or 'native XCTest hitch collection not requested; default collection never starts the privileged performance service'})
         save(directory/'clock.json', {'observations': [before, clock_bracket(helper)]})
     if (directory/'observation.json').exists() and plan['mode'] == 'observed':
         recognize_frames(helper, directory)
 
 
-def control(tools, directory, mode, capability=None, observation_mode="observed"):
+def control(tools, directory, mode, capability=None, observation_mode="observed", seconds=5, native_hitches=False):
     directory.mkdir(parents=True, mode=0o700, exist_ok=False)
     bundle = tools/'Control.app'
     save(directory/'launch-config.json', {'app': str(bundle), 'arguments': [mode, str(directory/'stall')]})
@@ -136,11 +146,12 @@ def control(tools, directory, mode, capability=None, observation_mode="observed"
         save(directory/'prepared-window.json', owner)
         roots = [{**launched['process'], 'role': 'application'},
                  {**native(tools/'collector', 'process', os.getpid()), 'role': 'source'}]
-        plan = make_plan(owner, roots, 'pan', 5, observation_mode, 5,
+        plan = make_plan(owner, roots, 'pan', 5, observation_mode, seconds,
                          [f'BENCH CARD {n:02d}' for n in range(1, 5)])
         plan['targetKind']='control'
         collect(tools, directory, plan, bundle, capability,
-                fault=(lambda: (directory/'stall').write_text('stall')) if mode == 'stall' else None)
+                fault=(lambda: (directory/'stall').write_text('stall')) if mode == 'stall' else None,
+                native_hitches=native_hitches)
         save(directory/'outcome.json', {'status': 'passed', 'oracle': 'control remains owned and running',
                                       'expectedFault': mode})
     finally:
@@ -160,32 +171,53 @@ def control(tools, directory, mode, capability=None, observation_mode="observed"
     return write_report(directory)
 
 
-def calibrate(tools, directory):
+def calibrate(tools, directory, native_hitches=False):
     directory.mkdir(parents=True, exist_ok=False, mode=0o700)
     reports = {}
-    for mode in ('normal', 'frozen', 'wrong', 'delay', 'stall', 'children'):
+    probe=native(tools/'collector','probe');save(directory/'preflight.json',probe)
+    if not all(probe.get(k) is True for k in ('accessibility','capture','input')):
+        raise RuntimeError('required desktop permissions unavailable; calibration does not request authorization')
+    for mode in ('normal', 'swiftui', 'frozen', 'wrong', 'delay', 'stall', 'children'):
         print('Collector control: '+mode, flush=True)
-        reports[mode] = control(tools, directory/mode, mode)
+        reports[mode] = control(tools, directory/mode, mode, native_hitches=native_hitches)
     print('Collector control: minimal overhead pair', flush=True)
     reports['minimal'] = control(tools, directory/'minimal', 'normal', observation_mode='minimal')
-    wrong_dir = directory/'wrong-owner'; wrong_dir.mkdir()
-    save(wrong_dir/'launch-config.json', {'app': str(tools/'Control.app'), 'arguments': ['normal']})
-    launched = native(tools/'collector', 'launch', wrong_dir/'launch-config.json')
-    save(wrong_dir/'launch.json', launched)
-    h = None
+    wrong_dir=directory/'wrong-owner';wrong_dir.mkdir()
+    save(wrong_dir/'launch-config.json',{'app':str(tools/'Control.app'),'arguments':['normal']})
+    launched=native(tools/'collector','launch',wrong_dir/'launch-config.json')
+    save(wrong_dir/'launch.json',launched)
     try:
-        time.sleep(.5)
-        # The target remains live; a wrong birth identity must fail before readiness.
-        h = Hitches(tools, tools/'Control.app', launched['process']['pid'], wrong_dir,
-                    expected_launch_date=launched['launchDate'] - 10)
-        try: h.ready(); rejected = False
-        except RuntimeError: rejected = True
-        record = h.finish()
-        rejected = rejected and record['exitStatus'] != 0 and not record['batches'] and (
-            'Error Domain=benchmark-owner Code=1' in (wrong_dir/'hitch-xcodebuild.log').read_text())
+        owner=native(tools/'collector','prepare',launched['process']['pid'])
+        wrong={**launched['process'],'identity':str(launched['process']['pid'])+':wrong-birth','role':'application'}
+        plan=make_plan({**owner,'process':wrong},[wrong],'pan',5,'observed',5)
+        plan['targetKind']='control';save(wrong_dir/'plan.json',plan)
+        rejected_process=subprocess.run([str(tools/'collector'),'collect',str(wrong_dir/'plan.json'),str(wrong_dir)],
+                                        capture_output=True,text=True,timeout=15)
+        save(wrong_dir/'collector-exit.json',{'exitStatus':rejected_process.returncode,
+             'stdout':rejected_process.stdout,'stderr':rejected_process.stderr})
+        process_owner_rejected=rejected_process.returncode!=0 and 'target identity changed' in rejected_process.stdout and not (wrong_dir/'observation.json').exists()
     finally:
-        if h and not h.done: h.finish()
-        native(tools/'collector', 'quit', launched['process']['pid'], launched['process']['identity'])
+        native(tools/'collector','quit',launched['process']['pid'],launched['process']['identity'])
+    rejected=False
+    if native_hitches:
+        wrong_dir = directory/'wrong-hitch-owner'; wrong_dir.mkdir()
+        save(wrong_dir/'launch-config.json', {'app': str(tools/'Control.app'), 'arguments': ['normal']})
+        launched = native(tools/'collector', 'launch', wrong_dir/'launch-config.json')
+        save(wrong_dir/'launch.json', launched)
+        h = None
+        try:
+            time.sleep(.5)
+            # The target remains live; a wrong birth identity must fail before readiness.
+            h = Hitches(tools, tools/'Control.app', launched['process']['pid'], wrong_dir,
+                        expected_launch_date=launched['launchDate'] - 10)
+            try: h.ready(); rejected = False
+            except RuntimeError: rejected = True
+            record = h.finish()
+            rejected = rejected and record['exitStatus'] != 0 and not record['batches'] and (
+                'Error Domain=benchmark-owner Code=1' in (wrong_dir/'hitch-xcodebuild.log').read_text())
+        finally:
+            if h and not h.done: h.finish()
+            native(tools/'collector', 'quit', launched['process']['pid'], launched['process']['identity'])
     normal_values = reports['normal'].get('metrics', {}).get('hitches', {}).get('measurements', [])
     stall_values = reports['stall'].get('metrics', {}).get('hitches', {}).get('measurements', [])
     baseline = {(v['identifier'],v['unit']):v['value'] for v in normal_values}
@@ -194,14 +226,14 @@ def calibrate(tools, directory):
     fault = [json.loads(line) for line in (directory/'stall/stall-events.jsonl').read_text().splitlines()]
     real_stall = len(fault) == 2 and fault[1]['atNS'] - fault[0]['atNS'] >= 1_000_000_000
     stalls_detected = reports['stall'].get('product') == 'overloaded' and real_stall
-    pixels_passed = reports['normal'].get('product') == 'passed' and all(
+    pixels_passed = process_owner_rejected and reports['swiftui'].get('product')=='passed' and reports['normal'].get('product') == 'passed' and all(
         reports[name].get('product') == ('wrong-result' if name=='wrong' else 'overloaded') for name in ('frozen','wrong','delay','stall'))
     children = [json.loads(line) for line in (directory/'children/stall-events.jsonl').read_text().splitlines()]
     child_observation=json.loads((directory/'children/observation.json').read_text())
     sampled_pids={p['pid'] for row in child_observation['resources'] for p in row['processes']}
     missing_children=[event['pid'] for event in children if event.get('kind')=='childExit' and event['pid'] not in sampled_pids]
     child_coverage=bool(missing_children) and child_observation['processCoverage']['complete'] is False
-    result = {'version': 1, 'normal': bool(normal_values), 'stall': bool(increases) and stalls_detected,
+    result = {'version': 2, 'nativeHitchesRequested':native_hitches,'processOwnerRejected':process_owner_rejected, 'normal': bool(normal_values), 'stall': bool(increases) and stalls_detected,
               'wrongOwner': rejected, 'passed': pixels_passed and bool(normal_values) and bool(increases) and stalls_detected and rejected,
               'pixelsPassed': pixels_passed, 'shortLivedAccountingLimitationExposed': child_coverage,
               'collectorSHA256': sha256(tools/'collector'), 'toolBuild': json.loads((tools/'build.json').read_text()),
@@ -319,16 +351,20 @@ def startup(application, tools, directory, count, mode, seconds):
     runtime = native(helper,'process',connection['pid']); application.owned[connection['pid']] = runtime
     save(directory/'identity.json',{'owner':launched['process'],'collectorSHA256':sha256(helper),'frameworkFiles':FRAMEWORK_FILES,
          'toolBuild':json.loads((tools/'build.json').read_text()),'host':before['helper']})
-    save(directory/'hitch-error.json',{'error':'XCTest attachment after launch cannot cover the pre-attachment startup interval.'})
+    save(directory/'hitch.json',{'version':1,'pid':launched['process']['pid'],'processIdentity':launched['process']['identity'],
+        'status':'unavailable','reason':'XCTest attachment after launch cannot cover the pre-attachment startup interval.'})
     if (directory/'observation.json').exists() and mode=='observed':recognize_frames(helper,directory)
 
 
 def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capability_dir=None,
-              pacing=DEFAULT_PACING, chunk_bytes=64, message_bytes=512):
+              pacing=DEFAULT_PACING, chunk_bytes=64, message_bytes=512, native_hitches=False):
     from lifecycle import Application
     from adapter import wait_for
     from workload import schedule
     directory.mkdir(parents=True,mode=0o700,exist_ok=False)
+    host=native(tools/'collector','probe');save(directory/'preflight.json',host)
+    if not all(host.get(k) is True for k in ('accessibility','input')+(('capture',) if mode=='observed' else ())):
+        raise RuntimeError('required desktop permissions unavailable; preflight does not request authorization')
     capability = None
     if capability_dir:
         capability = json.loads((capability_dir/'capabilities.json').read_text())
@@ -398,7 +434,7 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                     plan['events']=reanchor(plan['events'],preparation['point'],plan['windowBounds'])
                     collect(tools,case,plan,bundle,capability,
                             arm=(lambda start:application.provider.arm(token,start)) if token else None,
-                            checkpoint=lambda:boundary_outcome(application))
+                            checkpoint=lambda:boundary_outcome(application),native_hitches=native_hitches)
                     if token:save(case/'source.json',application.provider.source_evidence(token))
                     save(case/'outcome.json',outcome(application,token,executions))
                 except Exception as error:
@@ -414,10 +450,15 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                 if (case/'plan.json').exists():report=write_report(case)
                 elif (case/'report.json').exists():report=json.loads((case/'report.json').read_text())
                 else:
-                    report={'measurement':'incomplete','product':'unknown','comparison':'not-comparable','metrics':{},
+                    report={'version':1,'scenario':case.name.split('-',1)[1],'count':count,'mode':mode,
+                            'measurement':'incomplete','product':'unknown','comparison':'not-comparable','metrics':{},
                             'reasons':['scenario preparation failed; see failure.json']}
                     save(case/'report.json',report)
                 summaries.append({'path':str(case.relative_to(directory)),**report})
+            for index,scenario in enumerate(scenarios[len(trials):],len(trials)):
+                summaries.append({'path':f'n-{count}/{index:02d}-{scenario}','scenario':scenario,'count':count,'mode':mode,
+                    'execution':'not-run','measurement':'incomplete','product':'unknown','comparison':'not-comparable','metrics':{},
+                    'reasons':['preceding preparation failed; this scenario was not measured']})
     save(directory/'summary.json',{'version':1,'results':summaries,'statisticalRegressionGate':False})
     lines=['# Observed Overview measurements','',
            'All cards existed before each timed scenario. No layout score or statistical regression gate.',

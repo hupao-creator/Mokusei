@@ -59,7 +59,14 @@ private func exchange(_ path: String, _ value: [String: Any] = [:]) throws -> [S
         }
         try checkOwner()
         // A proxy only: launch/activate could restart a dead application.
-        let metric = RecordingMetric(target: XCUIApplication(url: expectedURL))
+        // A native process check alone does not prove that the metric proxy
+        // observed that application. Unattached zero-valued metrics are invalid.
+        let application = XCUIApplication(url: expectedURL)
+        guard application.wait(for: .runningForeground, timeout: 5) else {
+            throw NSError(domain: "benchmark-owner", code: 2, userInfo: [NSLocalizedDescriptionKey: "XCTest could not observe the existing foreground target"])
+        }
+        try checkOwner()
+        let metric = RecordingMetric(target: application)
         let options = XCTMeasureOptions(); options.iterationCount = 1
         var invocation = 0
         measure(metrics: [metric], options: options) {

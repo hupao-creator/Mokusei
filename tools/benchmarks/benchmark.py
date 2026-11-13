@@ -28,6 +28,9 @@ def main():
     run.add_argument('--pacing',choices=tuple(RATES),default=DEFAULT_PACING,
                      help='sparse (default): low-rate output; sustained/burst: explicit stress loads')
     run.add_argument('--chunk-bytes',type=int,default=64);run.add_argument('--message-bytes',type=int,default=512)
+    for command in (build,calibrate,run):
+        command.add_argument('--native-hitches',action='store_true',
+            help='explicit XCTest diagnostic; requires pre-authorized Developer Tools access; never part of the default run')
     analyze=commands.add_parser('analyze',help='offline reanalysis; does not reseal or change evidence')
     analyze.add_argument('directory',type=Path)
     commands.add_parser('conformance',help='portable adverse protocol/scorer replays')
@@ -42,17 +45,22 @@ def main():
         return 0 if result['measurement']=='valid' and result['product']=='passed' else 2
     if sys.platform!='darwin':parser.error('live collection requires macOS; conformance/analyze are portable')
     from build import build as build_tools
-    tools=build_tools(args.tools.resolve())
+    if args.native_hitches:
+        from hitches import preflight
+        try:preflight()
+        except RuntimeError as error:parser.error(str(error))
+    tools=build_tools(args.tools.resolve(),native_hitches=args.native_hitches)
     if args.command=='build': print(tools);return 0
     from runner import calibrate as calibrate_controls, run_suite
     if args.command=='calibrate':
-        result=calibrate_controls(tools,args.output.resolve())
+        result=calibrate_controls(tools,args.output.resolve(),native_hitches=args.native_hitches)
         print(json.dumps(result,indent=2));return 0 if result['passed'] and result['pixelsPassed'] else 2
     if not 4<=args.seconds<=120:parser.error('--seconds must be 4..120')
     if len(set(args.count))!=len(args.count):
         parser.error('duplicate counts require separate experiment directories')
     results=run_suite(tools,args.app.resolve(),args.output.resolve(),args.count,args.scenario,args.mode,args.seconds,
-                      args.capabilities.resolve() if args.capabilities else None,args.pacing,args.chunk_bytes,args.message_bytes)
+                      args.capabilities.resolve() if args.capabilities else None,args.pacing,args.chunk_bytes,args.message_bytes,
+                      native_hitches=args.native_hitches)
     print(json.dumps([{k:r.get(k) for k in ('path','measurement','product','comparison','reasons')} for r in results],indent=2))
     # Exit 2 means an incomplete/unsupported experiment, never a performance gate.
     return 0 if results and all(r['measurement']=='valid' and r['product']=='passed' for r in results) else 2

@@ -25,6 +25,10 @@ context. Run GUI experiments serially, including Overview experiments. Fixture
 preparation and heavy compilation should finish before formal collection.
 Keep profile and Runtime connection files private. Exit 2 describes unavailable,
 incomplete or unsuccessful observation, not a statistical regression gate.
+The shared default collector no longer starts XCTest or its privileged
+performance service. Native hitches remain explicitly unavailable; existing
+Screen Recording/Accessibility/input permissions are still required. No
+administrator prompt or system authorization change is part of a default run.
 
 ## Workloads and scenarios
 

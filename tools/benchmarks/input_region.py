@@ -4,7 +4,7 @@ import math
 from contracts.model import integer, number
 
 
-def background_point(owner, fixture):
+def background_point(owner, fixture, require_all=True):
     if owner.get('axTruncated') is not False:
         raise ValueError('complete accessibility geometry unavailable for drag preparation')
     window=owner['bounds']
@@ -29,7 +29,7 @@ def background_point(owner, fixture):
         elif row.get('AXRole') in ('AXButton','AXTextField','AXTextArea','AXComboBox','AXPopUpButton'):
             if 'bounds' not in row:raise ValueError('interactive control geometry unavailable')
             blocked.append(rectangle(row['bounds']))
-    if cards.keys()!=expected:
+    if require_all and cards.keys()!=expected:
         raise ValueError('card accessibility geometry does not cover the existing fixture')
     if any(w<=0 or h<=0 for _,_,w,h in cards.values()):
         raise ValueError('card accessibility geometry has no extent')
@@ -43,7 +43,7 @@ def background_point(owner, fixture):
     candidates=[((a+b)/2,(c+d)/2) for a,b in zip(xs,xs[1:]) for c,d in zip(ys,ys[1:])]
     def clearance(point):
         x,y=point
-        return min(math.hypot(max(bx-x,0,x-bx-bw),max(by-y,0,y-by-bh)) for bx,by,bw,bh in blocked)
+        return min((math.hypot(max(bx-x,0,x-bx-bw),max(by-y,0,y-by-bh)) for bx,by,bw,bh in blocked),default=math.inf)
     point=max(candidates,key=lambda p:(clearance(p),p[0],p[1]),default=None)
     if point is None or clearance(point)<3:
         raise ValueError('no externally verified background gap for mouse-down')
@@ -64,9 +64,34 @@ def validate_preparation(record, plan):
         raise ValueError('input preparation belongs to another OS window')
     if any(owner['bounds'][k]!=plan['windowBounds'][k] for k in ('width','height')):
         raise ValueError('input preparation viewport differs from measured viewport')
-    point=background_point(owner,plan['fixture'])
+    version=integer(record.get('version',1),'input preparation version',1,2)
+    point=background_point(owner,plan['fixture'],require_all=version==1)
     if point!=record['point']:raise ValueError('input preparation point differs from retained AX evidence')
+    if version==2:
+        validate_hit(record)
     down=next(e for e in plan['events'] if e['kind']=='down')
     if any(abs(down[k]-plan['windowBounds'][k]-point[k])>1e-6 for k in ('x','y')):
         raise ValueError('mouse-down does not use the prepared background point')
     return context
+
+
+def validate_hit(record):
+    hit,owner,point=record['hitTest'],record['owner'],record['point']
+    integer(hit['beforeNS'],'hit-test start',record['beforeNS'])
+    integer(hit['afterNS'],'hit-test end',hit['beforeNS'],record['afterNS'])
+    if hit['processIdentity']!=owner['process']['identity'] or hit['windowID']!=owner['windowID']:
+        raise ValueError('hit-test owner differs from prepared window')
+    if hit['bounds']!=owner['bounds'] or hit.get('active') is not True:
+        raise ValueError('window moved or lost foreground during input preparation')
+    if hit['point']!={axis:point[axis]+owner['bounds'][axis] for axis in ('x','y')}:
+        raise ValueError('hit-test point differs from selected background gap')
+    if hit.get('complete') is not True:raise ValueError('hit-test ancestry is incomplete')
+    if not isinstance(hit['elements'],list) or not 1<=len(hit['elements'])<=35:
+        raise ValueError('hit-test ancestry size invalid')
+    for row in hit['elements']:
+        identifier=row.get('AXIdentifier','')
+        if identifier.startswith('overview-card-') or row.get('AXRole') in (
+                'AXButton','AXTextField','AXTextArea','AXComboBox','AXPopUpButton','AXLink','AXSlider'):
+            raise ValueError('mouse-down hit a card or interactive control')
+        if identifier=='overview.canvas':return
+    raise ValueError('mouse-down does not hit the public Overview canvas')

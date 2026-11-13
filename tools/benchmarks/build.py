@@ -8,12 +8,13 @@ import subprocess
 SOURCE = Path(__file__).resolve().parent
 
 
-def build(directory):
+def build(directory, native_hitches=False):
     directory.mkdir(parents=True, exist_ok=True)
     source_files = sorted([Path(__file__), *SOURCE.glob('native/*'), *SOURCE.glob('conformance/*.swift'),
-                           *SOURCE.glob('conformance/*.c'), *SOURCE.glob('hitch/*.swift')])
+                           *SOURCE.glob('conformance/*.c'), *(SOURCE.glob('hitch/*.swift') if native_hitches else [])])
     toolchain = subprocess.check_output(['xcodebuild', '-version'], text=True)
     digest = hashlib.sha256(toolchain.encode())
+    digest.update(str(native_hitches).encode())
     for path in source_files:
         digest.update(path.name.encode()); digest.update(path.read_bytes())
     identity = digest.hexdigest()
@@ -36,14 +37,16 @@ def build(directory):
     subprocess.run(['xcrun','swiftc','-swift-version','5','-O','-parse-as-library',str(SOURCE/'conformance/Control.swift'),
                     '-o',str(app/'Contents/MacOS/Control')],check=True)
     subprocess.run(['codesign','--force','--sign','-',str(app)],check=True,capture_output=True)
-    make_hitch_project(directory)
-    with (directory/'hitch-build.log').open('w') as log:
-        process=subprocess.run(['xcodebuild','-project',str(directory/'Hitch.xcodeproj'),'-scheme','Hitch',
-            '-configuration','Release','-destination','platform=macOS','-derivedDataPath',str(directory/'HitchBuild'),
-            'CODE_SIGN_IDENTITY=-','build-for-testing'],stdout=log,stderr=subprocess.STDOUT)
-    if process.returncode:
-        raise RuntimeError('independent hitch build failed; see '+str(directory/'hitch-build.log'))
-    stamp.write_text(json.dumps({'sourceHash':identity,'toolchain':toolchain,'cpuClockCheck':cpu_clock},indent=2))
+    if native_hitches:
+        make_hitch_project(directory)
+        with (directory/'hitch-build.log').open('w') as log:
+            process=subprocess.run(['xcodebuild','-project',str(directory/'Hitch.xcodeproj'),'-scheme','Hitch',
+                '-configuration','Release','-destination','platform=macOS','-derivedDataPath',str(directory/'HitchBuild'),
+                'CODE_SIGN_IDENTITY=-','build-for-testing'],stdout=log,stderr=subprocess.STDOUT)
+        if process.returncode:
+            raise RuntimeError('independent hitch build failed; see '+str(directory/'hitch-build.log'))
+    stamp.write_text(json.dumps({'sourceHash':identity,'toolchain':toolchain,'cpuClockCheck':cpu_clock,
+                                'nativeHitchTargetBuilt':native_hitches},indent=2))
     return directory
 
 

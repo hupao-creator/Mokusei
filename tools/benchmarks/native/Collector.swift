@@ -124,9 +124,7 @@ func ax(_ item: AXUIElement, _ key: String) -> CFTypeRef? {
     var value: CFTypeRef?
     return AXUIElementCopyAttributeValue(item, key as CFString, &value) == .success ? value : nil
 }
-func axTree(_ item: AXUIElement, _ depth: Int = 0, budget: inout Int) -> [Record] {
-    guard depth < 35, budget > 0 else { return [] }
-    budget -= 1
+func axRecord(_ item: AXUIElement) -> Record {
     var row: Record = [:]
     for key in ["AXRole", "AXIdentifier", "AXTitle", "AXDescription", "AXValue"] {
         if let text = ax(item, key) as? String { row[key] = text }
@@ -140,7 +138,12 @@ func axTree(_ item: AXUIElement, _ depth: Int = 0, budget: inout Int) -> [Record
             row["bounds"] = ["x": point.x, "y": point.y, "width": size.width, "height": size.height]
         } else { row["boundsUnavailable"] = "AX returned nonfinite geometry" }
     }
-    var result = [row]
+    return row
+}
+func axTree(_ item: AXUIElement, _ depth: Int = 0, budget: inout Int) -> [Record] {
+    guard depth < 35, budget > 0 else { return [] }
+    budget -= 1
+    var result = [axRecord(item)]
     for child in ax(item, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
         result += axTree(child, depth + 1, budget: &budget)
     }
@@ -315,7 +318,7 @@ final class Sampler: @unchecked Sendable {
         let args = Array(CommandLine.arguments.dropFirst())
         guard let command = args.first else { throw fail("command required") }
         let counts = ["launch": 2, "startup": 3, "quit": 3, "probe": 1, "process": 2,
-                      "inspect": 2, "prepare": 2, "capture": 3, "ocr": 2, "input": 2, "collect": 3]
+                      "inspect": 2, "prepare": 2, "hit-test": 4, "capture": 3, "ocr": 2, "input": 2, "collect": 3]
         guard command == "tree" ? args.count > 1 : counts[command] == args.count else { throw fail("invalid command arguments") }
         switch command {
         case "launch":
@@ -356,6 +359,29 @@ final class Sampler: @unchecked Sendable {
             try emit(["processes": all.filter { roots.contains(Int32($0["pid"] as! Int)) }, "complete": false])
         case "process":
             guard let pid = Int32(args[1]), let row = process(pid) else { throw fail("process unavailable") }; try emit(row)
+        case "hit-test":
+            guard let pid = Int32(args[1]), let x = Double(args[2]), let y = Double(args[3]),
+                  x.isFinite, y.isFinite, abs(x) <= 100_000, abs(y) <= 100_000,
+                  let owner = process(pid), AXIsProcessTrusted() else { throw fail("invalid hit-test owner or point") }
+            let before = now()
+            var leaf: AXUIElement?
+            guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(x), Float(y), &leaf) == .success,
+                  var element = leaf else { throw fail("system accessibility hit-test unavailable") }
+            var elements: [Record] = [], complete = false
+            for _ in 0..<35 {
+                var actualPID: pid_t = 0
+                guard AXUIElementGetPid(element, &actualPID) == .success, actualPID == pid else { throw fail("hit-test belongs to another process") }
+                let row = axRecord(element); elements.append(row)
+                if row["AXRole"] as? String == "AXApplication" { complete = true; break }
+                guard let parent = ax(element, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() else { break }
+                element = parent as! AXUIElement
+            }
+            let target = try await window(pid)
+            guard process(pid)?["identity"] as? String == owner["identity"] as? String else { throw fail("hit-test owner changed") }
+            try emit(["beforeNS": before, "afterNS": now(), "processIdentity": owner["identity"]!,
+                      "windowID": target.windowID, "bounds": try windowBounds(target.windowID),
+                      "active": NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
+                      "point": ["x": x, "y": y], "elements": elements, "complete": complete])
         case "inspect", "prepare":
             guard let pid = Int32(args[1]), let running = NSRunningApplication(processIdentifier: pid) else { throw fail("application missing") }
             var expectedBounds: CGRect?
@@ -412,10 +438,21 @@ final class Sampler: @unchecked Sendable {
             options.arguments = launch["arguments"] as? [String] ?? []
             options.environment = launch["environment"] as? [String: String] ?? [:]
             let requested = now()
+            let requestedWallUS = UInt64(Date().timeIntervalSince1970 * 1_000_000)
             let app = try await NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: launch["app"] as! String), configuration: options)
             guard let owner = process(app.processIdentifier) else { throw fail("startup owner missing") }
-            try write(["requestedNS": requested, "returnedNS": now(), "process": owner,
+            let returned = now(), returnedWallUS = UInt64(Date().timeIntervalSince1970 * 1_000_000)
+            try write(["requestedNS": requested, "returnedNS": returned, "process": owner,
+                       "requestedWallUS": requestedWallUS, "returnedWallUS": returnedWallUS,
                        "launchDate": app.launchDate?.timeIntervalSince1970 as Any? ?? NSNull()], directory + "/launch.json")
+            plan["pid"] = Int(app.processIdentifier); plan["processIdentity"] = owner["identity"]
+            var roots = plan["processRoots"] as! [Record]
+            roots.append(owner.merging(["role": "application"], uniquingKeysWith: { _, new in new }))
+            plan["processRoots"] = roots
+            // Process accounting does not depend on the existence/settling of a
+            // capturable window. Start as soon as the OS returns the new owner.
+            let resources = startSampling(plan, directory, owner)
+            defer { resources.cancel() }
             let windowDeadline = now() + 10_000_000_000
             var target: SCWindow?
             while now() < windowDeadline {
@@ -432,12 +469,8 @@ final class Sampler: @unchecked Sendable {
                 target = latest
             }
             guard let target, stable == 3 else { throw fail("startup OS window did not settle") }
-            plan["pid"] = Int(app.processIdentifier); plan["processIdentity"] = owner["identity"]
             plan["windowID"] = target.windowID
             plan["windowBounds"] = ["x": target.frame.minX, "y": target.frame.minY, "width": target.frame.width, "height": target.frame.height]
-            var roots = plan["processRoots"] as! [Record]
-            roots.append(owner.merging(["role": "application"], uniquingKeysWith: { _, new in new }))
-            plan["processRoots"] = roots
             let events = (plan["events"] as! [Record]).map { event -> Record in
                 var row = event
                 row["x"] = target.frame.maxX - 70 + (event["x"] as! Double)
@@ -446,12 +479,36 @@ final class Sampler: @unchecked Sendable {
             }
             plan["events"] = events
             try write(plan, directory + "/plan.json")
-            try await collect(directory + "/plan.json", directory)
+            try await collect(directory + "/plan.json", directory, resources: resources)
         case "collect": try await collect(args[1], args[2])
         default: throw fail("unknown command")
         }
     }
-    static func collect(_ planPath: String, _ directory: String) async throws {
+    static func startSampling(_ plan: Record, _ directory: String, _ owner: Record) -> Task<Record, Never> {
+        var roots: [Int32: String] = [:]
+        for row in plan["processRoots"] as! [Record] { roots[Int32(row["pid"] as! Int)] = row["role"] as? String }
+        roots[ProcessInfo.processInfo.processIdentifier] = "collector"
+        let sampler = Sampler(roots: roots, output: directory, owner: owner)
+        for row in plan["processRoots"] as! [Record] { sampler.identities[Int32(row["pid"] as! Int)] = row["identity"] as? String }
+        sampler.runtimeConnection = plan["runtimeConnection"] as? String
+        sampler.runtimePath = plan["runtimePath"] as? String
+        return Task.detached {
+            let start = (plan["startNS"] as! NSNumber).uint64Value
+            let end = start + UInt64(((plan["warmupSeconds"] as! Double) + (plan["formalSeconds"] as! Double) + (plan["tailSeconds"] as! Double)) * 1e9)
+            let step = UInt64(1e9 / (plan["sampleHz"] as! Double))
+            let attached = now()
+            let formalStart = start + UInt64((plan["warmupSeconds"] as! Double) * 1e9)
+            let formalEnd = formalStart + UInt64((plan["formalSeconds"] as! Double) * 1e9)
+            var deadlines = Set(stride(from: start, through: end, by: Int(step)).filter { $0 >= attached })
+            deadlines.formUnion([max(start, attached), formalStart, formalEnd, end].filter { $0 >= attached && $0 <= end })
+            for deadline in deadlines.sorted() {
+                if Task.isCancelled { break }
+                sleepUntil(deadline); sampler.sample()
+            }
+            return sampler.finish()
+        }
+    }
+    static func collect(_ planPath: String, _ directory: String, resources earlyResources: Task<Record, Never>? = nil) async throws {
         let plan = try readJSON(planPath)
         try validatePlan(plan)
         let pid = Int32(plan["pid"] as! Int)
@@ -473,20 +530,8 @@ final class Sampler: @unchecked Sendable {
         let formalStart = start + warmup, formalEnd = formalStart + formal, end = formalEnd + tail
         let startup = plan["scenario"] as? String == "first-render"
         guard startup || start > now() + 200_000_000 else { throw fail("collector missed start deadline") }
-        var roots: [Int32: String] = [:]
-        for row in plan["processRoots"] as! [Record] { roots[Int32(row["pid"] as! Int)] = row["role"] as? String }
-        roots[ProcessInfo.processInfo.processIdentifier] = "collector"
-        let sampler = Sampler(roots: roots, output: directory, owner: owner)
-        for row in plan["processRoots"] as! [Record] { sampler.identities[Int32(row["pid"] as! Int)] = row["identity"] as? String }
-        sampler.runtimeConnection = plan["runtimeConnection"] as? String
-        sampler.runtimePath = plan["runtimePath"] as? String
-        let resourceTask = Task.detached { () -> Record in
-            let step = UInt64(1e9 / (plan["sampleHz"] as! Double))
-            var deadline = max(start, now())
-            while deadline <= end { sleepUntil(deadline); sampler.sample(); deadline += step }
-            if deadline - step < end { sleepUntil(end); sampler.sample() }
-            return sampler.finish()
-        }
+        let resourceTask = earlyResources ?? startSampling(plan, directory, owner)
+        defer { resourceTask.cancel() }
         let inputTask = Task.detached { () -> [Record] in
             var receipts: [Record] = []
             var held: Record?

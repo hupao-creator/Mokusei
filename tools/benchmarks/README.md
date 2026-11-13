@@ -1,7 +1,8 @@
 # External Overview rendering benchmark
 
 This Python CLI runs against a **built, signed production Release `.app`**. It
-builds only its independent macOS collectors, XCTest UI target and control app.
+builds only its independent macOS collectors and control app. An XCTest UI
+target is built only for an explicitly requested native-hitch diagnostic.
 It never imports product modules, reads Overview types or writes product
 persistence. Copy this directory outside the repository to run it independently.
 Python 3.10+, macOS 26 and Xcode 26 are required for live collection; conformance
@@ -37,6 +38,16 @@ python3 tools/benchmarks/benchmark.py analyze /private/tmp/overview-run/n-5/04-b
 Outputs must be new directories. Live experiments need Screen Recording,
 Accessibility and system input permission in the invoking context, an unlocked
 visible desktop and exclusive use of the foreground window during each trial.
+The default build/calibration/run path does not launch XCTest, Instruments,
+`sudo`, or an authorization dialog. Read-only permission probes fail before
+fixture launch if the invoking context lacks an existing desktop permission.
+The CLI never changes Developer Tools authorization or system security settings.
+`--native-hitches` explicitly opts into the separate XCTest diagnostic for
+`build`, `calibrate` and `run`. It requires Developer Tools authorization already
+enabled and fails preflight otherwise; no interactive authorization is requested
+by the CLI. This extension is not needed to collect the default resource/pixel
+baseline. Default reports retain native hitches as unavailable, never zero or
+passed; optical progress/stall estimates are not native frame-hitch metrics.
 The collector records foreground loss, missed input deadlines and capture gaps.
 Response/stasis estimates retain sampling bounds. A bound that straddles the
 declared progress deadline is incomplete evidence; only a lower bound beyond
@@ -59,13 +70,20 @@ creates/deletes cards or deliberately reveals them one at a time. First renderin
 reopens the already-populated profile. Before/after public card IDs, titles and
 counts are retained and checked; a changed set cannot produce a passing outcome.
 Before timing, one public Accessibility observation locates a mouse-down gap
-outside the existing card/control rectangles. This is input preparation, not a
+outside exposed card/control rectangles. A separate system-wide AX hit-test
+checks the selected point's complete ancestry, owner and unchanged window,
+requiring the public canvas and rejecting cards or interactive controls.
+Virtualized cards need not all appear in the AX tree; the fixed existing card
+set is checked separately through public fixture/UI identities. This is input preparation, not a
 layout score or visible-card quota. Missing geometry or a blocked point cannot
 be interpreted as a frozen canvas. First-render probes reuse geometry observed
 before the restart. AX bounds are not gesture-acceptance receipts: a completely inert
 product probe reports unknown input acceptance/responsiveness, never a pass.
 The raw observation and selected point are retained, and the full mouse trajectory
 remains fixed. No full accessibility/semantic snapshot is polled while measuring.
+The final trajectory endpoint is delivered as a drag before mouse-up: SwiftUI
+does not promise an `onChanged` event for mouse-up. The independent SwiftUI
+control checks this input path alongside the AppKit controls.
 
 ## Scenarios and metrics
 
@@ -86,8 +104,15 @@ Resource reports contain cumulative CPU deltas, single-core CPU percent,
 **sampled** physical-footprint peaks and final samples for warmup, formal, tail
 and whole observation. Peaks are not allocator maxima. Missing short-lived
 children, reparenting uncertainty and absent exit CPU prevent a complete task
-cost claim. Startup resource sampling begins after the OS returns the launch
-owner; pre-attachment XCTest hitches are unavailable. Reports retain these gaps.
+cost claim. Startup resource sampling starts immediately when the OS returns the
+new launch owner, independently of window discovery/capture. It retains the
+post-attachment interval separately. `startupApplication` reports cumulative App
+CPU since the verified new process birth through the formal-end sample, its
+actual timestamp and the sampled footprint peak; it does not invent a zero
+pre-attachment memory peak or claim whole-process-tree launch cost.
+The launch receipt checks birth against request/return wall times. Pre-attachment
+pixels and hitches remain unobserved; the first captured content may be only a
+left-censored upper bound. Reports retain these gaps.
 
 `proc_pid_rusage` CPU counters are Mach absolute ticks. The native sampler
 converts them with the host's timebase before emitting `cpuNS`. Every collector
@@ -201,7 +226,9 @@ metrics with their coverage limitations.
 `conformance` exercises the real parsers, source schedules and offline scorer
 with synthetic adversarial evidence; it cannot certify a macOS collector. Hosted
 Linux CI runs it. `calibrate` uses separate normal/frozen/wrong/delayed-motion,
-main-thread-stall and short-lived-child controls with the same collectors.
+main-thread-stall, SwiftUI drag and short-lived-child controls with the same collectors.
+Its default wrong-owner control rejects a mismatched birth identity before any
+input/capture; it is separate from the opt-in native hitch ownership control.
 Signed production GUI experiments remain local because CI has no production
 signing credentials. See [verification policy](../../scripts/ci/verification-policy.md).
 
