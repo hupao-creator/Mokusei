@@ -69,6 +69,9 @@ struct CodexTurn: Sendable, Hashable, Identifiable {
     var status: String { raw["status"]!.stringValue! }
     var statusLabel: String? { raw["statusLabel"]?.stringValue }
     var answer: String { raw["answer"]!.stringValue! }
+    var lastReaderReply: CodexTimelineItem? {
+        timeline.last { $0.kind == "assistant" && $0.status != "streaming" && $0.status != "failed" && !codexTrim($0.raw["content"]).codeUnits.isEmpty }
+    }
     var reasoning: String { raw["reasoning"]!.stringValue! }
     var plan: [JSONValue] { raw["plan"]!.arrayValue! }
     var planExplanation: String? { raw["planExplanation"]?.stringValue }

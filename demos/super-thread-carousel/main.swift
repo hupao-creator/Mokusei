@@ -18,6 +18,7 @@ private struct CardShell<Content: View>: View {
 
 private struct DemoView: View {
     @State private var model = DemoModel()
+    @State private var coverCache = NativeReportCoverCache()
     let fixtures: [String: ReportFixture]
     @State private var dark = false
     @State private var active = true
@@ -81,6 +82,7 @@ private struct DemoView: View {
                 Button("重置") { model.reset() }
             }.buttonStyle(.bordered).controlSize(.small)
         }.padding(30)
+            .environment(\.nativeReportCoverCache, coverCache)
             .background(dark ? Color(white: 0.105) : Color(red: 0.95, green: 0.945, blue: 0.93))
             .preferredColorScheme(dark ? .dark : .light)
             .onReceive(clock) { date in model.tick(at: date) }

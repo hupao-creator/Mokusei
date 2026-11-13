@@ -1,5 +1,12 @@
 # Codex Harness
 
+Thread manifests carry a bounded TOC `answer` selected from that execution's
+last nonempty assistant timeline item whose status is neither streaming nor
+failed, matching the Agent reader. Selection precedes clipping and applies to
+running, waiting and terminal executions; no eligible reply means an empty
+excerpt. Full state retains its aggregate `answer`, and Overview keeps its own
+card/reasoning policy. No fallback crosses execution or fork-history boundaries.
+
 Exact execution forks accept `{executionId}` through the existing Forker. The
 adapter resolves the native user-message client identity, requests `lastTurnId`
 on `thread/fork`, verifies the returned history boundary and trims public fork
