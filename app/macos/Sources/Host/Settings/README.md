@@ -220,6 +220,13 @@ a successful roster can establish that a saved provider is unavailable. Periodic
 refreshes keep a successful roster visible. Stopping discovery cancels its probe
 and fences late completions so reconnect/reload can start a fresh read.
 
+Plugin descriptions use value equality, so unrelated catalog transactions do not
+invalidate Settings readers when enablement and availability are unchanged.
+Independent installation replies publish a dictionary entry only when its value
+changes, and successful replies remove an error only when one exists. Real path,
+status, message and plugin changes still propagate; discovery readiness, retries,
+detail refresh sequences and cancellation retain their existing lifecycle.
+
 The shared Harness editor also shows native progress during initial acquisition.
 Read failures take precedence over an allocated surface and expose retry;
 execution-snapshot failures do not also claim that the profile is merely unpinned.

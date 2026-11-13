@@ -1,4 +1,6 @@
 import AppKit
+import Observation
+import Synchronization
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -43,6 +45,32 @@ struct NativeSettingsDiscoveryTests {
         #expect(model.installationState("codex") == .installed && !model.probing)
         await model.refreshInstallations()
         #expect(manualReads == 1 && model.savedSettings == saved)
+
+        // A retained roster must not invalidate every Settings reader just
+        // because the independent discovery boundary returned identical data.
+        model.startDiscovery(harnessIDs: ["codex"])
+        try await SwiftUIReplay.wait { pending["codex"] != nil }
+        let installed: JSONValue = .object(["status": .text("installed"), "executablePath": .text("fixture")])
+        pending.removeValue(forKey: "codex")?.resume(returning: installed)
+        try await SwiftUIReplay.wait { !model.probing }
+        let rosterChanges = Mutex(0), errorChanges = Mutex(0)
+        withObservationTracking { _ = model.installations } onChange: { rosterChanges.withLock { $0 += 1 } }
+        withObservationTracking { _ = model.installationErrors } onChange: { errorChanges.withLock { $0 += 1 } }
+        let refresh = Task { await model.refreshInstallations(force: false) }
+        try await SwiftUIReplay.wait { pending["codex"] != nil }
+        pending.removeValue(forKey: "codex")?.resume(returning: installed)
+        await refresh.value
+        #expect(rosterChanges.withLock { $0 } == 0 && errorChanges.withLock { $0 } == 0)
+
+        let changed = Task { await model.refreshInstallations(force: false) }
+        try await SwiftUIReplay.wait { pending["codex"] != nil }
+        pending.removeValue(forKey: "codex")?.resume(returning: .object([
+            "status": .text("installed"), "executablePath": .text("replacement")
+        ]))
+        await changed.value
+        #expect(rosterChanges.withLock { $0 } == 1 && errorChanges.withLock { $0 } == 0)
+        #expect(model.installations["codex"]?.executablePath == "replacement")
+        #expect(model.detailRefreshSequences["codex"] == 1)
     }
 }
 
