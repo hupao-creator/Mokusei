@@ -809,19 +809,13 @@ private struct OverviewDirectoryGlassGroup<Children: View>: View {
     let active: Bool
     @ViewBuilder var children: (Namespace.ID) -> Children
     @Namespace private var glass
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GlassEffectContainer(spacing: OverviewTagMetrics.submenuSpacing) {
-            Color.clear
-                .frame(width: visible.width, height: visible.height)
-                .modifier(OverviewTagGlassSurface(active: active,
-                    shape: OverviewClippedTagShape(leadingOverflow: visible.minX - source.minX,
-                        trailingOverflow: source.maxX - visible.maxX)))
-                .glassEffectID(parent.id, in: glass)
-                .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            OverviewDirectoryGlassSurface(size: visible.size,
+                leadingOverflow: visible.minX - source.minX,
+                trailingOverflow: source.maxX - visible.maxX,
+                active: active, id: parent.id, namespace: glass)
                 .overlay(alignment: .top) {
                     children(glass)
                         // Use the measured child width without a state update on
@@ -837,6 +831,43 @@ private struct OverviewDirectoryGlassGroup<Children: View>: View {
         }
         .frame(width: visible.width, height: visible.height)
         .position(x: visible.midX, y: visible.midY)
+    }
+}
+
+/// Sample the source surface's size before handing it to the glass compositor.
+/// Otherwise the material can shrink while captured glass still has the old
+/// width and overlaps its neighbour. Keep this boundary below the menu overlay:
+/// the child row owns its opening/closing progress independently.
+private struct OverviewDirectoryGlassSurface: View, @preconcurrency Animatable {
+    var size: CGSize
+    var leadingOverflow: CGFloat
+    var trailingOverflow: CGFloat
+    let active: Bool
+    let id: String
+    let namespace: Namespace.ID
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var animatableData: AnimatablePair<CGSize.AnimatableData, AnimatablePair<CGFloat, CGFloat>> {
+        get { .init(size.animatableData, .init(leadingOverflow, trailingOverflow)) }
+        set {
+            size.animatableData = newValue.first
+            leadingOverflow = newValue.second.first
+            trailingOverflow = newValue.second.second
+        }
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: size.width, height: size.height)
+            .modifier(OverviewTagGlassSurface(active: active,
+                shape: OverviewClippedTagShape(leadingOverflow: leadingOverflow, trailingOverflow: trailingOverflow)))
+            .glassEffectID(id, in: namespace)
+            .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            // These are presentation samples. Selection tint keeps the
+            // surface modifier's own animation; geometry must not animate twice.
+            .transaction { $0.animation = nil }
     }
 }
 
