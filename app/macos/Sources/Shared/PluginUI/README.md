@@ -917,10 +917,21 @@ below over 260ms, for both increasing and decreasing totals; clocks retain their
 still, and added/removed positions follow the formatted width (including compact
 units). Retained positions change only glyph identity; card and usage-part
 identity stay stable.
-SwiftUI owns outgoing glyph lifetimes, including interrupted updates. The text
+SwiftUI owns outgoing usage glyph lifetimes, including interrupted updates. The text
 raster tier suppresses animation only when its scale changes; it must not clear
 unrelated glyph-motion transactions. This number path retains the existing
 always-animate policy even with system Reduce Motion enabled.
+
+[Runtime clocks](Cards/ThreadCardClock.swift) use the same SwiftUI numeric cells
+as their glyph source and layout/baseline strut. A bounded immutable bitmap cache
+shares digits and colons across cards, keyed by resolved ink, legibility and
+display/text raster scales. Core Animation owns the 180ms digit and colon fades;
+no per-frame SwiftUI text layout or additional clock timer is required. Initial
+values mount settled, positions retain identity from the right, and stopping a
+clock retires any colon fade. Style changes replace ink without replaying it.
+The bitmap seat uses the native host's backing-pixel rounding rather than stretching
+the 13.75pt logical cell. The cache retains at most four styles and 32 MiB, except
+for one individually oversized zoom tier; no card or execution is retained.
 
 The native overview retains offscreen cards and the overview behind a reading
 page. `ThreadCardAnimationVisibility` reports their actual viewport/page visibility

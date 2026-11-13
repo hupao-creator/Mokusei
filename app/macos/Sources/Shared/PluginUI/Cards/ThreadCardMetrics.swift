@@ -137,8 +137,8 @@ public struct ThreadCardRuntime: View {
         let duration = [seconds / 3_600, (seconds / 60) % 60, seconds % 60]
             .map { $0 < 10 ? "0\($0)" : String($0) }.joined(separator: ":")
         let label = locale.language.languageCode?.identifier == "zh" ? "用时：\(duration)" : "Duration: \(duration)"
-        RollingNumberText(value: duration, clock: true, dimColon: endedAt == nil && seconds % 2 == 1,
-                          ticking: endedAt == nil && isVisible)
+        ThreadCardClock(value: duration, dimColon: endedAt == nil && seconds % 2 == 1,
+                        ticking: endedAt == nil && isVisible)
             .help(label)
             .focusable()
             .accessibilityElement(children: .ignore)

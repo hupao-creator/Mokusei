@@ -231,6 +231,11 @@ incomplete 5/10-card measurements. N=20 is explicitly unmeasured; the user
 stopped further collection. This snapshot is not a regression gate and belongs
 to the original collector configuration, not the later default without XCTest.
 
+The [runtime-clock optimization observation](baselines/2026-11-13-runtime-clock.md)
+uses the later default collector for two 10-card scenarios. It records signed
+before/after artifacts and App CPU samples, while retaining incomplete process
+coverage and unavailable hitch status. It is not a statistical regression result.
+
 ## Verification boundary
 
 `conformance` exercises the real parsers, source schedules and offline scorer
