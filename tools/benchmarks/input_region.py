@@ -1,0 +1,108 @@
+"""Choose a mouse-down point from public AX geometry before measurement."""
+import math
+
+from contracts.model import integer, number
+
+
+def background_point(owner, fixture, require_all=True):
+    if owner.get('axTruncated') is not False:
+        raise ValueError('complete accessibility geometry unavailable for drag preparation')
+    window=owner['bounds']
+    def rectangle(value):
+        return tuple(number(value[k], 'accessibility '+k, -100_000 if k in ('x','y') else 0, 100_000)
+                     for k in ('x','y','width','height'))
+    wx,wy,ww,wh=rectangle(window)
+    rows=owner['accessibility']
+    canvas=[r for r in rows if r.get('AXIdentifier')=='overview.canvas']
+    if len(canvas)!=1 or 'bounds' not in canvas[0]:
+        raise ValueError('public Overview canvas accessibility surface unavailable')
+    cx,cy,cw,ch=rectangle(canvas[0]['bounds'])
+    expected={'overview-card-'+t['id'] for t in fixture['threads']}
+    cards={}
+    blocked=[]
+    for row in rows:
+        identifier=row.get('AXIdentifier')
+        if identifier in expected:
+            if identifier in cards or 'bounds' not in row:
+                raise ValueError('ambiguous or unavailable card accessibility geometry')
+            cards[identifier]=rectangle(row['bounds'])
+        elif row.get('AXRole') in ('AXButton','AXTextField','AXTextArea','AXComboBox','AXPopUpButton'):
+            if 'bounds' not in row:raise ValueError('interactive control geometry unavailable')
+            blocked.append(rectangle(row['bounds']))
+    if require_all and cards.keys()!=expected:
+        raise ValueError('card accessibility geometry does not cover the existing fixture')
+    if any(w<=0 or h<=0 for _,_,w,h in cards.values()):
+        raise ValueError('card accessibility geometry has no extent')
+    blocked+=list(cards.values())
+    # Only the down point needs a gap: the mouse gesture owns subsequent drag
+    # events. Leave room for the unchanged 120pt leftward trajectory and chrome.
+    left,right,top,bottom=max(wx+150,cx+3),min(wx+ww-24,cx+cw-3),max(wy+160,cy+3),min(wy+wh-100,cy+ch-3)
+    if left>=right or top>=bottom:raise ValueError('window has no safe drag input region')
+    xs=sorted({left,right,*[max(left,min(right,v)) for x,_,w,_ in blocked for v in (x,x+w)]})
+    ys=sorted({top,bottom,*[max(top,min(bottom,v)) for _,y,_,h in blocked for v in (y,y+h)]})
+    candidates=[((a+b)/2,(c+d)/2) for a,b in zip(xs,xs[1:]) for c,d in zip(ys,ys[1:])]
+    def clearance(point):
+        x,y=point
+        return min((math.hypot(max(bx-x,0,x-bx-bw),max(by-y,0,y-by-bh)) for bx,by,bw,bh in blocked),default=math.inf)
+    point=max(candidates,key=lambda p:(clearance(p),p[0],p[1]),default=None)
+    if point is None or clearance(point)<3:
+        raise ValueError('no externally verified background gap for mouse-down')
+    return {'x':point[0]-wx,'y':point[1]-wy}
+
+
+def validate_preparation(record, plan):
+    integer(record['beforeNS'],'input preparation start',1)
+    integer(record['afterNS'],'input preparation end',record['beforeNS'],plan['startNS'])
+    owner=record['owner']
+    if owner.get('active') is not True:raise ValueError('input preparation target was not foreground')
+    context=record['context']
+    expected_context='reopen' if plan['scenario']=='first-render' else 'same-window'
+    if context!=expected_context:raise ValueError('input preparation context differs from scenario')
+    if context!='reopen' and owner['process']['identity']!=plan['processIdentity']:
+        raise ValueError('input preparation belongs to another application owner')
+    if context!='reopen' and owner['windowID']!=plan['windowID']:
+        raise ValueError('input preparation belongs to another OS window')
+    if any(owner['bounds'][k]!=plan['windowBounds'][k] for k in ('width','height')):
+        raise ValueError('input preparation viewport differs from measured viewport')
+    version=integer(record.get('version',1),'input preparation version',1,2)
+    point=background_point(owner,plan['fixture'],require_all=version==1)
+    if point!=record['point']:raise ValueError('input preparation point differs from retained AX evidence')
+    if version==2:
+        validate_hit(record)
+    down=next(e for e in plan['events'] if e['kind']=='down')
+    if any(abs(down[k]-plan['windowBounds'][k]-point[k])>1e-6 for k in ('x','y')):
+        raise ValueError('mouse-down does not use the prepared background point')
+    return context
+
+
+def validate_hit(record):
+    hit,owner,point=record['hitTest'],record['owner'],record['point']
+    integer(hit['beforeNS'],'hit-test start',record['beforeNS'])
+    integer(hit['afterNS'],'hit-test end',hit['beforeNS'],record['afterNS'])
+    if hit['processIdentity']!=owner['process']['identity'] or hit['windowID']!=owner['windowID']:
+        raise ValueError('hit-test owner differs from prepared window')
+    if hit['bounds']!=owner['bounds'] or hit.get('active') is not True:
+        raise ValueError('window moved or lost foreground during input preparation')
+    if hit['point']!={axis:point[axis]+owner['bounds'][axis] for axis in ('x','y')}:
+        raise ValueError('hit-test point differs from selected background gap')
+    if hit.get('complete') is not True:raise ValueError('hit-test ancestry is incomplete')
+    if not isinstance(hit['elements'],list) or not 1<=len(hit['elements'])<=35:
+        raise ValueError('hit-test ancestry size invalid')
+    for row in hit['elements']:
+        identifier=row.get('AXIdentifier','')
+        if identifier.startswith('overview-card-') or row.get('AXRole') in (
+                'AXButton','AXTextField','AXTextArea','AXComboBox','AXPopUpButton','AXLink','AXSlider'):
+            raise ValueError('mouse-down hit a card or interactive control')
+        if identifier=='overview.canvas':return
+    # SwiftUI's hit-test can return its full-window hosting containers instead
+    # of the separately exposed semantic canvas. Accept only that specific
+    # container chain, after the point was checked inside the canvas bounds.
+    # This is still a candidate, not a gesture-acceptance receipt; actual pixel
+    # motion must establish acceptance during the measured interaction.
+    chain=hit['elements']
+    if len(chain)>=2 and chain[-1].get('AXRole')=='AXApplication':
+        window=chain[-2]
+        if window.get('AXRole')=='AXWindow' and window.get('AXIdentifier')=='workspace' and window.get('bounds')==owner['bounds'] and all(
+                row.get('AXRole')=='AXGroup' and not row.get('AXIdentifier') and row.get('bounds')==owner['bounds'] for row in chain[:-2]):
+            return
+    raise ValueError('mouse-down does not hit the canvas or its verified workspace container')

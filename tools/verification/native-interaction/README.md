@@ -14,7 +14,7 @@ The driver owns the launched PID and issues only navigation/search/filter action
 To exercise an existing instrumented production release instead of rebuilding:
 
 ```sh
-python3 tools/verification/native-interaction/run.py --app /absolute/path/Mokusei.app --steps 200
+python3 tools/verification/native-interaction/run.py --app /absolute/path/Mokusei.app
 ```
 
 A new private data directory contains three threads seeded through the production
@@ -25,11 +25,9 @@ Coverage includes protocol rejection, split/pipelined requests, frame bounds,
 Overview → Settings → all sections → back, rejection of the removed archive
 and plugin management sections, rejecting Settings from each thread while retaining
 its reading visit and back action, search with empty results, filters,
-stale target rejection, full smoke trace replay, and three seeds totaling 300
-chaos actions with rapid transitions. Failures exit nonzero and retain the app
+stale target rejection and full directed smoke trace replay. Failures exit nonzero and retain the app
 log, profile and incremental traces in the printed `/private/tmp/oa-ui-*` directory.
 The driver terminates only its owned app and stops only its isolated runtime.
-`--steps` controls actions per seed; the default is 100.
 
 The existing Go settings launcher additionally drives the shared close action
 against real drafts/daemon saves, including IME and validation rejection. Run
