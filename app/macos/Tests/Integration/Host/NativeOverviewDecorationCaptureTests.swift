@@ -1,6 +1,7 @@
 import AppKit
 import CoreMedia
 import CoreVideo
+import Metal
 import QuartzCore
 import ScreenCaptureKit
 import SwiftUI
@@ -106,7 +107,7 @@ private struct DecorationCaptureBackdrop: View {
 
 @MainActor private struct DecorationNodes {
     let cloud: NativeOverviewCloudSurface
-    let playback: CALayer
+    let metal: CAMetalLayer
     let scan: NativeCardScanView
     let gradient: CAGradientLayer
 }
@@ -135,18 +136,19 @@ struct NativeOverviewDecorationCaptureTests {
         }
         defer { window.close() }
         var evidence: [(String, [TagGlassFrames.Sample])] = []
+        var holdPerformance: Data?
         var report: [String: Any] = [
             "assertionsPassed": false, "captureKind": "WindowServer/ScreenCaptureKit complete BGRA frames",
             "fixture": "One static public Codex thread; production workspace/projector/card/canvas; one running subagent",
             "appearance": "dark", "cardMaterials": "flat", "formalCPU": "not measured by this capture test",
             "limitations": [
                 "Cloud color, static card surfaces and rounded corners require review of retained real PNGs.",
-                "A retained surface preserves its loop phase; different cards can start at different phases.",
+                "A single retained surface preserves its private seed; different processes need not have the same random seed.",
                 "WindowServer samples and pixel displacement do not measure physical-display FPS or GPU duration."
             ]
         ]
         defer {
-            do { try save(evidence, report: report) }
+            do { try save(evidence, report: report, holdPerformance: holdPerformance) }
             catch { Issue.record(Comment(rawValue: "Could not retain native decoration evidence: \(error)")) }
         }
         do {
@@ -163,14 +165,14 @@ struct NativeOverviewDecorationCaptureTests {
             let firstCamera = try setCamera(fixture.overview, scale: 0.90)
             try await SwiftUIReplay.wait { nativeNodes(root) != nil }
             try await Task.sleep(for: .milliseconds(350))
-            let nodes = try #require(nativeNodes(root), "Pre-rendered/CA decorations unavailable; fallback does not satisfy this test")
+            let nodes = try #require(nativeNodes(root), "Native Metal/CA decorations unavailable; fallback does not satisfy this test")
             try requireForeground(window)
             report["native"] = ["cloudClass": String(describing: type(of: nodes.cloud)),
-                "scanClass": String(describing: type(of: nodes.scan)), "renderer": "pre-rendered 120 fps atlas",
+                "scanClass": String(describing: type(of: nodes.scan)), "device": nodes.metal.device?.name ?? "",
                 "surfaceIdentity": String(describing: ObjectIdentifier(nodes.cloud)),
-                "playbackIdentity": String(describing: ObjectIdentifier(nodes.playback)),
+                "metalIdentity": String(describing: ObjectIdentifier(nodes.metal)),
                 "scanIdentity": String(describing: ObjectIdentifier(nodes.scan)),
-                "opaque": nodes.playback.isOpaque, "drawable": [nodes.playback.bounds.width, nodes.playback.bounds.height],
+                "opaque": nodes.metal.isOpaque, "drawable": [nodes.metal.drawableSize.width, nodes.metal.drawableSize.height],
                 "scanAnimation": nodes.gradient.animationKeys() ?? []] as [String: Any]
             let firstGeometry = try geometry(window, nodes: nodes, overview: fixture.overview)
             report["fixedGeometry"] = firstGeometry.json
@@ -185,32 +187,43 @@ struct NativeOverviewDecorationCaptureTests {
             let measurements = try motion(first, geometry: firstGeometry)
             report["motion"] = measurements.report
 
-            // Playback and capture continue while the main thread is held.
-            // CA configuration establishes the source cadence, never optical FPS.
-            let loop = try #require(nodes.playback.animation(forKey: "loop") as? CAKeyframeAnimation)
-            try #require(loop.values?.count == 961 && loop.duration == 8 && loop.calculationMode == .discrete)
-            let rate = Float(NativeFrameRate.framesPerSecond)
-            try #require(loop.preferredFrameRateRange.minimum == rate
-                         && loop.preferredFrameRateRange.maximum == rate
-                         && loop.preferredFrameRateRange.preferred == rate)
-            report["cloudPlayback"] = ["sourceFPS": 120, "requestedFPS": rate, "duration": loop.duration]
+            // The capture queue continues while this isolated fixture holds main.
+            // Pixels show WindowServer movement; a sampled/completed GPU frame
+            // proves fresh renderer work without imposing a frame cadence.
             let spinner = try #require(spinnerView(root), "Production spinner must have a compositor animation")
             let spinnerRect = spinner.convert(spinner.bounds, to: nil)
             let scale = window.backingScaleFactor
             let spinnerPixels = CGRect(x: spinnerRect.minX * scale,
                 y: (window.frame.height - spinnerRect.maxY) * scale,
                 width: spinnerRect.width * scale, height: spinnerRect.height * scale).integral
+            var holdWindow = (start: 0.0, end: 0.0)
             let held: [TagGlassFrames.Sample]
-            held = try await capture(window, seconds: 0.2, holdMain: true, holdInterval: { start, end in
-                report["mainHoldWindow"] = ["start": start, "end": end, "duration": end - start,
-                    "presentationExclusion": 0.03]
-            }, holdContext: { frames in
-                evidence.append(("main-hold-context", frames))
-                report["mainHoldContext"] = "Pre-drain/excluded samples are retained but do not enter the movement assertion."
-            })
+            try #require(NativePerformance.mode == .off, "The isolated hold must not replace another performance recording")
+            do {
+                let log = try #require(NativePerformance.configure(
+                    directory: fixture.directory.appendingPathComponent("main-hold-performance"), mode: .detailed))
+                defer {
+                    NativePerformance.finish()
+                    do { holdPerformance = try Data(contentsOf: log) }
+                    catch { Issue.record(Comment(rawValue: "Could not retain main-hold Metal evidence: \(error)")) }
+                }
+                held = try await capture(window, seconds: 0.2, holdMain: true, holdInterval: { start, end in
+                    holdWindow = (start, end)
+                    report["mainHoldWindow"] = ["start": start, "end": end, "duration": end - start,
+                        "presentationExclusion": 0.03]
+                }, holdContext: { frames in
+                    evidence.append(("main-hold-context", frames))
+                    report["mainHoldContext"] = "Diagnostic only: pre-drain samples and samples excluded by the hold filter. "
+                        + "Interpret presentationTime against mainHoldWindow, including its excluded prefix; "
+                        + "these frames never enter the frame-count or pixel assertions."
+                })
+            }
             evidence.append(("main-hold", held))
             try requireFullFrames(held, size: firstGeometry.imageSize)
             try #require(held.count >= 3, "Insufficient complete frames inside the main-thread hold")
+            let trace = try #require(holdPerformance, "Main-hold Metal recording unavailable")
+            let witness = try cloudWitness(trace, layer: nodes.metal, hold: holdWindow)
+            report["mainHoldCloudWitness"] = witness.report
             let heldPixels = try held.map { try DecorationPixels($0.image) }
             let cloud = heldPixels[held.count - 1].change(from: heldPixels[0], in: firstGeometry.cloud)
             let control = heldPixels[held.count - 1].change(from: heldPixels[0], in: firstGeometry.control)
@@ -230,6 +243,8 @@ struct NativeOverviewDecorationCaptureTests {
             report["mainHold"] = holdChanges
             try #require(cloud.mean > control.mean + 0.005,
                          "Cloud pixels did not change above the static control during the main hold")
+            try #require(witness.passed,
+                         "No frame of this Cloud was sampled, submitted and successfully completed by the GPU inside the main hold")
 
             // One geometry change, on the same mounted card and native layers.
             // Its actual PNGs and coordinate map are retained for alignment,
@@ -237,7 +252,7 @@ struct NativeOverviewDecorationCaptureTests {
             let zoomCamera = try setCamera(fixture.overview, scale: 1.0)
             try await Task.sleep(for: .milliseconds(300))
             let after = try #require(nativeNodes(root), "Native decoration disappeared after the camera change")
-            try #require(after.cloud === nodes.cloud && after.playback === nodes.playback
+            try #require(after.cloud === nodes.cloud && after.metal === nodes.metal
                          && after.scan === nodes.scan && after.gradient === nodes.gradient,
                          "Camera zoom remounted a native decoration and changed its animation identity")
             try #require(fixture.overview.canvasState.camera.liveTransform == zoomCamera)
@@ -255,65 +270,6 @@ struct NativeOverviewDecorationCaptureTests {
             try #require(spinner.layer?.sublayers?.allSatisfy { $0.animation(forKey: "spin") == nil } == true)
             spinner.isHidden = false
             try await SwiftUIReplay.wait { spinnerView(root) === spinner }
-            // Exercise the shipped resources and retained surface lifecycle.
-            // This does not compare a style against a pixel golden.
-            for style in NativeCloudLoopStyle.allCases {
-                for dark in [false, true] {
-                    let key = NativeOverviewCloudAsset(style: style, dark: dark)
-                    let image = try await NativeOverviewCloudAssets.load(key)
-                    let shared = try await NativeOverviewCloudAssets.load(key)
-                    try #require(image === shared && image.metadata.fps == 120 && image.rectangles.count == 960)
-                }
-            }
-            let originalOrigin = window.frame.origin
-            var screenRates: [[String: Any]] = []
-            for screen in NSScreen.screens {
-                let display = try #require(screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)
-                let mode = CGDisplayCopyDisplayMode(display.uint32Value)?.refreshRate ?? 0
-                window.setFrameOrigin(CGPoint(x: screen.visibleFrame.minX + 40, y: screen.visibleFrame.minY + 40))
-                try await SwiftUIReplay.wait {
-                    window.screen == screen && nodes.playback.animation(forKey: "loop")?.preferredFrameRateRange.maximum
-                        == rate
-                }
-                let animation = try #require(nodes.playback.animation(forKey: "loop"))
-                let preferred = try #require(animation.preferredFrameRateRange.preferred)
-                try #require(animation.preferredFrameRateRange.minimum == rate
-                             && preferred == rate,
-                             "Cloud playback must request the application maximum on every screen")
-                let cycles = (animation.beginTime - loop.beginTime).truncatingRemainder(dividingBy: 8)
-                try #require(min(abs(cycles), abs(abs(cycles) - 8)) < 0.001,
-                             "Changing screens restarted the cloud timeline")
-                screenRates.append(["screen": screen.localizedName, "maximum": screen.maximumFramesPerSecond,
-                                    "mode": mode, "requested": animation.preferredFrameRateRange.maximum,
-                                    "requestedMinimum": animation.preferredFrameRateRange.minimum,
-                                    "requestedPreferred": preferred])
-            }
-            window.setFrameOrigin(originalOrigin)
-            report["screenRates"] = screenRates
-            nodes.cloud.isHidden = true
-            try #require(nodes.playback.animation(forKey: "loop") == nil)
-            nodes.cloud.isHidden = false
-            try await SwiftUIReplay.wait { nodes.playback.animation(forKey: "loop") != nil }
-            let dark = NativeOverviewCloudAsset(style: .blueIndigo, dark: true)
-            nodes.cloud.update(asset: dark, running: false, animates: true, visible: true, animate: true)
-            let fade = try #require(nodes.playback.animation(forKey: "energy"))
-            try #require(fade.duration == 0.4 && fade.preferredFrameRateRange.minimum == rate
-                         && fade.preferredFrameRateRange.maximum == rate
-                         && fade.preferredFrameRateRange.preferred == rate)
-            report["cloudFade"] = ["requestedFPS": rate, "duration": fade.duration]
-            nodes.cloud.update(asset: dark, running: true, animates: true, visible: true, animate: false)
-            nodes.cloud.update(asset: dark, running: false, animates: true, visible: true, animate: false)
-            try #require(nodes.playback.contents == nil && nodes.playback.animation(forKey: "loop") == nil)
-            nodes.cloud.update(asset: dark, running: true, animates: true, visible: true, animate: false)
-            try await SwiftUIReplay.wait { nodes.playback.animation(forKey: "loop") != nil }
-            nodes.cloud.update(asset: dark, running: true, animates: false, visible: true, animate: false)
-            try #require(nodes.playback.animation(forKey: "loop") == nil && nodes.playback.contents != nil)
-            nodes.cloud.update(asset: .init(style: .blueIndigo, dark: false), running: true,
-                               animates: true, visible: true, animate: false)
-            nodes.cloud.dismantle()
-            try await Task.sleep(for: .milliseconds(400))
-            try #require(nodes.playback.contents == nil && nodes.playback.superlayer == nil,
-                         "A cancelled decode republished into the dismantled cloud")
             report["assertionsPassed"] = true
             print("NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED native=true cloudPixels=true scanPixels=true retained=true appearanceReviewPending=true")
             await fixture.close()
@@ -359,11 +315,11 @@ struct NativeOverviewDecorationCaptureTests {
         guard !legacy, clouds.count == 1, scans.count == 1, let cloud = clouds.first, let scan = scans.first,
               !cloud.isHiddenOrHasHiddenAncestor, !scan.isHiddenOrHasHiddenAncestor,
               let cloudLayer = cloud.layer, let scanLayer = scan.layer,
-              let playback = layers(cloudLayer).first(where: { $0.name == "overview.cloud" }),
+              let metal = layers(cloudLayer).compactMap({ $0 as? CAMetalLayer }).first,
               let gradient = layers(scanLayer).compactMap({ $0 as? CAGradientLayer }).first,
-              let image = playback.contents, CFGetTypeID(image as CFTypeRef) == CGImage.typeID, !playback.isHidden, !playback.isOpaque, playback.bounds.width > 0,
-              playback.bounds.height > 0, playback.animation(forKey: "loop") != nil, gradient.animation(forKey: "overview.scan.position") != nil else { return nil }
-        return DecorationNodes(cloud: cloud, playback: playback, scan: scan, gradient: gradient)
+              metal.device != nil, !metal.isHidden, !metal.isOpaque, metal.drawableSize.width > 0,
+              metal.drawableSize.height > 0, gradient.animation(forKey: "overview.scan.position") != nil else { return nil }
+        return DecorationNodes(cloud: cloud, metal: metal, scan: scan, gradient: gradient)
     }
 
     private func spinnerView(_ view: NSView) -> NSView? {
@@ -505,6 +461,67 @@ struct NativeOverviewDecorationCaptureTests {
         Thread.sleep(forTimeInterval: seconds)
     }
 
+    private func cloudWitness(_ data: Data, layer: CAMetalLayer,
+                              hold: (start: Double, end: Double)) throws -> (passed: Bool, report: [String: Any]) {
+        let records = try String(decoding: data, as: UTF8.self).split(separator: "\n").map {
+            try #require(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any])
+        }
+        let sessions = records.filter { $0["kind"] as? String == "session" }
+        let endings = records.filter { $0["kind"] as? String == "sessionEnd" }
+        try #require(sessions.count == 1 && endings.count == 1,
+                     "Main-hold witness requires one complete, unrotated recording")
+        let session = try #require(sessions[0]["session"] as? String)
+        try #require(sessions[0]["mode"] as? String == "detailed"
+                     && endings[0]["dropped"] as? Int == 0 && endings[0]["segment"] as? Int == 0
+                     && endings[0]["truncated"] as? Bool == false && endings[0]["writeFailed"] as? Bool == false,
+                     "Main-hold witness recording lost data")
+        let context = UInt64(UInt(bitPattern: ObjectIdentifier(layer)))
+        let frames = records.filter {
+            $0["metric"] as? String == NativePerformance.Metric.metalGPU.rawValue
+                && ($0["context"] as? NSNumber)?.uint64Value == context
+        }
+        let begins = frames.filter { $0["kind"] as? String == "begin" }
+        let completed = frames.filter { $0["kind"] as? String == "end" && $0["outcome"] as? String == "completed" }
+        var seen: Set<UInt64> = []
+        var observations: [[String: Any]] = []
+        var witnesses: [[String: Any]] = []
+        for frame in completed {
+            let id = try #require((frame["id"] as? NSNumber)?.uint64Value)
+            try #require(seen.insert(id).inserted, "Duplicate GPU completion for one Cloud frame")
+            let matches = begins.filter { ($0["id"] as? NSNumber)?.uint64Value == id }
+            try #require(matches.count == 1, "Cloud GPU completion has no unique sampled frame in this recording")
+            let sample = try #require(matches[0]["values"] as? [String: Double])
+            let values = try #require(frame["values"] as? [String: Double])
+            let sampledAt = try #require(sample["sampleAt"])
+            let submittedAt = try #require(values["submittedAt"])
+            let completedAt = try #require(values["completedAt"])
+            try #require(values["sampleAt"] == sampledAt,
+                         "Cloud GPU completion no longer identifies its original sample")
+            try #require(values["commandStatus"] == Double(MTLCommandBufferStatus.completed.rawValue),
+                         "Cloud frame did not complete GPU execution successfully")
+            // The completed callback bounds successful GPU execution. Together
+            // with the independent WindowServer pixel gate, this proves producer
+            // and visible progress, not a drawable-to-screenshot correspondence.
+            let admitted = sampledAt > hold.start + 0.03 && sampledAt <= submittedAt
+                && submittedAt <= completedAt && completedAt < hold.end
+            let observation: [String: Any] = ["frame": id, "sampleAt": sampledAt, "submittedAt": submittedAt,
+                "completedAt": completedAt, "insideHold": admitted]
+            observations.append(observation)
+            if admitted { witnesses.append(observation) }
+        }
+        let frameIDs = Set(begins.compactMap { ($0["id"] as? NSNumber)?.uint64Value })
+        let presentations = records.compactMap { record -> [String: Any]? in
+            guard record["metric"] as? String == NativePerformance.Metric.metalPresented.rawValue,
+                  record["kind"] as? String == "end",
+                  let frame = (record["context"] as? NSNumber)?.uint64Value, frameIDs.contains(frame) else { return nil }
+            return ["frame": frame, "outcome": record["outcome"] ?? NSNull(), "values": record["values"] ?? NSNull()]
+        }
+        return (!witnesses.isEmpty, ["session": session, "surfaceContext": context,
+            "clock": "Mach host seconds: CACurrentMediaTime at sample, submission and GPU completed callback",
+            "scope": "Fresh GPU work and independent WindowServer pixel movement; no physical presentation or drawable-to-screenshot mapping",
+            "frames": observations, "witnesses": witnesses, "presentationDiagnostics": presentations])
+    }
+
     private func requireFullFrames(_ samples: [TagGlassFrames.Sample], size: CGSize) throws {
         try #require(!samples.isEmpty && samples.allSatisfy {
             $0.image.width == Int(size.width) && $0.image.height == Int(size.height)
@@ -595,7 +612,7 @@ struct NativeOverviewDecorationCaptureTests {
                 "scanMethod": "Narrow-row contrast minus neighboring rows and per-column temporal floor; ordered pixel centroid movement"])
     }
 
-    private func save(_ evidence: [(String, [TagGlassFrames.Sample])], report: [String: Any]) throws {
+    private func save(_ evidence: [(String, [TagGlassFrames.Sample])], report: [String: Any], holdPerformance: Data?) throws {
         let base: URL
         if let root = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"] {
             base = URL(fileURLWithPath: root, isDirectory: true)
@@ -606,6 +623,7 @@ struct NativeOverviewDecorationCaptureTests {
         }
         let directory = base.appendingPathComponent("native-decoration", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try holdPerformance?.write(to: directory.appendingPathComponent("main-hold-metal.jsonl"))
         for (stage, frames) in evidence {
             let stageDirectory = directory.appendingPathComponent(stage, isDirectory: true)
             try FileManager.default.createDirectory(at: stageDirectory, withIntermediateDirectories: true)

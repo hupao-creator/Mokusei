@@ -462,7 +462,7 @@ func visibilityJSON(_ model: NativeOverviewWorkspaceModel) -> [String: Any] {
 
 @MainActor
 func nativeDecorationJSON(_ root: NSView) -> [String: Any] {
-    var clouds = 0, scans = 0, legacy = 0, activeMetal = 0, activeLoops = 0, scanAnimations = 0
+    var clouds = 0, scans = 0, legacy = 0, activeMetal = 0, scanAnimations = 0
     var surfaces: [[String: Any]] = []
     @MainActor
     func inspectLayer(_ layer: CALayer, cloud: Bool, scan: Bool) {
@@ -478,18 +478,13 @@ func nativeDecorationJSON(_ root: NSView) -> [String: Any] {
                 "drawableHeight": drawableSize.height, "device": metal.device?.name ?? "unavailable",
                 "opaque": metal.isOpaque, "presentsWithTransaction": metal.presentsWithTransaction])
         }
-        if cloud, layer.name == "overview.cloud", let image = layer.contents, CFGetTypeID(image as CFTypeRef) == CGImage.typeID,
-           let loop = layer.animation(forKey: "loop") as? CAKeyframeAnimation,
-           loop.values?.count == 961, loop.duration == 8, !layer.isHidden, layer.opacity > 0 {
-            activeLoops += 1
-        }
         if scan, layer.animation(forKey: "overview.scan.position") != nil { scanAnimations += 1 }
         for child in layer.sublayers ?? [] { inspectLayer(child, cloud: cloud, scan: scan) }
     }
     @MainActor
     func visit(_ view: NSView) {
         let name = String(describing: type(of: view))
-        let cloud = name.contains("NativeOverviewCloudSurface") || name.contains("NativeLiveOverviewCloudSurface")
+        let cloud = name.contains("NativeOverviewCloudSurface")
         let scan = name.contains("NativeCardScanView")
         if cloud { clouds += 1 }
         if scan { scans += 1 }
@@ -500,9 +495,9 @@ func nativeDecorationJSON(_ root: NSView) -> [String: Any] {
     visit(root)
     return ["nativeCloudSurfaceCount": clouds, "nativeScanViewCount": scans,
         "legacyDecorationHostCount": legacy, "activeMetalLayerCount": activeMetal,
-        "preRenderedLoopCount": activeLoops, "scanAnimationCount": scanAnimations, "metalSurfaces": surfaces,
-        "nativePathActive": clouds == 40 && scans == 4 && activeMetal + activeLoops == 4 && scanAnimations == 4 && legacy == 0,
-        "evidenceKind": "Mounted native classes, live Metal or pre-rendered CA cloud layers and scan animation keys; no presented-frame or pixel claim"]
+        "scanAnimationCount": scanAnimations, "metalSurfaces": surfaces,
+        "nativePathActive": clouds == 40 && scans == 4 && activeMetal == 4 && scanAnimations == 4 && legacy == 0,
+        "evidenceKind": "Mounted native classes, drawable geometry and live CA animation keys; no presented-frame or pixel claim"]
 }
 
 struct InstallReceipt {

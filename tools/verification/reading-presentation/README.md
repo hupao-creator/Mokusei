@@ -431,12 +431,12 @@ separate [Release CI comparison](../overview-ci-performance/README.md) owns CPU.
 `NativeOverviewDecorationCaptureTests.nativeCloudAndScanMoveInComposedOverview`
 mounts the production Overview workspace with one public Codex running thread
 and a running subagent. It requires the actual 2×1 projection, native cloud and
-scan views, a decoded 120 fps atlas with a CA playback animation, and a CA scan animation. Two disjoint later capture
+scan views, a live Metal layer and CA scan animation. Two disjoint later capture
 intervals must show cloud pixel changes in a quiet region that excludes duration,
 text and scan pixels. The fixed fixture's quiet bottom strip spans both card cells
 (x=24...712, y=106...176 card points). Its title, duration, single excerpt and
 derived row stay above the strip; 24-point side/bottom insets exclude rounded
-corners. This covers a cloud phase concentrated in either cell. The former
+corners. This covers a random cloud concentrated in either cell. The former
 right-cell crop remains diagnostic, since a locally dark region cannot establish
 that the cloud stopped. The 3.9-second capture, two predetermined intervals,
 static control and movement thresholds are unchanged. Narrow-row contrast must show the scan moving through the
@@ -451,15 +451,18 @@ The same fixture also holds the main thread for 200ms after initial rendering.
 Its independent ScreenCaptureKit queue requests 60Hz samples and admits only
 complete frames with presentation timestamps inside the hold (excluding the
 first 30ms). At least three frames and a cloud change over the eligible hold above
-the same static control are required. The pre-rendered surface must have 960
-source frames over eight seconds and request 120 fps regardless of its screen or
-display mode. Its opacity fade must also request 120 fps. There is no application
-GPU submission to witness during playback; Core Animation owns frame selection.
-Source cadence and animation configuration remain distinct from the independent
-WindowServer movement control, and neither
-establishes physical presentation FPS. All eight appearance/style assets, shared
-loading, cross-screen phase continuity, static/hidden/completed states and
-cancellation are exercised after the composed-scene capture.
+the same static control are required. A matching `metal.gpu` span must also prove
+that this native layer sampled, submitted and successfully completed a fresh
+frame inside the hold, after the exclusion margin. Frame ID, layer context and
+recording session join these observations, using Mach host seconds and the real
+command buffer's `.completed` status. This proves fresh GPU work and separate
+WindowServer movement; it does not map that drawable to a screenshot or certify
+physical presentation. `metal.presented` spans retain raw presentation timestamps
+and callback times as diagnostics; zero never becomes a successful presentation.
+The local recorder runs only around this capture and finishes on failure too;
+`main-hold-metal.jsonl` and the joined witness in `measurements.json` retain the
+evidence. This rejects a producer that only queued work before the hold, without
+asserting a fixed cloud cadence.
 A production Codex spinner in a separate corner
 must change pixels in both halves too; hiding/resuming its native view must
 remove/restore its compositor animation. `main-hold` PNGs, per-frame presentation
@@ -973,13 +976,13 @@ The Settings panel uses an opaque native window background, independent of its
 small capsule controls. Pixel sampling in the Settings transition replay compares
 the panel margin with the native dark-window fill over the striped Overview.
 
-### Overview pre-rendered cloud
+### Focused Overview cloud replay
 
 `python3 tools/verification/reading-presentation/run.py --overview-decorations`
-runs only the existing native cloud/scan composition case. It covers all eight
-bundled 120 fps atlases, shared loading, maximum-rate playback/fade requests and
-phase continuity on attached screens, hidden/static/completed states and
-cancellation. Its existing visible-motion control remains; the former live-Metal
-GPU-submission witness no longer applies to compositor-owned playback. No
-style-equivalence golden or physical FPS claim is introduced. The ordinary native owner still runs this case
-inside `--tag-glass-captures`; the focused flag does not replace full CI coverage.
+runs only the existing native cloud/scan composition case. The production cloud
+uses the live Metal field again; the case requires fresh completed GPU work and
+WindowServer movement during the main-thread hold. It checks retained surfaces
+through a camera change and the spinner's hide/resume behavior. No pre-rendered
+assets, style-equivalence golden or physical FPS claim is involved. The ordinary
+native owner still runs this case inside `--tag-glass-captures`; the focused flag
+does not replace full CI coverage.

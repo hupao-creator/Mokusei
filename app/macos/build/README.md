@@ -222,10 +222,3 @@ embedded into the application bundle.
 The [search replay](../../../tools/verification/thread-search/README.md) can target
 the packaged helper to verify genuine inference, offline operation and process
 retirement with the same signed artifact used by production acceptance.
-
-Overview cloud PNG atlases are checked-in product resources. The package plugin
-verifies their source and asset hashes during builds; regenerate them with
-`python3 tools/assets/overview-cloud/generate.py` after changing the shared
-palette specification, field, shader or baker. Only regeneration requires a GPU;
-ordinary builds copy the verified assets. See the
-[asset contract](../../../tools/assets/overview-cloud/README.md).

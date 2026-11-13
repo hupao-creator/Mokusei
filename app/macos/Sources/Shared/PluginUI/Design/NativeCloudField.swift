@@ -52,21 +52,11 @@ public struct NativeCloudPalette: Sendable {
         }
     }
     public let channels: [Channel]
-    let loopStyle: NativeCloudLoopStyle?
     public let phase: Double
     public let lobeScale: CGSize
     public init(channels: [Channel], phase: Double = 0, lobeScale: CGSize = CGSize(width: 1, height: 1)) {
-        self.channels = channels; self.phase = phase; self.lobeScale = lobeScale; loopStyle = nil
+        self.channels = channels; self.phase = phase; self.lobeScale = lobeScale
     }
-
-    init(channels: [Channel], phase: Double, lobeScale: CGSize, loopStyle: NativeCloudLoopStyle) {
-        self.channels = channels; self.phase = phase; self.lobeScale = lobeScale; self.loopStyle = loopStyle
-    }
-}
-
-/// Visual assets, independent of the Harness that chooses their palette.
-public enum NativeCloudLoopStyle: String, CaseIterable, Sendable {
-    case blueIndigo, coral, spectrum, neutral
 }
 
 /// Random waypoints addressed by time, so drawing never mutates animation state.
