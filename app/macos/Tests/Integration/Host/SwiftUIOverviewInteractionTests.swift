@@ -646,14 +646,14 @@ extension SwiftUIOverviewInteractionTests {
             try await SwiftUIReplay.wait { frames.ready }
             captures.append(contentsOf: frames.takeSamples())
             report.baselineIndex = captures.count - 1
-            var rewriteSensor: ExcerptInkReference.LiveSensor?
-            if scenario == .rewrite {
+            var interruptionSensor: ExcerptInkReference.LiveSensor?
+            if scenario != .fixed {
                 let baseline = try #require(captures.last, "Observation incomplete: no full WindowServer baseline")
                 let blank = try titleWindowPixels(baseline.image, region: region(48))
                 let full = try titleWindowPixels(baseline.image, region: region(174))
                 let reference = ExcerptInkReference(blank: blank, full: full)
                 try #require(reference.pointCount > 30,
-                             "Observation incomplete: rewrite motion reference has insufficient glyph pixels")
+                             "Observation incomplete: interruption motion reference has insufficient glyph pixels")
                 let raw = try ExcerptInkBGRAImage(baseline.image)
                 let marker = try excerptComposedMarker(baseline.image)
                 try #require(abs(Int(marker.bounds.width) - Int(360 * scale)) <= 1,
@@ -665,7 +665,7 @@ extension SwiftUIOverviewInteractionTests {
                     region: region(174), phasePoint: phasePoint, marker: marker.bounds)
                 let fastBlank = sensor.exposure(raw), fastFull = fullSensor.exposure(raw)
                 let slowBlank = reference.exposure(blank), slowFull = reference.exposure(full)
-                report.rewriteSensorPreflight = .init(width: raw.width, height: raw.height,
+                report.interruptionSensorPreflight = .init(width: raw.width, height: raw.height,
                     bytesPerRow: raw.bytesPerRow, glyphPoints: reference.pointCount,
                     markerBoundsPixels: [marker.bounds.minX, marker.bounds.minY,
                                          marker.bounds.width, marker.bounds.height].map(Double.init),
@@ -674,7 +674,7 @@ extension SwiftUIOverviewInteractionTests {
                              && excerptExposuresMatch(fastFull, slowFull),
                              "Observation incomplete: direct BGRA sampling differs from the established crop oracle")
                 try #require(sensor.markerMatches(raw), "Observation incomplete: baseline width marker is not a solid rectangle")
-                rewriteSensor = sensor
+                interruptionSensor = sensor
             }
             captures.append(contentsOf: frames.takeSamples())
             let began = ProcessInfo.processInfo.systemUptime
@@ -682,17 +682,14 @@ extension SwiftUIOverviewInteractionTests {
             fixture.message = ExcerptInkFixture.first
             fixture.phase = 1
             if scenario != .fixed {
-                if scenario == .rewrite {
-                    // Parent input time does not establish when the leaf's
-                    // reveal reached the compositor. Interrupt only after the
-                    // unchanged pixel-motion predicate has actually passed.
-                    let sensor = try #require(rewriteSensor)
-                    try await collectUntilExcerptRewriteMotion(frames, until: began + 0.45,
-                        sensor: sensor, scale: scale, into: &captures, report: &report)
-                } else {
-                    let delay = try #require(scenario.interruptionDelay)
-                    try await collectExcerptFrames(frames, until: began + delay, into: &captures)
-                }
+                // Parent input time does not establish when the leaf's reveal
+                // reached the compositor. Both interruptions require observed
+                // motion; resize retains its original 135–200ms input window.
+                let sensor = try #require(interruptionSensor)
+                let earliest = began + (scenario.interruptionDelay.map { $0 - 0.005 } ?? 0)
+                let deadline = began + (scenario.interruptionDelay.map { $0 + 0.06 } ?? 0.45)
+                try await collectUntilExcerptInterruptionMotion(frames, notBefore: earliest, until: deadline,
+                    sensor: sensor, scale: scale, into: &captures, report: &report)
                 let changed = ProcessInfo.processInfo.systemUptime
                 report.actualInterruptionMilliseconds = (changed - began) * 1000
                 report.events.append(.init(name: scenario == .rewrite ? "rewrite-again" : "change-local-width",
@@ -712,7 +709,7 @@ extension SwiftUIOverviewInteractionTests {
             throw error
         }
 
-        // Only the rewrite prerequisite samples live BGRA pixels. All remaining
+        // Only interruption prerequisites sample live BGRA pixels. All remaining
         // pixel checks and PNG encoding occur after stop. Draining every 5 ms
         // keeps TagGlassFrames' 60-frame bound from discarding evidence.
         let baseline = try #require(captures.indices.contains(report.baselineIndex) ? captures[report.baselineIndex] : nil,
@@ -746,7 +743,7 @@ extension SwiftUIOverviewInteractionTests {
                 wide: wideMask.exposure(pixels), replacement: replacementMask.exposure(pixels),
                 previous: previousMask.exposure(pixels), narrow: narrowMask.exposure(pixels)))
         }
-        for sample in report.rewriteSensorSamples {
+        for sample in report.interruptionSensorSamples {
             try #require(excerptExposuresMatch(sample.exposure, report.frames[sample.index].wide),
                          "The live sensor differs from the complete offline ink oracle")
         }
@@ -766,7 +763,7 @@ extension SwiftUIOverviewInteractionTests {
             try #require(actual >= delay - 0.005 && actual < delay + 0.06,
                          "Observation incomplete: the requested interruption was delivered too late to characterize this short reveal")
         } else if scenario == .rewrite {
-            let deadline = try #require(report.rewriteSensorDeadlineUptime)
+            let deadline = try #require(report.interruptionSensorDeadlineUptime)
             try #require(report.events[1].uptime < deadline,
                          "Observation incomplete: the rewrite input missed the bounded sensor deadline")
         }
@@ -846,11 +843,12 @@ extension SwiftUIOverviewInteractionTests {
         captures.append(contentsOf: frames.takeSamples())
     }
 
-    private func collectUntilExcerptRewriteMotion(_ frames: TagGlassFrames, until deadline: TimeInterval,
-                                                  sensor: ExcerptInkReference.LiveSensor, scale: CGFloat,
-                                                  into captures: inout [TagGlassFrames.Sample],
-                                                  report: inout ExcerptInkReport) async throws {
-        report.rewriteSensorDeadlineUptime = deadline
+    private func collectUntilExcerptInterruptionMotion(_ frames: TagGlassFrames,
+                                                       notBefore earliest: TimeInterval, until deadline: TimeInterval,
+                                                       sensor: ExcerptInkReference.LiveSensor, scale: CGFloat,
+                                                       into captures: inout [TagGlassFrames.Sample],
+                                                       report: inout ExcerptInkReport) async throws {
+        report.interruptionSensorDeadlineUptime = deadline
         while ProcessInfo.processInfo.systemUptime < deadline {
             let samples = frames.takeSamples()
             captures.append(contentsOf: samples)
@@ -863,7 +861,7 @@ extension SwiftUIOverviewInteractionTests {
                 defer {
                     timing.finishedAt = ProcessInfo.processInfo.systemUptime
                     timing.ageAtFinishMilliseconds = (timing.finishedAt - sample.receivedAt) * 1000
-                    report.rewriteSensorTimings.append(timing)
+                    report.interruptionSensorTimings.append(timing)
                 }
                 let raw = try ExcerptInkBGRAImage(sample.image)
                 try #require(sensor.accepts(raw), "Observation incomplete: live image dimensions or row stride changed")
@@ -878,10 +876,10 @@ extension SwiftUIOverviewInteractionTests {
                     timing.exposureMilliseconds = (profiledAt - phaseAt) * 1000
                     let latest = ExcerptInkMotionSample(index: index,
                         presentationTime: sample.presentationTime, receivedAt: sample.receivedAt, exposure: exposure)
-                    report.rewriteSensorSamples.append(latest)
+                    report.interruptionSensorSamples.append(latest)
                     try #require(exposure.fraction < 0.98,
-                        "Observation incomplete: the initial reveal finished before an in-flight rewrite could be observed")
-                    let pair = excerptMotionPair(report.rewriteSensorSamples,
+                        "Observation incomplete: the initial reveal finished before an in-flight interruption could be observed")
+                    let pair = excerptMotionPair(report.interruptionSensorSamples,
                                                  minimumFrames: 2, minimumGain: 0.06, scale: scale)
                     let matchedAt = ProcessInfo.processInfo.systemUptime
                     timing.predicateMilliseconds = (matchedAt - profiledAt) * 1000
@@ -892,13 +890,13 @@ extension SwiftUIOverviewInteractionTests {
                         let observedAt = ProcessInfo.processInfo.systemUptime
                         timing.markerMilliseconds = (observedAt - matchedAt) * 1000
                         try #require(markerMatches,
-                            "Observation incomplete: rewrite prerequisite did not retain its composed width marker")
+                            "Observation incomplete: interruption prerequisite did not retain its composed width marker")
                         let age = observedAt - latest.receivedAt
-                        report.rewriteSensorLastSampleAgeMilliseconds = age * 1000
-                        if age >= 0, age < 0.05, observedAt < deadline {
-                            report.rewriteTriggerFrameIndices = [pair.first.index, pair.last.index, latest.index]
-                            report.rewriteTriggerObservedAt = observedAt
-                            report.rewriteTriggerExposureFraction = exposure.fraction
+                        report.interruptionSensorLastSampleAgeMilliseconds = age * 1000
+                        if age >= 0, age < 0.05, observedAt >= earliest, observedAt < deadline {
+                            report.interruptionTriggerFrameIndices = [pair.first.index, pair.last.index, latest.index]
+                            report.interruptionTriggerObservedAt = observedAt
+                            report.interruptionTriggerExposureFraction = exposure.fraction
                             return
                         }
                     }
@@ -907,8 +905,8 @@ extension SwiftUIOverviewInteractionTests {
             let remaining = deadline - ProcessInfo.processInfo.systemUptime
             if remaining > 0 { try await Task.sleep(for: .seconds(min(0.005, remaining))) }
         }
-        try #require(report.rewriteTriggerFrameIndices != nil,
-            "Observation incomplete: the bounded rewrite sensor did not observe two moving intermediate frames")
+        try #require(report.interruptionTriggerFrameIndices != nil,
+            "Observation incomplete: the bounded interruption sensor did not observe two moving intermediate frames")
     }
 
     private func excerptExposuresMatch(_ lhs: ExcerptInkExposure, _ rhs: ExcerptInkExposure) -> Bool {
@@ -1261,14 +1259,14 @@ private struct ExcerptInkReport: Encodable {
     var widths: [ExcerptInkWidth] = []
     var frames: [ExcerptInkFrameRecord] = []
     var actualInterruptionMilliseconds: Double?
-    var rewriteSensorDeadlineUptime: TimeInterval?
-    var rewriteSensorLastSampleAgeMilliseconds: Double?
-    var rewriteSensorPreflight: ExcerptInkSensorPreflight?
-    var rewriteSensorTimings: [ExcerptInkSensorTiming] = []
-    var rewriteSensorSamples: [ExcerptInkMotionSample] = []
-    var rewriteTriggerFrameIndices: [Int]?
-    var rewriteTriggerObservedAt: TimeInterval?
-    var rewriteTriggerExposureFraction: Double?
+    var interruptionSensorDeadlineUptime: TimeInterval?
+    var interruptionSensorLastSampleAgeMilliseconds: Double?
+    var interruptionSensorPreflight: ExcerptInkSensorPreflight?
+    var interruptionSensorTimings: [ExcerptInkSensorTiming] = []
+    var interruptionSensorSamples: [ExcerptInkMotionSample] = []
+    var interruptionTriggerFrameIndices: [Int]?
+    var interruptionTriggerObservedAt: TimeInterval?
+    var interruptionTriggerExposureFraction: Double?
     var resetHardEdgeFrameIndices: [Int] = []
     var resetFrameIndex: Int?
     var finalRelativeError: Double?
