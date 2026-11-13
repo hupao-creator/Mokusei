@@ -87,7 +87,8 @@ def main():
             "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks),
             "-Xlinker", "-rpath", "-Xlinker", str(private_frameworks),
             "-L", str(libraries), "-Xlinker", "-rpath", "-Xlinker", str(libraries)]
-    glass_captures = "--tag-glass-captures" in sys.argv
+    decorations = "--overview-decorations" in sys.argv
+    glass_captures = "--tag-glass-captures" in sys.argv or decorations
     workspace_lifecycle = "--workspace-lifecycle" in sys.argv
     standalone_owners = None
     if workspace_lifecycle:
@@ -103,7 +104,8 @@ def main():
     thread_send_native = "--thread-send-feedback-native" in sys.argv
     composer_refocus = "--execution-composer-focus" in sys.argv
     thread_send = "--thread-send-feedback" in sys.argv or thread_send_native or composer_refocus
-    suite = ("NativeWorkspaceLifecycleReplay" if workspace_lifecycle else
+    suite = ("NativeOverviewDecorationCaptureTests" if decorations else
+             "NativeWorkspaceLifecycleReplay" if workspace_lifecycle else
              "RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
@@ -128,6 +130,8 @@ def main():
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
               if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
+    if decorations:
+        suites = ["NativeOverviewTagGlassTests", "NativeOverviewDecorationCaptureTests"]
     if "--rolling-numbers" in sys.argv:
         suites.append("GitThreadExtensionTests")
     tests = ([source / "WorkspaceLifecycleReplay.swift"] if workspace_lifecycle else
@@ -227,7 +231,8 @@ def main():
                             "realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer",
                             "oneResidentOwnsSubmissionRunningTalkDispatchAndStop",
                             "centerSurvivesEscapeResizeCoveringRoutesAndRemount"]
-        selected = ("reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
+        selected = ("NativeOverviewDecorationCaptureTests" if decorations else
+                    "reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
                     if "--report-controls" in sys.argv else
                     "|".join(isolated_methods) if isolated_input else
                     "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels|excerptRevealKeepsMovingThroughRewriteAndWidthChanges|nativeCloudAndScanMoveInComposedOverview|productionAnimationMountsWithoutAnOpaqueFirstFrame"
@@ -268,6 +273,7 @@ def main():
             replay.close()
     count = (
              len(native_methods) if native_methods is not None else
+             1 if decorations else
              1 if composer_refocus else
              5 if thread_send_native else
              9 if isolated_input else
@@ -315,7 +321,10 @@ def main():
         raise SystemExit("FAIL: token animation did not confirm its original three-frame assertions")
     if "--rolling-numbers" in sys.argv and "PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: projected usage did not confirm its original three-frame assertions")
-    if glass_captures:
+    if decorations:
+        if "Test nativeCloudAndScanMoveInComposedOverview() passed" not in result.stdout or "NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED" not in result.stdout:
+            raise SystemExit("FAIL: native Overview replay did not complete its composed cloud and scan motion control")
+    elif glass_captures:
         for name in ["directorySelectionResizeKeepsRoundedGlass", "shortChildMorphKeepsBothCapsuleEnds",
                      "titleReversalAndVisibilityCancellationSettlePixels",
                      "excerptRevealKeepsMovingThroughRewriteAndWidthChanges", "nativeCloudAndScanMoveInComposedOverview",

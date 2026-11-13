@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "date": "2026-11-13",
+  "kind": "limited-application-CPU-observation",
+  "baseCommit": "254b5c4f18f487f41455874b419e8ab0a09341ce",
+  "baselineArtifactCommit": "bf567ec77ccc5058a3384e288135302dfb91d81d",
+  "candidateProductSourcesSHA256": {
+    "app/macos/Sources/Shared/PluginUI/Cards/ThreadCardClock.swift": "14bd9ff7a10d66c5f9caeac9bedcef032acbcabf6311f8e90b3b440817d1d49c",
+    "app/macos/Sources/Shared/PluginUI/Cards/ThreadCardMetrics.swift": "665722e2f0670ba00fa05af82353ea758053a4d7904aefb7153fc85b1cd6bcee"
+  },
+  "environment": {
+    "machine": "Apple M1 Pro",
+    "memoryGiB": 16,
+    "macOS": "26.5.1",
+    "Xcode": "26.5",
+    "windowPoints": [
+      1280,
+      820
+    ],
+    "backingScale": 2
+  },
+  "runOrder": [
+    "d2",
+    "a2"
+  ],
+  "nativeCLI": {
+    "available": true,
+    "executable": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+    "version": "codex-cli 0.167.0-alpha.3.2",
+    "sha256": "a636331ed87605efc4cf84028ac2884a75363f9d10ead63cffb57ea0016d486e",
+    "verifiedVersion": "codex-cli 0.167.0-alpha.3.2"
+  },
+  "observations": [
+    {
+      "variant": "baseline",
+      "run": "a2",
+      "scenario": "idle.active",
+      "count": 10,
+      "mode": "observed",
+      "measurement": "incomplete",
+      "product": "passed",
+      "businessOutcome": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "sampledSeconds": 7.999565541,
+      "application": {
+        "sampledPeakFootprintBytes": 154682544,
+        "observedCPUSeconds": 2.74898175,
+        "singleCoreCPUPercent": 34.36413810113441,
+        "finalSampledFootprintBytes": 149750960
+      },
+      "applicationPresentInEveryResourceSample": true,
+      "missingDeclaredRoots": [],
+      "appExecutableSHA256": "c38c09e8f29bb51f86f5237c06e335d9db398de66aa3cb04e7792498374f0ea6",
+      "buildInputs": {
+        "channel": "production",
+        "configuration": "release",
+        "embeddingInputSHA256": "abcab7b955563397e3c8b82d7ad114650dde81ee50d4f3a7265e80b16b3027e2",
+        "executableInputSHA256": "405645bf643b975f5a8c468eda101c0c5049017da2ae3eb6834cf3890704b6e4",
+        "runtimeInputSHA256": "9ee211180db393487a8dbeaa7ceed942e7bb274f70c9d5408d4de8af9d4d8a8e"
+      },
+      "collectorSHA256": "802a9d4a6ef0705de5d46f6b4aa5b961ebf41153dba85e3982f0ed14e1406c5c",
+      "frameworkFilesSHA256": "9dc83d5732f144ad06fb37ca369da7d605a2fd4566173141e569d51c767828bf",
+      "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+      "summarySHA256": "fe4a3b666dbb2a7bf3d16710abd309bfb8606d3806c36c55eefa4522105a8eae",
+      "manifestSHA256": "681091a7f92eaf994ae2691a0b5520b9f8dbb9496a6f1f677f9e2fae050c262d",
+      "evidencePath": "a2/n-10/00-idle.active"
+    },
+    {
+      "variant": "baseline",
+      "run": "a2",
+      "scenario": "body",
+      "count": 10,
+      "mode": "observed",
+      "measurement": "incomplete",
+      "product": "passed",
+      "businessOutcome": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "sampledSeconds": 7.99937925,
+      "application": {
+        "sampledPeakFootprintBytes": 159106224,
+        "observedCPUSeconds": 4.89211475,
+        "singleCoreCPUPercent": 61.156179712319556,
+        "finalSampledFootprintBytes": 157172912
+      },
+      "applicationPresentInEveryResourceSample": true,
+      "missingDeclaredRoots": [],
+      "appExecutableSHA256": "c38c09e8f29bb51f86f5237c06e335d9db398de66aa3cb04e7792498374f0ea6",
+      "buildInputs": {
+        "channel": "production",
+        "configuration": "release",
+        "embeddingInputSHA256": "abcab7b955563397e3c8b82d7ad114650dde81ee50d4f3a7265e80b16b3027e2",
+        "executableInputSHA256": "405645bf643b975f5a8c468eda101c0c5049017da2ae3eb6834cf3890704b6e4",
+        "runtimeInputSHA256": "9ee211180db393487a8dbeaa7ceed942e7bb274f70c9d5408d4de8af9d4d8a8e"
+      },
+      "collectorSHA256": "802a9d4a6ef0705de5d46f6b4aa5b961ebf41153dba85e3982f0ed14e1406c5c",
+      "frameworkFilesSHA256": "9dc83d5732f144ad06fb37ca369da7d605a2fd4566173141e569d51c767828bf",
+      "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+      "summarySHA256": "fe4a3b666dbb2a7bf3d16710abd309bfb8606d3806c36c55eefa4522105a8eae",
+      "manifestSHA256": "c0f8d1e5fb0acc7f31f3b12f85e3571c03565d248e94434df38e013d925bbf51",
+      "evidencePath": "a2/n-10/01-body",
+      "body": {
+        "reasoningChunkEvents": 160,
+        "reasoningChunkBytes": 10240,
+        "progressAndTerminalMessages": 30,
+        "progressAndTerminalBytes": 2990,
+        "observedCheckpoints": 20,
+        "expectedCheckpoints": 20,
+        "checkpointLatencyMedianSeconds": 0.4504139585,
+        "checkpointLatencyMaxSeconds": 0.552404166,
+        "latenciesAreCaptureUpperBounds": true
+      }
+    },
+    {
+      "variant": "optimized",
+      "run": "d2",
+      "scenario": "idle.active",
+      "count": 10,
+      "mode": "observed",
+      "measurement": "incomplete",
+      "product": "passed",
+      "businessOutcome": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "sampledSeconds": 8.000516375,
+      "application": {
+        "sampledPeakFootprintBytes": 146769072,
+        "observedCPUSeconds": 2.295395667,
+        "singleCoreCPUPercent": 28.69059394931868,
+        "finalSampledFootprintBytes": 146752688
+      },
+      "applicationPresentInEveryResourceSample": true,
+      "missingDeclaredRoots": [],
+      "appExecutableSHA256": "0f7d4755e521846b9660859366579a0398a6c4dbce85e01a27659e04e2cf94bd",
+      "buildInputs": {
+        "channel": "production",
+        "configuration": "release",
+        "embeddingInputSHA256": "abcab7b955563397e3c8b82d7ad114650dde81ee50d4f3a7265e80b16b3027e2",
+        "executableInputSHA256": "ac37a56aee27f2f97044441e06dae5cd7e6f157f4771c1fa3d1f39fe1ff5630f",
+        "runtimeInputSHA256": "70c4b85123bf8bc75ebc671e3719f834f94271938de833c350a568d808bc4419"
+      },
+      "collectorSHA256": "802a9d4a6ef0705de5d46f6b4aa5b961ebf41153dba85e3982f0ed14e1406c5c",
+      "frameworkFilesSHA256": "9dc83d5732f144ad06fb37ca369da7d605a2fd4566173141e569d51c767828bf",
+      "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+      "summarySHA256": "99f6fb53b99d384358299fa97057f56b96e0b329ccef95b05fd09fea6cc12e70",
+      "manifestSHA256": "82438f7543f2df4888e934fa07ba00bd7bc6b0d9c69df53cd91d8ad49bae864c",
+      "evidencePath": "d2/n-10/00-idle.active"
+    },
+    {
+      "variant": "optimized",
+      "run": "d2",
+      "scenario": "body",
+      "count": 10,
+      "mode": "observed",
+      "measurement": "incomplete",
+      "product": "passed",
+      "businessOutcome": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "declared process root missing from sample",
+        "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+        "native hitch sensitivity/ownership controls did not establish capability"
+      ],
+      "sampledSeconds": 8.000704708,
+      "application": {
+        "sampledPeakFootprintBytes": 151602352,
+        "observedCPUSeconds": 3.979483375,
+        "singleCoreCPUPercent": 49.7391607394392,
+        "finalSampledFootprintBytes": 149341360
+      },
+      "applicationPresentInEveryResourceSample": true,
+      "missingDeclaredRoots": [
+        {
+          "role": "helper",
+          "executable": "git",
+          "identity": "41299:1794541437683938"
+        }
+      ],
+      "appExecutableSHA256": "0f7d4755e521846b9660859366579a0398a6c4dbce85e01a27659e04e2cf94bd",
+      "buildInputs": {
+        "channel": "production",
+        "configuration": "release",
+        "embeddingInputSHA256": "abcab7b955563397e3c8b82d7ad114650dde81ee50d4f3a7265e80b16b3027e2",
+        "executableInputSHA256": "ac37a56aee27f2f97044441e06dae5cd7e6f157f4771c1fa3d1f39fe1ff5630f",
+        "runtimeInputSHA256": "70c4b85123bf8bc75ebc671e3719f834f94271938de833c350a568d808bc4419"
+      },
+      "collectorSHA256": "802a9d4a6ef0705de5d46f6b4aa5b961ebf41153dba85e3982f0ed14e1406c5c",
+      "frameworkFilesSHA256": "9dc83d5732f144ad06fb37ca369da7d605a2fd4566173141e569d51c767828bf",
+      "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+      "summarySHA256": "99f6fb53b99d384358299fa97057f56b96e0b329ccef95b05fd09fea6cc12e70",
+      "manifestSHA256": "2fd3f6f3b958e50d430ce6bc4d651ae25d043292f2f07a8c0f243a2238dcbabf",
+      "evidencePath": "d2/n-10/01-body",
+      "body": {
+        "reasoningChunkEvents": 160,
+        "reasoningChunkBytes": 10240,
+        "progressAndTerminalMessages": 30,
+        "progressAndTerminalBytes": 2990,
+        "observedCheckpoints": 20,
+        "expectedCheckpoints": 20,
+        "checkpointLatencyMedianSeconds": 0.4081073545,
+        "checkpointLatencyMaxSeconds": 0.550705958,
+        "latenciesAreCaptureUpperBounds": true
+      }
+    }
+  ],
+  "descriptiveDifferences": [
+    {
+      "scenario": "idle.active",
+      "applicationCPUPercentDecrease": 16.510072608596683
+    },
+    {
+      "scenario": "body",
+      "applicationCPUPercentDecrease": 18.668626828206648
+    }
+  ],
+  "evidenceDirectory": "/Users/felixwang/Desktop/Mokusei/.scratch/overview-runtime-clock-20261113",
+  "limits": [
+    "One final-revision sample per scenario and variant; no statistical regression claim.",
+    "All measurements remain incomplete and all benchmark comparisons remain not-comparable.",
+    "Application CPU is observed; descendant lifecycle/exit CPU, WindowServer/GPU cost and native hitches are not certified.",
+    "The optimized body run lost a short-lived declared git helper; the application is present in every resource sample.",
+    "No first-render, pan, body.pan, N5 or N20 optimization rerun. Do not pool the prior XCTest-enabled baseline.",
+    "Pixel-level comparison tests and their CI wiring were removed at user request."
+  ],
+  "validation": {
+    "signedReleaseBuild": "build-clock-reviewed-release.log",
+    "localReview": "completed",
+    "initialMountingReplay": {
+      "tests": 11,
+      "log": "clock-mounting.log",
+      "scope": "earlier clock candidate; not a complete final-product rerun"
+    },
+    "finalRuntimeLifecycleAssertions": {
+      "log": "clock-reviewed.log",
+      "productSourcesMatch": true,
+      "note": "Original lifecycle assertions passed on final product sources. Additional experimental pixel assertions in this run are removed from the delivered tree."
+    },
+    "hostedCI": "not run; local-only delivery requested"
+  }
+}
