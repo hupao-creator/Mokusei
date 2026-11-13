@@ -189,8 +189,10 @@ struct NativeOverviewDecorationCaptureTests {
             // CA configuration establishes the source cadence, never optical FPS.
             let loop = try #require(nodes.playback.animation(forKey: "loop") as? CAKeyframeAnimation)
             try #require(loop.values?.count == 961 && loop.duration == 8 && loop.calculationMode == .discrete)
-            let rate = NativeFrameRate.preferredRange(for: window.screen).maximum
-            try #require(loop.preferredFrameRateRange.maximum == rate)
+            let rate = Float(NativeFrameRate.framesPerSecond)
+            try #require(loop.preferredFrameRateRange.minimum == rate
+                         && loop.preferredFrameRateRange.maximum == rate
+                         && loop.preferredFrameRateRange.preferred == rate)
             report["cloudPlayback"] = ["sourceFPS": 120, "requestedFPS": rate, "duration": loop.duration]
             let spinner = try #require(spinnerView(root), "Production spinner must have a compositor animation")
             let spinnerRect = spinner.convert(spinner.bounds, to: nil)
@@ -268,18 +270,23 @@ struct NativeOverviewDecorationCaptureTests {
             for screen in NSScreen.screens {
                 let display = try #require(screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)
                 let mode = CGDisplayCopyDisplayMode(display.uint32Value)?.refreshRate ?? 0
-                let expected = min(NativeFrameRate.preferredRange(for: screen).maximum, mode > 0 ? Float(mode) : 120)
                 window.setFrameOrigin(CGPoint(x: screen.visibleFrame.minX + 40, y: screen.visibleFrame.minY + 40))
                 try await SwiftUIReplay.wait {
                     window.screen == screen && nodes.playback.animation(forKey: "loop")?.preferredFrameRateRange.maximum
-                        == expected
+                        == rate
                 }
                 let animation = try #require(nodes.playback.animation(forKey: "loop"))
+                let preferred = try #require(animation.preferredFrameRateRange.preferred)
+                try #require(animation.preferredFrameRateRange.minimum == rate
+                             && preferred == rate,
+                             "Cloud playback must request the application maximum on every screen")
                 let cycles = (animation.beginTime - loop.beginTime).truncatingRemainder(dividingBy: 8)
                 try #require(min(abs(cycles), abs(abs(cycles) - 8)) < 0.001,
                              "Changing screens restarted the cloud timeline")
                 screenRates.append(["screen": screen.localizedName, "maximum": screen.maximumFramesPerSecond,
-                                    "mode": mode, "requested": animation.preferredFrameRateRange.maximum])
+                                    "mode": mode, "requested": animation.preferredFrameRateRange.maximum,
+                                    "requestedMinimum": animation.preferredFrameRateRange.minimum,
+                                    "requestedPreferred": preferred])
             }
             window.setFrameOrigin(originalOrigin)
             report["screenRates"] = screenRates
@@ -288,6 +295,13 @@ struct NativeOverviewDecorationCaptureTests {
             nodes.cloud.isHidden = false
             try await SwiftUIReplay.wait { nodes.playback.animation(forKey: "loop") != nil }
             let dark = NativeOverviewCloudAsset(style: .blueIndigo, dark: true)
+            nodes.cloud.update(asset: dark, running: false, animates: true, visible: true, animate: true)
+            let fade = try #require(nodes.playback.animation(forKey: "energy"))
+            try #require(fade.duration == 0.4 && fade.preferredFrameRateRange.minimum == rate
+                         && fade.preferredFrameRateRange.maximum == rate
+                         && fade.preferredFrameRateRange.preferred == rate)
+            report["cloudFade"] = ["requestedFPS": rate, "duration": fade.duration]
+            nodes.cloud.update(asset: dark, running: true, animates: true, visible: true, animate: false)
             nodes.cloud.update(asset: dark, running: false, animates: true, visible: true, animate: false)
             try #require(nodes.playback.contents == nil && nodes.playback.animation(forKey: "loop") == nil)
             nodes.cloud.update(asset: dark, running: true, animates: true, visible: true, animate: false)

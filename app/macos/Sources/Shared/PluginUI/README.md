@@ -1016,10 +1016,11 @@ The final second blends into the opening field; completion uses a 400ms layer
 opacity fade. This replaces independent live trajectories and additive-energy
 fades with a bounded visual loop; it does not change card content or layout.
 
-Playback requests the highest current screen/mode rate up to the 120 fps source.
-Window screen changes and system display-configuration changes update that
-request without resetting the timeline. There is no 30 fps setting or application
-per-frame timer, display link, Metal encoding or SwiftUI state publication.
+Playback and opacity fades always request the application maximum of 120 fps.
+There is no per-screen or display-mode rate selection; moving the window between
+screens does not reconfigure playback. The loop remains eight seconds long.
+There is no application per-frame timer, display link, Metal encoding or SwiftUI
+state publication.
 macOS owns actual presentation cadence; source samples and CA requests do not
 prove physical FPS. Main-thread blockage still delays new state and geometry.
 
@@ -1057,11 +1058,12 @@ per-frame callback. The existing scene, visibility and Reduce Motion gates stay
 in the card, while native views exclude themselves from input and accessibility.
 
 The mounted decoration replay loads all eight assets, verifies 120 fps keyframes,
-cache sharing, cross-screen phase continuity, static/hidden/completed lifecycles
-and cancellation. Its existing WindowServer movement control still covers cloud
-and scan progress during a main-thread hold. Per-frame Metal work is no longer
-expected from pre-rendered playback. No pixel-style golden or optical FPS claim
-is added. Resource packaging and performance use the signed production artifact.
+maximum-rate playback/fade requests, cache sharing, cross-screen phase continuity,
+static/hidden/completed lifecycles and cancellation. Its existing WindowServer
+movement control still covers cloud and scan progress during a main-thread hold.
+Per-frame Metal work is no longer expected from pre-rendered playback. No
+pixel-style golden or optical FPS claim is added. Resource packaging and
+performance use the signed production artifact.
 
 Fonts, icon licenses and attribution live under [Resources](Resources/). Metal assets are compiled through the package's build plugin. Tests under `app/macos/Tests` and [functional replays](../../../../../tools/verification/README.md) exercise native components; macOS window tests require an actual graphical session.
 

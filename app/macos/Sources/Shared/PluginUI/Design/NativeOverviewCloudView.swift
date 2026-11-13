@@ -63,8 +63,6 @@ final class NativeOverviewCloudSurface: NSView {
     private var animateOpacity = false
     private let epoch = CACurrentMediaTime()
     private let phaseOffset = Double.random(in: 0..<8)
-    private var lastRate: Float = 0
-    private var lastDisplay: UInt32 = 0
     private var dismantled = false
 
     init(asset: NativeOverviewCloudAsset, running: Bool, animates: Bool, visible: Bool,
@@ -75,8 +73,6 @@ final class NativeOverviewCloudSurface: NSView {
         cloud.name = "overview.cloud"; cloud.opacity = 0; cloud.isOpaque = false
         cloud.contentsGravity = .resize; cloud.minificationFilter = .linear; cloud.magnificationFilter = .linear
         layer?.addSublayer(cloud); setAccessibilityElement(false)
-        NotificationCenter.default.addObserver(self, selector: #selector(screenChanged),
-            name: NSApplication.didChangeScreenParametersNotification, object: nil)
     }
     required init?(coder: NSCoder) { return nil }
     isolated deinit { NotificationCenter.default.removeObserver(self); loadTask?.cancel(); fadeTask?.cancel() }
@@ -105,7 +101,7 @@ final class NativeOverviewCloudSurface: NSView {
         let fade = CABasicAnimation(keyPath: "opacity")
         fade.fromValue = from; fade.toValue = target; fade.duration = 0.4
         fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        fade.preferredFrameRateRange = NativeFrameRate.preferredRange(for: window?.screen)
+        fade.preferredFrameRateRange = NativeFrameRate.preferredRange
         cloud.add(fade, forKey: "energy")
         if !running {
             let generation = fadeGeneration
@@ -181,21 +177,17 @@ final class NativeOverviewCloudSurface: NSView {
         }
         guard let atlas else { return }
         guard animates else { pause(); return }
-        let screen = window?.screen
-        let display = (screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
-        let mode = display == 0 ? 0 : CGDisplayCopyDisplayMode(display)?.refreshRate ?? 0
-        let cap = min(Float(atlas.metadata.fps), Float(screen?.maximumFramesPerSecond ?? atlas.metadata.fps))
-        let rate = max(1, mode > 0 ? min(cap, Float(mode)) : cap)
-        if cloud.animation(forKey: "loop") != nil, rate == lastRate, display == lastDisplay { return }
+        guard cloud.animation(forKey: "loop") == nil else { return }
         let now = CACurrentMediaTime()
         let motion = CAKeyframeAnimation(keyPath: "contentsRect")
         motion.values = (atlas.rectangles + [atlas.rectangles[0]]).map { NSValue(rect: $0) }
         motion.keyTimes = (0...atlas.metadata.count).map { NSNumber(value: Double($0) / Double(atlas.metadata.count)) }
         motion.calculationMode = .discrete; motion.duration = atlas.metadata.duration; motion.repeatCount = .infinity
-        motion.preferredFrameRateRange = CAFrameRateRange(minimum: rate, maximum: rate, preferred: rate)
-        // Screen/appearance changes rejoin the same timeline, not a frame counter.
+        // Always request the application maximum; macOS owns display pacing.
+        motion.preferredFrameRateRange = NativeFrameRate.preferredRange
+        // Resuming and appearance changes rejoin wall time, not a frame counter.
         motion.beginTime = cloud.convertTime(now, from: nil) - phase(at: now)
-        cloud.add(motion, forKey: "loop"); lastRate = rate; lastDisplay = display
+        cloud.add(motion, forKey: "loop")
     }
     private func phase(at time: CFTimeInterval) -> Double { (time - epoch + phaseOffset).truncatingRemainder(dividingBy: 8) }
     private func pause() {

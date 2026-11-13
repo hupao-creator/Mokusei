@@ -452,10 +452,11 @@ Its independent ScreenCaptureKit queue requests 60Hz samples and admits only
 complete frames with presentation timestamps inside the hold (excluding the
 first 30ms). At least three frames and a cloud change over the eligible hold above
 the same static control are required. The pre-rendered surface must have 960
-source frames over eight seconds and request the current screen's highest rate
-up to 120 fps. There is no application GPU submission to witness during playback;
-Core Animation owns frame selection. Source cadence and animation configuration
-remain distinct from the independent WindowServer movement control, and neither
+source frames over eight seconds and request 120 fps regardless of its screen or
+display mode. Its opacity fade must also request 120 fps. There is no application
+GPU submission to witness during playback; Core Animation owns frame selection.
+Source cadence and animation configuration remain distinct from the independent
+WindowServer movement control, and neither
 establishes physical presentation FPS. All eight appearance/style assets, shared
 loading, cross-screen phase continuity, static/hidden/completed states and
 cancellation are exercised after the composed-scene capture.
@@ -976,9 +977,9 @@ the panel margin with the native dark-window fill over the striped Overview.
 
 `python3 tools/verification/reading-presentation/run.py --overview-decorations`
 runs only the existing native cloud/scan composition case. It covers all eight
-bundled 120 fps atlases, shared loading, frame-rate requests and phase continuity
-on attached screens, hidden/static/completed states and cancellation. Its existing
-visible-motion control remains; the former live-Metal GPU-submission witness no
-longer applies to compositor-owned playback. No style-equivalence golden or
-physical FPS claim is introduced. The ordinary native owner still runs this case
+bundled 120 fps atlases, shared loading, maximum-rate playback/fade requests and
+phase continuity on attached screens, hidden/static/completed states and
+cancellation. Its existing visible-motion control remains; the former live-Metal
+GPU-submission witness no longer applies to compositor-owned playback. No
+style-equivalence golden or physical FPS claim is introduced. The ordinary native owner still runs this case
 inside `--tag-glass-captures`; the focused flag does not replace full CI coverage.

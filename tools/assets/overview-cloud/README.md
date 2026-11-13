@@ -16,9 +16,11 @@ application rendering or a 30 fps variant.
 
 `OverviewCloudSources.json` records inputs and outputs so changes to palettes,
 the field, shader or baker cannot silently use stale assets. Changing a palette
-requires regeneration. The frame-rate request follows the window's display,
-capped by the 120 fps source; actual physical presentation is owned by macOS.
-Higher source rates require regenerating the assets and updating their contract.
+requires regeneration. Playback and opacity fades always request the application
+maximum of 120 fps, without selecting a rate from the window's screen or display
+mode. The loop stays eight seconds long; actual physical presentation is owned
+by macOS. Higher source rates require regenerating the assets and updating their
+contract.
 
 The loop, common shape trajectory with per-card phase, scaled resolution and
 opacity-based completion fade are intentional visual tradeoffs. The live
