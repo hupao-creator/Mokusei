@@ -63,6 +63,13 @@ public struct NativeMarkdownView: View {
             fontSize: fontSize, muted: muted,
             openLink: actions.open, resolveMedia: media,
             anchorPrefix: model.anchorPrefix, actions: actions, executionLinkHarnesses: executionLinkHarnesses)
+        // Footnotes resolve through mounted native anchors; the parser appends
+        // their definitions at the document root. Exposure-tracked notes also
+        // retain exact document geometry rather than a lazy height estimate.
+        let deferBlocks = pageCapacity != nil && onDocumentApplied == nil && !model.blocks.contains {
+            if case .footnote = $0 { return true }
+            return false
+        }
         return Group {
             if pageCapacity != nil, streaming || hasStreamed {
                 // Page-level streaming keeps the open page invisible until it
@@ -75,9 +82,9 @@ public struct NativeMarkdownView: View {
                 // One literal span preserves native selection/copy without
                 // parsing Markdown, constructing blocks or resolving media.
                 MarkdownSelectableText(spans: [MarkdownSpan(text: text)], fontSize: fontSize,
-                    muted: muted, selectionScope: model.anchorPrefix, openLink: actions.open)
+                    muted: muted, openLink: actions.open)
             } else {
-                MarkdownContent(blocks: model.blocks, options: options)
+                MarkdownContent(blocks: model.blocks, options: options, defersOffscreenBlocks: deferBlocks)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -222,6 +229,7 @@ struct MarkdownContent: View {
     let blocks: [MarkdownBlock]
     let options: MarkdownViewOptions
     var compact = false
+    var defersOffscreenBlocks = false
     /// The block immediately before this page in the same document. A page
     /// that starts with a heading needs it to preserve the document's seam.
     var precedingBlock: MarkdownBlock?
@@ -229,14 +237,20 @@ struct MarkdownContent: View {
     var isFinal = true
 
     var body: some View {
-        NativeMarkdownColumn {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                MarkdownBlockView(block: block, options: options)
-                    .equatable()
-                    .padding(.top, headingMargin(block, index: index))
-                    .padding(.bottom, index == blocks.count - 1 && isFinal ? 0
-                        : NativeStreamingPageMetrics.bottomMargin(block, fontSize: options.fontSize, compact: compact))
-            }
+        if defersOffscreenBlocks {
+            LazyVStack(alignment: .leading, spacing: 0) { renderedBlocks }
+        } else {
+            NativeMarkdownColumn { renderedBlocks }
+        }
+    }
+
+    private var renderedBlocks: some View {
+        ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+            MarkdownBlockView(block: block, options: options)
+                .equatable()
+                .padding(.top, headingMargin(block, index: index))
+                .padding(.bottom, index == blocks.count - 1 && isFinal ? 0
+                    : NativeStreamingPageMetrics.bottomMargin(block, fontSize: options.fontSize, compact: compact))
         }
     }
 
@@ -288,7 +302,7 @@ private struct MarkdownBlockView: View, Equatable {
                             } else {
                                 MarkdownSelectableText(spans: [MarkdownSpan(text: item.marker)], fontSize: options.fontSize,
                                     muted: options.muted, lineHeight: options.fontSize * 1.8,
-                                    selectionScope: options.anchorPrefix, openLink: options.openLink)
+                                    openLink: options.openLink)
                             }
                         }.frame(width: markerWidth, height: options.fontSize * 1.8, alignment: .leading)
                         MarkdownContent(blocks: item.blocks, options: options, compact: item.tight)
@@ -296,7 +310,7 @@ private struct MarkdownBlockView: View, Equatable {
                 }
             }
         case .code(_, let source):
-            MarkdownCodeBlock(source: source, selectionScope: options.anchorPrefix)
+            MarkdownCodeBlock(source: source)
         case .table(let rows, let alignments):
             MarkdownTableView(rows: rows, alignments: alignments, options: options)
         case .rule:
@@ -305,7 +319,7 @@ private struct MarkdownBlockView: View, Equatable {
             NativeMarkdownLeadingColumn(leadingWidth: 23) {
                 MarkdownSelectableText(spans: [MarkdownSpan(text: "\(index).")], fontSize: options.fontSize,
                     muted: options.muted, lineHeight: options.fontSize * 1.8,
-                    selectionScope: options.anchorPrefix, openLink: options.openLink)
+                    openLink: options.openLink)
                     .frame(width: 23, height: options.fontSize * 1.8, alignment: .leading)
                 MarkdownContent(blocks: children, options: options, compact: true)
             }.background(MarkdownAnchor(identifier: options.anchorPrefix + "-mokusei-footnote-" + MarkdownParser.anchorID(id)))
@@ -376,10 +390,9 @@ struct MarkdownInlineView: View {
 
     var body: some View {
         MarkdownSelectableText(spans: displayedSpans, fontSize: fontSize, weight: weight, muted: muted, strongInk: strongInk, tracking: tracking,
-                               lineHeight: lineHeight, alignment: alignment, images: images, selectionScope: options.anchorPrefix,
+                               lineHeight: lineHeight, alignment: alignment, images: images, helpText: imageFailure,
                                executionLinkHarnesses: options.executionLinkHarnesses, openLink: options.openLink)
         .fixedSize(horizontal: false, vertical: true)
-        .help(imageFailure ?? "")
         .task(id: sources) {
             images = images.filter { sources.contains($0.key) }
             imageFailure = nil
@@ -411,16 +424,14 @@ struct MarkdownInlineView: View {
 struct MarkdownCodeBlock: View {
     let source: String
     private let sourceBytes: Data
-    var selectionScope: String? = nil
 
-    init(source: String, selectionScope: String? = nil) {
+    init(source: String) {
         self.source = source; self.sourceBytes = Data(source.utf8)
-        self.selectionScope = selectionScope
     }
     var body: some View {
         NativeScrollView(.horizontal) {
             MarkdownSelectableText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],
-                                   fontSize: NativeMarkdownTypography.fenceSize, lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true, selectionScope: selectionScope, openLink: { _ in })
+                                   fontSize: NativeMarkdownTypography.fenceSize, lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true, openLink: { _ in })
                 .frame(width: max(1, codeWidth), alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(16)

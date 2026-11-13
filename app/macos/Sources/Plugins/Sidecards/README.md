@@ -13,6 +13,13 @@ Only their shells change; plugin forms, browser behavior and voice ownership rem
 with the existing sessions. Nested history Back belongs inside the main panel;
 its independent Close returns to Overview.
 
+Divider movement updates only the host's retained widths and layout snapshot.
+It preserves plugin views and their observation leases; entering and leaving
+the drag still reconciles plugin suppression. Both main and Sidecard documents
+reflow continuously to the current panel widths, including while an execution
+is running and new settled replies arrive. Width changes do not suspend content
+delivery, change execution ownership or defer wrapping until mouse release.
+
 An expanded card owning the current running/waiting execution publishes its
 destination column to the resident Moku input through a passive native geometry
 bridge across the reading panel's separate hosting tree. Input

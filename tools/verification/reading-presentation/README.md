@@ -45,6 +45,11 @@ verify both moving pages before the same incoming host survives landing. The
 final reader must contain the destination content and retire the outgoing host. Wide and stacked layouts, including Reduced Motion policy, retain source,
 fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
 Motion still waits for content but settles without an intermediate page turn.
+The wide animated case also drives the native Execution Sidecard divider: both
+documents must reflow at each intermediate width without replacing their native
+text views. A new settled reply must appear while the execution is still running
+and the divider remains held, then survive completion into main. An accessibility
+width increment must also reflow immediately outside a pointer drag.
 The fold observer is installed before completion and samples native bounds on
 display callbacks, retaining the original travel interval and deadline. Input
 focus is verified by the resident-composer flow below; the layout-only fixture
@@ -690,6 +695,16 @@ provide additional coverage for the shared bridge.
 MOKUSEI_LOCAL_IMAGES_ARTIFACTS=/tmp/thread-local-images-evidence python3 tools/verification/reading-presentation/run.py --local-images
 ```
 
+The production-message method performs real NSTextView attachment mouse tracking
+and requires this launcher's running AppKit loop. CI uses
+`--local-images --native-owned` to execute that method exactly once and requires
+`MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED`; its identity and expected count
+come from `scripts/ci/swift_ownership.py`. Its image, link, host-admission and click
+assertions are unchanged. The other two methods remain in ordinary graphical
+Swift execution, while the command above retains all three for local diagnosis.
+Screenshots default to the replay's exported evidence directory unless a caller
+supplies `MOKUSEI_LOCAL_IMAGES_ARTIFACTS`.
+
 Runs three native integration cases using production `ThreadMessage` and Markdown:
 standard images and ordinary local image links at 360/900pt widths, Unicode/spaces
 and encoded file URLs, case-insensitive localhost/empty-host acceptance and remote-host
@@ -792,14 +807,15 @@ frame pacing or a CPU benchmark.
 python3 tools/verification/reading-presentation/run.py --markdown
 ```
 
-Runs eleven native integration cases against production `ThreadMessage` and
+Runs twelve native integration cases against production `ThreadMessage` and
 `NativeMarkdownView`. They check complete bare URLs, source-aware escaped/entity
 footnotes, whitespace-containing ordinary reference labels, Unicode code preservation,
 NFC-to-NFD link replacement in a mounted reader, text growth/shrink and native
 window resizing, left-to-right/right-to-left marker placement, paced-mount revision
 supersession, folded labels and lazy continuations,
-plain alternative text, partial/native copy, empty table columns, Command-arrow
-selection collapse, long ordered markers, inline-code table geometry, tight lists
+plain alternative text, partial/native copy, cell-local table selection, Command-arrow
+selection collapse in the active paragraph, deferred document end/top access
+and copying after native resize, long ordered markers, inline-code table geometry, tight lists
 with empty quoted lines, and a percent-label footnote round trip through a
 horizontally scrolling table in the outer reading viewport. The replay needs a
 graphical session; it opens no external websites and makes no model requests.
@@ -867,7 +883,10 @@ requires that none appear before message completion, including while waiting
 for input. OpenCode's mixed text/reasoning/tool fixture must retain both execution
 rows while withholding reply text. It then settles a message
 while execution remains running, retains that reply while a successor message
-streams, and checks full successor text after completion. Terminal cases retain
+streams, and scrolls through every uniquely numbered paragraph after completion,
+requiring the complete 200/220-paragraph sets despite deferred native mounting.
+Capsule Select All/copy stays in its paragraph; mouse, keyboard and accessibility
+activation still open the execution. Terminal cases retain
 failed/cancelled reply text, including Pi's stale streaming marker after execution
 settlement. The generic Markdown streaming path remains available to other readers.
 The twelve tests include mounted `ThreadDetailFrame` and production panel Close controls:

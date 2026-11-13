@@ -59,10 +59,11 @@ def main():
     package = repo / "app/macos"
     native_methods = None
     if "--native-owned" in sys.argv:
-        checks = {"--moku-execution-links": "moku-execution-links", "--rolling-numbers": "rolling-numbers"}
+        checks = {"--local-images": "local-images", "--moku-execution-links": "moku-execution-links",
+                  "--rolling-numbers": "rolling-numbers"}
         flags = set(sys.argv[1:]) - {"--native-owned"}
         if len(sys.argv) != 3 or len(flags) != 1 or not flags <= checks.keys():
-            raise SystemExit("--native-owned requires exactly one of --moku-execution-links or --rolling-numbers")
+            raise SystemExit("--native-owned requires exactly one of --local-images, --moku-execution-links or --rolling-numbers")
         check = checks[flags.pop()]
         sys.path.insert(0, str(repo / "scripts/ci"))
         from swift_ownership import NATIVE_METHOD_OWNERS
@@ -197,6 +198,8 @@ def main():
                        "MOKUSEI_READING_MOTION_ARTIFACTS": str(replay.workspace / "evidence")}
         if "--settings-transition" in sys.argv:
             environment["MOKUSEI_SETTINGS_ARTIFACTS"] = str(replay.workspace / "evidence")
+        if "--local-images" in sys.argv:
+            environment.setdefault("MOKUSEI_LOCAL_IMAGES_ARTIFACTS", str(replay.workspace / "evidence"))
         if "--moku-composer" in sys.argv:
             environment["MOKUSEI_MOKU_HISTORY_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--thread-sidebar" in sys.argv:
@@ -282,7 +285,7 @@ def main():
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              10 if "--browser-viewport" in sys.argv else
-             11 if "--markdown" in sys.argv else
+             12 if "--markdown" in sys.argv else
              6 if glass_captures else
              7 if "--moku-composer" in sys.argv else
              7 if tag_glass else
@@ -306,6 +309,8 @@ def main():
         raise SystemExit("FAIL: composer refocus replay did not confirm both detail entry paths")
     if "--moku-execution-links" in sys.argv and "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: execution capsules did not confirm their native input path")
+    if "--local-images" in sys.argv and "MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED" not in result.stdout:
+        raise SystemExit("FAIL: local images did not confirm their native attachment click path")
     if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: token animation did not confirm its original three-frame assertions")
     if "--rolling-numbers" in sys.argv and "PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED" not in result.stdout:
