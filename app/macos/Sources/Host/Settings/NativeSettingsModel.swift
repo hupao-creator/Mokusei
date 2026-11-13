@@ -30,7 +30,7 @@ public struct NativeHarnessSettingsRequest {
     }
 }
 
-public struct NativeSettingsPlugin: Sendable {
+public struct NativeSettingsPlugin: Equatable, Sendable {
     public let key: String
     public let enabled: Bool
     public let unavailableReason: String?
@@ -185,9 +185,13 @@ public final class NativeSettingsModel {
                         if let previous = self.installations[id], previous.status != .checking, previous.status != installation.status || previous.executablePath != installation.executablePath {
                             self.detailRefreshSequences[id, default: 0] += 1
                         }
-                        self.installations[id] = installation
+                        // Dictionary member writes notify Observation even when
+                        // discovery returned the same installation as last time.
+                        if self.installations[id] != installation { self.installations[id] = installation }
                         self.installationLoadState = .loaded
-                        if installation.status == .installed { self.installationErrors.removeValue(forKey: id) }
+                        if installation.status == .installed, self.installationErrors[id] != nil {
+                            self.installationErrors.removeValue(forKey: id)
+                        }
                         self.onDiscoveryChange?()
                     }
                 }
