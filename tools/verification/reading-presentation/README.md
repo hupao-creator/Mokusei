@@ -668,6 +668,16 @@ provide additional coverage for the shared bridge.
 MOKUSEI_LOCAL_IMAGES_ARTIFACTS=/tmp/thread-local-images-evidence python3 tools/verification/reading-presentation/run.py --local-images
 ```
 
+The production-message method performs real NSTextView attachment mouse tracking
+and requires this launcher's running AppKit loop. CI uses
+`--local-images --native-owned` to execute that method exactly once and requires
+`MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED`; its identity and expected count
+come from `scripts/ci/swift_ownership.py`. Its image, link, host-admission and click
+assertions are unchanged. The other two methods remain in ordinary graphical
+Swift execution, while the command above retains all three for local diagnosis.
+Screenshots default to the replay's exported evidence directory unless a caller
+supplies `MOKUSEI_LOCAL_IMAGES_ARTIFACTS`.
+
 Runs three native integration cases using production `ThreadMessage` and Markdown:
 standard images and ordinary local image links at 360/900pt widths, Unicode/spaces
 and encoded file URLs, case-insensitive localhost/empty-host acceptance and remote-host
