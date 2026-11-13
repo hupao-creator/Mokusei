@@ -377,14 +377,6 @@ func verify() {
 	if envelope["kind"] != "deferred-execution" {
 		panic("missing deferred projection")
 	}
-	discussion, e := h.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: source, Instructions: "Read only"})
-	must(e)
-	reply, e := discussion.Ask(ctx, "hello")
-	must(e)
-	if reply != "answer" {
-		panic("discussion")
-	}
-	must(discussion.Close())
 	submit("crash-exec", "crash")
 	wait("crash-exec", "failed")
 	data, e := os.ReadFile(cwd + "/descendant-pid")
@@ -423,7 +415,7 @@ func verify() {
 	}
 	verifyMCP(ctx, exe)
 	must(ctx.Err())
-	fmt.Println("Claude real stream-json fixture passed: catalog, exact settings, text dedupe, usage, questions, steering, interrupt, native wake, fork, read, prompt, telemetry, deferred content, discussion, descendant cleanup, recovery, session fencing, concurrent close/interrupt, Go MCP tool bridge")
+	fmt.Println("Claude real stream-json fixture passed: catalog, exact settings, text dedupe, usage, questions, steering, interrupt, native wake, fork, read, prompt, telemetry, deferred content, descendant cleanup, recovery, session fencing, concurrent close/interrupt, Go MCP tool bridge")
 }
 
 func verifyMCP(ctx context.Context, exe string) {

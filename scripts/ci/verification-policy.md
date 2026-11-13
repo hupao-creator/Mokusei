@@ -27,7 +27,7 @@ documentation scope are not claimed as executed.
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh, cache ownership and actual Pi read-guard tool refusal | Linux `adapters` replay group; scripted external peers, loopback services and Node execution of the bundled guard |
 | Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Serial windowless and graphical ordinary processes plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
-| Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation and Harness-form contracts reach real Swift consumers | Five producers export six files locally before the complete Swift run |
+| Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation, Harness-form and Git metadata contracts reach real Swift consumers | Six producers export seven files locally before the complete Swift run |
 | Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage, native profile leases and genuine local INT4 search | Seven interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
 
@@ -43,8 +43,8 @@ cancellation and excerpt-mask replays belong to the existing
 with AppKit's event loop and real WindowServer delivery. The excerpt case
 requires observed ink movement through rewrite and an actual component-width
 change, and emits `EXCERPT_INK_MOTION_CONFIRMED`; timer completion and final text
-do not replace its moving-pixel evidence. The native cloud/scan composition,
-retained Overview return and Tag Settings first-frame cases share this owner
+do not replace its moving-pixel evidence. The native cloud/scan composition
+and Tag Settings first-frame cases share this owner
 with their own required markers. Tag entry and retained return must supply
 complete intermediate WindowServer frames before their unchanged pixel oracle
 can pass; the real AppKit event loop owns that capture.

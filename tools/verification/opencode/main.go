@@ -80,7 +80,7 @@ func run() error {
 		caseTimeout := 150 * time.Second
 		if name == "thread" {
 			caseTimeout = 240 * time.Second
-		} // Includes independent discussion process lifetimes.
+		}
 		bounded, stop := context.WithTimeout(ctx, caseTimeout)
 		binary := filepath.Join(temp, name)
 		args := []string{"build"}

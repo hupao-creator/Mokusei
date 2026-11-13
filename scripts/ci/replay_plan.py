@@ -10,6 +10,7 @@ def fixture_environment(output):
         "MOKUSEI_VOICE_EVENT_EXPORT": str(output / "voice-events.json"),
         "MOKUSEI_CONVERSATION_CONTRACT_EXPORT": str(output / "conversation.json"),
         "MOKUSEI_HARNESS_FORM_FIXTURE": str(output / "harness-forms.json"),
+        "MOKUSEI_GIT_CONTRACT_EVIDENCE": str(output / "git-contract.json"),
     }
 
 
@@ -35,6 +36,7 @@ def replay_groups(go_executable, output):
             ("conversation", [go_executable, "test", "-count=1", "./internal/hosts/applicationhost",
                               "-run", "^TestConversationProjectionCarriesCurrentSemanticDecoration$"]),
             ("harness-forms", go + ["./tools/verification/opencode/cases/renderer", "-forms-output", fixtures["MOKUSEI_HARNESS_FORM_FIXTURE"]]),
+            ("git-contract", go + ["./tools/verification/git"]),
         ],
         "interop": [
             ("embedding-search", go + ["./tools/verification/thread-search", "-native-only",

@@ -18,7 +18,13 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
     private(set) var prepares = 0
     lazy var client = NativeVoiceMediaClient(role: .moku, ownership: NativeVoiceMediaOwnership(),
         requestMicrophone: { throw ReplayFailure(description: "Entrance replay requested microphone") },
-        command: { [unowned self] request in
+        command: { @MainActor [unowned self] request in
+            if request["action"] == .text("stop") {
+                // The client waits for prepare to drain before Stop completes.
+                // Model the server retiring that request when it receives Stop.
+                let preparation = pending; pending = nil
+                preparation?.resume(throwing: CancellationError())
+            }
             guard request["action"] == .text("prepare") else { return try NativeVoiceResult(.object([:])) }
             prepares += 1
             return try await withCheckedThrowingContinuation { pending = $0 }
@@ -34,7 +40,6 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
     }
     func stop(_ task: Task<Void, Never>) async {
         await client.stop()
-        pending?.resume(throwing: CancellationError()); pending = nil
         await task.value
     }
 }
@@ -45,7 +50,6 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
     @Published var paused = false
     @Published var muted = false
     @Published var entrance = false
-    @Published var history = false
     let voice = VoiceEntranceFixture()
     var voiceActive: Bool { [.preparing, .connecting, .listening, .stopping].contains(voice.client.state.phase) }
     var motion = NativeVoiceCloudMotion()
@@ -87,20 +91,12 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
     }
     var body: some View {
         ZStack(alignment: .topLeading) {
-            if input.history {
-                NativeMokuHistoryComposer(draft: draft, cwd: "/tmp", focusEnabled: false,
-                    activeVoiceControls: controls, voiceBackground: background, voiceModeActive: input.voiceActive,
-                    onSend: { _ in }, onCancel: {})
-                    .frame(width: 560).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 40)
-            } else {
-                NativeMokuScene(state: state) { Color.clear } thread: { Color.clear } dock: {
-                    NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
-                        voiceControls: controls, voiceBackground: background,
-                        voiceStatusVisible: !input.entrance || input.voiceActive,
-                        voiceModeActive: input.entrance && input.voiceActive, onSend: { _ in }, onCancel: {})
-                } settings: { Color.clear }
-            }
+            NativeMokuScene(state: state) { Color.clear } thread: { Color.clear } dock: {
+                NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
+                    voiceControls: controls, voiceBackground: background,
+                    voiceStatusVisible: !input.entrance || input.voiceActive,
+                    voiceModeActive: input.entrance && input.voiceActive, onSend: { _ in }, onCancel: {})
+            } settings: { Color.clear }
             VStack(alignment: .leading, spacing: 10) {
                 Text("生产 Moku 语音光云 · 合成 PCM 回放").font(.headline)
                 Text("实际 NativeMokuDock / NativeVoiceCloud / CaptureAnalyser；没有麦克风、模型请求或用户 profile。")
@@ -154,13 +150,26 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
                 let fullWidth = state.capsuleFrame.width
                 let directory = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("evidence")
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                let content = try await SCShareableContent.currentProcess
-                let target = try content.windows.first(where: {
-                    $0.windowID == CGWindowID(window.windowNumber)
-                        && $0.owningApplication?.processID == ProcessInfo.processInfo.processIdentifier
-                        && abs($0.frame.width - window.frame.width) < 1
-                        && abs($0.frame.height - window.frame.height) < 1
-                }).unwrap("Full own window unavailable; refusing thumbnail evidence")
+                var capturedWindow: SCWindow?
+                var ownFrames: [CGRect] = []
+                for _ in 0..<30 {
+                    // Stage Manager may park the app as a thumbnail while the
+                    // PCM checks run. Require its full native frame after activation.
+                    window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+                    let content = try await SCShareableContent.currentProcess
+                    let owned = content.windows.filter {
+                        $0.windowID == CGWindowID(window.windowNumber)
+                            && $0.owningApplication?.processID == ProcessInfo.processInfo.processIdentifier
+                    }
+                    ownFrames = owned.map(\.frame)
+                    capturedWindow = owned.first {
+                        abs($0.frame.width - window.frame.width) < 1
+                            && abs($0.frame.height - window.frame.height) < 1
+                    }
+                    if capturedWindow != nil { break }
+                    try await Task.sleep(for: .milliseconds(100))
+                }
+                let target = try capturedWindow.unwrap("Full own window unavailable; native=\(window.frame), captured=\(ownFrames); refusing thumbnail evidence")
                 let filter = SCContentFilter(desktopIndependentWindow: target)
                 let config = SCStreamConfiguration()
                 config.width = Int(window.frame.width * 2);config.height = Int(window.frame.height * 2)
@@ -244,11 +253,10 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
                 input.entrance = true
                 draft.text = "Keep this draft through voice cancellation"
                 let reduced = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-                for (history, openInput) in [(false, false), (false, true), (true, true)] {
-                    input.history = history
-                    if !history { state.setInputOpen(openInput) }
+                for openInput in [false, true] {
+                    state.setInputOpen(openInput)
                     try await Task.sleep(for: .milliseconds(600))
-                    let surface = history ? "history" : openInput ? "dock-expanded" : "dock-compact"
+                    let surface = openInput ? "dock-expanded" : "dock-compact"
                     let prefix = "entrance-\(surface)-\(reduced ? "reduced" : "animated")"
                     _ = try await sample(prefix + "-before", fullWindow: true)
                     let prepares = input.voice.prepares
@@ -258,12 +266,12 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
                     _ = try await sample(prefix + "-active", fullWindow: true)
                     try require(input.voice.client.state.phase == .preparing && input.voice.prepares == prepares + 1,
                         "Rendering restarted or ended voice preparation")
-                    if !history { try require(!state.inputOpen, "Voice did not close Dock input") }
+                    try require(!state.inputOpen, "Voice did not close Dock input")
                     await input.voice.stop(start)
                     _ = try await sample(prefix + "-leaving", fullWindow: true)
                     try await Task.sleep(for: .milliseconds(500))
                     _ = try await sample(prefix + "-restored", fullWindow: true)
-                    if !history { try require(state.inputOpen == openInput, "Cancelled voice did not restore Dock input") }
+                    try require(state.inputOpen == openInput, "Cancelled voice did not restore Dock input")
                     for _ in 0..<3 {
                         let quick = try await input.voice.start()
                         try await Task.sleep(for: .milliseconds(60))
@@ -272,7 +280,7 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
                     try await Task.sleep(for: .milliseconds(600))
                     try require(input.voice.client.state.phase == .closed && draft.text == "Keep this draft through voice cancellation",
                         "Rapid cancellation lost draft or left voice active")
-                    if !history { try require(state.inputOpen == openInput, "Rapid cancellation lost composer restoration") }
+                    try require(state.inputOpen == openInput, "Rapid cancellation lost composer restoration")
                 }
                 if ProcessInfo.processInfo.environment["MOKU_VOICE_INSPECT"] == "1" {
                     for _ in 0..<600 { input.tick();try await Task.sleep(for: .milliseconds(50)) }
@@ -285,7 +293,7 @@ private struct ReplayFailure: Error, CustomStringConvertible { var description: 
     }
     private func finish(_ error: Error?) -> Never {
         let report: [String: Any] = ["ok": error == nil, "message": error.map(String.init(describing:))
-            ?? "production PCM, WindowServer motion/pause pixels, compact/expanded Dock and history voice entrance under current system motion preference, rapid preparation cancellation/draft restoration; no live mic"]
+            ?? "production PCM, WindowServer motion/pause pixels, compact/expanded Dock voice entrance under current system motion preference, rapid preparation cancellation/draft restoration; no live mic"]
         let output = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("result.json")
         try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: output)
         exit(error == nil ? 0 : 1)

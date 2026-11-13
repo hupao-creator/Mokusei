@@ -22,11 +22,11 @@ fixture-local cwd and rejects non-system images loaded from outside the bundle.
 For a Computer Use launch, compile with `--build-only` and open the resulting
 app path printed by the runner (or stored in `app-path.txt`). Add `--interactive` to leave the
 fixture open for manual input and rendering checks. The fixture includes the
-production canvas, camera, flat card surfaces, cloud shader, reading stack and multiline editor.
+production canvas, camera, flat card surfaces and cloud shader.
 Its card includes the production emoji badge and completion mark. Check that
 the opaque emoji badge remains readable without an added border;
-hovering leaves the emoji visible and exposes no Send action. Use Open conversation
-to open detail. In interactive mode, Command-Shift-D toggles light/dark appearance
+hovering leaves the emoji visible and exposes no Send action. In interactive
+mode, Command-Shift-D toggles light/dark appearance
 without system changes.
 
 The build driver still reads this checkout and uses its SwiftPM cache. The GUI
@@ -54,24 +54,14 @@ The automatic replay verifies:
   reversal and retained survivor identity (including the delayed refit window).
   Card probes use the canvas coordinate space, so full-window safe-area handling
   does not change the measured animation offsets.
-- Conversation opening/return through window-dispatched mouse clicks on the
-  visible back chevron, including repeated visits and return after resize;
-  retained Overview state and automatic framing. Repeated visits wait for the
-  previous production reader to unmount as well as its logical route to close;
-  otherwise SwiftUI can coalesce close/reopen before committing the old visit.
-  The 400ms opening-interruption click and geometry/identity assertions remain.
-  The fixture uses the ordinary
-  workspace's stationary, blurred backdrop and emphasized detail entrance; see
-  [Thread Detail transitions](../../../app/macos/Sources/Host/WindowNavigation/README.md).
 - Theme changes without replacing card content.
 - Transparent window backing, hidden title, full-window content and alignment
-  of the real system controls inside the reading navigation capsule. Check the
-  historical button origins (24/44/64, 31 points) after window resize and return.
+  of the real system window controls. Check the
+  historical button origins (24/44/64, 31 points) after window resize.
 
-It drives scene and camera APIs, dispatches back-button mouse events and sends
+It drives scene and camera APIs and sends
 synthetic two-axis event snapshots directly to the production bridge handler in
 its own visible window. Scroll OS-queue/local-monitor delivery is not replayed;
-window-dispatched mouse events do exercise the monitor's cancellation callback.
 Gesture replay also checks momentum interruption, input-region
 ownership and outer-window zoom conversion at 0.5 and 2. Pinch samples exercise
 the production controller directly, not SwiftUI hardware recognition. See

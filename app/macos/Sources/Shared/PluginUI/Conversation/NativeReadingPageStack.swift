@@ -6,31 +6,17 @@ import SwiftUI
 
 @MainActor @Observable
 public final class NativeReadingPageMotion {
-    struct ProgressWrite {
-        let uptime: TimeInterval
-        let progress: Double
-        let reason: String
-        let generation: Int
-    }
     private final class WeakMotion { weak var value: NativeReadingPageMotion?; init(_ value: NativeReadingPageMotion) { self.value = value } }
     private static var registry: [WeakMotion] = []
     public fileprivate(set) var active = false
     fileprivate var replacementDirection: CGFloat = 1
     @ObservationIgnored fileprivate var closeAction: (() -> Void)?
     @ObservationIgnored fileprivate var cancelAction: ((Bool) -> Void)?
-    // The native replay installs this per-instance observer. Production takes
-    // no timestamps or geometry samples when there is no observer.
-    @ObservationIgnored var progressWriteObserver: ((ProgressWrite) -> Void)?
     public init() { Self.registry.removeAll { $0.value == nil }; Self.registry.append(WeakMotion(self)) }
     public func close() { closeAction?() }
     public func cancel(finishingClose: Bool = false) { cancelAction?(finishingClose) }
     public static func cancelAll(finishingClose: Bool = false) {
         registry.forEach { $0.value?.cancel(finishingClose: finishingClose) }
-    }
-    fileprivate func recordProgressWrite(_ progress: Double, reason: String, generation: Int) {
-        guard let progressWriteObserver else { return }
-        progressWriteObserver(.init(uptime: ProcessInfo.processInfo.systemUptime,
-                                    progress: progress, reason: reason, generation: generation))
     }
 }
 
@@ -302,7 +288,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             replacing = false
             motion.active = false
         }
-        motion.recordProgressWrite(progress, reason: "settle", generation: generation)
         onParentPresentationChange?(!open || finishClose)
         if finishClose { onClose() }
     }
@@ -369,7 +354,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 ? .timingCurve(0.76, 0, 0.24, 1, duration: duration) : curve) {
                 progress = closing ? 0 : 1
             }
-            motion.recordProgressWrite(progress, reason: "panel-target", generation: generation)
             return
         }
         let returningDuringOpening = closing && axis == .horizontal && motion.active && !self.closing && !replacing
@@ -385,7 +369,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             var transaction = Transaction(animation: nil)
             transaction.disablesAnimations = true
             withTransaction(transaction) { progress = displayed }
-            motion.recordProgressWrite(progress, reason: "native-return-pose", generation: generation)
             initialProgress = displayed
         } else { initialProgress = progress }
         replacing = false
@@ -419,7 +402,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 var transaction = Transaction(animation: nil)
                 transaction.disablesAnimations = true
                 withTransaction(transaction) { progress = initialProgress + (targetProgress - initialProgress) * eased }
-                motion.recordProgressWrite(progress, reason: closing ? "closing-step" : "opening-step", generation: token)
                 guard generation == token, time >= 1 else { return }
                 frames.stop()
                 motion.active = false

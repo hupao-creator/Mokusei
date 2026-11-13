@@ -81,81 +81,17 @@ three-second wait now also requires the exact mounted set; the FIFO, movement,
 appearance and membership assertions and their budgets remain unchanged. The
 receipt retains the final mounted IDs, so an actually stranded card still fails.
 
-## Retained Overview return observation
+## Reduced Motion handoff geometry
 
-Post-merge CI #261 failed to observe the retained-page opening midpoint. Its
-recorded x positions crossed the unchanged 40–60% window-width band between
-716.14ms and 800.98ms; by 1345.84ms the opening had finished. The latest-content,
-return-direction and parent-retention assertions had not run. These observations
-do not establish whether a qualifying intermediate frame was committed or only
-missed by polling, so the failure is not classified as a product regression or
-discarded as flaky.
-
-This method now uses `SwiftUIReplay.wait(driveLayout: false)`, which requires an
-actual running `NSApplication` event loop. Other callers retain the default
-layout/display driving behavior. Repeated synchronous all-window layout and
-display share the main actor with production animation callbacks and can disturb
-the observation; passive waiting removes that intervention, not OS scheduling
-uncertainty. Each wait retains the original three-second deadline and 10ms sleep.
-
-Before the single opening, the existing initial-content wait also requires the
-actual root to reach the explicitly requested 1180×780 points within one physical
-pixel and motion to be idle. The original 1.2-second duration and strict
-`0.4W < x < 0.6W` qualification are unchanged. After observing that band, the test
-synchronously rereads the current front, root, window ownership and active motion
-and requires the same band before updating the text and closing. There is no
-intervening await or forced layout. Setup, every opening/return predicate,
-open/close source times, the 100ms return observation and the final state are
-retained with their uptime clock; no 50ms diagnostic subsampling omits checks.
-The original return direction, latest content and parent appearance assertions
-remain. No wider band, longer animation or deadline, retry, skip, or retrospective
-midpoint interpolation can substitute for the actual prerequisite.
-
-Run `42442726336` observed 178 display callbacks but no qualifying midpoint:
-the front stayed at x=722 from 667.909–719.472ms, then read x=461 at 734.029ms.
-The unchanged band was 472–708 points; opening remained active and its window
-and viewport stayed valid. Those native samples do not identify whether progress
-writes or their delivery to native geometry were delayed or coalesced.
-
-This replay alone installs an internal, per-motion progress-write observer. It
-records `ProcessInfo.systemUptime`, the assigned progress, reason and generation
-after the production transaction, without reading geometry in that callback.
-The existing display callback additionally reads the current root/front anchors;
-neither observer drives layout or display. Progress writes and opening samples
-each retain at most 2048 entries, with explicit dropped counts and the latest
-opening sample retained separately. The observer is removed before exit or a
-failure capture. If the opening wait fails, one ScreenCaptureKit image is saved
-as `retained-overview-post-failure.png` under `MOKUSEI_READING_MOTION_ARTIFACTS`.
-Its request/capture timestamps and post-failure label distinguish it from the
-missed midpoint; capture failure is recorded without replacing the original
-test failure. No image capture or file write occurs during the measured interval,
-and no production timestamps are collected unless the test observer is installed.
-
-[CI #389](https://github.com/hupao-creator/Mokusei/actions/runs/42448341067)
-captured the missing distinction: consecutive source writes at 625.966ms and
-702.903ms assigned progress 0.394718 and 0.645411, a 76.938ms gap with no midpoint
-value. Display callbacks continued between them; the probe and front anchor
-remained at x=714, then both read x=418 about 5.3ms after the next write.
-The post-failure PNG shows the settled detail only. CI #387 had passed with a
-64.485ms source-write gap and one qualifying write; that pass does not negate
-the later failure. The trace establishes a source gap, not its specific
-scheduling cause. The subsequent zero-tolerance sleep version passed
-[CI #392](https://github.com/hupao-creator/Mokusei/actions/runs/42451341019), but
-source writes at 545.733ms, 614.662ms and 683.106ms were still about 69ms apart.
-The unchanged 1.2-second Bezier curve's progress 0.4–0.6 interval lasts only
-59.801ms, so one admitted midpoint does not remove the source-cadence risk.
-
-Production non-panel progress now advances synchronously on a screen display
-callback, with no task or timer hop between that callback and the progress write.
-The existing preparation delay, elapsed-time origin, curve, duration, cancellation
-and every replay predicate and deadline remain unchanged. `FrameObserver` still
-independently observes committed native geometry; it does not drive production
-progress, require callback ordering, force layout or certify WindowServer pixels.
-Offscreen windows use a real screen clock; windowless preparation/cancellation
-tests create no display link and do not claim rendered completion. The separate
-history-replacement completion timer still runs without a window. Verification
-uses the existing replay and its captured write/geometry timeline; main-thread or
-display stalls can still make the original prerequisite fail.
+The handoff replay observes native geometry after the no-animation transaction
+has reached AppKit layout. A nil-animation completion can publish
+`travelComplete` before the new panel/aperture frames are committed. Run
+43408061909 sampled the old 302pt stacked main height at that boundary; its
+subsequent layout and final 620pt geometry passed. The Reduced Motion observer
+now flushes only pending nonanimated layout before sampling. The original
+growth, folded-launcher, final-size, retained-reader and content-admission
+assertions and two-second observation budget remain. Animated travel is still
+observed passively without forcing layout or discarding intermediate poses.
 
 ## Execution-link streaming input
 

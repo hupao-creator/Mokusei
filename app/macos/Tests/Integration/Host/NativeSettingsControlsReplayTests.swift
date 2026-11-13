@@ -54,7 +54,7 @@ struct NativeSettingsControlsReplayTests {
         #expect(fixture.selection == "new/native" && fixture.writes == 2)
     }
 
-    @Test func nativeInputAndTextareaKeepEditingAndUndo() async throws {
+    @Test func nativeInputKeepsEditingAndDisabledState() async throws {
         let fixture = NativeFormFixture()
         let window = SwiftUIReplay.window(NativeFormReplay(fixture: fixture), width: 540, height: 420)
         defer { window.orderOut(nil); window.contentView = nil }
@@ -65,28 +65,8 @@ struct NativeSettingsControlsReplayTests {
         let input = try #require(field.currentEditor() as? NSTextView)
         input.insertText("typed", replacementRange: NSRange(location: 0, length: 0))
         try await SwiftUIReplay.wait { fixture.text == "typed" }
-        let editor = try #require(descendants(content).compactMap { $0 as? NSTextView }
-            .first { !$0.isFieldEditor })
-        #expect(editor.enclosingScrollView?.borderType == .bezelBorder)
-        window.makeFirstResponder(editor)
-        let undo = try #require(editor.undoManager)
-        // The window shares Undo across its field editor and text views. Start
-        // this document's assertion independently of the input typed above.
-        undo.removeAllActions()
-        editor.breakUndoCoalescing()
-        editor.insertText("guidance", replacementRange: NSRange(location: 0, length: 0))
-        editor.breakUndoCoalescing()
-        try await SwiftUIReplay.wait { fixture.guidance == "guidance" }
-        // The native typing event must finish before invoking Undo.
-        try await SwiftUIReplay.wait { undo.groupingLevel == 0 }
-        #expect(undo.canUndo)
-        undo.undo()
-        try await SwiftUIReplay.wait { fixture.guidance.isEmpty }
-        #expect(undo.canRedo)
-        undo.redo()
-        try await SwiftUIReplay.wait { fixture.guidance == "guidance" }
         fixture.enabled = false
-        try await SwiftUIReplay.wait { !editor.isEditable && !field.isEnabled }
+        try await SwiftUIReplay.wait { !field.isEnabled }
     }
 
     private func descendants(_ view: NSView) -> [NSView] {
@@ -102,7 +82,6 @@ struct NativeSettingsControlsReplayTests {
     ]
     var selection: JSONText = ""
     var text = ""
-    var guidance = ""
     var enabled = true
     var writes = 0
     var discrete = false
@@ -129,7 +108,6 @@ private struct NativeFormReplay: View {
                     select
                 }
                 NativeSettingsRow(label: "Input") { NativeSettingsInput(value: $fixture.text) }
-                NativeSettingsRow(label: "Guidance", layout: .stacked) { NativeSettingsTextarea(value: $fixture.guidance) }
             }.disabled(!fixture.enabled).padding(20)
         }.environment(\.nativeSettingsFormPage, !surface.onboarding)
             .environment(\.nativeSettingsCompactPresentation, surface.onboarding)

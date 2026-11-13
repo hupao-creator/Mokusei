@@ -38,9 +38,6 @@ NATIVE_METHOD_OWNERS = {
     "MokuseiSettingsIntegrationTests.NativeOverviewDecorationCaptureTests/nativeCloudAndScanMoveInComposedOverview()": {
         "group": "native", "check": "tag-glass-captures", "marker": "NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED",
     },
-    "MokuseiSettingsIntegrationTests.NativeReadingPagePresentationTests/retainedOverviewReturnsWithLatestContent()": {
-        "group": "native", "check": "tag-glass-captures", "marker": "OVERVIEW_RETAINED_RETURN_CONFIRMED",
-    },
 }
 
 

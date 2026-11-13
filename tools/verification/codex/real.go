@@ -161,20 +161,6 @@ trace_exporter = "none"
 		return fmt.Errorf("real native fork reused source identity")
 	}
 	fmt.Println("PASS real native independent fork / isolated history read")
-	for i := 0; i < 3; i++ {
-		source := model.ThreadRecord{SessionRecord: thread}
-		source.SessionState = store.Read()
-		start := time.Now()
-		discussion, err := adapter.PrepareDiscussion(ctx, plugin.DiscussionRequest{Source: source, Instructions: "Private read-only preparation probe. Do not advance the source task."})
-		if err != nil {
-			return fmt.Errorf("real native discussion preparation: %w", err)
-		}
-		elapsed := time.Since(start)
-		if err = discussion.Close(); err != nil {
-			return err
-		}
-		fmt.Printf("PASS real native restricted discussion preparation %d: %.2fms (no inference)\n", i+1, float64(elapsed.Nanoseconds())/1e6)
-	}
 
 	if e = handle.Close(); e != nil {
 		return e

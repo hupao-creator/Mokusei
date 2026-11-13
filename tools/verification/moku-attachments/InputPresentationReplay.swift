@@ -49,7 +49,7 @@ private struct GuardedAudio: LocalizedError {
         if fixture.finished { break }
         try await Task.sleep(for: .milliseconds(100))
     }
-    guard fixture.attempts > 0, fixture.prepares == 0 else {
+    guard fixture.finished, fixture.attempts > 0, fixture.prepares == 0 else {
         throw GuardedAudio()
     }
     print("PASS guarded production voice entry, no prepare/privacy/media allocation; attempts=\(fixture.attempts)")
@@ -63,9 +63,6 @@ private struct ObservedInputFixture: View {
     private var pinned: Bool {
         fixture.voice.state.phase != .closed && fixture.voice.state.phase != .failed || !fixture.voice.state.error.codeUnits.isEmpty
     }
-    private var voiceActive: Bool {
-        [.preparing, .connecting, .listening, .stopping].contains(fixture.voice.state.phase)
-    }
     private var canStartVoice: Bool {
         fixture.voice.state.available && (fixture.voice.state.phase == .closed || fixture.voice.state.phase == .failed)
     }
@@ -76,7 +73,6 @@ private struct ObservedInputFixture: View {
                 Button("History") { fixture.history = true; fixture.scene.setMokuOpen(true) }
                 Button("Closed") { fixture.scene.setMokuOpen(false); fixture.history = false; fixture.scene.setInputOpen(false) }
                 Button("Reset guarded voice") { fixture.resetVoice() }
-                Button("Voice entry") { fixture.startVoice() }
                 Button("Finish") { fixture.finished = true }
                 Text("Guarded audio: \(fixture.attempts) · prepares: \(fixture.prepares)").font(.system(size: 11))
             }.padding(20)
@@ -85,14 +81,12 @@ private struct ObservedInputFixture: View {
                     Spacer()
                     NativeMokuHistoryComposer(draft: fixture.draft, cwd: "/tmp",
                         focusEnabled: fixture.history,
-                        activeVoiceControls: AnyView(NativeMokuVoiceControls(client: fixture.voice, style: .dock)),
-                        voiceModeActive: voiceActive, loadMentionDirectories: { directories },
-                        onSend: { _ in throw GuardedAudio() }, onCancel: {},
-                        canStartVoice: { canStartVoice }, startVoice: { fixture.startVoice() })
+                        loadMentionDirectories: { directories },
+                        onSend: { _ in throw GuardedAudio() }, onCancel: {})
                         .frame(maxWidth: 560).padding(24)
                 }
             } dock: {
-                NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/tmp",
+                NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/tmp", voiceEntryEnabled: true,
                     voiceControls: AnyView(NativeMokuVoiceControls(client: fixture.voice, style: .dock)),
                     voiceStatusVisible: pinned, loadMentionDirectories: { directories },
                     onSend: { _ in throw GuardedAudio() }, onCancel: {},

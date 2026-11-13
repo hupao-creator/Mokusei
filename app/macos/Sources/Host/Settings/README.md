@@ -83,7 +83,8 @@ Embedded Thread editors retain their capsule/popover presentation.
 
 `NativeSettingsControlsReplayTests` mounts the shared production form and sends
 AppKit actions through real controls, checking option identity/disabled state,
-text binding and Undo. The existing Settings launcher below exercises persistence,
+text binding and disabled input. The existing Settings launcher below exercises
+routing-guidance editing/Undo through the actual SettingsTextArea, persistence,
 IME, conflict and close behavior; the navigation demo covers light/dark, compact
 and zoomed production page layouts.
 

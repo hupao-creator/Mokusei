@@ -10,36 +10,11 @@ import MokuseiTestSupport
 import MokuseiCore
 import MokuseiPluginAPI
 @testable import MokuseiPluginUI
-@testable import MokuseiHarnessCodex
 @testable import MokuseiSidecardBrowser
 @testable import MokuseiUI
 
 @MainActor @Suite(.serializedNative, .serialized)
 struct NativePerformanceCacheTests {
-    @Test func codexCacheOwnsRawAndFallbackAndCachesFailures() throws {
-        let cache = CodexStateCache()
-        let valid: JSONValue = .object(["schema": .text("mokusei.harness.codex.thread.v1"), "updatedAt": .number(1),
-                                       "turns": .array([]), "backgroundTerminals": .array([])])
-        for _ in 0..<10 { #expect(try cache.decode(valid).get().turns.isEmpty) }
-        #expect(cache.decodeCount == 1)
-        let invalid: JSONValue = .object(["schema": .text("invalid")])
-        for _ in 0..<10 {
-            if case .success = cache.decode(invalid) { Issue.record("Invalid state admitted") }
-        }
-        #expect(cache.decodeCount == 2)
-        #expect(try cache.decode(valid).get().updatedAt == 1)
-        #expect(cache.decodeCount == 3)
-        #expect(try cache.decode(.null, createdAt: 42).get().updatedAt == 42)
-        #expect(try cache.decode(.null, createdAt: 43).get().updatedAt == 43)
-        #expect(cache.decodeCount == 5)
-        // A remounted resource/scope starts its own owner, even at the same wire
-        // revision. No static cache can leak a prior authority's decode.
-        let remounted = CodexStateCache()
-        _ = remounted.decode(valid)
-        #expect(remounted.decodeCount == 1)
-    }
-
-
     @Test func invalidTIFFFallsBackToTextAndPNGHasPriority() async throws {
         let provider = NSItemProvider()
         provider.registerDataRepresentation(forTypeIdentifier: UTType.tiff.identifier, visibility: .all) { completion in completion(Data([1, 2, 3]), nil); return nil }

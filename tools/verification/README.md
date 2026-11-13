@@ -192,3 +192,10 @@ exports were removed; current Talk/dispatch checks remain. The old direct
 model-selector popover/slider suites were removed in favor of current Settings
 and Harness-form coverage. No skips, pixel thresholds or current production
 contracts were relaxed by these removals.
+
+The optional Moku attachment presentation inspector (`MOKU_CAPSULE_INSPECT=presentation`)
+enables the production Dock voice-entry policy and accepts evidence only through its gesture or
+accessibility action. Its media boundary throws before prepare/privacy/hardware;
+Finish succeeds only after such an entry. History has no voice entry. This mode
+reports that guarded boundary alone, not the separate attachment-picker or full
+capsule lifecycle checks.

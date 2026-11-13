@@ -126,7 +126,7 @@ def main():
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
-              if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeReadingPagePresentationTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
+              if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
     if "--rolling-numbers" in sys.argv:
         suites.append("GitThreadExtensionTests")
     tests = ([source / "WorkspaceLifecycleReplay.swift"] if workspace_lifecycle else
@@ -218,7 +218,7 @@ def main():
         isolated_methods = ["ordinaryClickFocusesAndPersistsExactUnicodeReplacement",
                             "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
                             "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
-                            "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack",
+                            "reportPanelPreservesEditingReplacementSuppressionZoomAndClose",
                             "reportNativeDialogsAndDownloadsPreserveTheDocument",
                             "pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation",
                             "realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer",
@@ -227,7 +227,7 @@ def main():
         selected = ("reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
                     if "--report-controls" in sys.argv else
                     "|".join(isolated_methods) if isolated_input else
-                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels|excerptRevealKeepsMovingThroughRewriteAndWidthChanges|nativeCloudAndScanMoveInComposedOverview|retainedOverviewReturnsWithLatestContent|productionAnimationMountsWithoutAnOpaqueFirstFrame"
+                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels|excerptRevealKeepsMovingThroughRewriteAndWidthChanges|nativeCloudAndScanMoveInComposedOverview|productionAnimationMountsWithoutAnOpaqueFirstFrame"
                     if glass_captures else
                     "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else
                     "RollingNumberCellTests|sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes"
@@ -283,10 +283,10 @@ def main():
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              10 if "--browser-viewport" in sys.argv else
              11 if "--markdown" in sys.argv else
-             7 if glass_captures else
+             6 if glass_captures else
              7 if "--moku-composer" in sys.argv else
              7 if tag_glass else
-             12 if "--moku-note-tests" in sys.argv else 14)
+             12)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
@@ -314,7 +314,7 @@ def main():
         for name in ["directorySelectionResizeKeepsRoundedGlass", "shortChildMorphKeepsBothCapsuleEnds",
                      "titleReversalAndVisibilityCancellationSettlePixels",
                      "excerptRevealKeepsMovingThroughRewriteAndWidthChanges", "nativeCloudAndScanMoveInComposedOverview",
-                     "retainedOverviewReturnsWithLatestContent", "productionAnimationMountsWithoutAnOpaqueFirstFrame"]:
+                     "productionAnimationMountsWithoutAnOpaqueFirstFrame"]:
             if f"Test {name}() passed" not in result.stdout:
                 raise SystemExit("FAIL: incomplete native capture replay: " + name)
         if "TITLE_INCOMING_MOTION_CONFIRMED" not in result.stdout:
@@ -323,8 +323,6 @@ def main():
             raise SystemExit("FAIL: excerpt replay did not observe mask movement through rewrite and local width changes")
         if "NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED" not in result.stdout:
             raise SystemExit("FAIL: native Overview replay did not observe cloud and scan pixels in composed frames")
-        if "OVERVIEW_RETAINED_RETURN_CONFIRMED" not in result.stdout:
-            raise SystemExit("FAIL: retained Overview replay did not complete the mid-opening return in the AppKit event loop")
         if "TAG_ONBOARDING_FIRST_FRAME_CONFIRMED" not in result.stdout:
             raise SystemExit("FAIL: Tag onboarding replay did not observe entry and return frames")
     if isolated_input:

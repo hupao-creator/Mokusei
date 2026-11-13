@@ -15,11 +15,13 @@ model, network service, microphone, speaker or existing voice owner is touched.
 It is not evidence of a live microphone/WebRTC/provider call.
 
 The entrance replay also mounts the production cloud wrapper, voice controls,
-Dock and history composer with a real NativeVoiceMediaClient held at its prepare
+compact/expanded Dock with a real NativeVoiceMediaClient held at its prepare
 command before microphone permission. It captures before/entering/active/leaving/
 restored states under the current system Reduce Motion setting, checks that rendering admits just
 one preparation, and checks draft/input restoration after normal and rapid
 60-ms cancellation. The preparation fixture allocates no server session or media.
+Its simulated server retires the held prepare request when Stop arrives, before
+the real client's Stop waits for preparation cleanup.
 These are native screenshots and lifecycle assertions, not frame-rate or physical
 trackpad measurements; capture latency can miss the transition's first frames.
 SwiftUI's Reduce Motion environment is read-only. This replay does not change
@@ -29,14 +31,16 @@ whether the system preference was reduced or animated.
 
 ScreenCaptureKit captures this process's full native window. Both metadata size
 and opaque coverage are checked: Stage Manager may pad a transformed thumbnail
-to full window dimensions. The replay activates only its own window and rejects
+to full window dimensions. The replay activates only its own window and waits up to three seconds for
+WindowServer to report its full frame before capture. It rejects
 that transparent-wedge output instead of treating it as animation evidence.
 The replay samples the background away from eyes, text and controls: motion
 must change RGB pixels, while static drawing must not. Captures and numeric
 measurements persist in `/tmp/mokusei-moku-voice-cloud-evidence`, configurable
 with `MOKU_VOICE_EVIDENCE`. The static override exercises the manual `motionEnabled` input, independently
 of system preferences. Failed
-captures are retained under `failure` for diagnosis.
+captures, result and process output are retained under `failure` for diagnosis,
+including partial evidence from a timeout or an exit without a result.
 
 The Swift NativeVoiceAnalysisTests additionally cover amplitude-independent
 pitch, noise/DC/silence, the capture generation fence, mute, stale-sample fallback
