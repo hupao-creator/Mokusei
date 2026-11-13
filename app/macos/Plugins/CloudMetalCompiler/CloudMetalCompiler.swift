@@ -1,5 +1,6 @@
 import PackagePlugin
 import Foundation
+import CryptoKit
 
 /// Build the macOS Metal library and native adaptive palette bundle.
 @main
@@ -8,6 +9,7 @@ struct CloudMetalCompiler: BuildToolPlugin {
         let source = target.directoryURL.appending(path: "Shaders/CloudLoading.metal")
         let palette = target.directoryURL.appending(path: "Resources/Palette.xcassets")
         try validatePalette(palette, sources: context.package.directoryURL.appending(path: "Sources"))
+        try validateCloudAssets(package: context.package.directoryURL, target: target.directoryURL)
         var commands: [Command] = []
         for sdk in ["macosx"] {
             let library = context.pluginWorkDirectoryURL.appending(path: "CloudLoading-\(sdk).metallib")
@@ -56,5 +58,39 @@ struct CloudMetalCompiler: BuildToolPlugin {
                 }
             }
         }
+    }
+
+    private func validateCloudAssets(package: URL, target: URL) throws {
+        struct Manifest: Decodable {
+            let version: Int
+            let inputSHA256: [String: String]
+            let assetSHA256: [String: String]
+        }
+        let directory = target.appending(path: "Resources/OverviewCloud")
+        let manifest = try JSONDecoder().decode(Manifest.self,
+            from: Data(contentsOf: directory.appending(path: "OverviewCloudSources.json")))
+        let root = package.deletingLastPathComponent().deletingLastPathComponent()
+        let expectedInputs: Set<String> = [
+            "tools/assets/overview-cloud/Bake.swift", "tools/assets/overview-cloud/generate.py",
+            "app/macos/Sources/Shared/PluginUI/Shaders/CloudLoading.metal",
+            "app/macos/Sources/Shared/PluginUI/Design/NativeCloudField.swift",
+            "app/macos/Sources/Shared/PluginUI/Design/NativeCloudLoopStyle.swift"]
+        let expectedAssets = Set(["OverviewCloudLoop.json"] + ["blueIndigo", "coral", "spectrum", "neutral"].flatMap { style in
+            ["light", "dark"].map { "OverviewCloudLoop-\(style)-\($0).png" }
+        })
+        guard manifest.version == 1, Set(manifest.inputSHA256.keys) == expectedInputs,
+              Set(manifest.assetSHA256.keys) == expectedAssets else { throw staleCloudAssets() }
+        for (base, records) in [(root, manifest.inputSHA256), (directory, manifest.assetSHA256)] {
+            for (relative, expected) in records {
+                let data = try Data(contentsOf: base.appending(path: relative), options: .mappedIfSafe)
+                let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                guard actual == expected else { throw staleCloudAssets() }
+            }
+        }
+    }
+
+    private func staleCloudAssets() -> NSError {
+        NSError(domain: "MokuseiCloudAssets", code: 1, userInfo: [NSLocalizedDescriptionKey:
+            "Stale Overview cloud assets; run python3 tools/assets/overview-cloud/generate.py"])
     }
 }

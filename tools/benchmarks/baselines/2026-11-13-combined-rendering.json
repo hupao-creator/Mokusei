@@ -1,0 +1,1680 @@
+{
+  "version": 1,
+  "date": "2026-11-13",
+  "baselineCommit": "09cac83d2d4f0ffbd009d55fc22e292aa1c19fd4",
+  "candidateProductSourceSHA256": "0c3280491e6769a418c7a59ba8a7d1e9c83fee2f31dd47f46b08d59b4e4ee046",
+  "scope": "Local production combination; body wipe retained; pre-rendered clouds; no remote publication",
+  "experiment": {
+    "cards": 10,
+    "formalSeconds": 8,
+    "roundsPerArtifact": 1,
+    "order": [
+      "baseline",
+      "candidate"
+    ],
+    "mode": "observed",
+    "pacing": "sparse",
+    "chunkBytes": 64,
+    "messageBytes": 512,
+    "resourceHz": 10,
+    "captureHz": 5,
+    "activeScenesDisplayHz": 120,
+    "startupDisplayHz": 60,
+    "windowPoints": {
+      "width": 1280,
+      "height": 820
+    },
+    "noProfilingDuringMeasurement": true,
+    "noExperimentalProductFlags": true,
+    "statisticalInference": false
+  },
+  "artifacts": {
+    "baseline": {
+      "provenance": {
+        "channel": "production",
+        "configuration": "release",
+        "embeddingInputSHA256": "baa03b049f3bf97683b80499b76396e4eb909a677f161a3b0dca2c5740685f3b",
+        "executableInputSHA256": "0c2d8373160cfa728cd6d17d74b5445b0807adf9a149916465294f8d2cd5613b",
+        "runtimeInputSHA256": "8749bd0418605484a13005ad1b63fd99ca4ef65a450f8779a1323add9e3c1f0e"
+      },
+      "executableSHA256": "e2b1ca7218a7df81327758aba564058bd24c2e84792edf380bca366f664c7758",
+      "files": {
+        "Contents/MacOS/Mokusei": "e2b1ca7218a7df81327758aba564058bd24c2e84792edf380bca366f664c7758",
+        "Contents/MacOS/MokuseiEmbedding": "9ef0c307727942727ae4825a278d94f8f6ad70db48b12f851e2d739fde5a77df",
+        "Contents/MacOS/mokusei-runtime": "735419c3803df991a515698a8568299eb618282f5ac378b69337500f01d3008b"
+      },
+      "rawArtifactSHA256": "dfaa90d218a6377054381842f7ef37a6559c8ca7e590fc07142d86864681475d"
+    },
+    "candidate": {
+      "provenance": {
+        "channel": "production",
+        "configuration": "release",
+        "embeddingInputSHA256": "abcab7b955563397e3c8b82d7ad114650dde81ee50d4f3a7265e80b16b3027e2",
+        "executableInputSHA256": "098da903e6aea454ee6837529ec6c84c5f4cf9798b8b5ce2855997c0707f98b2",
+        "runtimeInputSHA256": "fc3a1ab34598dfda5acf0ec3a4e752d6d040631f9b482c3702293b2b482d59ec"
+      },
+      "executableSHA256": "e0d5c3ce299ea7ef974d0ca733098503e266327160737ac90e2f160d540a0ab4",
+      "files": {
+        "Contents/MacOS/Mokusei": "e0d5c3ce299ea7ef974d0ca733098503e266327160737ac90e2f160d540a0ab4",
+        "Contents/MacOS/MokuseiEmbedding": "c5356fd021077bbc1e7a4c20d77108b72b9459ad1df8dc312fab3f7d6d9cd923",
+        "Contents/MacOS/mokusei-runtime": "4c886fa1656f244605d2420ea7d9ce6bf98efacf7bbe8a484e6e22b30403e021"
+      },
+      "rawArtifactSHA256": "8b000bf8fa6d2c7a229b56f1c8b5cce36678c5cdf7b724ff6f29ae3761b5c7db"
+    }
+  },
+  "nativeCLI": {
+    "available": true,
+    "executable": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+    "version": "codex-cli 0.167.0-alpha.3.2",
+    "sha256": "a636331ed87605efc4cf84028ac2884a75363f9d10ead63cffb57ea0016d486e",
+    "verifiedVersion": "codex-cli 0.167.0-alpha.3.2"
+  },
+  "displays": {
+    "accessibility": true,
+    "screens": [
+      {
+        "frame": {
+          "height": 1440,
+          "width": 2560,
+          "x": 0,
+          "y": 0
+        },
+        "id": 3,
+        "maximumFPS": 60,
+        "modeHz": 60,
+        "name": "Mi Monitor",
+        "scale": 2,
+        "visible": {
+          "height": 1440,
+          "width": 2560,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "frame": {
+          "height": 982,
+          "width": 1512,
+          "x": 427,
+          "y": 1440
+        },
+        "id": 1,
+        "maximumFPS": 120,
+        "modeHz": 120,
+        "name": "Built-in Retina Display",
+        "scale": 2,
+        "visible": {
+          "height": 950,
+          "width": 1512,
+          "x": 427,
+          "y": 1472
+        }
+      }
+    ]
+  },
+  "observedApplicationComparisons": [
+    {
+      "scenario": "idle.active",
+      "scope": "Observed application process only; not a full benchmark pass",
+      "baseline": {
+        "sampledPeakFootprintBytes": 142689384,
+        "observedCPUSeconds": 3.50771675,
+        "singleCoreCPUPercent": 43.83674542619321,
+        "finalSampledFootprintBytes": 142689384
+      },
+      "candidate": {
+        "sampledPeakFootprintBytes": 138593432,
+        "observedCPUSeconds": 0.271218584,
+        "singleCoreCPUPercent": 3.3901337212678855,
+        "finalSampledFootprintBytes": 138593432
+      },
+      "relativeCPUDecreasePercent": 92.26645662603816
+    },
+    {
+      "scenario": "body",
+      "scope": "Observed application process only; not a full benchmark pass",
+      "baseline": {
+        "sampledPeakFootprintBytes": 146621544,
+        "observedCPUSeconds": 5.022626166,
+        "singleCoreCPUPercent": 62.78566322113082,
+        "finalSampledFootprintBytes": 144426088
+      },
+      "candidate": {
+        "sampledPeakFootprintBytes": 143574192,
+        "observedCPUSeconds": 1.589340249,
+        "singleCoreCPUPercent": 19.870467648045956,
+        "finalSampledFootprintBytes": 141378712
+      },
+      "relativeCPUDecreasePercent": 68.35190292079537
+    }
+  ],
+  "rawResults": {
+    "baseline": [
+      {
+        "path": "n-10/00-first-render",
+        "version": 1,
+        "scenario": "first-render",
+        "count": 10,
+        "mode": "observed",
+        "measurement": "invalid",
+        "product": "unknown",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "process cumulative counter or identity changed",
+          "startup resource samples begin after OS launch attachment",
+          "startup pixels before window capture attachment are unobserved",
+          "observed business displacement differs from the declared input trajectory",
+          "native hitch unavailable: XCTest attachment after launch cannot cover the pre-attachment startup interval.",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "metrics": {
+          "postAttachment": {
+            "sampledSeconds": 9.7733415,
+            "roles": {
+              "application": {
+                "sampledPeakFootprintBytes": 64291896,
+                "observedCPUSeconds": 2.349769293,
+                "singleCoreCPUPercent": 24.042639797248462,
+                "finalSampledFootprintBytes": 58131512
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 13746896,
+                "observedCPUSeconds": 2.777975583,
+                "singleCoreCPUPercent": 28.42401018116475,
+                "finalSampledFootprintBytes": 11551440
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 17088992,
+                "observedCPUSeconds": 0.005465083,
+                "singleCoreCPUPercent": 0.05591826500690679,
+                "finalSampledFootprintBytes": 17088992
+              }
+            },
+            "completeTaskCost": false
+          },
+          "tail": {
+            "sampledSeconds": 1.998473833,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 9437928,
+                "observedCPUSeconds": 0.078242875,
+                "singleCoreCPUPercent": 3.915131322112237,
+                "finalSampledFootprintBytes": 9143016
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 17088992,
+                "observedCPUSeconds": 0.001109083,
+                "singleCoreCPUPercent": 0.05549649846228434,
+                "finalSampledFootprintBytes": 17088992
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 58164280,
+                "observedCPUSeconds": 0.008533376,
+                "singleCoreCPUPercent": 0.42699463255869413,
+                "finalSampledFootprintBytes": 58131512
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 12452560,
+                "observedCPUSeconds": 0.594065417,
+                "singleCoreCPUPercent": 29.72595423519864,
+                "finalSampledFootprintBytes": 11551440
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 16614096,
+                "observedCPUSeconds": 0.001195292,
+                "singleCoreCPUPercent": 0.05981024020743332,
+                "finalSampledFootprintBytes": 16614096
+              }
+            },
+            "completeTaskCost": false
+          },
+          "pixels": {
+            "capturedFrames": 44,
+            "captureCadenceIsDisplayFPS": false
+          },
+          "pan": {
+            "firstVisibleResponseSeconds": 0.250890875,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.005678916,
+              "upper": 0.250890875
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.250890875,
+            "noProgressSecondsBounds": {
+              "lower": 0.005678916,
+              "upper": 0.455987333
+            },
+            "maximumTrajectoryErrorPixels": 21.74707150091748
+          },
+          "presentation": {
+            "firstRecognizableBusinessContentSeconds": 1.105765292,
+            "firstSuccessfulInteractionProbeSeconds": null,
+            "usableTimeIsUpperBoundAtScheduledProbe": true,
+            "firstContentObservationIsUpperBound": true,
+            "firstContentLeftCensored": true
+          },
+          "hitchCapability": {
+            "status": "unavailable",
+            "reason": "XCTest attachment after launch cannot cover the pre-attachment startup interval."
+          },
+          "startupCoverage": {
+            "resourceObservationStartsAfterLaunch": true,
+            "preAttachmentHitches": "unavailable",
+            "wholeLaunchCostCertified": false
+          },
+          "startupApplication": {
+            "cpuSecondsSinceProcessBirth": 2.439242749,
+            "cpuObservedAtSecondsAfterLaunch": 7.950437667,
+            "resourceAttachmentDelaySeconds": 0.17557,
+            "osLaunchReturnDelaySeconds": 0.17462725,
+            "sampledPeakFootprintBytes": 64291896,
+            "preAttachmentMemoryPeakAvailable": false,
+            "completeTaskCost": false
+          }
+        },
+        "scope": "complete application scenario, not rendering-module attribution",
+        "inputPreparation": {
+          "context": "reopen",
+          "publicAccessibilityGeometry": true
+        },
+        "continuousQuality": "observed",
+        "motionEvidence": false,
+        "businessOutcome": "passed",
+        "collectorCalibration": {
+          "pixelsPassed": true,
+          "hitchesPassed": false,
+          "wrongOwnerRejected": false,
+          "processOwnerRejected": true
+        },
+        "allRequiredCapabilitiesAvailable": false,
+        "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+        "analysisFiles": {
+          "analysis/report.py": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+          "contracts/model.py": "ebe3b7f319967ef42fa00a8ec57fe45ae1daa1d2bd5015370f481b4243d44ddd",
+          "input_region.py": "22531a750ed3baebfbf9335b734d0c36d3b79d87bb6b80e501a862c97f7192ec",
+          "workload.py": "085c507b72568058aa289508801963464d50979658b3731b7817aa78293b2a9f"
+        }
+      },
+      {
+        "path": "n-10/01-idle.active",
+        "version": 1,
+        "scenario": "idle.active",
+        "count": 10,
+        "mode": "observed",
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "metrics": {
+          "warmup": {
+            "sampledSeconds": 0.99839625,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 275951904,
+                "observedCPUSeconds": 0.045058542000000014,
+                "singleCoreCPUPercent": 4.513092071409523,
+                "finalSampledFootprintBytes": 275951904
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20431448,
+                "observedCPUSeconds": 0.014819792,
+                "singleCoreCPUPercent": 1.48435974193613,
+                "finalSampledFootprintBytes": 20431448
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 12370640,
+                "observedCPUSeconds": 0.401721625,
+                "singleCoreCPUPercent": 40.23669209494728,
+                "finalSampledFootprintBytes": 12370640
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 142394472,
+                "observedCPUSeconds": 0.489031833,
+                "singleCoreCPUPercent": 48.981737761935705,
+                "finalSampledFootprintBytes": 142394472
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 33030984,
+                "observedCPUSeconds": 0.004205418,
+                "singleCoreCPUPercent": 0.42121732728863914,
+                "finalSampledFootprintBytes": 33030984
+              }
+            },
+            "completeTaskCost": false
+          },
+          "formal": {
+            "sampledSeconds": 8.00177275,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 443036032,
+                "observedCPUSeconds": 0.24209966500000005,
+                "singleCoreCPUPercent": 3.025575363909204,
+                "finalSampledFootprintBytes": 442052608
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20431448,
+                "observedCPUSeconds": 0.111877291,
+                "singleCoreCPUPercent": 1.3981563147991174,
+                "finalSampledFootprintBytes": 20431448
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 13927120,
+                "observedCPUSeconds": 3.758366958,
+                "singleCoreCPUPercent": 46.96917889851345,
+                "finalSampledFootprintBytes": 13927120
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 142689384,
+                "observedCPUSeconds": 3.50771675,
+                "singleCoreCPUPercent": 43.83674542619321,
+                "finalSampledFootprintBytes": 142689384
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 33538912,
+                "observedCPUSeconds": 0.096282583,
+                "singleCoreCPUPercent": 1.2032656513520708,
+                "finalSampledFootprintBytes": 33522528
+              }
+            },
+            "completeTaskCost": false
+          },
+          "tail": {
+            "sampledSeconds": 1.998858542,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 497908280,
+                "observedCPUSeconds": 0.162276585,
+                "singleCoreCPUPercent": 8.118462692093797,
+                "finalSampledFootprintBytes": 482194512
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20873696,
+                "observedCPUSeconds": 0.035702167,
+                "singleCoreCPUPercent": 1.78612774490172,
+                "finalSampledFootprintBytes": 20873696
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 14418640,
+                "observedCPUSeconds": 0.734932958,
+                "singleCoreCPUPercent": 36.76763225398869,
+                "finalSampledFootprintBytes": 14418640
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 145917032,
+                "observedCPUSeconds": 0.965357875,
+                "singleCoreCPUPercent": 48.29545736808823,
+                "finalSampledFootprintBytes": 145097832
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 34980704,
+                "observedCPUSeconds": 0.494295958,
+                "singleCoreCPUPercent": 24.728911406878336,
+                "finalSampledFootprintBytes": 34456416
+              }
+            },
+            "completeTaskCost": false
+          },
+          "wholeObservation": {
+            "sampledSeconds": 10.999027542,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 497908280,
+                "observedCPUSeconds": 0.449434792,
+                "singleCoreCPUPercent": 4.08613207198386,
+                "finalSampledFootprintBytes": 482194512
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20873696,
+                "observedCPUSeconds": 0.16239925,
+                "singleCoreCPUPercent": 1.4764873474484477,
+                "finalSampledFootprintBytes": 20873696
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 14418640,
+                "observedCPUSeconds": 4.895021541,
+                "singleCoreCPUPercent": 44.50413022704294,
+                "finalSampledFootprintBytes": 14418640
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 145917032,
+                "observedCPUSeconds": 4.962106458,
+                "singleCoreCPUPercent": 45.11404702872231,
+                "finalSampledFootprintBytes": 145097832
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 34980704,
+                "observedCPUSeconds": 0.594783959,
+                "singleCoreCPUPercent": 5.40760496079136,
+                "finalSampledFootprintBytes": 34456416
+              }
+            },
+            "completeTaskCost": false
+          },
+          "pixels": {
+            "capturedFrames": 55,
+            "captureCadenceIsDisplayFPS": false
+          },
+          "pan": {
+            "firstVisibleResponseSeconds": 0.217783333,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.217783333
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.217783333,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.456980708
+            },
+            "maximumTrajectoryErrorPixels": 5.426821276451453
+          },
+          "hitchCapability": {
+            "status": "unavailable",
+            "reason": "native XCTest hitch collection not requested; default collection never starts the privileged performance service"
+          }
+        },
+        "scope": "complete application scenario, not rendering-module attribution",
+        "inputPreparation": {
+          "context": "same-window",
+          "publicAccessibilityGeometry": true
+        },
+        "continuousQuality": "observed",
+        "motionEvidence": true,
+        "scenarioEvidence": true,
+        "businessOutcome": "passed",
+        "collectorCalibration": {
+          "pixelsPassed": true,
+          "hitchesPassed": false,
+          "wrongOwnerRejected": false,
+          "processOwnerRejected": true
+        },
+        "allRequiredCapabilitiesAvailable": false,
+        "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+        "analysisFiles": {
+          "analysis/report.py": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+          "contracts/model.py": "ebe3b7f319967ef42fa00a8ec57fe45ae1daa1d2bd5015370f481b4243d44ddd",
+          "input_region.py": "22531a750ed3baebfbf9335b734d0c36d3b79d87bb6b80e501a862c97f7192ec",
+          "workload.py": "085c507b72568058aa289508801963464d50979658b3731b7817aa78293b2a9f"
+        }
+      },
+      {
+        "path": "n-10/02-body",
+        "version": 1,
+        "scenario": "body",
+        "count": 10,
+        "mode": "observed",
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "metrics": {
+          "warmup": {
+            "sampledSeconds": 1.000093042,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 2833677456,
+                "observedCPUSeconds": 0.0034599989999999996,
+                "singleCoreCPUPercent": 0.34596771047228225,
+                "finalSampledFootprintBytes": 2833628232
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20267608,
+                "observedCPUSeconds": 0.015617417,
+                "singleCoreCPUPercent": 1.5615964059471978,
+                "finalSampledFootprintBytes": 20267608
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 11305680,
+                "observedCPUSeconds": 0.407558291,
+                "singleCoreCPUPercent": 40.752037448931674,
+                "finalSampledFootprintBytes": 11305656
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 143492200,
+                "observedCPUSeconds": 0.378976083,
+                "singleCoreCPUPercent": 37.89408255877057,
+                "finalSampledFootprintBytes": 143459432
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 37094240,
+                "observedCPUSeconds": 0.025098417,
+                "singleCoreCPUPercent": 2.5096082010337595,
+                "finalSampledFootprintBytes": 37094240
+              }
+            },
+            "completeTaskCost": false
+          },
+          "formal": {
+            "sampledSeconds": 7.999638625,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 2847982032,
+                "observedCPUSeconds": 0.18025596099999996,
+                "singleCoreCPUPercent": 2.253301298344586,
+                "finalSampledFootprintBytes": 2837625928
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20267608,
+                "observedCPUSeconds": 0.138551208,
+                "singleCoreCPUPercent": 1.7319683362571896,
+                "finalSampledFootprintBytes": 20267608
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 12583632,
+                "observedCPUSeconds": 3.910492834,
+                "singleCoreCPUPercent": 48.883368578415,
+                "finalSampledFootprintBytes": 10961592
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 146621544,
+                "observedCPUSeconds": 5.022626166,
+                "singleCoreCPUPercent": 62.78566322113082,
+                "finalSampledFootprintBytes": 144426088
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 37552992,
+                "observedCPUSeconds": 0.340393958,
+                "singleCoreCPUPercent": 4.255116686599077,
+                "finalSampledFootprintBytes": 37454688
+              }
+            },
+            "completeTaskCost": false
+          },
+          "tail": {
+            "sampledSeconds": 2.001717,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 2857828936,
+                "observedCPUSeconds": 0.31154708099999995,
+                "singleCoreCPUPercent": 15.563992362556743,
+                "finalSampledFootprintBytes": 2842328160
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20267608,
+                "observedCPUSeconds": 0.037933709,
+                "singleCoreCPUPercent": 1.8950585422414856,
+                "finalSampledFootprintBytes": 19988960
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 11485904,
+                "observedCPUSeconds": 0.752989458,
+                "singleCoreCPUPercent": 37.61717855221292,
+                "finalSampledFootprintBytes": 11485880
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 145671272,
+                "observedCPUSeconds": 0.93121225,
+                "singleCoreCPUPercent": 46.520674500940935,
+                "finalSampledFootprintBytes": 145015912
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 38241120,
+                "observedCPUSeconds": 0.520631959,
+                "singleCoreCPUPercent": 26.00926899256988,
+                "finalSampledFootprintBytes": 37765984
+              }
+            },
+            "completeTaskCost": false
+          },
+          "wholeObservation": {
+            "sampledSeconds": 11.001448667,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 2857828936,
+                "observedCPUSeconds": 0.495263041,
+                "singleCoreCPUPercent": 4.501798408473181,
+                "finalSampledFootprintBytes": 2842328160
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 20267608,
+                "observedCPUSeconds": 0.192102334,
+                "singleCoreCPUPercent": 1.7461548911847502,
+                "finalSampledFootprintBytes": 19988960
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 12583632,
+                "observedCPUSeconds": 5.071040583,
+                "singleCoreCPUPercent": 46.09429845553994,
+                "finalSampledFootprintBytes": 11485880
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 146621544,
+                "observedCPUSeconds": 6.332814499,
+                "singleCoreCPUPercent": 57.56345996501299,
+                "finalSampledFootprintBytes": 145015912
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 38241120,
+                "observedCPUSeconds": 0.886124334,
+                "singleCoreCPUPercent": 8.054614995005366,
+                "finalSampledFootprintBytes": 37765984
+              }
+            },
+            "completeTaskCost": false
+          },
+          "pixels": {
+            "capturedFrames": 55,
+            "captureCadenceIsDisplayFPS": false
+          },
+          "pan": {
+            "firstVisibleResponseSeconds": 0.214857041,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.214857041
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.208891208,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.454795709
+            },
+            "maximumTrajectoryErrorPixels": 5.426822562826247
+          },
+          "body": {
+            "scheduleVersion": 2,
+            "loadKind": "low-rate",
+            "pacing": "sparse",
+            "cardTiming": "staggered-within-packet-interval",
+            "observedCheckpointLatenciesSeconds": [
+              0.405331416,
+              0.35409675,
+              0.455291333,
+              0.455954458,
+              0.504120625,
+              0.405011458,
+              0.553586667,
+              0.504471792,
+              0.403692125,
+              0.454409709,
+              0.356104708,
+              0.456177333,
+              0.406129833,
+              0.355706667,
+              0.4539315,
+              0.305081125,
+              0.504643083,
+              0.404869042,
+              0.41145075,
+              0.460572959
+            ],
+            "maximumVisibleNoProgressSeconds": 3.601695458,
+            "checkpointLatenciesAreCaptureUpperBounds": true,
+            "continuousCardStasisSecondsBounds": {
+              "lower": 3.531330208,
+              "upper": 4.071208208
+            },
+            "expectedMessageIntervalSeconds": 4.0,
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990,
+            "cardsWithPixelEvidence": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ],
+            "perFragmentFrameRequired": false,
+            "continuouslyObservedCardStallsSeconds": {
+              "2": 3.799864334,
+              "3": 3.799864334,
+              "1": 3.799864334,
+              "5": 3.800196375,
+              "4": 3.800196375,
+              "6": 3.800196375,
+              "7": 3.601695458,
+              "8": 3.601695458,
+              "10": 3.801269208,
+              "9": 3.801269208
+            }
+          },
+          "hitchCapability": {
+            "status": "unavailable",
+            "reason": "native XCTest hitch collection not requested; default collection never starts the privileged performance service"
+          }
+        },
+        "scope": "complete application scenario, not rendering-module attribution",
+        "inputPreparation": {
+          "context": "same-window",
+          "publicAccessibilityGeometry": true
+        },
+        "continuousQuality": "observed",
+        "motionEvidence": true,
+        "scenarioEvidence": true,
+        "businessOutcome": "passed",
+        "collectorCalibration": {
+          "pixelsPassed": true,
+          "hitchesPassed": false,
+          "wrongOwnerRejected": false,
+          "processOwnerRejected": true
+        },
+        "allRequiredCapabilitiesAvailable": false,
+        "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+        "analysisFiles": {
+          "analysis/report.py": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+          "contracts/model.py": "ebe3b7f319967ef42fa00a8ec57fe45ae1daa1d2bd5015370f481b4243d44ddd",
+          "input_region.py": "22531a750ed3baebfbf9335b734d0c36d3b79d87bb6b80e501a862c97f7192ec",
+          "workload.py": "085c507b72568058aa289508801963464d50979658b3731b7817aa78293b2a9f"
+        }
+      }
+    ],
+    "candidate": [
+      {
+        "path": "n-10/00-first-render",
+        "version": 1,
+        "scenario": "first-render",
+        "count": 10,
+        "mode": "observed",
+        "measurement": "invalid",
+        "product": "unknown",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "process cumulative counter or identity changed",
+          "startup resource samples begin after OS launch attachment",
+          "startup pixels before window capture attachment are unobserved",
+          "observed business displacement differs from the declared input trajectory",
+          "native hitch unavailable: XCTest attachment after launch cannot cover the pre-attachment startup interval.",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "metrics": {
+          "postAttachment": {
+            "sampledSeconds": 9.76835925,
+            "roles": {
+              "collector": {
+                "sampledPeakFootprintBytes": 13501136,
+                "observedCPUSeconds": 2.803593125,
+                "singleCoreCPUPercent": 28.700757755198243,
+                "finalSampledFootprintBytes": 11862736
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 61375592,
+                "observedCPUSeconds": 2.0470945,
+                "singleCoreCPUPercent": 20.956380161796364,
+                "finalSampledFootprintBytes": 57836648
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 17351136,
+                "observedCPUSeconds": 0.005438583,
+                "singleCoreCPUPercent": 0.0556755014922286,
+                "finalSampledFootprintBytes": 17351136
+              }
+            },
+            "completeTaskCost": false
+          },
+          "tail": {
+            "sampledSeconds": 2.000136125,
+            "roles": {
+              "application": {
+                "sampledPeakFootprintBytes": 57836648,
+                "observedCPUSeconds": 0.000186624,
+                "singleCoreCPUPercent": 0.009330564938423878,
+                "finalSampledFootprintBytes": 57836648
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 11862736,
+                "observedCPUSeconds": 0.600314542,
+                "singleCoreCPUPercent": 30.013684293612766,
+                "finalSampledFootprintBytes": 11862736
+              },
+              "helper": {
+                "sampledPeakFootprintBytes": 9028304,
+                "observedCPUSeconds": 0.077511084,
+                "singleCoreCPUPercent": 3.8752904380445603,
+                "finalSampledFootprintBytes": 9028304
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 17351136,
+                "observedCPUSeconds": 0.001193208,
+                "singleCoreCPUPercent": 0.05965633964038323,
+                "finalSampledFootprintBytes": 17351136
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 15221456,
+                "observedCPUSeconds": 0.001285791,
+                "singleCoreCPUPercent": 0.06428517459030444,
+                "finalSampledFootprintBytes": 15221456
+              }
+            },
+            "completeTaskCost": false
+          },
+          "pixels": {
+            "capturedFrames": 44,
+            "captureCadenceIsDisplayFPS": false
+          },
+          "pan": {
+            "firstVisibleResponseSeconds": 0.294358,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.046932417,
+              "upper": 0.294358
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.294358,
+            "noProgressSecondsBounds": {
+              "lower": 0.046932417,
+              "upper": 0.475799667
+            },
+            "maximumTrajectoryErrorPixels": 20.807899382708214
+          },
+          "presentation": {
+            "firstRecognizableBusinessContentSeconds": 1.121756917,
+            "firstSuccessfulInteractionProbeSeconds": null,
+            "usableTimeIsUpperBoundAtScheduledProbe": true,
+            "firstContentObservationIsUpperBound": true,
+            "firstContentLeftCensored": true
+          },
+          "hitchCapability": {
+            "status": "unavailable",
+            "reason": "XCTest attachment after launch cannot cover the pre-attachment startup interval."
+          },
+          "startupCoverage": {
+            "resourceObservationStartsAfterLaunch": true,
+            "preAttachmentHitches": "unavailable",
+            "wholeLaunchCostCertified": false
+          },
+          "startupApplication": {
+            "cpuSecondsSinceProcessBirth": 2.137418625,
+            "cpuObservedAtSecondsAfterLaunch": 7.942475875,
+            "resourceAttachmentDelaySeconds": 0.17425275,
+            "osLaunchReturnDelaySeconds": 0.1732775,
+            "sampledPeakFootprintBytes": 61375592,
+            "preAttachmentMemoryPeakAvailable": false,
+            "completeTaskCost": false
+          }
+        },
+        "scope": "complete application scenario, not rendering-module attribution",
+        "inputPreparation": {
+          "context": "reopen",
+          "publicAccessibilityGeometry": true
+        },
+        "continuousQuality": "observed",
+        "motionEvidence": false,
+        "businessOutcome": "passed",
+        "collectorCalibration": {
+          "pixelsPassed": true,
+          "hitchesPassed": false,
+          "wrongOwnerRejected": false,
+          "processOwnerRejected": true
+        },
+        "allRequiredCapabilitiesAvailable": false,
+        "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+        "analysisFiles": {
+          "analysis/report.py": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+          "contracts/model.py": "ebe3b7f319967ef42fa00a8ec57fe45ae1daa1d2bd5015370f481b4243d44ddd",
+          "input_region.py": "22531a750ed3baebfbf9335b734d0c36d3b79d87bb6b80e501a862c97f7192ec",
+          "workload.py": "085c507b72568058aa289508801963464d50979658b3731b7817aa78293b2a9f"
+        }
+      },
+      {
+        "path": "n-10/01-idle.active",
+        "version": 1,
+        "scenario": "idle.active",
+        "count": 10,
+        "mode": "observed",
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "metrics": {
+          "warmup": {
+            "sampledSeconds": 1.000967667,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 274706624,
+                "observedCPUSeconds": 0.045455789,
+                "singleCoreCPUPercent": 4.541184545574338,
+                "finalSampledFootprintBytes": 274706624
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 138511512,
+                "observedCPUSeconds": 0.054145709,
+                "singleCoreCPUPercent": 5.409336463612266,
+                "finalSampledFootprintBytes": 138495128
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 19808856,
+                "observedCPUSeconds": 0.014178708,
+                "singleCoreCPUPercent": 1.416500099598122,
+                "finalSampledFootprintBytes": 19808856
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 33276768,
+                "observedCPUSeconds": 0.005069334,
+                "singleCoreCPUPercent": 0.5064433315007366,
+                "finalSampledFootprintBytes": 33276768
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 12141240,
+                "observedCPUSeconds": 0.384667042,
+                "singleCoreCPUPercent": 38.42951722435606,
+                "finalSampledFootprintBytes": 12141216
+              }
+            },
+            "completeTaskCost": false
+          },
+          "formal": {
+            "sampledSeconds": 8.000232625,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 443543864,
+                "observedCPUSeconds": 0.335578253,
+                "singleCoreCPUPercent": 4.194606191216845,
+                "finalSampledFootprintBytes": 442937512
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 138593432,
+                "observedCPUSeconds": 0.271218584,
+                "singleCoreCPUPercent": 3.3901337212678855,
+                "finalSampledFootprintBytes": 138593432
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 19808856,
+                "observedCPUSeconds": 0.113142792,
+                "singleCoreCPUPercent": 1.4142437764426883,
+                "finalSampledFootprintBytes": 19808856
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 34276216,
+                "observedCPUSeconds": 0.093498833,
+                "singleCoreCPUPercent": 1.168701428853764,
+                "finalSampledFootprintBytes": 34276216
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 13845176,
+                "observedCPUSeconds": 3.6067285,
+                "singleCoreCPUPercent": 45.08279532684213,
+                "finalSampledFootprintBytes": 13845152
+              }
+            },
+            "completeTaskCost": false
+          },
+          "tail": {
+            "sampledSeconds": 1.999951916,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 498678472,
+                "observedCPUSeconds": 0.15163120900000002,
+                "singleCoreCPUPercent": 7.58174273025872,
+                "finalSampledFootprintBytes": 482833656
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 140706968,
+                "observedCPUSeconds": 0.805184624,
+                "singleCoreCPUPercent": 40.26019913570762,
+                "finalSampledFootprintBytes": 140657816
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 19808856,
+                "observedCPUSeconds": 0.033037042,
+                "singleCoreCPUPercent": 1.651891814783011,
+                "finalSampledFootprintBytes": 19792352
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 35390328,
+                "observedCPUSeconds": 0.500146333,
+                "singleCoreCPUPercent": 25.00791789036192,
+                "finalSampledFootprintBytes": 35390328
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 14435000,
+                "observedCPUSeconds": 0.717228083,
+                "singleCoreCPUPercent": 35.8622663506076,
+                "finalSampledFootprintBytes": 14434976
+              }
+            },
+            "completeTaskCost": false
+          },
+          "wholeObservation": {
+            "sampledSeconds": 11.001152208,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 498678472,
+                "observedCPUSeconds": 0.532665251,
+                "singleCoreCPUPercent": 4.8419042017494105,
+                "finalSampledFootprintBytes": 482833656
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 140706968,
+                "observedCPUSeconds": 1.130548917,
+                "singleCoreCPUPercent": 10.276640988367278,
+                "finalSampledFootprintBytes": 140657816
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 19808856,
+                "observedCPUSeconds": 0.160358542,
+                "singleCoreCPUPercent": 1.457652243765774,
+                "finalSampledFootprintBytes": 19792352
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 35390328,
+                "observedCPUSeconds": 0.5987145,
+                "singleCoreCPUPercent": 5.442289031912647,
+                "finalSampledFootprintBytes": 35390328
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 14435000,
+                "observedCPUSeconds": 4.708623625,
+                "singleCoreCPUPercent": 42.801186057365015,
+                "finalSampledFootprintBytes": 14434976
+              }
+            },
+            "completeTaskCost": false
+          },
+          "pixels": {
+            "capturedFrames": 55,
+            "captureCadenceIsDisplayFPS": false
+          },
+          "pan": {
+            "firstVisibleResponseSeconds": 0.215492917,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.215492917
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.215492917,
+            "noProgressSecondsBounds": {
+              "lower": 0.001984958,
+              "upper": 0.456022583
+            },
+            "maximumTrajectoryErrorPixels": 3.720934468534156
+          },
+          "hitchCapability": {
+            "status": "unavailable",
+            "reason": "native XCTest hitch collection not requested; default collection never starts the privileged performance service"
+          }
+        },
+        "scope": "complete application scenario, not rendering-module attribution",
+        "inputPreparation": {
+          "context": "same-window",
+          "publicAccessibilityGeometry": true
+        },
+        "continuousQuality": "observed",
+        "motionEvidence": true,
+        "scenarioEvidence": true,
+        "businessOutcome": "passed",
+        "collectorCalibration": {
+          "pixelsPassed": true,
+          "hitchesPassed": false,
+          "wrongOwnerRejected": false,
+          "processOwnerRejected": true
+        },
+        "allRequiredCapabilitiesAvailable": false,
+        "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+        "analysisFiles": {
+          "analysis/report.py": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+          "contracts/model.py": "ebe3b7f319967ef42fa00a8ec57fe45ae1daa1d2bd5015370f481b4243d44ddd",
+          "input_region.py": "22531a750ed3baebfbf9335b734d0c36d3b79d87bb6b80e501a862c97f7192ec",
+          "workload.py": "085c507b72568058aa289508801963464d50979658b3731b7817aa78293b2a9f"
+        }
+      },
+      {
+        "path": "n-10/02-body",
+        "version": 1,
+        "scenario": "body",
+        "count": 10,
+        "mode": "observed",
+        "measurement": "incomplete",
+        "product": "passed",
+        "comparison": "not-comparable",
+        "reasons": [
+          "process lifecycle/exit CPU coverage incomplete",
+          "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+          "native hitch sensitivity/ownership controls did not establish capability"
+        ],
+        "metrics": {
+          "warmup": {
+            "sampledSeconds": 1.001890125,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 5533861192,
+                "observedCPUSeconds": 0.004496625000000001,
+                "singleCoreCPUPercent": 0.44881418508840976,
+                "finalSampledFootprintBytes": 5532337168
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 12190392,
+                "observedCPUSeconds": 0.396758,
+                "singleCoreCPUPercent": 39.6009492557879,
+                "finalSampledFootprintBytes": 12190392
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 140543128,
+                "observedCPUSeconds": 0.016859792,
+                "singleCoreCPUPercent": 1.6827985004842718,
+                "finalSampledFootprintBytes": 140543128
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 21217880,
+                "observedCPUSeconds": 0.016366417,
+                "singleCoreCPUPercent": 1.6335540785971916,
+                "finalSampledFootprintBytes": 21217880
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 38978424,
+                "observedCPUSeconds": 0.027635625,
+                "singleCoreCPUPercent": 2.7583488758310697,
+                "finalSampledFootprintBytes": 38978424
+              }
+            },
+            "completeTaskCost": false
+          },
+          "formal": {
+            "sampledSeconds": 7.9985045,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 5538235744,
+                "observedCPUSeconds": 0.219686333,
+                "singleCoreCPUPercent": 2.746592603654846,
+                "finalSampledFootprintBytes": 5537661968
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 13992656,
+                "observedCPUSeconds": 3.728591709,
+                "singleCoreCPUPercent": 46.61611066168682,
+                "finalSampledFootprintBytes": 13992632
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 143574192,
+                "observedCPUSeconds": 1.589340249,
+                "singleCoreCPUPercent": 19.870467648045956,
+                "finalSampledFootprintBytes": 141378712
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 21217880,
+                "observedCPUSeconds": 0.134845249,
+                "singleCoreCPUPercent": 1.6858807668358504,
+                "finalSampledFootprintBytes": 21217880
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 40092536,
+                "observedCPUSeconds": 0.511348958,
+                "singleCoreCPUPercent": 6.393057077107352,
+                "finalSampledFootprintBytes": 39437176
+              }
+            },
+            "completeTaskCost": false
+          },
+          "tail": {
+            "sampledSeconds": 1.999010917,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 5555128920,
+                "observedCPUSeconds": 0.32472741599999994,
+                "singleCoreCPUPercent": 16.244404332084997,
+                "finalSampledFootprintBytes": 5539841040
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 14549712,
+                "observedCPUSeconds": 0.586946249,
+                "singleCoreCPUPercent": 29.36183309498154,
+                "finalSampledFootprintBytes": 14533304
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 142640280,
+                "observedCPUSeconds": 0.8178145,
+                "singleCoreCPUPercent": 40.910957166123374,
+                "finalSampledFootprintBytes": 142214296
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 21217880,
+                "observedCPUSeconds": 0.037844209,
+                "singleCoreCPUPercent": 1.8931466896035964,
+                "finalSampledFootprintBytes": 21021152
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 40518520,
+                "observedCPUSeconds": 0.641078583,
+                "singleCoreCPUPercent": 32.069788991552564,
+                "finalSampledFootprintBytes": 39977848
+              }
+            },
+            "completeTaskCost": false
+          },
+          "wholeObservation": {
+            "sampledSeconds": 10.999405542,
+            "roles": {
+              "helper": {
+                "sampledPeakFootprintBytes": 5555128920,
+                "observedCPUSeconds": 0.548910374,
+                "singleCoreCPUPercent": 4.990363996527331,
+                "finalSampledFootprintBytes": 5539841040
+              },
+              "collector": {
+                "sampledPeakFootprintBytes": 14549712,
+                "observedCPUSeconds": 4.712295958,
+                "singleCoreCPUPercent": 42.84136938134179,
+                "finalSampledFootprintBytes": 14533304
+              },
+              "application": {
+                "sampledPeakFootprintBytes": 143574192,
+                "observedCPUSeconds": 2.424014541,
+                "singleCoreCPUPercent": 22.037686779927984,
+                "finalSampledFootprintBytes": 142214296
+              },
+              "source": {
+                "sampledPeakFootprintBytes": 21217880,
+                "observedCPUSeconds": 0.189055875,
+                "singleCoreCPUPercent": 1.7187826585546948,
+                "finalSampledFootprintBytes": 21021152
+              },
+              "runtime": {
+                "sampledPeakFootprintBytes": 40518520,
+                "observedCPUSeconds": 1.180063166,
+                "singleCoreCPUPercent": 10.72842674537329,
+                "finalSampledFootprintBytes": 39977848
+              }
+            },
+            "completeTaskCost": false
+          },
+          "pixels": {
+            "capturedFrames": 53,
+            "captureCadenceIsDisplayFPS": false
+          },
+          "pan": {
+            "firstVisibleResponseSeconds": 0.268635167,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.268635167
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.334696958,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.640354
+            },
+            "maximumTrajectoryErrorPixels": 3.720934468534156
+          },
+          "body": {
+            "scheduleVersion": 2,
+            "loadKind": "low-rate",
+            "pacing": "sparse",
+            "cardTiming": "staggered-within-packet-interval",
+            "observedCheckpointLatenciesSeconds": [
+              0.3554635,
+              0.405979708,
+              0.455370541,
+              0.405469916,
+              0.504902625,
+              0.35420675,
+              0.454913375,
+              0.399254334,
+              0.499133417,
+              0.449222917,
+              0.354929583,
+              0.405553875,
+              0.305323291,
+              0.455896333,
+              0.407498375,
+              0.3572435,
+              0.458445375,
+              0.403105959,
+              0.503898625,
+              0.453691375
+            ],
+            "maximumVisibleNoProgressSeconds": 3.606516166,
+            "checkpointLatenciesAreCaptureUpperBounds": true,
+            "continuousCardStasisSecondsBounds": {
+              "lower": 3.542231333,
+              "upper": 4.075857749
+            },
+            "expectedMessageIntervalSeconds": 4.0,
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990,
+            "cardsWithPixelEvidence": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ],
+            "perFragmentFrameRequired": false,
+            "continuouslyObservedCardStallsSeconds": {
+              "3": 3.799137375,
+              "2": 3.799137375,
+              "1": 3.799137375,
+              "6": 3.800404625,
+              "4": 3.600117875,
+              "7": 3.800404625,
+              "5": 3.800404625,
+              "10": 3.809044541,
+              "8": 3.809044541,
+              "9": 3.809044541
+            }
+          },
+          "hitchCapability": {
+            "status": "unavailable",
+            "reason": "native XCTest hitch collection not requested; default collection never starts the privileged performance service"
+          }
+        },
+        "scope": "complete application scenario, not rendering-module attribution",
+        "inputPreparation": {
+          "context": "same-window",
+          "publicAccessibilityGeometry": true
+        },
+        "continuousQuality": "observed",
+        "motionEvidence": true,
+        "scenarioEvidence": true,
+        "businessOutcome": "passed",
+        "collectorCalibration": {
+          "pixelsPassed": true,
+          "hitchesPassed": false,
+          "wrongOwnerRejected": false,
+          "processOwnerRejected": true
+        },
+        "allRequiredCapabilitiesAvailable": false,
+        "analysisSHA256": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+        "analysisFiles": {
+          "analysis/report.py": "b8cc1d0d5f3ab3a1050fb8f10a8507dc940becf6153498733696b432f9591ab1",
+          "contracts/model.py": "ebe3b7f319967ef42fa00a8ec57fe45ae1daa1d2bd5015370f481b4243d44ddd",
+          "input_region.py": "22531a750ed3baebfbf9335b734d0c36d3b79d87bb6b80e501a862c97f7192ec",
+          "workload.py": "085c507b72568058aa289508801963464d50979658b3731b7817aa78293b2a9f"
+        }
+      }
+    ]
+  },
+  "sourceAndBusinessChecks": {
+    "equalBudgets": true,
+    "checkpointsPerArtifact": {
+      "baseline": 20,
+      "candidate": 20
+    },
+    "ownedCleanupErrors": {
+      "baseline": [],
+      "candidate": []
+    }
+  },
+  "cloudAssets": {
+    "pngBytes": 181520574,
+    "decodedBytesPerAtlas": 78274560,
+    "sourceFPS": 120,
+    "durationSeconds": 8,
+    "samplesPerStyleAppearance": 960,
+    "styles": 4,
+    "appearances": 2,
+    "pixelDimensions": [
+      180,
+      110
+    ],
+    "cacheRequestedBytes": 167772160,
+    "cacheRequestedCount": 2,
+    "liveImageHoldsAreAdditional": true
+  },
+  "verification": {
+    "productionBuildAndSignature": "passed both artifacts",
+    "voiceOwnership": {
+      "status": "passed",
+      "testCount": 25,
+      "elapsedSeconds": 4.141
+    },
+    "cloudReplay": {
+      "status": "passed",
+      "testCount": 1,
+      "elapsedSeconds": 31.197,
+      "measurements": {
+        "appearance": "dark",
+        "assertionsPassed": true,
+        "captureKind": "WindowServer/ScreenCaptureKit complete BGRA frames",
+        "cardMaterials": "flat",
+        "cloudPlayback": {
+          "duration": 8,
+          "requestedFPS": 60,
+          "sourceFPS": 120
+        },
+        "fixedGeometry": {
+          "backingScale": 2,
+          "camera": {
+            "scale": 0.9,
+            "x": 88.80000000000001,
+            "y": 143.10000000000002
+          },
+          "cardPixels": [
+            178,
+            350.00000000001,
+            1324.8000000000084,
+            395.99999999999
+          ],
+          "cloudObservationPixels": [
+            221,
+            540,
+            1239,
+            127
+          ],
+          "coordinateConvention": "Full-window image, top-left origin; native view frames converted through NSWindow",
+          "imagePixels": [
+            1680,
+            904
+          ],
+          "rightCellDiagnosticPixels": [
+            898,
+            540,
+            562,
+            127
+          ],
+          "roundedCornerRadiusPixels": 39.6,
+          "scanPixels": [
+            887.2,
+            433.70000000000005,
+            583.1999999999853,
+            2.699999999999932
+          ],
+          "staticControlPixels": [
+            16,
+            840,
+            96,
+            32
+          ]
+        },
+        "fixture": "One static public Codex thread; production workspace/projector/card/canvas; one running subagent",
+        "formalCPU": "not measured by this capture test",
+        "limitations": [
+          "Cloud color, static card surfaces and rounded corners require review of retained real PNGs.",
+          "A retained surface preserves its loop phase; different cards can start at different phases.",
+          "WindowServer samples and pixel displacement do not measure physical-display FPS or GPU duration."
+        ],
+        "mainHold": [
+          {
+            "cloudMean": 1.082837102989245,
+            "controlMean": 0,
+            "from": 426896.53900025,
+            "spinnerMean": 9.555765595463138,
+            "to": 426896.626310708
+          },
+          {
+            "cloudMean": 3.2244910064208074,
+            "controlMean": 0,
+            "from": 426896.626310708,
+            "spinnerMean": 6.526149968494014,
+            "to": 426896.695429125
+          }
+        ],
+        "mainHoldCloud": {
+          "cloudMean": 2.2000576199161546,
+          "controlMean": 0,
+          "from": 426896.53900025,
+          "to": 426896.695429125
+        },
+        "mainHoldContext": "Pre-drain/excluded samples are retained but do not enter the movement assertion.",
+        "mainHoldWindow": {
+          "duration": 0.20102104166289791,
+          "end": 426896.6968992084,
+          "presentationExclusion": 0.03,
+          "start": 426896.49587816675
+        },
+        "native": {
+          "cloudClass": "NativeOverviewCloudSurface",
+          "drawable": [
+            736,
+            220
+          ],
+          "opaque": false,
+          "playbackIdentity": "ObjectIdentifier(0x0000000a29df4160)",
+          "renderer": "pre-rendered 120 fps atlas",
+          "scanAnimation": [
+            "overview.scan.position"
+          ],
+          "scanClass": "NativeCardScanView",
+          "scanIdentity": "ObjectIdentifier(0x0000000a2b918300)",
+          "surfaceIdentity": "ObjectIdentifier(0x0000000a2b91b600)"
+        },
+        "screenRates": [
+          {
+            "maximum": 60,
+            "mode": 60,
+            "requested": 60,
+            "screen": "Mi Monitor"
+          },
+          {
+            "maximum": 120,
+            "mode": 120,
+            "requested": 120,
+            "screen": "Built-in Retina Display"
+          }
+        ],
+        "zoomGeometry": {
+          "backingScale": 2,
+          "camera": {
+            "scale": 1,
+            "x": 52,
+            "y": 132.10000000000002
+          },
+          "cardPixels": [
+            104,
+            328,
+            1472,
+            440
+          ],
+          "cloudObservationPixels": [
+            152,
+            540,
+            1376,
+            140
+          ],
+          "coordinateConvention": "Full-window image, top-left origin; native view frames converted through NSWindow",
+          "imagePixels": [
+            1680,
+            904
+          ],
+          "rightCellDiagnosticPixels": [
+            904,
+            540,
+            624,
+            140
+          ],
+          "roundedCornerRadiusPixels": 44,
+          "scanPixels": [
+            892,
+            421,
+            648,
+            3
+          ],
+          "staticControlPixels": [
+            16,
+            840,
+            96,
+            32
+          ]
+        }
+      },
+      "rawMeasurements": "native-cloud-replay/native-decoration/measurements.json",
+      "rawMeasurementsSHA256": "d8e6182aac5fb875791cd5cac6d137a0aadc54e610a73bb13cca755d8b81f038"
+    },
+    "productionNavigation": "passed directed protocol/navigation trace and replay",
+    "productionReading": {
+      "status": "passed",
+      "scope": "existing directed assertions and trace replay",
+      "randomSteps": 0,
+      "summaries": [
+        {
+          "result": "PASS",
+          "seed": 41,
+          "steps": 0,
+          "replay": null,
+          "coverage": {
+            "visibility.work:activate": 2,
+            "settings:rejected": 2,
+            "stale:rejected": 1,
+            "history.open:activate": 1,
+            "timeline:scrollTo": 6,
+            "timeline:scrollBy": 4,
+            "history.close:activate": 1
+          }
+        },
+        {
+          "result": "PASS",
+          "seed": 41,
+          "steps": 0,
+          "replay": "/private/tmp/mokusei-overview-combined-20261113/reading-acceptance/directed/reading.jsonl",
+          "coverage": {
+            "visibility.work:activate": 2,
+            "stale:rejected": 1,
+            "history.open:activate": 1,
+            "timeline:scrollTo": 6,
+            "timeline:scrollBy": 4,
+            "history.close:activate": 1
+          }
+        }
+      ]
+    },
+    "lint": {
+      "command": "make lint",
+      "owner": ".githooks/pre-commit",
+      "terminalReceipt": "commit.log in evidence root",
+      "requiredForCommit": true
+    },
+    "localReview": "passed: selected source/resource/lifecycle/cancellation changes and evidence limits reviewed; no remaining actionable findings",
+    "remoteCI": "not run: user requested local-only",
+    "wholeLocalMakeCheck": "not run: affected checks only"
+  },
+  "limitations": [
+    "Incomplete descendant lifecycle and exit CPU",
+    "Native hitch unavailable and not certified; no privileged service started",
+    "Invalid startup observations retained; no startup performance conclusion",
+    "Single-pair application CPU observation; no statistical regression gate",
+    "No physical FPS, GPU, WindowServer or energy measurement",
+    "N20 and standalone drag not run"
+  ],
+  "evidenceRoot": "/Users/felixwang/Desktop/Mokusei/.scratch/overview-combined-rendering-20261113",
+  "evidenceSHA256": {
+    "baseline/n-10/00-first-render/manifest.json": "5c258b7f5c1f89c44ea07056aaf9241407c236de03233a0fc54c3f497bec4c23",
+    "baseline/n-10/01-idle.active/manifest.json": "9b770c71e9b6c8fb6baf8dae8a2da26f663baedd0948c5f1abd5cfa70afbc91b",
+    "baseline/n-10/02-body/manifest.json": "8ca4d3b5933fe6de980065f74f1391185357db25c9933c8fff51fb58badcab1a",
+    "candidate/n-10/00-first-render/manifest.json": "e08c10098b55caaa95e1adbab9e11dd7d23821a4b4ef333400eaa18d450fc283",
+    "candidate/n-10/01-idle.active/manifest.json": "c9b14ecc81cea301395ae190f0e5f1daa180d03c67fd4b3c4e3866233f4fdbd2",
+    "candidate/n-10/02-body/manifest.json": "686913437e33e57f1eb7068d1250dc21ccbd0b742cd73503b3918d66f426ac9c",
+    "voice-tests.log": "921de8067c1f84fdd7a1f61cb5009577fd32cf242536f363141c2ead48405f04",
+    "cloud-replay.log": "b1a97eeb74d549de4757abbba736263b98dd2ef4003b07ae53dd25ad4ef332fb",
+    "navigation-replay.log": "e27a0fa1de17331246b9dcbafbc00a838bf088313f7fc81ddf27d04530b04f12",
+    "reading-replay.log": "a7d4a31c064781d1043b6ac6e2a6cd21eea8fcccdfd7498b395a9f4cf027b60a",
+    "baseline-build.log": "e9285a48e553ed5f829aa6a9b6d2da73f81823069e408e26f8d1814a893c1efd",
+    "candidate-build.log": "830d18e01a29f2382195af5bdcef1a0ead6bc791166704b6231504c69c9ca942",
+    "measure.py": "9fa9371bb74949bb7d1c725c148e652f7cc0c8bbe8fa7617a62d5bc67358c0e6",
+    "reading_acceptance.py": "2c297d503679303baddc0d1107109ebb25b86f0f001ba7d4973a690b18839e15",
+    "final-product-source.json": "0c3280491e6769a418c7a59ba8a7d1e9c83fee2f31dd47f46b08d59b4e4ee046"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "inputSHA256": {
+    "tools/assets/overview-cloud/Bake.swift": "36a512fb134fc8cf100c8102318ad7993a6e62d32aee0ecae76bf30848cf9f25",
+    "tools/assets/overview-cloud/generate.py": "d5f2c38b81d9515d0e1bd02ec8c056ad472bdbf176a0156f15310d85131c1758",
+    "app/macos/Sources/Shared/PluginUI/Shaders/CloudLoading.metal": "30d9f2af6412d3d10ce7752cef4645f2ecde871c6a5ef70498e27b5f3ede2856",
+    "app/macos/Sources/Shared/PluginUI/Design/NativeCloudField.swift": "489a6df3aa3af2bb1db8ca93b65583832937783c7c76fbd135a07aa022c1d9d7",
+    "app/macos/Sources/Shared/PluginUI/Design/NativeCloudLoopStyle.swift": "a881b40f6176494f02ab27619be54f7230139f956cb0a07256554c5a315f5560"
+  },
+  "assetSHA256": {
+    "OverviewCloudLoop-blueIndigo-dark.png": "2c0045ac767318cfe524f68ccd83c01c4d3533abc93fa1ddbe8ad9840d97f448",
+    "OverviewCloudLoop-blueIndigo-light.png": "ba95ce4a68b6b2e42c5b2b69fa2e2d6672cbc346de7912461f06d05871f7b320",
+    "OverviewCloudLoop-coral-dark.png": "60eb02b290898254e1e584a3e544aa4bb6c4e7a6e063420813a17cf8971c9eb4",
+    "OverviewCloudLoop-coral-light.png": "4d0d00fff62454add7eeccd33e817e193ea7f9004996d8d421a78c104a42a4e2",
+    "OverviewCloudLoop-neutral-dark.png": "ad17e6e65d7d2b3fab2fb254611643f41c5694a602279bc5079b4436d4968045",
+    "OverviewCloudLoop-neutral-light.png": "621dc04ea8c4ea27832c6a195b93d808220699c0691981b2ebb7f3f1f45068d8",
+    "OverviewCloudLoop-spectrum-dark.png": "46377604935df0268f02db1b5b36a2942eb930d4195cb8305c9ca1371446910b",
+    "OverviewCloudLoop-spectrum-light.png": "98f43d6617791a4542884fe468e45b4129db343c21a2f379e8d6b74cc446a409",
+    "OverviewCloudLoop.json": "30c0dfb67f1f7b980deee56b45f4b34ec0c9a1f1372c43938140fc1a61ca2622"
+  }
+}

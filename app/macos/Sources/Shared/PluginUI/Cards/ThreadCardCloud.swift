@@ -54,7 +54,7 @@ struct ThreadCardCloud: View {
     var body: some View {
         if let palette {
             Group {
-                if nativeDecorations && NativeOverviewCloudView.isAvailable {
+                if nativeDecorations {
                     NativeOverviewCloudView(palette: palette, running: running,
                         isAnimating: enabled && (visibility?.isVisible ?? true),
                         isVisible: visibility?.isVisible ?? true)

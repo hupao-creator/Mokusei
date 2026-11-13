@@ -1,94 +1,85 @@
 import AppKit
-import Metal
 import QuartzCore
 import SwiftUI
 
-/// Overview's native driver for the existing point-space cloud shader. Geometry,
-/// palette and lifecycle arrive from SwiftUI; independent sampling does not publish state
-/// or ask its hosting graph to lay out or draw.
 @MainActor
-struct NativeOverviewCloudView: NSViewRepresentable {
+struct NativeOverviewCloudView: View {
     let palette: NativeCloudPalette
     let running: Bool
     let isAnimating: Bool
     let isVisible: Bool
+    @State private var failedStyle: NativeCloudLoopStyle?
 
-    static var isAvailable: Bool { NativeOverviewCloudPipeline.shared != nil }
-
-    func makeNSView(context: Context) -> NativeOverviewCloudSurface {
-        NativeOverviewCloudSurface(palette: palette, running: running, isAnimating: isAnimating,
-                                   isVisible: isVisible, environment: context.environment)
+    var body: some View {
+        if let style = palette.loopStyle, failedStyle != style {
+            NativeOverviewCloudPlayback(style: style, running: running, animates: isAnimating, visible: isVisible,
+                failed: { failedStyle = $0 })
+        } else if NativeLiveOverviewCloudView.isAvailable {
+            NativeLiveOverviewCloudView(palette: palette, running: running, isAnimating: isAnimating, isVisible: isVisible)
+        } else {
+            NativeCloudLoading(palette: palette, intensity: running ? 1 : 0, isAnimating: isAnimating, motionSpeed: 1.4)
+                .animation(.easeInOut(duration: 0.4), value: running)
+        }
     }
-
-    func updateNSView(_ view: NativeOverviewCloudSurface, context: Context) {
-        view.update(palette: palette, running: running, isAnimating: isAnimating, isVisible: isVisible,
-                    environment: context.environment, animate: !context.transaction.disablesAnimations)
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NativeOverviewCloudSurface, context: Context) -> CGSize? {
-        proposal.replacingUnspecifiedDimensions()
-    }
-
-    static func dismantleNSView(_ view: NativeOverviewCloudSurface, coordinator: ()) { view.dismantle() }
 }
 
 @MainActor
+private struct NativeOverviewCloudPlayback: NSViewRepresentable {
+    let style: NativeCloudLoopStyle
+    let running: Bool
+    let animates: Bool
+    let visible: Bool
+    let failed: @MainActor (NativeCloudLoopStyle) -> Void
+
+    func makeNSView(context: Context) -> NativeOverviewCloudSurface {
+        NativeOverviewCloudSurface(asset: .init(style: style, dark: context.environment.colorScheme == .dark),
+            running: running, animates: animates, visible: visible, failed: failed)
+    }
+    func updateNSView(_ view: NativeOverviewCloudSurface, context: Context) {
+        view.update(asset: .init(style: style, dark: context.environment.colorScheme == .dark),
+            running: running, animates: animates, visible: visible, animate: !context.transaction.disablesAnimations)
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NativeOverviewCloudSurface, context: Context) -> CGSize? {
+        proposal.replacingUnspecifiedDimensions()
+    }
+    static func dismantleNSView(_ view: NativeOverviewCloudSurface, coordinator: ()) { view.dismantle() }
+}
+
+/// The compositor owns playback; AppKit only receives state/geometry changes.
+@MainActor
 final class NativeOverviewCloudSurface: NSView {
-    private let metal = CAMetalLayer()
-    private var renderer: NativeOverviewCloudRenderer?
-    private var palette: NativeCloudPalette
-    private var colors: [SIMD4<Float16>]
-    private var colorScheme: ColorScheme
+    private let cloud = CALayer()
+    private var asset: NativeOverviewCloudAsset
+    private var running: Bool
     private var animates: Bool
     private var visible: Bool
-    private var targetIntensity: Double
-    private var fade: Fade?
-    private let seed = UInt64.random(in: .min ... .max)
-    private let startedAt = Date()
-    private var frozenMotionTime: TimeInterval = 0
-
-    private var frameGeneration: UInt64 = 0
-    private var redrawVersion: UInt64 = 0
-    private var nextFrameID: UInt64 = 0
-    private var awaitingFrame: UInt64?
-    private var suspended = true
+    private let failed: @MainActor (NativeCloudLoopStyle) -> Void
+    private var loaded: NativeOverviewCloudAsset?
+    private var requested: NativeOverviewCloudAsset?
+    private var atlas: NativeOverviewCloudAtlas?
+    private var loadTask: Task<Void, Never>?
+    private var fadeTask: Task<Void, Never>?
+    private var fadeGeneration: UInt64 = 0
+    private var animateOpacity = false
+    private let epoch = CACurrentMediaTime()
+    private let phaseOffset = Double.random(in: 0..<8)
+    private var lastRate: Float = 0
+    private var lastDisplay: UInt32 = 0
     private var dismantled = false
 
-    init(palette: NativeCloudPalette, running: Bool, isAnimating: Bool, isVisible: Bool, environment: EnvironmentValues) {
-        self.palette = palette
-        colors = Self.resolveColors(palette, in: environment)
-        colorScheme = environment.colorScheme
-        animates = isAnimating
-        visible = isVisible
-        targetIntensity = running ? 1 : 0
+    init(asset: NativeOverviewCloudAsset, running: Bool, animates: Bool, visible: Bool,
+         failed: @escaping @MainActor (NativeCloudLoopStyle) -> Void) {
+        self.asset = asset; self.running = running; self.animates = animates; self.visible = visible; self.failed = failed
         super.init(frame: .zero)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
-        metal.pixelFormat = .rgba16Float
-        metal.colorspace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
-        metal.wantsExtendedDynamicRangeContent = false
-        metal.isOpaque = false
-        metal.backgroundColor = NSColor.clear.cgColor
-        metal.framebufferOnly = true
-        metal.maximumDrawableCount = 2
-        metal.allowsNextDrawableTimeout = true
-        metal.presentsWithTransaction = false
-        // The existing SwiftUI RoundedRectangle remains the clipping authority.
-        // Do not add a second native corner curve with potentially different ink.
-        metal.isHidden = true
-        if let pipeline = NativeOverviewCloudPipeline.shared {
-            metal.device = pipeline.device
-            renderer = NativeOverviewCloudRenderer(layer: metal, pipeline: pipeline)
-        }
-        layer?.addSublayer(metal)
-        setAccessibilityElement(false)
+        wantsLayer = true; layer?.backgroundColor = NSColor.clear.cgColor
+        cloud.name = "overview.cloud"; cloud.opacity = 0; cloud.isOpaque = false
+        cloud.contentsGravity = .resize; cloud.minificationFilter = .linear; cloud.magnificationFilter = .linear
+        layer?.addSublayer(cloud); setAccessibilityElement(false)
+        NotificationCenter.default.addObserver(self, selector: #selector(screenChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
     }
-
     required init?(coder: NSCoder) { return nil }
-    isolated deinit {
-        renderer?.stop()
-        NotificationCenter.default.removeObserver(self)
-    }
+    isolated deinit { NotificationCenter.default.removeObserver(self); loadTask?.cancel(); fadeTask?.cancel() }
     override var isOpaque: Bool { false }
     override var acceptsFirstResponder: Bool { false }
     override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric) }
@@ -96,204 +87,128 @@ final class NativeOverviewCloudSurface: NSView {
     override func isAccessibilityElement() -> Bool { false }
     override func accessibilityChildren() -> [Any]? { [] }
 
-    func update(palette: NativeCloudPalette, running: Bool, isAnimating: Bool, isVisible: Bool,
-                environment: EnvironmentValues, animate: Bool) {
-        guard !dismantled else { return }
-        let nextColors = Self.resolveColors(palette, in: environment)
-        let target: Double = running ? 1 : 0
-        guard !Self.samePalette(self.palette, palette) || colors != nextColors
-            || colorScheme != environment.colorScheme || target != targetIntensity
-            || animates != isAnimating || visible != isVisible else { return }
-        if animates && !isAnimating { frozenMotionTime = Date().timeIntervalSince(startedAt) }
-        if target != targetIntensity {
-            let now = CACurrentMediaTime(), current = intensity(at: now)
-            targetIntensity = target
-            fade = animate && current != target ? Fade(from: current, to: target, startedAt: now) : nil
-        }
-        self.palette = palette
-        colors = nextColors
-        colorScheme = environment.colorScheme
-        animates = isAnimating
-        visible = isVisible
-        requestFrame()
-        refreshDriver()
+    func update(asset: NativeOverviewCloudAsset, running: Bool, animates: Bool, visible: Bool, animate: Bool) {
+        guard !dismantled, self.asset != asset || self.running != running || self.animates != animates || self.visible != visible else { return }
+        let changedRun = self.running != running
+        self.asset = asset; self.running = running; self.animates = animates; self.visible = visible
+        animateOpacity = animate
+        if changedRun { setOpacity(animate: animate) }
+        refresh()
     }
-
+    private func setOpacity(animate: Bool) {
+        fadeTask?.cancel(); fadeTask = nil; fadeGeneration &+= 1
+        let from = cloud.presentation()?.opacity ?? cloud.opacity
+        let target: Float = running && atlas != nil ? 1 : 0
+        CATransaction.begin(); CATransaction.setDisableActions(true); cloud.opacity = target; CATransaction.commit()
+        cloud.removeAnimation(forKey: "energy")
+        guard animate, from != target else { return }
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = from; fade.toValue = target; fade.duration = 0.4
+        fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        fade.preferredFrameRateRange = NativeFrameRate.preferredRange(for: window?.screen)
+        cloud.add(fade, forKey: "energy")
+        if !running {
+            let generation = fadeGeneration
+            fadeTask = Task { [weak self] in
+                do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+                guard let self, !self.dismantled, generation == self.fadeGeneration else { return }
+                self.fadeTask = nil; self.refresh()
+            }
+        }
+    }
     override func viewWillMove(toWindow newWindow: NSWindow?) {
-        NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: window)
-        NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeScreenNotification, object: window)
-        if newWindow == nil { suspendSurface(); stopDriver() }
+        for name in [NSWindow.didChangeOcclusionStateNotification, NSWindow.didChangeScreenNotification] {
+            NotificationCenter.default.removeObserver(self, name: name, object: window)
+        }
+        if newWindow == nil { pause(); cancelLoad() }
         super.viewWillMove(toWindow: newWindow)
     }
-
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let window {
-            NotificationCenter.default.addObserver(self, selector: #selector(windowVisibilityChanged),
-                name: NSWindow.didChangeOcclusionStateNotification, object: window)
-            NotificationCenter.default.addObserver(self, selector: #selector(windowVisibilityChanged),
-                name: NSWindow.didChangeScreenNotification, object: window)
+            for name in [NSWindow.didChangeOcclusionStateNotification, NSWindow.didChangeScreenNotification] {
+                NotificationCenter.default.addObserver(self, selector: #selector(screenChanged), name: name, object: window)
+            }
         }
-        updateGeometry()
-        requestFrame()
-        refreshDriver()
+        geometry(); refresh()
     }
-
-    override func viewDidChangeBackingProperties() {
-        super.viewDidChangeBackingProperties()
-        updateGeometry()
-        requestFrame()
-        refreshDriver()
-    }
-
-    override func viewDidHide() {
-        super.viewDidHide()
-        suspendSurface()
-        renderer?.pause()
-    }
-
-    override func viewDidUnhide() {
-        super.viewDidUnhide()
-        updateGeometry()
-        requestFrame()
-        refreshDriver()
-    }
-
-    override func layout() {
-        super.layout()
-        if updateGeometry() { requestFrame(); refreshDriver() }
-    }
-
-    @discardableResult
-    private func updateGeometry() -> Bool {
+    override func layout() { super.layout(); geometry(); refresh() }
+    override func viewDidChangeBackingProperties() { super.viewDidChangeBackingProperties(); geometry(); refresh() }
+    override func viewDidHide() { super.viewDidHide(); pause(); cancelLoad() }
+    override func viewDidUnhide() { super.viewDidUnhide(); refresh() }
+    @objc private func screenChanged(_ notification: Notification) { geometry(); refresh() }
+    private func geometry() {
         let scale = window?.backingScaleFactor ?? 1
-        let size = CGSize(width: max(0, ceil(bounds.width * scale)), height: max(0, ceil(bounds.height * scale)))
-        let changed = metal.frame != bounds || metal.drawableSize != size || metal.contentsScale != scale
-        if changed {
-            CATransaction.begin(); CATransaction.setDisableActions(true)
-            metal.frame = bounds
-            metal.contentsScale = scale
-            metal.drawableSize = size
-            CATransaction.commit()
+        guard cloud.frame != bounds || cloud.contentsScale != scale else { return }
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        cloud.frame = bounds; cloud.contentsScale = scale
+        CATransaction.commit()
+    }
+    private func refresh() {
+        guard !dismantled else { return }
+        guard running || fadeTask != nil else {
+            pause(); cancelLoad()
+            CATransaction.begin(); CATransaction.setDisableActions(true); cloud.contents = nil; CATransaction.commit()
+            atlas = nil; loaded = nil; return
         }
-        return changed
-    }
-
-    @objc private func windowVisibilityChanged(_ notification: Notification) {
-        updateGeometry()
-        requestFrame()
-        refreshDriver()
-    }
-
-    private var canRenderCloud: Bool {
-        !dismantled && visible && !isHiddenOrHasHiddenAncestor
-            && window?.occlusionState.contains(.visible) == true
-            && bounds.width.isFinite && bounds.height.isFinite && bounds.width > 0 && bounds.height > 0
-    }
-
-    private func intensity(at now: TimeInterval) -> Double {
-        guard let fade else { return targetIntensity }
-        let progress = (now - fade.startedAt) / 0.4
-        return fade.from + (fade.to - fade.from) * UnitCurve.easeInOut.value(at: progress)
-    }
-
-    private func refreshDriver() {
+        guard visible, !isHiddenOrHasHiddenAncestor, window?.occlusionState.contains(.visible) == true,
+              bounds.width.isFinite, bounds.height.isFinite, bounds.width > 0, bounds.height > 0 else {
+            pause(); cancelLoad(); return
+        }
+        if loaded != asset {
+            guard requested != asset else { return }
+            cancelLoad(); requested = asset
+            let key = asset
+            loadTask = Task { [weak self] in
+                do {
+                    let image = try await NativeOverviewCloudAssets.load(key)
+                    guard !Task.isCancelled, let self, !self.dismantled, self.requested == key else { return }
+                    let first = self.atlas == nil
+                    self.atlas = image; self.loaded = key; self.requested = nil; self.loadTask = nil
+                    self.pause()
+                    CATransaction.begin(); CATransaction.setDisableActions(true)
+                    self.cloud.contents = image.image
+                    self.cloud.contentsRect = image.rectangles[Int(self.phase(at: CACurrentMediaTime()) * Double(image.metadata.fps)) % image.metadata.count]
+                    CATransaction.commit()
+                    if first { self.setOpacity(animate: self.animateOpacity) }
+                    self.refresh()
+                } catch {
+                    guard !Task.isCancelled, let self, !self.dismantled, self.requested == key else { return }
+                    self.loadTask = nil; self.requested = nil; self.failed(key.style)
+                }
+            }
+            return
+        }
+        guard let atlas else { return }
+        guard animates else { pause(); return }
+        let screen = window?.screen
+        let display = (screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+        let mode = display == 0 ? 0 : CGDisplayCopyDisplayMode(display)?.refreshRate ?? 0
+        let cap = min(Float(atlas.metadata.fps), Float(screen?.maximumFramesPerSecond ?? atlas.metadata.fps))
+        let rate = max(1, mode > 0 ? min(cap, Float(mode)) : cap)
+        if cloud.animation(forKey: "loop") != nil, rate == lastRate, display == lastDisplay { return }
         let now = CACurrentMediaTime()
-        if let fade, now - fade.startedAt >= 0.4 { self.fade = nil }
-        guard renderer != nil, !colors.isEmpty, intensity(at: now) > 0 || fade != nil else {
-            clearSurface(); renderer?.pause(); return
-        }
-        // Visibility pauses preserve the most recent image, including while an
-        // Overview transition still exposes part of its outgoing contents.
-        guard canRenderCloud else { suspendSurface(); renderer?.pause(); return }
-        suspended = false
-        let generation = frameGeneration
-        let version = redrawVersion
-        nextFrameID &+= 1
-        let frameID = nextFrameID
-        awaitingFrame = frameID
-        renderer?.drive(NativeOverviewCloudInput(
-            palette: palette, colors: colors, colorScheme: colorScheme, size: bounds.size,
-            seed: seed, startedAt: startedAt, frozenMotionTime: frozenMotionTime,
-            animates: animates, targetIntensity: targetIntensity,
-            fadeFrom: fade?.from, fadeStartedAt: fade?.startedAt),
-            generation: generation,
-            interval: 1 / Double(NativeFrameRate.preferredRange(for: window?.screen).maximum)
-        ) { [weak self] succeeded in
-            Task { @MainActor [weak self] in
-                self?.completedFrame(succeeded, generation: generation, version: version, id: frameID)
-            }
-        }
+        let motion = CAKeyframeAnimation(keyPath: "contentsRect")
+        motion.values = (atlas.rectangles + [atlas.rectangles[0]]).map { NSValue(rect: $0) }
+        motion.keyTimes = (0...atlas.metadata.count).map { NSNumber(value: Double($0) / Double(atlas.metadata.count)) }
+        motion.calculationMode = .discrete; motion.duration = atlas.metadata.duration; motion.repeatCount = .infinity
+        motion.preferredFrameRateRange = CAFrameRateRange(minimum: rate, maximum: rate, preferred: rate)
+        // Screen/appearance changes rejoin the same timeline, not a frame counter.
+        motion.beginTime = cloud.convertTime(now, from: nil) - phase(at: now)
+        cloud.add(motion, forKey: "loop"); lastRate = rate; lastDisplay = display
     }
-
-    private func completedFrame(_ succeeded: Bool, generation: UInt64, version: UInt64, id: UInt64) {
-        guard !dismantled, generation == frameGeneration, awaitingFrame == id else { return }
-        awaitingFrame = nil
-        if succeeded && version == redrawVersion && canRenderCloud && intensity(at: CACurrentMediaTime()) > 0 {
-            if metal.isHidden {
-                CATransaction.begin(); CATransaction.setDisableActions(true)
-                metal.isHidden = false
-                CATransaction.commit()
-            }
-        }
-        if !succeeded { refreshDriver() }
+    private func phase(at time: CFTimeInterval) -> Double { (time - epoch + phaseOffset).truncatingRemainder(dividingBy: 8) }
+    private func pause() {
+        guard cloud.animation(forKey: "loop") != nil else { return }
+        let rectangle = cloud.presentation()?.contentsRect ?? cloud.contentsRect
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        cloud.contentsRect = rectangle; cloud.removeAnimation(forKey: "loop")
+        CATransaction.commit()
     }
-
-    private func requestFrame() {
-        redrawVersion &+= 1
-    }
-
-    private func suspendSurface() {
-        if !suspended {
-            frameGeneration = renderer?.retireFrames() ?? frameGeneration
-            suspended = true
-        }
-        awaitingFrame = nil
-    }
-
-    private func clearSurface() {
-        suspendSurface()
-        if !metal.isHidden {
-            CATransaction.begin(); CATransaction.setDisableActions(true)
-            metal.isHidden = true
-            CATransaction.commit()
-        }
-    }
-
-    private func stopDriver() { renderer?.pause() }
-
+    private func cancelLoad() { loadTask?.cancel(); loadTask = nil; requested = nil }
     func dismantle() {
         guard !dismantled else { return }
-        dismantled = true
-        NotificationCenter.default.removeObserver(self)
-        clearSurface()
-        stopDriver()
-        renderer?.stop()
-        renderer = nil
-        metal.removeFromSuperlayer()
-    }
-
-    private static func resolveColors(_ palette: NativeCloudPalette, in environment: EnvironmentValues) -> [SIMD4<Float16>] {
-        palette.channels.flatMap { channel in
-            let color = channel.color.resolve(in: environment)
-            let alpha = color.opacity
-            let rgba = SIMD4<Float16>(Float16(color.linearRed * alpha), Float16(color.linearGreen * alpha),
-                                      Float16(color.linearBlue * alpha), Float16(alpha))
-            // NativeCloudField emits three lobes with two scales per channel.
-            return Array(repeating: rgba, count: 6)
-        }
-    }
-
-    private static func samePalette(_ lhs: NativeCloudPalette, _ rhs: NativeCloudPalette) -> Bool {
-        lhs.phase == rhs.phase && lhs.lobeScale == rhs.lobeScale && lhs.channels.count == rhs.channels.count
-            && zip(lhs.channels, rhs.channels).allSatisfy { pair in
-                pair.0.seed == pair.1.seed && pair.0.energy == pair.1.energy && pair.0.color == pair.1.color
-            }
-    }
-
-    private struct Fade {
-        let from: Double
-        let to: Double
-        let startedAt: TimeInterval
+        dismantled = true; NotificationCenter.default.removeObserver(self); cancelLoad(); fadeTask?.cancel(); fadeTask = nil
+        cloud.removeAllAnimations(); cloud.contents = nil; cloud.removeFromSuperlayer(); atlas = nil
     }
 }

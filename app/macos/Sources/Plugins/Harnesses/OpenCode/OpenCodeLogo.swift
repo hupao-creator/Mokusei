@@ -4,11 +4,7 @@ import MokuseiPluginUI
 /// Original official OpenCode SVG paths, with its surface-dependent colors.
 public struct OpenCodeLogo: View {
     /// The approved running-card palette belongs to this harness.
-    public static let threadCardCloudPalette = NativeCloudPalette(channels: [
-        .init(color: NativePalette.pair(0x969898, 0xe7e4df).swiftUI, seed: 136, energy: 0.42),
-        .init(color: NativePalette.pair(0x62676e, 0xa6acb4).swiftUI, seed: 73, energy: 0.31),
-        .init(color: NativePalette.pair(0xc3beb6, 0xcfcecd).swiftUI, seed: 211, energy: 0.34)
-    ], phase: 6.4)
+    public static let threadCardCloudPalette = NativeCloudPalette(loop: .neutral)
 
     public let size: CGFloat
     public init(size: CGFloat = 24) { self.size = size }

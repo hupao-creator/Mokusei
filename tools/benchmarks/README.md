@@ -242,6 +242,12 @@ separates six scenario profiles from measured style candidates. It includes a
 paired App CPU observations on the 120 Hz display. Playback configuration is
 not physical FPS evidence; the product changes remain unshipped experiments.
 
+The selected [production combination](baselines/2026-11-13-combined-rendering.md)
+retains body reveal animation, suppresses equal voice-availability notifications,
+and ships four pre-rendered cloud palettes. It compares normal signed artifacts
+against local main, with the original incomplete measurement status and an
+explicitly invalid startup observation retained separately.
+
 ## Verification boundary
 
 `conformance` exercises the real parsers, source schedules and offline scorer

@@ -295,3 +295,8 @@ an initial screen, not a confidence interval. Do not pair percentages from
 different CI machines or combine these values with historical local M1 results.
 Regressions remain visible in the report instead of being hidden behind a pass
 threshold. Ordinary CI still owns functional and true WindowServer-pixel checks.
+
+The mounted decoration diagnostic admits either the historical live Metal cloud
+or the current pre-rendered 120 fps CA loop. It records them separately and still
+requires four active cloud/scan pairs. These internal diagnostics do not belong
+to the independent artifact-only benchmark and do not establish physical FPS.

@@ -1006,41 +1006,40 @@ Window visibility, detachment, cancellation and explicit pause are separate life
 
 ### Native Overview decorations
 
-`threadCardNativeDecorationsEnabled` defaults to false; only the production
-Overview card closure opts in. Its cloud uses
-[NativeOverviewCloudView](Design/NativeOverviewCloudView.swift), a stable native
-view with a screen-rate-capped serial render timer and transparent Metal layer, instead of a SwiftUI
-timeline or nested hosting graph. The existing seeded, point-space
-`NativeCloudField` and the shader's `cloudField` function serve both renderers.
-Palette colors resolve from the current SwiftUI environment into premultiplied
-linear components; the native drawable declares the same linear working space.
+`threadCardNativeDecorationsEnabled` defaults to false; only production
+Overview card closures opt in. [NativeOverviewCloudView](Design/NativeOverviewCloudView.swift)
+plays pre-rendered cloud atlases through Core Animation `contentsRect` keyframes.
+All four built-in Harness palettes select shared visual loop styles. Each style
+has light/dark 180×110 pixel assets, 960 samples over an eight-second loop at
+120 fps, fitted to the existing card bounds. Cards retain independent phases.
+The final second blends into the opening field; completion uses a 400ms layer
+opacity fade. This replaces independent live trajectories and additive-energy
+fades with a bounded visual loop; it does not change card content or layout.
 
-The native view retains its seed and epoch across running, palette and visibility
-updates. It interpolates light intensity over 0.4 seconds, including reversals,
-without publishing per-frame SwiftUI state; fading final layer opacity would not
-preserve the field's additive energy. Geometry and semantic updates remain inputs
-from the surrounding card. Inactive completed views do not request drawables;
-bounded rendering work runs off the UI thread and removal retires its driver.
-The existing shared SwiftUI renderer remains the capability fallback and the
-renderer for other cloud consumers.
+Playback requests the highest current screen/mode rate up to the 120 fps source.
+Window screen changes and system display-configuration changes update that
+request without resetting the timeline. There is no 30 fps setting or application
+per-frame timer, display link, Metal encoding or SwiftUI state publication.
+macOS owns actual presentation cadence; source samples and CA requests do not
+prove physical FPS. Main-thread blockage still delays new state and geometry.
 
-The render queue samples immutable inputs independently of the main run loop.
-Only geometry, resolved colors, activity and visibility cross from AppKit;
-first-frame reveal still returns to main. One in-flight GPU frame bounds work,
-missing drawables retry, and generation/revision fences retire stale work.
-Static fields stop after a successful draw; a zero-energy terminal frame finishes
-fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
-the last image and cancels sampling; detach/removal retires the generation.
-The timer is not a display-link or a physical-FPS guarantee. Main-thread blockage
-still delays newly requested state, layout, visibility and interaction changes.
-When local performance recording is active, `metal.gpu` spans join each sample
-to successful command-buffer completion using host-clock timestamps, frame ID
-and the native layer's process-local context. Separate `metal.presented` spans
-retain raw presentation timestamps, including zero, as diagnostics for that
-frame. Recording-off rendering adds no presented handler. The native capture
-gate requires fresh GPU work and separate WindowServer cloud movement inside a
-main-thread hold, without predetermined half-interval cadence or a claim of
-physical presentation or a drawable-to-screenshot correspondence.
+[NativeOverviewCloudAtlas](Design/NativeOverviewCloudAtlas.swift) decodes images
+on a background task, coalesces concurrent requests, and shares immutable pixels.
+The evictable cache requests a two-atlas/160 MiB limit; live surfaces retain the
+images they need independently. Completing a card releases its own image after
+the fade, while hiding/occlusion pauses playback and preserves the last image.
+Detachment and dismantling cancel publication; a cancelled card cannot cancel
+another card's shared decode. Appearance swaps retain the old image until the
+new one is decoded. Static drawing retains a frame; resuming rejoins wall time.
+
+[Asset generation](../../../../../tools/assets/overview-cloud/README.md) reuses
+the production field/shader and palette specification. Checked-in PNGs need no
+GPU during ordinary builds. The package plugin verifies source/output hashes,
+and decoding rejects a lower-rate or malformed atlas. Custom palettes or a load
+failure use [NativeLiveOverviewCloudView](Design/NativeLiveOverviewCloudView.swift),
+the existing screen-rate-capped native Metal renderer. Its immutable render
+inputs, generation fencing and optional GPU/presentation diagnostics are retained.
+Other cloud consumers (voice and Tag) keep their existing realtime renderer.
 
 [NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
 Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;
@@ -1057,13 +1056,12 @@ resuming aligns to the current wall-clock phase. It needs no application
 per-frame callback. The existing scene, visibility and Reduce Motion gates stay
 in the card, while native views exclude themselves from input and accessibility.
 
-Acceptance compares the complete enabled Overview scene on a fixed target Mac.
-The native path's submit counts and scan presentation positions replace the old
-Timeline counters; neither establishes display FPS. Native WindowServer frames
-must cover cloud color, static card surfaces, rounded clipping, camera transforms, exit
-opacity and interrupted intensity fades. AppKit self-rendering and model values
-alone cannot certify that composition. The native path is a performance
-candidate until that evidence and a repeatable process-CPU benefit are recorded.
+The mounted decoration replay loads all eight assets, verifies 120 fps keyframes,
+cache sharing, cross-screen phase continuity, static/hidden/completed lifecycles
+and cancellation. Its existing WindowServer movement control still covers cloud
+and scan progress during a main-thread hold. Per-frame Metal work is no longer
+expected from pre-rendered playback. No pixel-style golden or optical FPS claim
+is added. Resource packaging and performance use the signed production artifact.
 
 Fonts, icon licenses and attribution live under [Resources](Resources/). Metal assets are compiled through the package's build plugin. Tests under `app/macos/Tests` and [functional replays](../../../../../tools/verification/README.md) exercise native components; macOS window tests require an actual graphical session.
 

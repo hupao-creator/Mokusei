@@ -1,0 +1,14 @@
+{
+  "columns" : 24,
+  "count" : 960,
+  "crossfadeSeconds" : 1,
+  "duration" : 8,
+  "fps" : 120,
+  "height" : 110,
+  "padding" : 1,
+  "pointHeight" : 220,
+  "pointWidth" : 360,
+  "rows" : 40,
+  "seed" : "4d6f6b75736569",
+  "width" : 180
+}

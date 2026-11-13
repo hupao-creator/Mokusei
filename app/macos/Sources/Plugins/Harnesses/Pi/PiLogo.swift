@@ -4,14 +4,7 @@ import SwiftUI
 /// The shipped pi.dev mark, rendered from the original 800×800 vector geometry.
 public struct PiLogo: View {
     /// The approved running-card palette belongs to this harness.
-    public static let threadCardCloudPalette = NativeCloudPalette(channels: [
-        .init(color: NativePalette.color(0xff525e).swiftUI, seed: 19, energy: 0.25),
-        .init(color: NativePalette.color(0xffb52e).swiftUI, seed: 53, energy: 0.23),
-        .init(color: NativePalette.color(0x53dd83).swiftUI, seed: 87, energy: 0.25),
-        .init(color: NativePalette.color(0x27cbf4).swiftUI, seed: 121, energy: 0.27),
-        .init(color: NativePalette.color(0x5967ff).swiftUI, seed: 155, energy: 0.25),
-        .init(color: NativePalette.color(0xdb57ef).swiftUI, seed: 189, energy: 0.25)
-    ], phase: 2.8, lobeScale: CGSize(width: 0.86, height: 0.90))
+    public static let threadCardCloudPalette = NativeCloudPalette(loop: .spectrum)
 
     public let size: CGFloat
     @Environment(\.colorScheme) private var scheme

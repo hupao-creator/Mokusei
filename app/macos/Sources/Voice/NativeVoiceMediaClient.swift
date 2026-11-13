@@ -91,7 +91,9 @@ public final class NativeVoiceMediaClient {
             pendingTakeover = nil; state.occupiedOwner = nil
         }
         self.owner = owner
-        state.available = available
+        // A member write enters Observation's modify accessor even when the
+        // value is equal. Catalog traffic must not invalidate idle voice UI.
+        if state.available != available { state.available = available }
     }
 
     /// Call only from an explicit start action. Capability preparation precedes

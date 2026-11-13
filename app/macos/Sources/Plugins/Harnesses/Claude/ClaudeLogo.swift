@@ -2,11 +2,7 @@ import MokuseiPluginUI
 import SwiftUI
 public struct ClaudeLogo: View {
     /// The approved running-card palette belongs to this harness.
-    public static let threadCardCloudPalette = NativeCloudPalette(channels: [
-        .init(color: NativePalette.color(0xf6ad71).swiftUI, seed: 136, energy: 0.36),
-        .init(color: NativePalette.color(0xd97757).swiftUI, seed: 73, energy: 0.43),
-        .init(color: NativePalette.color(0xefb7a2).swiftUI, seed: 211, energy: 0.28)
-    ], phase: 4.6)
+    public static let threadCardCloudPalette = NativeCloudPalette(loop: .coral)
 
     public let size: CGFloat
     public init(size: CGFloat = 24) { self.size = size }
