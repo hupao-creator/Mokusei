@@ -39,6 +39,10 @@ struct NativeMarkdownLocalImageTests {
     }
 
     @Test func localImagesRenderInProductionMessageAndKeepLinks() async throws {
+        // NSTextView owns attachment-click tracking after block-local selection.
+        // A graphical SwiftPM process does not run the AppKit application loop.
+        try #require(NSApplication.shared.isRunning,
+                     "Local image clicks require reading-presentation/run.py --local-images")
         let file = try fixture()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let missing = file.deletingLastPathComponent().appendingPathComponent("document.txt")
@@ -147,6 +151,7 @@ struct NativeMarkdownLocalImageTests {
             root.cacheDisplay(in: root.bounds, to: bitmap)
             try bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: directory).appendingPathComponent("reported-orbit.png"))
         }
+        print("MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED")
     }
 
     @Test func invalidFilesKeepTheirTextAndNavigation() async throws {
