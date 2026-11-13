@@ -142,8 +142,9 @@ exit. The body counter is an observation-boundary diagnostic, not a CPU/FPS
 measurement.
 
 The production card closure alone enables `threadCardNativeDecorationsEnabled`.
-Clouds use an independently sampled native Metal view with the existing seeded field;
-derived scans use a compositor-owned gradient animation. Neither decoration
+Built-in clouds use independent Core Animation players sharing pre-rendered assets;
+custom palettes and unavailable assets retain the native live-rendering fallback.
+Derived scans use a compositor-owned gradient animation. Neither decoration
 publishes a SwiftUI frame value. Card semantics, duration, spatial wrappers and
 surfaces remain with their existing owners. The native views fill the supplied
 bounds, preserve pause/visibility behavior, and cannot own input or accessibility.

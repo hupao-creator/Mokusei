@@ -248,6 +248,11 @@ and ships four pre-rendered cloud palettes. It compares normal signed artifacts
 against local main, with the original incomplete measurement status and an
 explicitly invalid startup observation retained separately.
 
+The [shared pre-rendered follow-up](baselines/2026-11-13-shared-prebaked.md)
+tests one masked player per palette on top of that production change. N10 App
+CPU was effectively unchanged after a matched idle warmup; production retains
+per-card playback. The disposable prototype and failed preparation are archived.
+
 ## Verification boundary
 
 `conformance` exercises the real parsers, source schedules and offline scorer
