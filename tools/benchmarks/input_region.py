@@ -56,7 +56,7 @@ def validate_preparation(record, plan):
     owner=record['owner']
     if owner.get('active') is not True:raise ValueError('input preparation target was not foreground')
     context=record['context']
-    expected_context={'first-render':'reopen','return':'return'}.get(plan['scenario'],'same-window')
+    expected_context='reopen' if plan['scenario']=='first-render' else 'same-window'
     if context!=expected_context:raise ValueError('input preparation context differs from scenario')
     if context!='reopen' and owner['process']['identity']!=plan['processIdentity']:
         raise ValueError('input preparation belongs to another application owner')

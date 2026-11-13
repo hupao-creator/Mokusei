@@ -13,6 +13,7 @@ from lifecycle import native, save, sha256
 from analysis.report import seal, write_report
 from hitches import Hitches
 from input_region import background_point
+from workload import DEFAULT_PACING
 
 FRAMEWORK_FILES = {str(p.relative_to(Path(__file__).parent)): sha256(p)
                    for p in sorted(Path(__file__).parent.rglob('*'))
@@ -323,7 +324,7 @@ def startup(application, tools, directory, count, mode, seconds):
 
 
 def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capability_dir=None,
-              pacing='sustained', chunk_bytes=64, message_bytes=512):
+              pacing=DEFAULT_PACING, chunk_bytes=64, message_bytes=512):
     from lifecycle import Application
     from adapter import wait_for
     from workload import schedule
@@ -360,18 +361,10 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                         continue
                     owner=native(tools/'collector','prepare',application.app.pid)
                     fixture=existing_fixture(application,case)
-                    preparation=None
-                    if scenario=='return':
-                        time.sleep(.5)
-                        preparation=prepare_input(application,case,fixture,'return')
-                        application.ui.request({'name':'thread.open','threadId':application.threads[1],'typeId':'agent'})
-                        wait_for(application.ui.request,lambda s:s.get('page')=='thread' and not s.get('transitioning'),15)
-                        owner=native(tools/'collector','inspect',application.app.pid)
-                    else:
-                        state=application.ui.request()
-                        if state.get('page')!='overview':
-                            application.ui.request({'name':'overview.show'})
-                        wait_for(application.ui.request,lambda s:s.get('page')=='overview' and not s.get('transitioning'),15)
+                    state=application.ui.request()
+                    if state.get('page')!='overview':
+                        application.ui.request({'name':'overview.show'})
+                    wait_for(application.ui.request,lambda s:s.get('page')=='overview' and not s.get('transitioning'),15)
                     tree=application.discover_owned()
                     roots=[]
                     for row in tree:
@@ -383,11 +376,7 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                     roots.append({**native(tools/'collector','process',os.getpid()),'role':'source'})
                     plan=make_plan(owner,roots,scenario,count,mode,seconds)
                     plan['fixture']=fixture
-                    if scenario=='return':
-                        key={'keyCode':40,'x':owner['bounds']['x']+50,'y':owner['bounds']['y']+50}
-                        plan['events']=[{'kind':'keyDown','atSeconds':.1,**key},{'kind':'keyUp','atSeconds':.15,**key}]
-                        plan['events'] += [{**e,'atSeconds':e['atSeconds']+2} for e in trajectory(owner['bounds'],seconds-2)]
-                    elif scenario in ('idle.completed','idle.active','body'):
+                    if scenario in ('idle.completed','idle.active','body'):
                         # A tail interaction probe leaves the formal idle/source interval uncontaminated.
                         plan['events']=[{**e,'atSeconds':e['atSeconds']+seconds-.15} for e in trajectory(owner['bounds'],2)]
                     token=None;executions={}
@@ -404,9 +393,8 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                         save(case/'active-preparation.json',{'executions':executions,'threads':[
                             {'id':t['id'],'title':t.get('title'),'observation':t['observation']}
                             for t in state['threads'] if t['id'] in application.threads.values()]})
-                    if preparation is None:
-                        time.sleep(.5)
-                        preparation=prepare_input(application,case,fixture,'same-window')
+                    time.sleep(.5)
+                    preparation=prepare_input(application,case,fixture,'same-window')
                     plan['events']=reanchor(plan['events'],preparation['point'],plan['windowBounds'])
                     collect(tools,case,plan,bundle,capability,
                             arm=(lambda start:application.provider.arm(token,start)) if token else None,
@@ -433,6 +421,7 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
     save(directory/'summary.json',{'version':1,'results':summaries,'statisticalRegressionGate':False})
     lines=['# Observed Overview measurements','',
            'All cards existed before each timed scenario. No layout score or statistical regression gate.',
+           f'Controlled body pacing: {pacing} ({"low-rate" if pacing=="sparse" else "stress"}); not a production-trace rate.',
            'CPU and footprint below describe sampled, identified App processes. They are not complete process-tree costs.',
            'Incomplete/unsupported rows cannot certify a passing performance comparison.','',
            '| Scenario | N | Measurement | Product | App CPU (s) | App sampled peak (MiB) | Body checkpoints |',

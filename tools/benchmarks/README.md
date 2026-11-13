@@ -14,7 +14,8 @@ meaningful Agent output. Its workload varies single-reply length: 8 / 32 KiB by
 default, with an explicitly selected 128 KiB stress workload.
 
 The current scope is rendering under fixed total counts **5 / 10 / 20**, including
-real active-agent body output. There is **no layout score**, visible-card quota,
+controlled body output through the native agent runtime.
+There is **no layout score**, visible-card quota,
 onscreen/offscreen attribution or occupancy comparison. These are complete-app
 scenarios, not exclusive CPU attribution to a rendering module.
 
@@ -29,8 +30,8 @@ python3 tools/benchmarks/benchmark.py run \
   --app /absolute/path/Mokusei.app --tools /private/tmp/overview-tools \
   --capabilities /private/tmp/overview-controls \
   --output /private/tmp/overview-run --count 5 10 20 \
-  --scenario first-render idle.completed idle.active pan return body body.pan
-python3 tools/benchmarks/benchmark.py analyze /private/tmp/overview-run/n-5/05-body
+  --scenario first-render idle.completed idle.active pan body body.pan
+python3 tools/benchmarks/benchmark.py analyze /private/tmp/overview-run/n-5/04-body
 ```
 
 Outputs must be new directories. Live experiments need Screen Recording,
@@ -44,8 +45,6 @@ observation gap, not proof that the content froze.
 Do not run two GUI experiments together. Exit 2 means incomplete/unsupported
 measurement, not a statistical performance regression. The current unprivileged
 process sampler always exposes incomplete descendant/exit accounting.
-Repeat entries such as `--scenario return return return` to observe successive
-returns in one existing profile; each has a separate plan and evidence directory.
 
 `--mode minimal` collects resource/input observations without continuous capture
 or hitches. It cannot prove responsiveness. Calibration includes an observed /
@@ -62,8 +61,8 @@ counts are retained and checked; a changed set cannot produce a passing outcome.
 Before timing, one public Accessibility observation locates a mouse-down gap
 outside the existing card/control rectangles. This is input preparation, not a
 layout score or visible-card quota. Missing geometry or a blocked point cannot
-be interpreted as a frozen canvas. Entry probes reuse geometry from the preceding
-Overview. AX bounds are not gesture-acceptance receipts: a completely inert
+be interpreted as a frozen canvas. First-render probes reuse geometry observed
+before the restart. AX bounds are not gesture-acceptance receipts: a completely inert
 product probe reports unknown input acceptance/responsiveness, never a pass.
 The raw observation and selected point are retained, and the full mouse trajectory
 remains fixed. No full accessibility/semantic snapshot is polled while measuring.
@@ -76,10 +75,12 @@ remains fixed. No full accessibility/semantic snapshot is polled while measuring
 | `idle.completed` | Completed tasks, no formal text/input traffic; tail pan probes continued responsiveness. |
 | `idle.active` | All tasks running at a gated local provider, no formal body packets; terminal reply and tail probe follow. |
 | `pan` | Fixed absolute-clock OS down/drag/up trajectory; match business-title displacement throughout direction/reversal/settling. |
-| `return` | Open a real thread outside measurement; system Command-K returns to Overview; content appearance and scheduled pan probe are separate. |
-| `body` | Fixed active count, meaningful cumulative reasoning-summary chunks and natural message boundaries through real native Harness; tail pan probe. |
+| `body` | Fixed active count, scripted reasoning chunks and completed progress messages through the native Harness; tail pan probe. |
 | `body.pan` | Same source schedule during system mouse dragging. |
 | `zoom`, `body.zoom` | Declared but **unsupported** until a public system magnification injector is validated. Command-wheel is not silently substituted for a macOS pinch. |
+
+The default run selects the six supported scenarios. Unsupported zoom cases
+are reported only when explicitly requested.
 
 Resource reports contain cumulative CPU deltas, single-core CPU percent,
 **sampled** physical-footprint peaks and final samples for warmup, formal, tail
@@ -117,7 +118,7 @@ Normal, real main-thread stall and wrong-owner controls must establish capabilit
 If pixels freeze while hitches remain zero, the metric is **unsupported** for
 responsiveness conclusions. Zero is never substituted for unavailable data.
 
-## Realistic fixed-count output
+## Controlled fixed-count output
 
 Public `moku:submit` invokes real `create_thread` tools through a deterministic
 loopback Responses provider. Public `thread:follow-up` starts the fixed set of
@@ -132,18 +133,35 @@ ordinary workspace is constructed, requests a 1280 × 820 window at a fixed
 initial position and disables scene restoration for this explicit scenario. This scenario preparation is the only product
 hook; the renderer and business data paths remain production paths.
 
-Titles stay stable. Text describes inspecting settings, checking response and
-cancellation behavior, comparing results and preparing review notes. Defaults:
-64-byte chunks, 512-byte messages, 8-second windows. `--pacing sparse` sends 2
-reasoning packets/s/card; `sustained` sends 8; `burst` sends the same 8 packets and bytes
-per second in a 20 packets/s burst. `--chunk-bytes` and `--message-bytes` are
-explicit and retained in plans. These are experimental workloads, not claims
-about average real model rates. Changing N keeps per-card work constant.
+Each active case admits one execution per existing card before timing. Titles
+stay stable, the task stays running through output, and it completes once at
+the end. A completed commentary message is not a completed task. Usage is sent
+only in the final response, using fixed protocol-fixture values; it is neither
+a high-frequency input nor a measurement of real token consumption. Actual load
+is recorded as source bytes/messages. No completion-status or title toggling
+is a rendering workload. Returning from a Thread to Overview is outside this suite.
+
+Text describes inspecting settings, checking response and cancellation behavior,
+comparing results and preparing review notes. The default `--pacing sparse`
+sends 2 reasoning packets/s/card: with 64-byte chunks and 512-byte messages this
+means one progress-message boundary every 4 seconds in an 8-second window.
+Each card has a deterministic phase within one packet interval, so independent
+tasks do not all flush at the same artificial instant. Changing N preserves
+every card's packet/byte budget. No card creation or staggered card appearance
+is involved.
+
+`--pacing sustained` (8 packets/s/card) and `--pacing burst` (the same bytes in
+20 packets/s bursts) are explicit **stress loads**, not the default.
+`--chunk-bytes` and `--message-bytes` are retained in plans. All rates are
+controlled synthetic inputs, not frequencies certified from production traces.
+Workload schedule version 2 records the load kind and card timing; old synchronized
+workloads and the removed `return` case are not silently reinterpreted by current
+analysis. Retain their evidence and original analysis identity separately.
 
 Absolute deadlines drive output independently of UI responsiveness. The source
 ledger records intended and actual sends, bytes, payload hashes and every card's
-completion. Completed progress notes summarize each natural message boundary; their bytes
-and send times and the terminal messages are recorded separately from reasoning
+completion. Progress messages finish at the declared message boundaries without
+ending the task; their bytes and send times and the terminal messages are recorded separately from reasoning
 chunks. Visible CHECK markers identify those boundaries. App
 coalescing and excerpt clipping are allowed; a frame per fragment is not
 required. Checkpoint latency is source-flush to captured appearance, including

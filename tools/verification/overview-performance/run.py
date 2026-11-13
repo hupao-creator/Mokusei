@@ -61,6 +61,9 @@ def measure(labels, destination, repetitions):
     builds = {label: json.loads((OUTPUT / label / "build.json").read_text()) for label in labels}
     if len({build["probeSourceSHA256"] for build in builds.values()}) != 1:
         raise RuntimeError("Compared probes must use exactly the same workload source")
+    current_source = hashlib.sha256((SOURCE / "main.swift").read_bytes()).hexdigest()
+    if any(build["probeSourceSHA256"] != current_source for build in builds.values()):
+        raise RuntimeError("Preserved probe uses an obsolete workload; rebuild labels with current main.swift")
     for label, metadata in builds.items():
         if hashlib.sha256((OUTPUT / label / "probe").read_bytes()).hexdigest() != metadata["binarySHA256"]:
             raise RuntimeError("Preserved binary changed: " + label)

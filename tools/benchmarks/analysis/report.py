@@ -452,9 +452,8 @@ def pixels(root, plan, observation, frames, times, result, mark):
             else:
                 result['motionEvidence']=True
                 result['scenarioEvidence'] = True
-            if plan['scenario'] in ('first-render','return'):
-                onset = (load(root/'launch.json')['requestedNS'] if plan['scenario'] == 'first-render'
-                         else next(e['postedNS'] for e in observation['inputs'] if e['kind']=='keyDown'))
+            if plan['scenario'] == 'first-render':
+                onset = load(root/'launch.json')['requestedNS']
                 content = [r[0] for r in rows if r[0]>=onset and r[1]
                            and any('BENCH BODY' in t['text'] for t in r[3])]
                 result['metrics']['presentation'] = {
@@ -559,7 +558,9 @@ def body(root,plan,rows,times,requests,result,mark):
     budget=plan['workload']['messageIntervalSeconds']+plan['maximumNoProgressSeconds']
     held=max(card_stalls.values(),default=0)
     held_bounds={'lower':max(0,held-uncertainty),'upper':held+uncertainty}
-    result['metrics']['body']={'observedCheckpointLatenciesSeconds':ages,'maximumVisibleNoProgressSeconds':stall,
+    result['metrics']['body']={'scheduleVersion':workload['scheduleVersion'],'loadKind':workload['loadKind'],
+        'pacing':workload['pacing'],'cardTiming':workload['cardTiming'],
+        'observedCheckpointLatenciesSeconds':ages,'maximumVisibleNoProgressSeconds':stall,
         'checkpointLatenciesAreCaptureUpperBounds':True,'continuousCardStasisSecondsBounds':held_bounds,
         'expectedMessageIntervalSeconds':plan['workload']['messageIntervalSeconds'],
         'reasoningChunkEvents':len(source['events']),'reasoningChunkBytes':sum(e['bytes'] for e in source['events']),

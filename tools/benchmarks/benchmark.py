@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from contracts.model import SCENARIOS
+from workload import DEFAULT_PACING, RATES
 
 
 def main():
@@ -19,10 +20,13 @@ def main():
     run.add_argument('--app',type=Path,required=True);run.add_argument('--tools',type=Path,required=True)
     run.add_argument('--output',type=Path,required=True);run.add_argument('--capabilities',type=Path)
     run.add_argument('--count',type=int,nargs='+',choices=(5,10,20),default=[5,10,20])
-    run.add_argument('--scenario',nargs='+',choices=SCENARIOS,default=list(SCENARIOS))
+    run.add_argument('--scenario',nargs='+',choices=SCENARIOS,
+                     default=[s for s in SCENARIOS if 'zoom' not in s],
+                     help='default: the six supported Overview scenarios')
     run.add_argument('--mode',choices=('observed','minimal'),default='observed')
     run.add_argument('--seconds',type=float,default=8)
-    run.add_argument('--pacing',choices=('sparse','sustained','burst'),default='sustained')
+    run.add_argument('--pacing',choices=tuple(RATES),default=DEFAULT_PACING,
+                     help='sparse (default): low-rate output; sustained/burst: explicit stress loads')
     run.add_argument('--chunk-bytes',type=int,default=64);run.add_argument('--message-bytes',type=int,default=512)
     analyze=commands.add_parser('analyze',help='offline reanalysis; does not reseal or change evidence')
     analyze.add_argument('directory',type=Path)

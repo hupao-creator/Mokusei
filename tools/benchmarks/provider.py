@@ -7,6 +7,10 @@ import uuid
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# Protocol fixture values, not tokenizer measurements. Body size/rate is
+# accounted in the source byte ledger; usage must not create another UI load.
+FIXTURE_USAGE = {"input_tokens": 10, "output_tokens": 10, "total_tokens": 20}
+
 
 def title(index):
     return f"BENCH CARD {index:02d}"
@@ -209,7 +213,7 @@ class Provider:
                         "part": {"type": "output_text", "text": "", "annotations": []}},
                        {"type": "response.output_text.delta", "item_id": iid, "output_index": 0, "content_index": 0, "delta": answer},
                        {"type": "response.output_text.done", "item_id": iid, "output_index": 0, "content_index": 0, "text": answer}]
-        final = {**initial, "status": "completed", "output": [item], "usage": {"input_tokens": 10, "output_tokens": 10, "total_tokens": 20}}
+        final = {**initial, "status": "completed", "output": [item], "usage": dict(FIXTURE_USAGE)}
         return events + [{"type": "response.output_item.done", "output_index": 0, "item": item},
                          {"type": "response.completed", "response": final}]
 
@@ -312,7 +316,8 @@ class Provider:
         yield {"type": "response.output_text.done", "item_id": iid, "output_index": oi, "content_index": 0, "text": answer}
         yield {"type": "response.output_item.done", "output_index": oi, "item": item}
         output.append(item)
+        # Message completion above does not complete the execution. Only this
+        # final response settles it; no periodic usage/status events are sent.
         yield {"type": "response.completed", "response": {**response, "status": "completed", "output": output,
-               "usage": {"input_tokens": 10, "output_tokens": sum(len(e.get("text", "")) for e in source["workload"]["events"] if e["card"] == card)//4 + 30,
-                         "total_tokens": sum(len(e.get("text", "")) for e in source["workload"]["events"] if e["card"] == card)//4 + 40}}}
+               "usage": dict(FIXTURE_USAGE)}}
         source["done"].add(card)

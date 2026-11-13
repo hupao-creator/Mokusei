@@ -5,7 +5,7 @@ from pathlib import Path
 
 VERSION = 1
 CLOCK = 'macos.mach_absolute_time.nanoseconds'
-SCENARIOS = ('first-render', 'idle.completed', 'idle.active', 'pan', 'zoom', 'return',
+SCENARIOS = ('first-render', 'idle.completed', 'idle.active', 'pan', 'zoom',
              'body', 'body.pan', 'body.zoom')
 ROLES = ('application', 'runtime', 'helper', 'collector', 'source')
 
@@ -113,14 +113,14 @@ def plan(value):
     events = value['events']
     if type(events) is not list or len(events) > 20_000:
         raise ValueError('bounded input schedule required')
-    previous, down, pressed_key = -1, False, None
+    previous, down = -1, False
     for event in events:
         at = number(event['atSeconds'], 'input deadline', 0, value['formalSeconds'] + value['tailSeconds'])
         if at <= previous:
             raise ValueError('input deadlines must strictly increase')
         previous = at
         kind = event['kind']
-        if kind not in ('move', 'down', 'drag', 'up', 'zoom', 'keyDown', 'keyUp', 'scroll'):
+        if kind not in ('move', 'down', 'drag', 'up', 'zoom', 'scroll'):
             raise ValueError('unsupported input kind')
         if kind == 'down':
             if down: raise ValueError('duplicate mouse down')
@@ -128,18 +128,6 @@ def plan(value):
         elif kind in ('drag', 'up'):
             if not down: raise ValueError('drag/up without down')
             if kind == 'up': down = False
-        if kind in ('keyDown', 'keyUp'):
-            key = integer(event.get('keyCode'), 'navigation key', 0, 127)
-            if reading:
-                raise ValueError('reading scenarios use pointer input only')
-            elif key != 40:
-                raise ValueError('only Command-K is an allowed navigation key')
-            if kind == 'keyDown':
-                if pressed_key is not None: raise ValueError('overlapping navigation keys')
-                pressed_key = key
-            else:
-                if pressed_key != key: raise ValueError('navigation key release mismatch')
-                pressed_key = None
         if kind == 'scroll':
             if not reading or type(event.get('phase')) is not int or event['phase'] not in (1, 2, 4):
                 raise ValueError('unsupported pixel scroll phase/scenario')
@@ -148,11 +136,8 @@ def plan(value):
             integer(event['delta'], 'wheel delta', -100, 100)
         for axis in ('x', 'y'):
             number(event[axis], axis, -100_000, 100_000)
-    if down or pressed_key is not None:
+    if down:
         raise ValueError('input gesture lacks a release')
-    keys=[e['kind'] for e in events if e['kind'] in ('keyDown','keyUp')]
-    if keys and keys != ['keyDown','keyUp']:
-        raise ValueError('navigation keyboard sequence incomplete')
     if 'pan' in value['scenario'] and not any(e['kind'] == 'drag' for e in events):
         raise ValueError('pan scenario lacks real drag inputs')
     if 'zoom' in value['scenario'] and not any(e['kind'] == 'zoom' for e in events):

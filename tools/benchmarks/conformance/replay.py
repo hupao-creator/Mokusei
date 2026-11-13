@@ -87,12 +87,12 @@ def fixture(root):
     return p,observation,frames
 
 
-def provider_replay(directory):
+def provider_replay(directory, waiting=False):
     directory.mkdir()
     provider=Provider(directory,5);provider.model='fixture-model';provider.effort='low'
     try:
         workload=schedule(5,2,'sustained')
-        token=provider.prepare_stream(workload)
+        token=provider.prepare_stream(workload,waiting=waiting)
         def receive(card):
             connection=http.client.HTTPConnection('127.0.0.1',provider.server.server_port,timeout=8)
             request={'model':'fixture-model','stream':True,'input':[{'role':'user','content':[
@@ -104,9 +104,17 @@ def provider_replay(directory):
             connection.close()
             assert [e['sequence_number'] for e in events]==list(range(len(events)))
             assert events[-1]['type']=='response.completed'
+            responses=[e for e in events if 'response' in e]
+            assert [(e['type'],e['response']['status']) for e in responses]==[
+                ('response.created','in_progress'),('response.completed','completed')]
+            assert len({e['response']['id'] for e in responses})==1
+            assert [e for e in events if 'usage' in e or 'usage' in e.get('response',{})]==[events[-1]]
+            assert events[-1]['response']['usage']=={'input_tokens':10,'output_tokens':10,'total_tokens':20}
             final=events[-1]['response']['output'][-1]
             assert token in final['content'][0]['text']
-            assert any(e.get('item',{}).get('phase')=='commentary' for e in events)
+            commentary=[e for e in events if e['type']=='response.output_item.done' and e['item'].get('phase')=='commentary']
+            assert len(commentary)==(0 if waiting else 2)
+            assert sum(e['type']=='response.output_item.done' and e['item'].get('phase')=='final_answer' for e in events)==1
             return events
         with ThreadPoolExecutor(max_workers=5) as pool:
             futures=[pool.submit(receive,n) for n in range(1,6)]
@@ -116,8 +124,8 @@ def provider_replay(directory):
             rows=[future.result() for future in futures]
         evidence=provider.source_evidence(token)
         assert evidence['complete'] and not provider.failures
-        assert len(evidence['events'])==len(workload['events'])
-        assert len(evidence['messages'])==len(workload['notes'])+len(workload['terminal'])
+        assert len(evidence['events'])==(0 if waiting else len(workload['events']))
+        assert len(evidence['messages'])==(0 if waiting else len(workload['notes']))+len(workload['terminal'])
         for event in evidence['events']+evidence['messages']:
             assert event['sentNS']>=event['plannedNS']
         metadata=provider.respond({'model':'fixture-model','stream':True,'input':[{'role':'user','content':[{
@@ -253,6 +261,10 @@ def main():
             assert 'resource CPU units absent or unsupported; CPU metrics withheld' in untrusted['reasons']
         run('dishonest-coverage',lambda r,p,o,f:save(r/'observation.json',{**o,'processCoverage':{'complete':True,'gaps':[]}}),invalid=True)
         run('wrong-input',lambda r,p,o,f:save(r/'observation.json',{**o,'inputs':[{**e,'x':0} for e in o['inputs']]}),invalid=True)
+        run('removed-overview-return',lambda r,p,o,f:save(r/'plan.json',{**p,'scenario':'return'}),invalid=True)
+        run('removed-navigation-input',lambda r,p,o,f:save(r/'plan.json',{**p,'events':[
+            {'kind':kind,'atSeconds':at,'keyCode':40,'x':700,'y':500}
+            for kind,at in (('keyDown',.1),('keyUp',.2))]}),invalid=True)
         run('late-input',lambda r,p,o,f:save(r/'observation.json',{**o,'inputs':[{**e,'postedNS':e['postedNS']+1_000_000_000} for e in o['inputs']]}),invalid=True)
         run('reordered-capture',lambda r,p,o,f:(r/'frames.jsonl').write_text(''.join(json.dumps(v)+'\n' for v in reversed(f))),invalid=True)
         run('out-of-bounds-ocr',lambda r,p,o,f:frames_change(r,p,o,f,lambda x:x['texts'][0].update(width=10000)),invalid=True)
@@ -296,7 +308,7 @@ def main():
         assert 'business body checkpoint visibility has an observation gap' in absent['reasons']
         def uncertain_body(source,frames):
             for frame in frames:
-                if any(t['text'].startswith('CHECK') for t in frame['texts']):
+                if frame['atNS']>=11_100_000_000 and any(t['text'].startswith('CHECK') for t in frame['texts']):
                     seq=1 if frame['atNS']<12_500_000_000 else int((frame['atNS']-11_000_000_000)/1e9)+1
                     frame['texts'].append({'text':f'CHECK 02.{seq:04d}','x':400,'y':130,'width':120,'height':20,'confidence':1})
         uncertain=run('body-deadline-inside-sampling-interval',lambda r,p,o,f:body_case(r,p,o,f,uncertain_body),expected_product='unknown')
@@ -314,7 +326,7 @@ def main():
         run('body-frozen',lambda r,p,o,f:body_case(r,p,o,f,lambda s,f:[item.update(text='CHECK 01.0001') for frame in f for item in frame['texts'] if item['text'].startswith('CHECK')]),expected_product='unknown')
         def one_card_frozen(source,frames):
             for frame in frames:
-                if any(item['text'].startswith('CHECK') for item in frame['texts']):
+                if frame['atNS']>=11_100_000_000 and any(item['text'].startswith('CHECK') for item in frame['texts']):
                     frame['texts'].append({'text':'CHECK 02.0001','x':400,'y':130,'width':120,'height':20,'confidence':1})
         run('one-card-freezes-among-progress',lambda r,p,o,f:body_case(r,p,o,f,one_card_frozen),expected_product='overloaded')
         def application_case(root,p,o,f,status='completed'):
@@ -342,15 +354,24 @@ def main():
             try:loads(raw)
             except ValueError:count+=1
             else:raise AssertionError('malformed JSON accepted')
-        for pacing in ('sparse','sustained','burst'):
-            w=schedule(5,8,pacing)
-            for n in range(1,6):
-                events=[e for e in w['events'] if e['card']==n]
-                assert events[0]['text'].startswith(f'CHECK {n:02d}.0001 ')
-                assert all(len(e['text'].encode())==64 for e in events)
-                assert all(e['sha256']==hashlib.sha256(e['text'].encode()).hexdigest() for e in events)
-            count+=1
+        for total in (5,10,20):
+            for pacing in ('sparse','sustained','burst'):
+                w=schedule(total,8,pacing)
+                rows=[[e for e in w['events'] if e['card']==n] for n in range(1,total+1)]
+                assert len({events[0]['atSeconds'] for events in rows})==total
+                assert {len(events) for events in rows}=={16 if pacing=='sparse' else 64}
+                for n,events in enumerate(rows,1):
+                    assert events[0]['text'].startswith(f'CHECK {n:02d}.0001 ')
+                    assert all(len(e['text'].encode())==64 and 0<=e['atSeconds']<8 for e in events)
+                    assert all(e['sha256']==hashlib.sha256(e['text'].encode()).hexdigest() for e in events)
+                    assert all(a['atSeconds']<b['atSeconds'] for a,b in zip(events,events[1:]))
+                count+=1
+        default=schedule(5,8)
+        assert default['pacing']=='sparse' and default['messageIntervalSeconds']==4
+        assert default['loadKind']=='low-rate' and default['scheduleVersion']==2
+        count+=1
         provider_replay(base/'provider-http');count+=1
+        provider_replay(base/'provider-idle-http',waiting=True);count+=1
         for control in (False,True):cancellation_replay(base/('disconnect-'+str(control)),control);count+=1
         shutdown_replay(base/'shutdown-gated-stream');count+=1
         ownership_replay();count+=3
