@@ -241,7 +241,9 @@ filter/reading target、手动 pan/zoom、scale 变化和容量不足场景保�
 `retainFraming` 和 `preserveFraming` 会把当前视图写成 intentional retained
 baseline；后续 local edit 保留该视图，而不是复活旧 automatic seat。in-flight
 `preserveFraming` 会取消 refit，并把采样帧先经 `preservingReadingPosition`
-clamp 后作为 baseline；它可能停在中间帧，而不是起点或终点。
+clamp 后作为 baseline；它可能停在中间帧，而不是起点或终点。refit 仍在等待
+spatial stage（`track == nil`）时，`cancelMotion(committing:)` 也提交同一
+clamped baseline，确保 live 与 target 不分裂。
 `setManualTransform` 清除 retained target，避免 filtered edit 跳回旧
 `readingFit`。viewport 变更在 `setBounds` 同步清除两类 provenance。连续
 shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，后续 shrink 会重新
@@ -276,7 +278,9 @@ height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 sh
 `preserveFramingKeepsCurrentViewAsRetainedBaseline`、
 `preserveFramingDuringRefitCancelsThePendingTarget`、
 `preserveFramingDuringAutomaticReturnDoesNotCreateBaseline`、
+`preserveFramingDuringReturnAutoDoesNotCreateBaseline`、
 `preserveFramingWhileRefitWaitsForStageKeepsLiveBaseline`、
+`preserveFramingWhileRefitWaitsForStageCommitsClampedBaseline`、
 `setManualTransformClearsPersistentVerticalSeat`、
 `viewportChangeClearsPersistentVerticalSeat`、
 `resetClearsPersistentVerticalSeat`、
@@ -290,9 +294,9 @@ Canvas case 已提交到 `NativeOverviewCapacityTests`：
 相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
 `NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
 `NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
-78 个测试全部通过（约 99 秒）。额外运行 `make check-swift` 全量 Swift
+80 个测试全部通过（约 99 秒）。额外运行 `make check-swift` 全量 Swift
 suite（final working tree），结果不是绿色，不能以 focused 结果替代托管
-`Complete coverage`：headless 211 个测试全部通过；graphical 327 个测试有
+`Complete coverage`：headless 213 个测试全部通过；graphical 327 个测试有
 2 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`，
 `NativeThreadSendFeedbackTests` presentation settled 失败。本次 native owner
 均产出成功 receipt；更早 full run 还出现过 `NativeVoiceAnalysisTests` 音频、

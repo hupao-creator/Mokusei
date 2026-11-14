@@ -852,13 +852,14 @@ public final class NativeOverviewCamera {
         animationTask?.cancel()
         animationTask = nil
         animationOwner = nil
-        guard track != nil else { return }
         if let sampled {
+            // A queued refit can have no track yet. Commit the sampled
+            // baseline anyway so live and target cannot split.
             track = nil
             commit(sampled)
             return
         }
-        guard let live else { return }
+        guard track != nil, let live else { return }
         track = nil
         commit(live)
     }

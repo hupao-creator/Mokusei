@@ -283,10 +283,13 @@ only row deletion. A retained seat keeps its y until an explicit return, manual
 framing, viewport change or reset; retained framing converts the current view
 into an intentional baseline rather than reverting to ordinary fit. When
 retained framing interrupts an in-flight refit, it may stop at the validated
-sampled intermediate frame rather than either endpoint. A grow target that is
-still pending when a shrink arrives keeps its pending translation until a later
-layout revision or explicit return, so it may remain at an automatic clamp.
-These are intentional trade-offs, not missing refits.
+sampled intermediate frame rather than either endpoint. A refit still queued for
+the spatial stage commits the same validated baseline, so live and target stay
+equal. The exact intermediate-frame appearance still needs visual confirmation
+in real business windows. A grow target that is still pending when a shrink
+arrives keeps its pending translation until a later layout revision or explicit
+return, so it may remain at an automatic clamp. These are intentional
+trade-offs, not missing refits.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
