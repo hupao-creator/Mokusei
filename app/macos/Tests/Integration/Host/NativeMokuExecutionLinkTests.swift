@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import QuartzCore
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -280,8 +281,42 @@ struct NativeMokuExecutionLinkTests {
             offset = min(bottom, offset + max(50, viewport / 2))
         }
         #expect(seen == Set((0..<count).map { "\(phrase) \($0)\(paragraphSuffix)" }))
+        let scroll = try #require(textViews(root).first {
+            !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
+        }?.enclosingScrollView)
+        var settledFrames = 0
+        var frames = 0
+        var samples: [String] = []
+        func sample() -> String {
+            "time=\(ProcessInfo.processInfo.systemUptime) control=\(String(describing: fixture.scroll)) "
+                + "clip=\(scroll.contentView.bounds) presented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds))"
+        }
+        let initial = sample()
         try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
-        try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5 }
+        // Registration can report the new offset before the previous bottom
+        // request leaves the compositor. Commit the manual reading position
+        // before a subsequent projection can lay out against that old request.
+        let observer = SwiftUIReplay.FrameObserver(view: scroll) {
+            frames += 1
+            if samples.count < 32 { samples.append(sample()) }
+            if let control = fixture.scroll, let value = control["value"],
+               let top = value["top"]?.numberValue, let inset = value["insetTop"]?.numberValue,
+               let presented = scroll.contentView.layer?.presentation(),
+               control["pending"] == .bool(false), value["following"] == .bool(false),
+               value["showLatest"] == .bool(true), abs(top) < 5,
+               abs(scroll.contentView.bounds.minY + CGFloat(inset)) < 5,
+               abs(presented.bounds.minY + CGFloat(inset)) < 5 { settledFrames += 1 }
+            else { settledFrames = 0 }
+            return settledFrames >= 2
+        }
+        defer { observer.stop() }
+        do {
+            try await SwiftUIReplay.wait(driveLayout: false) { settledFrames >= 2 }
+        } catch {
+            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_FAILURE harness=\(fixture.harness) phrase=\(phrase) frames=\(frames) settledFrames=\(settledFrames) initial={\(initial)} samples=\(samples) final={\(sample())}")
+            throw error
+        }
+        print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_COMMITTED harness=\(fixture.harness) phrase=\(phrase) frames=\(frames) final={\(sample())}")
     }
     private func click(_ label: String, in root: NSView) throws {
         if let capsule = element(id: "moku-note-execution-link", nativeOnly: true, label: label, in: root) {
@@ -684,10 +719,17 @@ struct NativeMokuExecutionLinkTests {
         let root = try #require(window.contentView)
         var receipts: [JSONValue] = []
         @MainActor func record(_ phase: String, inputBytes: Int? = nil) {
+            let native = textViews(root).first {
+                !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                    && ($0.string.hasPrefix("STREAMING CONTENT ") || $0.string.hasPrefix("NEW STREAMING CONTENT "))
+            }?.enclosingScrollView
+            let presented = native?.contentView.layer?.presentation()
             receipts.append(.object([
                 "phase": .text(phase), "at": .number(ProcessInfo.processInfo.systemUptime),
                 "revision": .integer(fixture.revision),
                 "inputUTF8Bytes": inputBytes.map { JSONValue.integer($0) } ?? .null,
+                "nativeTop": native.map { JSONValue.number(Double($0.contentView.bounds.minY)) } ?? .null,
+                "presentedTop": presented.map { JSONValue.number(Double($0.bounds.minY)) } ?? .null,
                 "scroll": fixture.scroll ?? .null
             ]))
         }
