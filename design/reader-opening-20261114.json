@@ -1,0 +1,716 @@
+{
+  "scope": "Two observed opens in one Debug session; not an external Release benchmark or statistical comparison.",
+  "video": {
+    "name": "录屏2026-11-14 11.05.28.mov",
+    "sha256": "83820ac68f13227d8b4d9da5c1f97f6c79e00a355fee26be89dd65e48389f3bd",
+    "durationSeconds": 10.712,
+    "decodedVideoFrames": 535,
+    "dimensions": [
+      2906,
+      2036
+    ]
+  },
+  "application": {
+    "pid": 77076,
+    "channel": "development",
+    "build": "debug",
+    "performanceMode": "detailed",
+    "layoutLogging": true,
+    "executableInputSHA256": "f9f14f737a0ea0ecf1bad1369a774854111148ac2ae73fd08931c377c381832d",
+    "sourceRevision": "unverified"
+  },
+  "clockAlignment": "Performance originNs + timeMs uses the nearest retained layout (uptimeNs, time) pair, not the application launch wall clock. Relative span durations remain monotonic.",
+  "limits": [
+    "Span sums may overlap; they are not exclusive main-thread CPU time.",
+    "Layout callbacks are model geometry observations, not presented frames.",
+    "Cycle byte enclosure identifies a candidate caller, not a framework emitter or CPU hotspot.",
+    "Video PTS gaps are recording gaps, not application FPS.",
+    "Detailed instrumentation has unmeasured overhead."
+  ],
+  "opens": [
+    {
+      "context": 269359,
+      "localOpenedAt": "2026-11-14T11:05:29.397",
+      "windowMs": 2500,
+      "spans": {
+        "content.ack": {
+          "count": 1,
+          "sumMs": 16.547,
+          "maxMs": 16.547
+        },
+        "content.patch": {
+          "count": 4,
+          "sumMs": 0.208,
+          "maxMs": 0.101
+        },
+        "content.ready": {
+          "count": 1,
+          "sumMs": 18.161,
+          "maxMs": 18.161
+        },
+        "harness.render": {
+          "count": 15,
+          "sumMs": 2.092,
+          "maxMs": 0.252
+        },
+        "markdown.delivery": {
+          "count": 6,
+          "sumMs": 0.963,
+          "maxMs": 0.186
+        },
+        "reading.prepare": {
+          "count": 1,
+          "sumMs": 161.21,
+          "maxMs": 161.21
+        },
+        "reading.transition": {
+          "count": 1,
+          "sumMs": 463.997,
+          "maxMs": 463.997
+        },
+        "text.attributed": {
+          "count": 17,
+          "sumMs": 0.898,
+          "maxMs": 0.142
+        },
+        "text.create": {
+          "count": 17,
+          "sumMs": 2.846,
+          "maxMs": 0.28
+        },
+        "text.layout": {
+          "count": 41,
+          "sumMs": 7.297,
+          "maxMs": 0.509
+        },
+        "text.replace": {
+          "count": 17,
+          "sumMs": 2.537,
+          "maxMs": 0.205
+        }
+      },
+      "events": [
+        {
+          "relativeMs": 31.086,
+          "metric": "reading.prepare",
+          "kind": "begin",
+          "context": 269359,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 165.886,
+          "metric": "reading.prepare",
+          "kind": "event",
+          "context": 269359,
+          "values": {
+            "anchorsReady": 1,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 189.982,
+          "metric": "reading.prepare",
+          "kind": "event",
+          "context": 269359,
+          "values": {
+            "layoutReady": 1,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 192.296,
+          "metric": "reading.prepare",
+          "kind": "end",
+          "context": 269359,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          },
+          "durationMs": 161.21
+        },
+        {
+          "relativeMs": 192.338,
+          "metric": "reading.transition",
+          "kind": "begin",
+          "context": 269359,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 215.243,
+          "metric": "reading.transition",
+          "kind": "event",
+          "context": 269359,
+          "values": {
+            "panel": 1,
+            "started": 1
+          }
+        },
+        {
+          "relativeMs": 238.914,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269359,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 656.317,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269373,
+          "values": {
+            "blocks": 5,
+            "streaming": 0
+          },
+          "durationMs": 0.134
+        },
+        {
+          "relativeMs": 656.335,
+          "metric": "reading.transition",
+          "kind": "end",
+          "context": 269359,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          },
+          "durationMs": 463.997
+        },
+        {
+          "relativeMs": 712.441,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269359,
+          "values": {
+            "execution": 1
+          }
+        },
+        {
+          "relativeMs": 729.249,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269373,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 806.112,
+          "metric": "content.ack",
+          "kind": "end",
+          "context": 269459,
+          "values": {},
+          "durationMs": 16.547
+        },
+        {
+          "relativeMs": 807.689,
+          "metric": "content.ready",
+          "kind": "end",
+          "context": 269443,
+          "values": {
+            "row": 0
+          },
+          "durationMs": 18.161
+        },
+        {
+          "relativeMs": 823.069,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269359,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 922.817,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269462,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 1140.984,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269443,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.151
+        },
+        {
+          "relativeMs": 1141.009,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269443,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.152
+        },
+        {
+          "relativeMs": 1141.027,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269443,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.164
+        },
+        {
+          "relativeMs": 1141.042,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269443,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.175
+        },
+        {
+          "relativeMs": 1141.057,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269443,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.186
+        },
+        {
+          "relativeMs": 1432.953,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269359,
+          "values": {
+            "execution": 0
+          }
+        }
+      ],
+      "geometry": {
+        "agent.reading.panel": {
+          "observations": 2,
+          "first": {
+            "role": "agent.reading.panel",
+            "relativeMs": 81.072,
+            "frame": [
+              76,
+              58,
+              1189,
+              760
+            ]
+          },
+          "last": {
+            "role": "agent.reading.panel",
+            "relativeMs": 889.414,
+            "frame": [
+              76,
+              58,
+              782,
+              760
+            ]
+          }
+        },
+        "moku.composer": {
+          "observations": 42,
+          "first": {
+            "role": "moku.composer",
+            "relativeMs": 1405.998,
+            "frame": [
+              985.5,
+              842,
+              343,
+              58
+            ]
+          },
+          "last": {
+            "role": "moku.composer",
+            "relativeMs": 1884.066,
+            "frame": [
+              898,
+              828,
+              343,
+              58
+            ]
+          }
+        }
+      },
+      "retainedCycleWarnings": 14,
+      "cycleCandidateBoundaries": [
+        {
+          "byteStart": 22530,
+          "time": 1794625530198.339,
+          "observedAfterUptimeNs": 446316977965750,
+          "location": "MokuseiPluginUI/NativeReadingParentSurface.swift:41",
+          "uptimeNs": 446316988869000,
+          "operation": "reading.parent.hide",
+          "sequence": 367,
+          "threadID": 23375387,
+          "observedAfter": 1794625530187.437,
+          "byteEnd": 23428,
+          "kind": "operation"
+        }
+      ],
+      "markdownCache": {
+        "hits": 6,
+        "misses": 0
+      }
+    },
+    {
+      "context": 269826,
+      "localOpenedAt": "2026-11-14T11:05:34.458",
+      "windowMs": 2500,
+      "spans": {
+        "content.ack": {
+          "count": 1,
+          "sumMs": 1.946,
+          "maxMs": 1.946
+        },
+        "content.patch": {
+          "count": 11,
+          "sumMs": 0.39,
+          "maxMs": 0.071
+        },
+        "content.ready": {
+          "count": 1,
+          "sumMs": 5.707,
+          "maxMs": 5.707
+        },
+        "harness.render": {
+          "count": 17,
+          "sumMs": 3.197,
+          "maxMs": 0.404
+        },
+        "markdown.delivery": {
+          "count": 6,
+          "sumMs": 49.304,
+          "maxMs": 48.422
+        },
+        "reading.prepare": {
+          "count": 1,
+          "sumMs": 125.877,
+          "maxMs": 125.877
+        },
+        "reading.transition": {
+          "count": 1,
+          "sumMs": 445.934,
+          "maxMs": 445.934
+        },
+        "text.attributed": {
+          "count": 17,
+          "sumMs": 0.728,
+          "maxMs": 0.129
+        },
+        "text.create": {
+          "count": 17,
+          "sumMs": 2.087,
+          "maxMs": 0.258
+        },
+        "text.layout": {
+          "count": 41,
+          "sumMs": 6.235,
+          "maxMs": 0.424
+        },
+        "text.replace": {
+          "count": 17,
+          "sumMs": 2.064,
+          "maxMs": 0.214
+        }
+      },
+      "events": [
+        {
+          "relativeMs": 25.927,
+          "metric": "reading.prepare",
+          "kind": "begin",
+          "context": 269826,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 149.423,
+          "metric": "reading.prepare",
+          "kind": "event",
+          "context": 269826,
+          "values": {
+            "anchorsReady": 1,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 149.724,
+          "metric": "reading.prepare",
+          "kind": "event",
+          "context": 269826,
+          "values": {
+            "layoutReady": 1,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 151.803,
+          "metric": "reading.prepare",
+          "kind": "end",
+          "context": 269826,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          },
+          "durationMs": 125.877
+        },
+        {
+          "relativeMs": 151.837,
+          "metric": "reading.transition",
+          "kind": "begin",
+          "context": 269826,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          }
+        },
+        {
+          "relativeMs": 158.594,
+          "metric": "reading.transition",
+          "kind": "event",
+          "context": 269826,
+          "values": {
+            "panel": 1,
+            "started": 1
+          }
+        },
+        {
+          "relativeMs": 180.226,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269826,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 258.957,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269841,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 407.22,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269826,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 597.771,
+          "metric": "reading.transition",
+          "kind": "end",
+          "context": 269826,
+          "values": {
+            "closing": 0,
+            "panel": 1
+          },
+          "durationMs": 445.934
+        },
+        {
+          "relativeMs": 619.129,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269826,
+          "values": {
+            "execution": 1
+          }
+        },
+        {
+          "relativeMs": 646.121,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269848,
+          "values": {
+            "blocks": 5,
+            "streaming": 0
+          },
+          "durationMs": 48.422
+        },
+        {
+          "relativeMs": 648.207,
+          "metric": "content.ack",
+          "kind": "end",
+          "context": 269855,
+          "values": {},
+          "durationMs": 1.946
+        },
+        {
+          "relativeMs": 651.93,
+          "metric": "content.ready",
+          "kind": "end",
+          "context": 269854,
+          "values": {
+            "row": 0
+          },
+          "durationMs": 5.707
+        },
+        {
+          "relativeMs": 784.242,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269848,
+          "values": {
+            "execution": 0
+          }
+        },
+        {
+          "relativeMs": 932.217,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269854,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.169
+        },
+        {
+          "relativeMs": 932.24,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269854,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.167
+        },
+        {
+          "relativeMs": 932.254,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269854,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.173
+        },
+        {
+          "relativeMs": 932.268,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269854,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.183
+        },
+        {
+          "relativeMs": 932.281,
+          "metric": "markdown.delivery",
+          "kind": "end",
+          "context": 269854,
+          "values": {
+            "blocks": 1,
+            "streaming": 0
+          },
+          "durationMs": 0.19
+        },
+        {
+          "relativeMs": 1286.649,
+          "metric": "surface",
+          "kind": "context",
+          "context": 269826,
+          "values": {
+            "execution": 0
+          }
+        }
+      ],
+      "geometry": {
+        "agent.reading.panel": {
+          "observations": 2,
+          "first": {
+            "role": "agent.reading.panel",
+            "relativeMs": 69.234,
+            "frame": [
+              76,
+              58,
+              1189,
+              760
+            ]
+          },
+          "last": {
+            "role": "agent.reading.panel",
+            "relativeMs": 757.945,
+            "frame": [
+              76,
+              58,
+              782,
+              760
+            ]
+          }
+        },
+        "moku.composer": {
+          "observations": 33,
+          "first": {
+            "role": "moku.composer",
+            "relativeMs": 1262.422,
+            "frame": [
+              985.5,
+              842,
+              343,
+              58
+            ]
+          },
+          "last": {
+            "role": "moku.composer",
+            "relativeMs": 1752.054,
+            "frame": [
+              898,
+              828,
+              343,
+              58
+            ]
+          }
+        }
+      },
+      "retainedCycleWarnings": 14,
+      "cycleCandidateBoundaries": [
+        {
+          "byteStart": 23428,
+          "threadID": 23375387,
+          "observedAfterUptimeNs": 446321939914958,
+          "byteEnd": 24326,
+          "uptimeNs": 446321950354666,
+          "operation": "reading.parent.hide",
+          "sequence": 382,
+          "kind": "operation",
+          "location": "MokuseiPluginUI/NativeReadingParentSurface.swift:41",
+          "observedAfter": 1794625535149.173,
+          "time": 1794625535159.611
+        }
+      ],
+      "markdownCache": {
+        "hits": 6,
+        "misses": 0
+      }
+    }
+  ]
+}

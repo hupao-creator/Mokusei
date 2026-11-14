@@ -74,6 +74,13 @@ normal entry behavior and confirms both the completed document and active
 execution are mounted. A background follow-up alone does not reveal a folded
 execution sidecard in an already mounted reader.
 
+The entry scenarios currently open a completed reply without an active Execution
+Sidecard. `output-scroll` admits that Sidecard **before** timing, so the suite does
+not measure opening a running thread with a populated Sidecard. First recognizable
+main-body content also does not establish Sidecard or composer readiness. The
+[November 14 recording diagnosis](../../../design/reader-opening-20261114.md)
+retains evidence of this gap; its Debug logs are not Release benchmark results.
+
 ## Measurements and evidence
 
 The report retains entry-to-recognizable-content intervals, a scheduled usability
