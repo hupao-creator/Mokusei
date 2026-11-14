@@ -26,7 +26,7 @@ An expanded card owning the current running/waiting execution publishes its
 destination column to the resident Moku input through a passive native geometry
 bridge across the reading panel's separate hosting tree. Input
 centers below that column and narrows to fit it. Its horizontal entrance uses a
-620ms-response spring with 0.78 damping for braking and a small rebound; shell
+380ms ease-out native translation without overshoot; shell
 sizing and return keep the 380ms fold curve. On initial entry the compact Dock
 finishes that travel before input expansion is admitted. Later card choices keep
 the editor mounted and open. Dragging/resizing settles directly; stacked layout
@@ -102,7 +102,10 @@ Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 
 Initial Host presentation is the third entrance stage: the main panel finishes
 its actual travel and the main document is ready, then the folded workspace
-commits and admits the requested Sidecard. The resident Agent composer's input gate releases through
+commits and admits the requested Sidecard. Before that commit, a pending available
+execution supplies the main reader's final column width, including the retained
+divider ratio, and its settled body may preload during panel travel. Browser and
+Voice do not join this preloading. The resident Agent composer's input gate releases through
 the same visit check after the compact Dock's horizontal travel completes,
 then starts its 420ms expansion. Without an owning execution Sidecard, input is
 admitted at the layout commit. The card keeps its existing 380ms animation.

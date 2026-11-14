@@ -47,6 +47,7 @@ struct NativeSidecardWorkspaceSnapshot {
     let entranceReady: Bool
     let handoff: NativeSidecardExecutionHandoff?
     let focusLauncherOnClose: Bool
+    var preparingSelection: JSONText? = nil
 
     var available: [NativeSidecardWorkspaceCard] { cards.filter { $0.view.available } }
     // Folding never gives main ownership. A handoff admits a hidden destination
@@ -422,7 +423,8 @@ final class NativeSidecardWorkspaceModel {
             executionDisabled: configuration.executionDisabled,
             suppressed: configuration.suppressed || !configuration.entranceReady,
             entranceReady: configuration.entranceReady, handoff: handoff,
-            focusLauncherOnClose: focusLauncherOnClose)
+            focusLauncherOnClose: focusLauncherOnClose,
+            preparingSelection: configuration.entranceReady ? nil : selected)
         let visible = configuration.entranceReady && cards.contains { $0.id == selected && $0.view.acceptsInput == true }
         let composer = configuration.entranceReady && !configuration.suppressed
             ? cards.first(where: { $0.id == selected && $0.view.available })?.view.composer : nil

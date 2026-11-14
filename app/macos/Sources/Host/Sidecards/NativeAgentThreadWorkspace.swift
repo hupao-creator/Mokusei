@@ -146,6 +146,7 @@ private struct NativeThreadWorkspaceBody: View {
 @MainActor
 struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.nativeThreadPreparing) private var preparing
+    @Environment(\.nativeThreadReaderPreloading) private var preloading
     let model: NativeSidecardWorkspaceModel
     let snapshot: NativeSidecardWorkspaceSnapshot
     /// Previews/replays can supply the same policy without changing OS settings.
@@ -173,6 +174,11 @@ struct NativeSidecardWorkspaceLayout: View {
     private var dividerHitWidth: CGFloat {
         6
     }
+    private var preparingExecution: NativeSidecardWorkspaceCard? {
+        snapshot.cards.first {
+            $0.id == snapshot.preparingSelection && $0.view.available && $0.view.excludeExecutionID != nil
+        }
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -180,6 +186,13 @@ struct NativeSidecardWorkspaceLayout: View {
             // outside the reader; native hit testing must reach that background.
             let panelSize = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
+            // Prepare the actual destination width once, including a retained
+            // divider ratio. The paper still travels in its folded pose; its
+            // heading and hidden reader already use the destination column.
+            let preparedLayout = preparingExecution.map { card in
+                NativeSidecardWorkspaceGeometry(size: panelSize, open: true,
+                    preferredWidth: card.view.preferredWidth, retainedWidth: snapshot.widths[card.id])
+            }
             let dockFrame = dockFrame(in: layout)
             let mainSize = CGSize(
                 width: layout.mainWidth + (panelSize.width - layout.mainWidth) * handoffProgress,
@@ -199,6 +212,9 @@ struct NativeSidecardWorkspaceLayout: View {
                                     inputTargetChanged?(inputOwner, target)
                                 }) {
                                 mainConversation
+                                    .frame(width: preparedLayout?.mainWidth, height: preparedLayout?.mainHeight,
+                                        alignment: .topLeading)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             }
                                 .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
                                 // Reflow the reader once at its destination width.
@@ -331,7 +347,7 @@ struct NativeSidecardWorkspaceLayout: View {
 
     private var mainConversation: some View {
         VStack(spacing: 0) {
-            NativeThreadPreparedReader {
+            NativeThreadPreparedReader(entranceReady: snapshot.entranceReady) {
                 NativeHarnessThreadView(host: model.harnessHost, input: snapshot.input,
                 presentation: .main(excludedExecutionIDs: snapshot.excludedExecutionIDs),
                 routes: model.routes, onIndexChange: model.receiveIndex)
@@ -375,7 +391,8 @@ struct NativeSidecardWorkspaceLayout: View {
         let destination = CGRect(x: layout.surfaceX, y: layout.surfaceY,
             width: layout.surfaceWidth, height: layout.surfaceHeight)
         return Group {
-            if preparing { Color.clear } else { card.view.content }
+            if preparing && !(preloading && preparingExecution?.id == card.id) { Color.clear }
+            else { card.view.content }
         }
             // Only the main reading body may drive the window's navigation chrome.
             // Sidecards reuse timelines and can contain further nested reading views.

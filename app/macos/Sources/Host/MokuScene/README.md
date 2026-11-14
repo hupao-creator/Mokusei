@@ -539,7 +539,7 @@ production bell during headless verification.
 ## Reading-panel Dock
 
 Browser annotation mode temporarily lends the resident composer to the selected
-Browser card. The same native destination marker and spring center it below that
+Browser card. The same native destination marker and translation center it below that
 card, fitting its column. Page focus remains with selection until an element or
 region is chosen, then the text editor receives focus. A separate ephemeral text
 draft describes that selection; normal Thread and Moku drafts remain retained.
@@ -570,8 +570,7 @@ opening an activity does not make that activity its target. Folding the selected
 card, suppression, losing the selected card's eligibility or starting completion
 promotion restores the workspace-centered input. A first execution in main with
 no expanded activity does not move it. Horizontal travel into a target column
-uses a spring (620ms response, 0.78 damping fraction) for a gentler acceleration,
-braking and a small settling rebound. Shell sizing and return retain the
+uses a 380ms ease-out native translation without overshoot. Shell sizing and return retain the
 Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
 travel, and Reduce Motion disables spatial animation. Stacked layouts share the
 panels' full column width and keep the same bottom reading baseline. Composer
