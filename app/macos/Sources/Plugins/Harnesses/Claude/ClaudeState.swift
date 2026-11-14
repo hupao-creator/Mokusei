@@ -10,9 +10,9 @@ struct ClaudeState: Hashable, Sendable {
     init(_ value: JSONValue) throws {
         if let flag = value["initialResponseScope"], flag.boolValue == nil { throw claudeInvalid() }
         initialResponseScope = value == .null || value["initialResponseScope"] == .bool(true)
-        let value = value == .null ? claudeObject(["version": .number(1), "turns": .array([]), "nativeNotifications": .array([])]) : value
+        let value = value == .null ? claudeObject(["version": .number(2), "turns": .array([]), "nativeNotifications": .array([])]) : value
         try claudeKeys(value, ["initialResponseScope", "version", "primarySessionId", "pendingFork", "forkHistory", "goalPromptPending", "runtime", "turns", "nativeNotifications"])
-        guard value["version"] == .number(1), let entries = value["turns"]?.arrayValue, entries.count <= 2_000,
+        guard value["version"] == .number(2), let entries = value["turns"]?.arrayValue, entries.count <= 2_000,
               let notices = value["nativeNotifications"]?.arrayValue, notices.count <= 200 else { throw claudeInvalid() }
         if let id = value["primarySessionId"] { try claudeText(id, max: 512, nonempty: true) }
         if let pending = value["pendingFork"] {
@@ -64,7 +64,7 @@ struct ClaudeTurn: Hashable, Sendable, Identifiable {
     var internalIndexes: Set<Int> { Set((raw["internalPromptIndexes"]?.arrayValue ?? []).compactMap { $0.numberValue.map(Int.init) }) }
     var visiblePrompts: [JSONValue] { prompts.enumerated().filter { !internalIndexes.contains($0.offset) }.map(\.element) }
     init(_ value: JSONValue) throws {
-        try claudeKeys(value, ["author", "executionId", "createdAt", "updatedAt", "finishedAt", "prompts", "promptAttachments", "internalPromptIndexes", "text", "lastAssistantMessage", "reasoning", "status", "statusLabel", "foreground", "error", "plan", "planExplanation", "activities", "interactions", "notices", "timeline", "usage", "diff", "review", "compacted"])
+        try claudeKeys(value, ["author", "executionId", "createdAt", "updatedAt", "finishedAt", "prompts", "promptAttachments", "internalPromptIndexes", "status", "statusLabel", "foreground", "error", "plan", "planExplanation", "activities", "interactions", "notices", "timeline", "usage", "compacted"])
         try claudeText(value["executionId"], max: 512, nonempty: true)
         let created = try claudeNumber(value["createdAt"]), updated = try claudeNumber(value["updatedAt"])
         guard updated >= created, let status = value["status"]?.stringValue, ["running", "completed", "failed", "interrupted"].contains(status) else { throw claudeInvalid() }
@@ -80,8 +80,7 @@ struct ClaudeTurn: Hashable, Sendable, Identifiable {
             guard Set(indexes).count == indexes.count else { throw claudeInvalid() }
             for index in indexes { let number = try claudeNumber(index); guard number.rounded() == number, number < Double(prompts.count) else { throw claudeInvalid() } }
         }
-        for key in ["text", "reasoning"] { try claudeText(value[key], max: 4_000_000) }
-        for (key, limit) in [("statusLabel",512), ("error",100_000), ("planExplanation",32_000), ("diff",500_000), ("review",500_000)] { if let text = value[key] { try claudeText(text, max: limit) } }
+        for (key, limit) in [("statusLabel",512), ("error",100_000), ("planExplanation",32_000)] { if let text = value[key] { try claudeText(text, max: limit) } }
         try claudeValidatePlan(value["plan"])
         for (key, limit) in [("activities",2_000), ("interactions",500), ("notices",500), ("timeline",50_000)] {
             let items = try claudeArray(value[key], max: limit); try claudeUnique(items, key: "id")
@@ -100,10 +99,13 @@ struct ClaudeTurn: Hashable, Sendable, Identifiable {
         for item in timeline {
             let timestamp = item["createdAt"]!.numberValue!
             guard timestamp >= previous else { throw claudeInvalid("timeline order") }; previous = timestamp
-            if ["assistant","reasoning","diff","review"].contains(item.claudeKind) { contentUnits += item.claudeID("content").codeUnits.count }
-            if item.claudeKind == "error" { contentUnits += item.claudeID("message").codeUnits.count }
+            if ["assistant","reasoning","review"].contains(item.claudeKind) { contentUnits += item.claudeID("content").codeUnits.count }
         }
         guard contentUnits <= 4_000_000 else { throw claudeInvalid("timeline content") }
+        try claudeValidateTimelineReferences(timeline,
+            activities: try claudeArray(value["activities"], max: 2_000),
+            interactions: try claudeArray(value["interactions"], max: 500),
+            notices: try claudeArray(value["notices"], max: 500))
         if let author = value["author"] {
             // Accept both persisted shapes: legacy {model, effort} with string
             // fields and the Go encoder's {model, thinking: {mode, effort}}.
@@ -117,10 +119,6 @@ struct ClaudeTurn: Hashable, Sendable, Identifiable {
                     if let field = thinking[key] { try claudeText(field, max: 4_096, nonempty: true, path: "author.thinking.\(key)") }
                 }
             }
-        }
-        if let message = value["lastAssistantMessage"] {
-            try claudeKeys(message,["id","text"]); try claudeText(message["text"],max:100_000)
-            if let id = message["id"] { try claudeText(id,max:512,nonempty:true) }
         }
         if let usage = value["usage"] { try claudeValidateUsage(usage) }
         if let compacted = value["compacted"], compacted != .bool(true) { throw claudeInvalid() }
@@ -142,33 +140,62 @@ struct ClaudeTurn: Hashable, Sendable, Identifiable {
 func claudeProjectTimeline(_ turn: ClaudeTurn) -> [JSONValue] {
     let activities = Dictionary(uniqueKeysWithValues: turn.activities.map { ($0.claudeID("id"), $0) })
     let interactions = Dictionary(uniqueKeysWithValues: turn.interactions.map { ($0.claudeID("id"), $0) })
-    let replace: Set<String> = ["plan", "usage", "review"]
-    var last: [String: Int] = [:], seenActivities = Set<JSONText>(), seenInteractions = Set<JSONText>()
-    for (index, item) in turn.timeline.enumerated() where replace.contains(item.claudeKind) { last[item.claudeKind] = index }
-    return turn.timeline.enumerated().compactMap { index, item in
-        if item.claudeKind == "diff" { return nil }
-        if item.claudeKind == "activity" {
-            let id = item["activity"]?.claudeID("id") ?? ""
-            guard let current = activities[id], seenActivities.insert(id).inserted else { return nil }
+    let notices = Dictionary(uniqueKeysWithValues: turn.notices.map { ($0.claudeID("id"), $0) })
+    return turn.timeline.compactMap { item in
+        switch item.claudeKind {
+        case "activity":
+            guard let current = activities[item.claudeID("activityId")] else { return nil }
             return item.claudeReplacing("activity", current)
-        }
-        if item.claudeKind == "interaction" {
-            let id = item["interaction"]?.claudeID("id") ?? ""
-            guard let current = interactions[id], seenInteractions.insert(id).inserted else { return nil }
+        case "interaction":
+            guard let current = interactions[item.claudeID("interactionId")] else { return nil }
             return item.claudeReplacing("interaction", current)
+        case "notice":
+            guard let current = notices[item.claudeID("noticeId")] else { return nil }
+            return item.claudeReplacing("notice", current)
+        case "error":
+            let message = turn.raw.claudeID("error")
+            guard !message.codeUnits.isEmpty else { return nil }
+            return item.claudeReplacing("message", .string(message))
+        default:
+            return item
         }
-        return replace.contains(item.claudeKind) && last[item.claudeKind] != index ? nil : item
     }
 }
 func claudeActivityRunStarts(_ turn: ClaudeTurn) -> Set<JSONText> {
     let current = Set(turn.activities.map { $0.claudeID("id") }); var seen = Set<JSONText>(), result = Set<JSONText>(), boundary = true
     for item in turn.timeline {
         guard item.claudeKind == "activity" else { boundary = true; continue }
-        let id = item["activity"]!.claudeID("id")
+        let id = item.claudeID("activityId")
         guard current.contains(id), seen.insert(id).inserted else { continue }
         if boundary { result.insert(item.claudeID("id")) }; boundary = false
     }
     return result
+}
+func claudeValidateTimelineReferences(_ timeline: [JSONValue], activities: [JSONValue], interactions: [JSONValue], notices: [JSONValue]) throws {
+    let activityIDs = Set(activities.map { $0.claudeID("id") }), interactionIDs = Set(interactions.map { $0.claudeID("id") }), noticeIDs = Set(notices.map { $0.claudeID("id") })
+    var seen = Set<JSONText>()
+    for item in timeline {
+        let kind = item.claudeKind
+        let id: JSONText
+        switch kind {
+        case "activity": id = item.claudeID("activityId"); guard activityIDs.contains(id) else { throw claudeInvalid("timeline activity reference") }
+        case "interaction": id = item.claudeID("interactionId"); guard interactionIDs.contains(id) else { throw claudeInvalid("timeline interaction reference") }
+        case "notice": id = item.claudeID("noticeId"); guard noticeIDs.contains(id) else { throw claudeInvalid("timeline notice reference") }
+        default: continue
+        }
+        guard seen.insert(JSONText(codeUnits: Array(kind.utf16) + [0x3A] + id.codeUnits)).inserted else { throw claudeInvalid("duplicate timeline reference") }
+    }
+}
+extension ClaudeTurn {
+    var assistantText: String { timeline.filter { $0.claudeKind == "assistant" }.map { $0.claudeID("content").string }.joined() }
+    var lastAssistantText: String {
+        for item in timeline.reversed() where item.claudeKind == "assistant" {
+            let id = item.claudeID("messageId")
+            guard !id.codeUnits.isEmpty else { return item.claudeID("content").string }
+            return timeline.filter { $0.claudeKind == "assistant" && $0.claudeID("messageId") == id }.map { $0.claudeID("content").string }.joined()
+        }
+        return ""
+    }
 }
 func claudeInvalid(_ detail: String = "sessionState") -> PluginContractError { PluginContractError("Claude \(detail) 无效") }
 func claudeInvalidObject(_ path: String) -> PluginContractError { PluginContractError("Claude \(path) 必须是对象") }

@@ -1,5 +1,19 @@
 # Claude Harness
 
+Turn state version 2 uses one authoritative current row per activity,
+interaction and notice. The chronological timeline stores only stable
+`activityId`, `interactionId` or `noticeId` references for those entities, so a
+repeated update never appends another copy of its payload. Pending interaction
+actions, input and validation schemas remain on the current interaction because
+they are actionable data. Assistant and reasoning bodies appear only in the
+timeline (no aggregate `text`/`reasoning` duplicate); summaries, search and
+completed replies derive from that single representation. Plans and usage remain
+current turn fields rather than timeline snapshots; diffs are not retained in
+this reader state. Fork history resolves the referenced entities into its
+separate read-only inline shape. See
+[timeline_test.go](timeline_test.go) and the cross-language
+`testdata/timeline-reader.golden.json` fixture consumed by the native reader.
+
 Exact execution forks accept `{executionId}` beside the existing checkpoint
 selector (mutually exclusive). The adapter retains the public prefix and
 resolves the final assistant's API message ID to its native transcript UUID in

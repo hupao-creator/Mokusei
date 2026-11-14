@@ -32,9 +32,6 @@ type Turn struct {
 	Prompts               []string           `json:"prompts"`
 	PromptAttachments     [][]map[string]any `json:"promptAttachments"`
 	InternalPromptIndexes []int              `json:"internalPromptIndexes,omitempty"`
-	Text                  string             `json:"text"`
-	LastAssistantMessage  map[string]any     `json:"lastAssistantMessage,omitempty"`
-	Reasoning             string             `json:"reasoning"`
 	Status                string             `json:"status"`
 	StatusLabel           string             `json:"statusLabel,omitempty"`
 	Foreground            map[string]any     `json:"foreground,omitempty"`
@@ -46,13 +43,11 @@ type Turn struct {
 	Notices               []map[string]any   `json:"notices"`
 	Timeline              []map[string]any   `json:"timeline"`
 	Usage                 map[string]any     `json:"usage,omitempty"`
-	Diff                  string             `json:"diff,omitempty"`
-	Review                string             `json:"review,omitempty"`
 	Compacted             bool               `json:"compacted,omitempty"`
 }
 
 func NewState() *State {
-	return &State{Version: 1, Turns: []*Turn{}, NativeNotifications: []map[string]any{}}
+	return &State{Version: 2, Turns: []*Turn{}, NativeNotifications: []map[string]any{}}
 }
 func ParseState(raw json.RawMessage) (*State, error) {
 	if model.IsNull(raw) {
@@ -62,7 +57,7 @@ func ParseState(raw json.RawMessage) (*State, error) {
 	if err := json.Unmarshal(raw, &s); err != nil {
 		return nil, err
 	}
-	if s.Version != 1 || s.Turns == nil || s.NativeNotifications == nil || len(s.Turns) > 2000 || len(s.NativeNotifications) > 200 {
+	if s.Version != 2 || s.Turns == nil || s.NativeNotifications == nil || len(s.Turns) > 2000 || len(s.NativeNotifications) > 200 {
 		return nil, errors.New("invalid Claude session state")
 	}
 	if s.PrimarySessionID != "" && s.PendingFork != nil {
@@ -70,7 +65,7 @@ func ParseState(raw json.RawMessage) (*State, error) {
 	}
 	ids := map[string]bool{}
 	for _, t := range s.Turns {
-		if t == nil || t.Prompts == nil || t.PromptAttachments == nil || t.Plan == nil || t.Activities == nil || t.Interactions == nil || t.Notices == nil || t.Timeline == nil || t.ExecutionID == "" || ids[t.ExecutionID] || !contains([]string{"running", "completed", "failed", "interrupted"}, t.Status) || t.Status != "running" && t.FinishedAt == nil || len(t.Prompts) != len(t.PromptAttachments) || len(t.Prompts) > 200 || len(t.Timeline) > 50000 {
+		if t == nil || t.Prompts == nil || t.PromptAttachments == nil || t.Plan == nil || t.Activities == nil || t.Interactions == nil || t.Notices == nil || t.Timeline == nil || t.ExecutionID == "" || ids[t.ExecutionID] || !contains([]string{"running", "completed", "failed", "interrupted"}, t.Status) || t.Status != "running" && t.FinishedAt == nil || len(t.Prompts) != len(t.PromptAttachments) || len(t.Prompts) > 200 || len(t.Timeline) > 50000 || !validTimelineReferences(t) {
 			return nil, errors.New("invalid Claude turn")
 		}
 		ids[t.ExecutionID] = true
@@ -126,6 +121,36 @@ func (t *Turn) append(kind string, fields map[string]any) {
 	}
 	t.Timeline = append(t.Timeline, item)
 }
+
+// reference appends one stable timeline position per entity identity. Entity
+// updates stay in Activities/Interactions/Notices and never create another
+// snapshot in the chronological stream.
+func (t *Turn) reference(kind, field, id string) {
+	if id == "" {
+		return
+	}
+	for _, item := range t.Timeline {
+		if str(item["kind"]) == kind && str(item[field]) == id {
+			return
+		}
+	}
+	t.append(kind, map[string]any{field: id})
+}
+
+func (t *Turn) review(text string) {
+	// Readers only consume the latest review. Replacing the marker keeps one
+	// copy while preserving the update's chronological position.
+	items := t.Timeline[:0]
+	for _, item := range t.Timeline {
+		if str(item["kind"]) != "review" {
+			items = append(items, item)
+		}
+	}
+	clear(t.Timeline[len(items):])
+	t.Timeline = items
+	t.append("review", map[string]any{"content": clip(text, 500000)})
+}
+
 func (t *Turn) addPrompt(input model.AgentInput, checkpoint string) {
 	index := len(t.Prompts)
 	parts := []string{}
@@ -228,16 +253,6 @@ func (t *Turn) text(delta, id string, synthetic bool) {
 			}
 		}
 	}
-	if !synthetic {
-		if t.LastAssistantMessage == nil || id != "" && str(t.LastAssistantMessage["id"]) != id {
-			t.LastAssistantMessage = map[string]any{"text": ""}
-			if id != "" {
-				t.LastAssistantMessage["id"] = id
-			}
-		}
-		t.LastAssistantMessage["text"] = clip(str(t.LastAssistantMessage["text"])+delta, 20000)
-	}
-	t.Text = clip(t.Text+delta, 4000000)
 	if len(t.Timeline) > 0 {
 		last := t.Timeline[len(t.Timeline)-1]
 		if str(last["kind"]) == "assistant" && str(last["messageId"]) == id && str(last["status"]) == "streaming" {
@@ -261,7 +276,6 @@ func (t *Turn) reasoning(delta string) {
 	if delta == "" {
 		return
 	}
-	t.Reasoning = clip(t.Reasoning+delta, 4000000)
 	same := false
 	if len(t.Timeline) > 0 {
 		last := t.Timeline[len(t.Timeline)-1]
@@ -324,9 +338,11 @@ func (t *Turn) activity(value map[string]any) {
 	if str(value["kind"]) != "command" && !(str(value["kind"]) == "agent" && str(value["label"]) == "Workflow") {
 		delete(value, "detail")
 	}
-	t.append("activity", map[string]any{"activity": cloneObject(value)})
-	if !known && str(value["toolName"]) != "" {
-		t.foreground("tool-call", map[string]any{"callId": id, "toolName": clip(str(value["toolName"]), 64)})
+	if !known {
+		t.reference("activity", "activityId", id)
+		if str(value["toolName"]) != "" {
+			t.foreground("tool-call", map[string]any{"callId": id, "toolName": clip(str(value["toolName"]), 64)})
+		}
 	}
 }
 func (t *Turn) activityEnd(id, status, detail string) {
@@ -347,13 +363,12 @@ func (t *Turn) interaction(value map[string]any) {
 	for i, v := range t.Interactions {
 		if str(v["id"]) == str(value["id"]) {
 			t.Interactions[i] = value
-			t.append("interaction", map[string]any{"interaction": cloneObject(value)})
 			return
 		}
 	}
 	if len(t.Interactions) < 500 {
 		t.Interactions = append(t.Interactions, value)
-		t.append("interaction", map[string]any{"interaction": cloneObject(value)})
+		t.reference("interaction", "interactionId", str(value["id"]))
 	}
 	t.StatusLabel = "等待你的回应"
 }
@@ -363,11 +378,19 @@ func (t *Turn) notice(level, message string) {
 	}
 	n := map[string]any{"id": newID(), "level": level, "message": clip(message, 20000)}
 	t.Notices = append(t.Notices, n)
-	t.append("notice", map[string]any{"notice": cloneObject(n)})
+	t.reference("notice", "noticeId", str(n["id"]))
 }
 func (t *Turn) fail(message string) {
 	t.Error = clip(message, 100000)
-	t.append("error", map[string]any{"message": t.Error})
+	items := t.Timeline[:0]
+	for _, item := range t.Timeline {
+		if str(item["kind"]) != "error" {
+			items = append(items, item)
+		}
+	}
+	clear(t.Timeline[len(items):])
+	t.Timeline = items
+	t.append("error", nil)
 }
 func (t *Turn) settle(outcome string, at int64, background map[string]bool) {
 	if t.Status != "running" {
@@ -414,6 +437,61 @@ func (s *State) background() map[string]bool {
 	}
 	return out
 }
+func validTimelineReferences(t *Turn) bool {
+	activities, interactions, notices := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	for _, values := range []struct {
+		items []map[string]any
+		seen  map[string]bool
+	}{{t.Activities, activities}, {t.Interactions, interactions}, {t.Notices, notices}} {
+		for _, item := range values.items {
+			id := str(item["id"])
+			if id == "" || values.seen[id] {
+				return false
+			}
+			values.seen[id] = true
+		}
+	}
+	seen := map[string]bool{}
+	for _, item := range t.Timeline {
+		kind := str(item["kind"])
+		var field string
+		var current map[string]bool
+		switch kind {
+		case "activity":
+			field, current = "activityId", activities
+		case "interaction":
+			field, current = "interactionId", interactions
+		case "notice":
+			field, current = "noticeId", notices
+		case "error":
+			// The current error owns the body; the timeline carries only its position.
+			if item["message"] != nil {
+				return false
+			}
+			continue
+		case "plan", "usage", "diff":
+			return false
+		default:
+			continue
+		}
+		// Inline entity snapshots belong to the previous schema and are not
+		// accepted beside the authoritative tables.
+		if item[kind] != nil {
+			return false
+		}
+		id := str(item[field])
+		if id == "" || !current[id] {
+			return false
+		}
+		key := kind + ":" + id
+		if seen[key] {
+			return false
+		}
+		seen[key] = true
+	}
+	return true
+}
+
 func taskStatus(s string) string {
 	switch strings.ToLower(s) {
 	case "completed", "done", "success", "succeeded":
@@ -441,6 +519,46 @@ func (s *State) settleBackground() {
 		}
 	}
 }
+func timelineText(timeline []map[string]any, kind string) string {
+	var text strings.Builder
+	for _, item := range timeline {
+		if str(item["kind"]) == kind {
+			text.WriteString(str(item["content"]))
+		}
+	}
+	return clip(text.String(), 4000000)
+}
+
+// lastAssistantMessage returns the latest message identity and its complete
+// body. Multiple streaming segments share one identity and are joined in
+// timeline order; synthetic text without a native id is one item.
+func (t *Turn) lastAssistantMessage() (string, string) {
+	for index := len(t.Timeline) - 1; index >= 0; index-- {
+		item := t.Timeline[index]
+		if str(item["kind"]) != "assistant" {
+			continue
+		}
+		id := str(item["messageId"])
+		if id == "" {
+			return "", str(item["content"])
+		}
+		var text strings.Builder
+		for _, segment := range t.Timeline {
+			if str(segment["kind"]) == "assistant" && str(segment["messageId"]) == id {
+				text.WriteString(str(segment["content"]))
+			}
+		}
+		return id, text.String()
+	}
+	return "", ""
+}
+func (t *Turn) assistantText() string { return timelineText(t.Timeline, "assistant") }
+func (t *Turn) reasoningText() string { return timelineText(t.Timeline, "reasoning") }
+func (t *Turn) lastAssistantText() string {
+	_, text := t.lastAssistantMessage()
+	return clip(text, 20000)
+}
+
 func clip(s string, n int) string {
 	s = strings.ReplaceAll(s, "\x00", "")
 	r := []rune(s)
@@ -550,9 +668,9 @@ func (s *State) observation() model.PublicObservation {
 		return out
 	}
 	execution := &model.PublicExecution{ExecutionID: t.ExecutionID, Status: t.Status, StartedAt: t.CreatedAt, FinishedAt: t.FinishedAt}
-	summary := str(t.LastAssistantMessage["text"])
+	summary := t.lastAssistantText()
 	if t.Status == "running" {
-		summary = clip(nonempty(t.Text, t.Reasoning), 2000)
+		summary = clip(nonempty(t.assistantText(), t.reasoningText()), 2000)
 	}
 	if summary != "" {
 		execution.Summary = &summary
@@ -687,8 +805,6 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 				activity["label"] = ""
 			}
 			for _, turn := range turns {
-				hide(turn.ExecutionID+":unreferenced:reasoning", "content", turn.Reasoning)
-				turn.Reasoning = hide(turn.ExecutionID, "reasoning", turn.Reasoning)
 				turn.Foreground = nil
 				for _, activity := range turn.Activities {
 					hideActivity(activity, str(activity["id"]))
@@ -696,10 +812,6 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 				for _, item := range turn.Timeline {
 					if str(item["kind"]) == "reasoning" {
 						item["content"] = hide(str(item["id"]), "content", str(item["content"]))
-					}
-					if str(item["kind"]) == "activity" {
-						activity := obj(item["activity"])
-						hideActivity(activity, str(activity["id"]))
 					}
 				}
 			}

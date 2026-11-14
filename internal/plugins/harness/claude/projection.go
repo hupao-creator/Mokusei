@@ -74,7 +74,7 @@ func compactRenderer(s *State, scope model.RendererScope, initialResponseScope b
 	}
 	for i := len(s.Turns) - 1; i >= 0; i-- {
 		turn := s.Turns[i]
-		if cardItem(turn) != nil || turn.Status == "completed" && strings.TrimSpace(turn.Text+turn.Reasoning) != "" {
+		if cardItem(turn) != nil || turn.Status == "completed" && strings.TrimSpace(turn.assistantText()+turn.reasoningText()) != "" {
 			preview[turn] = true
 			break
 		}
@@ -141,13 +141,6 @@ func compactRenderer(s *State, scope model.RendererScope, initialResponseScope b
 func compactTurn(t *Turn, preview, current, overview bool) {
 	originalTimeline := t.Timeline
 	card, reply := cardItem(t), replyItem(t)
-	hasTextItem := false
-	for _, item := range originalTimeline {
-		if str(item["kind"]) == "assistant" || str(item["kind"]) == "reasoning" {
-			hasTextItem = true
-			break
-		}
-	}
 	visible := []string{}
 	first, last := -1, -1
 	for index, prompt := range t.Prompts {
@@ -192,41 +185,29 @@ func compactTurn(t *Turn, preview, current, overview bool) {
 			if !selected {
 				continue
 			}
-			text := str(item["content"])
-			if str(item["kind"]) == "assistant" && str(item["messageId"]) != "" {
-				text = ""
-				for _, segment := range originalTimeline {
-					if str(segment["kind"]) == "assistant" && str(segment["messageId"]) == str(item["messageId"]) {
-						text = clip(text+str(segment["content"]), 1200)
-						if len([]rune(text)) >= 1200 {
-							break
-						}
-					}
-				}
-			}
-			item["content"] = clip(strings.TrimSpace(text), 1200)
+			item["content"] = overviewTimelineText(item, originalTimeline, 1200)
 			t.Timeline = append(t.Timeline, item)
 		}
+	} else if overview {
+		// Catalog Overview keeps a bounded assistant/reasoning item so exact
+		// historical execution previews still derive from the timeline rather
+		// than a second aggregate body.
+		if item := card; item != nil {
+			copy := cloneObject(item)
+			copy["content"] = overviewTimelineText(item, originalTimeline, 600)
+			t.Timeline = append(t.Timeline, copy)
+		} else if item := reply; item != nil {
+			copy := cloneObject(item)
+			copy["content"] = overviewTimelineText(item, originalTimeline, 600)
+			t.Timeline = append(t.Timeline, copy)
+		}
 	}
-	// Keep bounded assistant text for historical Report links as well.
-	t.Text = clip(t.Text, 600)
 	if preview {
 		t.Error = clip(t.Error, 1200)
-		if t.LastAssistantMessage != nil {
-			t.LastAssistantMessage["text"] = clip(str(t.LastAssistantMessage["text"]), 1200)
-		}
 	} else {
 		t.Error = ""
-		t.LastAssistantMessage = nil
-	}
-	if overview && preview && !hasTextItem {
-		t.Reasoning = clip(t.Reasoning, 1200)
-	} else {
-		t.Reasoning = ""
 	}
 	t.Notices = []map[string]any{}
-	t.Diff = ""
-	t.Review = ""
 	t.PlanExplanation = ""
 	t.StatusLabel = clip(t.StatusLabel, 1200)
 	if current {
@@ -279,6 +260,22 @@ func compactTurn(t *Turn, preview, current, overview bool) {
 		t.Foreground = nil
 	}
 }
+func overviewTimelineText(item map[string]any, original []map[string]any, limit int) string {
+	text := str(item["content"])
+	if str(item["kind"]) == "assistant" && str(item["messageId"]) != "" {
+		text = ""
+		for _, segment := range original {
+			if str(segment["kind"]) == "assistant" && str(segment["messageId"]) == str(item["messageId"]) {
+				text = clip(text+str(segment["content"]), limit)
+				if len([]rune(text)) >= limit {
+					break
+				}
+			}
+		}
+	}
+	return clip(strings.TrimSpace(text), limit)
+}
+
 func compactInteraction(interaction map[string]any) map[string]any {
 	copy := cloneObject(interaction)
 	delete(copy, "schema")

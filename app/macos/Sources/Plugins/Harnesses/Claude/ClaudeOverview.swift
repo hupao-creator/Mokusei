@@ -111,10 +111,6 @@ func claudeOverviewAgentMessage(_ turns: [ClaudeTurn]) -> ClaudeOverviewMessage?
             let content = nativeID.map { id in JSONText(codeUnits: turn.timeline.filter { $0.claudeKind == "assistant" && $0["messageId"] == id }.flatMap { $0.claudeID("content").codeUnits }) } ?? latest.claudeID("content")
             return ClaudeOverviewMessage(id: JSONText(claudeJSONString(.array([.string(turn.id), .text(latest.claudeKind), nativeID ?? latest["id"]!]))), text: claudeTrimText(content))
         }
-        if turn.status == "completed", !turn.timeline.contains(where: { ["assistant","reasoning"].contains($0.claudeKind) }) {
-            let text = claudeTrimText(turn.raw.claudeID(turn.raw.claudeID("text").codeUnits.isEmpty ? "reasoning" : "text"))
-            if !text.codeUnits.isEmpty { return ClaudeOverviewMessage(id: JSONText(claudeJSONString(.array([.string(turn.id),.text("answer")]))), text: text) }
-        }
     }
     return nil
 }

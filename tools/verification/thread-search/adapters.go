@@ -35,8 +35,9 @@ func verifyTextAdapters() {
 			codexState = codex.SettleExecution(codexState, id, outcome, at+1, "")
 		}
 		turn := cs.NewTurn(id, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: text}}}, claude.Settings{})
-		turn.Text = text + " assistant reply"
-		turn.Reasoning = "NEVER_UPLOAD_REASONING"
+		turn.Timeline = append(turn.Timeline,
+			map[string]any{"id": id + "-assistant", "kind": "assistant", "createdAt": turn.UpdatedAt, "content": text + " assistant reply", "status": "complete"},
+			map[string]any{"id": id + "-reasoning", "kind": "reasoning", "createdAt": turn.UpdatedAt, "content": "NEVER_UPLOAD_REASONING"})
 		turn.PromptAttachments[0] = []map[string]any{{"url": "NEVER_UPLOAD_ATTACHMENT"}}
 		turn.Status = outcome
 		if outcome != "running" {
