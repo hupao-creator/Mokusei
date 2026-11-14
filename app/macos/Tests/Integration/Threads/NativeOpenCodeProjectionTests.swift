@@ -80,3 +80,74 @@ struct NativeOpenCodeProjectionTests {
         ]))
     }
 }
+
+extension NativeOpenCodeProjectionTests {
+    @Test func compactPreviewCoexistsWithReasoningPart() throws {
+        let state = try state(.object([
+            "id": .text("assistant"),
+            "executionId": .text("execution"),
+            "role": .text("assistant"),
+            "status": .text("complete"),
+            "text": .text("bounded preview"),
+            "parts": .array([.object(["type": .text("reasoning"), "ordinal": .number(0), "text": .text("reason")])]),
+        ]))
+        let message = try #require(state.messages.first)
+        #expect(message.text == "bounded preview")
+        #expect(message.thinking == "reason")
+    }
+
+    @Test func rejectsNonemptyPreviewWithTextPart() {
+        let message = JSONValue.object([
+            "id": .text("assistant"),
+            "executionId": .text("execution"),
+            "role": .text("assistant"),
+            "text": .text("duplicate"),
+            "parts": .array([.object(["type": .text("text"), "ordinal": .number(0), "text": .text("duplicate")])]),
+        ])
+        #expect(throws: OpenCodeError.self) { try state(message) }
+    }
+
+    @Test func emptyAggregateDoesNotShadowAssistantParts() throws {
+        let state = try state(.object([
+            "id": .text("assistant"),
+            "executionId": .text("execution"),
+            "role": .text("assistant"),
+            "status": .text("complete"),
+            "text": .text(""),
+            "parts": .array([.object(["type": .text("text"), "ordinal": .number(0), "text": .text("answer")])]),
+        ]))
+        let message = try #require(state.messages.first)
+        #expect(message.text == "answer")
+    }
+}
+
+extension NativeOpenCodeProjectionTests {
+    @Test func compactOverviewPrefersTextPreviewOverReasoningPart() throws {
+        let message = try OpenCodeMessage(.object([
+            "id": .text("assistant"),
+            "executionId": .text("execution"),
+            "role": .text("assistant"),
+            "status": .text("complete"),
+            "text": .text("bounded preview"),
+            "parts": .array([.object(["type": .text("reasoning"), "ordinal": .number(0), "text": .text("reason")])]),
+        ]))
+        let selected = try #require(ocOverviewMessage([message], sessionID: nil, status: .completed))
+        #expect(selected.text == "bounded preview")
+        // The aggregate preview has no text part ordinal; it must not borrow the
+        // reasoning part's ordinal and point the anchor at a different row.
+        #expect(selected.id == ocJSONStringID([.string("execution"), .text("assistant"), .string("assistant"), .text("text"), .null]))
+    }
+
+    @Test func compactOverviewReasoningKeepsItsOrdinal() throws {
+        let message = try OpenCodeMessage(.object([
+            "id": .text("assistant"),
+            "executionId": .text("execution"),
+            "role": .text("assistant"),
+            "status": .text("complete"),
+            "parts": .array([.object(["type": .text("reasoning"), "ordinal": .number(3), "text": .text("reason")])]),
+        ]))
+        let selected = try #require(ocOverviewMessage([message], sessionID: nil, status: .completed))
+        #expect(selected.text == "reason")
+        #expect(selected.id == ocJSONStringID([.string("execution"), .text("assistant"), .string("assistant"), .text("reasoning"), .number(3)]))
+    }
+}

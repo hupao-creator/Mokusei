@@ -33,7 +33,7 @@ func TestSearchTextPublicCompletedOnly(t *testing.T) {
 		}
 	}
 	messages = append(messages, map[string]any{"id": "unknown", "executionId": "unknown", "role": "assistant", "parts": []any{map[string]any{"type": "text", "ordinal": 0, "text": "PRIVATE_UNKNOWN"}}})
-	raw, err := json.Marshal(map[string]any{"version": 1, "messages": messages, "executions": executions, "latestExecutionId": "running"})
+	raw, err := json.Marshal(map[string]any{"version": StateVersion, "messages": messages, "executions": executions, "latestExecutionId": "running"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -82,9 +82,15 @@ func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONText?, stat
         let part = live ? message.parts.last(where: { $0["type"]?.stringValue == "text" && eligible($0) }) ?? message.parts.last(where: eligible) : message.parts.last(where: eligible)
         let answer = complete ? ocTrimText(JSONText(message.text)) : JSONText("")
         let reasoning = reasoningEligible ? ocTrimText(JSONText(message.thinking)) : JSONText("")
-        let kind = part?["type"]?.stringValue ?? (answer.codeUnits.isEmpty ? "reasoning" : "text")
-        let text = kind == "reasoning" && part != nil ? ocTrimText(part?.ocID("text") ?? "") : !answer.codeUnits.isEmpty ? answer : part?["type"]?.stringValue == "text" ? ocTrimText(part?.ocID("text") ?? "") : reasoning
-        if !text.codeUnits.isEmpty { return (id: ocJSONStringID([.string(message.executionID), .text(message.role), .string(message.id), .text(kind), part?["ordinal"] ?? .null]), text: text) }
+        // A settled preview is the answer even when a later reasoning part is
+        // the card's detail part; compact [text, reasoning] must not hide text.
+        let kind = !answer.codeUnits.isEmpty ? "text" : part?["type"]?.stringValue ?? "reasoning"
+        let text = !answer.codeUnits.isEmpty ? answer : kind == "reasoning" && part != nil ? ocTrimText(part?.ocID("text") ?? "") : part?["type"]?.stringValue == "text" ? ocTrimText(part?.ocID("text") ?? "") : reasoning
+        // The aggregate answer has no part ordinal. Attach an ordinal only when
+        // the selected part has the returned kind; otherwise the anchor would
+        // claim text while pointing at a reasoning row.
+        let ordinal = part?["type"]?.stringValue == kind ? part?["ordinal"] ?? .null : .null
+        if !text.codeUnits.isEmpty { return (id: ocJSONStringID([.string(message.executionID), .text(message.role), .string(message.id), .text(kind), ordinal]), text: text) }
     }
     return nil
 }

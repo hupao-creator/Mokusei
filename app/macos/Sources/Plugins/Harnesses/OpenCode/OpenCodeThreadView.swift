@@ -286,7 +286,9 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
         guard message.role == "assistant" else { continue }
         var parts = message.parts
         if parts.isEmpty {
-            if !message.thinking.isEmpty || presence.contains(message.id, "thinking") { parts.append(.object(["type": .text("reasoning"), "ordinal": .number(-1), "text": .text(message.thinking)])) }
+            // Canonical state v2 stores assistant reasoning in parts. A parts-less
+            // assistant row is only a compact directory preview, so it can carry
+            // text but never a separate thinking aggregate.
             if !message.text.isEmpty || presence.contains(message.id, "text") { parts.append(.object(["type": .text("text"), "ordinal": .number(0), "text": .text(message.text)])) }
         }
         var renderedText = false
@@ -300,7 +302,7 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
                 if let tool = tools[ocJoinedID([message.id, ":tool:", part.ocID("toolCallId")])], renderedTools.insert(tool.id).inserted { result.append(ocToolRow(tool, locale: locale, agentDetail: agentDetail)) }; continue
             }
             let text = part["text"]?.stringValue ?? ""
-            let field = message.parts.isEmpty ? (type == "text" ? "text" : "thinking") : "parts:\(type):\(part["ordinal"]?.intValue ?? 0)"
+            let field = message.parts.isEmpty ? "text" : "parts:\(type):\(part["ordinal"]?.intValue ?? 0)"
             guard !ocTrim(text).isEmpty || presence.contains(message.id, field) else { continue }
             if type == "text" { renderedText = true }
             let id = ocMessagePartRowID(message, part)

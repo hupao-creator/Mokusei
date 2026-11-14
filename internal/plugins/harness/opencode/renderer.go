@@ -202,6 +202,22 @@ func rendererExecution(state *State, base Object, scope model.RendererScope, sou
 			projected = append(projected, body)
 			continue
 		}
+		// Child prompts reveal the same execution work as tool input/output and
+		// stay behind the full resource even though the parent prompt is visible.
+		// Tool messages have no aggregate text under the one-body schema.
+		if text, exists := body["text"].(string); exists && message.Role != "assistant" {
+			body["text"] = hide(message.ID, "text", text)
+		}
+		if message.Role == "tool" {
+			// Tool bodies have no aggregate text under the one-body schema. Mark
+			// each hidden producer-rendered display so presence still reflects
+			// what the deferred row omitted.
+			for _, field := range []string{"argumentsDisplay", "resultDisplay"} {
+				if text, ok := body[field].(string); ok && rendererNativeNonempty(text) {
+					nonempty = append(nonempty, Object{"id": message.ID, "field": field})
+				}
+			}
+		}
 		for _, key := range []string{"argumentsDisplay", "resultDisplay", "todos", "annotations", "attachments"} {
 			delete(body, key)
 		}
@@ -409,7 +425,8 @@ func rendererCardMessage(state *State, latest, status string) *Message {
 		if message.ExecutionID != latest || message.Inherited || message.Role != "assistant" || message.Status != "complete" && !live || message.NativeSessionID != "" && message.NativeSessionID != state.NativeSessionID {
 			continue
 		}
-		if message.Status == "complete" && rendererTrim(messageText(message)) != "" || (live || status == "completed") && rendererTrim(messageThinking(message)) != "" || rendererCardPart(message, status) != nil {
+		text, thinking := messageText(message), messageThinking(message)
+		if message.Status == "complete" && rendererTrim(text) != "" || (live || status == "completed") && rendererTrim(thinking) != "" || rendererCardPart(message, status) != nil {
 			return message
 		}
 	}
@@ -450,24 +467,23 @@ func rendererReplyMessage(state *State) *Message {
 	return nil
 }
 func rendererCompactMessage(message *Message, preview, card, todo bool, usage Object, cardStatus string, source rendererSource) Object {
+	var cardPart *Part
+	if card {
+		// rendererCardPart returns only text or reasoning parts.
+		cardPart = rendererCardPart(message, cardStatus)
+	}
+	// A selected text part replaces the bounded preview because it is the same
+	// body. A reasoning part is additional detail on a settled card, so keep the
+	// text preview; [text, reasoning] must not hide the answer. Live and
+	// reasoning-only cards still carry their exact part.
+	partBody := cardPart != nil && (message.Status != "complete" || cardPart.Type == "reasoning")
 	var text any = ""
-	if preview {
+	if preview && !(partBody && cardPart.Type == "text") {
 		limit := rendererPreview
 		if message.Role == "user" {
 			limit = rendererDirectoryPreview
 		}
 		text = rendererClip(rendererTrim(messageText(message)), limit)
-	}
-	var cardPart *Part
-	if card {
-		cardPart = rendererCardPart(message, cardStatus)
-	}
-	// A card body is either its text preview or one selected part, never both.
-	// Live cards and reasoning-only cards need the exact part; settled text
-	// cards use the same bounded preview as their directory row.
-	partBody := cardPart != nil && cardPart.Type != "tool" && (message.Status != "complete" || cardPart.Type == "reasoning")
-	if partBody {
-		text = ""
 	}
 	result := Object{"id": message.ID, "executionId": message.ExecutionID, "role": message.Role}
 	if message.Role != "tool" {

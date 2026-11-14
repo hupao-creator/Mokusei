@@ -68,13 +68,38 @@ func (part Part) MarshalJSON() ([]byte, error) {
 // tool payloads never use the aggregate fields, so there is one durable source
 // for each visible body.
 func partContent(parts []Part, kind string) string {
-	var text strings.Builder
-	for _, part := range parts {
-		if part.Type == kind {
-			text.WriteString(part.Text)
+	first := -1
+	for index := range parts {
+		if parts[index].Type != kind {
+			continue
 		}
+		if first < 0 {
+			first = index
+			continue
+		}
+		// Reuse the first part's string instead of copying a single large body
+		// every time a compact projection asks for it.
+		size := len(parts[first].Text) + len(parts[index].Text)
+		for _, part := range parts[index+1:] {
+			if part.Type == kind {
+				size += len(part.Text)
+			}
+		}
+		var text strings.Builder
+		text.Grow(size)
+		text.WriteString(parts[first].Text)
+		text.WriteString(parts[index].Text)
+		for _, part := range parts[index+1:] {
+			if part.Type == kind {
+				text.WriteString(part.Text)
+			}
+		}
+		return text.String()
 	}
-	return text.String()
+	if first >= 0 {
+		return parts[first].Text
+	}
+	return ""
 }
 func messageText(message *Message) string {
 	if message.Role != "assistant" {
@@ -164,14 +189,26 @@ type State struct {
 	Foregrounds          []Object                 `json:"foregrounds,omitempty"`
 }
 
+// StateVersion 2 stores assistant bodies only in ordered parts and tool bodies
+// only in raw payloads. Version 1 duplicated assistant text/reasoning as
+// aggregates and tool text beside structured data, so it cannot be decoded into
+// this schema without silently losing thinking-only replies. There is no
+// migration: the project has not shipped and a retained version 1 thread must be
+// rebuilt or cleared instead of guessing which copy was authoritative.
+const StateVersion = 2
+
 func DecodeState(raw json.RawMessage) (*State, error) {
-	s := &State{Version: 1, Messages: []*Message{}, Executions: []*model.PublicExecution{}, Interactions: []*Interaction{}}
+	s := &State{Version: StateVersion, Messages: []*Message{}, Executions: []*model.PublicExecution{}, Interactions: []*Interaction{}}
 	if len(raw) > 0 && string(raw) != "null" {
 		if err := json.Unmarshal(raw, s); err != nil {
 			return nil, err
 		}
-		if s.Version != 1 {
-			return nil, errors.New("unsupported OpenCode state version")
+		switch s.Version {
+		case StateVersion:
+		case 1:
+			return nil, errors.New("OpenCode state version 1 uses the retired duplicated-content schema; rebuild or clear the thread")
+		default:
+			return nil, fmt.Errorf("unsupported OpenCode state version %d", s.Version)
 		}
 	}
 	if s.NativeExecutions == nil {
@@ -266,9 +303,13 @@ func (s *State) Settle(id, outcome string, at int64, reason string) {
 		e.Interactions = nil
 		for i := len(s.Messages) - 1; i >= 0; i-- {
 			m := s.Messages[i]
-			if m.ExecutionID == id && m.Role == "assistant" && (m.NativeSessionID == "" || m.NativeSessionID == s.NativeSessionID) && strings.TrimSpace(messageText(m)) != "" {
-				text := clip(messageText(m), 100000)
-				e.Summary = &text
+			if m.ExecutionID != id || m.Role != "assistant" || (m.NativeSessionID != "" && m.NativeSessionID != s.NativeSessionID) {
+				continue
+			}
+			text := messageText(m)
+			if strings.TrimSpace(text) != "" {
+				summary := clip(text, 100000)
+				e.Summary = &summary
 				break
 			}
 		}
@@ -456,6 +497,11 @@ func contentText(value any) string {
 func toolResult(t *Message, content, nativeError any) {
 	t.Result = content
 	t.Status = "complete"
+	// Native retries can settle the same call successfully after an earlier
+	// failure. Clear both diagnostic copies so the projection cannot show a
+	// stale error beside a successful result.
+	t.IsError = false
+	t.ToolError = nil
 	if nativeError != nil {
 		t.IsError = true
 		t.Status = "failed"

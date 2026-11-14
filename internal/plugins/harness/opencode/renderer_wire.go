@@ -11,9 +11,25 @@ import (
 	"unicode/utf16"
 )
 
+// A record keeps the encoded object plus its per-field raw values. Decoding the
+// whole object eagerly would retain a third copy of every large tool payload
+// beside these fields; object() materializes it only for callers that need it.
+// Messages never need the whole record: retain only identity, presence flags and
+// the raw tool payloads used to render the single display projection, so the
+// source does not pin a second copy of every message for the whole projection.
 type rendererRecord struct {
-	value  Object
+	raw    json.RawMessage
 	fields map[string]json.RawMessage
+}
+
+type rendererMessageFields struct {
+	ID          json.RawMessage `json:"id"`
+	ToolName    json.RawMessage `json:"toolName"`
+	Arguments   json.RawMessage `json:"arguments"`
+	Result      json.RawMessage `json:"result"`
+	Annotations json.RawMessage `json:"annotations"`
+	Attachments json.RawMessage `json:"attachments"`
+	Todos       json.RawMessage `json:"todos"`
 }
 type rendererSource struct {
 	fields  map[string]json.RawMessage
@@ -28,17 +44,37 @@ func newRendererSource(raw json.RawMessage) rendererSource {
 		var items []json.RawMessage
 		_ = json.Unmarshal(source.fields[collection], &items)
 		for _, item := range items {
-			record := rendererRecord{}
-			_ = json.Unmarshal(item, &record.value)
-			_ = json.Unmarshal(item, &record.fields)
-			key := str(record.value["id"])
+			record := rendererRecord{fields: map[string]json.RawMessage{}}
+			if collection == "messages" {
+				var fields rendererMessageFields
+				_ = json.Unmarshal(item, &fields)
+				for name, value := range map[string]json.RawMessage{
+					"id": fields.ID, "toolName": fields.ToolName, "arguments": fields.Arguments, "result": fields.Result,
+					"annotations": fields.Annotations, "attachments": fields.Attachments, "todos": fields.Todos,
+				} {
+					if value != nil {
+						record.fields[name] = value
+					}
+				}
+			} else {
+				record.raw = item
+				_ = json.Unmarshal(item, &record.fields)
+			}
+			key := rendererText(record.fields["id"])
 			if collection == "executions" {
-				key = str(record.value["executionId"])
+				key = rendererText(record.fields["executionId"])
 			}
 			if collection == "interactions" || collection == "auxiliaryUsage" {
-				key = str(record.value["executionId"]) + "\x00" + key
+				key = rendererText(record.fields["executionId"]) + "\x00" + key
 			}
 			source.records[collection][key] = record
+		}
+		// The indexed records own the projected fields. Drop the duplicate
+		// encoded collection so the source does not pin a second copy of every
+		// message/execution for the whole projection. auxiliaryUsage keeps its
+		// top-level sentinel because has() uses it for optionality.
+		if collection != "auxiliaryUsage" {
+			delete(source.fields, collection)
 		}
 	}
 	return source
@@ -49,7 +85,10 @@ func (source rendererSource) field(collection, id, field string) json.RawMessage
 }
 func (source rendererSource) object(collection, id string, fallback any) Object {
 	if record, exists := source.records[collection][id]; exists {
-		return clone(record.value)
+		var value Object
+		if json.Unmarshal(record.raw, &value) == nil {
+			return value
+		}
 	}
 	return rendererObject(fallback)
 }

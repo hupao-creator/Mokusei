@@ -49,30 +49,43 @@ use producer-rendered `argumentsDisplay`/`resultDisplay` strings. Raw tool paylo
 assistant aggregates and tool metadata do not enter the renderer projection; the
 native reader trusts the projected display instead of rebuilding or checking a
 second JSON copy. Canonical state retains only the raw tool payload, not a second
-extracted body. Deferred turn projections retain all assistant reply text, including interim
-and child-session replies, without acquiring execution-detail content. Reasoning and tool
-output keep their deferred presentation. Error
-and failed-message payloads, including child sessions, remain available for
-independent diagnostics; retained tool failures do not bypass Agent summaries.
-Canonical history and full/execution projections retain their user-visible
-content and diagnostics under this one-body schema.
+extracted body. Deferred turn projections retain assistant reply text, including
+interim and child-session replies, without acquiring execution-detail content.
+Child-session user prompts, reasoning and tool displays stay hidden and contribute
+`nonempty` markers (`text` only for the hidden child prompt,
+`parts:<type>:<ordinal>` for reasoning, `argumentsDisplay`/`resultDisplay` for
+tools) so collapse state survives without leaking private work. Error and failed-message payloads, including child sessions, remain
+available for independent diagnostics; retained tool failures do not bypass Agent
+summaries. Canonical history and full/execution projections retain their
+user-visible content and diagnostics under this one-body schema.
+Canonical persisted state is version 2; the renderer projection is a separate,
+transient contract that remains version 1. Version 1 canonical state duplicated
+assistant text/reasoning as aggregates and tool text beside structured data, so it
+is rejected with an explicit rebuild/clear error rather than silently dropping
+thinking-only replies; there is no in-place migration before release.
 If a projection would exceed the content transport boundary, the adapter sends a
-bounded fallback instead of failing the whole surface: redundant tool results and
-displays are removed, text/tool/scalar fields are truncated, deferred `nonempty`
-presence is filtered from the original envelope by the retained message IDs, and
-pathological execution, interaction and message counts are reduced. Unreferenceable
-oversized or malformed public IDs are dropped instead of hashed, so observation
-targets, tool composite IDs and native interaction public IDs cannot silently
-diverge. Public and native interactions use the same pending-first retention, and
-authors are capped at Swift's 4,096-byte field limit; reasoning foregrounds are
-capped at Swift's 32,768-code-point head guard. A final whole-envelope check
-falls back to a minimal legal projection if any hostile field still escapes the
-budget. The adapter may encode the envelope at most six times: one initial check,
-four degraded stages, and one fixed-size minimal fallback.
+bounded fallback instead of failing the whole surface: raw tool payloads are
+removed, producer-rendered tool displays and scalar fields are truncated,
+assistant parts stay the sole body (no empty aggregate is injected), deferred
+`nonempty` presence is filtered from the original envelope to retained message IDs
+and surviving parts, and pathological execution, interaction and message counts
+are reduced. Unreferenceable oversized or malformed public IDs are dropped instead
+of hashed, so observation targets, tool composite IDs and native interaction
+public IDs cannot silently diverge. Public and native interactions use the same
+pending-first retention, and authors are capped at Swift's 4,096-byte field limit;
+reasoning foregrounds are capped at Swift's 32,768-code-point head guard. A final
+whole-envelope check falls back to a minimal legal projection if any hostile field
+still escapes the budget. The adapter may encode the envelope at most six times:
+one initial check, four degraded stages, and one fixed-size minimal fallback.
+The renderer source indexes only the message fields used by the one-body
+projection (identity, tool display inputs and presence flags) and releases the
+duplicate encoded collections before projecting, so peak memory stays close to
+canonical state instead of retaining a second full conversation.
 The projection carries `contentTruncated` so the native reader can explain the
 omission/truncation; the authoritative session state is never rewritten. The
 targeted adapter tests cover light/heavy/skeleton/final stages, the 24 MiB
-boundary, retained reasoning presence, long-ID rejection, pending interaction
+boundary, the deferred presence budget with valid reasoning-part markers, dedupe,
+retained reasoning presence, long-ID rejection, pending interaction
 correspondence, latest-execution retention, parts normalization, helper contracts
 and the size estimator; Swift tests decode the minimal projection and a
 conditional native form, and verify one truncation notice per presentation. A
@@ -251,8 +264,11 @@ Compact renderer directories retain up to 600 characters of execution `summary` 
 execution, including historical executions, so Report can display a bounded
 assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
-Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
-fallback is used for historical references.
+Compact card `text` is still a bounded preview, not the full assistant body; when
+the card also selects a reasoning part, the preview is retained instead of being
+erased, and a selected text part remains the single body. Prompt, reasoning and
+tool-payload admission is unchanged; no latest-execution fallback is used for
+historical references.
 
 Catalog caches live on the Harness instance and are not persisted to disk. Close
 cancels and joins background refreshes; Moku handle replacement retains caches.

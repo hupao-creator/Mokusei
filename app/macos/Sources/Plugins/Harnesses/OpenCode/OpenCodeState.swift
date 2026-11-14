@@ -115,7 +115,8 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
                   value["result"] == nil || value["resultDisplay"] == nil,
                   (value.ocText("text").map { $0.codeUnits.isEmpty } ?? true) else { throw OpenCodeError.invalidState }
         }
-        if value["role"] == .text("assistant"), value.ocText("text")?.codeUnits.isEmpty == false, value["parts"] != nil {
+        if value["role"] == .text("assistant"), value.ocText("text")?.codeUnits.isEmpty == false,
+           value["parts"]?.arrayValue?.contains(where: { $0["type"] == .text("text") }) == true {
             throw OpenCodeError.invalidState
         }
         if let status = value["status"], !["streaming", "complete", "failed", "cancelled"].contains(status.stringValue ?? "") { throw OpenCodeError.invalidState }
@@ -146,15 +147,12 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
         }
         raw = value
     }
-    var id: JSONText { raw.ocID("id") }
-    var executionID: JSONText { raw.ocID("executionId") }
-    var nativeSessionID: JSONText? { raw.ocText("nativeSessionId") }
-    var role: String { raw["role"]!.stringValue! }
-    var isSteer: Bool { raw["followUp"] == .bool(true) && raw["presentation"] == .text("ordinary") }
-    /// Assistant bodies exist only in ordered parts. User input and compact
-    /// directory previews carry their own text field.
+    // Computed rather than stored: raw.parts already owns each body, and a
+    // stored join would double peak memory for a 25 MiB assistant reply.
+    // Assistant boundaries read a compact preview from text; a nonempty
+    // aggregate is never injected when the body lives only in parts.
     var text: String {
-        if let value = raw["text"]?.stringValue { return value }
+        if let preview = raw["text"]?.stringValue, !preview.isEmpty { return preview }
         guard role == "assistant" else { return "" }
         return parts.compactMap { part in
             part["type"] == .text("text") ? part["text"]?.stringValue : nil
@@ -166,6 +164,11 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
             part["type"] == .text("reasoning") ? part["text"]?.stringValue : nil
         }.joined()
     }
+    var id: JSONText { raw.ocID("id") }
+    var executionID: JSONText { raw.ocID("executionId") }
+    var nativeSessionID: JSONText? { raw.ocText("nativeSessionId") }
+    var role: String { raw["role"]!.stringValue! }
+    var isSteer: Bool { raw["followUp"] == .bool(true) && raw["presentation"] == .text("ordinary") }
     var status: String? { raw["status"]?.stringValue }
     var inherited: Bool { raw["inherited"] == .bool(true) }
     var parts: [JSONValue] { raw["parts"]?.arrayValue ?? [] }

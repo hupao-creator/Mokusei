@@ -15,13 +15,13 @@ func TestRendererBoundsLargeToolField(t *testing.T) {
 	finished := int64(1)
 	latest := "exec"
 	state := State{
-		Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Version: StateVersion, NativeSessionID: "session", LatestExecutionID: &latest,
 		Executions: []*model.PublicExecution{{ExecutionID: "exec", Status: "completed", StartedAt: 0, FinishedAt: &finished}},
 		Messages: []*Message{
 			{ID: "user", ExecutionID: "exec", Role: "user", Text: "hello"},
-			{ID: "assistant", ExecutionID: "exec", Role: "assistant", Text: ""},
+			{ID: "assistant", ExecutionID: "exec", Role: "assistant"},
 			{ID: "tool", ExecutionID: "exec", Role: "tool", ToolCallID: "call", ToolName: "read", Status: "complete",
-				Text: strings.Repeat("x", 34<<20), Result: "small"},
+				Arguments: Object{"path": "a"}, Result: strings.Repeat("x", 34<<20)},
 		},
 	}
 	projected, err := (StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "execution", Key: "exec"})
@@ -39,18 +39,20 @@ func TestRendererBoundsLargeToolField(t *testing.T) {
 		t.Fatal("large projection did not advertise truncation")
 	}
 	tool := value["messages"].([]any)[2].(map[string]any)
-	if text := tool["text"].(string); len(text) > rendererStages[0].tool {
-		t.Fatalf("tool text retained %d bytes", len(text))
+	if text := tool["resultDisplay"].(string); len(text) > rendererStages[0].tool {
+		t.Fatalf("tool resultDisplay retained %d bytes", len(text))
 	}
-	if _, exists := tool["result"]; exists {
-		t.Fatal("redundant tool result survived degradation")
+	for _, key := range []string{"text", "result", "arguments"} {
+		if _, exists := tool[key]; exists {
+			t.Fatalf("tool projection retained retired field %q", key)
+		}
 	}
 }
 
 func TestRendererBoundsDeferredNonempty(t *testing.T) {
 	finished := int64(1)
 	latest := "exec"
-	messages := make([]*Message, 200)
+	messages := make([]*Message, 1_000)
 	for index := range messages {
 		parts := make([]Part, 64)
 		for part := range parts {
@@ -59,7 +61,7 @@ func TestRendererBoundsDeferredNonempty(t *testing.T) {
 		messages[index] = &Message{ID: fmt.Sprintf("m-%d", index), ExecutionID: "exec", Role: "assistant", Status: "complete", Parts: parts}
 	}
 	state := State{
-		Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Version: StateVersion, NativeSessionID: "session", LatestExecutionID: &latest,
 		Executions: []*model.PublicExecution{{ExecutionID: "exec", Status: "completed", StartedAt: 0, FinishedAt: &finished}},
 		Messages:   messages,
 	}
@@ -77,14 +79,23 @@ func TestRendererBoundsDeferredNonempty(t *testing.T) {
 	if nonempty := envelope["nonempty"].([]any); len(nonempty) != len(messages)*64 {
 		t.Fatalf("fixture presence count = %d", len(nonempty))
 	}
-	// The reviewer's reproduction had ~768k small presence entries. A smaller
-	// number of long fields exercises the same unbounded envelope path without
-	// making the test spend most of its time constructing redundant maps.
-	hostile := make([]any, 40_000)
-	for index := range hostile {
-		hostile[index] = map[string]any{"id": fmt.Sprintf("m-%d", index%len(messages)), "field": strings.Repeat("f", 1024)}
+	// Every marker references a real deferred reasoning part. The full set is
+	// larger than the first degradation stage's 2 MiB presence budget, so this
+	// exercises truncation rather than the syntactic field filter. A fresh
+	// oversized user body forces that stage during the second encode.
+	hostile := make([]any, 0, len(messages)*64)
+	for message := range messages {
+		for part := 0; part < 64; part++ {
+			hostile = append(hostile, map[string]any{
+				"id": fmt.Sprintf("m-%d", message), "field": fmt.Sprintf("parts:reasoning:%d", part),
+			})
+		}
 	}
 	envelope["nonempty"] = hostile
+	stateValue := envelope["state"].(map[string]any)
+	stateValue["messages"] = append(stateValue["messages"].([]any), map[string]any{
+		"id": "huge-user", "executionId": "exec", "role": "user", "text": strings.Repeat("u", 25<<20),
+	})
 	bounded, err := rendererMarshalProjection(envelope)
 	if err != nil {
 		t.Fatal(err)
@@ -95,29 +106,90 @@ func TestRendererBoundsDeferredNonempty(t *testing.T) {
 	if err := json.Unmarshal(bounded, &envelope); err != nil {
 		t.Fatal(err)
 	}
-	stateValue := envelope["state"].(map[string]any)
+	stateValue = envelope["state"].(map[string]any)
 	if stateValue["contentTruncated"] != true {
 		t.Fatal("deferred projection did not advertise truncation")
 	}
-	ids := map[string]bool{}
+	messagesByID := map[string]map[string]any{}
 	for _, raw := range stateValue["messages"].([]any) {
-		ids[raw.(map[string]any)["id"].(string)] = true
+		message := raw.(map[string]any)
+		messagesByID[message["id"].(string)] = message
 	}
 	nonempty := envelope["nonempty"].([]any)
-	if len(nonempty) > 50_000 {
-		t.Fatalf("nonempty retained %d entries", len(nonempty))
+	if len(nonempty) == 0 || len(nonempty) >= len(hostile) {
+		t.Fatalf("presence budget retained %d of %d entries", len(nonempty), len(hostile))
 	}
+	encoded, err := json.Marshal(nonempty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(encoded) > 2<<20 {
+		t.Fatalf("presence budget escaped: %d bytes", len(encoded))
+	}
+	seen := map[string]bool{}
 	for _, raw := range nonempty {
 		entry := raw.(map[string]any)
-		if !ids[entry["id"].(string)] {
-			t.Fatalf("nonempty references omitted message %q", entry["id"])
+		id, field := entry["id"].(string), entry["field"].(string)
+		key := id + "\x00" + field
+		if seen[key] {
+			t.Fatalf("duplicate presence entry %q/%q", id, field)
 		}
+		seen[key] = true
+		message, exists := messagesByID[id]
+		if !exists {
+			t.Fatalf("nonempty references omitted message %q", id)
+		}
+		if !rendererPresenceField(message, field) {
+			t.Fatalf("nonempty references a missing part %q/%q", id, field)
+		}
+	}
+}
+
+func TestRendererFilterNonemptyBudgetKeepsNewestUniqueReferences(t *testing.T) {
+	messages := make([]Object, 0, 100)
+	original := make([]Object, 0, 4_000)
+	for message := 0; message < 100; message++ {
+		parts := make([]Object, 0, 40)
+		for part := 0; part < 40; part++ {
+			parts = append(parts, Object{"type": "reasoning", "ordinal": part, "text": ""})
+			original = append(original, Object{"id": fmt.Sprintf("m-%d", message), "field": fmt.Sprintf("parts:reasoning:%d", part)})
+		}
+		messages = append(messages, Object{"id": fmt.Sprintf("m-%d", message), "executionId": "exec", "role": "assistant", "parts": parts})
+	}
+	original = append(original, original[:200]...)
+	value := Object{"kind": "deferred-execution", "nonempty": original}
+	state := Object{"messages": messages}
+	rendererFilterNonempty(value, state, original, 2_000)
+	entries := value["nonempty"].([]Object)
+	if len(entries) == 0 || len(entries) >= len(original) {
+		t.Fatalf("presence budget retained %d of %d entries", len(entries), len(original))
+	}
+	encoded, err := json.Marshal(entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(encoded) > 2_000 {
+		t.Fatalf("presence budget escaped: %d bytes", len(encoded))
+	}
+	seen := map[string]bool{}
+	for _, entry := range entries {
+		key := rendererText(entry["id"]) + "\x00" + rendererText(entry["field"])
+		if seen[key] {
+			t.Fatalf("duplicate presence entry %q", key)
+		}
+		seen[key] = true
+	}
+	// Filtering walks the newest entries first, then restores chronological
+	// order, so the retained suffix must contain the last original marker.
+	last := original[len(original)-1]
+	if entries[len(entries)-1]["id"] != last["id"] || entries[len(entries)-1]["field"] != last["field"] {
+		t.Fatalf("newest presence entry was dropped: %#v", entries[len(entries)-1])
 	}
 }
 
 func TestRendererPartsTypesAndSkeleton(t *testing.T) {
 	limits := rendererStages[1]
-	toolMessage := Object{"id": "tool", "executionId": "exec", "role": "tool", "text": "output", "parts": []any{
+	toolMessage := Object{"id": "tool", "executionId": "exec", "role": "tool", "toolCallId": "call", "resultDisplay": "output", "parts": []any{
 		Object{"type": "tool", "toolCallId": "call", "ordinal": 7, "text": "unexpected"},
 	}}
 	rendererBoundMessage(toolMessage, limits)
@@ -134,6 +206,9 @@ func TestRendererPartsTypesAndSkeleton(t *testing.T) {
 	} {
 		message := Object{"id": "m", "executionId": "exec", "role": "assistant", "text": "", "parts": parts}
 		rendererBoundMessage(message, limits)
+		if _, exists := message["text"]; exists {
+			t.Fatal("empty assistant aggregate survived bounding")
+		}
 		bound := message["parts"].([]Object)
 		if len(bound) != 1 {
 			t.Fatalf("parts normalization lost the part: %#v", message["parts"])
@@ -150,7 +225,7 @@ func TestRendererPartsTypesAndSkeleton(t *testing.T) {
 		for part := range parts {
 			parts[part] = Object{"type": "reasoning", "ordinal": part, "text": strings.Repeat("x", 10_000)}
 		}
-		messages[index] = Object{"id": fmt.Sprintf("m-%d", index), "executionId": "exec", "role": "assistant", "text": strings.Repeat("x", 10_000), "parts": parts}
+		messages[index] = Object{"id": fmt.Sprintf("m-%d", index), "executionId": "exec", "role": "assistant", "parts": parts}
 	}
 	rendererApplyLimits(state, state, nil, rendererStages[2])
 	messages = state["messages"].([]Object)
@@ -160,8 +235,11 @@ func TestRendererPartsTypesAndSkeleton(t *testing.T) {
 	if parts := messages[0]["parts"].([]Object); len(parts) > rendererStages[2].parts {
 		t.Fatalf("skeleton retained %d parts", len(parts))
 	}
-	if text := messages[0]["text"].(string); len(text) > rendererStages[2].text {
-		t.Fatalf("skeleton retained %d text bytes", len(text))
+	if _, exists := messages[0]["text"]; exists {
+		t.Fatal("bound assistant gained a synthetic text field")
+	}
+	if text := rendererText(messages[0]["parts"].([]Object)[0]["text"]); len(text) > rendererStages[2].text {
+		t.Fatalf("skeleton retained %d part text bytes", len(text))
 	}
 	rendererApplyLimits(state, state, nil, rendererStages[3])
 	if messages = state["messages"].([]Object); len(messages) != rendererStages[3].messages {
@@ -314,6 +392,45 @@ func TestRendererBudgetBoundaryAndMinimalFallback(t *testing.T) {
 	}
 }
 
+func TestRendererBoundsAssistantTextWithoutSyntheticAggregate(t *testing.T) {
+	finished := int64(1)
+	latest := "exec"
+	state := State{
+		Version: StateVersion, NativeSessionID: "session", LatestExecutionID: &latest,
+		Executions: []*model.PublicExecution{{ExecutionID: "exec", Status: "completed", StartedAt: 0, FinishedAt: &finished}},
+		Messages: []*Message{
+			{ID: "user", ExecutionID: "exec", Role: "user", Text: "hello"},
+			{ID: "assistant", ExecutionID: "exec", Role: "assistant", Status: "complete",
+				Parts: []Part{{Type: "text", Ordinal: 0, Text: strings.Repeat("x", 25<<20)}}},
+		},
+	}
+	projected, err := (StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "execution", Key: "exec"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projected) > rendererWireBudget {
+		t.Fatalf("projection escaped budget: %d bytes", len(projected))
+	}
+	var value map[string]any
+	if err = json.Unmarshal(projected, &value); err != nil {
+		t.Fatal(err)
+	}
+	if value["contentTruncated"] != true {
+		t.Fatal("oversized assistant projection did not advertise truncation")
+	}
+	assistant := value["messages"].([]any)[1].(map[string]any)
+	if text, exists := assistant["text"]; exists {
+		t.Fatalf("assistant projection gained text %#v", text)
+	}
+	parts := assistant["parts"].([]any)
+	if len(parts) != 1 || parts[0].(map[string]any)["type"] != "text" {
+		t.Fatalf("assistant text part was lost: %#v", parts)
+	}
+	if text := parts[0].(map[string]any)["text"].(string); text == "" {
+		t.Fatal("assistant text part was erased by degradation")
+	}
+}
+
 func TestRendererFormConditionUsesKey(t *testing.T) {
 	field := Object{
 		"type": "string", "key": "detail", "required": false,
@@ -336,7 +453,7 @@ func TestRendererDeferredPresenceSurvivesTruncation(t *testing.T) {
 	finished := int64(1)
 	latest := "exec"
 	state := State{
-		Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Version: StateVersion, NativeSessionID: "session", LatestExecutionID: &latest,
 		Executions: []*model.PublicExecution{{ExecutionID: "exec", Status: "completed", StartedAt: 0, FinishedAt: &finished}},
 		Messages: []*Message{{
 			ID: "assistant", ExecutionID: "exec", Role: "assistant", Status: "complete",
@@ -375,14 +492,14 @@ func TestRendererRejectsUnreferenceableIDs(t *testing.T) {
 	latest := "exec"
 	long := strings.Repeat("x", 300)
 	state := State{
-		Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Version: StateVersion, NativeSessionID: "session", LatestExecutionID: &latest,
 		Executions: []*model.PublicExecution{{ExecutionID: "exec", Status: "completed", StartedAt: 0, FinishedAt: &finished}},
 		Messages: []*Message{
 			{ID: "user", ExecutionID: "exec", Role: "user", Text: "hello"},
-			{ID: long, ExecutionID: "exec", Role: "assistant", Text: "long message id"},
+			{ID: long, ExecutionID: "exec", Role: "assistant", Parts: []Part{{Type: "text", Ordinal: 0, Text: "long message id"}}},
 			{ID: "assistant", ExecutionID: "exec", Role: "assistant", Parts: []Part{{Type: "tool", ToolCallID: long}}},
-			{ID: "tool", ExecutionID: "exec", Role: "tool", ToolCallID: long, ToolName: "read", Text: "output"},
-			{ID: "huge", ExecutionID: "exec", Role: "assistant", Text: strings.Repeat("h", 30<<20)},
+			{ID: "tool", ExecutionID: "exec", Role: "tool", ToolCallID: long, ToolName: "read", Result: "output"},
+			{ID: "huge", ExecutionID: "exec", Role: "assistant", Parts: []Part{{Type: "text", Ordinal: 0, Text: strings.Repeat("h", 30<<20)}}},
 		},
 		Interactions: []*Interaction{{ID: long, ExecutionID: "exec", SessionID: "session", Kind: "permission", Title: "Long", Status: "pending"}},
 	}
@@ -415,11 +532,11 @@ func TestRendererRejectsUnreferenceableIDs(t *testing.T) {
 	}
 
 	longExecution := strings.Repeat("e", 200)
-	message := &Message{ID: "message", ExecutionID: longExecution, Role: "assistant", Text: "text"}
+	message := &Message{ID: "message", ExecutionID: longExecution, Role: "assistant", Parts: []Part{{Type: "text", Ordinal: 0, Text: "text"}}}
 	latestLong := longExecution
 	summary := strings.Repeat("s", 30<<20)
 	invalid := State{
-		Version: 1, NativeSessionID: "session", LatestExecutionID: &latestLong,
+		Version: StateVersion, NativeSessionID: "session", LatestExecutionID: &latestLong,
 		Executions: []*model.PublicExecution{{ExecutionID: longExecution, Status: "completed", StartedAt: 0, FinishedAt: &finished, Summary: &summary}},
 		Messages:   []*Message{message},
 	}

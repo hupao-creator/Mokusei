@@ -28,7 +28,7 @@ tests or account-based model probes. The user's existing native profile is not u
 | `credentials` | Single native server, native DB/cache, exclusive configuration, ownership, nonblocking advisory reads during gated startup, cold/warm Target inventories and exact creation options with source completeness kept unknown, empty/duplicate catalog rejection, HTTP/SSE and termination |
 | `settings` | JSONC/YAML discovery and ordered permissions, credential-free catalog, concurrent reader cancellation, fixed build selection despite a native plan default and saved plan settings, exact thinking selection/update/snapshot, live variant change rejection, process cleanup |
 | `timeout` | Cancelled startup joins its single server before returning |
-| `renderer` | 25 fixed projections across overview/thread/turn/execution/history scopes, including compact execution summaries, retained assistant replies, deferred work, tool display, usage and Unicode boundaries |
+| `renderer` | Five shared state inputs × overview/thread/turn/execution/history = 25 fixed projections, including compact execution summaries, retained assistant replies, deferred privacy/presence, tool display, usage and Unicode boundaries |
 | `telemetry` | Native Go OAuth account resolution and Console meter windows, official Go/generic routes, stable workspace window IDs and secret-free Moku output; synthetic RPC/HTTP only |
 | `native` | Real native plugin loading and configuration acknowledgement, isolated native model configuration, strict response schema request overlay, SSE/durable export, build execution snapshot/save without `default_agent`, credential-free model/thinking catalog, cross-provider model/variant switch preserving native session/history and per-execution attribution, native synthetic OAuth refresh and persistence across restart |
 | `thread` | Shared native database: per-input durable admission, follow-up, native fork read/cache affinity/provider prefix, concurrent source continuation and cancellation cleanup, restored read, fresh ordinary fork import, JSON completion, exclusive Go tool execution, manual native shell permission, typed conditional forms and invalid-answer rejection, idle SSE automatic admission, literal option-prefix text, radix-number conversion, hidden defaults and optional/conditional omission, steering, concurrent cancellation and forced SSE gap/durable reconciliation |
@@ -53,17 +53,38 @@ the terminal marker. Native SSE may coalesce nearby
 updates; a fixed delay cannot certify two observable stream windows. The replay
 still requires both windows, the point limit, UTF-16 offset and exact sequence.
 
-The compressed renderer fixture originated from the previous implementation's
-public output. Its reviewed expectations follow the current projection contract:
-overview directories retain each execution's bounded summary, and deferred turns
-retain assistant text, including child-session and inherited replies. Only
-omitted work contributes deferred `nonempty` markers. Assistant bodies exist once
-in ordered parts, user input once in `text`, and tool payloads once in producer
-rendered display strings; structured display order and escaping remain asserted.
-The 25 inputs and scopes remain fixed; unrelated expected fields, usage and UTF-16
-boundary checks remain unchanged. A mismatch reports the first differing JSON path.
-Replaying it requires only Go; no snapshot generator or JavaScript toolchain is
-retained.
+The compressed renderer fixture contains five shared persisted-state inputs, each
+projected through overview, thread, turn, execution and history scopes: 25 fixed
+projections, not 25 independent inputs. The states use persisted version 2.
+Expectations follow the current contract: overview directories retain each
+execution's bounded summary, deferred turns retain assistant text (including
+child-session and inherited replies) while hiding child prompts, reasoning and
+tool displays behind `nonempty` markers, assistant bodies exist once in ordered
+parts, user input once in `text`, and tool payloads once in producer-rendered
+display strings. A mismatch reports the first differing JSON path.
+
+Inspect the fixture without a JavaScript toolchain:
+
+```sh
+gzip -dc tools/verification/opencode/cases/renderer/expected.json.gz |
+  python3 -m json.tool > /tmp/opencode-renderer.json
+```
+
+Regenerate only the expectation side from the embedded states, then review the
+decompressed semantic diff before replacing the fixture:
+
+```sh
+./scripts/go.sh run ./tools/verification/opencode/cases/renderer \
+  -write /tmp/opencode-renderer-new.json.gz
+gzip -dc /tmp/opencode-renderer-new.json.gz | python3 -m json.tool > /tmp/opencode-renderer-new.json
+diff -u /tmp/opencode-renderer.json /tmp/opencode-renderer-new.json
+```
+
+`-write` never changes the input states. The replay's structured-display test uses
+a hand-written raw state to assert JSON insertion order, while production
+`State.Encode()` marshals Go maps with sorted keys; both orderings are asserted
+separately (see `TestProjectionPreservesStructuredDisplayOrder` and
+`TestProjectionKeepsOneVisibleToolBody`).
 
 Runtime shutdown also drains the owned native process group after its leader exits
 before removing plugin/temporary cache directories. The runtime-helpers replay

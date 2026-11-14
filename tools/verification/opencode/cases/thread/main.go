@@ -692,8 +692,14 @@ func main() {
 	answersSeen := 0
 	for _, message := range reconnected.Messages {
 		if message.Role == "assistant" && message.ExecutionID == "reconnect1" {
-			if message.Text != `{"reply":"fixture"}` {
-				fmt.Printf("reconnect message %s has unexpected content length %d\n", message.ID, len(message.Text))
+			var text strings.Builder
+			for _, part := range message.Parts {
+				if part.Type == "text" {
+					text.WriteString(part.Text)
+				}
+			}
+			if text.String() != `{"reply":"fixture"}` {
+				fmt.Printf("reconnect message %s has unexpected content length %d\n", message.ID, text.Len())
 				panic("reconciled text duplicated or truncated")
 			}
 			answersSeen++
