@@ -300,6 +300,29 @@ struct NativeOverviewCapacityTests {
         #expect(abs(fixture.state.camera.liveTransform.scale - 1) < 1e-9)
     }
 
+    @Test func persistentVerticalSeatSurvivesRenderedWidthShrink() async throws {
+        let fixture = CapacityFixture()
+        fixture.size = .init(width: 1341, height: 906)
+        fixture.items = [.init(id: "card", columns: 2, rows: 2)]
+        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1341, height: 906)
+        defer { window.close() }
+        try await settle(fixture, in: window)
+        let seatY = fixture.state.camera.liveTransform.y
+        fixture.items[0].rows = 1
+        try await settle(fixture, in: window)
+        let tolerance = 1 / window.backingScaleFactor
+        #expect(abs(fixture.state.camera.liveTransform.y - seatY) < tolerance)
+        fixture.items[0].columns = 1
+        try await settle(fixture, in: window)
+        let frame = try #require(fixture.frames["card"])
+        let viewport = try #require(fixture.state.camera.viewport)
+        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+        #expect(abs(fixture.state.camera.liveTransform.y - seatY) < tolerance)
+        #expect(abs(frame.minY - seatY) < tolerance)
+        #expect(abs(frame.midY - (seatY + frame.height / 2)) < tolerance)
+        #expect(abs(frame.midX - (region.left + region.width / 2)) < tolerance)
+    }
+
     @Test(arguments: [1, 6], [false, true])
     func insertionFramesTheCompleteCollectionWithoutBackgroundClick(count: Int, reduceMotion: Bool) async throws {
         let fixture = CapacityFixture()

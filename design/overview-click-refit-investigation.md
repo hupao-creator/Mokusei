@@ -265,23 +265,30 @@ height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 sh
 `consecutiveHeightShrinksKeepTheFirstVerticalSeat`、
 `heightSeatPersistsAcrossGrowthAndClampsAtExtremeTallAspect`、
 `extremeWideRetainedSeatStaysVisible`、
+`returnToAutoClearsPersistentVerticalSeat`、
+`retainFramingClearsPersistentVerticalSeat`、
+`preserveFramingClearsPersistentVerticalSeat`、
+`setManualTransformClearsPersistentVerticalSeat`、
+`viewportChangeClearsPersistentVerticalSeat`、
+`resetClearsPersistentVerticalSeat`、
+`persistentSeatSurvivesMixedWidthAndHeightSequence`、
 `pendingGrowKeepsItsSeatUntilANewRevision`。实际卡片 envelope 中心的 GUI
 Canvas case 已提交到 `NativeOverviewCapacityTests`：
-`aspectChangingFootprintRecentersRenderedCard`。
+`aspectChangingFootprintRecentersRenderedCard`、
+`persistentVerticalSeatSurvivesRenderedWidthShrink`。
 
 相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
 `NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
 `NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
-64 个测试全部通过（约 94 秒）。额外运行 `make check-swift` 全量 Swift
-suite（最近一次在 `bf0e1c67` 上），结果不是绿色，不能以 focused 结果替代托管
-`Complete coverage`：headless 194 个测试全部通过；graphical 325 个测试有
+72 个测试全部通过（约 98 秒）。额外运行 `make check-swift` 全量 Swift
+suite（final working tree），结果不是绿色，不能以 focused 结果替代托管
+`Complete coverage`：headless 206 个测试全部通过；graphical 326 个测试有
 2 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`，
 `NativeThreadSendFeedbackTests` presentation settled 失败；native owner
-`rolling-numbers` 与 `tag-glass-captures`（onboarding first frame、decoration
-motion）未产出成功 receipt。更早一次 full run 还出现
-`NativeVoiceAnalysisTests` 的 3 个音频/pitch/amplitude 失败和
-`NativeMokuExecutionLinkTests`/excerpt 的 settled 失败；这些在最新 run 或单独
-重跑中通过，属于环境/时序相关。final commit 新增 5 个 headless camera case，
-未重跑 full；上述失败均未涉及相机/Overview 取景路径。
-`./scripts/go.sh run ./cmd/mokusei-check architecture` 与
-`./scripts/go.sh vet ./...` 通过；未运行托管 `Complete coverage`，也未推送。
+`rolling-numbers` 的 `GitThreadExtensionTests` 与 `RollingNumberCellTests`
+未产出成功 receipt。更早 full run 还出现过 `NativeVoiceAnalysisTests` 音频、
+`NativeMokuExecutionLinkTests`/excerpt、tag-glass onboarding/decoration 的
+环境/时序相关失败；这些在不同 run 中波动或单独重跑通过。上述失败均未涉及
+相机/Overview 取景路径。`./scripts/go.sh run ./cmd/mokusei-check
+architecture` 与 `./scripts/go.sh vet ./...` 通过；未运行托管
+`Complete coverage`，也未推送。

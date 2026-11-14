@@ -275,6 +275,14 @@ Consecutive reading-preserving revisions carry their target forward rather than
 repeatedly sampling intermediate motion; explicit return and restoration take
 precedence over reading retention.
 
+**Automatic focus UX sign-off.** Any height shrink intentionally creates a
+persistent vertical seat, including ordinary card height reduction rather than
+only row deletion. A retained seat keeps its y until an explicit return,
+retained framing, manual framing, viewport change or reset. A grow target that
+is still pending when a shrink arrives keeps its pending translation until a
+later layout revision or explicit return, so it may remain at an automatic
+clamp. These are intentional trade-offs, not missing refits.
+
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
 The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Search dismissal can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
