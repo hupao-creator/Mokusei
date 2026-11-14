@@ -58,8 +58,11 @@ contributes to the workspace's input and Sidecard admission.
 transaction commit and the primary gate, then asks the
 current selection to reveal. If the selected execution Sidecard owns the Dock,
 the compact Moku first travels horizontally into its destination column using a
-620ms-response spring with 0.78 damping, allowing gentle braking and a small
-rebound. Its actual removed completion asks the window to admit this exact route
+520ms native keyframe curve. One overshoot, 2.5% of the remaining distance and
+capped at 6pt, peaks at 76% of the timeline and settles back at zero velocity.
+Sub-12pt corrections keep their existing monotone curve. Vertical descent has
+separate timing and never inherits the horizontal rebound. The native group's
+actual completion after both axes settle asks the window to admit this exact route
 visit. Once admitted, the compact Dock flips its eyes into the Harness logo for
 420ms using the existing emphasized curve, then expands the Agent composer for
 420ms. Destination revisions and local
@@ -129,6 +132,27 @@ interaction delay while retaining layout/readiness and cancellation ownership.
 It still waits for data and Markdown parsing.
 
 ## Scope and verification limits
+
+The horizontal rebound follow-up starts from local main
+`3ffc4bdaad155bd769e04ec64d62a1e354980416`, including its parallel running Super
+Thread heading repair. The three earlier animation commits were confirmed as
+patch-equivalent to main's integrated commits before this detached worktree was
+rebased; none is replayed as a new dependency.
+
+The 9.412s source `录屏2026-11-14 16.05.31.mov` was inspected through headless
+AVFoundation frames, including exact 40ms samples around the initial rightward
+travel at 1.8–2.2s. Those frames document the existing monotone arrival, not this
+new tail. Sandboxed decoding initially failed; permitted headless decoding
+succeeded without opening a window. The final headless Debug `Mokusei` product
+build passed (18.54s), with Swift syntax parsing, diff review and local link
+checks. Static review covered same-target updates, interruption/reversal,
+destination/composer fences, pointer protection throughout the overshoot,
+resize, dragging, detach and Reduce Motion. The animation group's completion
+retains the travel → identity flip → input expansion sequence.
+No tests were added or run; no graphical replay, live pointer/focus check,
+rendered feel acceptance or hosted CI was performed. The new single-tail feel
+and rapid user-driven reversal still need on-screen acceptance. This detached
+commit is handed to the coordinator without pushing or changing local main.
 
 The native identity follow-up replaces the SwiftUI flip modifier with live
 native hosting seats and compositor-owned transform/opacity groups. The final
