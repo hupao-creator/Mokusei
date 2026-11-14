@@ -26,37 +26,100 @@ func rendererObject(value any) Object {
 	_ = json.Unmarshal(encoded, &result)
 	return result
 }
-func rendererMessage(message *Message, source rendererSource) Object {
-	if record, exists := source.records["messages"][message.ID]; exists {
-		return clone(record.value)
-	}
-	result := rendererObject(message)
-	if message.Parts != nil {
-		parts := make([]Object, 0, len(message.Parts))
-		for _, part := range message.Parts {
-			parts = append(parts, rendererPart(part))
-		}
-		result["parts"] = parts
-	}
-	return result
-}
 func rendererPart(part Part) Object {
 	if part.Type == "tool" {
 		return Object{"type": "tool", "toolCallId": part.ToolCallID}
 	}
 	return Object{"type": part.Type, "ordinal": part.Ordinal, "text": part.Text}
 }
-func rendererProjectedMessage(message *Message, source rendererSource) Object {
-	result := rendererMessage(message, source)
-	if message.Role == "tool" {
-		if value, exists := result["arguments"]; exists {
-			result["argumentsDisplay"] = rendererToolDisplay(source.field("messages", message.ID, "arguments"), value)
+func rendererParts(parts []Part) []Object {
+	result := make([]Object, 0, len(parts))
+	for _, part := range parts {
+		result = append(result, rendererPart(part))
+	}
+	return result
+}
+
+// Every display body has exactly one projected field. Assistant text and
+// reasoning are their ordered parts; user input is text; tool input/output are
+// the renderer-owned display strings. Raw tool payloads stay in canonical state
+// only so object insertion order and JSON spelling remain available here.
+func rendererMessage(message *Message, source rendererSource) Object {
+	result := Object{"id": message.ID, "executionId": message.ExecutionID, "role": message.Role}
+	for key, value := range map[string]string{
+		"nativeSessionId": message.NativeSessionID, "nativeMessageId": message.NativeMessageID,
+		"status": message.Status, "model": message.Model, "provider": message.Provider, "variant": message.Variant,
+		"presentation": message.Presentation,
+	} {
+		if value != "" {
+			result[key] = value
 		}
-		if value, exists := result["result"]; exists {
-			result["resultDisplay"] = rendererToolDisplay(source.field("messages", message.ID, "result"), value)
+	}
+	if message.CreatedAt != 0 {
+		result["createdAt"] = message.CreatedAt
+	}
+	if message.FollowUp {
+		result["followUp"] = true
+	}
+	if message.Inherited {
+		result["inherited"] = true
+	}
+	if message.IsError {
+		result["isError"] = true
+	}
+	if message.Usage != nil {
+		result["usage"] = message.Usage
+	}
+	switch message.Role {
+	case "user":
+		result["text"] = message.Text
+		if source.messageHasField(message.ID, "annotations") || message.Annotations != nil {
+			result["annotations"] = message.Annotations
+		}
+		if source.messageHasField(message.ID, "attachments") || message.Attachments != nil {
+			result["attachments"] = message.Attachments
+		}
+	case "assistant":
+		result["parts"] = rendererParts(message.Parts)
+	case "tool":
+		result["toolCallId"] = message.ToolCallID
+		if message.ToolName != "" {
+			result["toolName"] = message.ToolName
+		}
+		if value, exists := rendererToolArguments(message, source); exists {
+			result["argumentsDisplay"] = value
+		}
+		if value, exists := rendererToolResult(message, source); exists {
+			result["resultDisplay"] = value
+		}
+		if source.messageHasField(message.ID, "todos") || message.Todos != nil {
+			result["todos"] = message.Todos
 		}
 	}
 	return result
+}
+func rendererToolArguments(message *Message, source rendererSource) (string, bool) {
+	raw := source.field("messages", message.ID, "arguments")
+	if raw == nil && message.Arguments == nil {
+		return "", false
+	}
+	return rendererToolDisplay(raw, message.Arguments), true
+}
+func rendererToolResult(message *Message, source rendererSource) (string, bool) {
+	if message.ToolError != nil {
+		return strings.TrimSpace(contentText(message.Result) + "\n" + nativeFailure(message.ToolError)), true
+	}
+	raw := source.field("messages", message.ID, "result")
+	if raw == nil && message.Result == nil {
+		return "", false
+	}
+	if text := contentText(message.Result); text != "" {
+		return text, true
+	}
+	return rendererToolDisplay(raw, message.Result), true
+}
+func rendererProjectedMessage(message *Message, source rendererSource) Object {
+	return rendererMessage(message, source)
 }
 
 func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
@@ -139,19 +202,13 @@ func rendererExecution(state *State, base Object, scope model.RendererScope, sou
 			projected = append(projected, body)
 			continue
 		}
-		for _, key := range []string{"arguments", "result", "metadata", "todos", "annotations", "attachments"} {
+		for _, key := range []string{"argumentsDisplay", "resultDisplay", "todos", "annotations", "attachments"} {
 			delete(body, key)
 		}
 		// Assistant replies, including those accompanying a child-session error,
 		// remain readable without a full work lease. Tool/reasoning bodies do not.
 		reading := message.Role == "assistant"
-		if !reading {
-			body["text"] = hide(message.ID, "text", message.Text)
-		}
-		if _, exists := body["thinking"]; exists {
-			body["thinking"] = hide(message.ID, "thinking", message.Thinking)
-		}
-		if message.Parts != nil {
+		if reading && message.Parts != nil {
 			parts := make([]Object, 0, len(message.Parts))
 			for _, part := range message.Parts {
 				item := rendererPart(part)
@@ -270,7 +327,7 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 					}
 					last = message
 				}
-				if message.Role == "assistant" && rendererTrim(message.Text) != "" {
+				if message.Role == "assistant" && rendererTrim(messageText(message)) != "" {
 					answer = message
 				}
 			}
@@ -352,7 +409,7 @@ func rendererCardMessage(state *State, latest, status string) *Message {
 		if message.ExecutionID != latest || message.Inherited || message.Role != "assistant" || message.Status != "complete" && !live || message.NativeSessionID != "" && message.NativeSessionID != state.NativeSessionID {
 			continue
 		}
-		if message.Status == "complete" && rendererTrim(message.Text) != "" || (live || status == "completed") && rendererTrim(message.Thinking) != "" || rendererCardPart(message, status) != nil {
+		if message.Status == "complete" && rendererTrim(messageText(message)) != "" || (live || status == "completed") && rendererTrim(messageThinking(message)) != "" || rendererCardPart(message, status) != nil {
 			return message
 		}
 	}
@@ -385,7 +442,7 @@ func rendererReplyMessage(state *State) *Message {
 		}
 		for j := len(state.Messages) - 1; j >= 0; j-- {
 			message := state.Messages[j]
-			if message.ExecutionID == execution.ExecutionID && !message.Inherited && message.Role == "assistant" && message.Status == "complete" && rendererTrim(message.Text) != "" && (message.NativeSessionID == "" || message.NativeSessionID == state.NativeSessionID) {
+			if message.ExecutionID == execution.ExecutionID && !message.Inherited && message.Role == "assistant" && message.Status == "complete" && rendererTrim(messageText(message)) != "" && (message.NativeSessionID == "" || message.NativeSessionID == state.NativeSessionID) {
 				return message
 			}
 		}
@@ -399,9 +456,23 @@ func rendererCompactMessage(message *Message, preview, card, todo bool, usage Ob
 		if message.Role == "user" {
 			limit = rendererDirectoryPreview
 		}
-		text = rendererClip(rendererTrim(message.Text), limit)
+		text = rendererClip(rendererTrim(messageText(message)), limit)
 	}
-	result := Object{"id": message.ID, "executionId": message.ExecutionID, "role": message.Role, "text": text}
+	var cardPart *Part
+	if card {
+		cardPart = rendererCardPart(message, cardStatus)
+	}
+	// A card body is either its text preview or one selected part, never both.
+	// Live cards and reasoning-only cards need the exact part; settled text
+	// cards use the same bounded preview as their directory row.
+	partBody := cardPart != nil && cardPart.Type != "tool" && (message.Status != "complete" || cardPart.Type == "reasoning")
+	if partBody {
+		text = ""
+	}
+	result := Object{"id": message.ID, "executionId": message.ExecutionID, "role": message.Role}
+	if message.Role != "tool" {
+		result["text"] = text
+	}
 	for key, value := range map[string]string{"nativeSessionId": message.NativeSessionID, "status": message.Status, "model": message.Model, "provider": message.Provider, "variant": message.Variant} {
 		if value != "" {
 			result[key] = value
@@ -413,15 +484,10 @@ func rendererCompactMessage(message *Message, preview, card, todo bool, usage Ob
 	if usage != nil {
 		result["usage"] = usage
 	}
-	if card && (rendererLive(cardStatus) || cardStatus == "completed") && message.Thinking != "" {
-		result["thinking"] = rendererClip(rendererTrim(message.Thinking), rendererPreview)
-	}
-	if card {
-		if part := rendererCardPart(message, cardStatus); part != nil && part.Type != "tool" {
-			value := rendererPart(*part)
-			value["text"] = rendererClip(rendererTrim(part.Text), rendererPreview)
-			result["parts"] = []Object{value}
-		}
+	if partBody {
+		value := rendererPart(*cardPart)
+		value["text"] = rendererClip(rendererTrim(cardPart.Text), rendererPreview)
+		result["parts"] = []Object{value}
 	}
 	if todo {
 		if source.messageHas(message, "toolName") {

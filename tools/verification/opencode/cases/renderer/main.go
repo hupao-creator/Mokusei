@@ -137,15 +137,33 @@ func replayNativeErrors() {
 		{"response message fallback", oc.Object{"type": "provider.auth", "response": oc.Object{"body": string(body)}}, networkError},
 		{"malformed response fallback", oc.Object{"type": "provider.auth", "response": oc.Object{"body": "invalid JSON"}}, "provider.auth"},
 	} {
-		state := oc.State{}
+		state, err := oc.DecodeState(nil)
+		if err != nil {
+			panic(err)
+		}
 		state.MergeMessages([]any{oc.Object{"id": "assistant", "type": "assistant", "content": []any{
 			oc.Object{"type": "tool", "id": "tool", "name": "read", "state": oc.Object{"status": "error", "error": fixture.err}},
 		}}}, "session", "execution", false)
+		projected, err := (oc.StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "execution", Key: "execution"})
+		if err != nil {
+			panic(err)
+		}
+		var value struct {
+			Messages []struct {
+				ToolCallID    string `json:"toolCallId"`
+				ResultDisplay string `json:"resultDisplay"`
+				IsError       bool   `json:"isError"`
+				Status        string `json:"status"`
+			} `json:"messages"`
+		}
+		if err = json.Unmarshal(projected, &value); err != nil {
+			panic(err)
+		}
 		found := false
-		for _, message := range state.Messages {
+		for _, message := range value.Messages {
 			if message.ToolCallID == "tool" {
 				found = true
-				if message.Text != fixture.want || !message.IsError || message.Status != "failed" {
+				if message.ResultDisplay != fixture.want || !message.IsError || message.Status != "failed" {
 					panic(fixture.name + ": native error message lost")
 				}
 			}

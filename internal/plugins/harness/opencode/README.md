@@ -43,11 +43,19 @@ Go owns process startup/shutdown, authenticated HTTP, reconnecting SSE, durable 
 reconciliation, session identity reservation, state projections, execution admission,
 steering, permissions/forms, tools, model validation and provider/account policy.
 The installed external `opencode serve --stdio` process remains the model/tool engine.
-Deferred turn projections retain all assistant reply text, including interim
+Projected messages keep one visible representation: assistant text and reasoning
+exist only in their ordered `parts`, user input uses `text`, and tool input/output
+use producer-rendered `argumentsDisplay`/`resultDisplay` strings. Raw tool payloads,
+assistant aggregates and tool metadata do not enter the renderer projection; the
+native reader trusts the projected display instead of rebuilding or checking a
+second JSON copy. Canonical state retains only the raw tool payload, not a second
+extracted body. Deferred turn projections retain all assistant reply text, including interim
 and child-session replies, without acquiring execution-detail content. Reasoning and tool
 output keep their deferred presentation. Error
 and failed-message payloads, including child sessions, remain available for
-independent diagnostics; retained tool failures do not bypass Agent summaries. Canonical history and full/execution projections retain their existing data.
+independent diagnostics; retained tool failures do not bypass Agent summaries.
+Canonical history and full/execution projections retain their user-visible
+content and diagnostics under this one-body schema.
 If a projection would exceed the content transport boundary, the adapter sends a
 bounded fallback instead of failing the whole surface: redundant tool results and
 displays are removed, text/tool/scalar fields are truncated, deferred `nonempty`

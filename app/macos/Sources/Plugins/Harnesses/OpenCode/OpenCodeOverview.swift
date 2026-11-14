@@ -80,8 +80,8 @@ func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONText?, stat
             ((part["type"]?.stringValue == "text" && complete) || (part["type"]?.stringValue == "reasoning" && reasoningEligible)) && !ocTrimText(part.ocID("text")).codeUnits.isEmpty
         }
         let part = live ? message.parts.last(where: { $0["type"]?.stringValue == "text" && eligible($0) }) ?? message.parts.last(where: eligible) : message.parts.last(where: eligible)
-        let answer = complete ? ocTrimText(message.raw.ocID("text")) : JSONText("")
-        let reasoning = reasoningEligible ? ocTrimText(message.raw.ocID("thinking")) : JSONText("")
+        let answer = complete ? ocTrimText(JSONText(message.text)) : JSONText("")
+        let reasoning = reasoningEligible ? ocTrimText(JSONText(message.thinking)) : JSONText("")
         let kind = part?["type"]?.stringValue ?? (answer.codeUnits.isEmpty ? "reasoning" : "text")
         let text = kind == "reasoning" && part != nil ? ocTrimText(part?.ocID("text") ?? "") : !answer.codeUnits.isEmpty ? answer : part?["type"]?.stringValue == "text" ? ocTrimText(part?.ocID("text") ?? "") : reasoning
         if !text.codeUnits.isEmpty { return (id: ocJSONStringID([.string(message.executionID), .text(message.role), .string(message.id), .text(kind), part?["ordinal"] ?? .null]), text: text) }
@@ -166,7 +166,7 @@ func projectOpenCodeMoku(_ state: OpenCodeState) -> HarnessMokuPresentation {
     for candidate in state.executions.reversed() where candidate.status == .completed {
         if let message = state.messages.last(where: { $0.executionID == candidate.executionID && $0.role == "assistant" && $0.status == "complete" && !$0.inherited && !ocTrim($0.text).isEmpty && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }) {
             reply = .init(id: ocJSONStringID([.string(candidate.executionID), .string(message.id)]), executionID: candidate.executionID,
-                excerpt: ocHeadText(ocTrimText(message.raw.ocID("text")), points: HarnessMokuPresentation.maximumReplyExcerptPoints),
+                excerpt: ocHeadText(ocTrimText(JSONText(message.text)), points: HarnessMokuPresentation.maximumReplyExcerptPoints),
                 target: .object(["executionId": .string(candidate.executionID), "messageId": .string(message.id)])); break
         }
     }

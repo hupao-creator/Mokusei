@@ -57,9 +57,11 @@ The compressed renderer fixture originated from the previous implementation's
 public output. Its reviewed expectations follow the current projection contract:
 overview directories retain each execution's bounded summary, and deferred turns
 retain assistant text, including child-session and inherited replies. Only
-omitted work contributes deferred `nonempty` markers. The 25 inputs and scopes
-remain fixed; unrelated expected fields, tool displays, usage and UTF-16 boundary
-checks remain unchanged. A mismatch reports the first differing JSON path.
+omitted work contributes deferred `nonempty` markers. Assistant bodies exist once
+in ordered parts, user input once in `text`, and tool payloads once in producer
+rendered display strings; structured display order and escaping remain asserted.
+The 25 inputs and scopes remain fixed; unrelated expected fields, usage and UTF-16
+boundary checks remain unchanged. A mismatch reports the first differing JSON path.
 Replaying it requires only Go; no snapshot generator or JavaScript toolchain is
 retained.
 

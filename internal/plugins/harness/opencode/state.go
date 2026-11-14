@@ -29,18 +29,17 @@ type Message struct {
 	Role            string          `json:"role"`
 	Presentation    string          `json:"presentation,omitempty"`
 	FollowUp        bool            `json:"followUp,omitempty"`
-	Text            string          `json:"text"`
+	Text            string          `json:"text,omitempty"`
 	NativeSessionID string          `json:"nativeSessionId,omitempty"`
 	NativeMessageID string          `json:"nativeMessageId,omitempty"`
 	CreatedAt       int64           `json:"createdAt,omitempty"`
 	Status          string          `json:"status,omitempty"`
-	Thinking        string          `json:"thinking,omitempty"`
 	Parts           []Part          `json:"parts,omitempty"`
 	ToolCallID      string          `json:"toolCallId,omitempty"`
 	ToolName        string          `json:"toolName,omitempty"`
 	Arguments       any             `json:"arguments,omitempty"`
 	Result          any             `json:"result,omitempty"`
-	Metadata        Object          `json:"metadata,omitempty"`
+	ToolError       any             `json:"toolError,omitempty"`
 	IsError         bool            `json:"isError,omitempty"`
 	Model           string          `json:"model,omitempty"`
 	Provider        string          `json:"provider,omitempty"`
@@ -63,6 +62,31 @@ func (part Part) MarshalJSON() ([]byte, error) {
 		return json.Marshal(Object{"type": "tool", "toolCallId": part.ToolCallID})
 	}
 	return json.Marshal(Object{"type": part.Type, "ordinal": part.Ordinal, "text": part.Text})
+}
+
+// Assistant text and reasoning live only in their ordered parts. User input and
+// tool payloads never use the aggregate fields, so there is one durable source
+// for each visible body.
+func partContent(parts []Part, kind string) string {
+	var text strings.Builder
+	for _, part := range parts {
+		if part.Type == kind {
+			text.WriteString(part.Text)
+		}
+	}
+	return text.String()
+}
+func messageText(message *Message) string {
+	if message.Role != "assistant" {
+		return message.Text
+	}
+	return partContent(message.Parts, "text")
+}
+func messageThinking(message *Message) string {
+	if message.Role != "assistant" {
+		return ""
+	}
+	return partContent(message.Parts, "reasoning")
 }
 
 type Interaction struct {
@@ -170,6 +194,9 @@ func DecodeState(raw json.RawMessage) (*State, error) {
 		if v.FollowUp && v.Role != "user" {
 			return nil, errors.New("OpenCode follow-up identity belongs to user input")
 		}
+		if v.Role != "user" && v.Text != "" {
+			return nil, errors.New("OpenCode assistant and tool bodies must use parts or display payloads")
+		}
 		ids[v.ID] = true
 	}
 	ids = map[string]bool{}
@@ -239,8 +266,8 @@ func (s *State) Settle(id, outcome string, at int64, reason string) {
 		e.Interactions = nil
 		for i := len(s.Messages) - 1; i >= 0; i-- {
 			m := s.Messages[i]
-			if m.ExecutionID == id && m.Role == "assistant" && (m.NativeSessionID == "" || m.NativeSessionID == s.NativeSessionID) && strings.TrimSpace(m.Text) != "" {
-				text := clip(m.Text, 100000)
+			if m.ExecutionID == id && m.Role == "assistant" && (m.NativeSessionID == "" || m.NativeSessionID == s.NativeSessionID) && strings.TrimSpace(messageText(m)) != "" {
+				text := clip(messageText(m), 100000)
 				e.Summary = &text
 				break
 			}
@@ -399,15 +426,6 @@ func segment(m *Message, kind string, ordinal int, text string, replace bool) {
 	} else {
 		m.Parts[found].Text += text
 	}
-	m.Text = ""
-	m.Thinking = ""
-	for _, p := range m.Parts {
-		if p.Type == "text" {
-			m.Text += p.Text
-		} else if p.Type == "reasoning" {
-			m.Thinking += p.Text
-		}
-	}
 }
 func nativeUsage(tokens any, cost any) *Usage {
 	t := object(tokens)
@@ -435,16 +453,13 @@ func contentText(value any) string {
 	}
 	return strings.Join(parts, "\n")
 }
-func toolResult(t *Message, content, nativeError, metadata any) {
+func toolResult(t *Message, content, nativeError any) {
 	t.Result = content
-	t.Text = contentText(content)
-	t.Metadata = object(metadata)
 	t.Status = "complete"
 	if nativeError != nil {
 		t.IsError = true
 		t.Status = "failed"
-		t.Text = strings.TrimSpace(t.Text + "\n" + nativeFailure(nativeError))
-		t.Result = Object{"content": content, "error": nativeError}
+		t.ToolError = nativeError
 	}
 	if !t.IsError && (t.ToolName == "todo" || t.ToolName == "todowrite") {
 		for i, v := range array(object(t.Arguments)["todos"]) {
@@ -497,7 +512,6 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 		}
 		m.Parts = []Part{}
 		m.Text = ""
-		m.Thinking = ""
 		ordinals := map[string]int{}
 		for _, part := range array(v["content"]) {
 			p := object(part)
@@ -522,7 +536,7 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 				tool.Arguments = state["input"]
 				tool.Status = "streaming"
 				if state["status"] == "completed" || state["status"] == "error" {
-					toolResult(tool, state["content"], state["error"], state["metadata"])
+					toolResult(tool, state["content"], state["error"])
 				}
 			}
 		}
@@ -725,12 +739,10 @@ func (s *State) Reduce(event Event, owner string) error {
 			tool.Arguments = str(data["text"])
 		case "session.tool.called":
 			tool.Arguments = data["input"]
-		case "session.tool.progress":
-			tool.Metadata = object(data["metadata"])
 		case "session.tool.success":
-			toolResult(tool, data["content"], nil, data["metadata"])
+			toolResult(tool, data["content"], nil)
 		case "session.tool.failed":
-			toolResult(tool, data["content"], data["error"], data["metadata"])
+			toolResult(tool, data["content"], data["error"])
 		}
 	}
 	return nil

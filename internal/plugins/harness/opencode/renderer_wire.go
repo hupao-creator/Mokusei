@@ -53,10 +53,17 @@ func (source rendererSource) object(collection, id string, fallback any) Object 
 	}
 	return rendererObject(fallback)
 }
+func (source rendererSource) messageHasField(id, field string) bool {
+	record, exists := source.records["messages"][id]
+	if !exists {
+		return false
+	}
+	_, present := record.fields[field]
+	return present
+}
 func (source rendererSource) messageHas(message *Message, field string) bool {
-	if record, exists := source.records["messages"][message.ID]; exists {
-		_, present := record.fields[field]
-		return present
+	if source.messageHasField(message.ID, field) {
+		return true
 	}
 	return field == "todos" && message.Todos != nil
 }
