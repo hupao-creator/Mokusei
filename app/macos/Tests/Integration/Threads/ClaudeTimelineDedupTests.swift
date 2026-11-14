@@ -151,11 +151,21 @@ import MokuseiPluginUI
     @Test func threadProjectionRetainsAssistantSummaryForEveryExecution() throws {
         let fixture = try fixture("thread-reader.golden.json")
         let projected = try ClaudeState(try #require(fixture["thread"]))
-        #expect(projected.turns.map(\.assistantText) == ["FIRST EXECUTION ANSWER", "SECOND EXECUTION ANSWER"])
+        #expect(projected.turns.map(\.assistantText) == [String(repeating: "T", count: 600), "SECOND EXECUTION ANSWER"])
         for turn in projected.turns {
             #expect(turn.timeline.filter { $0.claudeKind == "assistant" }.count == 1)
             #expect(turn.timeline.filter { $0.claudeKind == "activity" }.isEmpty)
         }
+    }
+
+    @Test func checkpointForkDecodesWithCurrentEntitiesAndLatestMarkers() throws {
+        let fixture = try fixture("checkpoint-fork.golden.json")
+        let fork = try ClaudeState(try #require(fixture["fork"]))
+        let activities = fork.history.filter { $0.claudeKind == "activity" }
+        #expect(activities.map { $0["activity"]?["status"]?.stringValue } == ["completed", "cancelled"])
+        let interactions = fork.history.filter { $0.claudeKind == "interaction" }
+        #expect(interactions.map { $0["interaction"]?["status"]?.stringValue } == ["resolved", "cancelled"])
+        #expect(fork.history.allSatisfy { !["review", "error"].contains($0.claudeKind) })
     }
 
     @Test func terminalOverviewAndExecutionPreviewKeepAssistant() throws {
@@ -193,6 +203,8 @@ import MokuseiPluginUI
         #expect(interaction.actions.map(\.id) == ["submit", "deny", "cancel"])
         #expect(interaction.questions.count == 1)
         #expect(interaction.questions[0].answerFormat == .jsonObject)
+        #expect(interaction.questions[0].prompt.string.contains("& < >"))
+        #expect(interaction.questions[0].prompt.string.contains("\u{2028}"))
         let thread = try HarnessThread(id: JSONText("elicitation"), harnessID: "claude", revision: 1,
             sessionState: try #require(fixture["overview"]), observation: observation, cwd: "/tmp", settings: .object([:]),
             createdAt: 1_000, updatedAt: 2_000, title: "Elicitation", tags: [])

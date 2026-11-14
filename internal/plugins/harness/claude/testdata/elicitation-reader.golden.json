@@ -26,6 +26,7 @@
             "schema": {
               "properties": {
                 "name": {
+                  "description": "Use \u0026 \u003c \u003e and \u2028 safely",
                   "type": "string"
                 }
               },
@@ -87,7 +88,7 @@
           "questions": [
             {
               "id": "claude-question-sha256-c0e37accbe5c3ec889cfe2ab9a732c52d54c1c1d9767e357365dcf30cc395bca",
-              "prompt": "JSON form values matching this schema:\n{\n  \"properties\": {\n    \"name\": {\n      \"type\": \"string\"\n    }\n  },\n  \"type\": \"object\"\n}",
+              "prompt": "JSON form values matching this schema:\n{\n  \"properties\": {\n    \"name\": {\n      \"description\": \"Use \u0026 \u003c \u003e and \u2028 safely\",\n      \"type\": \"string\"\n    }\n  },\n  \"type\": \"object\"\n}",
               "multiple": false,
               "allowOther": true,
               "secret": false,
@@ -127,12 +128,13 @@
             "schema": {
               "properties": {
                 "name": {
+                  "description": "Use \u0026 \u003c \u003e and \u2028 safely",
                   "type": "string"
                 }
               },
               "type": "object"
             },
-            "schemaDisplay": "{\n  \"properties\": {\n    \"name\": {\n      \"type\": \"string\"\n    }\n  },\n  \"type\": \"object\"\n}",
+            "schemaDisplay": "{\n  \"properties\": {\n    \"name\": {\n      \"description\": \"Use \u0026 \u003c \u003e and \u2028 safely\",\n      \"type\": \"string\"\n    }\n  },\n  \"type\": \"object\"\n}",
             "serverName": "remote",
             "status": "pending",
             "title": "MCP form",

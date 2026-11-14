@@ -465,18 +465,36 @@ func validTimelineReferences(t *Turn) bool {
 			field, current = "noticeId", notices
 		case "error":
 			// The current error owns the body; the timeline carries only its position.
-			if item["message"] != nil {
+			if _, present := item["message"]; present || !timelineKeys(item, "id", "kind", "createdAt") {
 				return false
 			}
 			continue
-		case "user-message", "assistant", "reasoning", "review", "context-compaction":
+		case "user-message":
+			if !timelineKeys(item, "id", "kind", "createdAt", "promptIndex", "checkpointId") || item["promptIndex"] == nil {
+				return false
+			}
+			continue
+		case "assistant":
+			if !timelineKeys(item, "id", "kind", "createdAt", "content", "status", "messageId") || item["content"] == nil || !contains([]string{"complete", "streaming", "failed", "cancelled"}, str(item["status"])) {
+				return false
+			}
+			continue
+		case "reasoning", "review":
+			if !timelineKeys(item, "id", "kind", "createdAt", "content") || item["content"] == nil {
+				return false
+			}
+			continue
+		case "context-compaction":
+			if !timelineKeys(item, "id", "kind", "createdAt") {
+				return false
+			}
 			continue
 		default:
 			return false
 		}
 		// Inline entity snapshots belong to the previous schema and are not
 		// accepted beside the authoritative tables.
-		if item[kind] != nil {
+		if item[kind] != nil || !timelineKeys(item, "id", "kind", "createdAt", field) {
 			return false
 		}
 		id := str(item[field])
@@ -488,6 +506,15 @@ func validTimelineReferences(t *Turn) bool {
 			return false
 		}
 		seen[key] = true
+	}
+	return true
+}
+
+func timelineKeys(item map[string]any, keys ...string) bool {
+	for key := range item {
+		if !contains(keys, key) {
+			return false
+		}
 	}
 	return true
 }
@@ -673,8 +700,10 @@ func publicInteraction(execution string, i map[string]any) model.PublicInteracti
 		if str(i["elicitationMode"]) != "url" {
 			prompt := "JSON form values"
 			if schema := i["schema"]; schema != nil {
-				b, _ := json.MarshalIndent(schema, "", "  ")
-				prompt += " matching this schema:\n" + string(b)
+				// Use the same JavaScript-compatible display spelling as native
+				// schemaDisplay so `&`, `<`, `>` and line separators compare
+				// exactly in the native public-interaction matcher.
+				prompt += " matching this schema:\n" + displayJSON(schema)
 			}
 			q := question(0, prompt)
 			q.AnswerFormat = "json-object"

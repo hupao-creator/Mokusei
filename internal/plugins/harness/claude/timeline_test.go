@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -98,6 +99,57 @@ func TestActivityTimelineWireGrowth(t *testing.T) {
 		t.Fatalf("wire grew from %d to %d bytes after 100 updates", len(before), len(after))
 	}
 	t.Logf("wire before=%d bytes after=100 updates %d bytes", len(before), len(after))
+}
+
+func TestInteractionTimelineWireGrowth(t *testing.T) {
+	stale := strings.Repeat("stale-input\n", 1000)
+	finalInput := strings.Repeat("final-input\n", 1000)
+	finalSchema := map[string]any{"type": "object", "description": strings.Repeat("final-schema\n", 1000)}
+	build := func(updates int) json.RawMessage {
+		state := NewState()
+		turn := state.NewTurn("execution-interaction-growth", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "ask"}}}, Settings{})
+		interaction := func(input string) map[string]any {
+			return map[string]any{
+				"id": "permission-growth", "kind": "permission", "title": "Allow command", "status": "pending",
+				"toolName": "Bash", "input": map[string]any{"command": input}, "schema": map[string]any{"type": "object", "description": input},
+			}
+		}
+		turn.interaction(interaction(stale))
+		for update := 0; update < updates; update++ {
+			turn.interaction(interaction(stale + fmt.Sprint(update)))
+		}
+		turn.interaction(map[string]any{
+			"id": "permission-growth", "kind": "permission", "title": "Allow command", "status": "pending",
+			"toolName": "Bash", "input": map[string]any{"command": finalInput}, "schema": finalSchema,
+		})
+		raw, err := state.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	before, after := build(0), build(100)
+	finalJSON, _ := json.Marshal(finalInput)
+	if count := strings.Count(string(after), string(finalJSON)); count != 1 {
+		t.Fatalf("final interaction input count = %d", count)
+	}
+	if strings.Contains(string(after), "stale-input") {
+		t.Fatal("stale interaction input retained")
+	}
+	if len(after) > len(before)+2048 {
+		t.Fatalf("interaction wire grew from %d to %d bytes after 100 updates", len(before), len(after))
+	}
+	var decoded State
+	if err := json.Unmarshal(after, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Turns[0].Interactions[0]["input"].(map[string]any)["command"] != finalInput {
+		t.Fatal("current interaction input was not the final value")
+	}
+	if decoded.Turns[0].Interactions[0]["schema"].(map[string]any)["description"] != finalSchema["description"] {
+		t.Fatal("current interaction schema was not the final value")
+	}
+	t.Logf("interaction wire before=%d bytes after=100 updates %d bytes", len(before), len(after))
 }
 
 func TestInteractionTimelineReferenceKeepsPendingAuthority(t *testing.T) {
@@ -293,7 +345,7 @@ func TestThreadProjectionRetainsAssistantSummary(t *testing.T) {
 	if len(projected.Turns) != 2 {
 		t.Fatalf("thread turns = %d", len(projected.Turns))
 	}
-	for index, expected := range []string{"FIRST EXECUTION ANSWER", "SECOND EXECUTION ANSWER"} {
+	for index, expected := range []string{strings.Repeat("T", 600), "SECOND EXECUTION ANSWER"} {
 		turn := projected.Turns[index]
 		if turn.assistantText() != expected {
 			t.Fatalf("thread turn %d assistant = %q", index, turn.assistantText())
@@ -376,6 +428,55 @@ func TestTerminalOverviewKeepsAssistantPreview(t *testing.T) {
 }
 
 func TestCheckpointForkUsesCurrentEntitiesAndLatestMarkers(t *testing.T) {
+	result := checkpointFork(t, checkpointForkState(), "cp-2")
+	activities, interactions, reviews, errors := 0, 0, 0, 0
+	activityStatuses, interactionStatuses := []string{}, []string{}
+	for _, value := range arr(result.ForkHistory["items"]) {
+		item := obj(value)
+		switch str(item["kind"]) {
+		case "activity":
+			activities++
+			activityStatuses = append(activityStatuses, str(obj(item["activity"])["status"]))
+		case "interaction":
+			interactions++
+			interactionStatuses = append(interactionStatuses, str(obj(item["interaction"])["status"]))
+		case "review":
+			reviews++
+		case "error":
+			errors++
+		}
+	}
+	if activities != 2 || interactions != 2 {
+		t.Fatalf("checkpoint fork entities = %d activities, %d interactions", activities, interactions)
+	}
+	if !slices.Equal(activityStatuses, []string{"completed", "cancelled"}) {
+		t.Fatalf("checkpoint activity statuses = %v", activityStatuses)
+	}
+	if !slices.Equal(interactionStatuses, []string{"resolved", "cancelled"}) {
+		t.Fatalf("checkpoint interaction statuses = %v", interactionStatuses)
+	}
+	if reviews != 0 || errors != 0 {
+		t.Fatalf("checkpoint fork inherited latest-only markers: %d review, %d error", reviews, errors)
+	}
+}
+
+func TestCheckpointForkGolden(t *testing.T) {
+	state := checkpointForkState()
+	source, err := state.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fork, err := forkCheckpoint(state, "cp-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGolden(t, filepath.Join("testdata", "checkpoint-fork.golden.json"), struct {
+		Source json.RawMessage `json:"source"`
+		Fork   json.RawMessage `json:"fork"`
+	}{source, fork})
+}
+
+func checkpointForkState() *State {
 	state := NewState()
 	state.PrimarySessionID = "claude-native-session"
 	turn := state.NewTurn("checkpoint-turn", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "first prompt"}}}, Settings{})
@@ -385,54 +486,43 @@ func TestCheckpointForkUsesCurrentEntitiesAndLatestMarkers(t *testing.T) {
 	turn.text("before checkpoint", "assistant-before", false)
 	parser.messageEnd(turn, "assistant-before")
 	parser.startTool(turn, &nativeTool{ID: "command-late", Name: "Bash", Input: map[string]any{"command": "go test"}}, "", nil)
+	parser.startTool(turn, &nativeTool{ID: "command-running", Name: "Bash", Input: map[string]any{"command": "sleep"}}, "", nil)
 	turn.interaction(map[string]any{"id": "permission-late", "kind": "permission", "title": "Allow late command", "status": "pending", "toolName": "Bash", "input": map[string]any{"command": "go test"}})
+	turn.interaction(map[string]any{"id": "permission-pending", "kind": "permission", "title": "Still pending", "status": "pending", "toolName": "Bash", "input": map[string]any{"command": "sleep"}})
 	turn.review("review before checkpoint")
+	turn.fail("error before checkpoint")
 	turn.addPrompt(model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "second prompt"}}}, "cp-2")
 	turn.activityEnd("command-late", "completed", "late completed detail")
 	turn.interaction(map[string]any{"id": "permission-late", "kind": "permission", "title": "Allow late command", "status": "resolved", "toolName": "Bash", "input": map[string]any{"command": "go test"}})
 	turn.review("review after checkpoint")
 	turn.fail("error after checkpoint")
-	raw, err := state.Encode()
+	normalizeReaderState(state, 1000)
+	return state
+}
+
+func checkpointFork(t *testing.T, state *State, checkpoint string) *State {
+	t.Helper()
+	fork, err := forkCheckpoint(state, checkpoint)
 	if err != nil {
 		t.Fatal(err)
+	}
+	result, err := ParseState(fork)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+func forkCheckpoint(state *State, checkpoint string) (json.RawMessage, error) {
+	raw, err := state.Encode()
+	if err != nil {
+		return nil, err
 	}
 	fork, err := (&Harness{}).Fork(context.Background(), plugin.ForkRequest{
 		Source:  model.ThreadRecord{SessionRecord: model.SessionRecord{SessionState: raw}},
-		Request: json.RawMessage(`{"checkpointId":"cp-2"}`),
+		Request: json.RawMessage(fmt.Sprintf(`{"checkpointId":%q}`, checkpoint)),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := ParseState(fork.SessionState)
-	if err != nil {
-		t.Fatal(err)
-	}
-	activities, interactions, reviews, errors := 0, 0, 0, 0
-	for _, value := range arr(result.ForkHistory["items"]) {
-		item := obj(value)
-		switch str(item["kind"]) {
-		case "activity":
-			activities++
-			if str(obj(item["activity"])["status"]) != "completed" || str(obj(item["activity"])["detail"]) != "late completed detail" {
-				t.Fatalf("checkpoint activity = %#v", item)
-			}
-		case "interaction":
-			interactions++
-			if str(obj(item["interaction"])["status"]) != "resolved" {
-				t.Fatalf("checkpoint interaction = %#v", item)
-			}
-		case "review":
-			reviews++
-		case "error":
-			errors++
-		}
-	}
-	if activities != 1 || interactions != 1 {
-		t.Fatalf("checkpoint fork entities = %d activities, %d interactions", activities, interactions)
-	}
-	if reviews != 0 || errors != 0 {
-		t.Fatalf("checkpoint fork inherited latest-only markers: %d review, %d error", reviews, errors)
-	}
+	return fork.SessionState, err
 }
 
 func TestParseRejectsMalformedTimelineReferences(t *testing.T) {
@@ -482,6 +572,14 @@ func TestElicitationReaderGolden(t *testing.T) {
 	overview, err := (StateAdapter{}).ProjectRenderer(raw, model.RendererScope{Kind: "overview"})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if observation.LatestExecution == nil || len(observation.LatestExecution.Interactions) != 1 {
+		t.Fatalf("elicitation observation = %#v", observation)
+	}
+	prompt := observation.LatestExecution.Interactions[0].Questions[0].Prompt
+	expected := "JSON form values matching this schema:\n" + displayJSON(state.Turns[0].Interactions[0]["schema"])
+	if prompt != expected || !strings.Contains(prompt, "& < >") || !strings.Contains(prompt, "\u2028") {
+		t.Fatalf("elicitation prompt = %q", prompt)
 	}
 	compareGolden(t, filepath.Join("testdata", "elicitation-reader.golden.json"), struct {
 		State       json.RawMessage         `json:"state"`
@@ -553,7 +651,7 @@ func compareGolden(t *testing.T, path string, value any) {
 
 func threadReaderState() *State {
 	state := NewState()
-	for index, text := range []string{"FIRST EXECUTION ANSWER", "SECOND EXECUTION ANSWER"} {
+	for index, text := range []string{strings.Repeat("T", 2000), "SECOND EXECUTION ANSWER"} {
 		id := fmt.Sprintf("execution-thread-%d", index)
 		turn := state.NewTurn(id, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: fmt.Sprintf("prompt %d", index)}}}, Settings{})
 		parser := newParser()
@@ -595,7 +693,9 @@ func elicitationReaderState() *State {
 		"id": "ask-elicitation", "kind": "elicitation", "title": "MCP form", "description": "Provide the remote fields",
 		"status": "pending", "toolName": "mcp__remote__form", "elicitationMode": "form",
 		"elicitationId": "elicitation-1", "serverName": "remote",
-		"schema": map[string]any{"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}},
+		"schema": map[string]any{"type": "object", "properties": map[string]any{
+			"name": map[string]any{"type": "string", "description": "Use & < > and \u2028 safely"},
+		}},
 	})
 	return state
 }

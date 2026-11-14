@@ -137,7 +137,7 @@ struct ThreadHistorySidebar: View {
                             else { dismissHover(id) }
                         }
                         .offset(x: 44, y: max(0, min(rect.midY - previewHeight / 2, geometry.size.height - previewHeight)))
-                        .accessibilityHidden(true)
+                        .accessibilityElement(children: .combine)
                         .onDisappear { dismissHover(id) }
                 }
             }

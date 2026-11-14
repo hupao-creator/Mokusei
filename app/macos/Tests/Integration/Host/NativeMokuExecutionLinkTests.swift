@@ -105,6 +105,7 @@ import MokuseiHarnessOpenCode
             var turn: [JSONText: JSONValue] = ["executionId": .text(id), "createdAt": .number(execution.startedAt),
                 "updatedAt": .number(execution.startedAt + 4), "status": .text(running ? "running" : execution.status.rawValue),
                 "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
+            if harness == "codex" { turn["reasoning"] = .text("") }
             if let finished = execution.finishedAt { turn["finishedAt"] = .number(finished) }
             var item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
                 "status": .text(status), "createdAt": .number(execution.startedAt + 1)]

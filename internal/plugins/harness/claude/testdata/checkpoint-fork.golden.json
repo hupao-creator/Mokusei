@@ -1,0 +1,215 @@
+{
+  "source": {
+    "version": 2,
+    "primarySessionId": "claude-native-session",
+    "turns": [
+      {
+        "author": {
+          "model": "claude-sonnet-4-5"
+        },
+        "executionId": "checkpoint-turn",
+        "createdAt": 1000,
+        "updatedAt": 1010,
+        "prompts": [
+          "first prompt",
+          "second prompt"
+        ],
+        "promptAttachments": [
+          [],
+          []
+        ],
+        "status": "running",
+        "statusLabel": "等待你的回应",
+        "foreground": {
+          "callId": "command-running",
+          "kind": "tool-call",
+          "sequence": 3,
+          "toolName": "Bash"
+        },
+        "error": "error after checkpoint",
+        "plan": [],
+        "activities": [
+          {
+            "detail": "late completed detail",
+            "id": "command-late",
+            "kind": "command",
+            "label": "Bash",
+            "status": "completed",
+            "toolName": "Bash"
+          },
+          {
+            "id": "command-running",
+            "kind": "command",
+            "label": "Bash",
+            "status": "running",
+            "toolName": "Bash"
+          }
+        ],
+        "interactions": [
+          {
+            "id": "permission-late",
+            "input": {
+              "command": "go test"
+            },
+            "kind": "permission",
+            "status": "resolved",
+            "title": "Allow late command",
+            "toolName": "Bash"
+          },
+          {
+            "id": "permission-pending",
+            "input": {
+              "command": "sleep"
+            },
+            "kind": "permission",
+            "status": "pending",
+            "title": "Still pending",
+            "toolName": "Bash"
+          }
+        ],
+        "notices": [],
+        "timeline": [
+          {
+            "checkpointId": "cp-1",
+            "createdAt": 1001,
+            "id": "user-message:1001:0",
+            "kind": "user-message",
+            "promptIndex": 0
+          },
+          {
+            "content": "before checkpoint",
+            "createdAt": 1002,
+            "id": "assistant:1002:1",
+            "kind": "assistant",
+            "messageId": "assistant-before",
+            "status": "complete"
+          },
+          {
+            "activityId": "command-late",
+            "createdAt": 1003,
+            "id": "activity:1003:2",
+            "kind": "activity"
+          },
+          {
+            "activityId": "command-running",
+            "createdAt": 1004,
+            "id": "activity:1004:3",
+            "kind": "activity"
+          },
+          {
+            "createdAt": 1005,
+            "id": "interaction:1005:4",
+            "interactionId": "permission-late",
+            "kind": "interaction"
+          },
+          {
+            "createdAt": 1006,
+            "id": "interaction:1006:5",
+            "interactionId": "permission-pending",
+            "kind": "interaction"
+          },
+          {
+            "checkpointId": "cp-2",
+            "createdAt": 1007,
+            "id": "user-message:1007:6",
+            "kind": "user-message",
+            "promptIndex": 1
+          },
+          {
+            "content": "review after checkpoint",
+            "createdAt": 1008,
+            "id": "review:1008:7",
+            "kind": "review"
+          },
+          {
+            "createdAt": 1009,
+            "id": "error:1009:8",
+            "kind": "error"
+          }
+        ]
+      }
+    ],
+    "nativeNotifications": []
+  },
+  "fork": {
+    "version": 2,
+    "pendingFork": {
+      "checkpointId": "cp-2",
+      "sourceSessionId": "claude-native-session"
+    },
+    "forkHistory": {
+      "checkpointId": "cp-2",
+      "items": [
+        {
+          "checkpointId": "cp-1",
+          "content": "first prompt",
+          "createdAt": 1001,
+          "id": "fork-history:0",
+          "kind": "user-message"
+        },
+        {
+          "content": "before checkpoint",
+          "createdAt": 1002,
+          "id": "fork-history:1",
+          "kind": "assistant",
+          "status": "complete"
+        },
+        {
+          "activity": {
+            "detail": "late completed detail",
+            "kind": "command",
+            "label": "Bash",
+            "status": "completed",
+            "toolName": "Bash"
+          },
+          "createdAt": 1003,
+          "id": "fork-history:2",
+          "kind": "activity"
+        },
+        {
+          "activity": {
+            "kind": "command",
+            "label": "Bash",
+            "status": "cancelled",
+            "toolName": "Bash"
+          },
+          "createdAt": 1004,
+          "id": "fork-history:3",
+          "kind": "activity"
+        },
+        {
+          "createdAt": 1005,
+          "id": "fork-history:4",
+          "interaction": {
+            "kind": "permission",
+            "status": "resolved",
+            "title": "Allow late command",
+            "toolName": "Bash"
+          },
+          "kind": "interaction"
+        },
+        {
+          "createdAt": 1006,
+          "id": "fork-history:5",
+          "interaction": {
+            "kind": "permission",
+            "status": "cancelled",
+            "title": "Still pending",
+            "toolName": "Bash"
+          },
+          "kind": "interaction"
+        },
+        {
+          "checkpointId": "cp-2",
+          "content": "second prompt",
+          "createdAt": 1007,
+          "id": "fork-history:6",
+          "kind": "user-message"
+        }
+      ],
+      "sourceSessionId": "claude-native-session"
+    },
+    "turns": [],
+    "nativeNotifications": []
+  }
+}

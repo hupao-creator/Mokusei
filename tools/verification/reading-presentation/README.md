@@ -104,9 +104,11 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Five integration tests cover selection and Back scroll
+isolated AppKit host. Six integration tests cover selection and Back scroll
 retention, author and visibility controls, Up/Down, End, Return and Escape,
 inherited history, deletion, arriving successors and external result anchors.
+One mounted case feeds a real Claude thread projection's bounded assistant
+summary through the history sidebar and verifies the preview text.
 The visibility case also mounts a production execution summary with reasoning/tool
 counts, checks that its detail body and execution-group action are absent, and
 hides/restores it through the existing overall execution visibility control.
@@ -123,7 +125,7 @@ The ordinary Swift suite runs the four state/layout tests. The pointer test
 requires the isolated application's running AppKit loop and a foreground visible
 window; CI executes that exact method in `--isolated-input` and the coverage
 collector requires its observed passing outcome. Forced headless admission
-skips display assertions explicitly. The sidebar launcher requires all five
+skips display assertions explicitly. The sidebar launcher requires all six
 tests without skips. A finite onscreen pointer replay synchronizes the system
 cursor and native events (restoring the original cursor on exit) to exercise the
 production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
