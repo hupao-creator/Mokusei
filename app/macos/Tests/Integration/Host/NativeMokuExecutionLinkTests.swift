@@ -755,7 +755,14 @@ struct NativeMokuExecutionLinkTests {
         let secondInput = (0..<220).map { "NEW STREAMING CONTENT \($0)" }.joined(separator: "\n\n")
         try fixture.update(status: .running, text: firstInput, messageStatus: "complete", pendingText: secondInput)
         record("second-source", inputBytes: secondInput.utf8.count)
-        try await Task.sleep(for: .milliseconds(200))
+        // The OpenCode decoder can publish the new pending message after the
+        // fixed sleep. Wait for the committed top position before asserting
+        // that a user scroll survived the content update.
+        try await SwiftUIReplay.wait {
+            guard let value = fixture.scroll?["value"],
+                  let top = value["top"]?.numberValue else { return false }
+            return top < 5 && value["following"] == .bool(false)
+        }
         record("second-stream", inputBytes: secondInput.utf8.count)
         #expect(!textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") })
         #expect(textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
