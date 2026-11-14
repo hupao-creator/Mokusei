@@ -23,6 +23,8 @@ import MokuseiSidecardVoice
     var thread: HarnessThread
     var backs = 0
     var voiceMediaActions = 0
+    weak var voicePresentation: VoiceSidecardPresentation?
+    weak var voiceLifetime: PluginLifetime?
     init(_ thread: HarnessThread) { self.thread = thread }
 }
 
@@ -113,6 +115,26 @@ private struct SendFeedbackOtherCard: SidecardPlugin {
     }
 }
 
+/// Capture the owner created by the production plugin without replacing its
+/// update, rendering or scroll implementation with a test surface.
+private struct SendFeedbackVoiceCard: SidecardPlugin {
+    let owner: SendFeedbackThreadOwner
+    private let plugin = NativeVoiceSidecard()
+    var descriptor: SidecardPluginDescriptor { plugin.descriptor }
+    var icon: some View { plugin.icon }
+    func makePresentation(context: SidecardContext, lifetime: PluginLifetime) -> VoiceSidecardPresentation {
+        let presentation = plugin.makePresentation(context: context, lifetime: lifetime)
+        owner.voicePresentation = presentation; owner.voiceLifetime = lifetime
+        return presentation
+    }
+    func updatePresentation(_ presentation: VoiceSidecardPresentation, context: SidecardContext) {
+        plugin.updatePresentation(presentation, context: context)
+    }
+    func sidecard(context: SidecardContext, presentation: VoiceSidecardPresentation) throws -> SidecardView<VoiceSidecardContent> {
+        try plugin.sidecard(context: context, presentation: presentation)
+    }
+}
+
 @MainActor @Suite(.serializedNative, .serialized)
 struct NativeThreadSendFeedbackTests {
     @MainActor private final class Fixture {
@@ -151,7 +173,7 @@ struct NativeThreadSendFeedbackTests {
             let modules = foldProbe.map { state in
                 ["a", "b", "c"].map { AnySidecardPlugin(FoldProbeCard(id: JSONText($0), state: state)) }
             } ?? ([AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(SendFeedbackOtherCard())]
-                + (allCards ? [AnySidecardPlugin(NativeBrowserSidecard()), AnySidecardPlugin(NativeVoiceSidecard())] : []))
+                + (allCards ? [AnySidecardPlugin(NativeBrowserSidecard()), AnySidecardPlugin(SendFeedbackVoiceCard(owner: owner))] : []))
             model = NativeSidecardWorkspaceModel(harnessHost: host,
                 registry: try SidecardPluginRegistry(modules),
                 configuration: configuration, services: services, onBack: { owner.backs += 1 }, onVisibilityChange: { _ in })
@@ -760,9 +782,162 @@ struct NativeThreadSendFeedbackTests {
             try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.contains("Retained voice transcript") } }
             #expect(fixture.services.voice?.state.messages.map(\.id) == ["retained-reply"])
             #expect(element("moku-voice-start", in: root) == nil && element("moku-voice-stop", in: root) == nil)
+            try await verifyVoiceJumpOwnership(fixture, in: root)
         }
         print("THREAD_SIDECARD_TOGGLES_CONFIRMED card=\(card)")
         await fixture.close()
+    }
+
+    private func verifyVoiceJumpOwnership(_ fixture: Fixture, in root: NSView) async throws {
+        let presentation = try #require(fixture.owner.voicePresentation)
+        let lifetime = try #require(fixture.owner.voiceLifetime)
+        let capability = try #require(fixture.services.voice)
+        try await SwiftUIReplay.wait { presentation.context.expanded && !presentation.context.suppressed }
+        func publish(paragraphs: Int) throws {
+            let message = try VoiceTranscriptMessage(id: "retained-reply", sessionID: "past-call", role: .assistant,
+                text: JSONText("Retained voice transcript\n\n" + String(repeating: "Voice scroll ownership paragraph.\n\n", count: paragraphs)),
+                complete: true, createdAt: 1)
+            capability.publish(.init(phase: .closed, supported: false, available: false,
+                loading: false, muted: false, error: "", messages: [message]))
+        }
+        func voiceScroll(in view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView,
+               SwiftUIReplay.text(in: scroll).contains(where: { $0.contains("Retained voice transcript") }) { return scroll }
+            return view.subviews.lazy.compactMap { voiceScroll(in: $0) }.first
+        }
+        try publish(paragraphs: 80)
+        try await SwiftUIReplay.wait { voiceScroll(in: root) != nil }
+        let scroll = try #require(voiceScroll(in: root))
+        let document = try #require(scroll.documentView)
+        func bottom() -> CGFloat { max(0, document.frame.height - scroll.contentView.bounds.height) }
+        func offset() -> CGFloat { scroll.contentView.bounds.minY }
+        func takeUserOwnership() {
+            presentation.userScrollBegan(offset: offset(), contentHeight: document.frame.height,
+                viewportHeight: scroll.contentView.bounds.height)
+        }
+        func position(_ y: CGFloat) {
+            var transaction = Transaction(); transaction.disablesAnimations = true
+            withTransaction(transaction) { presentation.scrollPosition.scrollTo(y: y) }
+        }
+        try await SwiftUIReplay.wait { bottom() > 1_000 && abs(bottom() - offset()) < 5 }
+        // A tracking phase at the bottom need not move a pixel. Subsequent
+        // content must still follow in the real retained ScrollView.
+        takeUserOwnership()
+        #expect(presentation.pinned && !presentation.away)
+        let oldBottom = bottom()
+        try publish(paragraphs: 100)
+        try await SwiftUIReplay.wait { bottom() > oldBottom && abs(bottom() - offset()) < 5 }
+        #expect(presentation.pinned && !presentation.newMessages)
+
+        func startJump(_ label: String, action: @escaping @MainActor () -> Void) async throws {
+            func sample() -> String {
+                "time=\(ProcessInfo.processInfo.systemUptime) clip=\(scroll.contentView.bounds) "
+                    + "clipPresented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
+                    + "document=\(document.frame) documentPresented=\(String(describing: document.layer?.presentation()?.frame)) "
+                    + "edge=\(String(describing: presentation.scrollPosition.edge)) pinned=\(presentation.pinned) away=\(presentation.away) "
+                    + "expanded=\(presentation.context.expanded) suppressed=\(presentation.context.suppressed)"
+            }
+            var resetFrames = 0
+            var settledFrames = 0
+            var resetSamples: [String] = []
+            let resetStarted = ProcessInfo.processInfo.systemUptime
+            let resetInitial = sample()
+            position(0)
+            // A forced layout can expose model bounds at zero while the
+            // compositor still presents the preceding fold/reset transaction.
+            // Commit the origin across real display callbacks before jumping.
+            let resetObserver = SwiftUIReplay.FrameObserver(view: scroll) {
+                resetFrames += 1
+                if resetSamples.count < 32 { resetSamples.append(sample()) }
+                if let presented = scroll.contentView.layer?.presentation(),
+                   abs(offset()) < 5, abs(presented.bounds.minY) < 5, presentation.away { settledFrames += 1 }
+                else { settledFrames = 0 }
+                return settledFrames >= 2
+            }
+            defer { resetObserver.stop() }
+            do {
+                try await SwiftUIReplay.wait(driveLayout: false) { settledFrames >= 2 }
+            } catch {
+                resetObserver.stop()
+                let ended = ProcessInfo.processInfo.systemUptime
+                print("VOICE_TRANSCRIPT_JUMP_RESET_FAILURE label=\(label) started=\(resetStarted) ended=\(ended) elapsed=\(ended - resetStarted) frames=\(resetFrames) settledFrames=\(settledFrames) initial={\(resetInitial)} samples=\(resetSamples) final={\(sample())}")
+                if let window = root.window { try? await capture(window, name: "voice-jump-\(label)-reset-failure") }
+                throw error
+            }
+            var delivered = false
+            var frames = 0
+            var samples: [String] = []
+            let started = ProcessInfo.processInfo.systemUptime
+            let initial = sample()
+            // Mutate in the display callback: an async waiter can resume only
+            // after the short-lived animated pose has already completed.
+            let observer = SwiftUIReplay.FrameObserver(view: scroll) {
+                frames += 1
+                if samples.count < 32 { samples.append(sample()) }
+                guard offset() > 20 && offset() < bottom() - 64 else { return false }
+                action()
+                delivered = true
+                return true
+            }
+            defer { observer.stop() }
+            presentation.jumpToLatest(bottom: bottom(), reduceMotion: false)
+            let requested = sample()
+            do {
+                try await SwiftUIReplay.wait(driveLayout: false) { delivered }
+            } catch {
+                observer.stop()
+                let ended = ProcessInfo.processInfo.systemUptime
+                print("VOICE_TRANSCRIPT_JUMP_FAILURE label=\(label) started=\(started) ended=\(ended) elapsed=\(ended - started) frames=\(frames) initial={\(initial)} requested={\(requested)} samples=\(samples) final={\(sample())}")
+                if let window = root.window { try? await capture(window, name: "voice-jump-\(label)-failure") }
+                throw error
+            }
+            print("VOICE_TRANSCRIPT_JUMP_INTERRUPTED label=\(label) started=\(started) ended=\(ProcessInfo.processInfo.systemUptime) frames=\(frames)")
+        }
+        var takenOffset: CGFloat = 0
+        try await startJump("user-takeover") {
+            takeUserOwnership()
+            #expect(!presentation.pinned && presentation.away)
+            takenOffset = max(0, offset() - 10)
+            position(takenOffset)
+        }
+        try await SwiftUIReplay.wait { abs(offset() - takenOffset) < 5 }
+        try await Task.sleep(for: .milliseconds(450))
+        #expect(!presentation.pinned && presentation.away && abs(offset() - takenOffset) < 5,
+            "An old jump completion must not reacquire scrolling after user takeover")
+        #expect(SwiftUIReplay.text(in: root).contains(presentation.translate("回到最新")))
+
+        for boundary in ["suppressed", "folded", "released"] {
+            try await startJump(boundary) {
+                switch boundary {
+                case "suppressed":
+                    fixture.configuration.suppressed = true; fixture.update()
+                    #expect(presentation.context.suppressed)
+                case "folded":
+                    presentation.close()
+                    #expect(!presentation.context.expanded)
+                default:
+                    fixture.model.release()
+                    #expect(lifetime.isCancelled)
+                }
+                // A late Reduce Motion receipt and the actual animation callback
+                // must both leave a replacement fixed-offset request untouched.
+                position(12)
+                presentation.finishLatestTransition()
+                #expect(presentation.scrollPosition.edge == nil,
+                    "The \(boundary) boundary must revoke the old jump before late completion")
+            }
+            try await Task.sleep(for: .milliseconds(450))
+            #expect(presentation.scrollPosition.edge == nil)
+            if boundary == "suppressed" {
+                fixture.configuration.suppressed = false; fixture.update()
+                try await SwiftUIReplay.wait { !presentation.context.suppressed }
+            } else if boundary == "folded" {
+                fixture.model.activate("voice")
+                try await SwiftUIReplay.wait { presentation.context.expanded && !presentation.context.suppressed }
+                #expect(fixture.owner.voicePresentation === presentation)
+            }
+        }
+        print("VOICE_TRANSCRIPT_JUMP_OWNERSHIP_CONFIRMED")
     }
 
     @Test(.requiresDisplay, arguments: [1180.0, 800.0])

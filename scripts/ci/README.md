@@ -172,7 +172,12 @@ The Moku note capsule hydration/wrapping/copy/input case uses
 keyboard and TextKit mouse tracking for all four Harnesses, and emits
 `MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED`. It is excluded from the ordinary host
 only because that same method has a mandatory native outcome and receipt.
-CI selects only this method with `--native-owned`; the other nine mounted and
+The animated execution-follow method shares that owner because its scroll
+completion needs the same live AppKit loop. It observes an intermediate scroll
+position before delivering successor content, retains the full 200/220-paragraph
+assertions, and emits `MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED` for all four
+Harnesses. Production animation has no test-environment bypass.
+CI selects these two methods with `--native-owned`; the other eight mounted and
 two windowless methods keep their ordinary execution. Both launchers derive
 their selected method identities and expected counts from `swift_ownership.py`;
 their original local commands still run the full suites for diagnosis.

@@ -673,10 +673,13 @@ struct NativeMokuExecutionLinkTests {
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
     func runningLinkFollowsUntilUserScrollsAndJumpLatestRestoresIt(harness: String) async throws {
+        try #require(NSApp?.isRunning == true, "Animated following requires its declared AppKit replay owner")
+        try #require(!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                     "The animated-follow replay requires Reduce Motion to be disabled")
         let fixture = try ExecutionLinkFixture(harness)
         try fixture.update(status: .running, mixedParts: true)
         fixture.load()
-        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640)
         defer { window.close() }
         let root = try #require(window.contentView)
         var receipts: [JSONValue] = []
@@ -759,14 +762,41 @@ struct NativeMokuExecutionLinkTests {
         #expect(fixture.thread.observation.latestExecution?.status == .running)
         #expect((fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5)
         let jump = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("jumpLatest") })
+        let beforeJump = try #require(fixture.scroll?["value"])
+        let jumpStart = try #require(beforeJump["top"]?.numberValue)
+        let jumpHeight = try #require(beforeJump["height"]?.numberValue)
+        let jumpViewport = try #require(beforeJump["viewport"]?.numberValue)
+        let jumpBottom = max(0, jumpHeight - jumpViewport)
+        var successorDelivered = false
+        var successorError: (any Error)?
+        let jumpFrames = SwiftUIReplay.FrameObserver(view: root) {
+            guard let value = fixture.scroll?["value"], let top = value["top"]?.numberValue,
+                  value["following"] == .bool(true), top > jumpStart + 1, top < jumpBottom - 1 else { return false }
+            record("jump-latest")
+            // Deliver in this display callback: resuming an async waiter could
+            // otherwise happen after the animated transition has already ended.
+            do { try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput) }
+            catch { successorError = error }
+            successorDelivered = true
+            return true
+        }
+        defer { jumpFrames.stop() }
         try fixture.perform(jump, "activate")
-        try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(true) }
-        record("jump-latest")
-        try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput)
+        try await SwiftUIReplay.wait(driveLayout: false) { successorDelivered }
+        if let successorError { throw successorError }
         try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
+        // Manual traversal below takes scrolling ownership. First require the
+        // animated path to settle at the updated document's bottom by itself.
+        try await SwiftUIReplay.wait(driveLayout: false) {
+            guard let value = fixture.scroll?["value"], let height = value["height"]?.numberValue,
+                  let top = value["top"]?.numberValue, let viewport = value["viewport"]?.numberValue else { return false }
+            return value["following"] == .bool(true) && abs(max(0, height - viewport) - top) < 5
+        }
+        record("jump-following-updated-bottom")
         try await requireEveryReplyBlock("NEW STREAMING CONTENT", count: 220, fixture: fixture, in: root)
         try await Task.sleep(for: .milliseconds(150))
         #expect(fixture.presentation.readingTarget?.executionID == "target")
+        print("MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED harness=\(harness)")
         window.close(); await fixture.close()
     }
 

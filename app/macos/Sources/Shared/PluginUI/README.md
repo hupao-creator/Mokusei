@@ -2,6 +2,10 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+The timeline's floating Jump to latest control uses a 42pt circular interactive
+regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
+action and localized accessibility label remain owned by the timeline.
+
 Reading author labels use the validated owning Harness's native logo and name
 from the host environment, independently of the recorded model and effort.
 Without that identity they retain the text-only fallback. The shared label is
@@ -411,7 +415,11 @@ initial placement and follows content/viewport geometry through scoped row loadi
 projection and Markdown layout. Native scrolling or reading scroll controls take
 over from automatic following; later content cannot pull an upward reader back.
 Returning to the running document or choosing “jump to latest” enables following
-again. Explicit reading visits retain position ownership while their anchors
+again. The explicit jump animates to the bottom unless Reduce Motion is enabled;
+ordinary following and initial positioning remain immediate. Growth during a jump
+is resolved at its end: the animation uses a fixed offset before restoring the
+bottom edge anchor. A new manual scroll takes ownership; hiding the reader or
+enabling Reduce Motion invalidates the old completion. Explicit reading visits retain position ownership while their anchors
 resolve, including when an inline historical execution stops pausing follow.
 Generic execution changes cannot supersede that visit. This does not change
 reading-stack motion or projection/resource ownership.

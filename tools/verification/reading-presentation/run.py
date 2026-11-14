@@ -308,13 +308,19 @@ def main():
                 or any(owner["marker"] not in result.stdout for owner in standalone_owners.values())):
             raise SystemExit("FAIL: workspace replay lacks exactly one passing outcome and marker per owned method: " + str(errors))
     if thread_send and not composer_refocus and any(marker not in result.stdout for marker in (
-            "THREAD_SEND_NATIVE_HANDOFF_CONFIRMED", "THREAD_SEND_DOCK_FEEDBACK_CONFIRMED", "THREAD_SIDECARD_TOGGLES_CONFIRMED", "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED")):
-        raise SystemExit("FAIL: thread send replay did not confirm both native boundaries")
+            "THREAD_SEND_NATIVE_HANDOFF_CONFIRMED", "THREAD_SEND_DOCK_FEEDBACK_CONFIRMED",
+            "THREAD_SIDECARD_TOGGLES_CONFIRMED", "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED",
+            "VOICE_TRANSCRIPT_JUMP_OWNERSHIP_CONFIRMED")):
+        raise SystemExit("FAIL: thread send replay did not confirm its required native boundaries")
     if thread_send and any(f"THREAD_SEND_COMPOSER_REFOCUS_CONFIRMED exactExecution={exact} cancelHandoff={cancel}" not in result.stdout
                            for exact in ("false", "true") for cancel in ("false", "true")):
         raise SystemExit("FAIL: composer refocus replay did not confirm both detail entry paths")
     if "--moku-execution-links" in sys.argv and "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: execution capsules did not confirm their native input path")
+    if "--moku-execution-links" in sys.argv and any(
+            f"MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED harness={harness}" not in result.stdout
+            for harness in ("codex", "claude", "pi", "opencode")):
+        raise SystemExit("FAIL: animated execution following did not complete for every Harness")
     if "--local-images" in sys.argv and "MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: local images did not confirm their native attachment click path")
     if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:
