@@ -1,0 +1,271 @@
+{
+  "version": 1,
+  "date": "2026-11-14",
+  "baselineCommit": "a6c8535594b3e551161ff460086366f8e6fc33ba",
+  "candidateProductionSourceCommit": "536f2a8f",
+  "measurementSource": "tools/benchmarks/reading",
+  "scope": "Rejected preparation experiment: one paired warm active-open observation; neither final production performance nor a statistical regression result",
+  "trials": [
+    {
+      "label": "before",
+      "evidencePath": "/private/tmp/mkr-active-open-before-01/body-8/00-reading.active-open",
+      "executableSHA256": "4b77a5ba36c7877b7b22c6ca15c1c1b740b0c28455bd14aaabce3de403316c1e",
+      "reportSHA256": "4e6da99871bcae855da1546fd49f2121b669766b8966133be4e741909e20a79e",
+      "mainBodyBytes": 8552,
+      "sidecardBodyBytes": 622,
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+        "reading scroll controls do not certify native hitch sensitivity or ownership"
+      ],
+      "firstContentSeconds": {
+        "lower": 0.559849541,
+        "upper": 0.764000166
+      },
+      "activeOpening": {
+        "firstSidecardContentSeconds": {
+          "lower": 0.710562958,
+          "upper": 0.914596875
+        },
+        "bodyAnchorSettledSeconds": {
+          "lower": 0.710562958,
+          "upper": 0.914596875
+        },
+        "stableObservationSeconds": 2.755691875,
+        "positionTolerancePoints": 2,
+        "minimumStableSeconds": 0.4,
+        "endpoint": "two body anchors in each column, stable through the remaining quiet interval",
+        "certifiesComposerReadiness": false,
+        "captureCadenceIsDisplayFPS": false
+      },
+      "scroll": [
+        {
+          "startSeconds": 4.0,
+          "direction": -1,
+          "inputPixels": -360,
+          "observedDisplacementPoints": -379.47165494358694,
+          "minimumTravelPoints": 360,
+          "firstVisibleResponseSeconds": {
+            "lower": 0,
+            "upper": 0.155149167
+          },
+          "matchedFramePairs": 10,
+          "unmatchedFramePairs": 0,
+          "maximumObservedNoProgressSeconds": {
+            "lower": 0,
+            "upper": 0.158252458
+          },
+          "motionCoverageComplete": true
+        },
+        {
+          "startSeconds": 5.8,
+          "direction": 1,
+          "inputPixels": 360,
+          "observedDisplacementPoints": 383.32086270437924,
+          "minimumTravelPoints": 360,
+          "firstVisibleResponseSeconds": {
+            "lower": 0,
+            "upper": 0.150128292
+          },
+          "matchedFramePairs": 10,
+          "unmatchedFramePairs": 0,
+          "maximumObservedNoProgressSeconds": {
+            "lower": 0,
+            "upper": 0.157974916
+          },
+          "motionCoverageComplete": true
+        },
+        {
+          "startSeconds": 7.6,
+          "direction": -1,
+          "inputPixels": -360,
+          "observedDisplacementPoints": -377.56009155352194,
+          "minimumTravelPoints": 360,
+          "firstVisibleResponseSeconds": {
+            "lower": 0,
+            "upper": 0.149162834
+          },
+          "matchedFramePairs": 10,
+          "unmatchedFramePairs": 0,
+          "maximumObservedNoProgressSeconds": {
+            "lower": 0,
+            "upper": 0.158119375
+          },
+          "motionCoverageComplete": true
+        }
+      ],
+      "formal": {
+        "sampledSeconds": 9.999187458,
+        "roles": {
+          "source": {
+            "sampledPeakFootprintBytes": 26444280,
+            "observedCPUSeconds": 0.012108875,
+            "singleCoreCPUPercent": 0.1210985897690328,
+            "finalSampledFootprintBytes": 26444280
+          },
+          "helper": {
+            "sampledPeakFootprintBytes": 89215128,
+            "observedCPUSeconds": 0.348906624,
+            "singleCoreCPUPercent": 3.48934976432362,
+            "finalSampledFootprintBytes": 75320128
+          },
+          "runtime": {
+            "sampledPeakFootprintBytes": 20284088,
+            "observedCPUSeconds": 0.033188875,
+            "singleCoreCPUPercent": 0.33191571954625915,
+            "finalSampledFootprintBytes": 20284088
+          },
+          "collector": {
+            "sampledPeakFootprintBytes": 13009616,
+            "observedCPUSeconds": 4.410861041,
+            "singleCoreCPUPercent": 44.1121947110915,
+            "finalSampledFootprintBytes": 13009616
+          },
+          "application": {
+            "sampledPeakFootprintBytes": 97092856,
+            "observedCPUSeconds": 3.192071917,
+            "singleCoreCPUPercent": 31.923313073265113,
+            "finalSampledFootprintBytes": 86377720
+          }
+        },
+        "completeTaskCost": false
+      },
+      "frameCount": 92,
+      "requestedCaptureHz": 20.0
+    },
+    {
+      "label": "after",
+      "evidencePath": "/private/tmp/mkr-active-open-after-01/body-8/00-reading.active-open",
+      "executableSHA256": "a5782f8d1dd44920763f1bf16b3bbafe69fc5bbd4e2c9a6e4542f30ae5041169",
+      "reportSHA256": "c80a8a6024ff1e4f916ea26ba5143466efa64be2d5769e49b84ccb3cfe4a29cd",
+      "mainBodyBytes": 8552,
+      "sidecardBodyBytes": 622,
+      "measurement": "incomplete",
+      "product": "passed",
+      "comparison": "not-comparable",
+      "reasons": [
+        "process lifecycle/exit CPU coverage incomplete",
+        "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+        "reading scroll controls do not certify native hitch sensitivity or ownership"
+      ],
+      "firstContentSeconds": {
+        "lower": 0.614179792,
+        "upper": 0.812705833
+      },
+      "activeOpening": {
+        "firstSidecardContentSeconds": {
+          "lower": 0.614179792,
+          "upper": 0.812705833
+        },
+        "bodyAnchorSettledSeconds": {
+          "lower": 0.762970417,
+          "upper": 0.960567208
+        },
+        "stableObservationSeconds": 2.747374916,
+        "positionTolerancePoints": 2,
+        "minimumStableSeconds": 0.4,
+        "endpoint": "two body anchors in each column, stable through the remaining quiet interval",
+        "certifiesComposerReadiness": false,
+        "captureCadenceIsDisplayFPS": false
+      },
+      "scroll": [
+        {
+          "startSeconds": 4.0,
+          "direction": -1,
+          "inputPixels": -360,
+          "observedDisplacementPoints": -385.0204092600124,
+          "minimumTravelPoints": 360,
+          "firstVisibleResponseSeconds": {
+            "lower": 0,
+            "upper": 0.056317458
+          },
+          "matchedFramePairs": 10,
+          "unmatchedFramePairs": 0,
+          "maximumObservedNoProgressSeconds": {
+            "lower": 0,
+            "upper": 0.153511917
+          },
+          "motionCoverageComplete": true
+        },
+        {
+          "startSeconds": 5.8,
+          "direction": 1,
+          "inputPixels": 360,
+          "observedDisplacementPoints": 390.65759632660564,
+          "minimumTravelPoints": 360,
+          "firstVisibleResponseSeconds": {
+            "lower": 0,
+            "upper": 0.0547425
+          },
+          "matchedFramePairs": 10,
+          "unmatchedFramePairs": 0,
+          "maximumObservedNoProgressSeconds": {
+            "lower": 0,
+            "upper": 0.154352792
+          },
+          "motionCoverageComplete": true
+        },
+        {
+          "startSeconds": 7.6,
+          "direction": -1,
+          "inputPixels": -360,
+          "observedDisplacementPoints": -384.99716668569204,
+          "minimumTravelPoints": 360,
+          "firstVisibleResponseSeconds": {
+            "lower": 0,
+            "upper": 0.055133917
+          },
+          "matchedFramePairs": 10,
+          "unmatchedFramePairs": 0,
+          "maximumObservedNoProgressSeconds": {
+            "lower": 0,
+            "upper": 0.153892333
+          },
+          "motionCoverageComplete": true
+        }
+      ],
+      "formal": {
+        "sampledSeconds": 9.998250792,
+        "roles": {
+          "runtime": {
+            "sampledPeakFootprintBytes": 21725904,
+            "observedCPUSeconds": 0.033766958,
+            "singleCoreCPUPercent": 0.3377286557666496,
+            "finalSampledFootprintBytes": 21725904
+          },
+          "helper": {
+            "sampledPeakFootprintBytes": 74877928,
+            "observedCPUSeconds": 0.321459584,
+            "singleCoreCPUPercent": 3.215158238051126,
+            "finalSampledFootprintBytes": 74615616
+          },
+          "collector": {
+            "sampledPeakFootprintBytes": 13107920,
+            "observedCPUSeconds": 4.350965292,
+            "singleCoreCPUPercent": 43.5172649948067,
+            "finalSampledFootprintBytes": 13075128
+          },
+          "application": {
+            "sampledPeakFootprintBytes": 96126224,
+            "observedCPUSeconds": 3.192825417,
+            "singleCoreCPUPercent": 31.933840062850862,
+            "finalSampledFootprintBytes": 81593616
+          },
+          "source": {
+            "sampledPeakFootprintBytes": 24904160,
+            "observedCPUSeconds": 0.011603749,
+            "singleCoreCPUPercent": 0.11605779092163425,
+            "finalSampledFootprintBytes": 24904160
+          }
+        },
+        "completeTaskCost": false
+      },
+      "frameCount": 93,
+      "requestedCaptureHz": 20.0
+    }
+  ],
+  "experimentalReaderChangesShipped": false
+}

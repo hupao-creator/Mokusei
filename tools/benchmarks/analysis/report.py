@@ -63,6 +63,9 @@ def analyze(directory):
                     if name not in sealed: mark('unsealed reader evidence: '+name, 'incomplete')
                 if (root/'body-corpus.json').exists() and load(root/'body-corpus.json') != plan['reading']['corpus']:
                     mark('reader corpus differs from the declared workload', 'invalid')
+                if plan['scenario'] == 'reading.active-open':
+                    for name in ('active-source.json', 'active-prepared-content.json', 'active-observed-content.json'):
+                        if name not in sealed: mark('unsealed active opening evidence: '+name, 'incomplete')
         for name in ('plan.json', 'observation.json', 'outcome.json', 'identity.json', 'clock.json', 'cleanup.json', 'collector-exit.json'):
             if name not in manifest['files']:
                 mark('unsealed required evidence: '+name, 'incomplete')
@@ -129,7 +132,15 @@ def analyze(directory):
             before=integer(tail['beforeNS'],'tail outcome request',times[3])
             after=integer(tail['afterNS'],'tail outcome response',before)
             if after-times[3]>1_000_000_000:mark('post-window business observation was delayed','incomplete')
-            if tail.get('status')=='pending':
+            if plan['scenario'] == 'reading.active-open':
+                expected = plan['reading']['activeExecution']['executionId']
+                threads = tail.get('threads', [])
+                execution = threads[0].get('observation', {}).get('latestExecution', {}) if len(threads) == 1 else {}
+                if (tail.get('status') != 'pending' or execution.get('executionId') != expected
+                        or execution.get('status') != 'running'
+                        or threads[0]['id'] != plan['fixture']['threads'][0]['id']):
+                    mark('opening execution did not remain running through the observation tail', 'incomplete', product='wrong-result')
+            elif tail.get('status')=='pending':
                 mark('business work still pending beyond the declared catch-up tail','incomplete',product='overloaded')
             elif tail.get('status')!='completed':mark('post-window business observation unavailable','incomplete')
             elif 'workload' in plan:

@@ -3,8 +3,8 @@ import re
 import hashlib
 
 from contracts.model import integer, number, text
-from reading.corpus import document
-from reading.plan import SCENARIOS
+from reading.corpus import document, active_reply
+from reading.plan import SCENARIOS, ENTRY_SCENARIOS
 
 
 def validate(plan):
@@ -21,7 +21,7 @@ def validate(plan):
         raise ValueError("reading anchors do not identify the selected body")
     text(reading["executionId"], "selected public execution identity")
     trigger = reading["entryTrigger"]
-    if plan["scenario"] in ("reading.first-open", "reading.reopen"):
+    if plan["scenario"] in ENTRY_SCENARIOS:
         if type(trigger) is not dict or set(trigger) != {"kind", "atSeconds"} or trigger.get("kind") != "up":
             raise ValueError("entry must begin at the declared card click")
         if len([event for event in plan["events"]
@@ -29,6 +29,12 @@ def validate(plan):
             raise ValueError("entry trigger must identify exactly one planned system input")
     elif trigger is not None:
         raise ValueError("steady scroll cannot declare a navigation trigger")
+    if plan["scenario"] == "reading.active-open":
+        active = reading["activeExecution"]
+        if active["corpus"] != active_reply().manifest():
+            raise ValueError("active opening reply differs from the fixed workload")
+        if text(active["executionId"], "active execution identity") == reading["executionId"]:
+            raise ValueError("active opening must preserve the preceding main reply")
     segments = reading["segments"]
     if type(segments) is not list or not 2 <= len(segments) <= 20:
         raise ValueError("reading requires bounded, bidirectional scroll segments")
