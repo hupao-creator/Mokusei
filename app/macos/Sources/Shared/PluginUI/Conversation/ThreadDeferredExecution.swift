@@ -6,7 +6,7 @@ import SwiftUI
 
 /// Presence is separate from text: a deferred empty string must not change the
 /// native row's identity, classification or summary.
-public struct ThreadExecutionPresence: Sendable {
+public struct ThreadExecutionPresence: Sendable, Hashable {
     private var fields: [JSONText: Set<JSONText>] = [:]
     public init() {}
     init(_ values: [JSONValue]) throws {

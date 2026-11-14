@@ -27,15 +27,19 @@ public struct OpenCodeThreadView: View {
     }
     public var body: some View {
         Group {
-        switch providedState.map({ Result<OpenCodeState, Error>.success($0) }) ?? stateCache.result(for: input.thread.sessionState) {
-        case .failure(let error): OpenCodeFailure(message: ocLocalized("OpenCode 状态不可用", locale: locale) + " · " + error.localizedDescription)
-        case .success(let state):
-            if case .row(let key) = context.content { row(key, state: state) }
-            else { conversation(state) }
-        case nil: NativeThreadLoadingIndicator()
-        }
-        }.task(id: input.thread.sessionState) {
-            if providedState == nil { await stateCache.load(input.thread.sessionState) }
+            if let providedState {
+                if case .row(let id) = context.content { row(id, state: providedState) }
+                else { conversation(providedState) }
+            } else if let (preparedInput, result, _) = stateCache.snapshot(input: input) {
+                switch result {
+                case .success(let state):
+                    OpenCodeThreadView(input: preparedInput, actions: actions, context: context, state: state)
+                case .failure(let error):
+                    OpenCodeFailure(message: ocLocalized("OpenCode 状态不可用", locale: locale) + " · " + error.localizedDescription)
+                }
+            } else { NativeThreadLoadingIndicator() }
+        }.task(id: HarnessReadingRequest(input: input, raw: input.thread.sessionState)) {
+            if providedState == nil { await stateCache.load(input: input, raw: input.thread.sessionState) }
         }
     }
     private func conversation(_ state: OpenCodeState) -> some View {
@@ -122,19 +126,25 @@ private struct OpenCodeLoadedRow: View {
         try PluginJSONValidation.validate(.object(["sessionState": raw]))
         return try OpenCodeState(raw)
     })
+    @Environment(\.threadExecutionPresence) private var presence
+    @Environment(\.threadExecutionLoader) private var loader
+    private var readingEnvironment: HarnessReadingEnvironment { .init(presence: presence, loader: loader) }
     @ViewBuilder var body: some View {
         Group {
-            switch stateCache.result(for: raw) {
-            case .failure(let error): OpenCodeFailure(message: error.localizedDescription)
-            case .success(let state):
-                let anchor = ocMokuReplyAnchor(state, target: input.readingTarget?.message)
-                OpenCodeThreadView(input: input, actions: actions, context: context.row(key), state: state)
-                        .task(id: AnchorRequest(request: input.readingTarget?.requestID, anchor: anchor)) {
-                            if let target = input.readingTarget, let anchor { onAnchor(target.requestID, anchor) }
-                        }
-            case nil: NativeThreadLoadingIndicator()
-            }
-        }.task(id: raw) { await stateCache.load(raw) }
+            if let (preparedInput, result, preparedEnvironment) = stateCache.snapshot(input: input) {
+                switch result {
+                case .failure(let error): OpenCodeFailure(message: error.localizedDescription)
+                case .success(let state):
+                    let anchor = ocMokuReplyAnchor(state, target: preparedInput.readingTarget?.message)
+                    OpenCodeThreadView(input: preparedInput, actions: actions, context: context.row(key), state: state)
+                        .environment(\.threadExecutionPresence, preparedEnvironment?.presence ?? ThreadExecutionPresence())
+                        .environment(\.threadExecutionLoader, preparedEnvironment?.loader)
+                            .task(id: AnchorRequest(request: preparedInput.readingTarget?.requestID, anchor: anchor)) {
+                                if let target = preparedInput.readingTarget, let anchor { onAnchor(target.requestID, anchor) }
+                            }
+                }
+            } else { NativeThreadLoadingIndicator() }
+        }.task(id: HarnessReadingRequest(input: input, raw: raw, presence: presence, hasLoader: loader != nil)) { await stateCache.load(input: input, raw: raw, environment: readingEnvironment) }
     }
     private struct AnchorRequest: Hashable { let request: JSONText?; let anchor: JSONText? }
 }
