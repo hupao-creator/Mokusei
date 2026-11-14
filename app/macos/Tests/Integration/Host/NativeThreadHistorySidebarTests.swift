@@ -117,7 +117,6 @@ struct NativeThreadHistorySidebarTests {
             NSApp.activate(ignoringOtherApps: true)
         }
         try await fixture.ready()
-        let root = try #require(window.contentView)
         try await fixture.perform("history.open", value: .text(fixture.ids[0].string))
         try await fixture.perform("history.close")
         try key(126, "\u{f700}", in: window)
@@ -125,7 +124,9 @@ struct NativeThreadHistorySidebarTests {
         let answer = try #require(fixture.answers?.first)
         #expect(answer.count == 600)
         let expected = String(answer.prefix(80))
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.contains(expected) } }
+        try await SwiftUIReplay.wait {
+            fixture.control("history.sidebar.preview")?["value"]?["summary"]?.stringValue?.contains(expected) == true
+        }
     }
 
     @Test(arguments: [false, true])

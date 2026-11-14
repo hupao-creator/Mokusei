@@ -138,6 +138,15 @@ import MokuseiPluginUI
                 duplicate["id"] = .text("duplicate-activity")
                 timeline.append(.object(duplicate))
             }),
+            ("error null message", { _, timeline in
+                timeline.append(.object(["id": .text("error-null"), "kind": .text("error"),
+                    "createdAt": .number(1_012), "message": .null]))
+            }),
+            ("review inline field", { _, timeline in
+                var review = timeline[9].objectValue!
+                review["review"] = .object(["content": .text("inline")])
+                timeline[9] = .object(review)
+            }),
         ]
         for (name, mutate) in cases {
             let state = try stateWithTimelineMutation(mutate)
@@ -161,6 +170,9 @@ import MokuseiPluginUI
     @Test func checkpointForkDecodesWithCurrentEntitiesAndLatestMarkers() throws {
         let fixture = try fixture("checkpoint-fork.golden.json")
         let fork = try ClaudeState(try #require(fixture["fork"]))
+        #expect(fork.history.map(\.claudeKind) == ["user-message", "assistant", "activity", "activity", "interaction", "interaction", "user-message"])
+        #expect(fork.history.map { $0.claudeID("id") } == (0..<7).map { JSONText("fork-history:\($0)") })
+        #expect(fork.history.compactMap { $0.claudeKind == "user-message" ? $0["checkpointId"]?.stringValue : nil } == ["cp-1", "cp-2"])
         let activities = fork.history.filter { $0.claudeKind == "activity" }
         #expect(activities.map { $0["activity"]?["status"]?.stringValue } == ["completed", "cancelled"])
         let interactions = fork.history.filter { $0.claudeKind == "interaction" }

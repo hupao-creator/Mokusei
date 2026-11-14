@@ -558,6 +558,32 @@ func TestParseRejectsMalformedTimelineReferences(t *testing.T) {
 	}
 }
 
+func TestParseRejectsErrorNullAndReviewInline(t *testing.T) {
+	errorState := NewState()
+	errorTurn := errorState.NewTurn("execution-error-null", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "prompt"}}}, Settings{})
+	errorTurn.fail("failure")
+	errorTurn.Timeline[len(errorTurn.Timeline)-1]["message"] = nil
+	raw, err := json.Marshal(errorState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseState(raw); err == nil {
+		t.Fatal("error message:null accepted")
+	}
+
+	reviewState := NewState()
+	reviewTurn := reviewState.NewTurn("execution-review-inline", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "prompt"}}}, Settings{})
+	reviewTurn.review("review body")
+	reviewTurn.Timeline[len(reviewTurn.Timeline)-1]["review"] = map[string]any{"content": "inline"}
+	raw, err = json.Marshal(reviewState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseState(raw); err == nil {
+		t.Fatal("inline review field accepted")
+	}
+}
+
 func TestElicitationReaderGolden(t *testing.T) {
 	state := elicitationReaderState()
 	normalizeTimelineReaderState(state)
