@@ -934,7 +934,12 @@ public struct NativeMokuDock: View {
             // Switching between an intrinsic-height row and a fixed-height row
             // cannot interpolate, and a delayed expansion fraction starts the
             // eyes a layout pass after the glass has already changed size.
-            NativeMokuDockIdentity(harness: threadHarness, showsHarness: threadTitle != nil && !state.settingsOpen) {
+            let generation = state.composerGeneration
+            NativeMokuDockIdentity(harness: threadHarness,
+                showsHarness: threadTitle != nil && !state.settingsOpen,
+                entranceReady: state.inputAdmissionReady,
+                generation: generation, motion: state.windowVisible,
+                onSettled: { state.completeInputIdentity(generation: generation) }) {
                 face(characterInput)
             }
                 .position(x: faceCenter.x + faceShift.width, y: faceCenter.y + faceShift.height)
