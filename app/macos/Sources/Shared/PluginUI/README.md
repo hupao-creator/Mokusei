@@ -396,7 +396,9 @@ over from automatic following; later content cannot pull an upward reader back.
 Returning to the running document or choosing “jump to latest” enables following
 again. The explicit jump animates to the bottom unless Reduce Motion is enabled;
 ordinary following and initial positioning remain immediate. Growth during a jump
-is resolved at its end, while a new manual scroll takes ownership. Explicit reading visits retain position ownership while their anchors
+is resolved at its end: the animation uses a fixed offset before restoring the
+bottom edge anchor. A new manual scroll takes ownership; hiding the reader or
+enabling Reduce Motion invalidates the old completion. Explicit reading visits retain position ownership while their anchors
 resolve, including when an inline historical execution stops pausing follow.
 Generic execution changes cannot supersede that visit. This does not change
 reading-stack motion or projection/resource ownership.

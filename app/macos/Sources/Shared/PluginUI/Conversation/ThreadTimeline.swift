@@ -268,7 +268,10 @@ public struct HarnessMessageTimeline: View {
                 .accessibilityLabel(localize("消息时间线"))
                 .onScrollPhaseChange { _, phase in
                     userScrolling = phase == .interacting || phase == .decelerating
-                    if userScrolling { userPositioned = true; clampedRequest = nil; latestTransition = nil }
+                    if phase == .tracking || userScrolling {
+                        if latestTransition != nil { following = false }
+                        userPositioned = true; clampedRequest = nil; latestTransition = nil
+                    }
                     if userScrolling && !suspended && geometry.distance > 1 { following = false }
                 }
                 .onScrollGeometryChange(for: TimelineGeometry.self) {
@@ -329,7 +332,7 @@ public struct HarnessMessageTimeline: View {
                     // arrives. Its bottom-follow state does not belong to the
                     // completed document left in main. Settlement alone keeps
                     // the same document key and must not reset the reader.
-                    following = false
+                    following = false; latestTransition = nil
                     if !userPositioned { position.scrollTo(y: 0) }
                 }
                 .onChange(of: opensAtBottom) { _, new in
@@ -374,7 +377,15 @@ public struct HarnessMessageTimeline: View {
                     previousReadingNavigation = readingNavigation
                     reportReading()
                 }
-                .onDisappear { previousReadingNavigation?.remove(source: readingSource) }
+                .onChange(of: reduceMotion) { _, reduced in
+                    guard reduced, latestTransition != nil else { return }
+                    latestTransition = nil
+                    if following && !followPaused && !suspended { alignToLatest() }
+                }
+                .onDisappear {
+                    latestTransition = nil
+                    previousReadingNavigation?.remove(source: readingSource)
+                }
                 .background { interactionRegistration(visible: visible) }
                 .overlay(alignment: .bottom) {
                     if allowsJumpToLatest && followOutput && showLatest && !suspended {
@@ -416,17 +427,23 @@ public struct HarnessMessageTimeline: View {
         tailLength = rows.count
     }
     private func jumpToLatest() {
-        onJumpToLatest?(); following = true; showLatest = false; clampedRequest = nil
+        onJumpToLatest?(); following = true; showLatest = false; clampedRequest = nil; userPositioned = true
         let transition = UUID()
         latestTransition = transition
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
-            position.scrollTo(edge: .bottom)
+            // An edge target follows content growth inside SwiftUI itself.
+            // Animate to this snapshot instead, then admit ordinary following.
+            position.scrollTo(y: max(0, geometry.height - geometry.viewport))
         } completion: {
             guard latestTransition == transition else { return }
             latestTransition = nil
             // Resolve any content growth that arrived during the transition.
-            if following && !followPaused && !suspended { position.scrollTo(edge: .bottom) }
+            if following && !followPaused && !suspended { alignToLatest() }
         }
+    }
+    private func alignToLatest() {
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        withTransaction(transaction) { position.scrollTo(edge: .bottom) }
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
 

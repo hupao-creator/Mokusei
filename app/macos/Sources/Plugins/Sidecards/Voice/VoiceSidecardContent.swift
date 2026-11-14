@@ -8,6 +8,7 @@ import SwiftUI
 public struct VoiceSidecardContent: View {
     @Bindable private var presentation: VoiceSidecardPresentation
     @State private var lastAnnouncedError: String?
+    @State private var latestOffset: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     public init(presentation: VoiceSidecardPresentation) { self.presentation = presentation }
 
@@ -102,12 +103,13 @@ public struct VoiceSidecardContent: View {
             .scrollIndicators(.automatic)
             .scrollBounceBehavior(.basedOnSize)
             .onScrollPhaseChange { _, phase in
-                if phase == .interacting || phase == .decelerating { presentation.userScrollBegan() }
+                if phase == .tracking || phase == .interacting || phase == .decelerating { presentation.userScrollBegan() }
             }
             .onScrollGeometryChange(for: VoiceScrollMetrics.self) { geometry in
                 VoiceScrollMetrics(offset: geometry.contentOffset.y, contentHeight: geometry.contentSize.height,
                                    viewportHeight: geometry.containerSize.height)
             } action: { previous, next in
+                latestOffset = max(0, next.contentHeight - next.viewportHeight)
                 // Content growth alone must not turn a pinned reader into an
                 // away reader before the new bottom position is applied.
                 if abs(previous.offset - next.offset) > 0.1 {
@@ -119,9 +121,13 @@ public struct VoiceSidecardContent: View {
             }
             .focusable()
             .accessibilityLabel(presentation.translate("语音对话记录"))
+            .onChange(of: reduceMotion) { _, reduced in
+                if reduced { presentation.finishLatestTransition() }
+            }
+            .onDisappear { presentation.cancelLatestTransition() }
             .overlay(alignment: .bottom) {
                 if presentation.away {
-                    Button { presentation.jumpToLatest(reduceMotion: reduceMotion) } label: {
+                    Button { presentation.jumpToLatest(bottom: latestOffset, reduceMotion: reduceMotion) } label: {
                         HStack(spacing: 6) {
                             NativeIcon(name: "ArrowDown", size: 13)
                             Text(presentation.translate(presentation.newMessages ? "新消息" : "回到最新"))
