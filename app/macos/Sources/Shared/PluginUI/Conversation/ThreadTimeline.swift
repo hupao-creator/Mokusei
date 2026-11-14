@@ -431,9 +431,11 @@ public struct HarnessMessageTimeline: View {
         let transition = UUID()
         latestTransition = transition
         // With no running application event loop (previews and isolated native
-        // replays) an animated scroll cannot complete. Settle the same target
-        // immediately; the production app keeps the 350ms transition.
-        withAnimation(reduceMotion || NSApp?.isRunning != true ? nil : .easeInOut(duration: 0.35),
+        // replays) an animated scroll cannot complete. The hosted graphical
+        // suite declares itself an isolated AppKit replay so its content checks
+        // settle immediately; the production app keeps the 350ms transition.
+        let isolatedReplay = ProcessInfo.processInfo.environment["MOKUSEI_ISOLATED_APPKIT_REPLAY"] == "1"
+        withAnimation(reduceMotion || isolatedReplay || NSApp?.isRunning != true ? nil : .easeInOut(duration: 0.35),
                       completionCriteria: .removed) {
             // An edge target follows content growth inside SwiftUI itself.
             // Animate to this snapshot instead, then admit ordinary following.
