@@ -8,6 +8,7 @@ import SwiftUI
 public struct VoiceSidecardContent: View {
     @Bindable private var presentation: VoiceSidecardPresentation
     @State private var lastAnnouncedError: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     public init(presentation: VoiceSidecardPresentation) { self.presentation = presentation }
 
     public var body: some View {
@@ -100,6 +101,9 @@ public struct VoiceSidecardContent: View {
             .scrollPosition($presentation.scrollPosition)
             .scrollIndicators(.automatic)
             .scrollBounceBehavior(.basedOnSize)
+            .onScrollPhaseChange { _, phase in
+                if phase == .interacting || phase == .decelerating { presentation.userScrollBegan() }
+            }
             .onScrollGeometryChange(for: VoiceScrollMetrics.self) { geometry in
                 VoiceScrollMetrics(offset: geometry.contentOffset.y, contentHeight: geometry.contentSize.height,
                                    viewportHeight: geometry.containerSize.height)
@@ -117,7 +121,7 @@ public struct VoiceSidecardContent: View {
             .accessibilityLabel(presentation.translate("语音对话记录"))
             .overlay(alignment: .bottom) {
                 if presentation.away {
-                    Button(action: presentation.scrollToLatest) {
+                    Button { presentation.jumpToLatest(reduceMotion: reduceMotion) } label: {
                         HStack(spacing: 6) {
                             NativeIcon(name: "ArrowDown", size: 13)
                             Text(presentation.translate(presentation.newMessages ? "新消息" : "回到最新"))

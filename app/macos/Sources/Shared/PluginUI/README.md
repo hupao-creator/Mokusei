@@ -394,7 +394,9 @@ initial placement and follows content/viewport geometry through scoped row loadi
 projection and Markdown layout. Native scrolling or reading scroll controls take
 over from automatic following; later content cannot pull an upward reader back.
 Returning to the running document or choosing “jump to latest” enables following
-again. Explicit reading visits retain position ownership while their anchors
+again. The explicit jump animates to the bottom unless Reduce Motion is enabled;
+ordinary following and initial positioning remain immediate. Growth during a jump
+is resolved at its end, while a new manual scroll takes ownership. Explicit reading visits retain position ownership while their anchors
 resolve, including when an inline historical execution stops pausing follow.
 Generic execution changes cannot supersede that visit. This does not change
 reading-stack motion or projection/resource ownership.
