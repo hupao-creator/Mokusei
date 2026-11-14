@@ -320,7 +320,7 @@ public struct HarnessMessageTimeline: View {
                     }
                 }
                 .onChange(of: followKey) { old, new in
-                    if new != nil && new != old && !followPaused && !suspended && readingTarget == nil && readingVisitId == nil && latestTransition == nil {
+                    if new != nil && new != old && !followPaused && !suspended && readingTarget == nil && readingVisitId == nil {
                         if opensAtBottom { openBottom() }
                         else { follow(proxy) }
                     }
