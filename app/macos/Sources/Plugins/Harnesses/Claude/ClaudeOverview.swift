@@ -104,13 +104,20 @@ struct ClaudeOverviewMessage {
 func claudeOverviewAgentMessage(_ turns: [ClaudeTurn]) -> ClaudeOverviewMessage? {
     for turn in turns.reversed() {
         let unfinished = Set(turn.timeline.filter { $0.claudeKind == "assistant" && $0["messageId"] != nil && $0["status"]?.stringValue != "complete" }.map { $0.claudeID("messageId") })
-        if let latest = turn.timeline.last(where: {
-            ($0.claudeKind == "assistant" && $0["status"]?.stringValue == "complete" && !unfinished.contains($0.claudeID("messageId")) || $0.claudeKind == "reasoning" && ["running","completed"].contains(turn.status)) && !claudeTrim($0["content"]).isEmpty
-        }) {
-            let nativeID = latest.claudeKind == "assistant" ? latest["messageId"] : nil
-            let content = nativeID.map { id in JSONText(codeUnits: turn.timeline.filter { $0.claudeKind == "assistant" && $0["messageId"] == id }.flatMap { $0.claudeID("content").codeUnits }) } ?? latest.claudeID("content")
-            return ClaudeOverviewMessage(id: JSONText(claudeJSONString(.array([.string(turn.id), .text(latest.claudeKind), nativeID ?? latest["id"]!]))), text: claudeTrimText(content))
+        // A later reasoning segment must not replace the assistant reply.
+        // Failed/cancelled assistant bodies stay readable terminal previews.
+        let assistant = turn.timeline.last {
+            guard $0.claudeKind == "assistant", !claudeTrim($0["content"]).isEmpty else { return false }
+            let status = $0["status"]?.stringValue
+            return status == "failed" || status == "cancelled" || status == "complete" && !unfinished.contains($0.claudeID("messageId"))
         }
+        let reasoning = turn.timeline.last {
+            $0.claudeKind == "reasoning" && ["running","completed"].contains(turn.status) && !claudeTrim($0["content"]).isEmpty
+        }
+        guard let latest = assistant ?? reasoning else { continue }
+        let nativeID = latest.claudeKind == "assistant" ? latest["messageId"] : nil
+        let content = nativeID.map { id in JSONText(codeUnits: turn.timeline.filter { $0.claudeKind == "assistant" && $0["messageId"] == id }.flatMap { $0.claudeID("content").codeUnits }) } ?? latest.claudeID("content")
+        return ClaudeOverviewMessage(id: JSONText(claudeJSONString(.array([.string(turn.id), .text(latest.claudeKind), nativeID ?? latest["id"]!]))), text: claudeTrimText(content))
     }
     return nil
 }

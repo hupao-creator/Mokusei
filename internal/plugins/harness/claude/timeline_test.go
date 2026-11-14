@@ -70,6 +70,36 @@ func TestActivityTimelineReferenceDeduplicatesUpdates(t *testing.T) {
 	}
 }
 
+func TestActivityTimelineWireGrowth(t *testing.T) {
+	final := strings.Repeat("final output\n", 5000)
+	build := func(updates int) json.RawMessage {
+		state := NewState()
+		turn := state.NewTurn("execution-growth", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "run"}}}, Settings{})
+		turn.activity(map[string]any{"id": "command-1", "kind": "command", "label": "Bash", "status": "running"})
+		for update := 0; update < updates; update++ {
+			turn.activity(map[string]any{"id": "command-1", "kind": "command", "label": "Bash", "status": "running", "detail": strings.Repeat("stale output\n", 1000) + fmt.Sprint(update)})
+		}
+		turn.activityEnd("command-1", "completed", final)
+		raw, err := state.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	before, after := build(0), build(100)
+	finalJSON, _ := json.Marshal(final)
+	if count := strings.Count(string(after), string(finalJSON)); count != 1 {
+		t.Fatalf("final detail count = %d", count)
+	}
+	if strings.Contains(string(after), "stale output") {
+		t.Fatal("stale activity detail retained")
+	}
+	if len(after) > len(before)+1024 {
+		t.Fatalf("wire grew from %d to %d bytes after 100 updates", len(before), len(after))
+	}
+	t.Logf("wire before=%d bytes after=100 updates %d bytes", len(before), len(after))
+}
+
 func TestInteractionTimelineReferenceKeepsPendingAuthority(t *testing.T) {
 	state := NewState()
 	turn := state.NewTurn("execution-interaction", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "ask"}}}, Settings{})
@@ -246,6 +276,330 @@ func TestForkResolvesCurrentEntities(t *testing.T) {
 	}
 }
 
+func TestThreadProjectionRetainsAssistantSummary(t *testing.T) {
+	state := threadReaderState()
+	raw, err := state.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	threadRaw, err := (StateAdapter{}).ProjectRenderer(raw, model.RendererScope{Kind: "thread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	projected, err := ParseState(threadRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projected.Turns) != 2 {
+		t.Fatalf("thread turns = %d", len(projected.Turns))
+	}
+	for index, expected := range []string{"FIRST EXECUTION ANSWER", "SECOND EXECUTION ANSWER"} {
+		turn := projected.Turns[index]
+		if turn.assistantText() != expected {
+			t.Fatalf("thread turn %d assistant = %q", index, turn.assistantText())
+		}
+		assistant, activities := 0, 0
+		for _, item := range turn.Timeline {
+			switch str(item["kind"]) {
+			case "assistant":
+				assistant++
+			case "activity":
+				activities++
+			}
+		}
+		if assistant != 1 || activities != 0 {
+			t.Fatalf("thread turn %d timeline = %d assistant, %d activity references", index, assistant, activities)
+		}
+	}
+}
+
+func TestTerminalOverviewKeepsAssistantPreview(t *testing.T) {
+	for _, test := range []struct {
+		name, status, expected, unexpected string
+	}{
+		{"failed", "failed", "FAILED ASSISTANT", "LATER REASONING"},
+		{"interrupted", "interrupted", "INTERRUPTED ASSISTANT", "LATER REASONING"},
+		{"completed-reasoning", "completed", "COMPLETED ASSISTANT", "LATER REASONING"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state := terminalReaderState(test.status)
+			raw, err := state.Encode()
+			if err != nil {
+				t.Fatal(err)
+			}
+			observation, err := (StateAdapter{}).Project(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if observation.LatestExecution == nil || observation.LatestExecution.Summary == nil || *observation.LatestExecution.Summary != test.expected {
+				t.Fatalf("observation summary = %#v", observation.LatestExecution)
+			}
+			overviewRaw, err := (StateAdapter{}).ProjectRenderer(raw, model.RendererScope{Kind: "overview"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			overview, err := ParseState(overviewRaw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := overview.Turns[0].assistantText(); got != test.expected {
+				t.Fatalf("overview assistant = %q", got)
+			}
+			if strings.Contains(string(overviewRaw), "LATER REASONING") {
+				t.Fatal("overview retained later reasoning instead of assistant reply")
+			}
+			turnRaw, err := (StateAdapter{}).ProjectRenderer(raw, model.RendererScope{Kind: "turn", Key: "execution-terminal"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var envelope map[string]any
+			if err := json.Unmarshal(turnRaw, &envelope); err != nil {
+				t.Fatal(err)
+			}
+			turnState := envelope
+			if envelope["kind"] == "deferred-execution" {
+				turnState = obj(envelope["state"])
+			}
+			turn := obj(arr(turnState["turns"])[0])
+			text := ""
+			for _, value := range arr(turn["timeline"]) {
+				item := obj(value)
+				if str(item["kind"]) == "assistant" {
+					text += str(item["content"])
+				}
+			}
+			if text != test.expected {
+				t.Fatalf("turn reader assistant = %q", text)
+			}
+		})
+	}
+}
+
+func TestCheckpointForkUsesCurrentEntitiesAndLatestMarkers(t *testing.T) {
+	state := NewState()
+	state.PrimarySessionID = "claude-native-session"
+	turn := state.NewTurn("checkpoint-turn", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "first prompt"}}}, Settings{})
+	turn.checkpoint(0, "cp-1")
+	parser := newParser()
+	parser.messageStart(turn, "assistant-before", "claude-sonnet-4-5")
+	turn.text("before checkpoint", "assistant-before", false)
+	parser.messageEnd(turn, "assistant-before")
+	parser.startTool(turn, &nativeTool{ID: "command-late", Name: "Bash", Input: map[string]any{"command": "go test"}}, "", nil)
+	turn.interaction(map[string]any{"id": "permission-late", "kind": "permission", "title": "Allow late command", "status": "pending", "toolName": "Bash", "input": map[string]any{"command": "go test"}})
+	turn.review("review before checkpoint")
+	turn.addPrompt(model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "second prompt"}}}, "cp-2")
+	turn.activityEnd("command-late", "completed", "late completed detail")
+	turn.interaction(map[string]any{"id": "permission-late", "kind": "permission", "title": "Allow late command", "status": "resolved", "toolName": "Bash", "input": map[string]any{"command": "go test"}})
+	turn.review("review after checkpoint")
+	turn.fail("error after checkpoint")
+	raw, err := state.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fork, err := (&Harness{}).Fork(context.Background(), plugin.ForkRequest{
+		Source:  model.ThreadRecord{SessionRecord: model.SessionRecord{SessionState: raw}},
+		Request: json.RawMessage(`{"checkpointId":"cp-2"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := ParseState(fork.SessionState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	activities, interactions, reviews, errors := 0, 0, 0, 0
+	for _, value := range arr(result.ForkHistory["items"]) {
+		item := obj(value)
+		switch str(item["kind"]) {
+		case "activity":
+			activities++
+			if str(obj(item["activity"])["status"]) != "completed" || str(obj(item["activity"])["detail"]) != "late completed detail" {
+				t.Fatalf("checkpoint activity = %#v", item)
+			}
+		case "interaction":
+			interactions++
+			if str(obj(item["interaction"])["status"]) != "resolved" {
+				t.Fatalf("checkpoint interaction = %#v", item)
+			}
+		case "review":
+			reviews++
+		case "error":
+			errors++
+		}
+	}
+	if activities != 1 || interactions != 1 {
+		t.Fatalf("checkpoint fork entities = %d activities, %d interactions", activities, interactions)
+	}
+	if reviews != 0 || errors != 0 {
+		t.Fatalf("checkpoint fork inherited latest-only markers: %d review, %d error", reviews, errors)
+	}
+}
+
+func TestParseRejectsMalformedTimelineReferences(t *testing.T) {
+	base := func() (*State, *Turn) {
+		state := NewState()
+		turn := state.NewTurn("execution-malformed", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "prompt"}}}, Settings{})
+		turn.activity(map[string]any{"id": "activity-1", "kind": "tool", "label": "Read", "status": "completed"})
+		return state, turn
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(*Turn)
+	}{
+		{"missing reference", func(turn *Turn) { delete(turn.Timeline[1], "activityId") }},
+		{"missing entity", func(turn *Turn) { turn.Timeline[1]["activityId"] = "missing" }},
+		{"unknown kind", func(turn *Turn) { turn.Timeline[1]["kind"] = "mystery" }},
+		{"inline snapshot", func(turn *Turn) {
+			delete(turn.Timeline[1], "activityId")
+			turn.Timeline[1]["activity"] = cloneObject(turn.Activities[0])
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state, turn := base()
+			test.mutate(turn)
+			raw, err := json.Marshal(state)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ParseState(raw); err == nil {
+				t.Fatal("malformed timeline accepted")
+			}
+		})
+	}
+}
+
+func TestElicitationReaderGolden(t *testing.T) {
+	state := elicitationReaderState()
+	normalizeTimelineReaderState(state)
+	raw, err := state.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	observation, err := (StateAdapter{}).Project(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	overview, err := (StateAdapter{}).ProjectRenderer(raw, model.RendererScope{Kind: "overview"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGolden(t, filepath.Join("testdata", "elicitation-reader.golden.json"), struct {
+		State       json.RawMessage         `json:"state"`
+		Observation model.PublicObservation `json:"observation"`
+		Overview    json.RawMessage         `json:"overview"`
+	}{raw, observation, overview})
+}
+
+func TestThreadReaderGolden(t *testing.T) {
+	state := threadReaderState()
+	raw, err := state.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	thread, err := (StateAdapter{}).ProjectRenderer(raw, model.RendererScope{Kind: "thread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGolden(t, filepath.Join("testdata", "thread-reader.golden.json"), struct {
+		State  json.RawMessage `json:"state"`
+		Thread json.RawMessage `json:"thread"`
+	}{raw, thread})
+}
+
+func TestTerminalReaderGolden(t *testing.T) {
+	fixtures := map[string]any{}
+	for _, status := range []string{"failed", "interrupted", "completed"} {
+		state := terminalReaderState(status)
+		raw, err := state.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		observation, err := (StateAdapter{}).Project(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		overview, err := (StateAdapter{}).ProjectRenderer(raw, model.RendererScope{Kind: "overview"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		fixtures[status] = struct {
+			State       json.RawMessage         `json:"state"`
+			Observation model.PublicObservation `json:"observation"`
+			Overview    json.RawMessage         `json:"overview"`
+		}{raw, observation, overview}
+	}
+	compareGolden(t, filepath.Join("testdata", "terminal-reader.golden.json"), fixtures)
+}
+
+func compareGolden(t *testing.T, path string, value any) {
+	t.Helper()
+	fixture, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.Getenv("MOKUSEI_UPDATE_CLAUDE_GOLDEN") == "1" {
+		if err := os.WriteFile(path, append(fixture, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expected, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(fixture) != strings.TrimSpace(string(expected)) {
+		t.Fatalf("Claude %s golden is stale; rerun with MOKUSEI_UPDATE_CLAUDE_GOLDEN=1", filepath.Base(path))
+	}
+}
+
+func threadReaderState() *State {
+	state := NewState()
+	for index, text := range []string{"FIRST EXECUTION ANSWER", "SECOND EXECUTION ANSWER"} {
+		id := fmt.Sprintf("execution-thread-%d", index)
+		turn := state.NewTurn(id, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: fmt.Sprintf("prompt %d", index)}}}, Settings{})
+		parser := newParser()
+		parser.startTool(turn, &nativeTool{ID: fmt.Sprintf("tool-%d", index), Name: "Read", Input: nil}, "", nil)
+		turn.activityEnd(fmt.Sprintf("tool-%d", index), "completed", "")
+		parser.messageStart(turn, id+"-message", "claude-sonnet-4-5")
+		turn.text(text, id+"-message", false)
+		parser.messageEnd(turn, id+"-message")
+		turn.settle("completed", turn.UpdatedAt+1, nil)
+	}
+	normalizeReaderState(state, 1000)
+	return state
+}
+
+func terminalReaderState(status string) *State {
+	state := NewState()
+	turn := state.NewTurn("execution-terminal", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "terminal prompt"}}}, Settings{})
+	switch status {
+	case "failed":
+		turn.text("FAILED ASSISTANT", "failed-message", false)
+	case "interrupted":
+		turn.text("INTERRUPTED ASSISTANT", "interrupted-message", false)
+	default:
+		parser := newParser()
+		parser.messageStart(turn, "completed-message", "claude-sonnet-4-5")
+		turn.text("COMPLETED ASSISTANT", "completed-message", false)
+		parser.messageEnd(turn, "completed-message")
+		turn.reasoning("LATER REASONING")
+	}
+	turn.settle(status, turn.UpdatedAt+1, nil)
+	normalizeTimelineReaderState(state)
+	return state
+}
+
+func elicitationReaderState() *State {
+	state := NewState()
+	turn := state.NewTurn("execution-elicitation", model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "fill form"}}}, Settings{})
+	turn.interaction(map[string]any{
+		"id": "ask-elicitation", "kind": "elicitation", "title": "MCP form", "description": "Provide the remote fields",
+		"status": "pending", "toolName": "mcp__remote__form", "elicitationMode": "form",
+		"elicitationId": "elicitation-1", "serverName": "remote",
+		"schema": map[string]any{"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}},
+	})
+	return state
+}
+
 func TestTimelineReaderGolden(t *testing.T) {
 	state := timelineReaderState()
 	normalizeTimelineReaderState(state)
@@ -372,25 +726,34 @@ func timelineReaderState() *State {
 	return state
 }
 
-func normalizeTimelineReaderState(state *State) {
-	turn := state.Turns[0]
-	turn.CreatedAt = 1000
-	for index, item := range turn.Timeline {
-		at := int64(1001 + index)
-		item["createdAt"] = at
-		item["id"] = fmt.Sprintf("%s:%d:%d", str(item["kind"]), at, index)
-	}
-	turn.UpdatedAt = 1000 + int64(len(turn.Timeline)) + 1
-	turn.FinishedAt = nil
-	for index, notice := range turn.Notices {
-		old := str(notice["id"])
-		id := fmt.Sprintf("notice-%d", index+1)
-		notice["id"] = id
-		for _, item := range turn.Timeline {
-			if str(item["kind"]) == "notice" && str(item["noticeId"]) == old {
-				item["noticeId"] = id
+func normalizeTimelineReaderState(state *State) { normalizeReaderState(state, 1000) }
+
+func normalizeReaderState(state *State, base int64) {
+	for turnIndex, turn := range state.Turns {
+		turn.CreatedAt = base
+		for index, item := range turn.Timeline {
+			at := base + 1 + int64(index)
+			item["createdAt"] = at
+			item["id"] = fmt.Sprintf("%s:%d:%d", str(item["kind"]), at, index)
+		}
+		turn.UpdatedAt = base + int64(len(turn.Timeline)) + 1
+		if turn.Status == "running" {
+			turn.FinishedAt = nil
+		} else {
+			finished := turn.UpdatedAt
+			turn.FinishedAt = &finished
+		}
+		for index, notice := range turn.Notices {
+			old := str(notice["id"])
+			id := fmt.Sprintf("notice-%d", turnIndex*100+index+1)
+			notice["id"] = id
+			for _, item := range turn.Timeline {
+				if str(item["kind"]) == "notice" && str(item["noticeId"]) == old {
+					item["noticeId"] = id
+				}
 			}
 		}
+		base = turn.UpdatedAt + 1
 	}
 }
 

@@ -1,0 +1,174 @@
+{
+  "state": {
+    "version": 2,
+    "turns": [
+      {
+        "author": {
+          "model": "claude-sonnet-4-5"
+        },
+        "executionId": "execution-thread-0",
+        "createdAt": 1000,
+        "updatedAt": 1004,
+        "finishedAt": 1004,
+        "prompts": [
+          "prompt 0"
+        ],
+        "promptAttachments": [
+          []
+        ],
+        "status": "completed",
+        "plan": [],
+        "activities": [
+          {
+            "id": "tool-0",
+            "kind": "file",
+            "label": "Read",
+            "status": "completed",
+            "toolName": "Read"
+          }
+        ],
+        "interactions": [],
+        "notices": [],
+        "timeline": [
+          {
+            "createdAt": 1001,
+            "id": "user-message:1001:0",
+            "kind": "user-message",
+            "promptIndex": 0
+          },
+          {
+            "activityId": "tool-0",
+            "createdAt": 1002,
+            "id": "activity:1002:1",
+            "kind": "activity"
+          },
+          {
+            "content": "FIRST EXECUTION ANSWER",
+            "createdAt": 1003,
+            "id": "assistant:1003:2",
+            "kind": "assistant",
+            "messageId": "execution-thread-0-message",
+            "status": "complete"
+          }
+        ]
+      },
+      {
+        "author": {
+          "model": "claude-sonnet-4-5"
+        },
+        "executionId": "execution-thread-1",
+        "createdAt": 1005,
+        "updatedAt": 1009,
+        "finishedAt": 1009,
+        "prompts": [
+          "prompt 1"
+        ],
+        "promptAttachments": [
+          []
+        ],
+        "status": "completed",
+        "plan": [],
+        "activities": [
+          {
+            "id": "tool-1",
+            "kind": "file",
+            "label": "Read",
+            "status": "completed",
+            "toolName": "Read"
+          }
+        ],
+        "interactions": [],
+        "notices": [],
+        "timeline": [
+          {
+            "createdAt": 1006,
+            "id": "user-message:1006:0",
+            "kind": "user-message",
+            "promptIndex": 0
+          },
+          {
+            "activityId": "tool-1",
+            "createdAt": 1007,
+            "id": "activity:1007:1",
+            "kind": "activity"
+          },
+          {
+            "content": "SECOND EXECUTION ANSWER",
+            "createdAt": 1008,
+            "id": "assistant:1008:2",
+            "kind": "assistant",
+            "messageId": "execution-thread-1-message",
+            "status": "complete"
+          }
+        ]
+      }
+    ],
+    "nativeNotifications": []
+  },
+  "thread": {
+    "version": 2,
+    "turns": [
+      {
+        "author": {
+          "model": "claude-sonnet-4-5"
+        },
+        "executionId": "execution-thread-0",
+        "createdAt": 1000,
+        "updatedAt": 1004,
+        "finishedAt": 1004,
+        "prompts": [
+          "prompt 0"
+        ],
+        "promptAttachments": [
+          []
+        ],
+        "status": "completed",
+        "plan": [],
+        "activities": [],
+        "interactions": [],
+        "notices": [],
+        "timeline": [
+          {
+            "content": "FIRST EXECUTION ANSWER",
+            "createdAt": 1003,
+            "id": "assistant:1003:2",
+            "kind": "assistant",
+            "messageId": "execution-thread-0-message",
+            "status": "complete"
+          }
+        ]
+      },
+      {
+        "author": {
+          "model": "claude-sonnet-4-5"
+        },
+        "executionId": "execution-thread-1",
+        "createdAt": 1005,
+        "updatedAt": 1009,
+        "finishedAt": 1009,
+        "prompts": [
+          "prompt 1"
+        ],
+        "promptAttachments": [
+          []
+        ],
+        "status": "completed",
+        "plan": [],
+        "activities": [],
+        "interactions": [],
+        "notices": [],
+        "timeline": [
+          {
+            "content": "SECOND EXECUTION ANSWER",
+            "createdAt": 1008,
+            "id": "assistant:1008:2",
+            "kind": "assistant",
+            "messageId": "execution-thread-1-message",
+            "status": "complete"
+          }
+        ]
+      }
+    ],
+    "nativeNotifications": []
+  }
+}

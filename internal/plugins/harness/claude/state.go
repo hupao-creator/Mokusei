@@ -469,10 +469,10 @@ func validTimelineReferences(t *Turn) bool {
 				return false
 			}
 			continue
-		case "plan", "usage", "diff":
-			return false
-		default:
+		case "user-message", "assistant", "reasoning", "review", "context-compaction":
 			continue
+		default:
+			return false
 		}
 		// Inline entity snapshots belong to the previous schema and are not
 		// accepted beside the authoritative tables.
@@ -519,44 +519,87 @@ func (s *State) settleBackground() {
 		}
 	}
 }
-func timelineText(timeline []map[string]any, kind string) string {
+func timelineText(timeline []map[string]any, kind string, limit int) string {
 	var text strings.Builder
+	remaining := limit
 	for _, item := range timeline {
-		if str(item["kind"]) == kind {
-			text.WriteString(str(item["content"]))
+		if str(item["kind"]) != kind {
+			continue
+		}
+		appendBoundedText(&text, str(item["content"]), &remaining)
+		if remaining == 0 {
+			break
 		}
 	}
-	return clip(text.String(), 4000000)
+	return text.String()
 }
 
-// lastAssistantMessage returns the latest message identity and its complete
-// body. Multiple streaming segments share one identity and are joined in
-// timeline order; synthetic text without a native id is one item.
-func (t *Turn) lastAssistantMessage() (string, string) {
+func timelineHasText(timeline []map[string]any, kind string) bool {
+	for _, item := range timeline {
+		if str(item["kind"]) == kind && strings.TrimSpace(str(item["content"])) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func appendBoundedText(text *strings.Builder, value string, remaining *int) {
+	if value == "" || *remaining == 0 {
+		return
+	}
+	for _, r := range value {
+		if r == 0 {
+			continue
+		}
+		if *remaining == 0 {
+			return
+		}
+		text.WriteRune(r)
+		if *remaining > 0 {
+			*remaining--
+		}
+	}
+}
+
+// lastAssistantMessageText returns the latest message identity and its body.
+// Multiple streaming segments share one identity and are joined in timeline
+// order; a positive limit stops before copying the rest of the body.
+func (t *Turn) lastAssistantMessageText(limit int) (string, string) {
 	for index := len(t.Timeline) - 1; index >= 0; index-- {
 		item := t.Timeline[index]
 		if str(item["kind"]) != "assistant" {
 			continue
 		}
 		id := str(item["messageId"])
+		remaining := limit
+		if remaining <= 0 {
+			remaining = -1
+		}
 		if id == "" {
-			return "", str(item["content"])
+			var text strings.Builder
+			appendBoundedText(&text, str(item["content"]), &remaining)
+			return "", text.String()
 		}
 		var text strings.Builder
 		for _, segment := range t.Timeline {
 			if str(segment["kind"]) == "assistant" && str(segment["messageId"]) == id {
-				text.WriteString(str(segment["content"]))
+				appendBoundedText(&text, str(segment["content"]), &remaining)
+				if remaining == 0 {
+					break
+				}
 			}
 		}
 		return id, text.String()
 	}
 	return "", ""
 }
-func (t *Turn) assistantText() string { return timelineText(t.Timeline, "assistant") }
-func (t *Turn) reasoningText() string { return timelineText(t.Timeline, "reasoning") }
+
+func (t *Turn) lastAssistantMessage() (string, string) { return t.lastAssistantMessageText(0) }
+func (t *Turn) assistantText() string                  { return timelineText(t.Timeline, "assistant", 4000000) }
+func (t *Turn) reasoningText() string                  { return timelineText(t.Timeline, "reasoning", 4000000) }
 func (t *Turn) lastAssistantText() string {
-	_, text := t.lastAssistantMessage()
-	return clip(text, 20000)
+	_, text := t.lastAssistantMessageText(20000)
+	return text
 }
 
 func clip(s string, n int) string {
@@ -670,7 +713,7 @@ func (s *State) observation() model.PublicObservation {
 	execution := &model.PublicExecution{ExecutionID: t.ExecutionID, Status: t.Status, StartedAt: t.CreatedAt, FinishedAt: t.FinishedAt}
 	summary := t.lastAssistantText()
 	if t.Status == "running" {
-		summary = clip(nonempty(t.assistantText(), t.reasoningText()), 2000)
+		summary = clip(nonempty(timelineText(t.Timeline, "assistant", 2000), timelineText(t.Timeline, "reasoning", 2000)), 2000)
 	}
 	if summary != "" {
 		execution.Summary = &summary
@@ -795,6 +838,9 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 				return ""
 			}
 			hideActivity := func(activity map[string]any, id string) {
+				if activity == nil {
+					return
+				}
 				// Keep bounded failed diagnostics for full readers; Agent detail
 				// still classifies failed tools as execution work.
 				if activity["status"] == "failed" {

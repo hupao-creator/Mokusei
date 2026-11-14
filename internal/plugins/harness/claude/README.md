@@ -9,8 +9,9 @@ they are actionable data. Assistant and reasoning bodies appear only in the
 timeline (no aggregate `text`/`reasoning` duplicate); summaries, search and
 completed replies derive from that single representation. Plans and usage remain
 current turn fields rather than timeline snapshots; diffs are not retained in
-this reader state. Fork history resolves the referenced entities into its
-separate read-only inline shape. See
+this reader state. This is a breaking state/wire change: version 1 and inline
+timeline snapshots are rejected rather than migrated. Fork history resolves the
+referenced entities into its separate read-only inline shape. See
 [timeline_test.go](timeline_test.go) and the cross-language
 `testdata/timeline-reader.golden.json` fixture consumed by the native reader.
 
@@ -20,6 +21,14 @@ resolves the final assistant's API message ID to its native transcript UUID in
 that source session, then uses the existing `--resume-session-at` fork path.
 Unavailable native history/checkpoints fail without sending. See
 [Report continuation](../../../../design/report-execution-continuation.md).
+
+Checkpoint and execution fork history resolve selected timeline references
+against the turn's current entity tables rather than replaying per-checkpoint
+entity revisions. An activity or interaction that began before the selected
+checkpoint but finished later therefore appears in its final state; running and
+pending entities still become cancelled. `review` and `error` are canonical
+latest-only markers: replacing either after the selected prefix means the fork
+does not inherit the earlier revision. Fork tests cover these boundaries.
 
 Shared [private tool diagnostics](../../../platform/diagnostics/README.md) identify
 `CallID` as an MCP request ID, not a Claude tool-use ID, and expose the bridge's
@@ -156,12 +165,14 @@ thinking-token metrics do not become zero. The reader uses the persisted turn
 aggregate for live and historical execution summaries. In-flight unreported
 usage is not estimated.
 
-Compact renderer directories retain up to 600 characters of `text` for each
-execution, including historical executions, so Report can display a bounded
-assistant excerpt without acquiring full conversation content. Native
-`executionPreview` pairs that exact execution's text with its own timestamps.
-Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
-fallback is used for historical references.
+Compact renderer thread manifests retain one bounded (600-character) assistant
+timeline item per execution for history summaries. Catalog Overview retains the
+same bounded assistant body for exact historical executions, including failed
+and interrupted replies, and prefers an assistant reply over a later reasoning
+segment. Native `executionPreview` pairs that execution's timeline excerpt with
+its own timestamps and does not reintroduce an aggregate `text` copy. Prompt,
+reasoning and tool-payload admission is unchanged; no latest-execution fallback
+is used for historical references.
 
 Discovery rejects results when tracked native configuration files change during
 the probe, so an in-flight read cannot publish a known-obsolete snapshot.

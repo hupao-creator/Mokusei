@@ -104,7 +104,7 @@ import MokuseiHarnessOpenCode
             if harness == "pi" || harness == "opencode" { return execution.json }
             var turn: [JSONText: JSONValue] = ["executionId": .text(id), "createdAt": .number(execution.startedAt),
                 "updatedAt": .number(execution.startedAt + 4), "status": .text(running ? "running" : execution.status.rawValue),
-                "reasoning": .text(""), "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
+                "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
             if let finished = execution.finishedAt { turn["finishedAt"] = .number(finished) }
             var item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
                 "status": .text(status), "createdAt": .number(execution.startedAt + 1)]
@@ -128,7 +128,6 @@ import MokuseiHarnessOpenCode
                 turn["answer"] = .text(empty && id == "target" ? "" : body)
                 turn["messages"] = .array([])
             } else {
-                turn["text"] = .text(empty && id == "target" ? "" : body)
                 turn["prompts"] = .array([.text(id + " prompt")]); turn["promptAttachments"] = .array([.array([])])
             }
             return .object(turn)
@@ -136,7 +135,7 @@ import MokuseiHarnessOpenCode
         switch harness {
         case "codex": return .object(["schema": .text("mokusei.harness.codex.thread.v1"), "updatedAt": .number(40),
                                        "turns": .array(turns), "backgroundTerminals": .array([])])
-        case "claude": return .object(["version": .integer(1), "turns": .array(turns), "nativeNotifications": .array([])])
+        case "claude": return .object(["version": .integer(2), "turns": .array(turns), "nativeNotifications": .array([])])
         default:
             let messages: [JSONValue] = executions.flatMap { execution -> [JSONValue] in
                 let id = execution.executionID.string

@@ -43,11 +43,22 @@ func cardItem(turn *Turn) map[string]any {
 			unfinished[str(item["messageId"])] = true
 		}
 	}
+	// Prefer an assistant reply over a later reasoning segment. Failed and
+	// cancelled assistant bodies remain the user-visible terminal preview.
 	for i := len(turn.Timeline) - 1; i >= 0; i-- {
 		item := turn.Timeline[i]
-		kind := str(item["kind"])
-		allowed := kind == "assistant" && str(item["status"]) == "complete" && !unfinished[str(item["messageId"])] || kind == "reasoning" && (turn.Status == "running" || turn.Status == "completed")
+		if str(item["kind"]) != "assistant" {
+			continue
+		}
+		status := str(item["status"])
+		allowed := status == "complete" && !unfinished[str(item["messageId"])] || status == "failed" || status == "cancelled"
 		if allowed && strings.TrimSpace(str(item["content"])) != "" {
+			return item
+		}
+	}
+	for i := len(turn.Timeline) - 1; i >= 0; i-- {
+		item := turn.Timeline[i]
+		if str(item["kind"]) == "reasoning" && (turn.Status == "running" || turn.Status == "completed") && strings.TrimSpace(str(item["content"])) != "" {
 			return item
 		}
 	}
@@ -74,7 +85,7 @@ func compactRenderer(s *State, scope model.RendererScope, initialResponseScope b
 	}
 	for i := len(s.Turns) - 1; i >= 0; i-- {
 		turn := s.Turns[i]
-		if cardItem(turn) != nil || turn.Status == "completed" && strings.TrimSpace(turn.assistantText()+turn.reasoningText()) != "" {
+		if cardItem(turn) != nil || turn.Status == "completed" && (timelineHasText(turn.Timeline, "assistant") || timelineHasText(turn.Timeline, "reasoning")) {
 			preview[turn] = true
 			break
 		}
@@ -192,11 +203,16 @@ func compactTurn(t *Turn, preview, current, overview bool) {
 		// Catalog Overview keeps a bounded assistant/reasoning item so exact
 		// historical execution previews still derive from the timeline rather
 		// than a second aggregate body.
-		if item := card; item != nil {
+		if item := overviewItem(card, reply); item != nil {
 			copy := cloneObject(item)
 			copy["content"] = overviewTimelineText(item, originalTimeline, 600)
 			t.Timeline = append(t.Timeline, copy)
-		} else if item := reply; item != nil {
+		}
+	} else if preview {
+		// Thread manifests retain one bounded assistant reply per execution for
+		// the history sidebar and execution summary. They never retain entity
+		// references whose tables are compacted below.
+		if item := latestAssistantItem(originalTimeline); item != nil {
 			copy := cloneObject(item)
 			copy["content"] = overviewTimelineText(item, originalTimeline, 600)
 			t.Timeline = append(t.Timeline, copy)
@@ -260,36 +276,59 @@ func compactTurn(t *Turn, preview, current, overview bool) {
 		t.Foreground = nil
 	}
 }
+func overviewItem(card, reply map[string]any) map[string]any {
+	if card != nil {
+		return card
+	}
+	return reply
+}
+
+func latestAssistantItem(timeline []map[string]any) map[string]any {
+	for index := len(timeline) - 1; index >= 0; index-- {
+		item := timeline[index]
+		if str(item["kind"]) == "assistant" && strings.TrimSpace(str(item["content"])) != "" {
+			return item
+		}
+	}
+	return nil
+}
+
 func overviewTimelineText(item map[string]any, original []map[string]any, limit int) string {
-	text := str(item["content"])
+	var text strings.Builder
+	remaining := limit
 	if str(item["kind"]) == "assistant" && str(item["messageId"]) != "" {
-		text = ""
 		for _, segment := range original {
 			if str(segment["kind"]) == "assistant" && str(segment["messageId"]) == str(item["messageId"]) {
-				text = clip(text+str(segment["content"]), limit)
-				if len([]rune(text)) >= limit {
+				appendBoundedText(&text, str(segment["content"]), &remaining)
+				if remaining == 0 {
 					break
 				}
 			}
 		}
+	} else {
+		appendBoundedText(&text, str(item["content"]), &remaining)
 	}
-	return clip(strings.TrimSpace(text), limit)
+	return clip(strings.TrimSpace(text.String()), limit)
 }
 
 func compactInteraction(interaction map[string]any) map[string]any {
 	copy := cloneObject(interaction)
-	delete(copy, "schema")
-	input := obj(copy["input"])
-	delete(copy, "input")
-	if str(copy["kind"]) == "permission" && input != nil {
-		selected := map[string]any{}
-		for _, key := range []string{"command", "file_path", "notebook_path", "path", "url", "pattern", "query", "prompt"} {
-			if value, ok := input[key].(string); ok {
-				selected[key] = clip(strings.TrimSpace(value), 1000)
+	if schema := copy["schema"]; schema != nil {
+		// Pending action/schema data remains actionable. The display spelling is
+		// also the native matcher's evidence for the public question.
+		copy["schemaDisplay"] = displayJSON(schema)
+	}
+	if str(copy["kind"]) == "permission" {
+		if input := obj(copy["input"]); input != nil {
+			selected := map[string]any{}
+			for _, key := range []string{"command", "file_path", "notebook_path", "path", "url", "pattern", "query", "prompt"} {
+				if value, ok := input[key].(string); ok {
+					selected[key] = clip(strings.TrimSpace(value), 1000)
+				}
 			}
+			copy["input"] = selected
+			copy["inputDisplay"] = displayJSON(selected)
 		}
-		copy["input"] = selected
-		copy["inputDisplay"] = displayJSON(selected)
 	}
 	return copy
 }

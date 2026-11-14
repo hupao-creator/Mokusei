@@ -5,7 +5,7 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 @testable import MokuseiHarnessClaude
 
-@Suite struct ClaudeTimelineDedupTests {
+@MainActor @Suite struct ClaudeTimelineDedupTests {
     @Test func referenceTimelineProjectsCurrentEntitiesOnce() throws {
         let fixture = try fixture()
         let state = try ClaudeState(try #require(fixture["state"]))
@@ -105,7 +105,102 @@ import MokuseiPluginUI
         #expect(fork.history.allSatisfy { !["plan", "usage", "diff"].contains($0.claudeKind) })
     }
 
-    private func fixture() throws -> JSONValue {
+    @Test func versionOneAndMalformedTimelinesAreRejected() throws {
+        let versionOne = try stateWithTimelineMutation { _, _ in }
+        var versionObject = try #require(versionOne.objectValue)
+        versionObject["version"] = .number(1)
+        #expect(throws: (any Error).self) { try ClaudeState(.object(versionObject)) }
+
+        let cases: [(String, (inout [JSONText: JSONValue], inout [JSONValue]) -> Void)] = [
+            ("missing reference", { _, timeline in
+                var item = timeline[3].objectValue!
+                item.removeValue(forKey: "activityId")
+                timeline[3] = .object(item)
+            }),
+            ("missing entity", { _, timeline in
+                var item = timeline[3].objectValue!
+                item["activityId"] = .text("missing")
+                timeline[3] = .object(item)
+            }),
+            ("unknown kind", { _, timeline in
+                var item = timeline[3].objectValue!
+                item["kind"] = .text("mystery")
+                timeline[3] = .object(item)
+            }),
+            ("inline snapshot", { turn, timeline in
+                var item = timeline[3].objectValue!
+                item.removeValue(forKey: "activityId")
+                item["activity"] = turn["activities"]?.arrayValue?.first
+                timeline[3] = .object(item)
+            }),
+            ("duplicate reference", { _, timeline in
+                var duplicate = timeline[3].objectValue!
+                duplicate["id"] = .text("duplicate-activity")
+                timeline.append(.object(duplicate))
+            }),
+        ]
+        for (name, mutate) in cases {
+            let state = try stateWithTimelineMutation(mutate)
+            do {
+                _ = try ClaudeState(state)
+                Issue.record("\(name) timeline accepted")
+            } catch {}
+        }
+    }
+
+    @Test func threadProjectionRetainsAssistantSummaryForEveryExecution() throws {
+        let fixture = try fixture("thread-reader.golden.json")
+        let projected = try ClaudeState(try #require(fixture["thread"]))
+        #expect(projected.turns.map(\.assistantText) == ["FIRST EXECUTION ANSWER", "SECOND EXECUTION ANSWER"])
+        for turn in projected.turns {
+            #expect(turn.timeline.filter { $0.claudeKind == "assistant" }.count == 1)
+            #expect(turn.timeline.filter { $0.claudeKind == "activity" }.isEmpty)
+        }
+    }
+
+    @Test func terminalOverviewAndExecutionPreviewKeepAssistant() throws {
+        let fixture = try fixture("terminal-reader.golden.json")
+        for (name, expected, unexpected) in [
+            ("failed", "FAILED ASSISTANT", "LATER REASONING"),
+            ("interrupted", "INTERRUPTED ASSISTANT", "LATER REASONING"),
+            ("completed", "COMPLETED ASSISTANT", "LATER REASONING"),
+        ] {
+            let entry = try #require(fixture[name])
+            let overview = try ClaudeState(try #require(entry["overview"]))
+            let observation = try ThreadPublicObservation(json: try #require(entry["observation"]))
+            let id = try #require(overview.turns.first?.id)
+            let thread = try HarnessThread(id: JSONText("terminal-\(name)"), harnessID: "claude", revision: 1,
+                sessionState: try #require(entry["overview"]), observation: observation, cwd: "/tmp", settings: .object([:]),
+                createdAt: 1_000, updatedAt: 2_000, title: "Terminal", tags: [])
+            let plugin = ClaudeHarnessPlugin()
+            let projection = try plugin.projectOverview(input: .init(thread: thread), availableColumns: 3)
+            #expect(projection.view.summary.contains(expected))
+            #expect(!projection.view.summary.contains(unexpected))
+            let preview = try #require(try plugin.executionPreview(thread: thread, executionID: id))
+            #expect(preview.excerpt.string == expected)
+            #expect(!preview.excerpt.string.contains(unexpected))
+        }
+    }
+
+    @Test func elicitationOverviewBindsPublicInteraction() throws {
+        let fixture = try fixture("elicitation-reader.golden.json")
+        let overview = try ClaudeState(try #require(fixture["overview"]))
+        let observation = try ThreadPublicObservation(json: try #require(fixture["observation"]))
+        let binding = claudePublicInteractions(overview, observation)
+        let interaction = try #require(binding["ask-elicitation"])
+        #expect(interaction.title == "MCP form")
+        #expect(interaction.kind == .question)
+        #expect(interaction.actions.map(\.id) == ["submit", "deny", "cancel"])
+        #expect(interaction.questions.count == 1)
+        #expect(interaction.questions[0].answerFormat == .jsonObject)
+        let thread = try HarnessThread(id: JSONText("elicitation"), harnessID: "claude", revision: 1,
+            sessionState: try #require(fixture["overview"]), observation: observation, cwd: "/tmp", settings: .object([:]),
+            createdAt: 1_000, updatedAt: 2_000, title: "Elicitation", tags: [])
+        let projection = try ClaudeHarnessPlugin().projectOverview(input: .init(thread: thread), availableColumns: 3)
+        #expect(projection.view.pendingPublicInteraction == interaction)
+    }
+
+    private func fixture(_ name: String = "timeline-reader.golden.json") throws -> JSONValue {
         let file = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -113,7 +208,20 @@ import MokuseiPluginUI
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("internal/plugins/harness/claude/testdata/timeline-reader.golden.json")
+            .appendingPathComponent("internal/plugins/harness/claude/testdata/" + name)
         return try JSONValue(data: Data(contentsOf: file))
+    }
+
+    private func stateWithTimelineMutation(_ mutate: (inout [JSONText: JSONValue], inout [JSONValue]) -> Void) throws -> JSONValue {
+        let fixture = try fixture()
+        var state = try #require(fixture["state"]?.objectValue)
+        var turns = try #require(state["turns"]?.arrayValue)
+        var turn = try #require(turns.first?.objectValue)
+        var timeline = try #require(turn["timeline"]?.arrayValue)
+        mutate(&turn, &timeline)
+        turn["timeline"] = .array(timeline)
+        turns[0] = .object(turn)
+        state["turns"] = .array(turns)
+        return .object(state)
     }
 }

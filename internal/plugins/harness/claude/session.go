@@ -97,6 +97,12 @@ func (h *Harness) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 				stop = true
 			}
 		}
+		// Fork history resolves timeline references against the turn's current
+		// entity tables at fork time. An entity that began before the selected
+		// checkpoint but finished later therefore carries its final state here;
+		// running/pending entities still become cancelled. review and error are
+		// canonical latest-only markers, so a marker replaced after the selected
+		// prefix is not inherited from an earlier revision.
 		activities, interactions, notices := map[string]map[string]any{}, map[string]map[string]any{}, map[string]map[string]any{}
 		for _, value := range turn.Activities {
 			activities[str(value["id"])] = value
