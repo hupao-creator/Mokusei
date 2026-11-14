@@ -90,8 +90,8 @@ Once submitted, panel travel no longer waits for main-actor animation ticks;
 reader mounting can still occupy the main thread.
 Data-only route prefetch overlaps content acquisition with travel; a bounded
 short-lived cache transfers continuously subscribed ready data between readers.
-Codex reader admission validates/decodes changed opaque state off the main actor,
-reuses only exact immutable inputs and skips construction of collapsed work rows.
+Codex, Claude, Pi and OpenCode reader admission validates/decodes changed opaque state off the main actor,
+reuses only exact immutable inputs. Claude, Pi and OpenCode keep the last prepared reader and row mounted during same-thread updates, publishing the matching input and decoded state together; changing threads starts a fresh admission. OpenCode groups messages by execution during admission; Codex skips construction of collapsed work rows.
 Read-only transcript TextKit views disable Writing Tools. Reader/view, history
 requests and scroll state remain scoped to their existing lifetimes. See the
 [loading/cache investigation](../../design/thread-loading-performance-cache.md). Native

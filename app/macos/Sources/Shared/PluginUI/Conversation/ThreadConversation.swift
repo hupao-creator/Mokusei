@@ -175,11 +175,10 @@ public struct ThreadConversation: View {
         return execution.isActive || execution.id == activeExecutionId
     }
     private var showsDocumentHeading: Bool {
-        if relatedSendTitle != nil { return true }
-        // Main readers retain their heading; Report sidecards also suppress it
-        // until the selected execution's activity is known.
-        return (!executionCard || relatedExecution)
-            && !(executionCard && agentDetail && (selectedIsActive || (relatedExecution && selectedRowID == nil)))
+        // Report readers own the selected execution's identity even while active.
+        // Wait for its row so loading cannot borrow another execution's title.
+        if executionCard && relatedExecution { return !agentDetail || selectedRowID != nil }
+        return !executionCard
     }
     private var relatedSendTitle: NativeReportSidecardPresentation.SendTitle? {
         guard relatedExecution, selectedIsActive, case let .execution(id) = context?.presentation else { return nil }
@@ -452,7 +451,7 @@ public struct ThreadConversation: View {
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
                               allowsJumpToLatest: allowsJumpToLatest && selectedPage?.execution?.id == activeExecutionId,
-                              hidesHeading: executionCard && agentDetail && selectedIsActive,
+                              hidesHeading: executionCard && !relatedExecution && agentDetail && selectedIsActive,
                               result: resultVisit, readingTarget: scrollTarget,
                               readingVisitId: destination == requestedDestination ? consumedRequest : nil,
                               locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
