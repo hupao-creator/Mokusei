@@ -281,6 +281,25 @@ struct NativeOverviewCapacityTests {
         try expectWholeCollection(fixture, in: window)
     }
 
+    @Test func aspectChangingFootprintRecentersRenderedCard() async throws {
+        let fixture = CapacityFixture()
+        fixture.size = .init(width: 1341, height: 906)
+        fixture.items = [.init(id: "card", columns: 2)]
+        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1341, height: 906)
+        defer { window.close() }
+        try await settle(fixture, in: window)
+        fixture.items[0].columns = 1
+        fixture.items[0].rows = 2
+        try await settle(fixture, in: window)
+        let frame = try #require(fixture.frames["card"])
+        let viewport = try #require(fixture.state.camera.viewport)
+        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+        let tolerance = 1 / window.backingScaleFactor
+        #expect(abs(frame.midX - (region.left + region.width / 2)) < tolerance)
+        #expect(abs(frame.midY - (region.top + region.height / 2)) < tolerance)
+        #expect(abs(fixture.state.camera.liveTransform.scale - 1) < 1e-9)
+    }
+
     @Test(arguments: [1, 6], [false, true])
     func insertionFramesTheCompleteCollectionWithoutBackgroundClick(count: Int, reduceMotion: Bool) async throws {
         let fixture = CapacityFixture()

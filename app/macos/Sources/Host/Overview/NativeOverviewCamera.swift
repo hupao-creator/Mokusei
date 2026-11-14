@@ -348,9 +348,10 @@ public final class NativeOverviewCamera {
     private struct CameraFit {
         var transform: NativeOverviewTransform
         var content: NativeOverviewContentRect
-        /// True for an ordinary fit or automatic clamp; false for an
-        /// intentional retained filter/reading view.
-        var isAutomatic: Bool
+        /// Axes intentionally retained from a reading/filter seat. Automatic
+        /// clamps keep both false even when their translation differs from fit.
+        var retainedX: Bool
+        var retainedY: Bool
     }
 
     public init() {}
@@ -398,7 +399,7 @@ public final class NativeOverviewCamera {
         framedRevision = framingRevision
         guard NativeOverviewCameraGeometry.hasGeometry(content, viewport: viewport) else { commit(nil); return }
         let target = fit()
-        lastAutomaticFit = .init(transform: target, content: content, isAutomatic: true)
+        lastAutomaticFit = .init(transform: target, content: content, retainedX: false, retainedY: false)
         commit(.init(transform: target, manual: false))
     }
 
@@ -525,43 +526,59 @@ public final class NativeOverviewCamera {
             let priorFit = readingFit
             let readingPosition = priorFit?.transform ?? (framedRevision == framingRevision ? live?.transform : nil)
             let current = priorFit?.transform ?? live?.transform
-            let readingIsAutomatic: Bool
+            let priorRetainedX: Bool
+            let priorRetainedY: Bool
             if let priorFit {
-                readingIsAutomatic = priorFit.isAutomatic
-            } else if let live, let lastAutomaticFit {
-                readingIsAutomatic = NativeOverviewCameraGeometry.approximatelyEqual(live.transform, lastAutomaticFit.transform)
+                priorRetainedX = priorFit.retainedX
+                priorRetainedY = priorFit.retainedY
+            } else if let live, let lastAutomaticFit,
+                      NativeOverviewCameraGeometry.approximatelyEqual(live.transform, lastAutomaticFit.transform) {
+                priorRetainedX = false
+                priorRetainedY = false
             } else {
-                readingIsAutomatic = false
+                // No retained target and no matching automatic target: treat
+                // the live framing as intentional so a local edit keeps it.
+                priorRetainedX = true
+                priorRetainedY = true
             }
             let automatic = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
-            // A same-scale horizontal repack of a settled automatic camera
-            // should recenter instead of retaining an obsolete translation.
-            // Only width must not grow: an aspect-changing footprint may get
-            // taller while still narrowing the collection. A real reading seat
-            // or retained filter framing is not automatic and bypasses this.
+            let priorContent = priorFit?.content ?? lastAutomaticFit?.content
+            let priorScale = priorFit?.transform.scale ?? lastAutomaticFit?.transform.scale
             // A pending target keeps its seat until its own revision settles.
             let settled = framedRevision == framingRevision
             let atCurrent = live.map { live in
                 current.map { NativeOverviewCameraGeometry.approximatelyEqual(live.transform, $0) } ?? false
             } ?? false
-            let shouldRecenter: Bool
-            if settled, atCurrent, readingIsAutomatic, let current,
-               let priorContent = priorFit?.content ?? lastAutomaticFit?.content,
-               let priorScale = priorFit?.transform.scale ?? lastAutomaticFit?.transform.scale {
-                shouldRecenter = content.width <= priorContent.width + 1e-6
+            // A settled automatic x follows a same-scale width shrink to the
+            // new ordinary x. A retained x/y seat survives. Height shrink keeps
+            // the prior y as a reading seat; height growth uses the ordinary y
+            // when the width recenter applies.
+            let shouldRecenterX: Bool
+            if settled, atCurrent, !priorRetainedX, let current,
+               let priorContent, let priorScale {
+                shouldRecenterX = content.width <= priorContent.width + 1e-6
                     && abs(automatic.scale - priorScale) < 1e-6
                     && abs(automatic.x - current.x) > 0.001
             } else {
-                shouldRecenter = false
+                shouldRecenterX = false
             }
             if preserveReadingPosition && live?.manual == false && !returning
-                && !pendingAutoFit && !shouldRecenter, let readingPosition {
+                && !pendingAutoFit, let readingPosition {
                 let preserved = NativeOverviewCameraGeometry.preservingReadingPosition(
                     readingPosition, content: content, viewport: viewport)
-                readingFit = .init(transform: preserved, content: content,
-                                   isAutomatic: readingIsAutomatic
-                                       || NativeOverviewCameraGeometry.approximatelyEqual(preserved, automatic))
-                if readingFit?.isAutomatic == false { lastAutomaticFit = nil }
+                let transform: NativeOverviewTransform
+                if shouldRecenterX {
+                    transform = .init(scale: automatic.scale,
+                                      x: automatic.x,
+                                      y: priorRetainedY ? preserved.y : automatic.y)
+                } else {
+                    transform = preserved
+                }
+                let retainedY = priorRetainedY
+                    || (!shouldRecenterX && abs(preserved.y - automatic.y) > 0.001)
+                readingFit = .init(transform: transform, content: content,
+                                   retainedX: priorRetainedX, retainedY: retainedY)
+                if priorRetainedX || retainedY { lastAutomaticFit = nil }
             } else {
                 readingFit = nil
             }
@@ -605,7 +622,11 @@ public final class NativeOverviewCamera {
 
     private func setBounds(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
         if let bounds, bounds.content != content || bounds.viewport != viewport { framingRetained = false }
-        if let previous = bounds?.viewport, previous != viewport { framingRevision += 1; readingFit = nil }
+        if let previous = bounds?.viewport, previous != viewport {
+            framingRevision += 1
+            readingFit = nil
+            lastAutomaticFit = nil
+        }
         bounds = (content, viewport)
     }
 
@@ -631,12 +652,14 @@ public final class NativeOverviewCamera {
     }
 
     private func automaticFit(target: NativeOverviewTransform) -> CameraFit? {
-        guard readingFit?.isAutomatic ?? true else { return nil }
         if let readingFit {
-            return .init(transform: target, content: readingFit.content, isAutomatic: true)
+            guard !readingFit.retainedX && !readingFit.retainedY else { return nil }
+            return .init(transform: target, content: readingFit.content,
+                         retainedX: false, retainedY: false)
         }
         guard let bounds else { return nil }
-        return .init(transform: target, content: bounds.content, isAutomatic: true)
+        return .init(transform: target, content: bounds.content,
+                     retainedX: false, retainedY: false)
     }
 
     private func scheduleReturn() {
@@ -674,9 +697,9 @@ public final class NativeOverviewCamera {
         let framingChanged = framingRevision != framedRevision
         let target = fit()
         let atTarget = NativeOverviewCameraGeometry.approximatelyEqual(live.transform, target)
-        if let readingFit, atTarget {
+        if readingFit != nil, atTarget {
             clearRefit()
-            lastAutomaticFit = readingFit.isAutomatic ? automaticFit(target: target) : nil
+            lastAutomaticFit = automaticFit(target: target)
             framedRevision = framingRevision
             return
         }

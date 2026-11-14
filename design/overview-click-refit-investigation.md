@@ -220,34 +220,51 @@ Release `Mokusei` 编译/链接 237.62 秒、`MokuseiEmbedding` 4.87 秒；
 `readingFit` 后才回到 302.5。
 
 相机现在记录最后一次 settled automatic target（包括被 clamp 的自动目标）及其
-content bounds，并为 retained target 标记来源：ordinary fit/clamp 产生
-的自动目标，或显式 retained filter/reading target。`requestRefit` 在
-`layoutChanged` 时仅当同时满足以下条件才放弃本次阅读目标，交给现有 refit 节流
-回到新普通 fit：
+content bounds，并为 retained target 按轴标记来源：ordinary fit/clamp 产生的
+自动 x/y，或显式 retained filter/reading seat。`requestRefit` 在
+`layoutChanged` 时仅当同时满足以下条件才把自动 x 换成新普通 x，并交给现有 refit
+节流；y 按来源保留或取新普通 y：
 
 - 当前目标或 live 是自动来源，且 live 仍近似该自动目标；
 - 新 content 宽度不大于旧 content；高度可以增长，覆盖 2×1→1×2 这类 aspect 变化；
 - 普通 fit 的 scale 不变；
-- 新普通 fit 的 x 与当前自动目标的 x 有可见差异。
+- 新普通 fit 的 x 与当前自动 x 有可见差异。
 
-因此同比例宽度收缩会重新居中，高度增长不再阻止；纯垂直行删除因 x 不变仍保留
-垂直座位。与 ordinary fit 不同的显式 retained filter/reading target、手动
-pan/zoom、scale 变化和容量不足场景保持原策略。`retainFraming` 和
+命中时 x 取新普通 fit；y 若来自纵向删除或阅读座位则保留并 clamp，否则使用新
+普通 y。因此同比例宽度收缩会按轴重居中，高度增长不再阻止；纯垂直行删除因 x
+不变仍保留垂直座位。与 ordinary fit 不同的显式 retained filter/reading target、
+手动 pan/zoom、scale 变化和容量不足场景保持原策略。`retainFraming` 和
 `preserveFraming` 会同时清除 `readingFit` 与 automatic-target 记录；
 `setManualTransform` 也清除 retained target，避免 filtered edit 跳回旧
-`readingFit`。连续 shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，
-后续 shrink 会重新居中。
+`readingFit`。viewport 变更在 `setBounds` 同步清除两类 provenance。
+连续 shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，后续 shrink
+会重新居中。grow 目标尚未 settle 时到达的 shrink 保留 pending target；后续
+layout revision 或显式 return 再重新判断自动 clamp，这一 pending 语义由
+`consecutiveFootprintChangesKeepPendingReadingTarget` 和新增 camera case 覆盖。
 
 定向诊断直接编译本 worktree 的 `NativeOverviewLayout.swift`、
 `NativeOverviewStageCoordinator.swift`、`NativeOverviewCamera.swift`，覆盖：
 原始 x=114.5→302.5 的 Canvas 顺序；2×1→1×2（宽度收缩、高度增长）；
 filtered retained target 及 filter 后 local edit；shrink→grow→shrink；
-纵向 seat 后 width shrink；行删除纯垂直座位；隐藏、交互暂停、Reduce Motion、
-stage 占用。所有断言通过。
+纵向 seat 后 width shrink（保留 y）；行删除纯垂直座位；pending grow 后立即
+shrink；隐藏、交互暂停、Reduce Motion、stage 占用。所有 headless 断言通过。
+关键 camera case 已提交到 `NativeOverviewCameraReadabilityTests`：
+`sameScaleAspectChangingShrinkRecentersBothAxes`、
+`filteredEditKeepsRetainedTargetAfterVerticalSeat`、
+`shrinkGrowShrinkRecentersAfterAutomaticClamp`、
+`verticalSeatSurvivesFollowingWidthShrink`、
+`pendingGrowKeepsItsSeatUntilANewRevision`。实际卡片 envelope 中心的 GUI
+Canvas case 已提交到 `NativeOverviewCapacityTests`：
+`aspectChangingFootprintRecentersRenderedCard`。
 
 相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
 `NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
 `NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
-52 个测试全部通过（约 89 秒）。`./scripts/go.sh run ./cmd/mokusei-check
-architecture` 与 `./scripts/go.sh vet ./...` 通过；未运行全量 Swift suite、
-其它 GUI 回放或托管 CI，也未推送。
+58 个测试全部通过（约 95 秒）。额外运行 `make check-swift` 全量 Swift
+suite；本改动相关的四个 suite 均通过，全量 run 的失败集中在
+`NativeOnboardingTagSurfaceTests`、`NativeOverviewDecorationCaptureTests`、
+`NativeOverviewTagGlassTests` 的 WindowServer 采样与 native-owner 门槛，
+以及一次 `SwiftUIOverviewInteractionTests` excerpt 视觉检查；该 excerpt case
+单独重跑通过，其余失败未涉及相机/Overview 取景路径。未修改这些边界，也未运行
+托管 `Complete coverage`。`./scripts/go.sh run ./cmd/mokusei-check
+architecture` 与 `./scripts/go.sh vet ./...` 通过；未推送。
