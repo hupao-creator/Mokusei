@@ -430,14 +430,16 @@ public final class NativeOverviewCamera {
                                                                   scale: view.transform.scale) {
             retained = .init(transform: recentered, manual: false)
         }
-        commit(retained)
         if !retained.manual {
             // Retained framing is an intentional baseline, not an automatic
-            // seat. Keeping it in readingFit makes the target match the live
-            // view and lets a later local edit preserve that view.
+            // seat. Publish it before commit so onChange never observes a
+            // transient target that differs from the committed live view.
             readingFit = .init(transform: retained.transform, content: content,
                                retainedX: true, retainedY: true)
+        } else {
+            readingFit = nil
         }
+        commit(retained)
     }
 
     public func restore(view: NativeOverviewCameraState, content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
@@ -593,7 +595,20 @@ public final class NativeOverviewCamera {
         }
         if preserveFraming {
             framingRetained = true
-            if let live, !live.manual, !returning, !pendingAutoFit {
+            clearRefit()
+            if animationOwner == .refit {
+                // A playing refit would otherwise commit a target that no
+                // longer matches the retained baseline. Publish the sampled
+                // view as the baseline, then commit that same sample.
+                if let sampled = live, !sampled.manual, !returning, !pendingAutoFit {
+                    readingFit = .init(transform: sampled.transform, content: content,
+                                       retainedX: true, retainedY: true)
+                    cancelMotion(committing: sampled)
+                } else {
+                    readingFit = nil
+                    cancelMotion()
+                }
+            } else if !isAnimating, let live, !live.manual, !returning, !pendingAutoFit {
                 // Preserve the current view as the new intentional baseline.
                 // The old automatic seat provenance must not survive, but the
                 // visible translation should not jump to the ordinary fit.
@@ -826,12 +841,18 @@ public final class NativeOverviewCamera {
         }
     }
 
-    private func cancelMotion() {
+    private func cancelMotion(committing sampled: NativeOverviewCameraState? = nil) {
         animationGeneration += 1
         animationTask?.cancel()
         animationTask = nil
         animationOwner = nil
-        guard let live, track != nil else { return }
+        guard track != nil else { return }
+        if let sampled {
+            track = nil
+            commit(sampled)
+            return
+        }
+        guard let live else { return }
         track = nil
         commit(live)
     }

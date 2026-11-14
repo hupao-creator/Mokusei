@@ -418,6 +418,8 @@ struct NativeOverviewCameraReadabilityTests {
         #expect(clamped.y >= region.top - 0.001)
         #expect(clamped.y <= region.top + region.height - extreme.height * clamped.scale + 0.001)
         #expect(clamped.y + extreme.height * clamped.scale <= region.top + region.height + 0.001)
+        #expect(clamped.x >= region.left - 0.001)
+        #expect(clamped.x + extreme.width * clamped.scale <= region.left + region.width + 0.001)
     }
 
     @Test func extremeWideRetainedSeatStaysVisible() async throws {
@@ -512,6 +514,24 @@ struct NativeOverviewCameraReadabilityTests {
         try await waitForCamera(camera, ordinary)
     }
 
+    @Test func retainFramingPublishesBaselineAtomically() {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 900, height: 700)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let filtered = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
+        camera.cutTo(content: large, viewport: viewport)
+        var observed: [NativeOverviewTransform] = []
+        camera.onChange = { [weak camera] in
+            guard let camera else { return }
+            observed.append(camera.automaticFitTarget ?? .identity)
+        }
+        camera.retainFraming(content: filtered, viewport: viewport)
+        let retained = camera.liveTransform
+        #expect(!observed.isEmpty)
+        #expect(observed.allSatisfy { NativeOverviewCameraGeometry.approximatelyEqual($0, retained) })
+    }
+
     @Test func preserveFramingKeepsCurrentViewAsRetainedBaseline() async throws {
         let camera = NativeOverviewCamera()
         defer { camera.dispose() }
@@ -534,6 +554,32 @@ struct NativeOverviewCameraReadabilityTests {
         let ordinary = NativeOverviewCameraGeometry.fit(vertical, viewport: viewport)
         camera.returnToAuto()
         try await waitForCamera(camera, ordinary)
+    }
+
+    @Test func preserveFramingDuringRefitCancelsThePendingTarget() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let small = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 692)
+        camera.onChange = {}
+        camera.cutTo(content: large, viewport: viewport)
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        for _ in 0..<100 {
+            if camera.isAnimating { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(camera.isAnimating)
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        let baseline = camera.liveTransform
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, baseline))
+        #expect(!camera.isAnimating)
+        #expect(!camera.hasScheduledMotion)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, baseline))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, baseline))
     }
 
     @Test func setManualTransformClearsPersistentVerticalSeat() async throws {
