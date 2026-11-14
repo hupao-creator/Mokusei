@@ -115,19 +115,40 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
             return
         }
 
-        // Column ownership has one destination. A damped spring overshoots it
-        // and visibly reverses even when no second layout target was published.
-        let animation = CABasicAnimation(keyPath: "transform")
-        animation.duration = previous?.frame != next.frame ? 0.38 : 0.42
-        animation.timingFunction = previous?.frame != next.frame
+        let duration: TimeInterval = previous?.frame != next.frame ? 0.38 : 0.42
+        let timing = previous?.frame != next.frame
             ? CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
             : abs(delta.y) > 0.01 ? CAMediaTimingFunction(name: .easeInEaseOut)
             : next.reading ? NativeReadingPageTiming.emphasizedOpening : CAMediaTimingFunction(name: .easeInEaseOut)
-        // The 12–16pt descent needs a gentler curve than the full-page flight.
-        // Both axes run in the compositor after submission, independently of
-        // main-actor reader mounting, and reversals sample the presented pose.
-        animation.fromValue = NSValue(caTransform3D: CATransform3DMakeTranslation(delta.x, delta.y, 0))
-        animation.toValue = NSValue(caTransform3D: CATransform3DIdentity)
+        let horizontal: CAPropertyAnimation
+        if abs(delta.x) >= 12 {
+            let rebound = CAKeyframeAnimation(keyPath: "transform.translation.x")
+            // A single bounded overshoot gives arrival a small settling beat.
+            // Tiny geometry corrections keep their ordinary monotone curve.
+            let overshoot = -copysign(min(6, abs(delta.x) * 0.025), delta.x)
+            rebound.values = [delta.x, overshoot, 0]
+            rebound.keyTimes = [0, 0.76, 1]
+            rebound.timingFunctions = [
+                CAMediaTimingFunction(controlPoints: 0.22, 0.82, 0.28, 1),
+                CAMediaTimingFunction(name: .easeInEaseOut)
+            ]
+            rebound.duration = 0.52
+            horizontal = rebound
+        } else {
+            let travel = CABasicAnimation(keyPath: "transform.translation.x")
+            travel.fromValue = delta.x; travel.toValue = 0
+            travel.duration = duration; travel.timingFunction = timing
+            horizontal = travel
+        }
+        // Keep the 12–16pt descent monotone and on its existing schedule even
+        // when the column move is still completing its horizontal rebound.
+        let vertical = CABasicAnimation(keyPath: "transform.translation.y")
+        vertical.fromValue = delta.y; vertical.toValue = 0
+        vertical.duration = duration; vertical.timingFunction = timing
+        let animation = CAAnimationGroup()
+        animation.animations = [horizontal, vertical]
+        animation.duration = max(horizontal.duration, vertical.duration)
+        animation.timingFunction = CAMediaTimingFunction(name: .linear)
         animation.delegate = self; animation.setValue(current, forKey: "generation")
         layer.add(animation, forKey: "moku-travel")
     }

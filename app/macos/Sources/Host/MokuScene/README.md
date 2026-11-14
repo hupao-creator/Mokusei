@@ -555,7 +555,7 @@ production bell during headless verification.
 ## Reading-panel Dock
 
 Browser annotation mode temporarily lends the resident composer to the selected
-Browser card. The same native destination marker and spring center it below that
+Browser card. The same native destination marker and travel host center it below that
 card, fitting its column. Page focus remains with selection until an element or
 region is chosen, then the text editor receives focus. A separate ephemeral text
 draft describes that selection; normal Thread and Moku drafts remain retained.
@@ -586,8 +586,11 @@ opening an activity does not make that activity its target. Folding the selected
 card, suppression, losing the selected card's eligibility or starting completion
 promotion restores the workspace-centered input. A first execution in main with
 no expanded activity does not move it. Horizontal travel into a target column
-uses a spring (620ms response, 0.78 damping fraction) for a gentler acceleration,
-braking and a small settling rebound. Shell sizing and return retain the
+uses a 520ms native keyframe curve with one restrained settling rebound. Its
+overshoot is 2.5% of the remaining travel, capped at 6 logical points; the peak
+is at 76% of the timeline, followed by a zero-velocity return to the target.
+Corrections below 12pt keep their existing non-overshooting curve. Vertical
+descent retains its independent, non-bouncing timing. Shell sizing retains the
 Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
 travel, and Reduce Motion disables spatial animation. Stacked layouts share the
 panels' full column width and keep the same bottom reading baseline. Composer
@@ -623,15 +626,16 @@ The horizontal spring adjustment was reviewed against the reported recording
 tests, existing regression runs, live animation acceptance or hosted CI were run
 for that adjustment; its rendered feel remains to be confirmed in the app.
 
-Primary reading entry uses the shared 420ms emphasized curve for the collapsed
-Dock's position. Its composer stays unmounted until the reading panel/title handoff
+Primary reading entry lowers the collapsed Dock with its native 420ms
+ease-in/ease-out curve. Its composer stays unmounted until the reading panel/title handoff
 finishes and the main document is ready, then the folded Agent workspace
 commits. That visit-scoped boundary admits the Sidecard reveal (380ms). If its
 execution column owns the Dock, the compact Moku travels there first; the actual
-horizontal animation's removed completion then admits input expansion (420ms).
+horizontal animation's final completion, including the rebound, then admits the
+Harness flip and subsequent input expansion (420ms each).
 The native geometry bridge fences completion to the current destination revision,
 and the workspace retains the existing route-visit admission check. A folded,
-ineligible or absent execution Sidecard admits input at the layout commit without
+ineligible or absent execution Sidecard releases the identity stage at layout commit without
 a travel wait. Once input is admitted, later card choices move the retained editor
 without folding it. Reduce Motion and direct resizing settle without a delay.
 Scene-level input admission also gates interaction restoration,
@@ -785,7 +789,8 @@ An accepted exact-execution continuation retains the previous Dock column,
 expanded shell and Harness logo seat while its new reading visit prepares. Native column
 markers belong to a route and publish only after auxiliary layout admission;
 retained outgoing Report markers cannot overwrite the destination. The Dock
-travels once to that committed column with a monotone curve. Replacements use
+travels to that committed column with one bounded settling rebound, without
+adding an intermediate layout destination. Replacements use
 the currently presented horizontal position; resize, dragging, deactivation and
 Reduce Motion settle travel directly. This preserves the existing draft,
 receipt, input-readiness and late-callback fences. See the

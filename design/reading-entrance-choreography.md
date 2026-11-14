@@ -58,8 +58,11 @@ contributes to the workspace's input and Sidecard admission.
 transaction commit and the primary gate, then asks the
 current selection to reveal. If the selected execution Sidecard owns the Dock,
 the compact Moku first travels horizontally into its destination column using a
-620ms-response spring with 0.78 damping, allowing gentle braking and a small
-rebound. Its actual removed completion asks the window to admit this exact route
+520ms native keyframe curve. One overshoot, 2.5% of the remaining distance and
+capped at 6pt, peaks at 76% of the timeline and settles back at zero velocity.
+Sub-12pt corrections keep their existing monotone curve. Vertical descent has
+separate timing and never inherits the horizontal rebound. The native group's
+actual completion after both axes settle asks the window to admit this exact route
 visit. Once admitted, the compact Dock flips its eyes into the Harness logo for
 420ms using the existing emphasized curve, then expands the Agent composer for
 420ms. Destination revisions and local
@@ -118,6 +121,13 @@ It still waits for data and Markdown parsing.
 
 ## Scope and verification limits
 
+The horizontal settling tail is reviewed as part of this entrance sequence. Its
+520ms native keyframe, 2.5%/6pt maximum excursion and sub-12pt monotone guard are
+implemented on this branch's existing travel owner. The supplied recording was
+inspected with headless frame extraction for the monotone arrival that precedes
+this new tail. Headless Debug product build, diff review and local link checks
+passed. No tests or graphical replay were run; the new single-tail feel and rapid
+user-driven reversal still need on-screen acceptance.
 The same-day descent follow-up moves only the reading baseline into the existing
 native Dock travel transform, retaining SwiftUI shell sizing and the sequential
 identity/input gates. Headless Swift syntax parsing, the final Debug `Mokusei`
