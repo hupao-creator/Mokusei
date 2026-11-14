@@ -35,7 +35,11 @@ python3 tools/benchmarks/benchmark.py run \
 python3 tools/benchmarks/benchmark.py analyze /private/tmp/overview-run/n-5/04-body
 ```
 
-Outputs must be new directories. Live experiments need Screen Recording,
+Outputs must be new directories. The runner owns a separate private short IPC
+directory, so deep evidence paths cannot exceed the macOS Unix-socket limit.
+It reuses that directory across startup reopening and removes it after owned
+processes exit; failed cleanup retains the location in its receipt.
+Live experiments need Screen Recording,
 Accessibility and system input permission in the invoking context, an unlocked
 visible desktop and exclusive use of the foreground window during each trial.
 The default build/calibration/run path does not launch XCTest, Instruments,
@@ -65,7 +69,8 @@ the product. Source, collectors, App, Runtime and discovered helpers have
 separate accounting roles.
 
 All measured scenarios begin with the entire fixed card set **already existing**.
-Fixture creation and metadata settling happen before timing. No timed scenario
+Fixture creation and metadata settling happen before timing; the provider requires
+both its fixed title/body and its generated 📄 emoji before admitting a fixture. No timed scenario
 creates/deletes cards or deliberately reveals them one at a time. First rendering
 reopens the already-populated profile. Before/after public card IDs, titles and
 counts are retained and checked; a changed set cannot produce a passing outcome.
@@ -146,6 +151,53 @@ uses authenticated loopback coordination, without broader signing entitlements.
 Normal, real main-thread stall and wrong-owner controls must establish capability.
 If pixels freeze while hitches remain zero, the metric is **unsupported** for
 responsiveness conclusions. Zero is never substituted for unavailable data.
+
+## Agent emoji badge material comparison
+
+`compare-badge` runs the same signed artifact in flat → Liquid Glass → Liquid
+Glass → flat order. It defaults to N=10 and the five steady-state scenarios
+(`idle.completed`, `idle.active`, `pan`, `body`, `body.pan`), with 6 seconds of
+warmup and an 8-second formal interval. It is an exploratory resource comparison,
+not a statistical regression gate or a claim of complete benchmark capability.
+
+```sh
+python3 tools/benchmarks/benchmark.py compare-badge \
+  --app /absolute/path/Mokusei.app --tools /private/tmp/overview-tools \
+  --capabilities /private/tmp/overview-controls --output /private/tmp/badge-comparison \
+  --count 10 --window-bounds 50 60 1280 950
+```
+
+The artifact must support `--benchmark-agent-emoji-badge flat|liquid-glass`
+inside the isolated Overview scenario. Ordinary launches stay flat. The glass
+variant changes only the 44pt Agent emoji backdrop to untinted regular Liquid
+Glass; emoji size, terminal symbol, body, clouds, card shell, Report/collection
+badges and other controls retain their current policy. Missing/empty emoji does
+not acquire this experiment. Reduce Transparency is respected by the product;
+the external comparison rejects that fallback instead of measuring two flat
+variants. The App writes its admitted material, PID and accessibility settings
+to the public `benchmark-scenario.json` receipt before constructing the workspace.
+The runner validates the receipt owner/material and seals a copy in each trial.
+This is configuration evidence, not a frame-rate measurement.
+
+`run --agent-emoji-badge` selects a single material. `--warmup-seconds` controls
+steady-state settling; startup retains its separate timing. `--window-bounds`
+requests explicit OS coordinates outside timing and requires exact observed
+bounds. The comparison defaults to 1280×950 because the current production
+window minimum exceeds 820pt; choose coordinates that fit the intended display.
+First rendering retains the App's launch placement and is not in this comparison.
+
+The JSON/Markdown summary retains each run's status and source path. Descriptive
+App CPU and sampled memory differences require both orders, matching artifact,
+CLI, display/window, accessibility and workload, successful product evidence and
+complete App resource intervals. A declared helper disappearing may still leave
+every App sample intact; it never makes whole-process accounting complete.
+Missing App samples withhold the difference. Only those descendant/exit CPU and
+native-hitch gaps may remain. Other failures or missing evidence withhold the
+difference. Workload matching normalizes only the terminal result’s fixed-width
+run nonce, retaining its byte budget and all other payload/timing fields; raw
+evidence and result validation keep the actual nonce/hash.
+Full comparison remains `not-comparable` (exit 2); no missing metric
+is filled with zero. Raw frames check business progress, not pixel-style equality.
 
 ## Controlled fixed-count output
 
@@ -270,3 +322,8 @@ The older `overview-ci-performance` and
 remain diagnostics with separate baselines. Do not pool their results with these
 external measurements. [Implementation references](REFERENCES.md) document the
 pinned Swift open-source projects and the practices adopted here.
+
+The [2026-11-14 Agent emoji badge comparison](baselines/2026-11-14-emoji-badge-glass.md)
+uses the same signed artifact with launch-scoped flat/glass selection in both
+orders. It reports App CPU/footprint observations separately from failed pan
+trajectory checks and retains the incomplete full-benchmark status.

@@ -750,9 +750,16 @@ emoji use static palette fills, and the in-progress plan row uses the accent-sof
 surface without a glass container or effect. The 44pt emoji badge uses a static
 opaque palette fill with no added border: adaptive accent-soft green when
 completed, neutral surface-strong otherwise, including under Reduce Transparency.
-It contains no Liquid Glass effect, avoiding per-card spatial glass updates when
+By default it contains no Liquid Glass effect, avoiding per-card spatial glass updates when
 panning Overview. Overview card shells remain neutral after completion. The emoji
 stays 21pt, with the existing terminal mark preserving a non-color status cue.
+The explicit isolated Overview benchmark can supply
+`agentThreadEmojiUsesLiquidGlass` to `HarnessThreadCard` to compare the emoji
+backdrop with untinted regular Liquid Glass. Only its emoji-bearing default
+provider badge consumes the override; terminal marks, custom provider views,
+clouds, plan rows and Report/collection badges retain their own materials.
+The shared glass helper still respects Reduce Transparency. This is a launch-scoped
+experiment, not a persisted preference; ordinary launches stay flat.
 Agent and Report cards share its upper-right placement and title clearance.
 Report uses the completed badge's accent-soft background without an execution
 terminal mark; Agent execution status and its terminal mark remain independent.

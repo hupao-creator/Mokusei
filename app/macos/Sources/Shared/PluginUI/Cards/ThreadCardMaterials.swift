@@ -4,7 +4,17 @@ private struct ThreadCardFlatMaterialsKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct AgentThreadEmojiGlassKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 public extension EnvironmentValues {
+    /// A scoped rendering experiment; only Harness card emoji badges read it.
+    var agentThreadEmojiUsesLiquidGlass: Bool {
+        get { self[AgentThreadEmojiGlassKey.self] }
+        set { self[AgentThreadEmojiGlassKey.self] = newValue }
+    }
+
     /// Card renderers opt into static surfaces; shared controls elsewhere keep
     /// their own material composition. This is not a user preference.
     var threadCardUsesFlatMaterials: Bool {

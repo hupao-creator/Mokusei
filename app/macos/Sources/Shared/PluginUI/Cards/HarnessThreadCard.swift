@@ -110,6 +110,7 @@ private struct ThreadCardIdentity: View {
     let hovered: Bool
     @Environment(\.locale) private var locale
     @Environment(\.threadCardProviderColor) private var providerColor
+    @Environment(\.agentThreadEmojiUsesLiquidGlass) private var emojiUsesLiquidGlass
     private var cornerClearance: CGFloat { ThreadCardProviderStatus.cornerClearance }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -176,11 +177,13 @@ private struct ThreadCardIdentity: View {
                     if let providerStatus { providerStatus }
                     else if let status {
                         ThreadCardProviderStatus(label: status.providerLabel(identity.harness?.label, locale: locale), brandKey: identity.harness?.brandKey ?? "", emoji: emoji,
-                                                 terminal: status.terminal)
+                                                 terminal: status.terminal, emojiUsesLiquidGlass: emojiUsesLiquidGlass)
                     } else if let providerStatus = identity.providerStatus {
-                        ThreadCardProviderStatus(label: providerStatus, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
+                        ThreadCardProviderStatus(label: providerStatus, brandKey: identity.harness?.brandKey ?? "", emoji: emoji,
+                                                 emojiUsesLiquidGlass: emojiUsesLiquidGlass)
                     } else if emoji != nil {
-                        ThreadCardProviderStatus(label: identity.title, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
+                        ThreadCardProviderStatus(label: identity.title, brandKey: identity.harness?.brandKey ?? "", emoji: emoji,
+                                                 emojiUsesLiquidGlass: emojiUsesLiquidGlass)
                     }
                 }
             }

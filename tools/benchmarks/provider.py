@@ -50,7 +50,8 @@ class Provider:
     def initial_result(self, index, thread):
         execution = thread.get('observation', {}).get('latestExecution') or {}
         return (thread.get('title') == self.title(index) and execution.get('status') == 'completed'
-                and execution.get('summary') == self.body(index))
+                and execution.get('summary') == self.body(index)
+                and thread.get('metadataState', {}).get('emoji') == '📄')
 
     def __init__(self, directory, count):
         self.directory, self.count = directory, count
