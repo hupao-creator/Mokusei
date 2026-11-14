@@ -195,7 +195,7 @@ Canvas 仍等卡片的退出/收缩/移动/进入阶段结束后才请求 refit�
 - 原本已手动取景，以及自动动画中被手动接管：后续收缩与等待均不覆盖手动 transform。
 - 相机等待布局 stage 时不会抢先播放；排队中替换 bounds 后采用最新目标。
 - 自动镜头已经播放时再次变更 footprint：最终收敛到最新目标，而非旧动画终点。
-- 普通取景比例仍为 1.0 的进一步收缩：保留阅读位置，不产生额外镜头动画。
+- 普通取景比例仍为 1.0 的进一步收缩：当时保留阅读位置；后续同比例宽度收缩改为自动重居中，见下节。
 - 交互开始打断已播放的自动 refit；暂停期间位置稳定，解除后完成剩余取景。
 
 这些是直接运行生产相机及 stage 的定向诊断，不是挂载 Canvas 的端到端证据。
@@ -219,25 +219,35 @@ Release `Mokusei` 编译/链接 237.62 秒、`MokuseiEmbedding` 4.87 秒；
 `updateAuto()` 视为已完成目标，自动 refit 从未排程；点击空白清掉
 `readingFit` 后才回到 302.5。
 
-相机现在记录最后一次 settled ordinary fit 及其 content bounds。`requestRefit`
-在 `layoutChanged` 时仅当同时满足以下条件才放弃本次阅读目标，交给现有 refit
-节流回到新普通 fit：
+相机现在记录最后一次 settled automatic target（包括被 clamp 的自动目标）及其
+content bounds，并为 retained target 标记来源：ordinary fit/clamp 产生
+的自动目标，或显式 retained filter/reading target。`requestRefit` 在
+`layoutChanged` 时仅当同时满足以下条件才放弃本次阅读目标，交给现有 refit 节流
+回到新普通 fit：
 
-- 没有已保留的阅读目标，或该目标本身就是旧 ordinary fit；live transform
-  仍近似该 ordinary fit；
-- 新 content 在两个维度都不大于旧 content，且普通 fit 的 scale 不变；
-- 新普通 fit 的 x 与旧普通 fit 的 x 有可见差异。
+- 当前目标或 live 是自动来源，且 live 仍近似该自动目标；
+- 新 content 宽度不大于旧 content；高度可以增长，覆盖 2×1→1×2 这类 aspect 变化；
+- 普通 fit 的 scale 不变；
+- 新普通 fit 的 x 与当前自动目标的 x 有可见差异。
 
-因此只处理同比例水平收缩。与 ordinary fit 不同的已保留阅读目标、手动
-pan/zoom、filter/search retained framing，以及行删除造成的纯垂直位移仍保留
-原行为；scale 变大场景的既有修复不变。`retainFraming` 和 `preserveFraming`
-会清除 ordinary-fit 记录，避免把显式 retained framing 误判为普通自动取景。
+因此同比例宽度收缩会重新居中，高度增长不再阻止；纯垂直行删除因 x 不变仍保留
+垂直座位。与 ordinary fit 不同的显式 retained filter/reading target、手动
+pan/zoom、scale 变化和容量不足场景保持原策略。`retainFraming` 和
+`preserveFraming` 会同时清除 `readingFit` 与 automatic-target 记录；
+`setManualTransform` 也清除 retained target，避免 filtered edit 跳回旧
+`readingFit`。连续 shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，
+后续 shrink 会重新居中。
 
 定向诊断直接编译本 worktree 的 `NativeOverviewLayout.swift`、
-`NativeOverviewStageCoordinator.swift`、`NativeOverviewCamera.swift`，走
-`cutTo → reconcileBounds → requestRefit(preserveReadingPosition: true)` 的
-Canvas 顺序：目标立即变为 x=302.5，等待现有 160ms/360ms 调度后 live 到达
-x=302.5、scale=1.0，未调用 `returnToAuto()`。同一诊断还检查了 retained
-reading、手动取景、连续 footprint 变更和行删除的纯垂直位移均不跳变。
-`./scripts/go.sh run ./cmd/mokusei-check architecture` 与
-`./scripts/go.sh vet ./...` 通过；未运行 GUI 回放、全量回归或托管 CI，也未推送。
+`NativeOverviewStageCoordinator.swift`、`NativeOverviewCamera.swift`，覆盖：
+原始 x=114.5→302.5 的 Canvas 顺序；2×1→1×2（宽度收缩、高度增长）；
+filtered retained target 及 filter 后 local edit；shrink→grow→shrink；
+纵向 seat 后 width shrink；行删除纯垂直座位；隐藏、交互暂停、Reduce Motion、
+stage 占用。所有断言通过。
+
+相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
+`NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
+`NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
+52 个测试全部通过（约 89 秒）。`./scripts/go.sh run ./cmd/mokusei-check
+architecture` 与 `./scripts/go.sh vet ./...` 通过；未运行全量 Swift suite、
+其它 GUI 回放或托管 CI，也未推送。

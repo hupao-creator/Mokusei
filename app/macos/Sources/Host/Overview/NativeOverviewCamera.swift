@@ -319,11 +319,11 @@ public final class NativeOverviewCamera {
     @ObservationIgnored private var animationTask: Task<Void, Never>?
     @ObservationIgnored private var animationOwner: Owner?
     public var reduceMotion = false
-    @ObservationIgnored private var readingFit: NativeOverviewTransform?
-    /// Last settled ordinary fit and the bounds it framed. A same-scale repack
-    /// can distinguish a plain automatic camera from a retained reading
-    /// position without relying on the already-updated bounds.
-    @ObservationIgnored private var lastAutomaticFit: AutomaticFit?
+    @ObservationIgnored private var readingFit: CameraFit?
+    /// Last settled automatic target and the bounds it framed. Automatic
+    /// clamping can retain a translation that is not the ordinary fit, so the
+    /// target and its provenance matter more than the current bounds alone.
+    @ObservationIgnored private var lastAutomaticFit: CameraFit?
     @ObservationIgnored private var refitTask: Task<Void, Never>?
     @ObservationIgnored private var animationGeneration = 0
     @ObservationIgnored private var returnEpoch = 0
@@ -345,9 +345,12 @@ public final class NativeOverviewCamera {
         var frames: [NativeOverviewCameraFrame]
         var started: TimeInterval
     }
-    private struct AutomaticFit {
+    private struct CameraFit {
         var transform: NativeOverviewTransform
         var content: NativeOverviewContentRect
+        /// True for an ordinary fit or automatic clamp; false for an
+        /// intentional retained filter/reading view.
+        var isAutomatic: Bool
     }
 
     public init() {}
@@ -395,7 +398,7 @@ public final class NativeOverviewCamera {
         framedRevision = framingRevision
         guard NativeOverviewCameraGeometry.hasGeometry(content, viewport: viewport) else { commit(nil); return }
         let target = fit()
-        lastAutomaticFit = .init(transform: target, content: content)
+        lastAutomaticFit = .init(transform: target, content: content, isAutomatic: true)
         commit(.init(transform: target, manual: false))
     }
 
@@ -416,6 +419,7 @@ public final class NativeOverviewCamera {
         clearRefit()
         // Retained filter/search framing is intentional and is not an ordinary
         // automatic fit, even when it happens to share the same translation.
+        readingFit = nil
         lastAutomaticFit = nil
         setBounds(content: content, viewport: viewport)
         framingRetained = true
@@ -457,6 +461,7 @@ public final class NativeOverviewCamera {
         cancelReturn()
         cancelMotion()
         clearRefit()
+        readingFit = nil
         lastAutomaticFit = nil
         guard state != nil else { return }
         commit(.init(transform: constrained(value, anchor: anchor), manual: true))
@@ -517,32 +522,53 @@ public final class NativeOverviewCamera {
             // restore or automatic return into a retained intermediate position.
             // Consecutive reading-preserving revisions keep their intended target,
             // even when the preceding translation has not finished playing.
-            let readingPosition = readingFit ?? (framedRevision == framingRevision ? live?.transform : nil)
-            // A plain automatic camera resting at the old ordinary fit has no
-            // reading seat to keep. A same-scale horizontal repack only changes
-            // the fit translation, so retaining it would strand focus until a
-            // background click. Manual and retained reading positions still
-            // preserve, as does a vertical seat after row deletion. A retained
-            // target that merely equals the ordinary fit is not a reading seat.
-            let wasAtAutomaticFit: Bool
-            if let live, let lastAutomaticFit,
-               NativeOverviewCameraGeometry.approximatelyEqual(live.transform, lastAutomaticFit.transform),
-               readingFit.map({ NativeOverviewCameraGeometry.approximatelyEqual($0, lastAutomaticFit.transform) }) ?? true {
-                let automatic = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
-                wasAtAutomaticFit = abs(automatic.scale - lastAutomaticFit.transform.scale) < 1e-6
-                    && content.width <= lastAutomaticFit.content.width + 1e-6
-                    && content.height <= lastAutomaticFit.content.height + 1e-6
-                    && abs(automatic.x - lastAutomaticFit.transform.x) > 0.001
+            let priorFit = readingFit
+            let readingPosition = priorFit?.transform ?? (framedRevision == framingRevision ? live?.transform : nil)
+            let current = priorFit?.transform ?? live?.transform
+            let readingIsAutomatic: Bool
+            if let priorFit {
+                readingIsAutomatic = priorFit.isAutomatic
+            } else if let live, let lastAutomaticFit {
+                readingIsAutomatic = NativeOverviewCameraGeometry.approximatelyEqual(live.transform, lastAutomaticFit.transform)
             } else {
-                wasAtAutomaticFit = false
+                readingIsAutomatic = false
             }
-            readingFit = preserveReadingPosition && live?.manual == false && !returning
-                && !pendingAutoFit && !wasAtAutomaticFit ? readingPosition.map {
-                NativeOverviewCameraGeometry.preservingReadingPosition($0, content: content, viewport: viewport)
-            } : nil
+            let automatic = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
+            // A same-scale horizontal repack of a settled automatic camera
+            // should recenter instead of retaining an obsolete translation.
+            // Only width must not grow: an aspect-changing footprint may get
+            // taller while still narrowing the collection. A real reading seat
+            // or retained filter framing is not automatic and bypasses this.
+            // A pending target keeps its seat until its own revision settles.
+            let settled = framedRevision == framingRevision
+            let atCurrent = live.map { live in
+                current.map { NativeOverviewCameraGeometry.approximatelyEqual(live.transform, $0) } ?? false
+            } ?? false
+            let shouldRecenter: Bool
+            if settled, atCurrent, readingIsAutomatic, let current,
+               let priorContent = priorFit?.content ?? lastAutomaticFit?.content,
+               let priorScale = priorFit?.transform.scale ?? lastAutomaticFit?.transform.scale {
+                shouldRecenter = content.width <= priorContent.width + 1e-6
+                    && abs(automatic.scale - priorScale) < 1e-6
+                    && abs(automatic.x - current.x) > 0.001
+            } else {
+                shouldRecenter = false
+            }
+            if preserveReadingPosition && live?.manual == false && !returning
+                && !pendingAutoFit && !shouldRecenter, let readingPosition {
+                let preserved = NativeOverviewCameraGeometry.preservingReadingPosition(
+                    readingPosition, content: content, viewport: viewport)
+                readingFit = .init(transform: preserved, content: content,
+                                   isAutomatic: readingIsAutomatic
+                                       || NativeOverviewCameraGeometry.approximatelyEqual(preserved, automatic))
+                if readingFit?.isAutomatic == false { lastAutomaticFit = nil }
+            } else {
+                readingFit = nil
+            }
         }
         if preserveFraming {
             framingRetained = true
+            readingFit = nil
             lastAutomaticFit = nil
         }
         if layoutChanged { framingRevision += 1 }
@@ -601,13 +627,16 @@ public final class NativeOverviewCamera {
 
     private func fit() -> NativeOverviewTransform {
         guard let bounds else { return .identity }
-        return readingFit ?? NativeOverviewCameraGeometry.fit(bounds.content, viewport: bounds.viewport)
+        return readingFit?.transform ?? NativeOverviewCameraGeometry.fit(bounds.content, viewport: bounds.viewport)
     }
 
-    private func isOrdinaryFit(_ transform: NativeOverviewTransform) -> Bool {
-        guard let bounds else { return false }
-        return NativeOverviewCameraGeometry.approximatelyEqual(
-            transform, NativeOverviewCameraGeometry.fit(bounds.content, viewport: bounds.viewport))
+    private func automaticFit(target: NativeOverviewTransform) -> CameraFit? {
+        guard readingFit?.isAutomatic ?? true else { return nil }
+        if let readingFit {
+            return .init(transform: target, content: readingFit.content, isAutomatic: true)
+        }
+        guard let bounds else { return nil }
+        return .init(transform: target, content: bounds.content, isAutomatic: true)
     }
 
     private func scheduleReturn() {
@@ -645,18 +674,16 @@ public final class NativeOverviewCamera {
         let framingChanged = framingRevision != framedRevision
         let target = fit()
         let atTarget = NativeOverviewCameraGeometry.approximatelyEqual(live.transform, target)
-        if readingFit != nil && atTarget {
+        if let readingFit, atTarget {
             clearRefit()
-            lastAutomaticFit = isOrdinaryFit(target)
-                ? .init(transform: target, content: bounds.content) : nil
+            lastAutomaticFit = readingFit.isAutomatic ? automaticFit(target: target) : nil
             framedRevision = framingRevision
             return
         }
         if (!framingChanged || atTarget)
             && !NativeOverviewCameraGeometry.needsRefit(bounds.content, viewport: bounds.viewport, transform: live.transform) {
             clearRefit()
-            lastAutomaticFit = atTarget && isOrdinaryFit(target)
-                ? .init(transform: target, content: bounds.content) : nil
+            lastAutomaticFit = atTarget ? automaticFit(target: target) : nil
             framedRevision = framingRevision
             if animationOwner == .refit { cancelMotion() }
             return
@@ -719,8 +746,7 @@ public final class NativeOverviewCamera {
                       !self.manual, !self.interactionPaused, self.visible else { return }
                 let from = self.liveTransform
                 let target = targetForBounds()
-                self.lastAutomaticFit = self.isOrdinaryFit(target)
-                    ? self.bounds.map { AutomaticFit(transform: target, content: $0.content) } : nil
+                self.lastAutomaticFit = self.automaticFit(target: target)
                 revision = self.framingRevision
                 if NativeOverviewCameraGeometry.approximatelyEqual(from, target), due == nil {
                     completed = true
