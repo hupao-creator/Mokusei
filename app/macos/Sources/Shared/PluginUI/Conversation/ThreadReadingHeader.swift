@@ -21,7 +21,7 @@ extension EnvironmentValues {
 }
 
 private struct ThreadAuthorHarnessKey: EnvironmentKey {
-    static let defaultValue: ThreadAuthorHarness? = nil
+    static var defaultValue: ThreadAuthorHarness? { nil }
 }
 
 public struct ThreadAuthorHarness {
