@@ -3,9 +3,15 @@
 ## Contract
 
 Agent detail, Report and Git entry share a primary reading entrance. The retained
-tag chrome withdraws upward and fades while Moku takes its reading seat; both use
+tag chrome withdraws upward and fades using
 `NativeReadingPageTiming.openingAnimation` (420ms, cubic 0.76/0/0.24/1), matching
-the emphasized panel opening. The existing identity-target preparation may precede
+the emphasized panel opening. Moku's short downward seat shift instead uses the
+native Dock travel host with a gentler 420ms ease-in/ease-out curve, independently
+of main-actor reader preparation after submission. SwiftUI applies the destination
+baseline discretely outside shell layout animation; the compositor compensates
+from the presented position and reports completion for both axes. Resize,
+dragging, inactive scenes and Reduce Motion settle through the same native owner.
+The existing identity-target preparation may precede
 compositor travel; secondary work never estimates its completion with a 420ms timer.
 Only the collapsed Moku position participates in this first stage. Its input
 expansion follows the main document's content readiness and the Harness identity
@@ -111,6 +117,14 @@ interaction delay while retaining layout/readiness and cancellation ownership.
 It still waits for data and Markdown parsing.
 
 ## Scope and verification limits
+
+The same-day descent follow-up moves only the reading baseline into the existing
+native Dock travel transform, retaining SwiftUI shell sizing and the sequential
+identity/input gates. Headless Swift syntax parsing, the final Debug `Mokusei`
+product build (25.39s) and diff review passed. No tests were added or run, and no
+graphical replay or visual smoothness acceptance was performed. Return,
+replacement, resize, Reduce Motion and both-axis hit protection were reviewed
+statically. The local commit is handed to the coordinator without pushing.
 
 The 2026-11-14 identity-order follow-up changes only the Dock mark's presentation
 and composer admission. Headless validation passed Swift syntax parsing, the

@@ -6,6 +6,7 @@ import SwiftUI
 
 struct NativeMokuHorizontalDestination: Equatable {
     let offset: CGFloat
+    let verticalOffset: CGFloat
     let frame: CGRect?
     let revision: Int
     let viewport: CGSize
@@ -26,6 +27,8 @@ extension EnvironmentValues {
 /// Preserve the Dock's hosting root and update its observable content. Replacing
 /// rootView during an outer update can settle the shell's layout while its face
 /// is still animating in the previous coordinate space.
+/// The compositor owns column travel and the compact reading-seat descent;
+/// SwiftUI retains shell resizing, composer expansion and identity animation.
 struct NativeMokuHorizontalTravel<Content: View>: NSViewRepresentable {
     @ViewBuilder var content: Content
     func makeNSView(context: Context) -> MokuHorizontalTravelView { MokuHorizontalTravelView() }
@@ -95,16 +98,18 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
         let previous = destination
         self.hitRects = hitRects; self.onSettled = onSettled; destination = next
         let layer = surface.layer!
-        let visibleOffset = (layer.presentation()?.value(forKeyPath: "transform.translation.x") as? CGFloat) ?? 0
+        let visible = layer.presentation()?.transform ?? CATransform3DIdentity
         guard previous != next else { return }
 
         let immediate = previous == nil || next.reduced || next.dragging || previous?.viewport != next.viewport
-        if !immediate, previous?.offset == next.offset, travelling { return }
+        if !immediate, previous?.offset == next.offset,
+           previous?.verticalOffset == next.verticalOffset, travelling { return }
         generation += 1
         let current = generation
-        let delta = visibleOffset + (previous?.offset ?? next.offset) - next.offset
-        layer.removeAnimation(forKey: "moku-horizontal")
-        travelling = !immediate && abs(delta) > 0.01
+        let delta = CGPoint(x: visible.m41 + (previous?.offset ?? next.offset) - next.offset,
+            y: visible.m42 + (previous?.verticalOffset ?? next.verticalOffset) - next.verticalOffset)
+        layer.removeAnimation(forKey: "moku-travel")
+        travelling = !immediate && (abs(delta.x) > 0.01 || abs(delta.y) > 0.01)
         guard travelling else {
             deliverCompletion(generation: current)
             return
@@ -112,14 +117,19 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
 
         // Column ownership has one destination. A damped spring overshoots it
         // and visibly reverses even when no second layout target was published.
-        let animation = CABasicAnimation(keyPath: "transform.translation.x")
+        let animation = CABasicAnimation(keyPath: "transform")
         animation.duration = previous?.frame != next.frame ? 0.38 : 0.42
         animation.timingFunction = previous?.frame != next.frame
             ? CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+            : abs(delta.y) > 0.01 ? CAMediaTimingFunction(name: .easeInEaseOut)
             : next.reading ? NativeReadingPageTiming.emphasizedOpening : CAMediaTimingFunction(name: .easeInEaseOut)
-        animation.fromValue = delta; animation.toValue = 0
+        // The 12–16pt descent needs a gentler curve than the full-page flight.
+        // Both axes run in the compositor after submission, independently of
+        // main-actor reader mounting, and reversals sample the presented pose.
+        animation.fromValue = NSValue(caTransform3D: CATransform3DMakeTranslation(delta.x, delta.y, 0))
+        animation.toValue = NSValue(caTransform3D: CATransform3DIdentity)
         animation.delegate = self; animation.setValue(current, forKey: "generation")
-        layer.add(animation, forKey: "moku-horizontal")
+        layer.add(animation, forKey: "moku-travel")
     }
 
     nonisolated func animationDidStop(_ anim: CAAnimation, finished flag: Bool) {
@@ -142,8 +152,10 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
         if travelling {
             // The controls already have destination coordinates. Absorb presses
             // on both seats so a moving bar cannot click the reading backdrop.
-            let offset = (surface.layer?.presentation()?.value(forKeyPath: "transform.translation.x") as? CGFloat) ?? 0
-            return hitRects.contains(where: { $0.contains(local) || $0.offsetBy(dx: offset, dy: 0).contains(local) }) ? self : nil
+            let visible = surface.layer?.presentation()?.transform ?? CATransform3DIdentity
+            return hitRects.contains(where: {
+                $0.contains(local) || $0.offsetBy(dx: visible.m41, dy: visible.m42).contains(local)
+            }) ? self : nil
         }
         guard hitRects.contains(where: { $0.contains(local) }),
               let hit = super.hitTest(point), hit !== self, hit !== surface else { return nil }
