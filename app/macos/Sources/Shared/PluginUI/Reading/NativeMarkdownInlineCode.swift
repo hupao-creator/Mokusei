@@ -34,25 +34,60 @@ func markdownCodePadding(attributes: [NSAttributedString.Key: Any]) -> NSAttribu
     return value
 }
 
-final class MarkdownCodeLayoutManager: NSLayoutManager {
+final class MarkdownCodeLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
+    override init() {
+        super.init()
+        delegate = self
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        delegate = self
+    }
+
+    func layoutManager(_ layoutManager: NSLayoutManager, shouldBreakLineByWordBeforeCharacterAt charIndex: Int) -> Bool {
+        guard let storage = textStorage, charIndex > 0, charIndex < storage.length else { return true }
+        // Attachment boundaries are otherwise valid word breaks. Keep each
+        // padding cell with its code edge, while retaining native word/character
+        // wrapping inside long code and the original selectable characters.
+        let beforeIsPadding = storage.attribute(.nativeMarkdownPadding, at: charIndex - 1, effectiveRange: nil) as? Bool == true
+        let afterIsPadding = storage.attribute(.nativeMarkdownPadding, at: charIndex, effectiveRange: nil) as? Bool == true
+        if beforeIsPadding, !afterIsPadding, storage.attribute(.nativeMarkdownCode, at: charIndex, effectiveRange: nil) as? Bool == true { return false }
+        if afterIsPadding, !beforeIsPadding, storage.attribute(.nativeMarkdownCode, at: charIndex - 1, effectiveRange: nil) as? Bool == true { return false }
+        return true
+    }
+
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
         guard let storage = textStorage, let container = textContainers.first else {
             super.drawBackground(forGlyphRange: glyphsToShow, at: origin); return
         }
-        let characters = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
-        storage.enumerateAttribute(.nativeMarkdownCode, in: characters) { value, range, _ in
-            guard value as? Bool == true,
-                  let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NativePlatformFont else { return }
-            let glyphs = glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-            enumerateEnclosingRects(forGlyphRange: glyphs, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0), in: container) { rect, _ in
-                let glyph = self.glyphIndex(for: CGPoint(x: rect.minX, y: rect.midY), in: container)
-                guard glyph < self.numberOfGlyphs else { return }
-                let line = self.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+        enumerateLineFragments(forGlyphRange: glyphsToShow) { line, _, _, lineGlyphs, _ in
+            let characters = self.characterRange(forGlyphRange: lineGlyphs, actualGlyphRange: nil)
+            storage.enumerateAttribute(.nativeMarkdownCode, in: characters) { value, range, _ in
+                guard value as? Bool == true,
+                      let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NativePlatformFont else { return }
+                var hasCode = false
+                storage.enumerateAttribute(.nativeMarkdownPadding, in: range) { padding, _, stop in
+                    if padding as? Bool != true { hasCode = true; stop.pointee = true }
+                }
+                // Extremely narrow containers can force even a padding cell
+                // onto its own line; that cell must never paint an empty chip.
+                guard hasCode else { return }
+                let glyphs = NSIntersectionRange(lineGlyphs, self.glyphRange(forCharacterRange: range, actualCharacterRange: nil))
+                let glyph = glyphs.location
+                // Selection rects preserve disjoint bidi segments, but extend
+                // to the container edge at soft wraps and can merge whole lines.
+                // Limit them to this line's actual code bounds.
+                let bounds = self.boundingRect(forGlyphRange: glyphs, in: container)
                 let baseline = line.minY + self.location(forGlyphAt: glyph).y
-                let box = CGRect(x: rect.minX + origin.x, y: baseline - font.ascender - 2 + origin.y,
-                                 width: rect.width, height: font.ascender - font.descender + 4)
-                NativePlatformPalette.thread.surface.setFill()
-                NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+                self.enumerateEnclosingRects(forGlyphRange: glyphs, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0), in: container) { enclosing, _ in
+                    let rect = enclosing.intersection(bounds)
+                    guard !rect.isEmpty else { return }
+                    let box = CGRect(x: rect.minX + origin.x, y: baseline - font.ascender - 2 + origin.y,
+                                     width: rect.width, height: font.ascender - font.descender + 4)
+                    NativePlatformPalette.thread.surface.setFill()
+                    NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+                }
             }
         }
         // Let native selection backgrounds paint over the code's normal fill.
