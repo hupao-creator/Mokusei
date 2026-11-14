@@ -74,6 +74,17 @@ The shared input row places the attachment plus directly before the editor,
 after the identity seat. Attachment import, file/directory picking, native input
 ownership and the zero-size event-monitor origin are unchanged.
 
+Agent entry sequences the compact Dock's travel, the eyes-to-Harness flip and
+composer expansion. The reading entrance's actual arrival/layout admission
+releases the flip; its removed animation completion releases input and the
+existing focus path. A composer-generation fence and a view-local transition
+generation reject replaced or detached completions without an elapsed-time task.
+Rapid replacement retains the current mark during travel; the same Harness
+reuses a settled or in-flight flip. Return keeps the existing collapse path.
+Reduce Motion, an inactive scene or a hidden window settles the mark immediately,
+while reading/content readiness still gates input. See the
+[entrance contract](../../../../../design/reading-entrance-choreography.md).
+
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services and send callback; it has no voice entrance. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
 Dock and history clear submitted text, directory mentions and ready attachment
