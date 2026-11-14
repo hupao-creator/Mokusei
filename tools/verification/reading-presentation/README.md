@@ -918,8 +918,12 @@ callback must observe an intermediate scroll position and deliver the successor
 in that callback. The position must precede both the original and current
 document bottom, including the native clip view's constrained bottom; a shrinking
 lazy estimate must not make an already settled position count as intermediate.
-The updated document must then settle at its bottom without
-manual scrolling; all original withheld-content and full-paragraph assertions remain.
+After the new reply mounts, the updated long document must settle without manual
+scrolling: the control retains following and its original 5pt tolerance, while the
+same attached native reader's model and presentation offsets both reach its live
+constrained bottom within 5pt on two consecutive display callbacks. A transient
+short layout with bottom zero cannot pass. All original withheld-content and
+full-paragraph assertions remain.
 After traversing a reply, the manual return to its top must commit in both the
 native clip view and its presentation layer across two display callbacks before
 the next content update; a refreshed control descriptor alone is insufficient.

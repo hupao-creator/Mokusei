@@ -100,6 +100,7 @@ private struct TimelineInteractionRegistration: View {
         return .object([
             "edge": position.edge.map { JSONValue.text(String(describing: $0)) } ?? .null,
             "point": position.point.map { JSONValue.object(["x": .number(Double($0.x)), "y": .number(Double($0.y))]) } ?? .null,
+            "y": position.y.map { JSONValue.number(Double($0)) } ?? .null,
             "isPositionedByUser": .bool(position.isPositionedByUser),
             "latestTransition": .bool(latestTransition != nil),
             "followOutput": .bool(followOutput), "followPaused": .bool(followPaused),
@@ -326,8 +327,11 @@ public struct HarnessMessageTimeline: View {
                         else if new.distance <= 1 { following = !followPaused }
                     }
                     showLatest = new.distance >= 64
-                    if (new.height != old.height || new.viewport != old.viewport) && following && !followPaused && followOutput && prependSnapshot == nil && latestTransition == nil {
-                        position.scrollTo(edge: .bottom)
+                    // Lazy content can settle its offset after its size. Keep
+                    // following that correction until scrolling takes ownership.
+                    if (new.height != old.height || new.viewport != old.viewport || new.distance > 1)
+                        && following && !userScrolling && !followPaused && followOutput && prependSnapshot == nil && latestTransition == nil {
+                        alignToLatest()
                     }
                     locate()
                 }

@@ -861,6 +861,8 @@ struct NativeMokuExecutionLinkTests {
         let nativeStart = native.contentView.bounds.minY
         var successorDelivered = false
         var successorError: (any Error)?
+        var observingUpdatedBottom = false
+        var updatedBottomFrames = 0
         func jumpSample(_ phase: String) -> JSONValue {
             let control = fixture.scroll
             return .object([
@@ -876,6 +878,17 @@ struct NativeMokuExecutionLinkTests {
             jumpFrameCount += 1
             if profileEnabled && jumpSamples.count < 120 {
                 jumpSamples.append(jumpSample(successorDelivered ? "post-update" : "jump"))
+            }
+            if observingUpdatedBottom {
+                if let value = fixture.scroll?["value"], let height = value["height"]?.numberValue,
+                   let top = value["top"]?.numberValue, let viewport = value["viewport"]?.numberValue,
+                   let bottom = nativeBottom(native), let presented = native.contentView.layer?.presentation(),
+                   native.window === window, !native.isHiddenOrHasHiddenAncestor,
+                   height - viewport > 5, bottom - nativeStart > 5,
+                   value["following"] == .bool(true), abs(max(0, height - viewport) - top) < 5,
+                   abs(native.contentView.bounds.minY - bottom) < 5,
+                   abs(presented.bounds.minY - bottom) < 5 { updatedBottomFrames += 1 }
+                else { updatedBottomFrames = 0 }
             }
             guard !successorDelivered,
                   let value = fixture.scroll?["value"], let top = value["top"]?.numberValue,
@@ -905,12 +918,10 @@ struct NativeMokuExecutionLinkTests {
             if let successorError { throw successorError }
             try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
             // Manual traversal below takes scrolling ownership. First require the
-            // animated path to settle at the updated document's bottom by itself.
-            try await SwiftUIReplay.wait(driveLayout: false) {
-                guard let value = fixture.scroll?["value"], let height = value["height"]?.numberValue,
-                      let top = value["top"]?.numberValue, let viewport = value["viewport"]?.numberValue else { return false }
-                return value["following"] == .bool(true) && abs(max(0, height - viewport) - top) < 5
-            }
+            // updated long document to reach its real bottom on two display
+            // frames; a transient short layout or unpresented offset cannot pass.
+            observingUpdatedBottom = true
+            try await SwiftUIReplay.wait(driveLayout: false) { updatedBottomFrames >= 2 }
             if profileEnabled { jumpTerminal = jumpSample("settled") }
             jumpFrames.stop()
         } catch {
