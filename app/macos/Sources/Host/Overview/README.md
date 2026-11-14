@@ -56,11 +56,14 @@ emoji badges opt into regular glass with a light mint tint at the unchanged
 uses opaque palette fills; the material helper falls back to system Material
 when Liquid Glass is unavailable. Other card content keeps the shared flat
 policy for provider badges, terminal marks and plan highlights.
-Agent Thread emoji badges use static opaque palette fills
+Agent Thread emoji badges ordinarily use static opaque palette fills
 without an added border: adaptive accent-soft green when completed, neutral
 surface-strong otherwise. This also applies under Reduce Transparency. Removing
 per-card Liquid Glass on ordinary cards avoids its spatial update cost during canvas movement.
 The terminal symbol and accessible status label remain independent of color.
+The isolated `--benchmark-agent-emoji-badge liquid-glass` scenario can compare only
+Agent emoji backdrops with regular glass; ordinary launch defaults and all other
+card materials remain unchanged. See the [external comparison](../../../../../tools/benchmarks/README.md#agent-emoji-badge-material-comparison).
 Only Super Thread collections opt into the new card material; individual Report
 and ordinary Thread surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
