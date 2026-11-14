@@ -359,8 +359,13 @@ public struct NativeMokuDock: View {
               !state.inputOpen, interaction == nil, !state.dockCovered else { return nil }
         return reply
     }
+    private var inputSuppressesRunningFeedback: Bool {
+        // Agent detail owns its persistent editor during travel and the Harness
+        // flip, before inputOpen can become true. That wait is not a closed input.
+        state.inputOpen || state.inputPinnedOpen
+    }
     private var runningFeedback: Bool {
-        guard !state.inputOpen, !state.settingsOpen, !state.notePanelOpen, !noteMounted, interaction == nil, !voiceModeActive,
+        guard !inputSuppressesRunningFeedback, !state.settingsOpen, !state.notePanelOpen, !noteMounted, interaction == nil, !voiceModeActive,
               presentation?.workspace.runtimeAvailable ?? true else { return false }
         if threadID != nil, sidecardComposer == nil {
             // Submission is pending feedback only. It grants neither success,
@@ -1001,10 +1006,10 @@ public struct NativeMokuDock: View {
             NativeMokuCharacterSurface(controller: character, input: characterInput, seat: .decorations)
                 .frame(width: surface.width + decorationPadding * 2, height: rowHeight + decorationPadding * 2)
                 .offset(y: decorationPadding)
-                // The character retains its smooth retirement pose. Hide that
-                // ink immediately when input opens, including rapid reversals.
-                .opacity(state.inputOpen ? 0 : 1)
-                .animation(nil, value: state.inputOpen)
+                // Also hide the character's retiring ink as soon as detail owns
+                // input, including entry from running Moku and rapid replacement.
+                .opacity(inputSuppressesRunningFeedback ? 0 : 1)
+                .animation(nil, value: inputSuppressesRunningFeedback)
                 .allowsHitTesting(false)
         }
         .contentShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)).onHover(perform: updateHover)
