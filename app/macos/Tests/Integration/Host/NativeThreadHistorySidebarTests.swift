@@ -310,6 +310,8 @@ struct NativeThreadHistorySidebarTests {
         defer { window.close() }
         window.level = .floating
         window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         try await SwiftUIReplay.wait { NSApp.isRunning && NSApp.isActive && window.isKeyWindow && window.occlusionState.contains(.visible) }
         let originalPointer = NSEvent.mouseLocation
         defer {
