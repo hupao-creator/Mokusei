@@ -463,10 +463,11 @@ public struct HarnessMessageTimeline: View {
         tailLength = rows.count
     }
     private func jumpToLatest() {
-        onJumpToLatest?(); following = true; showLatest = false; clampedRequest = nil; userPositioned = true
+        onJumpToLatest?()
         let transition = UUID()
-        latestTransition = transition
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
+            following = true; showLatest = false; clampedRequest = nil; userPositioned = true
+            latestTransition = transition
             // An edge target follows content growth inside SwiftUI itself.
             // Animate to this snapshot instead, then admit ordinary following.
             position.scrollTo(y: max(0, geometry.height - geometry.viewport))
