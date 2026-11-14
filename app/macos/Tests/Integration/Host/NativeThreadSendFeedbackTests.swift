@@ -829,13 +829,26 @@ struct NativeThreadSendFeedbackTests {
         try await SwiftUIReplay.wait { bottom() > oldBottom && abs(bottom() - offset()) < 5 }
         #expect(presentation.pinned && !presentation.newMessages)
 
-        func startJump(_ action: @escaping @MainActor () -> Void) async throws {
+        func startJump(_ label: String, action: @escaping @MainActor () -> Void) async throws {
             position(0)
             try await SwiftUIReplay.wait { abs(offset()) < 5 && presentation.away }
             var delivered = false
+            var frames = 0
+            var samples: [String] = []
+            let started = ProcessInfo.processInfo.systemUptime
+            func sample() -> String {
+                "time=\(ProcessInfo.processInfo.systemUptime) clip=\(scroll.contentView.bounds) "
+                    + "clipPresented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
+                    + "document=\(document.frame) documentPresented=\(String(describing: document.layer?.presentation()?.frame)) "
+                    + "edge=\(String(describing: presentation.scrollPosition.edge)) pinned=\(presentation.pinned) away=\(presentation.away) "
+                    + "expanded=\(presentation.context.expanded) suppressed=\(presentation.context.suppressed)"
+            }
+            let initial = sample()
             // Mutate in the display callback: an async waiter can resume only
             // after the short-lived animated pose has already completed.
             let observer = SwiftUIReplay.FrameObserver(view: scroll) {
+                frames += 1
+                if samples.count < 32 { samples.append(sample()) }
                 guard offset() > 20 && offset() < bottom() - 64 else { return false }
                 action()
                 delivered = true
@@ -843,10 +856,20 @@ struct NativeThreadSendFeedbackTests {
             }
             defer { observer.stop() }
             presentation.jumpToLatest(bottom: bottom(), reduceMotion: false)
-            try await SwiftUIReplay.wait(driveLayout: false) { delivered }
+            let requested = sample()
+            do {
+                try await SwiftUIReplay.wait(driveLayout: false) { delivered }
+            } catch {
+                observer.stop()
+                let ended = ProcessInfo.processInfo.systemUptime
+                print("VOICE_TRANSCRIPT_JUMP_FAILURE label=\(label) started=\(started) ended=\(ended) elapsed=\(ended - started) frames=\(frames) initial={\(initial)} requested={\(requested)} samples=\(samples) final={\(sample())}")
+                if let window = root.window { try? await capture(window, name: "voice-jump-\(label)-failure") }
+                throw error
+            }
+            print("VOICE_TRANSCRIPT_JUMP_INTERRUPTED label=\(label) started=\(started) ended=\(ProcessInfo.processInfo.systemUptime) frames=\(frames)")
         }
         var takenOffset: CGFloat = 0
-        try await startJump {
+        try await startJump("user-takeover") {
             takeUserOwnership()
             #expect(!presentation.pinned && presentation.away)
             takenOffset = max(0, offset() - 10)
@@ -859,7 +882,7 @@ struct NativeThreadSendFeedbackTests {
         #expect(SwiftUIReplay.text(in: root).contains(presentation.translate("回到最新")))
 
         for boundary in ["suppressed", "folded", "released"] {
-            try await startJump {
+            try await startJump(boundary) {
                 switch boundary {
                 case "suppressed":
                     fixture.configuration.suppressed = true; fixture.update()
