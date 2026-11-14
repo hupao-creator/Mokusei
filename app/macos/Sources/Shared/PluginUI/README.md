@@ -1556,10 +1556,13 @@ reserved rail, alongside a retained Browser launcher when links have been opened
 the fold, including Browser splits and narrow-window stacking.
 
 The host scopes `threadRelatedExecution` to Report's referenced execution reader.
-Completed references keep the exact execution title (instruction, then timestamp
-fallback), the Harness's thread emoji, final reply and ordinary non-work facts,
-while hiding execution work and its process summary. Active references show the
-shared live process summary again. After an accepted send from a Super Thread,
+Running, waiting and completed references keep the exact execution title
+(instruction, then timestamp fallback) and the Harness's thread emoji. The
+heading waits for the selected row rather than borrowing the latest catalog
+title while loading; ordinary Agent execution Sidecards keep their heading policy.
+Completed references keep the final reply and ordinary non-work facts while
+hiding execution work and its process summary. Active references show the
+shared live process summary. After an accepted send from a Super Thread,
 its active referenced execution shows the submitted text and a random emoji.
 The Report visit retains that emoji by exact Thread/execution identity, including
 same-execution steering, folding and catalog refresh. Later accepted sends to the

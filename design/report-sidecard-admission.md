@@ -39,8 +39,9 @@ an unwanted execution-process summary.
   then timestamp fallback) and the Harness's existing thread emoji. They hide
   execution work and its summary while preserving the final reply, independent
   errors, interactions, author, status, timestamps and usage. Active references
-  omit title/emoji and retain the shared live process summary, matching live
-  Agent execution Sidecards.
+  retain the shared live process summary and their title/emoji. The
+  [running-heading repair](#running-referenced-heading-repair-2026-11-14)
+  supersedes the original active-reference heading suppression.
 - The main Report reader, 14pt HTML viewport clip and 22pt shell/border use one
   interpolated size when the related sidecard changes. WebKit receives the
   presented viewport size throughout the existing 380ms fold, including height
@@ -246,3 +247,46 @@ Sprint validation: Swift frontend syntax parsing of all six changed Swift files,
 were added, no regression or build/PR/CI was run, and the user's app was not
 restarted. Rendered post-fix behavior remains unverified. Integration into local
 main belongs to the caller of this detached worktree.
+
+## Running referenced heading repair (2026-11-14)
+
+The supplied `e3648b0a-b383-4694-9df3-83956427ef29/pasted-image.png`
+shows a running associated Thread with author/body but no title or emoji.
+`ThreadConversation.showsDocumentHeading` deliberately suppressed active
+execution headings even under `threadRelatedExecution`. An accepted send's
+visit-local title was the only active-reference exception. This was a shared
+reader policy, not missing title metadata or a Report relation lookup failure.
+It carried the ordinary Agent execution Sidecard's identity policy into a
+Report reader that needs to identify its selected Thread.
+
+Report references now keep their heading while running, waiting and completed.
+The selected row still supplies the exact execution title, then its instruction
+or timestamp fallback; the Harness supplies the Thread emoji with the existing
+📝 fallback. Before an Agent reference's row is available, its heading remains
+absent so an older reference cannot borrow the latest catalog title. Active
+accepted sends retain their existing submitted-text/random-emoji override;
+completion restores the ordinary execution identity. The active-heading
+suppression on an explicit history/result page also excludes Report references.
+
+Related-list clicks still resolve the latest execution, while authored execution
+links retain their exact reference. Selection, Back, folding, subscriptions,
+scroll/follow behavior, work summaries and author/footer policy keep their
+existing ownership. Ordinary Agent main/history readers and execution Sidecards
+keep their existing heading policy. This supersedes only the active Report
+heading suppression described in the November 6 investigation above.
+
+Sprint scope: no new tests, regression replay, app launch, hosted CI or push.
+The supplied screenshot establishes the original symptom; compilation and source
+review do not certify the repaired application's rendered appearance. The
+paused Super Thread merge-transition demo is outside this repair. The detached
+commit is delivered for caller-owned integration into local main.
+
+Validation: the final-source headless `Mokusei` product build passed with
+`--disable-sandbox --force-resolved-versions --disable-index-store -j 2`
+(68.68s), along with diff, changed local-anchor and source review. The initial
+build exited 1 because this repair's Swift source changed during compilation;
+the same command was rerun after the source was finalized. Both attempt logs
+are retained under `/tmp/mokusei-super-thread-running-title-build*.log`.
+The read-only remote audit found the current main ruleset requires a PR, with
+no required-status-check rule and no classic branch protection; existing remote
+PR/run results do not validate this detached revision.
