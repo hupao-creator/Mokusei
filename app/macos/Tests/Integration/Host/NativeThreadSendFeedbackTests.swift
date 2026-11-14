@@ -830,12 +830,6 @@ struct NativeThreadSendFeedbackTests {
         #expect(presentation.pinned && !presentation.newMessages)
 
         func startJump(_ label: String, action: @escaping @MainActor () -> Void) async throws {
-            position(0)
-            try await SwiftUIReplay.wait { abs(offset()) < 5 && presentation.away }
-            var delivered = false
-            var frames = 0
-            var samples: [String] = []
-            let started = ProcessInfo.processInfo.systemUptime
             func sample() -> String {
                 "time=\(ProcessInfo.processInfo.systemUptime) clip=\(scroll.contentView.bounds) "
                     + "clipPresented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
@@ -843,6 +837,37 @@ struct NativeThreadSendFeedbackTests {
                     + "edge=\(String(describing: presentation.scrollPosition.edge)) pinned=\(presentation.pinned) away=\(presentation.away) "
                     + "expanded=\(presentation.context.expanded) suppressed=\(presentation.context.suppressed)"
             }
+            var resetFrames = 0
+            var settledFrames = 0
+            var resetSamples: [String] = []
+            let resetStarted = ProcessInfo.processInfo.systemUptime
+            let resetInitial = sample()
+            position(0)
+            // A forced layout can expose model bounds at zero while the
+            // compositor still presents the preceding fold/reset transaction.
+            // Commit the origin across real display callbacks before jumping.
+            let resetObserver = SwiftUIReplay.FrameObserver(view: scroll) {
+                resetFrames += 1
+                if resetSamples.count < 32 { resetSamples.append(sample()) }
+                if let presented = scroll.contentView.layer?.presentation(),
+                   abs(offset()) < 5, abs(presented.bounds.minY) < 5, presentation.away { settledFrames += 1 }
+                else { settledFrames = 0 }
+                return settledFrames >= 2
+            }
+            defer { resetObserver.stop() }
+            do {
+                try await SwiftUIReplay.wait(driveLayout: false) { settledFrames >= 2 }
+            } catch {
+                resetObserver.stop()
+                let ended = ProcessInfo.processInfo.systemUptime
+                print("VOICE_TRANSCRIPT_JUMP_RESET_FAILURE label=\(label) started=\(resetStarted) ended=\(ended) elapsed=\(ended - resetStarted) frames=\(resetFrames) settledFrames=\(settledFrames) initial={\(resetInitial)} samples=\(resetSamples) final={\(sample())}")
+                if let window = root.window { try? await capture(window, name: "voice-jump-\(label)-reset-failure") }
+                throw error
+            }
+            var delivered = false
+            var frames = 0
+            var samples: [String] = []
+            let started = ProcessInfo.processInfo.systemUptime
             let initial = sample()
             // Mutate in the display callback: an async waiter can resume only
             // after the short-lived animated pose has already completed.
