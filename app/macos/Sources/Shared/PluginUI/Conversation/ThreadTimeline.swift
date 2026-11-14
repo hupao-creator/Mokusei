@@ -170,6 +170,7 @@ public struct HarnessMessageTimeline: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingNavigation) private var readingNavigation
+    @Environment(\.nativeThreadBodyEntranceHidden) private var bodyEntranceHidden
     @Environment(\.nativePerformanceOperation) private var performanceOperation
     @State private var previousReadingNavigation: NativeReadingNavigationState?
     @State private var readingSource = UUID()
@@ -241,16 +242,23 @@ public struct HarnessMessageTimeline: View {
                             .frame(maxWidth: .infinity).padding(.bottom, 24)
                         }
                         toolbar
-                        if rows.isEmpty { emptyState }
-                        // The bounded outer window is retained as a VStack: lazy rows carry their
-                        // own scoped reads, and anchor registration must also work below the fold.
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(visible) { row in
-                                row.node.threadReadingAnchor(row.id)
-                                    .nativeReadingScope("row." + nativeReadingInteractionKey(row.id))
-                            }
-                        }.accessibilityElement(children: .contain)
-                            .accessibilityLabel(localize("已加载消息"))
+                        // Heading ink is already visible before the body is
+                        // ready. Keep toolbar and scroll geometry outside its fade.
+                        Group {
+                            if rows.isEmpty { emptyState }
+                            // The bounded outer window is retained as a VStack: lazy rows carry their
+                            // own scoped reads, and anchor registration must also work below the fold.
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(visible) { row in
+                                    row.node.threadReadingAnchor(row.id)
+                                        .nativeReadingScope("row." + nativeReadingInteractionKey(row.id))
+                                }
+                            }.accessibilityElement(children: .contain)
+                                .accessibilityLabel(localize("已加载消息"))
+                        }
+                        .opacity(bodyEntranceHidden ? 0 : 1)
+                        .allowsHitTesting(!bodyEntranceHidden)
+                        .accessibilityHidden(bodyEntranceHidden)
                         Color.clear.frame(height: 0).id(TimelineEdge.bottom)
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
@@ -430,13 +438,7 @@ public struct HarnessMessageTimeline: View {
         onJumpToLatest?(); following = true; showLatest = false; clampedRequest = nil; userPositioned = true
         let transition = UUID()
         latestTransition = transition
-        // With no running application event loop (previews and isolated native
-        // replays) an animated scroll cannot complete. The hosted graphical
-        // suite declares itself an isolated AppKit replay so its content checks
-        // settle immediately; the production app keeps the 350ms transition.
-        let isolatedReplay = ProcessInfo.processInfo.environment["MOKUSEI_ISOLATED_APPKIT_REPLAY"] == "1"
-        withAnimation(reduceMotion || isolatedReplay || NSApp?.isRunning != true ? nil : .easeInOut(duration: 0.35),
-                      completionCriteria: .removed) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
             // An edge target follows content growth inside SwiftUI itself.
             // Animate to this snapshot instead, then admit ordinary following.
             position.scrollTo(y: max(0, geometry.height - geometry.viewport))

@@ -102,8 +102,11 @@ public struct VoiceSidecardContent: View {
             .scrollPosition($presentation.scrollPosition)
             .scrollIndicators(.automatic)
             .scrollBounceBehavior(.basedOnSize)
-            .onScrollPhaseChange { _, phase in
-                if phase == .tracking || phase == .interacting || phase == .decelerating { presentation.userScrollBegan() }
+            .onScrollPhaseChange { _, phase, context in
+                if phase == .tracking || phase == .interacting || phase == .decelerating {
+                    presentation.userScrollBegan(offset: context.geometry.contentOffset.y,
+                        contentHeight: context.geometry.contentSize.height, viewportHeight: context.geometry.containerSize.height)
+                }
             }
             .onScrollGeometryChange(for: VoiceScrollMetrics.self) { geometry in
                 VoiceScrollMetrics(offset: geometry.contentOffset.y, contentHeight: geometry.contentSize.height,

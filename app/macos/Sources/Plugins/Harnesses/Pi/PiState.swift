@@ -4,7 +4,7 @@ import MokuseiPluginAPI
 
 /// Pi owns this durable boundary. Never repair a malformed private session into
 /// an apparently empty conversation; identities remain JavaScript UTF-16 text.
-struct PiState {
+struct PiState: Sendable {
     let initialResponseScope: Bool
     let raw: JSONValue
     let messages: [PiMessage]
@@ -85,7 +85,7 @@ struct PiState {
     }
 }
 
-struct PiMessage: Identifiable {
+struct PiMessage: Identifiable, Sendable {
     let raw: JSONValue
     let id: JSONText
     let executionID: JSONText
@@ -139,7 +139,7 @@ struct PiMessage: Identifiable {
     }
 }
 
-struct PiUsage {
+struct PiUsage: Sendable {
     let input: Double; let output: Double; let cacheRead: Double; let cacheWrite: Double
     let reasoning: Double?; let cost: Double?
     var prompt: Double { input + cacheRead + cacheWrite }
@@ -158,7 +158,7 @@ struct PiUsage {
         cost = r.value["cost"] == nil ? nil : try r.number("cost", minimum: 0)
     }
 }
-struct PiTodo {
+struct PiTodo: Sendable {
     let id: Int; let text: JSONText; let done: Bool
     init(_ value: JSONValue) throws {
         let r = try PiReader(value); try r.only(["id", "text", "done"])

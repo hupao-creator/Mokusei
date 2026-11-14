@@ -91,8 +91,7 @@ def ordinary_runs(tests, environment, *, no_parallel=True):
         # A caller's windowless override must not disable display admission for
         # the graphical complement. Actual missing display capability still skips.
         runs.append({"name": "graphical", "tests": graphical, "log": "swift.log",
-                     "environment": {"MOKUSEI_TEST_HEADLESS": "0",
-                                     "MOKUSEI_ISOLATED_APPKIT_REPLAY": "1"},
+                     "environment": {"MOKUSEI_TEST_HEADLESS": "0"},
                      "command": command + ["--skip", skip]})
     return runs
 

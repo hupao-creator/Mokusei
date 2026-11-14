@@ -130,11 +130,7 @@ The [shared execution plan](swift_execution.py) selects reviewed windowless
 suites by an anchored suite-prefix filter. The graphical command has no positive
 filter and excludes those suites. The graphical process sets
 `MOKUSEI_TEST_HEADLESS=0` even if
-the parent environment requested windowless feedback. It also sets
-`MOKUSEI_ISOLATED_APPKIT_REPLAY=1` for the ordinary graphical suite; Timeline
-uses that signal to settle jump-to-latest immediately because the isolated
-AppKit process has no running compositor loop. Production app launches do not
-set it and retain the animated transition. Actual display capability
+the parent environment requested windowless feedback. Actual display capability
 is still checked by the existing trait. Both modes exclude the native
 identities recorded in `swift_ownership.py`, including Swift Testing's runtime
 source-location suffix. This is selection, not a passing skip result:
@@ -176,7 +172,12 @@ The Moku note capsule hydration/wrapping/copy/input case uses
 keyboard and TextKit mouse tracking for all four Harnesses, and emits
 `MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED`. It is excluded from the ordinary host
 only because that same method has a mandatory native outcome and receipt.
-CI selects only this method with `--native-owned`; the other nine mounted and
+The animated execution-follow method shares that owner because its scroll
+completion needs the same live AppKit loop. It observes an intermediate scroll
+position before delivering successor content, retains the full 200/220-paragraph
+assertions, and emits `MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED` for all four
+Harnesses. Production animation has no test-environment bypass.
+CI selects these two methods with `--native-owned`; the other eight mounted and
 two windowless methods keep their ordinary execution. Both launchers derive
 their selected method identities and expected counts from `swift_ownership.py`;
 their original local commands still run the full suites for diagnosis.

@@ -293,6 +293,11 @@ Same-document SPA history keeps the current address and annotation source synchr
 The Voice transcript’s explicit jump to latest animates unless Reduce Motion is
 enabled. Automatic follow remains immediate; growth during the transition is
 resolved afterward by restoring the bottom edge anchor from a fixed-offset
-animation. Manual scrolling takes ownership; capability replacement, folding,
-release and disappearance invalidate completion. Enabling Reduce Motion during
-the transition settles directly to the latest content.
+animation. Manual scrolling takes ownership using its latest geometry: tracking
+at the bottom without displacement does not abandon following, while taking over
+an in-flight jump immediately updates the away indicator. Capability replacement,
+suppression, folding, release and disappearance invalidate completion. Enabling
+Reduce Motion during the transition settles directly to the latest content.
+The native thread-send replay mounts the production Voice plugin and checks
+unchanged-offset tracking, user takeover and late completion after suppression,
+folding and release.

@@ -874,8 +874,8 @@ Markdown cases explicitly skip; this run does not certify those cases.
 runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 message-completion follow/stop/resume, successor isolation, archived/failed and missing
-execution targets. CI adds `--native-owned` to select only the capsule method
-declared in `swift_ownership.py`; the other nine mounted and two windowless
+execution targets. CI adds `--native-owned` to select the capsule and animated
+execution-follow methods declared in `swift_ownership.py`; the other eight mounted and two windowless
 methods run in the complete ordinary Swift suite. The original local command
 retains all twelve methods for diagnosis.
 The running-link case sends enough streaming blocks to fill multiple pages and
@@ -912,7 +912,13 @@ The lifecycle case checks current and result timelines across completed, running
 waiting for input and completed states for all four Harnesses. Jump to latest
 is absent for completed executions, disappears on completion without scrolling,
 and stays absent when a successor starts. The existing running-link case verifies
-that activating the mounted action resumes following.
+that activating the mounted action resumes following. This method requires the
+real AppKit loop and a visible window with Reduce Motion disabled. A display
+callback must observe an intermediate scroll position and deliver the successor
+in that callback. The updated document must then settle at its bottom without
+manual scrolling; all original withheld-content and full-paragraph assertions remain.
+`MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED` must be emitted for every Harness.
+No production environment flag replaces the animated path with an immediate jump.
 The twelve-method replay also mounts the production clear-glass execution capsules
 for all four Harnesses. It checks narrow long-title geometry, native accessible
 activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated

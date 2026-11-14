@@ -6,6 +6,12 @@ The timeline's floating Jump to latest control uses a 42pt circular interactive
 regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
 action and localized accessibility label remain owned by the timeline.
 
+Reading author labels use the validated owning Harness's native logo and name
+from the host environment, independently of the recorded model and effort.
+Without that identity they retain the text-only fallback. The shared label is
+used in reading headers and turn footers, and exposes the Harness name to
+accessibility while keeping the logo decorative.
+
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread
 collections opt into it for their full backdrop and emoji badge; the badge keeps
@@ -132,6 +138,12 @@ hidden card tree's viewport unchanged. Return preparation unhides the same host,
 applies the latest environment and viewport, and waits for the existing canvas
 receipt before sampling the destination. Return travel fades the refreshed cards
 back in. No snapshot allocation or CPU rasterization blocks reader admission.
+Freezing closes native hit testing, accessibility and viewport updates immediately;
+the already-transparent parent's native hide is coalesced onto the next main-queue
+turn. Hiding a focused host inside `updateNSView` makes AppKit traverse key views
+and re-enter the SwiftUI geometry graph still being updated. Returning or retiring
+the host invalidates that pending hide. The native Moku landing replay exercises
+this focused-parent boundary, including rapid return and teardown.
 Nested reading stacks keep their existing parent presentation.
 The retained native host consumes the viewport already assigned by the workspace
 and disables its own safe-area regions. Applying the titlebar inset a second time
@@ -167,7 +179,16 @@ contributes readiness, and pending Markdown parsing or loading placeholders
 keep the gate closed. Loaded empty/error states can finish without Markdown.
 Agent loading placeholders keep the gate pending even alongside loaded sibling
 rows and during their visual grace period. The identity-only reader cannot
-admit content. Reduce Motion preserves the same readiness rules. See the
+admit content. Agent main readers fade only their first readable timeline body in with the
+same 200ms ease-out opacity timing as Report referenced readers. Admission
+waits for arrival and content readiness for both running and completed executions;
+loading remains visible while data prepares. Readiness is latched once per
+reader visit, so streaming, retries and history changes do not replay the fade.
+The timeline toolbar (including title, emoji and header controls), history rail
+and scroll container stay visible; the title/emoji handoff never fades again.
+The transparent preparation frame excludes hit testing and accessibility.
+The fade changes only opacity and preserves layout and scroll ownership. Reduce Motion and inactive scenes settle the fade
+immediately while preserving readiness rules. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
 
