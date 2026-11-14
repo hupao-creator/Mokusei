@@ -376,9 +376,10 @@ public struct HarnessMessageTimeline: View {
                     if allowsJumpToLatest && followOutput && showLatest && !suspended {
                         Button { jumpToLatest() } label: {
                             NativeIcon(name: "ArrowDown", size: 13)
-                                .padding(.vertical, 6).padding(.horizontal, 10)
-                                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 6))
-                        }.buttonStyle(.plain).padding(.bottom, 16)
+                                .frame(width: 42, height: 42).contentShape(Circle())
+                        }.buttonStyle(.plain)
+                            .glassEffect(.regular.interactive(), in: .circle)
+                            .padding(.bottom, 16)
                             .accessibilityLabel(localize("回到最新"))
                             .help(localize("回到最新"))
                             .nativeReadingAction("jumpLatest", role: "jumpLatest", label: localize("回到最新")) { jumpToLatest() }
