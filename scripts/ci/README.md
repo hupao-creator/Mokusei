@@ -87,7 +87,7 @@ The native job performs these stages:
    graphical remainder, both with `--skip-build --no-parallel`. Every ordinary
    method belongs to exactly one process; fixture-backed windowless suites move
    only when their existing producer environment is supplied.
-5. Run all eleven `interop` checks and all thirteen `native` checks serially.
+5. Run all eleven `interop` checks and all fourteen `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 
@@ -176,6 +176,17 @@ CI selects only this method with `--native-owned`; the other nine mounted and
 two windowless methods keep their ordinary execution. Both launchers derive
 their selected method identities and expected counts from `swift_ownership.py`;
 their original local commands still run the full suites for diagnosis.
+
+The local Markdown image click method uses `native/local-images` with
+`--native-owned`. Block-local selection restores NSTextView's native attachment
+tracking, which requires a running AppKit loop. The ordinary SwiftPM host does
+not provide that capability. The native owner retains the original image, link,
+host-admission and click assertions, requires
+`MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED`, and records its screenshots.
+The other two image methods remain in ordinary graphical execution. A missing
+or duplicate outcome, missing marker or wrong host fails the shared audit;
+this is an exact owner transfer, not a framework skip. This boundary correction
+does not establish the cause of the earlier incomplete graphical run.
 
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings

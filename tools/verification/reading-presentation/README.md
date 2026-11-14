@@ -399,21 +399,28 @@ observations are required; a completed 280ms task or matching final text is
 insufficient. Reference frames use the same production text renderer. The moving
 cases keep Reduce Motion disabled and do not substitute self-rendered snapshots.
 
-The rewrite input waits for two observed partial frames with the same minimum
-0.06 ink gain and 4pt leftward boundary movement used by the final oracle. The
+Rewrite and local-resize inputs wait for two observed partial frames with the
+same minimum 0.06 ink gain and 4pt leftward boundary movement used by the final oracle. The
 latest frame must still be partial, at most 80% exposed, and less than 50ms old
-after sensor work; the 450ms sensor deadline fails if this prerequisite is
-unavailable. Every raw frame is retained, while the live sensor examines only
-the latest frame in each received batch. It validates sRGB premultiplied BGRA
+after sensor work. Rewrite retains its 450ms sensor deadline; resize retains
+its original 135–200ms input window. Missing motion within either bound fails
+before input; parent-state delivery alone cannot certify the reveal started.
+Every raw frame is retained, while the live sensor examines only the latest
+frame in each received batch. It validates sRGB premultiplied BGRA
 format and row stride, reads precomputed glyph offsets and a narrow width-marker
 region, and records per-stage processing times and sample age. Before input,
 its exposure and boundary values must match the existing crop oracle on the
 settled blank and full reference; after capture, every live sample is checked
 against the unchanged offline oracle. Sensor samples, input times, presentation
 timestamps and accepted frame indices are retained. PNG encoding and complete
-frame, geometry and motion assertions run after capture stops. The local resize
-still occurs
-140ms after input. Rewrite frames must have no hard rising mask edge and must
+frame, geometry and motion assertions run after capture stops. Run
+[43408062312](https://github.com/hupao-creator/Mokusei/actions/runs/43408062312)
+first observed qualifying resize-case ink at 137.59ms, then the old timer changed
+width at 144.75ms before a second moving frame. The new input prerequisite keeps
+both required frames, the 0.06 gain, 4pt movement, original input bounds and all
+post-resize assertions. Report fields use `interruptionSensor`/`interruptionTrigger`
+for both scenarios; earlier raw reports keep their original `rewrite` field names.
+Rewrite frames must have no hard rising mask edge and must
 still show an early reset within 65ms, new incoming motion and the exact settled
 production reference within the existing pixel-error tolerance.
 
@@ -614,6 +621,26 @@ Overview and keeps reading routes and their back actions intact.
 
 ## Report navigation and native window controls
 
+The editing-key sequence first observes the native key window/responder and the
+intended DOM editor's focused frame, including the closed-shadow editor. Its
+original 80ms host-observation windows, no-navigation assertions and exact
+word-movement result remain. Each stage first requires the actual trusted
+keydown/keyup receipt at that editor before starting that observation interval or
+changing focus. WebKit serializes native keys behind earlier acknowledgements;
+an independent JavaScript snapshot does not flush that queue. An event-driven
+Promise uses the same three-second delivery bound as the existing focus/modal
+synchronization, and fails with the actual receipts if a key never arrives. This
+delivery bound is separate from the unchanged 80/100ms host-observation windows.
+Modal Escape also awaits both events; its native default close intentionally
+restores focus before keyup. The later panel editor completes its receipt before
+the original 100ms observation and body-focus transition. Focus, delivery wait and
+keyboard receipts remain in the replay log. The DOM observer only records delivered
+events; it neither dispatches keyboard events nor prevents their default handling.
+Run 43408062312 failed after the closed-shadow keys without such receipts;
+run 43414088309 sampled only the first three of four events. Those snapshots do
+not establish whether the final event was delayed or lost, nor which event or
+focus caused the earlier navigation.
+
 ```sh
 python3 tools/verification/reading-presentation/run.py --report-navigation
 ```
@@ -667,6 +694,16 @@ provide additional coverage for the shared bridge.
 ```sh
 MOKUSEI_LOCAL_IMAGES_ARTIFACTS=/tmp/thread-local-images-evidence python3 tools/verification/reading-presentation/run.py --local-images
 ```
+
+The production-message method performs real NSTextView attachment mouse tracking
+and requires this launcher's running AppKit loop. CI uses
+`--local-images --native-owned` to execute that method exactly once and requires
+`MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED`; its identity and expected count
+come from `scripts/ci/swift_ownership.py`. Its image, link, host-admission and click
+assertions are unchanged. The other two methods remain in ordinary graphical
+Swift execution, while the command above retains all three for local diagnosis.
+Screenshots default to the replay's exported evidence directory unless a caller
+supplies `MOKUSEI_LOCAL_IMAGES_ARTIFACTS`.
 
 Runs three native integration cases using production `ThreadMessage` and Markdown:
 standard images and ordinary local image links at 360/900pt widths, Unicode/spaces

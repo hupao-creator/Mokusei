@@ -163,7 +163,16 @@ contributes readiness, and pending Markdown parsing or loading placeholders
 keep the gate closed. Loaded empty/error states can finish without Markdown.
 Agent loading placeholders keep the gate pending even alongside loaded sibling
 rows and during their visual grace period. The identity-only reader cannot
-admit content. Reduce Motion preserves the same readiness rules. See the
+admit content. Agent main readers fade only their first readable timeline body in with the
+same 200ms ease-out opacity timing as Report referenced readers. Admission
+waits for arrival and content readiness for both running and completed executions;
+loading remains visible while data prepares. Readiness is latched once per
+reader visit, so streaming, retries and history changes do not replay the fade.
+The timeline toolbar (including title, emoji and header controls), history rail
+and scroll container stay visible; the title/emoji handoff never fades again.
+The transparent preparation frame excludes hit testing and accessibility.
+The fade changes only opacity and preserves layout and scroll ownership. Reduce Motion and inactive scenes settle the fade
+immediately while preserving readiness rules. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
 
@@ -481,7 +490,14 @@ formatting and is preserved by native partial copies. Selection, Select All and
 copy belong to the active paragraph, code block or table cell; dragging does not
 join selections across blocks. The document context menu's Copy Markdown action
 still copies the complete source. List marker widths and table inline-code padding participate in actual
-layout measurements. Footnote returns reveal references through nested table and
+layout measurements. Inline code keeps its 5pt edge padding with the adjacent
+code text at word breaks; long code still wraps using native TextKit rules.
+Its 3pt rounded background is painted separately for each visual line segment,
+bounded by the actual code glyphs rather than selection rectangles extending to
+the line edge. Padding-only fragments in extremely narrow containers paint no
+background. Characters, link attributes and native selection remain in the text
+storage, and Copy continues to omit the synthetic padding cells.
+Footnote returns reveal references through nested table and
 conversation viewports. Run the [Markdown native replay](../../../../../tools/verification/reading-presentation/README.md#markdown-reading-regressions)
 for production rendering, selection, copying and navigation fixtures.
 
@@ -541,6 +557,8 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
 conversation's turn index as a left-hand TOC. The selected mark is longer and
 brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
+The answer wraps naturally to at most three lines, with the title and timestamp
+remaining visible; shorter answers do not reserve unused lines.
 Restoring focus after Back does not reopen the preview. The mark and preview share
 a cancellable 100ms pointer handoff, including the gap between them; leaving both,
 unmounting or deactivating the scene retires pointer previews. The
