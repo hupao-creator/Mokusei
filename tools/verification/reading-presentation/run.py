@@ -208,6 +208,7 @@ def main():
             environment["MOKUSEI_MOKU_HISTORY_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--thread-sidebar" in sys.argv:
             environment["MOKUSEI_SIDEBAR_ARTIFACTS"] = str(replay.workspace / "evidence")
+            environment["MOKUSEI_CLAUDE_TIMELINE_FIXTURE"] = str(repo / "internal/plugins/harness/claude/testdata/thread-reader.golden.json")
         if "--overview-search" in sys.argv:
             environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
         if tag_glass:
@@ -278,7 +279,7 @@ def main():
              5 if thread_send_native else
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
-             5 if "--thread-sidebar" in sys.argv else
+             6 if "--thread-sidebar" in sys.argv else
              12 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else

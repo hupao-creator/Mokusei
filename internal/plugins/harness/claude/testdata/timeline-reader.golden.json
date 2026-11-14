@@ -1,0 +1,382 @@
+{
+  "state": {
+    "version": 2,
+    "primarySessionId": "claude-native-session",
+    "turns": [
+      {
+        "author": {
+          "model": "claude-sonnet-4-5"
+        },
+        "executionId": "execution-timeline",
+        "createdAt": 1000,
+        "updatedAt": 1012,
+        "prompts": [
+          "Inspect the command"
+        ],
+        "promptAttachments": [
+          []
+        ],
+        "status": "running",
+        "foreground": {
+          "kind": "assistant-text",
+          "sequence": 6
+        },
+        "plan": [],
+        "activities": [
+          {
+            "detail": "success output\nsuccess output\n",
+            "id": "command-ok",
+            "kind": "command",
+            "label": "Bash",
+            "status": "completed",
+            "toolName": "Bash"
+          },
+          {
+            "detail": "permission denied",
+            "id": "command-fail",
+            "kind": "command",
+            "label": "Bash",
+            "status": "failed",
+            "toolName": "Bash"
+          },
+          {
+            "id": "hook-1",
+            "kind": "hook",
+            "label": "Hook",
+            "status": "completed",
+            "toolName": "Hook"
+          }
+        ],
+        "interactions": [
+          {
+            "id": "ask-question",
+            "kind": "question",
+            "questions": [
+              {
+                "header": "Target",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "First",
+                    "label": "A"
+                  },
+                  {
+                    "label": "B"
+                  }
+                ],
+                "question": "Choose"
+              }
+            ],
+            "status": "pending",
+            "title": "Pick the target",
+            "toolName": "AskUserQuestion"
+          },
+          {
+            "canRemember": true,
+            "id": "ask-permission",
+            "input": {
+              "command": "rm -rf build"
+            },
+            "kind": "permission",
+            "status": "pending",
+            "title": "Allow the next command",
+            "toolName": "Bash"
+          }
+        ],
+        "notices": [
+          {
+            "id": "notice-1",
+            "level": "warning",
+            "message": "Fixture warning"
+          }
+        ],
+        "timeline": [
+          {
+            "createdAt": 1001,
+            "id": "user-message:1001:0",
+            "kind": "user-message",
+            "promptIndex": 0
+          },
+          {
+            "content": "Check the output. ",
+            "createdAt": 1002,
+            "id": "reasoning:1002:1",
+            "kind": "reasoning"
+          },
+          {
+            "content": "First answer.",
+            "createdAt": 1003,
+            "id": "assistant:1003:2",
+            "kind": "assistant",
+            "messageId": "assistant-1",
+            "status": "complete"
+          },
+          {
+            "activityId": "command-ok",
+            "createdAt": 1004,
+            "id": "activity:1004:3",
+            "kind": "activity"
+          },
+          {
+            "createdAt": 1005,
+            "id": "interaction:1005:4",
+            "interactionId": "ask-question",
+            "kind": "interaction"
+          },
+          {
+            "activityId": "command-fail",
+            "createdAt": 1006,
+            "id": "activity:1006:5",
+            "kind": "activity"
+          },
+          {
+            "activityId": "hook-1",
+            "createdAt": 1007,
+            "id": "activity:1007:6",
+            "kind": "activity"
+          },
+          {
+            "createdAt": 1008,
+            "id": "interaction:1008:7",
+            "interactionId": "ask-permission",
+            "kind": "interaction"
+          },
+          {
+            "createdAt": 1009,
+            "id": "notice:1009:8",
+            "kind": "notice",
+            "noticeId": "notice-1"
+          },
+          {
+            "content": "review final",
+            "createdAt": 1010,
+            "id": "review:1010:9",
+            "kind": "review"
+          },
+          {
+            "content": "Final answer.",
+            "createdAt": 1011,
+            "id": "assistant:1011:10",
+            "kind": "assistant",
+            "messageId": "assistant-2",
+            "status": "complete"
+          }
+        ]
+      }
+    ],
+    "nativeNotifications": []
+  },
+  "observation": {
+    "latestExecution": {
+      "executionId": "execution-timeline",
+      "status": "waiting-for-user",
+      "startedAt": 1000,
+      "summary": "First answer.Final answer.",
+      "interactions": [
+        {
+          "id": "claude-interaction-sha256-dac32f7bf49c164b252b9aa52d92fb86d8400684d88b16175d9cea7d26339879",
+          "kind": "question",
+          "title": "Pick the target",
+          "actions": [
+            {
+              "id": "submit",
+              "intent": "submit",
+              "label": "Submit"
+            },
+            {
+              "id": "cancel",
+              "intent": "cancel",
+              "label": "Cancel"
+            }
+          ],
+          "questions": [
+            {
+              "id": "claude-question-sha256-176e0a2a1f1c1a58a89c03112381a7882d4cae811ea90275d54f7d21ba203af9",
+              "prompt": "Choose",
+              "header": "Target",
+              "multiple": false,
+              "allowOther": true,
+              "secret": false,
+              "options": [
+                {
+                  "value": "claude-option-sha256-5685a67fcd419e5daeea64121d8abca9b53ea9d50c022033ab73229b9d552ae3",
+                  "label": "A",
+                  "description": "First"
+                },
+                {
+                  "value": "claude-option-sha256-0b4e689ab02a27693468d3eca73120d71fe950d717aaaa7b801dfe66f50dbabc",
+                  "label": "B"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "claude-interaction-sha256-a30a8a4725df31a668f0d30bbe6754e23d4756c66dff4a4283c36a7d22c58401",
+          "kind": "permission",
+          "title": "Allow the next command",
+          "actions": [
+            {
+              "id": "allow",
+              "intent": "allow",
+              "label": "Allow"
+            },
+            {
+              "id": "allow-session",
+              "intent": "allow",
+              "label": "Allow for session"
+            },
+            {
+              "id": "deny",
+              "intent": "deny",
+              "label": "Deny"
+            },
+            {
+              "id": "cancel",
+              "intent": "cancel",
+              "label": "Cancel"
+            }
+          ],
+          "questions": [
+            {
+              "id": "claude-question-sha256-73c1bda350812d09da3b6da93099cebc6a7f6443dd22510f6041601fce6c87a3",
+              "prompt": "Optional denial reason",
+              "multiple": false,
+              "allowOther": true,
+              "secret": false,
+              "options": []
+            }
+          ]
+        }
+      ]
+    },
+    "backgroundWork": null
+  },
+  "fork": {
+    "version": 2,
+    "pendingFork": {
+      "sourceSessionId": "claude-native-session"
+    },
+    "forkHistory": {
+      "items": [
+        {
+          "content": "Inspect the command",
+          "createdAt": 1001,
+          "id": "fork-history:0",
+          "kind": "user-message"
+        },
+        {
+          "content": "Check the output. ",
+          "createdAt": 1002,
+          "id": "fork-history:1",
+          "kind": "reasoning"
+        },
+        {
+          "content": "First answer.",
+          "createdAt": 1003,
+          "id": "fork-history:2",
+          "kind": "assistant",
+          "status": "complete"
+        },
+        {
+          "activity": {
+            "detail": "success output\nsuccess output\n",
+            "kind": "command",
+            "label": "Bash",
+            "status": "completed",
+            "toolName": "Bash"
+          },
+          "createdAt": 1004,
+          "id": "fork-history:3",
+          "kind": "activity"
+        },
+        {
+          "createdAt": 1005,
+          "id": "fork-history:4",
+          "interaction": {
+            "kind": "question",
+            "questions": [
+              {
+                "header": "Target",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "First",
+                    "label": "A"
+                  },
+                  {
+                    "label": "B"
+                  }
+                ],
+                "question": "Choose"
+              }
+            ],
+            "status": "cancelled",
+            "title": "Pick the target",
+            "toolName": "AskUserQuestion"
+          },
+          "kind": "interaction"
+        },
+        {
+          "activity": {
+            "detail": "permission denied",
+            "kind": "command",
+            "label": "Bash",
+            "status": "failed",
+            "toolName": "Bash"
+          },
+          "createdAt": 1006,
+          "id": "fork-history:5",
+          "kind": "activity"
+        },
+        {
+          "activity": {
+            "kind": "hook",
+            "label": "Hook",
+            "status": "completed",
+            "toolName": "Hook"
+          },
+          "createdAt": 1007,
+          "id": "fork-history:6",
+          "kind": "activity"
+        },
+        {
+          "createdAt": 1008,
+          "id": "fork-history:7",
+          "interaction": {
+            "kind": "permission",
+            "status": "cancelled",
+            "title": "Allow the next command",
+            "toolName": "Bash"
+          },
+          "kind": "interaction"
+        },
+        {
+          "createdAt": 1009,
+          "id": "fork-history:8",
+          "kind": "notice",
+          "notice": {
+            "level": "warning",
+            "message": "Fixture warning"
+          }
+        },
+        {
+          "content": "review final",
+          "createdAt": 1010,
+          "id": "fork-history:9",
+          "kind": "review"
+        },
+        {
+          "content": "Final answer.",
+          "createdAt": 1011,
+          "id": "fork-history:10",
+          "kind": "assistant",
+          "status": "complete"
+        }
+      ],
+      "sourceSessionId": "claude-native-session"
+    },
+    "turns": [],
+    "nativeNotifications": []
+  }
+}

@@ -211,9 +211,7 @@ func Verify(id string) ([]Fixture, error) {
 			// Historical compact projections keep these exact-execution summaries.
 			if id == "codex" {
 				turn["answer"] = Answer
-			} else if id == "claude" {
-				turn["text"] = Answer
-			} else {
+			} else if id != "claude" {
 				turn["summary"] = Answer
 			}
 			if name == "second-answer" {

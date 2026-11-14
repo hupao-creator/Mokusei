@@ -28,7 +28,7 @@ func (StateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage,
 				parts = append(parts, plugin.SearchPassage{ExecutionID: turn.ExecutionID, Text: prompt})
 			}
 		}
-		parts = append(parts, plugin.SearchPassage{ExecutionID: turn.ExecutionID, Text: turn.Text})
+		parts = append(parts, plugin.SearchPassage{ExecutionID: turn.ExecutionID, Text: turn.assistantText()})
 	}
 	return parts, nil
 }
@@ -40,7 +40,7 @@ func (StateAdapter) ReadableCharacters(raw json.RawMessage) (int, error) {
 	}
 	total := 0
 	for _, t := range state.Turns {
-		total += utf8.RuneCountInString(t.Text) + utf8.RuneCountInString(t.Error)
+		total += utf8.RuneCountInString(t.assistantText()) + utf8.RuneCountInString(t.Error)
 	}
 	return total, nil
 }

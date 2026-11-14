@@ -16,7 +16,7 @@ public struct ClaudeHarnessPlugin: HarnessPlugin {
     public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
         let state = try ClaudeState(thread.sessionState)
         guard let turn = state.turns.first(where: { $0.id == executionID }) else { return nil }
-        let excerpt = claudeOverviewAgentMessage([turn])?.text ?? (turn.status == "running" ? "" : turn.raw.claudeID("text"))
+        let excerpt = claudeOverviewAgentMessage([turn])?.text ?? (turn.status == "running" ? JSONText("") : JSONText(turn.lastAssistantText))
         return try .init(startedAt: turn.createdAt, finishedAt: turn.finishedAt, running: turn.status == "running", excerpt: excerpt)
     }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? { try claudeExecutionTokenUsage(thread: thread, executionID: executionID) }

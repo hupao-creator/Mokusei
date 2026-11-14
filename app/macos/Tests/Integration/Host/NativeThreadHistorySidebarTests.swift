@@ -8,6 +8,7 @@ import MokuseiTestSupport
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
+@testable import MokuseiHarnessClaude
 
 @MainActor @Observable private final class SidebarFixture {
     var ids: [JSONText]
@@ -16,6 +17,7 @@ import MokuseiPluginUI
     var inherited = false
     var summarizedWork = false
     var runningID: JSONText?
+    var answers: [String]?
     let controls = NativeReadingInteractions()
     let visit = UUID()
     @ObservationIgnored var mounted: Set<JSONText> = []
@@ -27,7 +29,9 @@ import MokuseiPluginUI
         (inherited ? [ThreadConversationRow(id: "inherited", createdAt: -1, history: true,
             node: AnyView(Text("Inherited transcript")))] : []) + ids.enumerated().map { index, id in
             ThreadConversationRow(id: id, createdAt: Double(index),
-                execution: .init(id: id, prompt: "\(index + 1). 检查历史轮次与目录导航", answer: "已确定：保留轮次内容、选中状态与滚动位置。", completedAt: 1_700_000_000_000),
+                execution: .init(id: id, prompt: "\(index + 1). 检查历史轮次与目录导航",
+                    answer: answers.flatMap { $0.indices.contains(index) ? $0[index] : nil } ?? "已确定：保留轮次内容、选中状态与滚动位置。",
+                    completedAt: 1_700_000_000_000),
                 node: AnyView(SidebarTurn(fixture: self, id: id)))
         }
     }
@@ -96,6 +100,35 @@ private struct SidebarSurface: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeThreadHistorySidebarTests {
+    @Test func claudeThreadProjectionSummaryAppearsInMountedHistorySidebar() async throws {
+        let file = ProcessInfo.processInfo.environment["MOKUSEI_CLAUDE_TIMELINE_FIXTURE"].map { URL(fileURLWithPath: $0) }
+            ?? URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent("internal/plugins/harness/claude/testdata/thread-reader.golden.json")
+        let fixtureValue = try JSONValue(data: Data(contentsOf: file))
+        let claude = try ClaudeState(try #require(fixtureValue["thread"]))
+        let fixture = SidebarFixture(count: 2)
+        fixture.ids = claude.turns.map(\.id)
+        fixture.answers = claude.turns.map(\.assistantText)
+        let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        defer {
+            window.close()
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        try await fixture.ready()
+        try await fixture.perform("history.open", value: .text(fixture.ids[0].string))
+        try await fixture.perform("history.close")
+        try key(126, "\u{f700}", in: window)
+        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .text(fixture.ids[0].string) }
+        let answer = try #require(fixture.answers?.first)
+        #expect(answer.count == 600)
+        let expected = String(answer.prefix(80))
+        try await SwiftUIReplay.wait {
+            fixture.control("history.sidebar.preview")?["value"]?["summary"]?.stringValue?.contains(expected) == true
+        }
+    }
+
     @Test(arguments: [false, true])
     func runningExecutionKeepsWorkVisibleAcrossHistoryAndCompletion(summarized: Bool) async throws {
         let fixture = SidebarFixture()
@@ -277,6 +310,8 @@ struct NativeThreadHistorySidebarTests {
         defer { window.close() }
         window.level = .floating
         window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         try await SwiftUIReplay.wait { NSApp.isRunning && NSApp.isActive && window.isKeyWindow && window.occlusionState.contains(.visible) }
         let originalPointer = NSEvent.mouseLocation
         defer {

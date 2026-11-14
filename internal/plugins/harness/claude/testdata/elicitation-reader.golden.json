@@ -1,0 +1,151 @@
+{
+  "state": {
+    "version": 2,
+    "turns": [
+      {
+        "executionId": "execution-elicitation",
+        "createdAt": 1000,
+        "updatedAt": 1003,
+        "prompts": [
+          "fill form"
+        ],
+        "promptAttachments": [
+          []
+        ],
+        "status": "running",
+        "statusLabel": "等待你的回应",
+        "plan": [],
+        "activities": [],
+        "interactions": [
+          {
+            "description": "Provide the remote fields",
+            "elicitationId": "elicitation-1",
+            "elicitationMode": "form",
+            "id": "ask-elicitation",
+            "kind": "elicitation",
+            "schema": {
+              "properties": {
+                "name": {
+                  "description": "Use \u0026 \u003c \u003e and \u2028 safely",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "serverName": "remote",
+            "status": "pending",
+            "title": "MCP form",
+            "toolName": "mcp__remote__form"
+          }
+        ],
+        "notices": [],
+        "timeline": [
+          {
+            "createdAt": 1001,
+            "id": "user-message:1001:0",
+            "kind": "user-message",
+            "promptIndex": 0
+          },
+          {
+            "createdAt": 1002,
+            "id": "interaction:1002:1",
+            "interactionId": "ask-elicitation",
+            "kind": "interaction"
+          }
+        ]
+      }
+    ],
+    "nativeNotifications": []
+  },
+  "observation": {
+    "latestExecution": {
+      "executionId": "execution-elicitation",
+      "status": "waiting-for-user",
+      "startedAt": 1000,
+      "interactions": [
+        {
+          "id": "claude-interaction-sha256-2428d7a595634ea0cca0255abe71186788de0b5db798379cadbbfaac32bc9cc1",
+          "kind": "question",
+          "title": "MCP form",
+          "description": "Provide the remote fields",
+          "actions": [
+            {
+              "id": "submit",
+              "intent": "submit",
+              "label": "Submit"
+            },
+            {
+              "id": "deny",
+              "intent": "deny",
+              "label": "Decline"
+            },
+            {
+              "id": "cancel",
+              "intent": "cancel",
+              "label": "Cancel"
+            }
+          ],
+          "questions": [
+            {
+              "id": "claude-question-sha256-c0e37accbe5c3ec889cfe2ab9a732c52d54c1c1d9767e357365dcf30cc395bca",
+              "prompt": "JSON form values matching this schema:\n{\n  \"properties\": {\n    \"name\": {\n      \"description\": \"Use \u0026 \u003c \u003e and \u2028 safely\",\n      \"type\": \"string\"\n    }\n  },\n  \"type\": \"object\"\n}",
+              "multiple": false,
+              "allowOther": true,
+              "secret": false,
+              "answerFormat": "json-object",
+              "options": []
+            }
+          ]
+        }
+      ]
+    },
+    "backgroundWork": null
+  },
+  "overview": {
+    "version": 2,
+    "turns": [
+      {
+        "executionId": "execution-elicitation",
+        "createdAt": 1000,
+        "updatedAt": 1003,
+        "prompts": [
+          "fill form"
+        ],
+        "promptAttachments": [
+          []
+        ],
+        "status": "running",
+        "statusLabel": "等待你的回应",
+        "plan": [],
+        "activities": [],
+        "interactions": [
+          {
+            "description": "Provide the remote fields",
+            "elicitationId": "elicitation-1",
+            "elicitationMode": "form",
+            "id": "ask-elicitation",
+            "kind": "elicitation",
+            "schema": {
+              "properties": {
+                "name": {
+                  "description": "Use \u0026 \u003c \u003e and \u2028 safely",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "schemaDisplay": "{\n  \"properties\": {\n    \"name\": {\n      \"description\": \"Use \u0026 \u003c \u003e and \u2028 safely\",\n      \"type\": \"string\"\n    }\n  },\n  \"type\": \"object\"\n}",
+            "serverName": "remote",
+            "status": "pending",
+            "title": "MCP form",
+            "toolName": "mcp__remote__form"
+          }
+        ],
+        "notices": [],
+        "timeline": []
+      }
+    ],
+    "nativeNotifications": [],
+    "initialResponseScope": true
+  }
+}
