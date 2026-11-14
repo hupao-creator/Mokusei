@@ -11,10 +11,10 @@ struct PiThreadView: View {
     let context: HarnessRenderContext
     @Environment(\.locale) private var locale
     @State private var anchor: (request: JSONText, id: JSONText)?
-    @State private var decoder = PiStateCache()
+    @State private var decoder = HarnessReadingState<PiState>(decode: { try PiState($0) })
     var body: some View {
         Group {
-            switch decoder.decode(input.thread.sessionState) {
+            switch decoder.result(for: input.thread.sessionState) {
             case .success(let state):
                 if case .row(let id) = context.content {
                     if let execution = state.executions.first(where: { $0.executionID == id }), visible(id) {
@@ -22,8 +22,9 @@ struct PiThreadView: View {
                     }
                 } else { conversation(state) }
             case .failure(let failure): PiFailure(message: piLocalized("Pi 状态不可用", locale) + " · " + failure.localizedDescription)
+            case nil: NativeThreadLoadingIndicator()
             }
-        }
+        }.task(id: input.thread.sessionState) { await decoder.load(input.thread.sessionState) }
     }
     private func visible(_ id: JSONText) -> Bool {
         switch context.presentation { case .main(let excluded): !excluded.contains(id); case .execution(let execution): execution == id }
@@ -97,31 +98,20 @@ private struct PiLoadedRow: View {
     let context: HarnessRenderContext
     let onAnchor: (JSONText, JSONText) -> Void
     let raw: JSONValue
-    @State private var decoder = PiStateCache()
+    @State private var decoder = HarnessReadingState<PiState>(decode: { try PiState($0) })
     @ViewBuilder var body: some View {
         Group {
-            if case .success(let state) = decoder.decode(raw), let execution = state.executions.first(where: { $0.executionID == key }) {
+            if case .success(let state) = decoder.result(for: raw), let execution = state.executions.first(where: { $0.executionID == key }) {
                 let anchor = piMokuAnchor(state, input.readingTarget?.message)
                 PiTurn(input: input, state: state, execution: execution, actions: actions, context: context.row(key))
                     .onChange(of: AnchorRequest(request: input.readingTarget?.requestID, anchor: anchor), initial: true) { _, request in
                         if let id = request.request, let anchor = request.anchor { onAnchor(id, anchor) }
                     }
-            } else { PiFailure(message: "Invalid Pi session state") }
-        }.onDisappear { decoder.clear() }
+            } else if decoder.result(for: raw) != nil { PiFailure(message: "Invalid Pi session state") }
+            else { NativeThreadLoadingIndicator() }
+        }.task(id: raw) { await decoder.load(raw) }
     }
     private struct AnchorRequest: Hashable { let request: JSONText?; let anchor: JSONText? }
-}
-
-/// A non-observed memo is safe during rendering: only the input controls the
-/// view update, and reading/focus/disclosure changes never reparse private data.
-@MainActor private final class PiStateCache {
-    private var source: JSONValue?
-    private var result: Result<PiState, Error>?
-    func decode(_ value: JSONValue) -> Result<PiState, Error> {
-        if source != value || result == nil { source = value; result = Result { try PiState(value) } }
-        return result!
-    }
-    func clear() { source = nil; result = nil }
 }
 
 private struct PiTurn: View {

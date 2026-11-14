@@ -10,7 +10,7 @@ public struct ClaudeThreadView: View {
     let actions: HarnessThreadActions
     let context: HarnessRenderContext
     private var providedState: ClaudeState?
-    @State private var stateCache = ClaudeStateCache()
+    @State private var stateCache = HarnessReadingState<ClaudeState>(decode: decodeClaudeReadingState)
     @State private var resolvedAnchor: (request: JSONText, anchor: JSONText)?
     public init(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) {
         self.input = input; self.actions = actions; self.context = context; providedState = nil
@@ -19,13 +19,18 @@ public struct ClaudeThreadView: View {
         self.input = input; self.actions = actions; self.context = context; providedState = state
     }
     public var body: some View {
-        switch providedState.map({ Result<ClaudeState,Error>.success($0) }) ?? stateCache.decode(input.thread.sessionState) {
+        Group {
+        switch providedState.map({ Result<ClaudeState,Error>.success($0) }) ?? stateCache.result(for: input.thread.sessionState) {
         case .failure(let error):
             let failure = claudeFailurePresentation(input, decodeError: error)
             ClaudeFailure(message: failure.message, detail: failure.detail)
         case .success(let state):
             if case .row(let id) = context.content { row(id, state: state) }
             else { conversation(state) }
+        case nil: NativeThreadLoadingIndicator()
+        }
+        }.task(id: input.thread.sessionState) {
+            if providedState == nil { await stateCache.load(input.thread.sessionState) }
         }
     }
     private func conversation(_ state: ClaudeState) -> some View {
@@ -95,23 +100,22 @@ private struct ClaudeLoadedRow: View {
     let context: HarnessRenderContext
     let onAnchor: (JSONText, JSONText) -> Void
     let raw: JSONValue
-    @State private var stateCache = ClaudeStateCache()
+    @State private var stateCache = HarnessReadingState<ClaudeState>(decode: decodeClaudeReadingState)
     @ViewBuilder var body: some View {
         Group {
-            if let thread = try? input.thread.replacingSessionState(raw) {
-                switch stateCache.decode(raw) {
+            switch stateCache.result(for: raw) {
                 case .success(let state):
                     let anchor = claudeReplyAnchor(state, message: input.readingTarget?.message)
-                    ClaudeThreadView(input: HarnessThreadInput(thread: thread, readingTarget: input.readingTarget), actions: actions, context: context.row(key), state: state)
+                    ClaudeThreadView(input: input, actions: actions, context: context.row(key), state: state)
                         .task(id: Anchor(request: input.readingTarget?.requestID, anchor: anchor)) {
                             if let request = input.readingTarget?.requestID, let anchor { onAnchor(request, anchor) }
                         }
                 case .failure(let error):
-                    let failure = claudeFailurePresentation(HarnessThreadInput(thread: thread, readingTarget: input.readingTarget), decodeError: error)
+                    let failure = claudeFailurePresentation(input, decodeError: error)
                     ClaudeFailure(message: failure.message, detail: failure.detail)
-                }
-            } else { ClaudeFailure(message: "Claude sessionState 无效") }
-        }.onDisappear { stateCache.clear() }
+                case nil: NativeThreadLoadingIndicator()
+            }
+        }.task(id: raw) { await stateCache.load(raw) }
     }
     private struct Anchor: Hashable { let request: JSONText?; let anchor: JSONText? }
 }
@@ -240,18 +244,13 @@ func claudeRowKind(_ item: JSONValue, final: Bool, agentDetail: Bool = true, exe
     }
 }
 
-/// Cache the owning Harness decode by its immutable private payload. UI-only updates
-/// do not repeatedly traverse a long transcript; streamed changes still validate.
-@MainActor private final class ClaudeStateCache {
-    private var raw: JSONValue?
-    private var result: Result<ClaudeState,Error>?
-    func clear() { raw = nil; result = nil }
-    func decode(_ value: JSONValue) -> Result<ClaudeState,Error> {
-        if raw == value, let result { return result }
-        let next = Result { try ClaudeState(value) }
-        if case .failure(let error) = next {
-            ClaudeStateLog.decode.error("Claude state decode failed: \(claudeRedacted(error.localizedDescription), privacy: .public)")
-        }
-        raw = value; result = next; return next
+private func decodeClaudeReadingState(_ raw: JSONValue) throws -> ClaudeState {
+    do {
+        try PluginJSONValidation.validate(.object(["sessionState": raw]))
+        return try ClaudeState(raw)
+    }
+    catch {
+        ClaudeStateLog.decode.error("Claude state decode failed: \(claudeRedacted(error.localizedDescription), privacy: .public)")
+        throw error
     }
 }
