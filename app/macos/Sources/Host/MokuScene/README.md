@@ -74,6 +74,22 @@ The shared input row places the attachment plus directly before the editor,
 after the identity seat. Attachment import, file/directory picking, native input
 ownership and the zero-size event-monitor origin are unchanged.
 
+Agent entry sequences the compact Dock's travel, the eyes-to-Harness flip and
+composer expansion. The reading entrance's actual arrival/layout admission
+releases the flip; its removed animation completion releases input and the
+existing focus path. A composer-generation fence and a view-local transition
+generation reject replaced or detached completions without an elapsed-time task.
+The small downward reading-seat shift uses the existing native travel host,
+with a 420ms ease-in/ease-out curve rather than SwiftUI layout animation. Reader
+preparation cannot stall submitted travel frames. Both axes share sampled
+replacement geometry, completion fencing and moving-control hit protection;
+shell sizing and composer expansion remain owned by SwiftUI.
+Rapid replacement retains the current mark during travel; the same Harness
+reuses a settled or in-flight flip. Return keeps the existing collapse path.
+Reduce Motion, an inactive scene or a hidden window settles the mark immediately,
+while reading/content readiness still gates input. See the
+[entrance contract](../../../../../design/reading-entrance-choreography.md).
+
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services and send callback; it has no voice entrance. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
 Dock and history clear submitted text, directory mentions and ready attachment
@@ -539,7 +555,7 @@ production bell during headless verification.
 ## Reading-panel Dock
 
 Browser annotation mode temporarily lends the resident composer to the selected
-Browser card. The same native destination marker and spring center it below that
+Browser card. The same native destination marker and travel host center it below that
 card, fitting its column. Page focus remains with selection until an element or
 region is chosen, then the text editor receives focus. A separate ephemeral text
 draft describes that selection; normal Thread and Moku drafts remain retained.
@@ -570,8 +586,11 @@ opening an activity does not make that activity its target. Folding the selected
 card, suppression, losing the selected card's eligibility or starting completion
 promotion restores the workspace-centered input. A first execution in main with
 no expanded activity does not move it. Horizontal travel into a target column
-uses a spring (620ms response, 0.78 damping fraction) for a gentler acceleration,
-braking and a small settling rebound. Shell sizing and return retain the
+uses a 520ms native keyframe curve with one restrained settling rebound. Its
+overshoot is 2.5% of the remaining travel, capped at 6 logical points; the peak
+is at 76% of the timeline, followed by a zero-velocity return to the target.
+Corrections below 12pt keep their existing non-overshooting curve. Vertical
+descent retains its independent, non-bouncing timing. Shell sizing retains the
 Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
 travel, and Reduce Motion disables spatial animation. Stacked layouts share the
 panels' full column width and keep the same bottom reading baseline. Composer
@@ -607,15 +626,16 @@ The horizontal spring adjustment was reviewed against the reported recording
 tests, existing regression runs, live animation acceptance or hosted CI were run
 for that adjustment; its rendered feel remains to be confirmed in the app.
 
-Primary reading entry uses the shared 420ms emphasized curve for the collapsed
-Dock's position. Its composer stays unmounted until the reading panel/title handoff
+Primary reading entry lowers the collapsed Dock with its native 420ms
+ease-in/ease-out curve. Its composer stays unmounted until the reading panel/title handoff
 finishes and the main document is ready, then the folded Agent workspace
 commits. That visit-scoped boundary admits the Sidecard reveal (380ms). If its
 execution column owns the Dock, the compact Moku travels there first; the actual
-horizontal animation's removed completion then admits input expansion (420ms).
+horizontal animation's final completion, including the rebound, then admits the
+Harness flip and subsequent input expansion (420ms each).
 The native geometry bridge fences completion to the current destination revision,
 and the workspace retains the existing route-visit admission check. A folded,
-ineligible or absent execution Sidecard admits input at the layout commit without
+ineligible or absent execution Sidecard releases the identity stage at layout commit without
 a travel wait. Once input is admitted, later card choices move the retained editor
 without folding it. Reduce Motion and direct resizing settle without a delay.
 Scene-level input admission also gates interaction restoration,
@@ -756,6 +776,12 @@ Direct Thread sends admit three-dot orbit feedback as soon as the Dock captures
 the submission. Open input hides the orbit, including retiring dot ink; closing
 input reveals applicable pending/running feedback without waiting for the
 retained editor to unmount. The pinned editor keeps its own Send/Stop controls.
+Agent detail's persistent input suppresses this feedback for its whole ownership
+lifetime, including reading travel and the Harness flip before input opens.
+Entry, replacement and return therefore cannot mistake delayed editor admission
+for a user-closed input or reveal retained orbit ink. Ordinary closed-input
+running/submission feedback and the running story remain unchanged. See the
+[recording diagnosis and headless limits](../../../../../design/agent-detail-entry-orbit.md).
 This feedback skips
 the running choreography's initial three-beat prelude; it does not grant Stop
 authority, consume a draft or navigate before a confirmed receipt. Failure or
@@ -769,7 +795,8 @@ An accepted exact-execution continuation retains the previous Dock column,
 expanded shell and Harness logo seat while its new reading visit prepares. Native column
 markers belong to a route and publish only after auxiliary layout admission;
 retained outgoing Report markers cannot overwrite the destination. The Dock
-travels once to that committed column with a monotone curve. Replacements use
+travels to that committed column with one bounded settling rebound, without
+adding an intermediate layout destination. Replacements use
 the currently presented horizontal position; resize, dragging, deactivation and
 Reduce Motion settle travel directly. This preserves the existing draft,
 receipt, input-readiness and late-callback fences. See the
