@@ -481,7 +481,14 @@ formatting and is preserved by native partial copies. Selection, Select All and
 copy belong to the active paragraph, code block or table cell; dragging does not
 join selections across blocks. The document context menu's Copy Markdown action
 still copies the complete source. List marker widths and table inline-code padding participate in actual
-layout measurements. Footnote returns reveal references through nested table and
+layout measurements. Inline code keeps its 5pt edge padding with the adjacent
+code text at word breaks; long code still wraps using native TextKit rules.
+Its 3pt rounded background is painted separately for each visual line segment,
+bounded by the actual code glyphs rather than selection rectangles extending to
+the line edge. Padding-only fragments in extremely narrow containers paint no
+background. Characters, link attributes and native selection remain in the text
+storage, and Copy continues to omit the synthetic padding cells.
+Footnote returns reveal references through nested table and
 conversation viewports. Run the [Markdown native replay](../../../../../tools/verification/reading-presentation/README.md#markdown-reading-regressions)
 for production rendering, selection, copying and navigation fixtures.
 
