@@ -263,25 +263,28 @@ rather than becoming reading seats: a camera at the old ordinary fit or an
 automatic clamp recenters to the new ordinary fit after a same-scale width
 shrink, while a persistent vertical seat created by a height shrink keeps its y
 and takes only the new ordinary x. That seat survives later automatic growth
-until explicit return, retained framing, manual framing, viewport change or
-reset. A distinct retained target still survives local edits. A shrink arriving
-before the grow target settles keeps that pending target; a later layout revision
-or explicit return re-evaluates the automatic clamp. This pending retention is
-the accepted behavior for now; it is not re-evaluated merely because the target
-settles. A footprint revision arriving before insertion framing completes keeps
-the pending collection fit and resolves it against the latest bounds. It cannot
-retain the old or partially animated camera as a new reading position.
-Consecutive reading-preserving revisions carry their target forward rather than
-repeatedly sampling intermediate motion; explicit return and restoration take
-precedence over reading retention.
+until an explicit return, manual framing, viewport change or reset. Retained
+framing resets automatic provenance but keeps the current view as a new
+intentional baseline, so a later local edit preserves that view instead of
+resurrecting the old automatic seat. A distinct retained target still survives
+local edits. A shrink arriving before the grow target settles keeps that pending
+target; a later layout revision or explicit return re-evaluates the automatic
+clamp. This pending retention is the accepted behavior for now; it is not
+re-evaluated merely because the target settles. A footprint revision arriving
+before insertion framing completes keeps the pending collection fit and resolves
+it against the latest bounds. It cannot retain the old or partially animated
+camera as a new reading position. Consecutive reading-preserving revisions carry
+their target forward rather than repeatedly sampling intermediate motion;
+explicit return and restoration take precedence over reading retention.
 
 **Automatic focus UX sign-off.** Any height shrink intentionally creates a
 persistent vertical seat, including ordinary card height reduction rather than
-only row deletion. A retained seat keeps its y until an explicit return,
-retained framing, manual framing, viewport change or reset. A grow target that
-is still pending when a shrink arrives keeps its pending translation until a
-later layout revision or explicit return, so it may remain at an automatic
-clamp. These are intentional trade-offs, not missing refits.
+only row deletion. A retained seat keeps its y until an explicit return, manual
+framing, viewport change or reset; retained framing converts the current view
+into an intentional baseline rather than reverting to ordinary fit. A grow
+target that is still pending when a shrink arrives keeps its pending
+translation until a later layout revision or explicit return, so it may remain
+at an automatic clamp. These are intentional trade-offs, not missing refits.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 

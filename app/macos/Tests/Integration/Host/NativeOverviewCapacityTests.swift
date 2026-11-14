@@ -303,14 +303,17 @@ struct NativeOverviewCapacityTests {
     @Test func persistentVerticalSeatSurvivesRenderedWidthShrink() async throws {
         let fixture = CapacityFixture()
         fixture.size = .init(width: 1341, height: 906)
-        fixture.items = [.init(id: "card", columns: 2, rows: 2)]
+        fixture.items = [.init(id: "card", columns: 2, rows: 3)]
         let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1341, height: 906)
         defer { window.close() }
         try await settle(fixture, in: window)
         let seatY = fixture.state.camera.liveTransform.y
+        let tolerance = 1 / window.backingScaleFactor
+        fixture.items[0].rows = 2
+        try await settle(fixture, in: window)
+        #expect(abs(fixture.state.camera.liveTransform.y - seatY) < tolerance)
         fixture.items[0].rows = 1
         try await settle(fixture, in: window)
-        let tolerance = 1 / window.backingScaleFactor
         #expect(abs(fixture.state.camera.liveTransform.y - seatY) < tolerance)
         fixture.items[0].columns = 1
         try await settle(fixture, in: window)

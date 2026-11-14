@@ -431,6 +431,13 @@ public final class NativeOverviewCamera {
             retained = .init(transform: recentered, manual: false)
         }
         commit(retained)
+        if !retained.manual {
+            // Retained framing is an intentional baseline, not an automatic
+            // seat. Keeping it in readingFit makes the target match the live
+            // view and lets a later local edit preserve that view.
+            readingFit = .init(transform: retained.transform, content: content,
+                               retainedX: true, retainedY: true)
+        }
     }
 
     public func restore(view: NativeOverviewCameraState, content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
@@ -586,7 +593,15 @@ public final class NativeOverviewCamera {
         }
         if preserveFraming {
             framingRetained = true
-            readingFit = nil
+            if let live, !live.manual, !returning, !pendingAutoFit {
+                // Preserve the current view as the new intentional baseline.
+                // The old automatic seat provenance must not survive, but the
+                // visible translation should not jump to the ordinary fit.
+                readingFit = .init(transform: live.transform, content: content,
+                                   retainedX: true, retainedY: true)
+            } else {
+                readingFit = nil
+            }
             lastAutomaticFit = nil
         }
         if layoutChanged { framingRevision += 1 }
