@@ -284,15 +284,61 @@ struct NativeMokuExecutionLinkTests {
         let scroll = try #require(textViews(root).first {
             !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
         }?.enclosingScrollView)
+        let window = try #require(root.window)
         var settledFrames = 0
         var frames = 0
         var samples: [String] = []
+        func nativeBottom() -> CGFloat? {
+            guard let document = scroll.documentView else { return nil }
+            var beyondBottom = scroll.contentView.bounds
+            beyondBottom.origin.y = document.frame.maxY + beyondBottom.height + max(0, scroll.contentInsets.bottom)
+            return scroll.contentView.constrainBoundsRect(beyondBottom).minY
+        }
         func sample() -> String {
             "time=\(ProcessInfo.processInfo.systemUptime) control=\(String(describing: fixture.scroll)) "
-                + "clip=\(scroll.contentView.bounds) presented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds))"
+                + "clip=\(scroll.contentView.bounds) presented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
+                + "nativeBottom=\(String(describing: nativeBottom()))"
         }
-        let initial = sample()
-        try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
+        let preparationInitial = sample()
+        var preparationFrames = 0
+        var preparedFrames = 0
+        var preparationSamples: [String] = []
+        var originAttempted = false
+        var originError: (any Error)?
+        var initial = preparationInitial
+        // A clamped traversal target can outlive the size estimate that produced
+        // it. Commit that request before issuing the opposite scroll request.
+        let preparation = SwiftUIReplay.FrameObserver(view: scroll) {
+            guard !originAttempted else { return true }
+            preparationFrames += 1
+            if preparationSamples.count < 32 { preparationSamples.append(sample()) }
+            if let control = fixture.scroll, let value = control["value"],
+               let top = value["top"]?.numberValue, let height = value["height"]?.numberValue,
+               let viewport = value["viewport"]?.numberValue, let bottom = nativeBottom(),
+               let presented = scroll.contentView.layer?.presentation(),
+               scroll.window === window, !scroll.isHiddenOrHasHiddenAncestor,
+               control["pending"] == .bool(false), value["following"] == .bool(false),
+               height - viewport > 5, bottom > 5, abs(max(0, height - viewport) - top) < 5,
+               abs(scroll.contentView.bounds.minY - bottom) < 5,
+               abs(presented.bounds.minY - bottom) < 5 { preparedFrames += 1 }
+            else { preparedFrames = 0 }
+            guard preparedFrames >= 2 else { return false }
+            originAttempted = true
+            initial = sample()
+            do { try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0)) }
+            catch { originError = error }
+            return true
+        }
+        defer { preparation.stop() }
+        do {
+            try await SwiftUIReplay.wait(driveLayout: false) { originAttempted }
+            if let originError { throw originError }
+        } catch {
+            let stage = originAttempted ? "origin-request" : "prior-bottom"
+            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_PREPARATION_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=\(stage) frames=\(preparationFrames) preparedFrames=\(preparedFrames) initial={\(preparationInitial)} samples=\(preparationSamples) final={\(sample())} error=\(error)")
+            throw error
+        }
+        print("MOKU_EXECUTION_LINK_MANUAL_ORIGIN_REQUESTED harness=\(fixture.harness) phrase=\(phrase) preparationFrames=\(preparationFrames) at=\(ProcessInfo.processInfo.systemUptime)")
         // Registration can report the new offset before the previous bottom
         // request leaves the compositor. Commit the manual reading position
         // before a subsequent projection can lay out against that old request.
@@ -313,7 +359,7 @@ struct NativeMokuExecutionLinkTests {
         do {
             try await SwiftUIReplay.wait(driveLayout: false) { settledFrames >= 2 }
         } catch {
-            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_FAILURE harness=\(fixture.harness) phrase=\(phrase) frames=\(frames) settledFrames=\(settledFrames) initial={\(initial)} samples=\(samples) final={\(sample())}")
+            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=origin-settlement frames=\(frames) settledFrames=\(settledFrames) preparationFrames=\(preparationFrames) initial={\(initial)} samples=\(samples) final={\(sample())}")
             throw error
         }
         print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_COMMITTED harness=\(fixture.harness) phrase=\(phrase) frames=\(frames) final={\(sample())}")

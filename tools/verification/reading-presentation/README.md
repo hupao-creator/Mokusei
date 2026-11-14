@@ -924,9 +924,13 @@ same attached native reader's model and presentation offsets both reach its live
 constrained bottom within 5pt on two consecutive display callbacks. A transient
 short layout with bottom zero cannot pass. All original withheld-content and
 full-paragraph assertions remain.
-After traversing a reply, the manual return to its top must commit in both the
-native clip view and its presentation layer across two display callbacks before
-the next content update; a refreshed control descriptor alone is insufficient.
+After traversing a reply, its final clamped bottom request must first commit in
+the control, native clip view and presentation layer across two display callbacks.
+The second callback synchronously issues the return to top exactly once. This checks
+a displayed boundary between the requests when a lazy height estimate shrinks.
+The return must then commit across two display callbacks before the next content
+update; a refreshed control descriptor alone is insufficient. Preparation and
+return retain independent 3s deadlines and distinct failure receipts.
 `MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED` must be emitted for every Harness.
 No production environment flag replaces the animated path with an immediate jump.
 For diagnosis, `MOKUSEI_TIMELINE_PROFILE=1 python tools/verification/reading-presentation/run.py --moku-execution-links --native-owned`
