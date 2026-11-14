@@ -8,6 +8,9 @@ public extension EnvironmentValues {
     @Entry var nativeThreadIdentityKey: String? = nil
     @Entry var nativeThreadPreparing = false
     @Entry var nativeThreadReaderPreloading = false
+    /// Only timeline bodies consume this visit-owned entrance; heading ink has
+    /// already arrived through the independent title/emoji handoff.
+    @Entry var nativeThreadBodyEntranceHidden = false
     @Entry var nativeThreadReservesHistoryRail = false
     @Entry var nativeThreadIdentityVisit: NativeThreadIdentityVisit? = nil
 }
@@ -312,9 +315,7 @@ public struct NativeThreadPreparedReader<Content: View>: View {
             // navigation, input and secondary-surface admission. Readiness is
             // latched per visit, independently of execution/streaming revisions.
             content().environment(\.nativeThreadPreparing, false)
-                .opacity(entranceHidden ? 0 : 1)
-                .allowsHitTesting(!entranceHidden)
-                .accessibilityHidden(entranceHidden)
+                .environment(\.nativeThreadBodyEntranceHidden, entranceHidden)
                 .onPreferenceChange(NativeReadingContentStatusKey.self) { status in
                     if status.ready { contentReady = true }
                 }

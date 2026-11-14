@@ -163,11 +163,13 @@ contributes readiness, and pending Markdown parsing or loading placeholders
 keep the gate closed. Loaded empty/error states can finish without Markdown.
 Agent loading placeholders keep the gate pending even alongside loaded sibling
 rows and during their visual grace period. The identity-only reader cannot
-admit content. Agent main readers fade their first readable content in with the
+admit content. Agent main readers fade only their first readable timeline body in with the
 same 200ms ease-out opacity timing as Report referenced readers. Admission
 waits for arrival and content readiness for both running and completed executions;
 loading remains visible while data prepares. Readiness is latched once per
 reader visit, so streaming, retries and history changes do not replay the fade.
+The timeline toolbar (including title, emoji and header controls), history rail
+and scroll container stay visible; the title/emoji handoff never fades again.
 The transparent preparation frame excludes hit testing and accessibility.
 The fade changes only opacity and preserves layout and scroll ownership. Reduce Motion and inactive scenes settle the fade
 immediately while preserving readiness rules. See the
