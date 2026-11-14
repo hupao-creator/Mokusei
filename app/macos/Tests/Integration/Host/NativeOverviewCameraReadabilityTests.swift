@@ -839,6 +839,8 @@ struct NativeOverviewCameraReadabilityTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, expected))
+        #expect(!camera.isAnimating)
+        #expect(!camera.hasScheduledMotion)
     }
 
     private func viewportCenter(_ viewport: NativeOverviewViewport) -> CGPoint {

@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import QuartzCore
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -280,8 +281,100 @@ struct NativeMokuExecutionLinkTests {
             offset = min(bottom, offset + max(50, viewport / 2))
         }
         #expect(seen == Set((0..<count).map { "\(phrase) \($0)\(paragraphSuffix)" }))
-        try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
-        try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5 }
+        let scroll = try #require(textViews(root).first {
+            !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
+        }?.enclosingScrollView)
+        let window = try #require(root.window)
+        var settledFrames = 0
+        var frames = 0
+        var samples: [String] = []
+        func nativeBottom() -> CGFloat? {
+            guard let document = scroll.documentView else { return nil }
+            var beyondBottom = scroll.contentView.bounds
+            beyondBottom.origin.y = document.frame.maxY + beyondBottom.height + max(0, scroll.contentInsets.bottom)
+            return scroll.contentView.constrainBoundsRect(beyondBottom).minY
+        }
+        func withinTolerance(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
+            abs(lhs.minX - rhs.minX) < 5 && abs(lhs.minY - rhs.minY) < 5
+                && abs(lhs.width - rhs.width) < 5 && abs(lhs.height - rhs.height) < 5
+        }
+        func sample() -> String {
+            "time=\(ProcessInfo.processInfo.systemUptime) control=\(String(describing: fixture.scroll)) "
+                + "documentFrame=\(String(describing: scroll.documentView?.frame)) documentBounds=\(String(describing: scroll.documentView?.bounds)) "
+                + "clip=\(scroll.contentView.bounds) presented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
+                + "nativeBottom=\(String(describing: nativeBottom())) constrainedClip=\(scroll.contentView.constrainBoundsRect(scroll.contentView.bounds))"
+        }
+        let preparationInitial = sample()
+        var preparationFrames = 0
+        var preparedFrames = 0
+        var preparationSamples: [String] = []
+        var previousGeometry: (frame: CGRect, bounds: CGRect, clip: CGRect)?
+        var originAttempted = false
+        var originError: (any Error)?
+        var initial = preparationInitial
+        // A numeric target does not pin its old offset across content-size changes.
+        // Present stable current geometry before issuing the explicit return.
+        let preparation = SwiftUIReplay.FrameObserver(view: scroll) {
+            guard !originAttempted else { return true }
+            preparationFrames += 1
+            if preparationSamples.count < 32 { preparationSamples.append(sample()) }
+            if let control = fixture.scroll, let value = control["value"],
+               let document = scroll.documentView, let bottom = nativeBottom(),
+               let presented = scroll.contentView.layer?.presentation(),
+               scroll.window === window, !scroll.isHiddenOrHasHiddenAncestor,
+               control["pending"] == .bool(false), value["following"] == .bool(false),
+               bottom > 5, withinTolerance(scroll.contentView.bounds, scroll.contentView.constrainBoundsRect(scroll.contentView.bounds)),
+               withinTolerance(presented.bounds, scroll.contentView.bounds) {
+                let geometry = (frame: document.frame, bounds: document.bounds, clip: scroll.contentView.bounds)
+                if let previousGeometry, previousGeometry.frame == geometry.frame,
+                   previousGeometry.bounds == geometry.bounds, previousGeometry.clip == geometry.clip { preparedFrames += 1 }
+                else { preparedFrames = 1 }
+                previousGeometry = geometry
+            } else {
+                preparedFrames = 0
+                previousGeometry = nil
+            }
+            guard preparedFrames >= 2 else { return false }
+            originAttempted = true
+            initial = sample()
+            do { try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0)) }
+            catch { originError = error }
+            return true
+        }
+        defer { preparation.stop() }
+        do {
+            try await SwiftUIReplay.wait(driveLayout: false) { originAttempted }
+            if let originError { throw originError }
+        } catch {
+            let stage = originAttempted ? "origin-request" : "prior-presentation"
+            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_PREPARATION_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=\(stage) frames=\(preparationFrames) preparedFrames=\(preparedFrames) initial={\(preparationInitial)} samples=\(preparationSamples) final={\(sample())} error=\(error)")
+            throw error
+        }
+        print("MOKU_EXECUTION_LINK_MANUAL_ORIGIN_REQUESTED harness=\(fixture.harness) phrase=\(phrase) preparationFrames=\(preparationFrames) at=\(ProcessInfo.processInfo.systemUptime)")
+        // Registration can report the new offset before the previous bottom
+        // request leaves the compositor. Commit the manual reading position
+        // before a subsequent projection can lay out against that old request.
+        let observer = SwiftUIReplay.FrameObserver(view: scroll) {
+            frames += 1
+            if samples.count < 32 { samples.append(sample()) }
+            if let control = fixture.scroll, let value = control["value"],
+               let top = value["top"]?.numberValue, let inset = value["insetTop"]?.numberValue,
+               let presented = scroll.contentView.layer?.presentation(),
+               control["pending"] == .bool(false), value["following"] == .bool(false),
+               value["showLatest"] == .bool(true), abs(top) < 5,
+               abs(scroll.contentView.bounds.minY + CGFloat(inset)) < 5,
+               abs(presented.bounds.minY + CGFloat(inset)) < 5 { settledFrames += 1 }
+            else { settledFrames = 0 }
+            return settledFrames >= 2
+        }
+        defer { observer.stop() }
+        do {
+            try await SwiftUIReplay.wait(driveLayout: false) { settledFrames >= 2 }
+        } catch {
+            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=origin-settlement frames=\(frames) settledFrames=\(settledFrames) preparationFrames=\(preparationFrames) initial={\(initial)} samples=\(samples) final={\(sample())}")
+            throw error
+        }
+        print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_COMMITTED harness=\(fixture.harness) phrase=\(phrase) frames=\(frames) final={\(sample())}")
     }
     private func click(_ label: String, in root: NSView) throws {
         if let capsule = element(id: "moku-note-execution-link", nativeOnly: true, label: label, in: root) {
@@ -682,19 +775,70 @@ struct NativeMokuExecutionLinkTests {
         let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640)
         defer { window.close() }
         let root = try #require(window.contentView)
+        let profileEnabled = ProcessInfo.processInfo.environment["MOKUSEI_TIMELINE_PROFILE"] == "1"
         var receipts: [JSONValue] = []
+        var jumpSamples: [JSONValue] = []
+        var jumpFrameCount = 0
+        var jumpTerminal: JSONValue = .null
+        func visibleReplyReader() -> NSScrollView? {
+            textViews(root).first {
+                !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                    && ($0.string.hasPrefix("STREAMING CONTENT ") || $0.string.hasPrefix("NEW STREAMING CONTENT "))
+            }?.enclosingScrollView
+        }
+        func rectValue(_ rect: CGRect) -> JSONValue {
+            .object(["x": .number(Double(rect.minX)), "y": .number(Double(rect.minY)),
+                     "width": .number(Double(rect.width)), "height": .number(Double(rect.height))])
+        }
+        func nativeBottom(_ scroll: NSScrollView) -> CGFloat? {
+            guard let document = scroll.documentView else { return nil }
+            var beyondBottom = scroll.contentView.bounds
+            beyondBottom.origin.y = document.frame.maxY + beyondBottom.height + max(0, scroll.contentInsets.bottom)
+            return scroll.contentView.constrainBoundsRect(beyondBottom).minY
+        }
+        func nativeGeometry(_ scroll: NSScrollView) -> JSONValue {
+            let document = scroll.documentView
+            let clip = scroll.contentView
+            let insets = scroll.contentInsets
+            let documentPresentation = document?.layer?.presentation()
+            let clipPresentation = clip.layer?.presentation()
+            return .object([
+                "attached": .bool(scroll.window === window), "hidden": .bool(scroll.isHiddenOrHasHiddenAncestor),
+                "documentFrame": document.map { rectValue($0.frame) } ?? .null,
+                "documentBounds": document.map { rectValue($0.bounds) } ?? .null,
+                "documentPresentedFrame": documentPresentation.map { rectValue($0.frame) } ?? .null,
+                "documentPresentedBounds": documentPresentation.map { rectValue($0.bounds) } ?? .null,
+                "documentFlipped": document.map { JSONValue.bool($0.isFlipped) } ?? .null,
+                "clipBounds": rectValue(clip.bounds),
+                "clipPresentedBounds": clipPresentation.map { rectValue($0.bounds) } ?? .null,
+                "insets": .object(["top": .number(Double(insets.top)), "bottom": .number(Double(insets.bottom)),
+                                   "left": .number(Double(insets.left)), "right": .number(Double(insets.right))]),
+                "nativeBottom": nativeBottom(scroll).map { JSONValue.number(Double($0)) } ?? .null
+            ])
+        }
         @MainActor func record(_ phase: String, inputBytes: Int? = nil) {
+            let native = visibleReplyReader()
+            let presented = native?.contentView.layer?.presentation()
             receipts.append(.object([
                 "phase": .text(phase), "at": .number(ProcessInfo.processInfo.systemUptime),
                 "revision": .integer(fixture.revision),
                 "inputUTF8Bytes": inputBytes.map { JSONValue.integer($0) } ?? .null,
+                "nativeTop": native.map { JSONValue.number(Double($0.contentView.bounds.minY)) } ?? .null,
+                "presentedTop": presented.map { JSONValue.number(Double($0.bounds.minY)) } ?? .null,
                 "scroll": fixture.scroll ?? .null
             ]))
         }
         defer {
             record("exit")
             do {
-                let data = try JSONValue.object(["harness": .text(harness), "stages": .array(receipts)]).encodedData()
+                var report: [JSONText: JSONValue] = ["harness": .text(harness), "profileEnabled": .bool(profileEnabled),
+                                                    "stages": .array(receipts)]
+                if profileEnabled {
+                    report["jumpFrameCount"] = .integer(jumpFrameCount)
+                    report["jumpFrames"] = .array(jumpSamples)
+                    report["jumpTerminal"] = jumpTerminal
+                }
+                let data = try JSONValue.object(report).encodedData()
                 FileHandle.standardOutput.write(Data("MOKU_EXECUTION_LINK_RECEIPTS ".utf8) + data + Data("\n".utf8))
             } catch {
                 Issue.record(Comment(rawValue: "Could not encode execution-link receipts: \(error)"))
@@ -767,30 +911,86 @@ struct NativeMokuExecutionLinkTests {
         let jumpHeight = try #require(beforeJump["height"]?.numberValue)
         let jumpViewport = try #require(beforeJump["viewport"]?.numberValue)
         let jumpBottom = max(0, jumpHeight - jumpViewport)
+        if profileEnabled {
+            try #require(beforeJump["diagnostics"]?.objectValue != nil,
+                         "Timeline profile reached the test but its production scroll diagnostics are missing")
+        }
+        let native = try #require(visibleReplyReader())
+        let nativeStart = native.contentView.bounds.minY
         var successorDelivered = false
         var successorError: (any Error)?
+        func lastReplyVisible() -> Bool {
+            guard let document = native.documentView else { return false }
+            return textViews(document).contains {
+                $0.enclosingScrollView === native && !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                    && $0.string == "NEW STREAMING CONTENT 219"
+            }
+        }
+        func jumpSample(_ phase: String) -> JSONValue {
+            let control = fixture.scroll
+            return .object([
+                "phase": .text(phase), "at": .number(ProcessInfo.processInfo.systemUptime),
+                "revision": .integer(fixture.revision), "successorDelivered": .bool(successorDelivered),
+                "pending": control?["pending"] ?? .null, "value": control?["value"] ?? .null,
+                "native": nativeGeometry(native), "frozenBottom": .number(jumpBottom),
+                "nativeStart": .number(Double(nativeStart)), "lastReplyVisible": .bool(lastReplyVisible())
+            ])
+        }
+        if profileEnabled { jumpSamples.append(jumpSample("before-jump")) }
         let jumpFrames = SwiftUIReplay.FrameObserver(view: root) {
-            guard let value = fixture.scroll?["value"], let top = value["top"]?.numberValue,
-                  value["following"] == .bool(true), top > jumpStart + 1, top < jumpBottom - 1 else { return false }
+            jumpFrameCount += 1
+            if profileEnabled && jumpSamples.count < 120 {
+                jumpSamples.append(jumpSample(successorDelivered ? "post-update" : "jump"))
+            }
+            guard !successorDelivered,
+                  let value = fixture.scroll?["value"], let top = value["top"]?.numberValue,
+                  let height = value["height"]?.numberValue, let viewport = value["viewport"]?.numberValue,
+                  let bottom = nativeBottom(native), let presented = native.contentView.layer?.presentation(),
+                  native.window === window, !native.isHiddenOrHasHiddenAncestor,
+                  value["following"] == .bool(true), top > jumpStart + 1, top < jumpBottom - 1,
+                  top < max(0, height - viewport) - 1,
+                  native.contentView.bounds.minY > nativeStart + 1, native.contentView.bounds.minY < bottom - 1,
+                  presented.bounds.minY > nativeStart + 1, presented.bounds.minY < bottom - 1 else { return false }
             record("jump-latest")
             // Deliver in this display callback: resuming an async waiter could
             // otherwise happen after the animated transition has already ended.
             do { try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput) }
             catch { successorError = error }
             successorDelivered = true
-            return true
+            return false
         }
-        defer { jumpFrames.stop() }
-        try fixture.perform(jump, "activate")
-        try await SwiftUIReplay.wait(driveLayout: false) { successorDelivered }
-        if let successorError { throw successorError }
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
-        // Manual traversal below takes scrolling ownership. First require the
-        // animated path to settle at the updated document's bottom by itself.
-        try await SwiftUIReplay.wait(driveLayout: false) {
-            guard let value = fixture.scroll?["value"], let height = value["height"]?.numberValue,
-                  let top = value["top"]?.numberValue, let viewport = value["viewport"]?.numberValue else { return false }
-            return value["following"] == .bool(true) && abs(max(0, height - viewport) - top) < 5
+        defer {
+            jumpFrames.stop()
+            if profileEnabled && jumpTerminal == .null { jumpTerminal = jumpSample("exit") }
+        }
+        do {
+            try fixture.perform(jump, "activate")
+            if profileEnabled { jumpSamples.append(jumpSample("activation-returned")) }
+            try await SwiftUIReplay.wait(driveLayout: false) { successorDelivered }
+            if let successorError { throw successorError }
+            try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
+            // Manual traversal below takes scrolling ownership. First require the
+            // final reply paragraph at the native bottom on two display frames.
+            // SwiftUI's projected geometry can disagree with the mounted document.
+            var updatedBottomFrames = 0
+            let settlementFrames = SwiftUIReplay.FrameObserver(view: root) {
+                if fixture.scroll?["value"]?["following"] == .bool(true),
+                   let bottom = nativeBottom(native), let presented = native.contentView.layer?.presentation(),
+                   native.window === window, !native.isHiddenOrHasHiddenAncestor,
+                   bottom - nativeStart > 5, lastReplyVisible(),
+                   abs(native.contentView.bounds.minY - bottom) < 5,
+                   abs(presented.bounds.minY - bottom) < 5 { updatedBottomFrames += 1 }
+                else { updatedBottomFrames = 0 }
+                return false
+            }
+            defer { settlementFrames.stop() }
+            try await SwiftUIReplay.wait(driveLayout: false) { updatedBottomFrames >= 2 }
+            if profileEnabled { jumpTerminal = jumpSample("settled") }
+            jumpFrames.stop()
+        } catch {
+            if profileEnabled { jumpTerminal = jumpSample("failed") }
+            jumpFrames.stop()
+            throw error
         }
         record("jump-following-updated-bottom")
         try await requireEveryReplyBlock("NEW STREAMING CONTENT", count: 220, fixture: fixture, in: root)

@@ -251,6 +251,7 @@ private struct ThreadHistoryPreview: View {
                     .foregroundStyle(NativePalette.thread.muted.swiftUI)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading).padding(12)
         .background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(NativePalette.thread.line.swiftUI))
