@@ -264,7 +264,6 @@ struct NativeMokuExecutionLinkTests {
         // and require every distinct paragraph, not just the mounted subset.
         var seen = Set<String>()
         var offset = 0.0
-        var acceptedPosition: (top: Double, inset: Double)?
         for _ in 0..<count {
             try fixture.perform(#require(fixture.scroll), "scrollTo", .number(offset))
             try await SwiftUIReplay.wait {
@@ -276,13 +275,11 @@ struct NativeMokuExecutionLinkTests {
                 !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
             }.map(\.string))
             let value = try #require(fixture.scroll?["value"])
-            acceptedPosition = (top: try #require(value["top"]?.numberValue), inset: try #require(value["insetTop"]?.numberValue))
             let height = try #require(value["height"]?.numberValue), viewport = try #require(value["viewport"]?.numberValue)
             let bottom = max(0, height - viewport)
             if offset >= bottom { break }
             offset = min(bottom, offset + max(50, viewport / 2))
         }
-        let accepted = try #require(acceptedPosition)
         #expect(seen == Set((0..<count).map { "\(phrase) \($0)\(paragraphSuffix)" }))
         let scroll = try #require(textViews(root).first {
             !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
@@ -297,41 +294,46 @@ struct NativeMokuExecutionLinkTests {
             beyondBottom.origin.y = document.frame.maxY + beyondBottom.height + max(0, scroll.contentInsets.bottom)
             return scroll.contentView.constrainBoundsRect(beyondBottom).minY
         }
-        func constrainedAcceptedOrigin() -> CGFloat? {
-            guard scroll.documentView != nil else { return nil }
-            var target = scroll.contentView.bounds
-            target.origin.y = CGFloat(accepted.top - accepted.inset)
-            return scroll.contentView.constrainBoundsRect(target).minY
+        func withinTolerance(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
+            abs(lhs.minX - rhs.minX) < 5 && abs(lhs.minY - rhs.minY) < 5
+                && abs(lhs.width - rhs.width) < 5 && abs(lhs.height - rhs.height) < 5
         }
         func sample() -> String {
             "time=\(ProcessInfo.processInfo.systemUptime) control=\(String(describing: fixture.scroll)) "
+                + "documentFrame=\(String(describing: scroll.documentView?.frame)) documentBounds=\(String(describing: scroll.documentView?.bounds)) "
                 + "clip=\(scroll.contentView.bounds) presented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
-                + "nativeBottom=\(String(describing: nativeBottom())) acceptedTop=\(accepted.top) acceptedInset=\(accepted.inset) "
-                + "constrainedAcceptedOrigin=\(String(describing: constrainedAcceptedOrigin()))"
+                + "nativeBottom=\(String(describing: nativeBottom())) constrainedClip=\(scroll.contentView.constrainBoundsRect(scroll.contentView.bounds))"
         }
         let preparationInitial = sample()
         var preparationFrames = 0
         var preparedFrames = 0
         var preparationSamples: [String] = []
+        var previousGeometry: (frame: CGRect, bounds: CGRect, clip: CGRect)?
         var originAttempted = false
         var originError: (any Error)?
         var initial = preparationInitial
-        // Manual scrolling owns the last accepted position. Later height growth
-        // must not turn this preparation into another request to follow the bottom.
+        // A numeric target does not pin its old offset across content-size changes.
+        // Present stable current geometry before issuing the explicit return.
         let preparation = SwiftUIReplay.FrameObserver(view: scroll) {
             guard !originAttempted else { return true }
             preparationFrames += 1
             if preparationSamples.count < 32 { preparationSamples.append(sample()) }
             if let control = fixture.scroll, let value = control["value"],
-               let top = value["top"]?.numberValue, let inset = value["insetTop"]?.numberValue,
-               let target = constrainedAcceptedOrigin(), let bottom = nativeBottom(),
+               let document = scroll.documentView, let bottom = nativeBottom(),
                let presented = scroll.contentView.layer?.presentation(),
                scroll.window === window, !scroll.isHiddenOrHasHiddenAncestor,
                control["pending"] == .bool(false), value["following"] == .bool(false),
-               bottom > 5, abs(CGFloat(top - inset) - target) < 5,
-               abs(scroll.contentView.bounds.minY - target) < 5,
-               abs(presented.bounds.minY - target) < 5 { preparedFrames += 1 }
-            else { preparedFrames = 0 }
+               bottom > 5, withinTolerance(scroll.contentView.bounds, scroll.contentView.constrainBoundsRect(scroll.contentView.bounds)),
+               withinTolerance(presented.bounds, scroll.contentView.bounds) {
+                let geometry = (frame: document.frame, bounds: document.bounds, clip: scroll.contentView.bounds)
+                if let previousGeometry, previousGeometry.frame == geometry.frame,
+                   previousGeometry.bounds == geometry.bounds, previousGeometry.clip == geometry.clip { preparedFrames += 1 }
+                else { preparedFrames = 1 }
+                previousGeometry = geometry
+            } else {
+                preparedFrames = 0
+                previousGeometry = nil
+            }
             guard preparedFrames >= 2 else { return false }
             originAttempted = true
             initial = sample()
@@ -344,7 +346,7 @@ struct NativeMokuExecutionLinkTests {
             try await SwiftUIReplay.wait(driveLayout: false) { originAttempted }
             if let originError { throw originError }
         } catch {
-            let stage = originAttempted ? "origin-request" : "prior-position"
+            let stage = originAttempted ? "origin-request" : "prior-presentation"
             print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_PREPARATION_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=\(stage) frames=\(preparationFrames) preparedFrames=\(preparedFrames) initial={\(preparationInitial)} samples=\(preparationSamples) final={\(sample())} error=\(error)")
             throw error
         }

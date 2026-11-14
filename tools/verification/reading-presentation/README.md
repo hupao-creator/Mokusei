@@ -926,12 +926,14 @@ paragraph must also be visible in that reader. A transient short layout with
 bottom zero cannot pass. Registry geometry remains diagnostic because its
 projection can disagree with the mounted document. All original withheld-content
 and full-paragraph assertions remain.
-After traversing a reply, preparation freezes the last accepted top and inset.
-The control, native clip view and presentation layer must commit that position
-across two display callbacks, allowing only native bounds to clamp the frozen
-target if the document shrinks. A manually positioned reader does not acquire a
-new bottom target when the document grows. The second callback synchronously
-issues the return to top exactly once.
+After traversing a reply, preparation observes the current long document under
+manual ownership. Its document frame/bounds and native clip bounds must remain
+unchanged across two display callbacks; the clip model must lie within its current
+constrained range, and presentation bounds must agree with the model within 5pt.
+A [numeric scroll position](https://developer.apple.com/documentation/swiftui/scrollposition)
+does not guarantee its old offset across content-size changes, so preparation
+checks stable presentation. The second callback
+synchronously issues the return to top exactly once.
 The return must then commit across two display callbacks before the next content
 update; a refreshed control descriptor alone is insufficient. Preparation and
 return retain independent 3s deadlines and distinct failure receipts.
