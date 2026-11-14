@@ -548,6 +548,8 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
 conversation's turn index as a left-hand TOC. The selected mark is longer and
 brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
+The answer wraps naturally to at most three lines, with the title and timestamp
+remaining visible; shorter answers do not reserve unused lines.
 Restoring focus after Back does not reopen the preview. The mark and preview share
 a cancellable 100ms pointer handoff, including the gap between them; leaving both,
 unmounting or deactivating the scene retires pointer previews. The
