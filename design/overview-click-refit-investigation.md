@@ -230,31 +230,41 @@ content bounds，并为 retained target 按轴标记来源：ordinary fit/clamp 
 - 普通 fit 的 scale 不变；
 - 新普通 fit 的 x 与当前自动 x 有可见差异。
 
-命中时 x 取新普通 fit；y 若来自 prior retained seat 或明确的 height shrink 则保留并
-clamp，否则使用新普通 y。普通高度增长不会创建 retained y；随后的宽度收缩使用
-完整新普通 fit。因此同比例宽度收缩会按轴重居中，高度增长不再阻止；纯垂直行删除
-因 x 不变仍保留垂直座位。与 ordinary fit 不同的显式 retained filter/reading
-target、手动 pan/zoom、scale 变化和容量不足场景保持原策略。`retainFraming` 和
-`preserveFraming` 会同时清除 `readingFit` 与 automatic-target 记录；
-`setManualTransform` 也清除 retained target，避免 filtered edit 跳回旧
-`readingFit`。viewport 变更在 `setBounds` 同步清除两类 provenance。
-连续 shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，后续 shrink
-会重新居中。grow 目标尚未 settle 时到达的 shrink 保留 pending target；后续
-layout revision 或显式 return 再重新判断自动 clamp，这一 pending 语义由
+命中时 x 取新普通 fit；任何 height shrink 都会创建 persistent vertical seat：
+若旧 y 与新普通 y 不同，则保留旧 y 并 clamp；同一事务的 width shrink 只替换 x，
+仍保留该 seat。普通高度增长不会创建 retained y，但已有 seat 会跨后续增长保留，
+直到 explicit return、retainFraming、preserveFraming、manual、viewport 变更或
+reset。纯垂直 height shrink 因 x 不变仍保留垂直座位；height shrink + width
+shrink 同事务时 x 重居中、y 保留。与 ordinary fit 不同的显式 retained
+filter/reading target、手动 pan/zoom、scale 变化和容量不足场景保持原策略。
+`retainFraming` 和 `preserveFraming` 会同时清除 `readingFit` 与
+automatic-target 记录；`setManualTransform` 也清除 retained target，避免
+filtered edit 跳回旧 `readingFit`。viewport 变更在 `setBounds` 同步清除两类
+provenance。连续 shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，
+后续 shrink 会重新居中。grow 目标尚未 settle 时到达的 shrink 保留 pending
+target；后续 layout revision 或显式 return 再重新判断自动 clamp。该 pending
+语义是本轮接受的现状，不会仅因目标 settle 就重新评估，由
 `consecutiveFootprintChangesKeepPendingReadingTarget` 和新增 camera case 覆盖。
 
 定向诊断直接编译本 worktree 的 `NativeOverviewLayout.swift`、
 `NativeOverviewStageCoordinator.swift`、`NativeOverviewCamera.swift`，覆盖：
 原始 x=114.5→302.5 的 Canvas 顺序；2×1→1×2（宽度收缩、高度增长）；
 filtered retained target 及 filter 后 local edit；shrink→grow→shrink；
-纵向 seat 后 width shrink（保留 y）；行删除纯垂直座位；pending grow 后立即
-shrink；隐藏、交互暂停、Reduce Motion、stage 占用。所有 headless 断言通过。
+纵向 seat 后 width shrink（保留 y）；height shrink 纯垂直座位；height shrink
++ width shrink 同事务；非 row-deletion 的卡片高度缩小；连续 height shrink；
+height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 shrink；
+隐藏、交互暂停、Reduce Motion、stage 占用。所有 headless 断言通过。
 关键 camera case 已提交到 `NativeOverviewCameraReadabilityTests`：
 `sameScaleAspectChangingShrinkRecentersBothAxes`、
 `filteredEditKeepsRetainedTargetAfterVerticalSeat`、
 `shrinkGrowShrinkRecentersAfterAutomaticClamp`、
 `verticalSeatSurvivesFollowingWidthShrink`、
 `heightGrowthThenWidthShrinkUsesCompleteNarrowFit`、
+`cardHeightShrinkCreatesPersistentVerticalSeat`、
+`widthAndHeightShrinkInSameRevisionKeepsNewXAndOldY`、
+`consecutiveHeightShrinksKeepTheFirstVerticalSeat`、
+`heightSeatPersistsAcrossGrowthAndClampsAtExtremeTallAspect`、
+`extremeWideRetainedSeatStaysVisible`、
 `pendingGrowKeepsItsSeatUntilANewRevision`。实际卡片 envelope 中心的 GUI
 Canvas case 已提交到 `NativeOverviewCapacityTests`：
 `aspectChangingFootprintRecentersRenderedCard`。
@@ -262,7 +272,7 @@ Canvas case 已提交到 `NativeOverviewCapacityTests`：
 相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
 `NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
 `NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
-59 个测试全部通过（约 93 秒）。额外运行 `make check-swift` 全量 Swift
+64 个测试全部通过（约 94 秒）。额外运行 `make check-swift` 全量 Swift
 suite，结果不是绿色，不能以 focused 结果替代托管 `Complete coverage`。
 最新 final-commit run：headless 194 个测试全部通过；graphical 325 个测试有
 2 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`，

@@ -188,7 +188,7 @@ The canvas supplies both the readable fitting extent and the natural-scale exten
 
 Same-scene revisions with identical ID/outer-footprint sets refresh semantic snapshots and acknowledge structural history without acquiring a spatial stage or invoking the solver. This also applies to resize while the existing bounds remain readable. Reuse requires an assessment completed by this mounted canvas; a retained layout from an earlier host first visits the solver. The completed outcome, including an incomplete-budget fallback, is cached for exactly those placements to avoid repeatedly retrying the same quality repair. Exact viewport changes that invalidate capacity still plan normally; lifecycle revisions remain FIFO, including A→B→A and exits. `layoutSolveCount` and `geometryReuseCount` expose these distinct paths for native regression tests.
 
-Fresh/filter framing centers the collection horizontally and vertically between persistent controls. In automatic mode, inserting a card refits the complete resulting collection to that anchor after its layout/entry completes; the old single-card camera must not remain the target of a multi-card scene. Ordinary revisions without entrants and with zero survivor world travel preserve the old scale/translation when the complete collection fits and the ordinary fit does not offer a larger scale; otherwise translation is clamped to the nearest completely visible position. An automatic camera at the previous ordinary fit or an automatic clamp instead recenters to the new ordinary fit when a same-scale repack narrows the collection, including an aspect change that grows taller; the vertical seat after row deletion keeps its y while taking the new ordinary x, and a retained filter/reading target still takes precedence. When card shrinkage or deletion permits a larger automatic scale, or the old scale cannot fit, ordinary readable fitting takes precedence. The resulting target survives delayed refits. Resize and explicit return to automatic framing restore the ordinary policy; manual framing remains user-owned, including during insertion and shrinkage. Same-scale local changes keep a retained reader's seat where capacity permits, but do not lock an individual editor through conflicting growth/global repacks.
+Fresh/filter framing centers the collection horizontally and vertically between persistent controls. In automatic mode, inserting a card refits the complete resulting collection to that anchor after its layout/entry completes; the old single-card camera must not remain the target of a multi-card scene. Ordinary revisions without entrants and with zero survivor world travel preserve the old scale/translation when the complete collection fits and the ordinary fit does not offer a larger scale; otherwise translation is clamped to the nearest completely visible position. An automatic camera at the previous ordinary fit or an automatic clamp instead recenters to the new ordinary fit when a same-scale repack narrows the collection, including an aspect change that grows taller; any height shrink creates a persistent vertical seat that keeps its y (clamped to visibility) while taking the new ordinary x, and a retained filter/reading target still takes precedence. When card shrinkage or deletion permits a larger automatic scale, or the old scale cannot fit, ordinary readable fitting takes precedence. The resulting target survives delayed refits. Resize and explicit return to automatic framing restore the ordinary policy; manual framing remains user-owned, including during insertion and shrinkage. Same-scale local changes keep a retained reader's seat where capacity permits, but do not lock an individual editor through conflicting growth/global repacks.
 
 Automatic shrink refits need no background click. They use the existing 160ms
 minimum delay, 600ms refit throttle and shared spatial stage after card layout
@@ -261,16 +261,19 @@ Reading-position preservation starts from an intentional retained filter or
 reading target. Automatic targets, including clamped ones, keep that provenance
 rather than becoming reading seats: a camera at the old ordinary fit or an
 automatic clamp recenters to the new ordinary fit after a same-scale width
-shrink, while a vertical seat retained from a row deletion keeps its y and takes
-only the new ordinary x. A distinct retained target still survives local edits.
-A shrink arriving before the grow target settles keeps that pending target; a
-later layout revision or explicit return re-evaluates the automatic clamp. A
-footprint revision arriving before insertion framing completes keeps the pending
-collection fit and resolves it against the latest bounds. It cannot retain the
-old or partially animated camera as a new reading position. Consecutive
-reading-preserving revisions carry their target forward rather than repeatedly
-sampling intermediate motion; explicit return and restoration take precedence
-over reading retention.
+shrink, while a persistent vertical seat created by a height shrink keeps its y
+and takes only the new ordinary x. That seat survives later automatic growth
+until explicit return, retained framing, manual framing, viewport change or
+reset. A distinct retained target still survives local edits. A shrink arriving
+before the grow target settles keeps that pending target; a later layout revision
+or explicit return re-evaluates the automatic clamp. This pending retention is
+the accepted behavior for now; it is not re-evaluated merely because the target
+settles. A footprint revision arriving before insertion framing completes keeps
+the pending collection fit and resolves it against the latest bounds. It cannot
+retain the old or partially animated camera as a new reading position.
+Consecutive reading-preserving revisions carry their target forward rather than
+repeatedly sampling intermediate motion; explicit return and restoration take
+precedence over reading retention.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
