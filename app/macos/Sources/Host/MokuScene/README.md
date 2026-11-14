@@ -79,6 +79,11 @@ composer expansion. The reading entrance's actual arrival/layout admission
 releases the flip; its removed animation completion releases input and the
 existing focus path. A composer-generation fence and a view-local transition
 generation reject replaced or detached completions without an elapsed-time task.
+The small downward reading-seat shift uses the existing native travel host,
+with a 420ms ease-in/ease-out curve rather than SwiftUI layout animation. Reader
+preparation cannot stall submitted travel frames. Both axes share sampled
+replacement geometry, completion fencing and moving-control hit protection;
+shell sizing and composer expansion remain owned by SwiftUI.
 Rapid replacement retains the current mark during travel; the same Harness
 reuses a settled or in-flight flip. Return keeps the existing collapse path.
 Reduce Motion, an inactive scene or a hidden window settles the mark immediately,

@@ -412,6 +412,8 @@ public struct NativeMokuDock: View {
             let dockViewport = column.flatMap { $0.isNull || $0.isEmpty ? nil : $0 } ?? viewport
             let baseFrame = NativeMokuCapsuleLayout.frame(in: dockViewport, landing: landing,
                 reading: state.readingPanelVisible && !state.settingsOpen)
+            let restingFrame = NativeMokuCapsuleLayout.frame(in: dockViewport, landing: landing)
+            let readingOffset = baseFrame.maxY - restingFrame.maxY
             let messageWidth = displayedMessage?.dispatch != nil ? min(400, baseFrame.width) : baseFrame.width
             let frame = baseFrame.insetBy(dx: !noteExpanded && displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
             let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(settingsPreferredHeight, max(0, viewport.height - 48)))
@@ -443,6 +445,7 @@ public struct NativeMokuDock: View {
                                                      question: interactionIsQuestion)
             let noteButtonRect: CGRect? = nil
             let destination = NativeMokuHorizontalDestination(offset: placement.surface.midX - geometry.size.width / 2,
+                verticalOffset: readingOffset,
                 frame: executionFrame, revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
                 dragging: executionPlacement?.dragging == true, reduced: reduceMotion || scenePhase != .active,
                 composer: state.composerGeneration, reading: state.readingPanelVisible)
@@ -458,15 +461,16 @@ public struct NativeMokuDock: View {
                     // making retiring AppKit text jump vertically for a frame.
                     .scaleEffect(placement.scale, anchor: .bottom)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
-                    .offset(y: placement.surface.maxY - geometry.size.height)
+                    .offset(y: placement.surface.maxY - geometry.size.height - readingOffset)
                     .animation(reduceMotion || executionPlacement?.dragging == true ? nil
                         : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
-                    // Inner shell animations must not inherit the discrete
-                    // horizontal offset owned by the native compositor.
+                    // Keep the small reading-seat descent out of SwiftUI layout
+                    // animation too: reader preparation must not stall its frames.
                     .geometryGroup()
-                    .offset(x: destination.offset)
+                    .offset(x: destination.offset, y: destination.verticalOffset)
                     .animation(nil, value: destination.offset)
+                    .animation(nil, value: destination.verticalOffset)
                     // Direct resize settles the native trip and shell together.
                     .transaction(value: geometry.size) {
                         $0.animation = nil; $0.disablesAnimations = true
