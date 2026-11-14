@@ -152,7 +152,7 @@ func TestRendererPartsTypesAndSkeleton(t *testing.T) {
 		}
 		messages[index] = Object{"id": fmt.Sprintf("m-%d", index), "executionId": "exec", "role": "assistant", "text": strings.Repeat("x", 10_000), "parts": parts}
 	}
-	rendererApplyLimits(state, state, rendererStages[2])
+	rendererApplyLimits(state, state, nil, rendererStages[2])
 	messages = state["messages"].([]Object)
 	if len(messages) != 500 {
 		t.Fatalf("skeleton retained %d messages", len(messages))
@@ -163,7 +163,7 @@ func TestRendererPartsTypesAndSkeleton(t *testing.T) {
 	if text := messages[0]["text"].(string); len(text) > rendererStages[2].text {
 		t.Fatalf("skeleton retained %d text bytes", len(text))
 	}
-	rendererApplyLimits(state, state, rendererStages[3])
+	rendererApplyLimits(state, state, nil, rendererStages[3])
 	if messages = state["messages"].([]Object); len(messages) != rendererStages[3].messages {
 		t.Fatalf("hard limit retained %d messages", len(messages))
 	}
@@ -223,7 +223,7 @@ func TestRendererBoundsExecutionsAndInteractions(t *testing.T) {
 		}
 	}
 	waiting := Object{"executionId": "exec", "status": "waiting-for-user", "startedAt": 0, "interactions": waitingInteractions}
-	execution, ok := rendererBoundExecution(waiting, rendererStages[1])
+	execution, ok := rendererBoundExecution(waiting, rendererStages[1], map[string]bool{})
 	if !ok {
 		t.Fatal("waiting execution was dropped")
 	}
@@ -311,5 +311,270 @@ func TestRendererBudgetBoundaryAndMinimalFallback(t *testing.T) {
 	if len(minimal) > testTransportContentLimit || value["kind"] == "deferred-execution" ||
 		value["contentTruncated"] != true || value["junk"] != nil {
 		t.Fatalf("final fallback was not minimal/legal: %d bytes %#v", len(minimal), value)
+	}
+}
+
+func TestRendererFormConditionUsesKey(t *testing.T) {
+	field := Object{
+		"type": "string", "key": "detail", "required": false,
+		"when": []any{Object{"key": "mode", "op": "eq", "value": "a"}},
+	}
+	bound, ok := rendererBoundFormField(field, rendererStages[1])
+	if !ok {
+		t.Fatal("conditional form field was dropped")
+	}
+	conditions := bound["when"].([]Object)
+	if len(conditions) != 1 || conditions[0]["key"] != "mode" {
+		t.Fatalf("conditional form condition lost its key: %#v", conditions)
+	}
+	if _, exists := conditions[0]["questionId"]; exists {
+		t.Fatal("native form condition used public questionId field")
+	}
+}
+
+func TestRendererDeferredPresenceSurvivesTruncation(t *testing.T) {
+	finished := int64(1)
+	latest := "exec"
+	state := State{
+		Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Executions: []*model.PublicExecution{{ExecutionID: "exec", Status: "completed", StartedAt: 0, FinishedAt: &finished}},
+		Messages: []*Message{{
+			ID: "assistant", ExecutionID: "exec", Role: "assistant", Status: "complete",
+			Parts: []Part{
+				{Type: "reasoning", Ordinal: 0, Text: "retained reasoning"},
+				{Type: "text", Ordinal: 1, Text: strings.Repeat("a", 30<<20)},
+			},
+		}},
+	}
+	projected, err := (StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "turn", Key: "exec"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal(projected, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	nonempty := envelope["nonempty"].([]any)
+	if len(nonempty) == 0 {
+		t.Fatal("deferred presence collapsed to an empty array")
+	}
+	found := false
+	for _, raw := range nonempty {
+		entry := raw.(map[string]any)
+		if entry["id"] == "assistant" && entry["field"] == "parts:reasoning:0" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("retained reasoning presence was lost: %#v", nonempty)
+	}
+}
+
+func TestRendererRejectsUnreferenceableIDs(t *testing.T) {
+	finished := int64(1)
+	latest := "exec"
+	long := strings.Repeat("x", 300)
+	state := State{
+		Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Executions: []*model.PublicExecution{{ExecutionID: "exec", Status: "completed", StartedAt: 0, FinishedAt: &finished}},
+		Messages: []*Message{
+			{ID: "user", ExecutionID: "exec", Role: "user", Text: "hello"},
+			{ID: long, ExecutionID: "exec", Role: "assistant", Text: "long message id"},
+			{ID: "assistant", ExecutionID: "exec", Role: "assistant", Parts: []Part{{Type: "tool", ToolCallID: long}}},
+			{ID: "tool", ExecutionID: "exec", Role: "tool", ToolCallID: long, ToolName: "read", Text: "output"},
+			{ID: "huge", ExecutionID: "exec", Role: "assistant", Text: strings.Repeat("h", 30<<20)},
+		},
+		Interactions: []*Interaction{{ID: long, ExecutionID: "exec", SessionID: "session", Kind: "permission", Title: "Long", Status: "pending"}},
+	}
+	projected, err := (StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "execution", Key: "exec"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value map[string]any
+	if err := json.Unmarshal(projected, &value); err != nil {
+		t.Fatal(err)
+	}
+	if value["contentTruncated"] != true {
+		t.Fatal("long-ID fixture did not exercise the fallback")
+	}
+	if strings.Contains(string(projected), long) {
+		t.Fatal("projection retained an unreferenceable identity")
+	}
+	for _, message := range rendererObjects(value["messages"]) {
+		if message["id"] == long || message["toolCallId"] == long {
+			t.Fatal("oversized message identity survived")
+		}
+		for _, part := range rendererObjects(message["parts"]) {
+			if part["toolCallId"] == long {
+				t.Fatal("oversized tool identity survived")
+			}
+		}
+	}
+	if list := rendererObjects(value["interactions"]); len(list) != 0 {
+		t.Fatalf("oversized native interaction survived: %#v", list)
+	}
+
+	longExecution := strings.Repeat("e", 200)
+	message := &Message{ID: "message", ExecutionID: longExecution, Role: "assistant", Text: "text"}
+	latestLong := longExecution
+	summary := strings.Repeat("s", 30<<20)
+	invalid := State{
+		Version: 1, NativeSessionID: "session", LatestExecutionID: &latestLong,
+		Executions: []*model.PublicExecution{{ExecutionID: longExecution, Status: "completed", StartedAt: 0, FinishedAt: &finished, Summary: &summary}},
+		Messages:   []*Message{message},
+	}
+	projected, err = (StateAdapter{}).ProjectRenderer(invalid.Encode(), model.RendererScope{Kind: "execution", Key: longExecution})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invalidValue map[string]any
+	if err := json.Unmarshal(projected, &invalidValue); err != nil {
+		t.Fatal(err)
+	}
+	if invalidValue["contentTruncated"] != true {
+		t.Fatal("invalid execution fixture did not exercise the fallback")
+	}
+	if len(rendererObjects(invalidValue["executions"])) != 0 || len(rendererObjects(invalidValue["messages"])) != 0 ||
+		invalidValue["latestExecutionId"] != nil {
+		t.Fatalf("invalid execution identity was not rejected: %#v", invalidValue)
+	}
+}
+
+func TestRendererWaitingInteractionCorrespondence(t *testing.T) {
+	const executionID = "exec"
+	public := make([]Object, 50)
+	native := make([]Object, 0, 100)
+	for index := 0; index < 50; index++ {
+		nativeID := fmt.Sprintf("int-%d", index)
+		public[index] = Object{
+			"id": opaque("interaction", executionID, nativeID), "kind": "permission", "title": "Request",
+			"actions": []any{Object{"id": "allow", "intent": "allow", "label": "Allow"}}, "questions": []any{},
+		}
+		native = append(native, Object{
+			"id": nativeID, "executionId": executionID, "sessionId": "session", "kind": "permission",
+			"title": "Request", "status": "pending", "action": "allow", "resources": []any{}, "save": []any{},
+		})
+	}
+	for index := 0; index < 50; index++ {
+		native = append(native, Object{
+			"id": fmt.Sprintf("old-%d", index), "executionId": executionID, "sessionId": "session", "kind": "permission",
+			"title": "Old", "status": "answered", "action": "allow", "resources": []any{}, "save": []any{},
+		})
+	}
+	state := Object{
+		"version": 1, "messages": []Object{}, "latestExecutionId": executionID,
+		"executions": []Object{{
+			"executionId": executionID, "status": "waiting-for-user", "startedAt": 0, "interactions": public,
+		}},
+		"interactions": native,
+	}
+	rendererApplyLimits(state, state, nil, rendererStages[1])
+	top := state["interactions"].([]Object)
+	execution := state["executions"].([]Object)[0]
+	public = execution["interactions"].([]Object)
+	if len(top) == 0 || len(public) == 0 {
+		t.Fatalf("waiting interaction pair collapsed: native=%d public=%d", len(top), len(public))
+	}
+	nativeIDs := map[string]bool{}
+	for _, interaction := range top {
+		if interaction["status"] != "pending" {
+			t.Fatal("answered interaction crowded out pending interaction")
+		}
+		nativeIDs[opaque("interaction", rendererText(interaction["executionId"]), rendererText(interaction["id"]))] = true
+	}
+	for _, interaction := range public {
+		if !nativeIDs[rendererText(interaction["id"])] {
+			t.Fatalf("public interaction %q lost its native counterpart", interaction["id"])
+		}
+	}
+}
+
+func TestRendererBoundHelperContracts(t *testing.T) {
+	limits := rendererStages[1]
+
+	question, ok := rendererBoundQuestion(Object{
+		"id": "opencode-question-1", "prompt": strings.Repeat("p", 10_000),
+		"multiple": true, "allowOther": true, "secret": false,
+		"options": []any{
+			Object{"value": strings.Repeat("a", 3_000), "label": strings.Repeat("b", 3_000)},
+			Object{"value": strings.Repeat("a", 2_999) + "b", "label": "Second"},
+		},
+	}, limits)
+	if !ok || len(question["options"].([]Object)) != 2 {
+		t.Fatalf("question fallback failed: %#v", question)
+	}
+	first, second := question["options"].([]Object)[0], question["options"].([]Object)[1]
+	if first["value"] == second["value"] || len(rendererText(first["value"])) > 2_000 {
+		t.Fatal("long question option values were not unique and bounded")
+	}
+
+	executionState := Object{"executions": []Object{{"executionId": "exec"}}}
+	authors := rendererBoundAuthors(map[string]Object{
+		"exec":   {"model": strings.Repeat("m", 10_000), "effort": "high"},
+		"orphan": {"model": "orphan"},
+	}, executionState, limits)
+	if len(authors) != 1 || authors["exec"] == nil {
+		t.Fatalf("author fallback retained invalid keys: %#v", authors)
+	}
+	if model := rendererText(authors["exec"]["model"]); len(model) > 4_096 {
+		t.Fatalf("author scalar retained %d bytes", len(model))
+	}
+
+	foregrounds := rendererBoundForegrounds([]Object{
+		{"executionId": "exec", "foreground": Object{"kind": "reasoning", "sequence": 1, "text": strings.Repeat("r", 40_000)}},
+		{"executionId": strings.Repeat("x", 200), "foreground": Object{"kind": "assistant-text", "sequence": 1}},
+		{"executionId": "exec", "foreground": Object{"kind": "tool-call", "sequence": 2, "callId": "call", "toolName": strings.Repeat("t", 100)}},
+	}, limits)
+	if len(foregrounds) != 2 {
+		t.Fatalf("foreground fallback retained invalid execution: %#v", foregrounds)
+	}
+	reasoning := foregrounds[0]["foreground"].(Object)
+	if units := len([]rune(rendererText(reasoning["text"]))); units > 32_768 {
+		t.Fatalf("reasoning retained %d code points", units)
+	}
+
+	auxiliary := rendererBoundAuxiliaryUsage([]Object{
+		{"id": "sample", "nativeSessionId": "native", "executionId": "exec", "kind": "compaction", "createdAt": 1, "usage": Object{"input": 1}},
+		{"id": "bad", "nativeSessionId": "native", "executionId": "exec", "kind": "other", "createdAt": 1, "usage": Object{"input": 1}},
+		{"id": "huge", "nativeSessionId": "native", "executionId": "exec", "kind": "compaction", "createdAt": 1, "usage": map[string]any{strings.Repeat("k", 20_000): true}},
+	}, limits)
+	if len(auxiliary) != 1 || auxiliary[0]["id"] != "sample" {
+		t.Fatalf("auxiliary fallback retained invalid samples: %#v", auxiliary)
+	}
+
+	if fork, ok := rendererBoundForkSource(Object{"sessionId": "native", "transcript": Object{"data": "dropped"}}, limits); !ok || len(fork["transcript"].(Object)) != 0 {
+		t.Fatal("fork source did not drop transcript payload")
+	}
+	if _, ok := rendererBoundForkSource(Object{"sessionId": strings.Repeat("x", 600)}, limits); ok {
+		t.Fatal("fork source accepted an oversized session identity")
+	}
+
+	sessions := rendererBoundBackgroundSessions([]Object{
+		{"sessionId": "session", "status": "running"},
+		{"sessionId": strings.Repeat("x", 600), "status": "running"},
+	})
+	if len(sessions) != 1 || sessions[0]["sessionId"] != "session" {
+		t.Fatalf("background session fallback retained invalid identity: %#v", sessions)
+	}
+	shells := rendererBoundBackgroundShells([]Object{
+		{"shellId": "shell", "sessionId": "session", "status": "idle"},
+		{"shellId": strings.Repeat("x", 600), "sessionId": "session", "status": "idle"},
+	})
+	if len(shells) != 1 || shells[0]["shellId"] != "shell" {
+		t.Fatalf("background shell fallback retained invalid identity: %#v", shells)
+	}
+
+	value := Object{"text": "<>&\"\n😀", "nested": []any{Object{"key": "value"}}}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if estimate := rendererEncodedSize(value); estimate < len(encoded)-8 || estimate > len(encoded)+32 {
+		t.Fatalf("size estimator %d differs from encoding %d", estimate, len(encoded))
+	}
+	firstUnique := rendererBoundUniqueText(strings.Repeat("z", 3_000)+"a", 2_000)
+	secondUnique := rendererBoundUniqueText(strings.Repeat("z", 3_000)+"b", 2_000)
+	if firstUnique == secondUnique || len(firstUnique) > 2_000 || len(secondUnique) > 2_000 {
+		t.Fatal("unique text hash did not distinguish truncated values")
 	}
 }

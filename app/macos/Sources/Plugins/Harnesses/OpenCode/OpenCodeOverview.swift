@@ -112,7 +112,7 @@ public struct OpenCodeOverviewCard: View {
             .environment(\.threadCardCloudPalette, OpenCodeLogo.threadCardCloudPalette)
             .overlay(alignment: .bottomLeading) { if let failure { Text(failure).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18) } }
             .overlay(alignment: .bottomTrailing) {
-                if projection.contentTruncated {
+                if openCodeOverviewShowsTruncation(projection.contentTruncated) {
                     Text(ocLocalized("部分内容已省略", locale: locale)).font(NativeTypography.inter(size: 11))
                         .foregroundStyle(NativePalette.thread.muted.swiftUI).padding(18)
                 }
@@ -130,6 +130,8 @@ public struct OpenCodeOverviewCard: View {
         } catch { failure = error.localizedDescription; throw error }
     }
 }
+func openCodeOverviewShowsTruncation(_ truncated: Bool) -> Bool { truncated }
+
 func ocThinkingLabel(_ value: JSONValue) -> String {
     value["mode"]?.stringValue == "effort" ? value["effort"]?.stringValue ?? "" : value["mode"]?.stringValue ?? "未选择"
 }

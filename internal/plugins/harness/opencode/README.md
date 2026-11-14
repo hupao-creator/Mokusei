@@ -51,14 +51,24 @@ independent diagnostics; retained tool failures do not bypass Agent summaries. C
 If a projection would exceed the content transport boundary, the adapter sends a
 bounded fallback instead of failing the whole surface: redundant tool results and
 displays are removed, text/tool/scalar fields are truncated, deferred `nonempty`
-presence is rebuilt from the retained messages, and pathological execution,
-interaction and message counts are reduced. A final whole-envelope check falls
-back to a minimal legal projection if any hostile field still escapes the budget.
+presence is filtered from the original envelope by the retained message IDs, and
+pathological execution, interaction and message counts are reduced. Unreferenceable
+oversized or malformed public IDs are dropped instead of hashed, so observation
+targets, tool composite IDs and native interaction public IDs cannot silently
+diverge. Public and native interactions use the same pending-first retention, and
+authors are capped at Swift's 4,096-byte field limit; reasoning foregrounds are
+capped at Swift's 32,768-code-point head guard. A final whole-envelope check
+falls back to a minimal legal projection if any hostile field still escapes the
+budget. The adapter may encode the envelope at most six times: one initial check,
+four degraded stages, and one fixed-size minimal fallback.
 The projection carries `contentTruncated` so the native reader can explain the
 omission/truncation; the authoritative session state is never rewritten. The
 targeted adapter tests cover light/heavy/skeleton/final stages, the 24 MiB
-boundary, deferred presence, latest-execution retention and parts normalization;
-a transport test covers the 32 MiB accept/reject boundary.
+boundary, retained reasoning presence, long-ID rejection, pending interaction
+correspondence, latest-execution retention, parts normalization, helper contracts
+and the size estimator; Swift tests decode the minimal projection and a
+conditional native form, and verify one truncation notice per presentation. A
+transport test covers the 32 MiB accept/reject boundary.
 An HTTP prompt receipt admits input; terminal native execution facts settle it.
 New executions retain their input before dispatch. Follow-up message retention
 requires a native prompt receipt or matching native inbox/history evidence;

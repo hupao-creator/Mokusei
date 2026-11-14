@@ -15,10 +15,13 @@ import (
 // the event envelope and JSON escaping so an oversized conversation can still
 // open with a bounded projection. The persisted native state is never changed.
 const (
-	rendererWireBudget     = 24 << 20
-	rendererMaxIdentity    = 128
-	rendererDropFieldSize  = 64 << 10
-	rendererTruncationNote = "[Content omitted or truncated for transport; full content remains in the saved conversation.]"
+	rendererWireBudget         = 24 << 20
+	rendererMaxPublicIdentity  = 128
+	rendererMaxMessageIdentity = 256
+	rendererMaxNativeIdentity  = 512
+	rendererMaxPresenceField   = 256
+	rendererDropFieldSize      = 64 << 10
+	rendererTruncationNote     = "[Content omitted or truncated for transport; full content remains in the saved conversation.]"
 )
 
 const rendererTruncationSuffix = "\n\n[Truncated for transport; full content remains in the saved conversation.]"
@@ -70,9 +73,10 @@ func rendererMarshalProjection(value Object) (json.RawMessage, error) {
 		return encoded, err
 	}
 	state := rendererProjectionState(value)
+	originalNonempty := rendererObjects(value["nonempty"])
 	rendererMarkTruncated(state)
 	for _, limits := range rendererStages {
-		rendererApplyLimits(value, state, limits)
+		rendererApplyLimits(value, state, originalNonempty, limits)
 		encoded, err = json.Marshal(value)
 		if err != nil {
 			return nil, err
@@ -106,14 +110,14 @@ func rendererMarkTruncated(state Object) {
 	state["contentTruncated"] = true
 }
 
-func rendererApplyLimits(value, state Object, limits rendererLimits) {
+func rendererApplyLimits(value, state Object, originalNonempty []Object, limits rendererLimits) {
 	rendererLimitMessages(state, limits.messages, limits.messageHead)
 	rendererBoundMessages(state, limits)
-	rendererBoundExecutions(state, limits)
 	rendererBoundTopInteractions(state, limits)
+	rendererBoundExecutions(state, limits)
 	rendererBoundTopLevel(state, limits)
 	rendererClampTree(state, limits.text)
-	rendererRebuildNonempty(value, state, limits.nonemptyBudget)
+	rendererFilterNonempty(value, state, originalNonempty, limits.nonemptyBudget)
 }
 
 func rendererLimitMessages(state Object, limit, head int) {
@@ -137,22 +141,49 @@ func rendererLimitMessages(state Object, limit, head int) {
 
 func rendererBoundMessages(state Object, limits rendererLimits) {
 	messages := rendererObjects(state["messages"])
-	if messages == nil {
-		messages = []Object{}
-	}
+	bound := make([]Object, 0, len(messages))
 	for _, message := range messages {
-		rendererBoundMessage(message, limits)
+		if rendererBoundMessage(message, limits) {
+			bound = append(bound, message)
+		}
 	}
-	state["messages"] = messages
+	state["messages"] = bound
 }
 
-func rendererBoundMessage(message Object, limits rendererLimits) {
-	message["id"] = rendererBoundTextIdentity(rendererText(message["id"]))
-	message["executionId"] = rendererBoundPublicIdentity(rendererText(message["executionId"]))
-	for _, key := range []string{"nativeSessionId", "nativeMessageId", "toolCallId"} {
-		if value, exists := message[key]; exists {
-			message[key] = rendererBoundTextIdentity(rendererText(value))
+func rendererBoundMessage(message Object, limits rendererLimits) bool {
+	role := rendererText(message["role"])
+	if !rendererOneOf(role, "assistant", "user", "tool") {
+		return false
+	}
+	id, ok := rendererTextIdentity(rendererText(message["id"]), rendererMaxMessageIdentity)
+	if !ok {
+		return false
+	}
+	executionID, ok := rendererPublicIdentity(rendererText(message["executionId"]))
+	if !ok {
+		return false
+	}
+	message["id"], message["executionId"] = id, executionID
+	if value, exists := message["nativeSessionId"]; exists {
+		native, ok := rendererTextIdentity(rendererText(value), rendererMaxNativeIdentity)
+		if !ok {
+			return false
 		}
+		message["nativeSessionId"] = native
+	}
+	if value, exists := message["nativeMessageId"]; exists {
+		if native, ok := rendererTextIdentity(rendererText(value), rendererMaxNativeIdentity); ok {
+			message["nativeMessageId"] = native
+		} else {
+			delete(message, "nativeMessageId")
+		}
+	}
+	if value, exists := message["toolCallId"]; exists {
+		toolCallID, ok := rendererTextIdentity(rendererText(value), rendererMaxMessageIdentity)
+		if !ok {
+			return false
+		}
+		message["toolCallId"] = toolCallID
 	}
 	for _, key := range []string{"toolName", "model", "provider", "variant"} {
 		if value, exists := message[key]; exists {
@@ -190,7 +221,10 @@ func rendererBoundMessage(message Object, limits rendererLimits) {
 		}
 		message["parts"] = trimmed
 	}
-	if rendererText(message["role"]) == "tool" {
+	if role == "tool" {
+		if rendererText(message["toolCallId"]) == "" {
+			return false
+		}
 		message["text"] = rendererBoundText(message["text"], limits.tool)
 		if rendererText(message["text"]) != "" {
 			delete(message, "result")
@@ -214,6 +248,7 @@ func rendererBoundMessage(message Object, limits rendererLimits) {
 	if value, exists := message["usage"]; exists && rendererEncodedSize(value) > limits.short {
 		delete(message, "usage")
 	}
+	return true
 }
 
 func rendererBoundPart(part Object, limits rendererLimits) bool {
@@ -223,8 +258,8 @@ func rendererBoundPart(part Object, limits rendererLimits) bool {
 	}
 	part["type"] = kind
 	if kind == "tool" {
-		toolCallID := rendererBoundTextIdentity(rendererText(part["toolCallId"]))
-		if toolCallID == "" {
+		toolCallID, ok := rendererTextIdentity(rendererText(part["toolCallId"]), rendererMaxMessageIdentity)
+		if !ok {
 			return false
 		}
 		part["toolCallId"] = toolCallID
@@ -269,9 +304,10 @@ func rendererBoundExecutions(state Object, limits rendererLimits) {
 	latest := rendererLatestExecutionID(state)
 	executions := rendererObjects(state["executions"])
 	executions = rendererTrimExecutions(executions, latest, limits.executions)
+	pending := rendererPendingInteractionIDs(state)
 	bound := make([]Object, 0, len(executions))
 	for _, execution := range executions {
-		if next, ok := rendererBoundExecution(execution, limits); ok {
+		if next, ok := rendererBoundExecution(execution, limits, pending); ok {
 			bound = append(bound, next)
 		}
 	}
@@ -303,7 +339,7 @@ func rendererTrimExecutions(executions []Object, latest string, limit int) []Obj
 	}
 	latestIndex := -1
 	for index, execution := range executions {
-		if rendererBoundPublicIdentity(rendererText(execution["executionId"])) == latest {
+		if rendererText(execution["executionId"]) == latest {
 			latestIndex = index
 			break
 		}
@@ -323,9 +359,24 @@ func rendererTrimExecutions(executions []Object, latest string, limit int) []Obj
 	return trimmed
 }
 
-func rendererBoundExecution(execution Object, limits rendererLimits) (Object, bool) {
-	executionID := rendererBoundPublicIdentity(rendererText(execution["executionId"]))
-	if executionID == "" {
+func rendererPendingInteractionIDs(state Object) map[string]bool {
+	pending := map[string]bool{}
+	for _, interaction := range rendererObjects(state["interactions"]) {
+		if rendererText(interaction["status"]) != "pending" {
+			continue
+		}
+		executionID, executionOK := rendererPublicIdentity(rendererText(interaction["executionId"]))
+		id, idOK := rendererTextIdentity(rendererText(interaction["id"]), rendererMaxMessageIdentity)
+		if executionOK && idOK {
+			pending[opaque("interaction", executionID, id)] = true
+		}
+	}
+	return pending
+}
+
+func rendererBoundExecution(execution Object, limits rendererLimits, pending map[string]bool) (Object, bool) {
+	executionID, ok := rendererPublicIdentity(rendererText(execution["executionId"]))
+	if !ok {
 		return nil, false
 	}
 	status := rendererText(execution["status"])
@@ -344,14 +395,23 @@ func rendererBoundExecution(execution Object, limits rendererLimits) (Object, bo
 	case "running":
 	case "waiting-for-user":
 		interactions := rendererObjects(execution["interactions"])
-		if len(interactions) > limits.interactions {
-			interactions = interactions[:limits.interactions]
-		}
 		bound := make([]Object, 0, len(interactions))
 		for _, interaction := range interactions {
 			if value, ok := rendererBoundPublicInteraction(interaction, limits); ok {
 				bound = append(bound, value)
 			}
+		}
+		if len(pending) > 0 {
+			matched := make([]Object, 0, len(bound))
+			for _, interaction := range bound {
+				if pending[rendererText(interaction["id"])] {
+					matched = append(matched, interaction)
+				}
+			}
+			bound = matched
+		}
+		if len(bound) > limits.interactions {
+			bound = bound[:limits.interactions]
 		}
 		if len(bound) == 0 {
 			status = "failed"
@@ -387,8 +447,12 @@ func rendererBoundPublicInteraction(interaction Object, limits rendererLimits) (
 	if !rendererOneOf(kind, "permission", "question") {
 		return nil, false
 	}
+	id, ok := rendererPublicIdentity(rendererText(interaction["id"]))
+	if !ok {
+		return nil, false
+	}
 	next := Object{
-		"id":    rendererBoundPublicIdentity(rendererText(interaction["id"])),
+		"id":    id,
 		"kind":  kind,
 		"title": rendererNonblankText(interaction["title"], limits.short, "OpenCode interaction"),
 	}
@@ -401,12 +465,16 @@ func rendererBoundPublicInteraction(interaction Object, limits rendererLimits) (
 	}
 	boundActions := make([]Object, 0, len(actions))
 	for _, action := range actions {
+		id, ok := rendererPublicIdentity(rendererText(action["id"]))
+		if !ok {
+			continue
+		}
 		intent := rendererText(action["intent"])
 		if !rendererOneOf(intent, "allow", "deny", "submit", "cancel") {
 			intent = "allow"
 		}
 		boundActions = append(boundActions, Object{
-			"id":     rendererBoundPublicIdentity(rendererText(action["id"])),
+			"id":     id,
 			"intent": intent,
 			"label":  rendererNonblankText(action["label"], limits.short, "Allow"),
 		})
@@ -430,8 +498,8 @@ func rendererBoundPublicInteraction(interaction Object, limits rendererLimits) (
 }
 
 func rendererBoundQuestion(question Object, limits rendererLimits) (Object, bool) {
-	id := rendererBoundPublicIdentity(rendererText(question["id"]))
-	if id == "" {
+	id, ok := rendererPublicIdentity(rendererText(question["id"]))
+	if !ok {
 		return nil, false
 	}
 	next := Object{
@@ -470,16 +538,31 @@ func rendererBoundQuestion(question Object, limits rendererLimits) (Object, bool
 
 func rendererBoundTopInteractions(state Object, limits rendererLimits) {
 	interactions := rendererObjects(state["interactions"])
-	if len(interactions) > limits.interactions {
-		interactions = interactions[len(interactions)-limits.interactions:]
-	}
 	bound := make([]Object, 0, len(interactions))
 	for _, interaction := range interactions {
 		if value, ok := rendererBoundNativeInteraction(interaction, limits); ok {
 			bound = append(bound, value)
 		}
 	}
-	state["interactions"] = bound
+	pending := make([]Object, 0, len(bound))
+	other := make([]Object, 0, len(bound))
+	for _, interaction := range bound {
+		if rendererText(interaction["status"]) == "pending" {
+			pending = append(pending, interaction)
+		} else {
+			other = append(other, interaction)
+		}
+	}
+	if len(pending) > limits.interactions {
+		pending = pending[len(pending)-limits.interactions:]
+	}
+	if room := limits.interactions - len(pending); room > 0 {
+		if len(other) > room {
+			other = other[len(other)-room:]
+		}
+		pending = append(pending, other...)
+	}
+	state["interactions"] = pending
 }
 
 func rendererBoundNativeInteraction(interaction Object, limits rendererLimits) (Object, bool) {
@@ -487,14 +570,26 @@ func rendererBoundNativeInteraction(interaction Object, limits rendererLimits) (
 	if !rendererOneOf(kind, "permission", "form") {
 		return nil, false
 	}
+	id, ok := rendererTextIdentity(rendererText(interaction["id"]), rendererMaxMessageIdentity)
+	if !ok {
+		return nil, false
+	}
+	executionID, ok := rendererPublicIdentity(rendererText(interaction["executionId"]))
+	if !ok {
+		return nil, false
+	}
+	sessionID, ok := rendererTextIdentity(rendererText(interaction["sessionId"]), rendererMaxNativeIdentity)
+	if !ok {
+		return nil, false
+	}
 	status := rendererText(interaction["status"])
 	if !rendererOneOf(status, "pending", "answered", "cancelled") {
 		status = "cancelled"
 	}
 	next := Object{
-		"id":          rendererBoundTextIdentity(rendererText(interaction["id"])),
-		"executionId": rendererBoundPublicIdentity(rendererText(interaction["executionId"])),
-		"sessionId":   rendererBoundTextIdentity(rendererText(interaction["sessionId"])),
+		"id":          id,
+		"executionId": executionID,
+		"sessionId":   sessionID,
 		"kind":        kind,
 		"title":       rendererNonblankText(interaction["title"], limits.short, "OpenCode request"),
 		"status":      status,
@@ -594,14 +689,18 @@ func rendererBoundFormField(field Object, limits rendererLimits) (Object, bool) 
 		}
 		bound := make([]Object, 0, len(when))
 		for _, condition := range when {
+			key := rendererBoundText(condition["key"], limits.short)
+			if strings.TrimSpace(key) == "" {
+				continue
+			}
 			op := rendererText(condition["op"])
 			if !rendererOneOf(op, "eq", "neq") {
 				op = "eq"
 			}
 			bound = append(bound, Object{
-				"questionId": rendererBoundText(condition["questionId"], limits.short),
-				"op":         op,
-				"value":      condition["value"],
+				"key":   key,
+				"op":    op,
+				"value": condition["value"],
 			})
 		}
 		next["when"] = bound
@@ -627,11 +726,19 @@ func rendererBoundTopLevel(state Object, limits rendererLimits) {
 	delete(state, "contentTruncated")
 	state["contentTruncated"] = true
 	if value, exists := state["nativeSessionId"]; exists {
-		state["nativeSessionId"] = rendererBoundTextIdentity(rendererText(value))
+		if native, ok := rendererTextIdentity(rendererText(value), rendererMaxNativeIdentity); ok {
+			state["nativeSessionId"] = native
+		} else {
+			delete(state, "nativeSessionId")
+		}
 	}
 	if value, exists := state["nativeSessionCreated"]; exists {
 		if rendererBool(value) {
-			state["nativeSessionCreated"] = true
+			if _, hasSession := state["nativeSessionId"]; hasSession {
+				state["nativeSessionCreated"] = true
+			} else {
+				delete(state, "nativeSessionCreated")
+			}
 		} else {
 			delete(state, "nativeSessionCreated")
 		}
@@ -650,7 +757,7 @@ func rendererBoundTopLevel(state Object, limits rendererLimits) {
 		state["backgroundShells"] = rendererBoundBackgroundShells(value)
 	}
 	if value, exists := state["executionAuthors"]; exists {
-		state["executionAuthors"] = rendererBoundAuthors(value, limits)
+		state["executionAuthors"] = rendererBoundAuthors(value, state, limits)
 	}
 	if value, exists := state["foregrounds"]; exists {
 		state["foregrounds"] = rendererBoundForegrounds(value, limits)
@@ -659,11 +766,10 @@ func rendererBoundTopLevel(state Object, limits rendererLimits) {
 		state["auxiliaryUsage"] = rendererBoundAuxiliaryUsage(value, limits)
 	}
 	if value, exists := state["forkSource"]; exists {
-		fork := rendererBoundForkSource(value, limits)
-		if rendererText(fork["sessionId"]) == "" {
-			delete(state, "forkSource")
-		} else {
+		if fork, ok := rendererBoundForkSource(value, limits); ok {
 			state["forkSource"] = fork
+		} else {
+			delete(state, "forkSource")
 		}
 	}
 }
@@ -687,11 +793,15 @@ func rendererBoundBackgroundSessions(value any) []Object {
 	}
 	result := make([]Object, 0, len(source))
 	for _, item := range source {
+		sessionID, ok := rendererTextIdentity(item.SessionID, rendererMaxNativeIdentity)
+		if !ok {
+			continue
+		}
 		status := item.Status
 		if !rendererOneOf(status, "running", "idle") {
 			status = "idle"
 		}
-		result = append(result, Object{"sessionId": rendererBoundTextIdentity(item.SessionID), "status": status})
+		result = append(result, Object{"sessionId": sessionID, "status": status})
 	}
 	return result
 }
@@ -715,16 +825,21 @@ func rendererBoundBackgroundShells(value any) []Object {
 	}
 	result := make([]Object, 0, len(source))
 	for _, item := range source {
+		shellID, shellOK := rendererTextIdentity(item.ShellID, rendererMaxNativeIdentity)
+		sessionID, sessionOK := rendererTextIdentity(item.SessionID, rendererMaxNativeIdentity)
+		if !shellOK || !sessionOK {
+			continue
+		}
 		status := item.Status
 		if !rendererOneOf(status, "running", "idle") {
 			status = "idle"
 		}
-		result = append(result, Object{"shellId": rendererBoundTextIdentity(item.ShellID), "sessionId": rendererBoundTextIdentity(item.SessionID), "status": status})
+		result = append(result, Object{"shellId": shellID, "sessionId": sessionID, "status": status})
 	}
 	return result
 }
 
-func rendererBoundAuthors(value any, limits rendererLimits) map[string]Object {
+func rendererBoundAuthors(value any, state Object, limits rendererLimits) map[string]Object {
 	source := map[string]Object{}
 	switch typed := value.(type) {
 	case map[string]Object:
@@ -738,9 +853,17 @@ func rendererBoundAuthors(value any, limits rendererLimits) map[string]Object {
 			}
 		}
 	}
+	retained := map[string]bool{}
+	for _, execution := range rendererObjects(state["executions"]) {
+		if id, ok := rendererPublicIdentity(rendererText(execution["executionId"])); ok {
+			retained[id] = true
+		}
+	}
 	keys := make([]string, 0, len(source))
 	for key := range source {
-		keys = append(keys, key)
+		if retained[key] {
+			keys = append(keys, key)
+		}
 	}
 	sort.Strings(keys)
 	limit := max(limits.executions, 8)
@@ -753,13 +876,13 @@ func rendererBoundAuthors(value any, limits rendererLimits) map[string]Object {
 		author := Object{}
 		for _, name := range []string{"model", "effort"} {
 			if field, exists := item[name]; exists {
-				if text := rendererBoundText(field, limits.short); strings.TrimSpace(text) != "" {
+				if text := rendererBoundText(field, 4_096); strings.TrimSpace(text) != "" {
 					author[name] = text
 				}
 			}
 		}
 		if len(author) > 0 {
-			result[rendererBoundPublicIdentity(key)] = author
+			result[key] = author
 		}
 	}
 	return result
@@ -772,6 +895,10 @@ func rendererBoundForegrounds(value any, limits rendererLimits) []Object {
 	}
 	result := make([]Object, 0, len(foregrounds))
 	for _, entry := range foregrounds {
+		executionID, ok := rendererPublicIdentity(rendererText(entry["executionId"]))
+		if !ok {
+			continue
+		}
 		foreground, ok := entry["foreground"].(Object)
 		if !ok {
 			continue
@@ -788,15 +915,19 @@ func rendererBoundForegrounds(value any, limits rendererLimits) []Object {
 		}
 		switch kind {
 		case "reasoning":
-			body["text"] = rendererBoundText(foreground["text"], limits.text)
+			body["text"] = rendererTruncateUTF16(rendererText(foreground["text"]), 32_768)
 			if offset, ok := rendererInteger(foreground["textOffset"]); ok && offset >= 0 {
 				body["textOffset"] = offset
 			}
 		case "tool-call":
-			body["callId"] = rendererBoundTextIdentity(rendererText(foreground["callId"]))
-			body["toolName"] = rendererBoundText(foreground["toolName"], 64)
+			callID, ok := rendererTextIdentity(rendererText(foreground["callId"]), rendererMaxMessageIdentity)
+			if !ok {
+				continue
+			}
+			body["callId"] = callID
+			body["toolName"] = rendererNonblankText(foreground["toolName"], 64, "tool")
 		}
-		next := Object{"executionId": rendererBoundPublicIdentity(rendererText(entry["executionId"])), "foreground": body}
+		next := Object{"executionId": executionID, "foreground": body}
 		if segment, exists := entry["segmentId"]; exists {
 			next["segmentId"] = rendererBoundText(segment, limits.short)
 		}
@@ -823,10 +954,16 @@ func rendererBoundAuxiliaryUsage(value any, limits rendererLimits) []Object {
 		if !exists || rendererEncodedSize(usage) > limits.short {
 			continue
 		}
+		id, idOK := rendererTextIdentity(rendererText(sample["id"]), rendererMaxMessageIdentity)
+		nativeSessionID, nativeOK := rendererTextIdentity(rendererText(sample["nativeSessionId"]), rendererMaxNativeIdentity)
+		executionID, executionOK := rendererPublicIdentity(rendererText(sample["executionId"]))
+		if !idOK || !nativeOK || !executionOK {
+			continue
+		}
 		next := Object{
-			"id":              rendererBoundTextIdentity(rendererText(sample["id"])),
-			"nativeSessionId": rendererBoundTextIdentity(rendererText(sample["nativeSessionId"])),
-			"executionId":     rendererBoundPublicIdentity(rendererText(sample["executionId"])),
+			"id":              id,
+			"nativeSessionId": nativeSessionID,
+			"executionId":     executionID,
 			"kind":            "compaction",
 			"createdAt":       createdAt,
 			"usage":           usage,
@@ -843,70 +980,61 @@ func rendererBoundAuxiliaryUsage(value any, limits rendererLimits) []Object {
 	return result
 }
 
-func rendererBoundForkSource(value any, limits rendererLimits) Object {
+func rendererBoundForkSource(value any, limits rendererLimits) (Object, bool) {
 	source, ok := value.(Object)
 	if !ok {
-		return Object{"sessionId": "", "transcript": Object{}}
+		return nil, false
 	}
-	next := Object{
-		"sessionId":  rendererBoundTextIdentity(rendererText(source["sessionId"])),
-		"transcript": Object{},
+	sessionID, ok := rendererTextIdentity(rendererText(source["sessionId"]), rendererMaxNativeIdentity)
+	if !ok {
+		return nil, false
 	}
+	next := Object{"sessionId": sessionID, "transcript": Object{}}
 	if messageID, exists := source["messageId"]; exists {
-		next["messageId"] = rendererBoundTextIdentity(rendererText(messageID))
+		if text, ok := rendererTextIdentity(rendererText(messageID), rendererMaxNativeIdentity); ok {
+			next["messageId"] = text
+		}
 	}
-	return next
+	return next, true
 }
 
-func rendererRebuildNonempty(value, state Object, budget int) {
+func rendererFilterNonempty(value, state Object, original []Object, budget int) {
 	if value["kind"] != "deferred-execution" {
 		return
 	}
-	messages := rendererObjects(state["messages"])
+	retained := map[string]bool{}
+	for _, message := range rendererObjects(state["messages"]) {
+		if id := rendererText(message["id"]); id != "" {
+			retained[id] = true
+		}
+	}
 	entries := make([]Object, 0)
 	used := 2
-	for index := len(messages) - 1; index >= 0; index-- {
-		message := messages[index]
-		id := rendererText(message["id"])
-		if id == "" {
+	for index := len(original) - 1; index >= 0; index-- {
+		entry := original[index]
+		id, field := rendererText(entry["id"]), rendererText(entry["field"])
+		if !retained[id] || !rendererValidPresenceField(field) {
 			continue
 		}
-		add := func(field string) bool {
-			entry := Object{"id": id, "field": field}
-			size := rendererEncodedSize(entry) + 1
-			if used+size > budget {
-				return false
-			}
-			entries = append(entries, entry)
-			used += size
-			return true
-		}
-		if rendererNativeNonempty(rendererText(message["text"])) && !add("text") {
+		next := Object{"id": id, "field": field}
+		size := rendererEncodedSize(next) + 1
+		if used+size > budget {
 			break
 		}
-		if rendererNativeNonempty(rendererText(message["thinking"])) && !add("thinking") {
-			break
-		}
-		parts := rendererObjects(message["parts"])
-		stopped := false
-		for _, part := range parts {
-			if rendererText(part["type"]) == "tool" || !rendererNativeNonempty(rendererText(part["text"])) {
-				continue
-			}
-			ordinal, _ := rendererInteger(part["ordinal"])
-			if !add(fmt.Sprintf("parts:%s:%d", rendererText(part["type"]), ordinal)) {
-				stopped = true
-				break
-			}
-		}
-		if stopped {
-			break
-		}
+		entries = append(entries, next)
+		used += size
 	}
 	for left, right := 0, len(entries)-1; left < right; left, right = left+1, right-1 {
 		entries[left], entries[right] = entries[right], entries[left]
 	}
 	value["nonempty"] = entries
+}
+
+func rendererValidPresenceField(field string) bool {
+	if field == "" || len(field) > rendererMaxPresenceField || strings.ContainsRune(field, 0) {
+		return false
+	}
+	return field == "text" || field == "thinking" || strings.HasPrefix(field, "parts:")
 }
 
 func rendererMinimalProjection(state Object) Object {
@@ -924,8 +1052,8 @@ func rendererMinimalProjection(state Object) Object {
 	}
 	tiny := make([]Object, 0, len(executions))
 	for _, execution := range executions {
-		id := rendererBoundPublicIdentity(rendererText(execution["executionId"]))
-		if id == "" {
+		id, ok := rendererPublicIdentity(rendererText(execution["executionId"]))
+		if !ok {
 			continue
 		}
 		tiny = append(tiny, Object{
@@ -950,17 +1078,20 @@ func rendererMinimalProjection(state Object) Object {
 }
 
 func rendererLatestExecutionID(state Object) string {
-	switch value := state["latestExecutionId"].(type) {
+	var value string
+	switch current := state["latestExecutionId"].(type) {
 	case string:
-		return rendererBoundPublicIdentity(value)
+		value = current
 	case *string:
-		if value == nil {
+		if current == nil {
 			return ""
 		}
-		return rendererBoundPublicIdentity(*value)
+		value = *current
 	default:
 		return ""
 	}
+	id, _ := rendererPublicIdentity(value)
+	return id
 }
 
 func rendererObjects(value any) []Object {
@@ -1045,14 +1176,11 @@ func rendererClampTree(value any, limit int) any {
 func rendererBoundText(value any, limit int) string {
 	switch typed := value.(type) {
 	case string:
-		return rendererTruncateText(typed, limit)
+		return rendererTruncateText(strings.ReplaceAll(typed, "\x00", ""), limit)
 	case json.RawMessage:
-		if len(typed) <= limit {
-			return rendererText(typed)
-		}
 		var text string
 		if json.Unmarshal(typed, &text) == nil {
-			return rendererTruncateText(text, limit)
+			return rendererTruncateText(strings.ReplaceAll(text, "\x00", ""), limit)
 		}
 		return rendererTruncationMarker(len(typed))
 	default:
@@ -1114,26 +1242,22 @@ func rendererOptionValue(value any, index int) string {
 	return text
 }
 
-func rendererBoundTextIdentity(value string) string {
-	if value == "" {
-		hash := sha256.Sum256(nil)
-		return "d-" + hex.EncodeToString(hash[:12])
+func rendererTextIdentity(value string, limit int) (string, bool) {
+	if value == "" || len(value) > limit || strings.ContainsRune(value, 0) {
+		return "", false
 	}
-	if len(value) <= rendererMaxIdentity && !strings.ContainsRune(value, 0) {
-		return value
-	}
-	return rendererHashedIdentity(value)
+	return value, true
 }
 
-func rendererBoundPublicIdentity(value string) string {
-	if rendererValidPublicIdentity(value) {
-		return value
+func rendererPublicIdentity(value string) (string, bool) {
+	if !rendererValidPublicIdentity(value) {
+		return "", false
 	}
-	return rendererHashedIdentity(value)
+	return value, true
 }
 
 func rendererValidPublicIdentity(value string) bool {
-	if len(value) == 0 || len(value) > rendererMaxIdentity {
+	if len(value) == 0 || len(value) > rendererMaxPublicIdentity {
 		return false
 	}
 	for index := 0; index < len(value); index++ {
@@ -1152,9 +1276,23 @@ func rendererValidPublicIdentity(value string) bool {
 	return true
 }
 
-func rendererHashedIdentity(value string) string {
-	hash := sha256.Sum256([]byte(value))
-	return "d-" + hex.EncodeToString(hash[:12])
+func rendererTruncateUTF16(text string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
+	text = strings.ReplaceAll(text, "\x00", "")
+	units := 0
+	for index, point := range text {
+		width := 1
+		if point > 0xffff {
+			width = 2
+		}
+		if units+width > limit {
+			return text[:index]
+		}
+		units += width
+	}
+	return text
 }
 
 func rendererTruncateText(text string, limit int) string {

@@ -57,7 +57,7 @@ public struct OpenCodeThreadView: View {
                     isActive: execution.status == .running || execution.status == .waitingForUser),
                 node: AnyView(row(execution.executionID, state: state))))
         }
-        if state.contentTruncated {
+        if openCodeTruncationPlacement(truncated: state.contentTruncated, presentation: context.presentation) == .surface {
             rows.append(.init(id: "opencode-content-truncated", createdAt: input.thread.createdAt,
                               node: AnyView(OpenCodeTruncationNotice())))
         }
@@ -183,7 +183,7 @@ private struct OpenCodeTurn: View {
             rows.append(.init(id: interaction.id, kind: .attention, node: AnyView(OpenCodeInteractionPanel(interaction: interaction,
                 native: state.nativeInteraction(interaction.id), actions: actions).id(interaction.id))))
         }
-        if state.contentTruncated, case .execution = context.presentation {
+        if openCodeTruncationPlacement(truncated: state.contentTruncated, presentation: context.presentation) == .inline {
             rows.insert(.init(id: "opencode-content-truncated", kind: .content,
                 node: AnyView(OpenCodeTruncationNotice())), at: 0)
         }
@@ -385,6 +385,12 @@ struct OpenCodeToolOutput: View {
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }.frame(height: min(360, max(18, contentHeight)))
     }
+}
+enum OpenCodeTruncationPlacement: Equatable { case none, surface, inline }
+func openCodeTruncationPlacement(truncated: Bool, presentation: HarnessConversationPresentation) -> OpenCodeTruncationPlacement {
+    guard truncated else { return .none }
+    if case .execution = presentation { return .inline }
+    return .surface
 }
 private struct OpenCodeTruncationNotice: View {
     @Environment(\.locale) private var locale
