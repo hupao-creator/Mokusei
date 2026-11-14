@@ -82,6 +82,7 @@ func (a *apiClient) request(ctx context.Context, method, path string, value any,
 
 type eventResult struct {
 	value map[string]any
+	raw   []byte
 	err   error
 }
 
@@ -115,9 +116,10 @@ func (a *apiClient) events(ctx context.Context) *eventConnection {
 				continue
 			}
 			var value map[string]any
-			err := json.Unmarshal(scanner.Bytes(), &value)
+			raw := append([]byte(nil), scanner.Bytes()...)
+			err := json.Unmarshal(raw, &value)
 			select {
-			case connection.queue <- eventResult{value: value, err: err}:
+			case connection.queue <- eventResult{value: value, raw: raw, err: err}:
 			case <-ctx.Done():
 				return
 			}
@@ -148,6 +150,16 @@ func (c *eventConnection) next(ctx context.Context) map[string]any {
 		check(open, "NDJSON stream ended before its expected event")
 		must(item.err)
 		return item.value
+	case <-ctx.Done():
+		panic(fmt.Errorf("waiting for NDJSON event: %w", ctx.Err()))
+	}
+}
+func (c *eventConnection) nextRaw(ctx context.Context) []byte {
+	select {
+	case item, open := <-c.queue:
+		check(open, "NDJSON stream ended before its expected event")
+		must(item.err)
+		return item.raw
 	case <-ctx.Done():
 		panic(fmt.Errorf("waiting for NDJSON event: %w", ctx.Err()))
 	}

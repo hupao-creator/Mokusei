@@ -61,7 +61,11 @@ func verifySwiftDeltas() (failure error) {
 		if err != nil {
 			return err
 		}
-		fixtures[i].Patch = transport.CreateJSONDelta(before, after)
+		delta := transport.CreateBoundedJSONDelta(before, after, transport.DeltaBudget{MaxOperations: 4096, MaxBytes: 1 << 20})
+		if !delta.Complete {
+			return fmt.Errorf("fixture %q unexpectedly exceeded the delta budget", fixtures[i].Name)
+		}
+		fixtures[i].Patch = delta.Operations
 	}
 	data, err := json.Marshal(fixtures)
 	if err != nil {
@@ -78,17 +82,35 @@ func verifySwiftDeltas() (failure error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	command := swiftfixture.Test(ctx, "--filter", "GoDeltaInteropTests")
-	command.Env = append(os.Environ(), "MOKUSEI_GO_DELTA_FIXTURES="+path)
-	var output bytes.Buffer
-	command.Stdout = io.MultiWriter(os.Stdout, &output)
-	command.Stderr = os.Stderr
-	command.WaitDelay = 5 * time.Second
-	if err = command.Run(); err != nil {
+	content := captureContentBudgetEvents(ctx, directory)
+	contentData, err := json.Marshal(struct {
+		Events   []json.RawMessage `json:"events"`
+		Expected json.RawMessage   `json:"expected"`
+	}{Events: content.Events, Expected: content.Source})
+	if err != nil {
 		return err
 	}
-	if !bytes.Contains(output.Bytes(), []byte(fmt.Sprintf("PASS Go delta fixtures: %d", len(fixtures)))) {
-		return errors.New("native delta verification was skipped or did not execute all fixtures")
+	contentPath := filepath.Join(directory, "content-events.json")
+	if err = os.WriteFile(contentPath, contentData, 0600); err != nil {
+		return err
 	}
-	return nil
+	run := func(filter string, environment []string, marker string) error {
+		command := swiftfixture.Test(ctx, "--filter", filter)
+		command.Env = append(os.Environ(), environment...)
+		var output bytes.Buffer
+		command.Stdout = io.MultiWriter(os.Stdout, &output)
+		command.Stderr = os.Stderr
+		command.WaitDelay = 5 * time.Second
+		if err := command.Run(); err != nil {
+			return err
+		}
+		if !bytes.Contains(output.Bytes(), []byte(marker)) {
+			return fmt.Errorf("native %s verification was skipped or did not execute all fixtures", filter)
+		}
+		return nil
+	}
+	if err = run("GoDeltaInteropTests", []string{"MOKUSEI_GO_DELTA_FIXTURES=" + path}, fmt.Sprintf("PASS Go delta fixtures: %d", len(fixtures))); err != nil {
+		return err
+	}
+	return run("RuntimeContentFallbackTests", []string{"MOKUSEI_GO_CONTENT_EVENTS=" + contentPath}, fmt.Sprintf("PASS Go content fallback events: %d", len(content.Events)))
 }

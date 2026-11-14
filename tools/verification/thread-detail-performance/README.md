@@ -15,10 +15,13 @@ message fields and timeline identities; deferred reasoning presence; and source,
 overview, context and full-execution isolation. A fixture cannot put a running
 Codex turn in fork history: that would violate canonical admission.
 
-The benchmarks call the actual transport `publishOne` implementation with a
-prebuilt 2 KiB or 256 KiB projection and an advancing source revision. They cover
-identical bytes, alternating equivalent whitespace encodings, and real alternating
-message edits. Assertions check source/wire revision behavior, event presence and the first
+The benchmarks call the actual transport `publishOne` implementation with
+prebuilt 2 KiB, 256 KiB or 24 MiB projections and an advancing source revision.
+They cover identical bytes, alternating equivalent whitespace encodings, and
+real alternating message edits. The 24 MiB changed-content case is the
+large-projection/small-edit allocation boundary: a conservative decoded-value
+lower bound must keep the patch path from re-encoding the full snapshot.
+Assertions check source/wire revision behavior, event presence and the first
 visible patch after no-ops. Hosted runtime replays run three iterations under
 the race detector as a correctness smoke check; timing is not a CI threshold.
 Hosted adapter replays include the projection command.

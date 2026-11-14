@@ -210,7 +210,7 @@ public actor RuntimeClient {
             else { emit(.threadContent(subscriptionId: id, state: .loading)) }
         }
     }
-    private func receive(_ event: JSONValue, connection owner: RuntimeConnection, stream id: UUID, generation expected: Int) async throws {
+    func receive(_ event: JSONValue, connection owner: RuntimeConnection, stream id: UUID, generation expected: Int) async throws {
         try assertCurrent(id, generation: expected)
         guard event["epoch"]?.stringValue == owner.epoch else { throw RuntimeError("STALE_EPOCH", "Runtime event belongs to another service instance") }
         guard let type = event["type"]?.stringValue else { throw RuntimeError("INVALID_EVENT", "Runtime event has no type") }
