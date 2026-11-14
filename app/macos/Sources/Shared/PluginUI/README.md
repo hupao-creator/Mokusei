@@ -2,6 +2,12 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+Reading author labels use the validated owning Harness's native logo and name
+from the host environment, independently of the recorded model and effort.
+Without that identity they retain the text-only fallback. The shared label is
+used in reading headers and turn footers, and exposes the Harness name to
+accessibility while keeping the logo decorative.
+
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread
 collections opt into it for their full backdrop and emoji badge; the badge keeps
@@ -169,7 +175,16 @@ contributes readiness, and pending Markdown parsing or loading placeholders
 keep the gate closed. Loaded empty/error states can finish without Markdown.
 Agent loading placeholders keep the gate pending even alongside loaded sibling
 rows and during their visual grace period. The identity-only reader cannot
-admit content. Reduce Motion preserves the same readiness rules. See the
+admit content. Agent main readers fade only their first readable timeline body in with the
+same 200ms ease-out opacity timing as Report referenced readers. Admission
+waits for arrival and content readiness for both running and completed executions;
+loading remains visible while data prepares. Readiness is latched once per
+reader visit, so streaming, retries and history changes do not replay the fade.
+The timeline toolbar (including title, emoji and header controls), history rail
+and scroll container stay visible; the title/emoji handoff never fades again.
+The transparent preparation frame excludes hit testing and accessibility.
+The fade changes only opacity and preserves layout and scroll ownership. Reduce Motion and inactive scenes settle the fade
+immediately while preserving readiness rules. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
 

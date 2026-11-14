@@ -8,6 +8,7 @@ struct OpenCodeState: Hashable, Sendable {
     let initialResponseScope: Bool
     let raw: JSONValue
     let messages: [OpenCodeMessage]
+    let messagesByExecution: [JSONText: [OpenCodeMessage]]
     let executions: [PublicExecution]
     let interactions: [JSONValue]
     init(_ value: JSONValue) throws {
@@ -20,6 +21,7 @@ struct OpenCodeState: Hashable, Sendable {
               value["latestExecutionId"] != nil else { throw OpenCodeError.invalidState }
         try ocValidateRemainingState(value)
         self.raw = value; self.messages = try messages.map(OpenCodeMessage.init)
+        self.messagesByExecution = Dictionary(grouping: self.messages, by: \.executionID)
         self.executions = try executions.map(PublicExecution.init(json:)); self.interactions = interactions
         try ocUnique(self.messages.map(\.id)); try ocUnique(self.executions.map(\.executionID))
         if value["latestExecutionId"] != .null {

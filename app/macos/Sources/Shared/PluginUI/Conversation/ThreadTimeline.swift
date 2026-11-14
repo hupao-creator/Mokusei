@@ -169,6 +169,7 @@ public struct HarnessMessageTimeline: View {
     public var onLocated: ((JSONText) -> Void)?
     @Environment(\.locale) private var locale
     @Environment(\.nativeReadingNavigation) private var readingNavigation
+    @Environment(\.nativeThreadBodyEntranceHidden) private var bodyEntranceHidden
     @Environment(\.nativePerformanceOperation) private var performanceOperation
     @State private var previousReadingNavigation: NativeReadingNavigationState?
     @State private var readingSource = UUID()
@@ -239,16 +240,23 @@ public struct HarnessMessageTimeline: View {
                             .frame(maxWidth: .infinity).padding(.bottom, 24)
                         }
                         toolbar
-                        if rows.isEmpty { emptyState }
-                        // The bounded outer window is retained as a VStack: lazy rows carry their
-                        // own scoped reads, and anchor registration must also work below the fold.
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(visible) { row in
-                                row.node.threadReadingAnchor(row.id)
-                                    .nativeReadingScope("row." + nativeReadingInteractionKey(row.id))
-                            }
-                        }.accessibilityElement(children: .contain)
-                            .accessibilityLabel(localize("已加载消息"))
+                        // Heading ink is already visible before the body is
+                        // ready. Keep toolbar and scroll geometry outside its fade.
+                        Group {
+                            if rows.isEmpty { emptyState }
+                            // The bounded outer window is retained as a VStack: lazy rows carry their
+                            // own scoped reads, and anchor registration must also work below the fold.
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(visible) { row in
+                                    row.node.threadReadingAnchor(row.id)
+                                        .nativeReadingScope("row." + nativeReadingInteractionKey(row.id))
+                                }
+                            }.accessibilityElement(children: .contain)
+                                .accessibilityLabel(localize("已加载消息"))
+                        }
+                        .opacity(bodyEntranceHidden ? 0 : 1)
+                        .allowsHitTesting(!bodyEntranceHidden)
+                        .accessibilityHidden(bodyEntranceHidden)
                         Color.clear.frame(height: 0).id(TimelineEdge.bottom)
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
