@@ -57,7 +57,7 @@ def content(runtime, thread_id, scope):
                 update(None)
 
 
-def verify_reply(snapshot, execution_id, corpus):
+def verify_reply(snapshot, execution_id, corpus, status="completed"):
     # This is a native-Harness wire adapter, not a reader implementation. It
     # admits the selected completed reply from the public scoped projection.
     if snapshot.get("scope") != {"kind": "turn", "key": "turn:" + execution_id}:
@@ -72,8 +72,8 @@ def verify_reply(snapshot, execution_id, corpus):
             pending.extend(value.values())
         elif isinstance(value, list):
             pending.extend(value)
-    if len(candidates) != 1 or candidates[0].get("status") != "completed":
-        raise ValueError("selected completed execution missing from public content")
+    if len(candidates) != 1 or candidates[0].get("status") != status:
+        raise ValueError(f"selected {status} execution missing from public content")
     replies = [item for item in candidates[0]["timeline"]
                if item.get("kind") == "assistant" and item.get("status") not in ("streaming", "failed")
                and isinstance(item.get("content"), str) and item["content"].strip()]
@@ -84,4 +84,4 @@ def verify_reply(snapshot, execution_id, corpus):
     if len(actual) != expected["bytes"] or hashlib.sha256(actual).hexdigest() != expected["sha256"]:
         raise ValueError("public final reply omitted or changed fixture content")
     return {"executionId": execution_id, "bytes": len(actual), "sha256": expected["sha256"],
-            "observedNS": snapshot["atNS"], "scope": snapshot["scope"], "status": "completed"}
+            "observedNS": snapshot["atNS"], "scope": snapshot["scope"], "status": status}

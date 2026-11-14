@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import http.client
 import json
 from pathlib import Path
+import shutil
 import struct
 import tempfile
 import time
@@ -12,7 +13,7 @@ import zlib
 from analysis.report import seal, write_report
 from conformance.replay import fixture as shared_fixture
 from lifecycle import save
-from reading.corpus import document
+from reading.corpus import document, active_reply
 from reading.plan import interaction
 from reading.provider import ReadingProvider, workload
 from reading.contract import terminal_fragment
@@ -108,6 +109,22 @@ def provider_replay(directory):
         assert final[-1]["phase"] == "final_answer" and "READ 002 COMPLETE" in final[-1]["content"][0]["text"]
         assert all(item["phase"] == "commentary" for item in final[:-1])
         assert all(event["sentNS"] >= event["plannedNS"] for event in source["events"] + source["messages"])
+        token = provider.prepare_active_open()
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(request, f"BENCH ITEM 01: BENCH STREAM 01 {token}. Review the document.")
+            try:
+                deadline = time.monotonic() + 3
+                while not provider.streams[token]["messages"] and time.monotonic() < deadline:
+                    time.sleep(.01)
+                assert len(provider.streams[token]["messages"]) == 1
+                assert not future.done() and not provider.streams[token]["done"]
+            finally:
+                provider.release_active_open(token)
+            events = future.result()
+        source = provider.active_open_evidence(token)
+        assert source["complete"] and not source["failures"]
+        assert source["messages"][0]["sentNS"] < source["releasedNS"]
+        assert events[-1]["response"]["output"][0]["content"][0]["text"] == active_reply().markdown
     finally:
         provider.close()
 
@@ -226,6 +243,37 @@ def main():
         presentation = run("entry", entry, product="passed")["metrics"]["reading"]["presentation"]
         assert presentation["firstContentSeconds"]["upper"] < .4
         assert presentation["scheduledUsabilityProbeSeconds"] > 3.7
+
+        def active_entry(plan, observation, frames):
+            entry(plan, observation, frames)
+            plan["scenario"] = "reading.active-open"
+            plan["reading"]["activeExecution"] = {"executionId": "execution-two", "corpus": active_reply().manifest()}
+            formal = observation["boundaries"]["formalStart"]
+            for frame in frames:
+                if (frame["atNS"] - formal) / 1e9 >= 1:
+                    frame["texts"] += [{"text": anchor, "x": 700, "y": 300 + i * 40,
+                                        "width": 220, "height": 20, "confidence": 1}
+                                       for i, anchor in enumerate(active_reply().anchors)]
+
+        active = run("active-entry", active_entry, product="passed")["metrics"]["reading"]["activeOpening"]
+        assert .7 < active["firstSidecardContentSeconds"]["upper"] < .9
+        assert active["bodyAnchorSettledSeconds"] is not None
+        def absent_side(plan, observation, frames):
+            active_entry(plan, observation, frames)
+            for frame in frames:
+                frame["texts"] = [item for item in frame["texts"] if not item["text"].startswith("SIDE ")]
+        missing_side = run("active-entry-empty-side", absent_side, product="unknown")
+        assert missing_side["metrics"]["reading"]["activeOpening"]["firstSidecardContentSeconds"] is None
+        def moving_side(plan, observation, frames):
+            active_entry(plan, observation, frames)
+            for i, frame in enumerate(frames):
+                for item in frame["texts"]:
+                    if item["text"].startswith("SIDE "):
+                        item["x"] += (i % 2) * 20
+        unstable = run("active-entry-moving-side", moving_side, product="unknown")
+        assert unstable["metrics"]["reading"]["activeOpening"]["bodyAnchorSettledSeconds"] is None
+        run("active-entry-wrong-corpus", lambda p, o, f: (active_entry(p, o, f),
+            p["reading"]["activeExecution"]["corpus"].update(sha256="0" * 64)), invalid=True)
         partial_entry = run("entry-partial-probe", lambda p, o, f: (entry(p, o, f), partial(p, o, f)), product="wrong-result")
         assert partial_entry["metrics"]["reading"]["presentation"]["scheduledUsabilityProbeSeconds"] is None
 
@@ -278,6 +326,46 @@ def main():
         assert report["metrics"]["reading"]["presentation"]["firstContentSeconds"]
         assert not any("background target" in reason for reason in report["reasons"]), report
         count += 1
+        for fault in (None, "early-completion", "wrong-execution", "unsealed-source"):
+            active_root = base / ("application-active-" + str(fault))
+            shutil.copytree(root, active_root)
+            ap, ao, af = copy.deepcopy((p, o, f))
+            active_entry(ap, ao, af)
+            active_snapshot = {"atNS": ap["startNS"] - 100,
+                "scope": {"kind": "turn", "key": "turn:execution-two"}, "value": {
+                "executionId": "execution-two", "status": "running",
+                "timeline": [{"kind": "assistant", "status": "completed", "content": active_reply().markdown}]}}
+            save(active_root / "active-prepared-content.json", active_snapshot)
+            active_snapshot["atNS"] = ao["boundaries"]["tailEnd"] + 1000
+            save(active_root / "active-observed-content.json", active_snapshot)
+            manifest = active_reply().manifest()
+            evidence = {"clock": ap["clock"], "corpus": manifest, "complete": True, "failures": [],
+                        "releasedNS": ao["boundaries"]["tailEnd"] + 2000,
+                        "messages": [{"sentNS": ap["startNS"] - 200, "bytes": manifest["bytes"], "sha256": manifest["sha256"]}]}
+            if fault == "early-completion":
+                evidence["releasedNS"] = ap["startNS"]
+            if fault == "wrong-execution":
+                ap["reading"]["activeExecution"]["executionId"] = "execution-wrong"
+            save(active_root / "active-source.json", evidence)
+            save(active_root / "tail-outcome.json", {"beforeNS": active_snapshot["atNS"],
+                "afterNS": active_snapshot["atNS"] + 100, "status": "pending", "threads": [{**thread,
+                "observation": {"latestExecution": {"executionId": "execution-two", "status": "running"}}}]})
+            persist(active_root, ap, ao, af)
+            if fault == "unsealed-source":
+                manifest = json.loads((active_root / "manifest.json").read_text())
+                del manifest["files"]["active-source.json"]
+                save(active_root / "manifest.json", manifest)
+            active_report = write_report(active_root)
+            if fault is None:
+                # This portable application envelope has no real macOS
+                # calibration; assert the business evidence, not a GUI pass.
+                assert active_report["businessOutcome"] == "passed" and active_report["scenarioEvidence"] is True
+                assert active_report["measurement"] != "invalid", active_report
+            elif fault == "unsealed-source":
+                assert "unsealed active opening evidence: active-source.json" in active_report["reasons"]
+            else:
+                assert active_report["measurement"] == "invalid", active_report
+            count += 1
         snapshot["value"]["timeline"][0]["content"] = corpus.markdown[:4000]
         save(root / "public-content.json", snapshot)
         seal(root)

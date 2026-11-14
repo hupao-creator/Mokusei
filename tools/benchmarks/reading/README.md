@@ -33,9 +33,9 @@ administrator prompt or system authorization change is part of a default run.
 ## Workloads and scenarios
 
 The workload varies only the size of a **single final reply**. Default runs use
-8 / 32 KiB, with four scenarios each, for eight trials. An explicit
+8 / 32 KiB, with five scenarios each, for ten trials. An explicit
 `--body-kib 128` selects the large-reply stress workload; `--body-kib 8 32 128`
-runs all twelve trials. These are chosen experimental sizes, not measured
+runs all fifteen trials. These are chosen experimental sizes, not measured
 percentiles of user replies. 128 KiB is about 131,000 ASCII characters or 44,000
 three-byte Chinese characters: it represents an unusually large code/document
 reply, not a normal reply or a model's 128K-token context window.
@@ -45,7 +45,7 @@ exceed the target slightly; every plan records actual UTF-8
 bytes, section count and SHA-256. The fixed block mix contains paragraphs,
 Chinese/English text, headings, inline styles, lists, Swift code, tables and a
 blockquote. Business checkpoints are part of the declared document.
-The shared scenario requests a fixed 1280 × 820-point window. All four scenarios
+The shared scenario requests a fixed 1280 × 820-point window. All five scenarios
 use a ten-second formal interval and a three-second observation tail.
 
 | Scenario | Timed work |
@@ -53,7 +53,8 @@ use a ten-second formal interval and a three-second observation tail.
 | `reading.first-open` | After a fresh process reaches Overview, click the existing card; observe recognizable body checkpoints and a later scheduled scroll probe. Fixture creation and application startup are outside this timer. |
 | `reading.reopen` | Return to Overview and click the same existing card in the retained application process. |
 | `reading.scroll` | Fixed-clock pixel-wheel input alternates down/up, with explicit pauses between gestures. |
-| `reading.output-scroll` | Read and scroll the prepared reply while one subsequent real execution emits complete, meaningful progress replies, then a final document. This case runs last because it starts another execution. |
+| `reading.active-open` | Warm reopen from Overview with one completed main reply and one fixed settled progress message in a running Execution Sidecard. Click, observe both bodies and their anchor stability, then probe scrolling. The execution stays running without new output throughout timing. |
+| `reading.output-scroll` | Read and scroll the prepared reply while one subsequent real execution emits complete, meaningful progress replies, then a final document. This runs last within the ordinary fixture because it starts another execution. |
 
 Preparation may read public semantic state, locate actual accessibility controls
 and reset a starting scroll position. Formal intervals do not poll complete
@@ -74,6 +75,20 @@ normal entry behavior and confirms both the completed document and active
 execution are mounted. A background follow-up alone does not reveal a folded
 execution sidecard in an already mounted reader.
 
+`active-open` uses its own isolated fixture, collected after the ordinary cases,
+so its held execution cannot alter their selected main reply. Preparation opens
+both columns, resets main's scroll position, then returns to Overview. Its source
+ledger and public scoped content before/after timing require one settled message
+and a still-running execution; completion is released only after observation.
+The main reply remains the only size axis; the short Sidecard reply has a fixed
+composition, byte count and digest. This is a warm open, not a process-cold launch.
+
+`first-open`/`reopen` cover completed executions; `output-scroll` admits its
+Sidecard before timing. First recognizable main-body content does not establish
+Sidecard or composer readiness. The
+[November 14 recording diagnosis](../../../design/reader-opening-20261114.md)
+motivated the separate active entry case; its Debug logs are not Release results.
+
 ## Measurements and evidence
 
 The report retains entry-to-recognizable-content intervals, a scheduled usability
@@ -82,6 +97,14 @@ observed displacement, frame correspondence and longest observed no-progress
 interval. Dynamic cases also report source completion to observed checkpoint
 latency where the checkpoint is visible. Offscreen updates are not silently
 credited as rendered work.
+
+Active entry requests 20 captures/s instead of 5; actual capture request/return
+times remain authoritative. Its additional metrics are first recognizable
+Sidecard body (two exact checkpoints) and stable body-anchor geometry in both
+columns, with 2pt tolerance for at least 400ms and through the remaining quiet
+interval before the scroll probe. Those observations do not certify composer
+readiness, complete panel geometry, native frame pacing or display FPS. The
+increased capture overhead is recorded, not subtracted from product CPU.
 
 Shared collectors record App/Runtime/helper CPU deltas and **sampled** physical
 footprint with separate collector/source roles. PNG request/return intervals and
