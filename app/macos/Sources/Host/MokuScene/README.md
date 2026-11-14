@@ -776,6 +776,12 @@ Direct Thread sends admit three-dot orbit feedback as soon as the Dock captures
 the submission. Open input hides the orbit, including retiring dot ink; closing
 input reveals applicable pending/running feedback without waiting for the
 retained editor to unmount. The pinned editor keeps its own Send/Stop controls.
+Agent detail's persistent input suppresses this feedback for its whole ownership
+lifetime, including reading travel and the Harness flip before input opens.
+Entry, replacement and return therefore cannot mistake delayed editor admission
+for a user-closed input or reveal retained orbit ink. Ordinary closed-input
+running/submission feedback and the running story remain unchanged. See the
+[recording diagnosis and headless limits](../../../../../design/agent-detail-entry-orbit.md).
 This feedback skips
 the running choreography's initial three-beat prelude; it does not grant Stop
 authority, consume a draft or navigate before a confirmed receipt. Failure or
