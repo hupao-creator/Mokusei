@@ -430,7 +430,11 @@ public struct HarnessMessageTimeline: View {
         onJumpToLatest?(); following = true; showLatest = false; clampedRequest = nil; userPositioned = true
         let transition = UUID()
         latestTransition = transition
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
+        // With no running application event loop (previews and isolated native
+        // replays) an animated scroll cannot complete. Settle the same target
+        // immediately; the production app keeps the 350ms transition.
+        withAnimation(reduceMotion || NSApp?.isRunning != true ? nil : .easeInOut(duration: 0.35),
+                      completionCriteria: .removed) {
             // An edge target follows content growth inside SwiftUI itself.
             // Animate to this snapshot instead, then admit ordinary following.
             position.scrollTo(y: max(0, geometry.height - geometry.viewport))
