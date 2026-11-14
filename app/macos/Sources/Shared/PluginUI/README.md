@@ -2,6 +2,10 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+The timeline's floating Jump to latest control uses a 42pt circular interactive
+regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
+action and localized accessibility label remain owned by the timeline.
+
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread
 collections opt into it for their full backdrop and emoji badge; the badge keeps
