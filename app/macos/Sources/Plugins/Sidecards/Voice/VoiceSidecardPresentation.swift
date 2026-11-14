@@ -38,6 +38,7 @@ public final class VoiceSidecardPresentation {
         let changedCapability = previous !== context.voice
         self.context = context
         if changedCapability {
+            cancelLatestTransition()
             capabilityGeneration += 1
             unsubscribe?(); unsubscribe = nil
             capability = context.voice
@@ -53,7 +54,10 @@ public final class VoiceSidecardPresentation {
                 receive(.init(phase: .closed, supported: false, available: false, loading: false, muted: false, error: "", messages: []))
             }
         }
-        if previousExpanded != context.expanded { messagesChanged() }
+        if previousExpanded != context.expanded {
+            cancelLatestTransition()
+            messagesChanged()
+        }
         previousExpanded = context.expanded
         refreshAnnouncement()
     }
@@ -68,12 +72,14 @@ public final class VoiceSidecardPresentation {
         if pinned { scrollToLatest() }
         else if !state.messages.isEmpty { newMessages = true }
     }
-    public func jumpToLatest(reduceMotion: Bool) {
+    public func jumpToLatest(bottom: CGFloat, reduceMotion: Bool) {
         pinned = true; away = false; newMessages = false
         let transition = UUID()
         latestTransition = transition
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
-            scrollPosition.scrollTo(edge: .bottom)
+            // A fixed offset does not acquire SwiftUI's growth-following edge
+            // anchor until this transition's completion admits it below.
+            scrollPosition.scrollTo(y: bottom)
         } completion: {
             guard self.latestTransition == transition else { return }
             self.latestTransition = nil
@@ -87,6 +93,12 @@ public final class VoiceSidecardPresentation {
         withTransaction(transaction) { scrollPosition.scrollTo(edge: .bottom) }
     }
     public func userScrollBegan() { latestTransition = nil; pinned = false }
+    public func cancelLatestTransition() { latestTransition = nil }
+    public func finishLatestTransition() {
+        guard latestTransition != nil else { return }
+        latestTransition = nil
+        if pinned { scrollToLatest() }
+    }
     public func didScroll(offset: CGFloat, contentHeight: CGFloat, viewportHeight: CGFloat) {
         guard latestTransition == nil else { return }
         let atBottom = contentHeight - offset - viewportHeight < 48
@@ -127,6 +139,7 @@ public final class VoiceSidecardPresentation {
         }
     }
     private func release() {
+        cancelLatestTransition()
         capabilityGeneration += 1
         unsubscribe?(); unsubscribe = nil
         capability = nil
