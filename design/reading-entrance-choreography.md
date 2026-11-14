@@ -86,7 +86,7 @@ admitted visit may restore input only through the existing eligible route.
 
 The identity seat retains its current mark until reading admission, keeping eyes
 through initial downward travel and preserving an existing Harness logo during
-an Agent continuation. The flip's actual removed completion releases a separate
+an Agent continuation. The flip's native delegate completion releases a separate
 scene input gate; no duration-based phase task is scheduled. A replacement
 composer may reuse a flip to the same mark, but must await its completion rather
 than infer readiness from its target value. A different mark or view teardown
@@ -94,6 +94,18 @@ invalidates the old completion; the composer generation independently rejects
 late delivery. Reduce Motion, inactive scenes and hidden windows settle the mark
 immediately without bypassing reading/content admission. The existing return and
 composer-collapse paths remain independent.
+
+The identity flip uses live, unclipped native hosting seats rather than captured
+images. A Core Animation transform/opacity group owns the 420ms emphasized
+rotation, retiring the front in the first half before revealing the back in the
+second half. No new display link or timer drives these frames. The eyes keep
+their existing character renderer and retire with their outgoing host. Rapid
+replacement samples the most visible presented seat; returning to that mark
+restores its current transform instead of replacing it with a new face. A
+same-target composer borrows the active animation and takes over only the
+completion receipt. Initial attachment, resize, detach and reduced/inactive
+presentation settle at the target. Native delivery is deferred and checked
+against both transition generation and composer identity before opening input.
 
 The existing 180ms focus delay starts with input expansion after travel and the
 identity flip when needed, never with primary travel. Delivery checks the current draft,
@@ -117,6 +129,17 @@ interaction delay while retaining layout/readiness and cancellation ownership.
 It still waits for data and Markdown parsing.
 
 ## Scope and verification limits
+
+The native identity follow-up replaces the SwiftUI flip modifier with live
+native hosting seats and compositor-owned transform/opacity groups. The final
+headless Debug `Mokusei` product build passed (12.19s), along with Swift syntax
+parsing, diff review and the local entrance-contract link check. Static review
+covered initial attachment, same-target receipt replacement, rapid reversal,
+third-mark replacement, resize, detach, Reduce Motion and deferred completion.
+No tests were added or run, no graphical replay or rendered-frame acceptance
+was performed, and no CI was triggered. Character drawing, editor layout and
+Note/Settings content ownership stay with their existing implementations.
+The detached local commit is handed to the coordinator without pushing.
 
 The same-day descent follow-up moves only the reading baseline into the existing
 native Dock travel transform, retaining SwiftUI shell sizing and the sequential
