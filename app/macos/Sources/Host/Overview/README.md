@@ -188,12 +188,14 @@ The canvas supplies both the readable fitting extent and the natural-scale exten
 
 Same-scene revisions with identical ID/outer-footprint sets refresh semantic snapshots and acknowledge structural history without acquiring a spatial stage or invoking the solver. This also applies to resize while the existing bounds remain readable. Reuse requires an assessment completed by this mounted canvas; a retained layout from an earlier host first visits the solver. The completed outcome, including an incomplete-budget fallback, is cached for exactly those placements to avoid repeatedly retrying the same quality repair. Exact viewport changes that invalidate capacity still plan normally; lifecycle revisions remain FIFO, including A→B→A and exits. `layoutSolveCount` and `geometryReuseCount` expose these distinct paths for native regression tests.
 
-Fresh/filter framing centers the collection horizontally and vertically between persistent controls. In automatic mode, inserting a card refits the complete resulting collection to that anchor after its layout/entry completes; the old single-card camera must not remain the target of a multi-card scene. Ordinary revisions without entrants and with zero survivor world travel preserve the old camera scale/translation wherever the complete collection fits; otherwise translation is clamped to the nearest completely visible position. If the old scale cannot fit, normal readable fitting takes precedence. The resulting target survives delayed refits. Resize and explicit return to automatic framing restore the ordinary policy; manual framing remains user-owned, including during insertion. This protects stationary card origins on deletion and local footprint changes when capacity permits, but does not lock an individual editor through conflicting growth/global repacks.
+Fresh/filter framing centers the collection horizontally and vertically between persistent controls. In automatic mode, inserting a card refits the complete resulting collection to that anchor after its layout/entry completes; the old single-card camera must not remain the target of a multi-card scene. Ordinary revisions without entrants and with zero survivor world travel preserve the old scale/translation when the complete collection fits and the ordinary fit does not offer a larger scale; otherwise translation is clamped to the nearest completely visible position. When card shrinkage or deletion permits a larger automatic scale, or the old scale cannot fit, ordinary readable fitting takes precedence. The resulting target survives delayed refits. Resize and explicit return to automatic framing restore the ordinary policy; manual framing remains user-owned, including during insertion and shrinkage. Same-scale local changes keep the reader's seat where capacity permits, but do not lock an individual editor through conflicting growth/global repacks.
 
-Automatic mode can therefore retain a smaller reading scale after cards shrink;
-a background click clears that reading target and recomputes the ordinary fit
-even while `manual` was already false. See the
-[recording, same-session layout evidence and production-camera reproduction](../../../../../design/overview-click-refit-investigation.md).
+Automatic shrink refits need no background click. They use the existing 160ms
+minimum delay, 600ms refit throttle and shared spatial stage after card layout
+settles. Identical geometry/content refreshes do not restart the move; edits
+arriving during motion reconcile the latest target on completion. Interaction
+and visibility pauses defer motion, and manual pan/zoom cancels automatic work.
+See the [recording, diagnosis and focused repair validation](../../../../../design/overview-click-refit-investigation.md).
 
 Filter changes with visible survivors retain the old automatic scale only while
 the new collection fits between persistent controls. If it exceeds that actual
