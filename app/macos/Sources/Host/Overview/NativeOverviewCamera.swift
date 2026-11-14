@@ -598,12 +598,15 @@ public final class NativeOverviewCamera {
             clearRefit()
             if animationOwner == .refit {
                 // A playing refit would otherwise commit a target that no
-                // longer matches the retained baseline. Publish the sampled
-                // view as the baseline, then commit that same sample.
+                // longer matches the retained baseline. Sample the current
+                // view, validate it against the new content, publish it as the
+                // baseline, then commit that same sample.
                 if let sampled = live, !sampled.manual, !returning, !pendingAutoFit {
-                    readingFit = .init(transform: sampled.transform, content: content,
+                    let retained = NativeOverviewCameraGeometry.preservingReadingPosition(
+                        sampled.transform, content: content, viewport: viewport)
+                    readingFit = .init(transform: retained, content: content,
                                        retainedX: true, retainedY: true)
-                    cancelMotion(committing: sampled)
+                    cancelMotion(committing: .init(transform: retained, manual: false))
                 } else {
                     readingFit = nil
                     cancelMotion()
@@ -841,6 +844,9 @@ public final class NativeOverviewCamera {
         }
     }
 
+    /// Cancel an in-flight track. When `sampled` is supplied, the caller must
+    /// sample and commit it in the same MainActor synchronous interval; this
+    /// method does not detect or protect against an asynchronous stale sample.
     private func cancelMotion(committing sampled: NativeOverviewCameraState? = nil) {
         animationGeneration += 1
         animationTask?.cancel()

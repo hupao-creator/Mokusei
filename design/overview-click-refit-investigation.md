@@ -233,18 +233,21 @@ content bounds，并为 retained target 按轴标记来源：ordinary fit/clamp 
 命中时 x 取新普通 fit；任何 height shrink 都会创建 persistent vertical seat：
 若旧 y 与新普通 y 不同，则保留旧 y 并 clamp；同一事务的 width shrink 只替换 x，
 仍保留该 seat。普通高度增长不会创建 retained y，但已有 seat 会跨后续增长保留，
-直到 explicit return、retainFraming、preserveFraming、manual、viewport 变更或
-reset。纯垂直 height shrink 因 x 不变仍保留垂直座位；height shrink + width
+直到 explicit return、manual、viewport 变更或 reset；`retainFraming` /
+`preserveFraming` 会重置 automatic provenance 并把当前视图转成 intentional
+baseline。纯垂直 height shrink 因 x 不变仍保留垂直座位；height shrink + width
 shrink 同事务时 x 重居中、y 保留。与 ordinary fit 不同的显式 retained
 filter/reading target、手动 pan/zoom、scale 变化和容量不足场景保持原策略。
-`retainFraming` 和 `preserveFraming` 会清除旧 automatic provenance，并把当前
-视图写成 intentional retained baseline；后续 local edit 保留该视图，而不是
-复活旧 automatic seat。`setManualTransform` 清除 retained target，避免
-filtered edit 跳回旧 `readingFit`。viewport 变更在 `setBounds` 同步清除两类
-provenance。连续 shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，
-后续 shrink 会重新居中。grow 目标尚未 settle 时到达的 shrink 保留 pending
-target；后续 layout revision 或显式 return 再重新判断自动 clamp。该 pending
-语义是本轮接受的现状，不会仅因目标 settle 就重新评估，由
+`retainFraming` 和 `preserveFraming` 会把当前视图写成 intentional retained
+baseline；后续 local edit 保留该视图，而不是复活旧 automatic seat。in-flight
+`preserveFraming` 会取消 refit，并把采样帧先经 `preservingReadingPosition`
+clamp 后作为 baseline；它可能停在中间帧，而不是起点或终点。
+`setManualTransform` 清除 retained target，避免 filtered edit 跳回旧
+`readingFit`。viewport 变更在 `setBounds` 同步清除两类 provenance。连续
+shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，后续 shrink 会重新
+居中。grow 目标尚未 settle 时到达的 shrink 保留 pending target；后续 layout
+revision 或显式 return 再重新判断自动 clamp。该 pending 语义是本轮接受的现状，
+不会仅因目标 settle 就重新评估，由
 `consecutiveFootprintChangesKeepPendingReadingTarget` 和新增 camera case 覆盖。
 
 定向诊断直接编译本 worktree 的 `NativeOverviewLayout.swift`、
@@ -272,6 +275,8 @@ height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 sh
 `retainFramingPublishesBaselineAtomically`、
 `preserveFramingKeepsCurrentViewAsRetainedBaseline`、
 `preserveFramingDuringRefitCancelsThePendingTarget`、
+`preserveFramingDuringAutomaticReturnDoesNotCreateBaseline`、
+`preserveFramingWhileRefitWaitsForStageKeepsLiveBaseline`、
 `setManualTransformClearsPersistentVerticalSeat`、
 `viewportChangeClearsPersistentVerticalSeat`、
 `resetClearsPersistentVerticalSeat`、
@@ -279,20 +284,20 @@ height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 sh
 `pendingGrowKeepsItsSeatUntilANewRevision`。实际卡片 envelope 中心的 GUI
 Canvas case 已提交到 `NativeOverviewCapacityTests`：
 `aspectChangingFootprintRecentersRenderedCard`、
-`persistentVerticalSeatSurvivesRenderedWidthShrink`。
+`persistentVerticalSeatSurvivesRenderedWidthShrink`、
+`inFlightPreserveFramingKeepsRenderedContentVisible`。
 
 相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
 `NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
 `NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
-75 个测试全部通过（约 95 秒）。额外运行 `make check-swift` 全量 Swift
+78 个测试全部通过（约 99 秒）。额外运行 `make check-swift` 全量 Swift
 suite（final working tree），结果不是绿色，不能以 focused 结果替代托管
-`Complete coverage`：headless 209 个测试全部通过；graphical 326 个测试有
-3 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`、
-`NativeBrowserViewportTests` annotation selection bridge 安装失败、
+`Complete coverage`：headless 211 个测试全部通过；graphical 327 个测试有
+2 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`，
 `NativeThreadSendFeedbackTests` presentation settled 失败。本次 native owner
 均产出成功 receipt；更早 full run 还出现过 `NativeVoiceAnalysisTests` 音频、
-`NativeMokuExecutionLinkTests`/excerpt、`rolling-numbers` 与 tag-glass
-onboarding/decoration 的环境/时序相关失败，均在不同 run 中波动或单独重跑
-通过。上述失败均未涉及相机/Overview 取景路径。`./scripts/go.sh run
-./cmd/mokusei-check architecture` 与 `./scripts/go.sh vet ./...` 通过；未运行
-托管 `Complete coverage`，也未推送。
+`NativeMokuExecutionLinkTests`/excerpt、`NativeBrowserViewportTests`、
+`rolling-numbers` 与 tag-glass onboarding/decoration 的环境/时序相关失败，
+均在不同 run 中波动或单独重跑通过。上述失败均未涉及相机/Overview 取景路径。
+`./scripts/go.sh run ./cmd/mokusei-check architecture` 与
+`./scripts/go.sh vet ./...` 通过；未运行托管 `Complete coverage`，也未推送。

@@ -326,6 +326,40 @@ struct NativeOverviewCapacityTests {
         #expect(abs(frame.midX - (region.left + region.width / 2)) < tolerance)
     }
 
+    @Test func inFlightPreserveFramingKeepsRenderedContentVisible() async throws {
+        let fixture = CapacityFixture()
+        fixture.size = .init(width: 1341, height: 906)
+        fixture.items = [.init(id: "card")]
+        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1341, height: 906)
+        defer { window.close() }
+        try await settle(fixture, in: window)
+        let viewport = try #require(fixture.state.camera.viewport)
+        let grown = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 220)
+        fixture.items[0].columns = 3
+        for _ in 0..<500 {
+            if !fixture.state.isLayingOut, fixture.state.camera.isAnimating { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(fixture.state.camera.isAnimating)
+        fixture.state.camera.requestRefit(content: grown, viewport: viewport,
+                                          layoutChanged: true, preserveFraming: true)
+        for _ in 0..<300 {
+            if !fixture.state.camera.isAnimating, !fixture.state.camera.hasScheduledMotion { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+        let allowed = CGRect(x: region.left, y: region.top, width: region.width, height: region.height)
+            .insetBy(dx: -0.5, dy: -0.5)
+        var frame = try #require(fixture.frames["card"])
+        for _ in 0..<100 {
+            frame = try #require(fixture.frames["card"])
+            if allowed.contains(frame) { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(abs(frame.width - 1112) < 1)
+        #expect(allowed.contains(frame))
+    }
+
     @Test(arguments: [1, 6], [false, true])
     func insertionFramesTheCompleteCollectionWithoutBackgroundClick(count: Int, reduceMotion: Bool) async throws {
         let fixture = CapacityFixture()
