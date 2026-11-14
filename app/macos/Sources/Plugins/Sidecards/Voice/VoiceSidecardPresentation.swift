@@ -20,6 +20,7 @@ public final class VoiceSidecardPresentation {
     @ObservationIgnored private weak var capability: SidecardVoiceCapability?
     @ObservationIgnored private var capabilityGeneration: UInt64 = 0
     @ObservationIgnored private var previousExpanded: Bool?
+    @ObservationIgnored private var latestTransition: UUID?
 
     public init(context: SidecardContext, lifetime: PluginLifetime) {
         self.context = context; self.lifetime = lifetime
@@ -67,12 +68,27 @@ public final class VoiceSidecardPresentation {
         if pinned { scrollToLatest() }
         else if !state.messages.isEmpty { newMessages = true }
     }
-    public func scrollToLatest() {
+    public func jumpToLatest(reduceMotion: Bool) {
+        pinned = true; away = false; newMessages = false
+        let transition = UUID()
+        latestTransition = transition
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
+            scrollPosition.scrollTo(edge: .bottom)
+        } completion: {
+            guard self.latestTransition == transition else { return }
+            self.latestTransition = nil
+            if self.pinned { self.scrollToLatest() }
+        }
+    }
+    private func scrollToLatest() {
+        guard latestTransition == nil else { return }
         pinned = true; away = false; newMessages = false
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) { scrollPosition.scrollTo(edge: .bottom) }
     }
+    public func userScrollBegan() { latestTransition = nil; pinned = false }
     public func didScroll(offset: CGFloat, contentHeight: CGFloat, viewportHeight: CGFloat) {
+        guard latestTransition == nil else { return }
         let atBottom = contentHeight - offset - viewportHeight < 48
         pinned = atBottom; away = !atBottom
         if atBottom { newMessages = false }
