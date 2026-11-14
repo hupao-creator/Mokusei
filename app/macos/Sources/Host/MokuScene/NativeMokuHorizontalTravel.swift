@@ -28,8 +28,8 @@ extension EnvironmentValues {
 /// rootView during an outer update can settle the shell's layout while its face
 /// is still animating in the previous coordinate space.
 /// The compositor owns column travel and the compact reading-seat descent;
-/// The capsule has a separate native shell/ink/identity-seat owner; the identity
-/// seat owns its separate native flip.
+/// SwiftUI retains shell resizing and composer expansion; the identity seat
+/// owns its separate native flip.
 struct NativeMokuHorizontalTravel<Content: View>: NSViewRepresentable {
     @ViewBuilder var content: Content
     func makeNSView(context: Context) -> MokuHorizontalTravelView { MokuHorizontalTravelView() }
@@ -42,13 +42,11 @@ struct NativeMokuHorizontalTravel<Content: View>: NSViewRepresentable {
 
 struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
     let destination: NativeMokuHorizontalDestination
-    let capsule: NativeMokuCapsuleMotionHandle
     let hitRects: [CGRect]
     let onSettled: (NativeMokuHorizontalDestination) -> Void
     @Environment(\.nativeMokuHorizontalTravel) private var handle
     func makeNSView(context: Context) -> NSView { NSView() }
     func updateNSView(_ view: NSView, context: Context) {
-        handle?.view?.capsule = capsule
         handle?.view?.configure(destination: destination, hitRects: hitRects, onSettled: onSettled)
     }
 }
@@ -63,7 +61,6 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
     private var onSettled: ((NativeMokuHorizontalDestination) -> Void)?
     private var generation = 0
     private var travelling = false
-    var capsule: NativeMokuCapsuleMotionHandle?
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { false }
@@ -178,11 +175,11 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
             // The controls already have destination coordinates. Absorb presses
             // on both seats so a moving bar cannot click the reading backdrop.
             let visible = surface.layer?.presentation()?.transform ?? CATransform3DIdentity
-            return capsule?.contains(local) == true || hitRects.contains(where: {
+            return hitRects.contains(where: {
                 $0.contains(local) || $0.offsetBy(dx: visible.m41, dy: visible.m42).contains(local)
             }) ? self : nil
         }
-        guard capsule?.contains(local) ?? hitRects.contains(where: { $0.contains(local) }),
+        guard hitRects.contains(where: { $0.contains(local) }),
               let hit = super.hitTest(point), hit !== self, hit !== surface else { return nil }
         return hit
     }
@@ -191,22 +188,8 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
     override func mouseDragged(with event: NSEvent) {}
     override func mouseUp(with event: NSEvent) {}
 
-    func convertViewportPoint(_ point: CGPoint, to view: NSView) -> CGPoint {
-        let visible = surface.layer?.presentation()?.transform ?? CATransform3DIdentity
-        return view.convert(CGPoint(x: point.x - visible.m41, y: point.y - visible.m42), from: hosting)
-    }
-
-    func convertWindowPoint(_ point: CGPoint, to view: NSView) -> CGPoint {
-        convertViewportPoint(hosting?.convert(point, from: nil) ?? point, to: view)
-    }
-
-    func convertCapsuleRect(_ rect: CGRect, from view: NSView) -> CGRect {
-        let visible = surface.layer?.presentation()?.transform ?? CATransform3DIdentity
-        return hosting?.convert(rect, from: view).offsetBy(dx: visible.m41, dy: visible.m42) ?? rect
-    }
-
     func retire() {
-        generation += 1; destination = nil; onSettled = nil; handle.view = nil; capsule = nil
+        generation += 1; destination = nil; onSettled = nil; handle.view = nil
         surface.layer?.removeAllAnimations()
         hosting?.removeFromSuperview(); hosting = nil; contentState = nil
     }

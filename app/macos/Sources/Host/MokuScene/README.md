@@ -62,9 +62,8 @@ opaque native window background in its local dark appearance,
 including with Reduce Transparency; the expanded panel has no tint or glass.
 The resident eyes travel into its reserved header seat during expansion.
 
-The collapsed Overview Dock is the original 168×44-point eye capsule. Its
-ordinary resident/input material uses a native Clear glass shell; Note,
-Talk, voice and Settings retain the persistent SwiftUI chrome/material host.
+The collapsed Overview Dock is the original 168×44-point eye capsule. Its warm
+capsule material and Note's Regular glass share one persistent native glass node.
 The character's state colors, expressions, blink timing and Settings/onboarding
 handoff and target-gaze animations use the original vector renderer. No Harness
 sphere artwork or palette is loaded. Agent detail retains its actual Harness
@@ -117,27 +116,18 @@ Its measured height changes the shell without replacing the editor or its
 selection owner. Existing completion regression cases check native editor drift
 through entry, exit and rapid reversal.
 
-[NativeMokuCapsuleMotion](NativeMokuCapsuleMotion.swift) owns ordinary input
-expansion/collapse in Core Animation. The native Clear glass, warm gradient,
-rim, radius and shadow resize independently of the editor. A separate identity
-host moves the passive eyes/Harness seat without clipping it with input ink.
-The editor and directory completion use a persistent full-viewport host at the
-destination width; a rounded aperture reveals them without scaling glyphs.
-Collapse fades ink in 120ms while `inputLeaving` retains the editor for 420ms.
-Retargets sample presented shell/radius, face position, ink opacity and baseline,
-including reversal before the first compositor commit. Reading keeps its
-emphasized curve; ordinary expansion uses a 420ms native eased curve.
-
-The shell remains bottom anchored; centred landing height changes translate
-editor ink and compensate the aperture separately. Below 260pt, the existing
-four-seat Layout preserves the same editor through its compact reflow. Viewport
-resize, dragging, Reduce Motion, inactive/hidden presentation and detach settle
-at the destination. The existing travel → Harness flip → input admission gates,
-focus delay, UTF-16 selection restoration and IME ownership remain in the scene.
-Pointer/outside-click/hover, note swipe targets and native canvas navigation use
-the presented outline. Actual baseline travel absorbs pointer presses until
-native event coordinates agree with visual placement; ordinary reveal accepts
-visible editor input. See the [mechanism and sprint validation limits](../../../../../design/moku-input-core-animation.md).
+Input collapse fades the retained editor within 120ms of the close intent, even
+while `inputLeaving` keeps its native lifetime for 420ms. The shell and the single
+identity seat share destination geometry in the same animation transaction; no
+delayed expansion fraction or intrinsic/fixed row switch moves the identity.
+The shell is positioned by its bottom edge so height changes cannot first move
+AppKit text to a new row and then translate it back. Native editor internals lay
+out at their destination width while the shell reveals/clips them. Below 260pt
+of capsule width a persistent four-seat Layout gives text/attachment and
+identity/actions separate rows, preserving the same native editor through resize.
+The surface height stays within the available viewport. Reduce Motion disables
+shell and ink animation. The [isolated panel preview](../../../../../demos/moku-panel-transition/README.md)
+records this repair's source-video evidence, local validation and limits.
 
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least
@@ -625,12 +615,11 @@ while coordinate-based pointer hits wait for arrival so they cannot activate a
 control at its invisible destination.
 
 Switching columns can also change input width. The editor adopts that width
-once, while the native shell and identity seat animate independently of the
-column rebound. Persistent chrome/editor/identity hosts share the Dock's scene
-state; Settings height preferences are consumed within chrome, and native input
-regions follow the presented shell. Hosting roots stay fixed while observable
-content carries outer updates; replacing a root would also replace native input
-ownership during travel.
+once, inside its own geometry group, while the shell retains its existing size
+and vertical animation. The complete Dock owns its state and geometry within
+one hosting tree, including Settings height preferences and input hit regions.
+The hosting root stays fixed while observable content carries outer updates;
+replacing the root can settle the shell before its content finishes moving.
 
 The [horizontal transition replay](../../../../../tools/verification/moku-transitions/README.md)
 uses WindowServer pixels to check continued travel during a controlled main-actor
