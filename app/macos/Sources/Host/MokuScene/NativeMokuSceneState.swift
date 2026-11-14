@@ -200,7 +200,7 @@ import MokuseiPluginUI
         command?(.position)
     }
     func completeInputIdentity(generation: UUID) {
-        // A native flip may report after route replacement or Dock teardown.
+        // A removed flip may report after route replacement or Dock teardown.
         // Only the admitted composer visit can release its own expansion.
         guard composerGeneration == generation, inputAdmissionReady, !inputIdentityReady else { return }
         inputIdentityReady = true

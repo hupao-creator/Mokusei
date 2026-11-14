@@ -76,17 +76,9 @@ ownership and the zero-size event-monitor origin are unchanged.
 
 Agent entry sequences the compact Dock's travel, the eyes-to-Harness flip and
 composer expansion. The reading entrance's actual arrival/layout admission
-releases the flip; its native animation delegate completion releases input and
-the existing focus path. A composer-generation fence and a native transition
+releases the flip; its removed animation completion releases input and the
+existing focus path. A composer-generation fence and a view-local transition
 generation reject replaced or detached completions without an elapsed-time task.
-The identity seat keeps live SwiftUI/AppKit eye and Harness views in passive,
-unclipped native hosts. A 420ms Core Animation group rotates the outgoing mark
-down in the first half, then reveals the incoming mark in the second half,
-without a SwiftUI `Animatable` update or a new display link. Replacement samples
-the most visible face; reversing to that same mark restores its presented pose.
-Same-target updates retain the active group and replace only the completion
-owner. Resize, detach and reduced/inactive presentation settle through the native
-owner. Immediate receipts are deferred out of native layout/update callbacks.
 The small downward reading-seat shift uses the existing native travel host,
 with a 420ms ease-in/ease-out curve rather than SwiftUI layout animation. Reader
 preparation cannot stall submitted travel frames. Both axes share sampled

@@ -28,8 +28,7 @@ extension EnvironmentValues {
 /// rootView during an outer update can settle the shell's layout while its face
 /// is still animating in the previous coordinate space.
 /// The compositor owns column travel and the compact reading-seat descent;
-/// SwiftUI retains shell resizing and composer expansion; the identity seat
-/// owns its separate native flip.
+/// SwiftUI retains shell resizing, composer expansion and identity animation.
 struct NativeMokuHorizontalTravel<Content: View>: NSViewRepresentable {
     @ViewBuilder var content: Content
     func makeNSView(context: Context) -> MokuHorizontalTravelView { MokuHorizontalTravelView() }
