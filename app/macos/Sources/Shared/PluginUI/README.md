@@ -6,6 +6,13 @@ The timeline's floating Jump to latest control uses a 42pt circular interactive
 regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
 action and localized accessibility label remain owned by the timeline.
 
+`NativeCanvasInputRegions.register` can register a native compositor owner
+implementing `NativeCanvasInputRegionGeometry`. Its live outline then decides
+scroll/pinch ownership without publishing per-frame SwiftUI rectangles. Existing
+SwiftUI navigation regions retain their weak-anchor rectangle behavior. Moku's
+native input capsule uses this contract so its full-viewport host does not
+reserve the surrounding canvas.
+
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread
 collections opt into it for their full backdrop and emoji badge; the badge keeps

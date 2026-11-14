@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+/// Native compositor owners can supply their visible outline without publishing
+/// animated rectangles into SwiftUI's layout tree.
+@MainActor public protocol NativeCanvasInputRegionGeometry: AnyObject {
+    func containsCanvasInput(_ point: CGPoint, in window: NativePlatformWindow) -> Bool
+}
+
 /// Plugin-owned reading/editing regions retain native scroll and pinch input.
 /// Weak native anchors follow presentation geometry without publishing per-frame
 /// rectangles through the entire SwiftUI card tree.
@@ -11,12 +17,15 @@ import SwiftUI
         views.allObjects.contains { view in
             guard view.window === window else { return false }
             guard !view.isHiddenOrHasHiddenAncestor else { return false }
+            if let geometry = view as? any NativeCanvasInputRegionGeometry {
+                return geometry.containsCanvasInput(point, in: window)
+            }
             // Modern NSViews need not clip to bounds; visibleRect may extend
             // across their parent. Only this registered region owns navigation.
             return view.bounds.intersection(view.visibleRect).contains(view.convert(point, from: nil))
         }
     }
-    fileprivate func add(_ view: NativePlatformView) { views.add(view) }
+    public func register(_ view: NativePlatformView) { views.add(view) }
 }
 
 private struct CanvasInputRegionsKey: EnvironmentKey {
@@ -45,7 +54,7 @@ private struct CanvasInputRegionModifier: ViewModifier {
 private struct CanvasInputRegion: NSViewRepresentable {
     let regions: NativeCanvasInputRegions
     func makeNSView(context: Context) -> RegionView { RegionView() }
-    func updateNSView(_ view: RegionView, context: Context) { regions.add(view) }
+    func updateNSView(_ view: RegionView, context: Context) { regions.register(view) }
     final class RegionView: NSView {
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }
