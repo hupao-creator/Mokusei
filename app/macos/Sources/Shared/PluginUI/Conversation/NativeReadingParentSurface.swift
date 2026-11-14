@@ -22,6 +22,8 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
 @MainActor final class NativeReadingParentView: NSView {
     private let hosting = NSHostingView(rootView: AnyView(EmptyView()))
     private var freezeRequested = false
+    private var hideScheduled = false
+    private var retired = false
     private let diagnosticID = UUID()
 
     override var isFlipped: Bool { true }
@@ -38,8 +40,19 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
     func update(content: AnyView, frozen: Bool) {
         freezeRequested = frozen
         if frozen {
-            NativeLayoutDiagnostics.operation("reading.parent.hide", component: diagnosticID) {
-                hosting.isHidden = true
+            guard !hosting.isHidden, !hideScheduled else { return }
+            hideScheduled = true
+            // Hiding a focused host synchronously asks AppKit for its next key
+            // view. That traversal reads SwiftUI geometry and would re-enter
+            // the graph currently evaluating this representable. Input and AX
+            // close immediately; the already-transparent host hides afterward.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.hideScheduled = false
+                guard !self.retired, self.freezeRequested else { return }
+                NativeLayoutDiagnostics.operation("reading.parent.hide", component: self.diagnosticID) {
+                    self.hosting.isHidden = true
+                }
             }
         } else {
             NativeLayoutDiagnostics.operation("reading.parent.content", component: diagnosticID) {
@@ -57,7 +70,7 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
     override func layout() {
         super.layout()
         // The hidden tree keeps its last viewport until return preparation.
-        if !hosting.isHidden {
+        if !freezeRequested && !hosting.isHidden {
             NativeLayoutDiagnostics.operation("reading.parent.layout", component: diagnosticID) {
                 hosting.frame = bounds
             }
@@ -70,6 +83,7 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
         freezeRequested ? [] : super.accessibilityChildren()
     }
     func retire() {
+        retired = true
         NativeLayoutDiagnostics.operation("reading.parent.retire", component: diagnosticID) {
             hosting.rootView = AnyView(EmptyView())
         }
