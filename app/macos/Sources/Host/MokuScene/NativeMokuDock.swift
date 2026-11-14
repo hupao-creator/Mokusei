@@ -1026,7 +1026,6 @@ public struct NativeMokuDock: View {
                     y: shellFrame.minY + (faceCenter.y + faceShift.height) * placement.scale),
                 faceScale: placement.scale, viewport: viewport, viewportOffset: viewportOffset, nativeShell: nativeShell,
                 composerVisible: composerVisible,
-                chromeControlsVisible: stopControlPresent || voiceActionPresent,
                 immediate: reduceMotion || scenePhase != .active || !state.windowVisible || executionPlacement?.dragging == true,
                 reading: state.readingPanelVisible, opaque: reduceTransparency, hovered: hovered),
             chrome: AnyView(chrome), composer: editor, face: identity,

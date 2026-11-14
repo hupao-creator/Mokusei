@@ -80,22 +80,6 @@ existing region anchors. Native hit testing explicitly bypasses transparent
 editor and passive identity hosts in those modes; layer opacity alone does not
 retire AppKit hits.
 
-Integration review found that the ordinary native shell bypassed chrome hit
-testing altogether, preventing closed-input Stop and idle voice controls from
-receiving presses. The integrated version routes those controls to their
-existing chrome host once the presented shell agrees with its model frame.
-During morphs the visible shell absorbs presses; closing-input retirement still
-uses the shell's reopen path. This correction is based on static routing review,
-not a GUI interaction measurement.
-
-The integrated source with that correction passed the headless Debug `Mokusei`
-product build (84.25s), Swift frontend parsing of the four changed Swift files,
-diff whitespace review and the new local documentation links. Build output is
-in `/tmp/mokusei-ca-input-review-build.log`. No tests, graphical replay or CI
-were run. The Go-only pre-commit lint is omitted under the caller's focused
-sprint scope. These checks do not certify glass rendering, pointer delivery,
-selection, focus or IME behavior on screen.
-
 ## Sprint validation and limits
 
 Validation is headless product compilation, Swift syntax parsing, diff review

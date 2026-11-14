@@ -20,7 +20,6 @@ struct NativeMokuCapsuleDestination: Equatable {
     let viewportOffset: CGPoint
     let nativeShell: Bool
     let composerVisible: Bool
-    let chromeControlsVisible: Bool
     let immediate: Bool
     let reading: Bool
     let opaque: Bool
@@ -263,11 +262,6 @@ struct NativeMokuCapsuleMotion: NSViewRepresentable {
         // and visible text/controls can already acquire focus and selection.
         if destination?.composerVisible == true, visibleOpacity > 0.05, abs(visibleTranslation) < 0.01,
            let hit = composer.hitTest(local), hit !== composer { return hit }
-        // Stop and idle voice controls remain in chrome, not in the editor.
-        // Their AppKit coordinates agree with the glass only after its morph
-        // settles; until then the shell absorbs presses at the visible outline.
-        if native, destination?.chromeControlsVisible == true, visibleShell == shell.frame,
-           let hit = chrome.hitTest(local), hit !== chrome { return hit }
         // Layer opacity does not retire AppKit hit testing. In the other modes
         // explicitly bypass the transparent editor and passive identity hosts.
         return native ? self : chrome.hitTest(local)
