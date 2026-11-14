@@ -197,18 +197,21 @@ public enum NativeOverviewCameraGeometry {
     }
 
     /// Project the old translation onto the range that keeps the collection
-    /// visible. This is the least screen movement at unchanged reading scale;
-    /// capacity loss still uses the normal readable fit policy.
+    /// visible at unchanged reading scale. A smaller collection that permits a
+    /// larger automatic scale, or capacity loss, uses the ordinary fit instead.
     public static func preservingReadingPosition(_ transform: NativeOverviewTransform,
                                                  content: NativeOverviewContentRect,
                                                  viewport: NativeOverviewViewport) -> NativeOverviewTransform {
         let region = framingRegion(viewport)
         let scale = transform.scale
+        let automatic = fit(content, viewport: viewport)
+        // Reading retention must not strand automatic focus at an obsolete
+        // smaller scale after cards shrink. Same-scale edits keep their seat.
         // A scale derived by division can overshoot the same edge by an ULP
         // when multiplied back. Do not turn that into a visible recenter.
-        guard scale >= minimumScale(in: viewport),
+        guard scale + 1e-6 >= automatic.scale, scale >= minimumScale(in: viewport),
               content.width * scale <= region.width + 1e-6, content.height * scale <= region.height + 1e-6 else {
-            return fit(content, viewport: viewport)
+            return automatic
         }
         return .init(scale: scale,
                      x: max(region.left - content.left * scale,
