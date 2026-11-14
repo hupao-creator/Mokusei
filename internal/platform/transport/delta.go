@@ -7,10 +7,11 @@ import (
 	"unicode/utf8"
 )
 
-// maxDeltaOperations bounds diff work even when the encoded patch would still
-// fit the wire limit. Above this size a complete snapshot is cheaper to build,
-// apply and validate than thousands of small operations.
-const maxDeltaOperations = 4096
+// maxDeltaOperations is a CPU safety valve, not the snapshot-size decision.
+// The byte budget normally stops dense equal-sized changes first; this higher
+// cap lets large projections keep thousands of genuinely small edits (for
+// example a status field on every row) on the patch path.
+const maxDeltaOperations = 64 * 1024
 
 // DeltaBudget bounds patch construction. MaxBytes counts the encoded operations
 // array, including brackets and separators, but not the event envelope; callers
@@ -23,9 +24,12 @@ type DeltaBudget struct {
 
 // Delta is either a complete patch or an explicit failure to finish within its
 // budget. Incomplete deltas contain no partial operations and must be replaced
-// by a snapshot. Examined counts candidate operations inspected before
-// completion or the first rejected operation, so tests can verify that dense
-// inputs stop diff construction instead of building an unusable patch first.
+// by a snapshot. A semantic no-op is complete with nil Operations and Bytes == 2
+// (the encoded empty array); an incomplete delta has nil Operations and Bytes
+// counting only the accepted prefix. Examined counts candidate operations
+// inspected before completion or the first rejected operation, so tests can
+// verify that dense inputs stop diff construction instead of building an
+// unusable patch first.
 type Delta struct {
 	Operations []map[string]any
 	Bytes      int

@@ -28,23 +28,30 @@ type contentSubscription struct {
 	working, queued, dirty bool
 }
 type contentServer struct {
-	mu      sync.Mutex
-	clients map[string]map[string]*contentSubscription
-	host    Host
-	client  func(string) *eventStream
-	wake    chan struct{}
-	ctx     context.Context
-	cancel  context.CancelFunc
-	closed  bool
-	ready   []contentJob
-	done    chan struct{}
+	mu         sync.Mutex
+	clients    map[string]map[string]*contentSubscription
+	host       Host
+	client     func(string) *eventStream
+	wake       chan struct{}
+	ctx        context.Context
+	cancel     context.CancelFunc
+	closed     bool
+	ready      []contentJob
+	done       chan struct{}
+	writeLimit int
 }
 
 func newContentServer(ctx context.Context, host Host, client func(string) *eventStream) *contentServer {
 	ctx, cancel := context.WithCancel(ctx)
-	content := &contentServer{clients: make(map[string]map[string]*contentSubscription), host: host, client: client, wake: make(chan struct{}, 1), done: make(chan struct{}), ctx: ctx, cancel: cancel}
+	content := &contentServer{clients: make(map[string]map[string]*contentSubscription), host: host, client: client, wake: make(chan struct{}, 1), done: make(chan struct{}), ctx: ctx, cancel: cancel, writeLimit: contentWriteLimit}
 	go content.run()
 	return content
+}
+func (c *contentServer) contentLimit() int {
+	if c.writeLimit > 0 {
+		return c.writeLimit
+	}
+	return contentWriteLimit
 }
 func (c *contentServer) connect(clientID string) {
 	c.mu.Lock()
@@ -185,7 +192,8 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 	if snapshot == nil || subscription.ctx.Err() != nil {
 		return
 	}
-	if len(snapshot.Value) > contentWriteLimit {
+	limit := c.contentLimit()
+	if len(snapshot.Value) > limit {
 		c.fail(clientID, subscription, model.NewError("CONTENT_TOO_LARGE", "This conversation turn exceeds the content transport limit"))
 		return
 	}
@@ -216,7 +224,7 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 	var client *eventStream
 	var encoded []byte
 	if subscription.hasValue {
-		delta := CreateBoundedJSONDelta(subscription.value, value, DeltaBudget{MaxOperations: maxDeltaOperations, MaxBytes: min(contentWriteLimit, len(snapshot.Value))})
+		delta := CreateBoundedJSONDelta(subscription.value, value, DeltaBudget{MaxOperations: maxDeltaOperations, MaxBytes: min(limit, len(snapshot.Value))})
 		if delta.Complete && len(delta.Operations) == 0 {
 			if !subscription.hasValueDigest {
 				digest = sha256.Sum256(snapshot.Value)
@@ -249,18 +257,28 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 		}
 		// A bounded patch that already exceeds the frame cannot be selected,
 		// but a patch that fits remains usable even when a fresh snapshot of the
-		// same value would not. Compare complete wire events only when both
-		// representations are viable.
-		if len(encodedPatch) > 0 && len(encodedPatch) <= contentWriteLimit {
-			encodedSnapshot, err := client.encodeContent(snapshotEvent)
+		// same value would not. A conservative minimum snapshot size lets a
+		// clearly smaller patch skip the full snapshot encoding; otherwise both
+		// complete wire events are compared exactly.
+		if len(encodedPatch) > 0 && len(encodedPatch) <= limit {
+			minSnapshot, err := minContentSnapshotBytes(client, snapshotEvent, value)
 			if err != nil {
 				c.fail(clientID, subscription, err)
 				return
 			}
-			if len(encodedSnapshot) > contentWriteLimit || len(encodedPatch) < len(encodedSnapshot) {
+			if len(encodedPatch) < minSnapshot {
 				encoded = encodedPatch
 			} else {
-				encoded = encodedSnapshot
+				encodedSnapshot, err := client.encodeContent(snapshotEvent)
+				if err != nil {
+					c.fail(clientID, subscription, err)
+					return
+				}
+				if len(encodedSnapshot) > limit || len(encodedPatch) < len(encodedSnapshot) {
+					encoded = encodedPatch
+				} else {
+					encoded = encodedSnapshot
+				}
 			}
 		} else {
 			encodedSnapshot, err := client.encodeContent(snapshotEvent)
@@ -268,7 +286,7 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 				c.fail(clientID, subscription, err)
 				return
 			}
-			if len(encodedSnapshot) > contentWriteLimit {
+			if len(encodedSnapshot) > limit {
 				c.fail(clientID, subscription, model.NewError("CONTENT_TOO_LARGE", "This conversation turn exceeds the content transport limit"))
 				return
 			}
@@ -287,7 +305,7 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 			c.fail(clientID, subscription, err)
 			return
 		}
-		if len(encoded) > contentWriteLimit {
+		if len(encoded) > limit {
 			c.fail(clientID, subscription, model.NewError("CONTENT_TOO_LARGE", "This conversation turn exceeds the content transport limit"))
 			return
 		}
@@ -325,6 +343,68 @@ func (c *contentServer) fail(clientID string, subscription *contentSubscription,
 	}
 	client.cancelContent(subscription.id)
 	client.deliverContentError(subscription.id, cause.Error())
+}
+
+// minJSONValueBytes is a conservative lower bound for encoding one decoded
+// model value. It walks the value without allocating an encoded copy, so a
+// clearly smaller patch can skip building a full snapshot merely to compare
+// sizes. JSON escaping only grows strings and object keys, never shrinks below
+// their UTF-8 length plus delimiters.
+func minJSONValueBytes(value any) int {
+	switch typed := value.(type) {
+	case nil:
+		return 4
+	case bool:
+		if typed {
+			return 4
+		}
+		return 5
+	case string:
+		return 2 + len(typed)
+	case json.Number:
+		return len(typed)
+	case []any:
+		total := 2
+		for index, item := range typed {
+			if index > 0 {
+				total++
+			}
+			total += minJSONValueBytes(item)
+		}
+		return total
+	case map[string]any:
+		total := 2
+		first := true
+		for key, item := range typed {
+			if !first {
+				total++
+			}
+			first = false
+			total += 2 + len(key) + 1 + minJSONValueBytes(item)
+		}
+		return total
+	default:
+		// Production values come from model.Decode, so this fallback only
+		// covers fixture-specific numeric or named types. An exact encoded
+		// length is still a valid (if not tight) lower bound.
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return 0
+		}
+		return len(encoded)
+	}
+}
+func minContentSnapshotBytes(client *eventStream, snapshotEvent map[string]any, value any) (int, error) {
+	probe := make(map[string]any, len(snapshotEvent))
+	for key, item := range snapshotEvent {
+		probe[key] = item
+	}
+	probe["value"] = json.RawMessage("0")
+	encoded, err := client.encodeContent(probe)
+	if err != nil {
+		return 0, err
+	}
+	return len(encoded) - 1 + minJSONValueBytes(value), nil
 }
 
 func (c *contentServer) read(subscription *contentSubscription) (snapshot *ContentSnapshot, err error) {

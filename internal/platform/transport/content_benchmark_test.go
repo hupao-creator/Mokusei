@@ -81,7 +81,9 @@ func BenchmarkUnchangedContent(b *testing.B) {
 }
 
 func BenchmarkChangedContent(b *testing.B) {
-	for _, size := range []int{2048, 256 * 1024} {
+	// The 24 MiB case checks that a one-character edit does not re-encode the
+	// whole projection just to prove the patch is smaller.
+	for _, size := range []int{2048, 256 * 1024, 24 * 1024 * 1024} {
 		b.Run(fmt.Sprintf("bytes=%d", size), func(b *testing.B) {
 			raw, err := json.Marshal(map[string]any{"message": strings.Repeat("x", size), "tools": 12})
 			if err != nil {
