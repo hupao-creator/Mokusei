@@ -264,6 +264,7 @@ struct NativeMokuExecutionLinkTests {
         // and require every distinct paragraph, not just the mounted subset.
         var seen = Set<String>()
         var offset = 0.0
+        var acceptedPosition: (top: Double, inset: Double)?
         for _ in 0..<count {
             try fixture.perform(#require(fixture.scroll), "scrollTo", .number(offset))
             try await SwiftUIReplay.wait {
@@ -275,11 +276,13 @@ struct NativeMokuExecutionLinkTests {
                 !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
             }.map(\.string))
             let value = try #require(fixture.scroll?["value"])
+            acceptedPosition = (top: try #require(value["top"]?.numberValue), inset: try #require(value["insetTop"]?.numberValue))
             let height = try #require(value["height"]?.numberValue), viewport = try #require(value["viewport"]?.numberValue)
             let bottom = max(0, height - viewport)
             if offset >= bottom { break }
             offset = min(bottom, offset + max(50, viewport / 2))
         }
+        let accepted = try #require(acceptedPosition)
         #expect(seen == Set((0..<count).map { "\(phrase) \($0)\(paragraphSuffix)" }))
         let scroll = try #require(textViews(root).first {
             !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
@@ -294,10 +297,17 @@ struct NativeMokuExecutionLinkTests {
             beyondBottom.origin.y = document.frame.maxY + beyondBottom.height + max(0, scroll.contentInsets.bottom)
             return scroll.contentView.constrainBoundsRect(beyondBottom).minY
         }
+        func constrainedAcceptedOrigin() -> CGFloat? {
+            guard scroll.documentView != nil else { return nil }
+            var target = scroll.contentView.bounds
+            target.origin.y = CGFloat(accepted.top - accepted.inset)
+            return scroll.contentView.constrainBoundsRect(target).minY
+        }
         func sample() -> String {
             "time=\(ProcessInfo.processInfo.systemUptime) control=\(String(describing: fixture.scroll)) "
                 + "clip=\(scroll.contentView.bounds) presented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
-                + "nativeBottom=\(String(describing: nativeBottom()))"
+                + "nativeBottom=\(String(describing: nativeBottom())) acceptedTop=\(accepted.top) acceptedInset=\(accepted.inset) "
+                + "constrainedAcceptedOrigin=\(String(describing: constrainedAcceptedOrigin()))"
         }
         let preparationInitial = sample()
         var preparationFrames = 0
@@ -306,21 +316,21 @@ struct NativeMokuExecutionLinkTests {
         var originAttempted = false
         var originError: (any Error)?
         var initial = preparationInitial
-        // A clamped traversal target can outlive the size estimate that produced
-        // it. Commit that request before issuing the opposite scroll request.
+        // Manual scrolling owns the last accepted position. Later height growth
+        // must not turn this preparation into another request to follow the bottom.
         let preparation = SwiftUIReplay.FrameObserver(view: scroll) {
             guard !originAttempted else { return true }
             preparationFrames += 1
             if preparationSamples.count < 32 { preparationSamples.append(sample()) }
             if let control = fixture.scroll, let value = control["value"],
-               let top = value["top"]?.numberValue, let height = value["height"]?.numberValue,
-               let viewport = value["viewport"]?.numberValue, let bottom = nativeBottom(),
+               let top = value["top"]?.numberValue, let inset = value["insetTop"]?.numberValue,
+               let target = constrainedAcceptedOrigin(), let bottom = nativeBottom(),
                let presented = scroll.contentView.layer?.presentation(),
                scroll.window === window, !scroll.isHiddenOrHasHiddenAncestor,
                control["pending"] == .bool(false), value["following"] == .bool(false),
-               height - viewport > 5, bottom > 5, abs(max(0, height - viewport) - top) < 5,
-               abs(scroll.contentView.bounds.minY - bottom) < 5,
-               abs(presented.bounds.minY - bottom) < 5 { preparedFrames += 1 }
+               bottom > 5, abs(CGFloat(top - inset) - target) < 5,
+               abs(scroll.contentView.bounds.minY - target) < 5,
+               abs(presented.bounds.minY - target) < 5 { preparedFrames += 1 }
             else { preparedFrames = 0 }
             guard preparedFrames >= 2 else { return false }
             originAttempted = true
@@ -334,7 +344,7 @@ struct NativeMokuExecutionLinkTests {
             try await SwiftUIReplay.wait(driveLayout: false) { originAttempted }
             if let originError { throw originError }
         } catch {
-            let stage = originAttempted ? "origin-request" : "prior-bottom"
+            let stage = originAttempted ? "origin-request" : "prior-position"
             print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_PREPARATION_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=\(stage) frames=\(preparationFrames) preparedFrames=\(preparedFrames) initial={\(preparationInitial)} samples=\(preparationSamples) final={\(sample())} error=\(error)")
             throw error
         }
@@ -907,6 +917,13 @@ struct NativeMokuExecutionLinkTests {
         let nativeStart = native.contentView.bounds.minY
         var successorDelivered = false
         var successorError: (any Error)?
+        func lastReplyVisible() -> Bool {
+            guard let document = native.documentView else { return false }
+            return textViews(document).contains {
+                $0.enclosingScrollView === native && !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                    && $0.string == "NEW STREAMING CONTENT 219"
+            }
+        }
         func jumpSample(_ phase: String) -> JSONValue {
             let control = fixture.scroll
             return .object([
@@ -914,7 +931,7 @@ struct NativeMokuExecutionLinkTests {
                 "revision": .integer(fixture.revision), "successorDelivered": .bool(successorDelivered),
                 "pending": control?["pending"] ?? .null, "value": control?["value"] ?? .null,
                 "native": nativeGeometry(native), "frozenBottom": .number(jumpBottom),
-                "nativeStart": .number(Double(nativeStart))
+                "nativeStart": .number(Double(nativeStart)), "lastReplyVisible": .bool(lastReplyVisible())
             ])
         }
         if profileEnabled { jumpSamples.append(jumpSample("before-jump")) }
@@ -951,16 +968,14 @@ struct NativeMokuExecutionLinkTests {
             if let successorError { throw successorError }
             try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
             // Manual traversal below takes scrolling ownership. First require the
-            // updated long document to reach its real bottom on two display
-            // frames; a transient short layout or unpresented offset cannot pass.
+            // final reply paragraph at the native bottom on two display frames.
+            // SwiftUI's projected geometry can disagree with the mounted document.
             var updatedBottomFrames = 0
             let settlementFrames = SwiftUIReplay.FrameObserver(view: root) {
-                if let value = fixture.scroll?["value"], let height = value["height"]?.numberValue,
-                   let top = value["top"]?.numberValue, let viewport = value["viewport"]?.numberValue,
+                if fixture.scroll?["value"]?["following"] == .bool(true),
                    let bottom = nativeBottom(native), let presented = native.contentView.layer?.presentation(),
                    native.window === window, !native.isHiddenOrHasHiddenAncestor,
-                   height - viewport > 5, bottom - nativeStart > 5,
-                   value["following"] == .bool(true), abs(max(0, height - viewport) - top) < 5,
+                   bottom - nativeStart > 5, lastReplyVisible(),
                    abs(native.contentView.bounds.minY - bottom) < 5,
                    abs(presented.bounds.minY - bottom) < 5 { updatedBottomFrames += 1 }
                 else { updatedBottomFrames = 0 }

@@ -919,15 +919,19 @@ in that callback. The position must precede both the original and current
 document bottom, including the native clip view's constrained bottom; a shrinking
 lazy estimate must not make an already settled position count as intermediate.
 After the new reply mounts, the updated long document must settle without manual
-scrolling: the control retains following and its original 5pt tolerance, while the
-same attached native reader's model and presentation offsets both reach its live
-constrained bottom within 5pt on two consecutive display callbacks. A transient
-short layout with bottom zero cannot pass. All original withheld-content and
-full-paragraph assertions remain.
-After traversing a reply, its final clamped bottom request must first commit in
-the control, native clip view and presentation layer across two display callbacks.
-The second callback synchronously issues the return to top exactly once. This checks
-a displayed boundary between the requests when a lazy height estimate shrinks.
+scrolling: the control retains following, and the same attached native reader's
+model and presentation offsets both reach its live constrained bottom within 5pt
+on two consecutive display callbacks. The final `NEW STREAMING CONTENT 219`
+paragraph must also be visible in that reader. A transient short layout with
+bottom zero cannot pass. Registry geometry remains diagnostic because its
+projection can disagree with the mounted document. All original withheld-content
+and full-paragraph assertions remain.
+After traversing a reply, preparation freezes the last accepted top and inset.
+The control, native clip view and presentation layer must commit that position
+across two display callbacks, allowing only native bounds to clamp the frozen
+target if the document shrinks. A manually positioned reader does not acquire a
+new bottom target when the document grows. The second callback synchronously
+issues the return to top exactly once.
 The return must then commit across two display callbacks before the next content
 update; a refreshed control descriptor alone is insufficient. Preparation and
 return retain independent 3s deadlines and distinct failure receipts.
