@@ -304,7 +304,7 @@ struct NativeThreadSendFeedbackTests {
                 && original.selectedRange() == selection
             // The author preference confirms the completed row was actually
             // decoded and applied, rather than only delivered to the resource.
-            return SwiftUIReplay.text(in: root).contains { $0.contains("Author: settled-model") }
+            return SwiftUIReplay.text(in: root).contains { $0.contains("Author:") && $0.contains("settled-model") }
         }
         for _ in 0..<20 {
             root.layoutSubtreeIfNeeded()
