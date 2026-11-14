@@ -534,8 +534,14 @@ struct NativeThreadSendFeedbackTests {
         var foldSamples: [CGRect] = []
         let foldObserver = SwiftUIReplay.FrameObserver(view: root) {
             guard reader.subviews.count == 2,
-                  let current = fixture.model.snapshot?.handoff,
-                  let frame = nativeFrame("sidecard-aperture-conversation-frame", in: root),
+                  let current = fixture.model.snapshot?.handoff else { return false }
+            if reduceMotion && current.travelComplete {
+                // A nil-animation completion can publish before AppKit lays out
+                // the new pose. Settle that pending nonanimated layout before
+                // sampling; animated travel must remain passively observed.
+                root.layoutSubtreeIfNeeded()
+            }
+            guard let frame = nativeFrame("sidecard-aperture-conversation-frame", in: root),
                   let main = nativeFrame("agent-reading-panel-frame", in: root) else { return false }
             if foldSamples.count < 120 { foldSamples.append(frame) }
             let fraction = (sourceFrame.width - frame.width) / (sourceFrame.width - launcherFrame.width)
