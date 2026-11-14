@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
@@ -114,7 +115,9 @@ func (h *mockHost) ReadThreadContent(ctx context.Context, id string, scope trans
 	if known != nil && *known == revision {
 		return nil, nil
 	}
-	value, err := json.Marshal(map[string]any{"thread": id, "scope": scope.Kind, "key": scope.Key, "text": text})
+	// A stable projection body keeps the fixed UTF-16 text transitions on the
+	// incremental patch path instead of making the snapshot the smaller event.
+	value, err := json.Marshal(map[string]any{"thread": id, "scope": scope.Kind, "key": scope.Key, "text": text, "body": strings.Repeat("stable-content ", 32)})
 	if err != nil {
 		return nil, err
 	}

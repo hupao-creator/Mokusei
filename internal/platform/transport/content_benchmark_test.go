@@ -56,7 +56,11 @@ func BenchmarkUnchangedContent(b *testing.B) {
 				if unexpected, _ := stream.pop(); len(unexpected) != 0 {
 					b.Fatal("unchanged content emitted an event")
 				}
-				host.value = json.RawMessage(`{"message":"changed 😀","tools":12}`)
+				// Keep this a small text edit so the first visible change still
+				// exercises the incremental patch path after semantic no-ops.
+				changed := append([]byte(nil), raw...)
+				changed[strings.Index(string(raw), strings.Repeat("x", 8))] = 'y'
+				host.value = changed
 				server.publishOne("client", sub)
 				body, _ := stream.pop()
 				var outer struct {

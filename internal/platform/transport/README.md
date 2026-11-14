@@ -52,5 +52,15 @@ changing streams do not pay for hashing. An identical projection at a new source
 without another decode, delta or event encoding. Equivalent re-encodings retain
 the semantic comparison; empty patches never advance the wire revision. Changed
 content and cancellation/replacement keep the existing ordered publication path.
+
+Visible updates build a delta under both an operation-count and an encoded-byte
+budget. Reaching either budget stops refinement immediately; the transport then
+encodes a complete snapshot instead of salvaging a partial patch. A completed
+patch is compared against the complete snapshot event, so a patch is sent only
+when its actual wire envelope is smaller and within the content frame limit.
+Replacing an existing value with a newer snapshot is authoritative on the same
+resource; the next patch uses that snapshot's revision as its base. This frame
+selection does not weaken queue backpressure: a representation that fits the
+frame can still fail with `CONTENT_BACKPRESSURE` for its client's bounded queue.
 The [reader projection replay and publication benchmark](../../../tools/verification/thread-detail-performance/README.md)
 measure this boundary independently of Harness projection and native rendering.

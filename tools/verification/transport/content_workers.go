@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -80,7 +81,9 @@ func (h *workerHost) ReadThreadContent(ctx context.Context, id string, scope tra
 	if id == "oversized" {
 		return &transport.ContentSnapshot{Revision: revision, Value: make(json.RawMessage, transport.MaxResponseBytes+1)}, nil
 	}
-	value, err := json.Marshal(map[string]any{"thread": id, "text": text})
+	// Keep a stable projection body so a one-character stream edit remains
+	// smaller than its snapshot, as it would for real reader content.
+	value, err := json.Marshal(map[string]any{"thread": id, "text": text, "body": strings.Repeat("stable-content ", 32)})
 	return &transport.ContentSnapshot{Revision: revision, Value: value}, err
 }
 func subscribeWorker(ctx context.Context, api *apiClient, stream *eventConnection, id string, target any) {

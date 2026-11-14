@@ -61,7 +61,11 @@ func verifySwiftDeltas() (failure error) {
 		if err != nil {
 			return err
 		}
-		fixtures[i].Patch = transport.CreateJSONDelta(before, after)
+		delta := transport.CreateBoundedJSONDelta(before, after, transport.DeltaBudget{MaxOperations: 4096, MaxBytes: 1 << 20})
+		if !delta.Complete {
+			return fmt.Errorf("fixture %q unexpectedly exceeded the delta budget", fixtures[i].Name)
+		}
+		fixtures[i].Patch = delta.Operations
 	}
 	data, err := json.Marshal(fixtures)
 	if err != nil {

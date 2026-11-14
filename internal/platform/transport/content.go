@@ -212,11 +212,12 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 		return
 	}
 	revision := subscription.revision + 1
-	event := map[string]any{"type": "snapshot", "subscriptionId": subscription.id, "revision": revision, "value": value}
-	var patch []map[string]any
+	snapshotEvent := map[string]any{"type": "snapshot", "subscriptionId": subscription.id, "revision": revision, "value": value}
+	var client *eventStream
+	var encoded []byte
 	if subscription.hasValue {
-		patch = CreateJSONDelta(subscription.value, value)
-		if len(patch) == 0 {
+		delta := CreateBoundedJSONDelta(subscription.value, value, DeltaBudget{MaxOperations: maxDeltaOperations, MaxBytes: min(contentWriteLimit, len(snapshot.Value))})
+		if delta.Complete && len(delta.Operations) == 0 {
 			if !subscription.hasValueDigest {
 				digest = sha256.Sum256(snapshot.Value)
 			}
@@ -230,19 +231,66 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 			c.mu.Unlock()
 			return
 		}
-		event = map[string]any{"type": "patch", "subscriptionId": subscription.id, "baseRevision": subscription.revision, "revision": revision, "patch": patch}
-	}
-	if subscription.ctx.Err() != nil {
-		return
-	}
-	client := c.client(clientID)
-	if client == nil {
-		return
-	}
-	encoded, err := client.encodeContent(event)
-	if err != nil {
-		c.fail(clientID, subscription, err)
-		return
+		if subscription.ctx.Err() != nil {
+			return
+		}
+		client = c.client(clientID)
+		if client == nil {
+			return
+		}
+		var encodedPatch []byte
+		if delta.Complete {
+			patchEvent := map[string]any{"type": "patch", "subscriptionId": subscription.id, "baseRevision": subscription.revision, "revision": revision, "patch": delta.Operations}
+			encodedPatch, err = client.encodeContent(patchEvent)
+			if err != nil {
+				c.fail(clientID, subscription, err)
+				return
+			}
+		}
+		// A bounded patch that already exceeds the frame cannot be selected,
+		// but a patch that fits remains usable even when a fresh snapshot of the
+		// same value would not. Compare complete wire events only when both
+		// representations are viable.
+		if len(encodedPatch) > 0 && len(encodedPatch) <= contentWriteLimit {
+			encodedSnapshot, err := client.encodeContent(snapshotEvent)
+			if err != nil {
+				c.fail(clientID, subscription, err)
+				return
+			}
+			if len(encodedSnapshot) > contentWriteLimit || len(encodedPatch) < len(encodedSnapshot) {
+				encoded = encodedPatch
+			} else {
+				encoded = encodedSnapshot
+			}
+		} else {
+			encodedSnapshot, err := client.encodeContent(snapshotEvent)
+			if err != nil {
+				c.fail(clientID, subscription, err)
+				return
+			}
+			if len(encodedSnapshot) > contentWriteLimit {
+				c.fail(clientID, subscription, model.NewError("CONTENT_TOO_LARGE", "This conversation turn exceeds the content transport limit"))
+				return
+			}
+			encoded = encodedSnapshot
+		}
+	} else {
+		if subscription.ctx.Err() != nil {
+			return
+		}
+		client = c.client(clientID)
+		if client == nil {
+			return
+		}
+		encoded, err = client.encodeContent(snapshotEvent)
+		if err != nil {
+			c.fail(clientID, subscription, err)
+			return
+		}
+		if len(encoded) > contentWriteLimit {
+			c.fail(clientID, subscription, model.NewError("CONTENT_TOO_LARGE", "This conversation turn exceeds the content transport limit"))
+			return
+		}
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
