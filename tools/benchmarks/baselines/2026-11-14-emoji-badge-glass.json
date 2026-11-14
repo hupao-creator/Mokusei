@@ -1,0 +1,1438 @@
+{
+  "version": 1,
+  "date": "2026-11-14",
+  "purpose": "Exploratory Agent emoji badge material comparison; ordinary product default remains flat.",
+  "baseRevision": "c57e171ee8de6b4674854824a94d8559cc8e2d17",
+  "artifactSHA256": "01dd32a497a58ebbf964ea23c02fbd9e9e6c558025fa45c3545f9502e6a1621f",
+  "provenance": {
+    "channel": "production",
+    "configuration": "release",
+    "embeddingInputSHA256": "abcab7b955563397e3c8b82d7ad114650dde81ee50d4f3a7265e80b16b3027e2",
+    "executableInputSHA256": "813d391c5e2f3ab900ae4f6c5d3e3dfb32652a31001fd4f77721f7ca062a022f",
+    "runtimeInputSHA256": "ec1e776587cffc78c4e9d2ab837d3b1123b04997e1066b7fd0251e40b8e6f2f4"
+  },
+  "nativeCLI": {
+    "version": "codex-cli 0.167.0-alpha.4.1",
+    "sha256": "7cb8700a47be3c81bb3c5efbf2d2adc716ce3db4806e9dc992f2925f78b2b194",
+    "verifiedVersion": "codex-cli 0.167.0-alpha.4.1"
+  },
+  "conditions": {
+    "count": 10,
+    "order": [
+      "flat",
+      "liquid-glass",
+      "liquid-glass",
+      "flat"
+    ],
+    "windowBounds": {
+      "x": 116,
+      "y": 32,
+      "width": 1280,
+      "height": 950
+    },
+    "warmupSeconds": 6,
+    "formalSeconds": 8,
+    "tailSeconds": 2,
+    "os": "Version 26.5.1 (Build 25F80)",
+    "screens": [
+      {
+        "height": 982,
+        "id": 1,
+        "maximumFPS": 120,
+        "modeHz": 120,
+        "scale": 2,
+        "width": 1512,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "pacing": "sparse",
+    "appCPU100Percent": "one logical core",
+    "memory": "two-run mean of sampled App physical-footprint peaks"
+  },
+  "fixtureEmojiChecks": [
+    {
+      "attempt": "00-flat",
+      "count": 10,
+      "emoji": "📄",
+      "initialPublicStateSHA256": "6887e9b43ae86d7f349f917e00e3635c0761ffb7a83a94490716f7932989cb33"
+    },
+    {
+      "attempt": "01-liquid-glass",
+      "count": 10,
+      "emoji": "📄",
+      "initialPublicStateSHA256": "da769998aef21034a97ca0a62cb03c89d9430d20a23de59286e10207955e42bb"
+    },
+    {
+      "attempt": "02-liquid-glass",
+      "count": 10,
+      "emoji": "📄",
+      "initialPublicStateSHA256": "171a4291200faef0d40123a353093ae89325ac8e388a223b4bf4bff3a81a25d3"
+    },
+    {
+      "attempt": "03-flat",
+      "count": 10,
+      "emoji": "📄",
+      "initialPublicStateSHA256": "da55185e392de2bc6e8c06345f0af14b928bcd4ddf790dac889aa02bb4dfdf11"
+    }
+  ],
+  "rawEvidenceRoot": "/Users/felixwang/Desktop/Mokusei/.scratch/emoji-badge-glass-20261114",
+  "results": [
+    {
+      "count": 10,
+      "scenario": "idle.completed",
+      "comparison": "not-comparable",
+      "matchedResourceObservations": true,
+      "descriptiveMeans": {
+        "flat": {
+          "appCPUPercent": 0.7345541714885224,
+          "sampledPeakMiB": 75.57926940917969
+        },
+        "liquid-glass": {
+          "appCPUPercent": 0.7926252191737677,
+          "sampledPeakMiB": 75.8370590209961
+        }
+      },
+      "glassMinusFlatCPUPoints": 0.05807104768524529,
+      "glassCPUChangePercent": 7.905618120385638,
+      "glassMinusFlatPeakMiB": 0.25778961181640625,
+      "trials": [
+        {
+          "attempt": 0,
+          "style": "flat",
+          "path": "00-flat/n-10/00-idle.completed",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "declared process root missing from sample",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 78333104,
+            "observedCPUSeconds": 0.066758166,
+            "singleCoreCPUPercent": 0.8345273987755167,
+            "finalSampledFootprintBytes": 77972656
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "392d8469ea27bf6dd7cd83b1c3421dd97c3fdfe65861295dd34645336dac9149",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.198373125,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.198373125
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.205715167,
+            "noProgressSecondsBounds": {
+              "lower": 0.00419125,
+              "upper": 0.453604833
+            },
+            "maximumTrajectoryErrorPixels": 6.55654758330897
+          },
+          "body": {},
+          "sampledSeconds": 7.999517583
+        },
+        {
+          "attempt": 1,
+          "style": "liquid-glass",
+          "path": "01-liquid-glass/n-10/00-idle.completed",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "declared process root missing from sample",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 79152256,
+            "observedCPUSeconds": 0.050438,
+            "singleCoreCPUPercent": 0.6304663737226498,
+            "finalSampledFootprintBytes": 78824576
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "392d8469ea27bf6dd7cd83b1c3421dd97c3fdfe65861295dd34645336dac9149",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.207204958,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.207204958
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.207993833,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.4552125
+            },
+            "maximumTrajectoryErrorPixels": 3.9289841395839704
+          },
+          "body": {},
+          "sampledSeconds": 8.000109459
+        },
+        {
+          "attempt": 2,
+          "style": "liquid-glass",
+          "path": "02-liquid-glass/n-10/00-idle.completed",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "declared process root missing from sample",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 79889584,
+            "observedCPUSeconds": 0.076371041,
+            "singleCoreCPUPercent": 0.9547840646248856,
+            "finalSampledFootprintBytes": 79529136
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "392d8469ea27bf6dd7cd83b1c3421dd97c3fdfe65861295dd34645336dac9149",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.203797084,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.203797084
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.203797084,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.448245042
+            },
+            "maximumTrajectoryErrorPixels": 3.9289841395839704
+          },
+          "body": {},
+          "sampledSeconds": 7.99877625
+        },
+        {
+          "attempt": 3,
+          "style": "flat",
+          "path": "03-flat/n-10/00-idle.completed",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 80168112,
+            "observedCPUSeconds": 0.050761167,
+            "singleCoreCPUPercent": 0.634580944201528,
+            "finalSampledFootprintBytes": 79840432
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "392d8469ea27bf6dd7cd83b1c3421dd97c3fdfe65861295dd34645336dac9149",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.202078959,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.202078959
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.203087416,
+            "noProgressSecondsBounds": {
+              "lower": 0.00149075,
+              "upper": 0.453520791
+            },
+            "maximumTrajectoryErrorPixels": 6.55654758330897
+          },
+          "body": {},
+          "sampledSeconds": 7.999163458
+        }
+      ]
+    },
+    {
+      "count": 10,
+      "scenario": "idle.active",
+      "comparison": "not-comparable",
+      "matchedResourceObservations": true,
+      "descriptiveMeans": {
+        "flat": {
+          "appCPUPercent": 42.40162837142349,
+          "sampledPeakMiB": 102.82145690917969
+        },
+        "liquid-glass": {
+          "appCPUPercent": 46.83342787012574,
+          "sampledPeakMiB": 103.27458190917969
+        }
+      },
+      "glassMinusFlatCPUPoints": 4.431799498702247,
+      "glassCPUChangePercent": 10.45195590103576,
+      "glassMinusFlatPeakMiB": 0.453125,
+      "trials": [
+        {
+          "attempt": 0,
+          "style": "flat",
+          "path": "00-flat/n-10/01-idle.active",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 107988144,
+            "observedCPUSeconds": 3.287916209,
+            "singleCoreCPUPercent": 41.099681916080684,
+            "finalSampledFootprintBytes": 107988144
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.208663333,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.208663333
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.208663333,
+            "noProgressSecondsBounds": {
+              "lower": 0.004887541,
+              "upper": 0.456358291
+            },
+            "maximumTrajectoryErrorPixels": 5.636509984099672
+          },
+          "body": {},
+          "sampledSeconds": 7.999858042
+        },
+        {
+          "attempt": 1,
+          "style": "liquid-glass",
+          "path": "01-liquid-glass/n-10/01-idle.active",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 108004528,
+            "observedCPUSeconds": 3.730381,
+            "singleCoreCPUPercent": 46.623139345038275,
+            "finalSampledFootprintBytes": 107824304
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.212840834,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.212840834
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.212840834,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.45328975
+            },
+            "maximumTrajectoryErrorPixels": 6.891139764336422
+          },
+          "body": {},
+          "sampledSeconds": 8.001136458
+        },
+        {
+          "attempt": 2,
+          "style": "liquid-glass",
+          "path": "02-liquid-glass/n-10/01-idle.active",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 108577968,
+            "observedCPUSeconds": 3.762610459,
+            "singleCoreCPUPercent": 47.0437163952132,
+            "finalSampledFootprintBytes": 108577968
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.205194833,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.205194833
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.205194833,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.453137875
+            },
+            "maximumTrajectoryErrorPixels": 6.891139764336422
+          },
+          "body": {},
+          "sampledSeconds": 7.998114833
+        },
+        {
+          "attempt": 3,
+          "style": "flat",
+          "path": "03-flat/n-10/01-idle.active",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 107644080,
+            "observedCPUSeconds": 3.496441917,
+            "singleCoreCPUPercent": 43.7035748267663,
+            "finalSampledFootprintBytes": 107594928
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.200092417,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.200092417
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.206768583,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.454043792
+            },
+            "maximumTrajectoryErrorPixels": 5.636509984099672
+          },
+          "body": {},
+          "sampledSeconds": 8.000356792
+        }
+      ]
+    },
+    {
+      "count": 10,
+      "scenario": "pan",
+      "comparison": "not-comparable",
+      "matchedResourceObservations": false,
+      "trials": [
+        {
+          "attempt": 0,
+          "style": "flat",
+          "path": "00-flat/n-10/02-pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 83477680,
+            "observedCPUSeconds": 2.424673417,
+            "singleCoreCPUPercent": 30.308126470347204,
+            "finalSampledFootprintBytes": 83444888
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "cee1f076afe7ba227ce6e0f3651a2c2ab5ff7e3f9f69d8a012184444859c15c8",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.247241417,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.003634042,
+              "upper": 0.247241417
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.247241417,
+            "noProgressSecondsBounds": {
+              "lower": 0.003634042,
+              "upper": 0.451201208
+            },
+            "maximumTrajectoryErrorPixels": 24.820391736505165
+          },
+          "body": {},
+          "sampledSeconds": 8.000076875
+        },
+        {
+          "attempt": 1,
+          "style": "liquid-glass",
+          "path": "01-liquid-glass/n-10/02-pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 87458992,
+            "observedCPUSeconds": 2.392900417,
+            "singleCoreCPUPercent": 29.908919045526428,
+            "finalSampledFootprintBytes": 87442608
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "cee1f076afe7ba227ce6e0f3651a2c2ab5ff7e3f9f69d8a012184444859c15c8",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.255622792,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.00587275,
+              "upper": 0.255622792
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.255622792,
+            "noProgressSecondsBounds": {
+              "lower": 0.00587275,
+              "upper": 0.457219
+            },
+            "maximumTrajectoryErrorPixels": 22.964035026534326
+          },
+          "body": {},
+          "sampledSeconds": 8.000624875
+        },
+        {
+          "attempt": 2,
+          "style": "liquid-glass",
+          "path": "02-liquid-glass/n-10/02-pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "declared process root missing from sample",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 88196296,
+            "observedCPUSeconds": 2.403938875,
+            "singleCoreCPUPercent": 30.051575580378127,
+            "finalSampledFootprintBytes": 88179912
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "cee1f076afe7ba227ce6e0f3651a2c2ab5ff7e3f9f69d8a012184444859c15c8",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.255348541,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.255348541
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.255348541,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.472547625
+            },
+            "maximumTrajectoryErrorPixels": 22.964035026534326
+          },
+          "body": {},
+          "sampledSeconds": 7.999377166
+        },
+        {
+          "attempt": 3,
+          "style": "flat",
+          "path": "03-flat/n-10/02-pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 83182768,
+            "observedCPUSeconds": 2.3133655,
+            "singleCoreCPUPercent": 28.91044554761533,
+            "finalSampledFootprintBytes": 83117232
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "cee1f076afe7ba227ce6e0f3651a2c2ab5ff7e3f9f69d8a012184444859c15c8",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.251922666,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.003584958,
+              "upper": 0.251922666
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.251922666,
+            "noProgressSecondsBounds": {
+              "lower": 0.003584958,
+              "upper": 0.454493
+            },
+            "maximumTrajectoryErrorPixels": 20.552196199581143
+          },
+          "body": {},
+          "sampledSeconds": 8.00183275
+        }
+      ]
+    },
+    {
+      "count": 10,
+      "scenario": "body",
+      "comparison": "not-comparable",
+      "matchedResourceObservations": true,
+      "descriptiveMeans": {
+        "flat": {
+          "appCPUPercent": 45.63742815906697,
+          "sampledPeakMiB": 107.36833190917969
+        },
+        "liquid-glass": {
+          "appCPUPercent": 53.9525208530566,
+          "sampledPeakMiB": 111.86054229736328
+        }
+      },
+      "glassMinusFlatCPUPoints": 8.315092693989627,
+      "glassCPUChangePercent": 18.2198976353527,
+      "glassMinusFlatPeakMiB": 4.492210388183594,
+      "trials": [
+        {
+          "attempt": 0,
+          "style": "flat",
+          "path": "00-flat/n-10/03-body",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 112608432,
+            "observedCPUSeconds": 3.654162583,
+            "singleCoreCPUPercent": 45.67690691580975,
+            "finalSampledFootprintBytes": 110118064
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.205081791,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.205081791
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.207058625,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.454449625
+            },
+            "maximumTrajectoryErrorPixels": 4.350751862938278
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.65152725,
+              0.501902792,
+              0.351719542,
+              0.550356709,
+              0.601338375,
+              0.300730334,
+              0.451397459,
+              0.401831375,
+              0.398326792,
+              0.447197167,
+              0.449166625,
+              0.299008834,
+              0.349059209,
+              0.399111459,
+              0.350228834,
+              0.449349,
+              0.3994645,
+              0.497456458,
+              0.396560666,
+              0.446712083
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 8.000021958
+        },
+        {
+          "attempt": 1,
+          "style": "liquid-glass",
+          "path": "01-liquid-glass/n-10/03-body",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 117130440,
+            "observedCPUSeconds": 4.345683292,
+            "singleCoreCPUPercent": 54.3196446802047,
+            "finalSampledFootprintBytes": 114951368
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.403733833,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.403733833
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.403733833,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.597682
+            },
+            "maximumTrajectoryErrorPixels": 9.061668363592654
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.663808958,
+              0.513919125,
+              0.362852041,
+              0.563395166,
+              0.613815333,
+              0.313912541,
+              0.462967166,
+              0.413911458,
+              0.61252025,
+              0.662242833,
+              0.655637917,
+              0.504291834,
+              0.355213459,
+              0.554035292,
+              0.605546959,
+              0.455667834,
+              0.40494125,
+              0.714093458,
+              0.612708917,
+              0.662576042
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 8.000205667
+        },
+        {
+          "attempt": 2,
+          "style": "liquid-glass",
+          "path": "02-liquid-glass/n-10/03-body",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 117458120,
+            "observedCPUSeconds": 4.286580625,
+            "singleCoreCPUPercent": 53.58539702590849,
+            "finalSampledFootprintBytes": 115393736
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.212054875,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.212054875
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.38803675,
+            "noProgressSecondsBounds": {
+              "lower": 0.002392,
+              "upper": 0.643829542
+            },
+            "maximumTrajectoryErrorPixels": 9.061668363592654
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.4654795,
+              0.365937541,
+              0.413860333,
+              0.721479334,
+              0.571685042,
+              0.52166675,
+              0.420510167,
+              0.670348792,
+              0.621100667,
+              0.471287667,
+              0.4572825,
+              0.305305416,
+              0.357308458,
+              0.406573875,
+              0.553457375,
+              0.504174208,
+              0.403147333,
+              0.652506083,
+              0.604131666,
+              0.453915333
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 7.999531333
+        },
+        {
+          "attempt": 3,
+          "style": "flat",
+          "path": "03-flat/n-10/03-body",
+          "measurement": "incomplete",
+          "product": "passed",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 112559280,
+            "observedCPUSeconds": 3.646912917,
+            "singleCoreCPUPercent": 45.59794940232419,
+            "finalSampledFootprintBytes": 110249136
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": true,
+          "matchingConditionsSHA256": "3fcb53a47f8e90d8c70574b6c9e7b7edacf084b978ff397e0dcda1bb355d27c3",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.212657042,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.212657042
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.385157375,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.647571
+            },
+            "maximumTrajectoryErrorPixels": 4.350756219279857
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.454503583,
+              0.355536417,
+              0.405291292,
+              0.711160667,
+              0.560378667,
+              0.5103425,
+              0.408948,
+              0.660281917,
+              0.610234875,
+              0.459834708,
+              0.4535935,
+              0.352657666,
+              0.402698708,
+              0.7064565,
+              0.554764042,
+              0.505302542,
+              0.406361125,
+              0.655213209,
+              0.606108375,
+              0.455338459
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 7.997975709
+        }
+      ]
+    },
+    {
+      "count": 10,
+      "scenario": "body.pan",
+      "comparison": "not-comparable",
+      "matchedResourceObservations": false,
+      "trials": [
+        {
+          "attempt": 0,
+          "style": "flat",
+          "path": "00-flat/n-10/04-body.pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "declared process root missing from sample",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 113263792,
+            "observedCPUSeconds": 4.84408125,
+            "singleCoreCPUPercent": 60.54537292490232,
+            "finalSampledFootprintBytes": 111068336
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "314906be4fdd75786d9e175a40304746ab85e04bc7fcd8d565ada755de0529f6",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.065228042,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.065228042
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.409970375,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.858281167
+            },
+            "maximumTrajectoryErrorPixels": 20.155637235320985
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.465299167,
+              0.364617542,
+              0.414823375,
+              0.70852325,
+              0.5600305,
+              0.509042958,
+              0.409584083,
+              0.65853075,
+              0.609905416,
+              0.459821625,
+              0.464288042,
+              0.36391025,
+              0.41205175,
+              0.713904583,
+              0.562076416,
+              0.514200958,
+              0.414164041,
+              0.662066875,
+              0.61416725,
+              0.462690125
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 8.000745583
+        },
+        {
+          "attempt": 1,
+          "style": "liquid-glass",
+          "path": "01-liquid-glass/n-10/04-body.pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 118113480,
+            "observedCPUSeconds": 6.252626791,
+            "singleCoreCPUPercent": 78.17438749322062,
+            "finalSampledFootprintBytes": 115918024
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "314906be4fdd75786d9e175a40304746ab85e04bc7fcd8d565ada755de0529f6",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.256848,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.0,
+              "upper": 0.256848
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.417865708,
+            "noProgressSecondsBounds": {
+              "lower": 0,
+              "upper": 0.863935625
+            },
+            "maximumTrajectoryErrorPixels": 19.028071906603287
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.655262042,
+              0.506311584,
+              0.356100084,
+              0.555777042,
+              0.606467542,
+              0.306864167,
+              0.456965334,
+              0.406023584,
+              0.606908667,
+              0.65759625,
+              0.665946875,
+              0.5153575,
+              0.366023125,
+              0.566005125,
+              0.614986708,
+              0.465193917,
+              0.415356958,
+              0.706695625,
+              0.606857083,
+              0.656910666
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 7.998306084
+        },
+        {
+          "attempt": 2,
+          "style": "liquid-glass",
+          "path": "02-liquid-glass/n-10/04-body.pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 117654728,
+            "observedCPUSeconds": 6.223465917,
+            "singleCoreCPUPercent": 77.80880548326601,
+            "finalSampledFootprintBytes": 115197128
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "314906be4fdd75786d9e175a40304746ab85e04bc7fcd8d565ada755de0529f6",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.45712825,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.00963075,
+              "upper": 0.45712825
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.45712825,
+            "noProgressSecondsBounds": {
+              "lower": 0.00963075,
+              "upper": 0.864876917
+            },
+            "maximumTrajectoryErrorPixels": 19.046423946857107
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.465783833,
+              0.315635416,
+              0.36368475,
+              0.414495291,
+              0.556658292,
+              0.505288334,
+              0.406686459,
+              0.656692,
+              0.605137459,
+              0.455990667,
+              0.464501042,
+              0.363384292,
+              0.414060792,
+              0.702836292,
+              0.553898125,
+              0.504967875,
+              0.404584625,
+              0.653043625,
+              0.604347958,
+              0.454789208
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 7.99840825
+        },
+        {
+          "attempt": 3,
+          "style": "flat",
+          "path": "03-flat/n-10/04-body.pan",
+          "measurement": "incomplete",
+          "product": "wrong-result",
+          "comparison": "not-comparable",
+          "reasons": [
+            "process lifecycle/exit CPU coverage incomplete",
+            "observed business displacement differs from the declared input trajectory",
+            "native hitch unavailable: native XCTest hitch collection not requested; default collection never starts the privileged performance service",
+            "native hitch sensitivity/ownership controls did not establish capability"
+          ],
+          "application": {
+            "sampledPeakFootprintBytes": 113460400,
+            "observedCPUSeconds": 4.747016167,
+            "singleCoreCPUPercent": 59.32229404853174,
+            "finalSampledFootprintBytes": 111035568
+          },
+          "appPresentInEverySample": true,
+          "resourceEligible": false,
+          "matchingConditionsSHA256": "314906be4fdd75786d9e175a40304746ab85e04bc7fcd8d565ada755de0529f6",
+          "pan": {
+            "firstVisibleResponseSeconds": 0.462935625,
+            "firstVisibleResponseSecondsBounds": {
+              "lower": 0.009325291,
+              "upper": 0.462935625
+            },
+            "responseDisplacementThresholdPixels": 3,
+            "maximumNoProgressSeconds": 0.462935625,
+            "noProgressSecondsBounds": {
+              "lower": 0.009325291,
+              "upper": 0.8553945
+            },
+            "maximumTrajectoryErrorPixels": 19.046423946857107
+          },
+          "body": {
+            "observedCheckpointLatenciesSeconds": [
+              0.464500542,
+              0.365687,
+              0.41465225,
+              0.712344792,
+              0.564265042,
+              0.512307667,
+              0.413798292,
+              0.66439175,
+              0.612329792,
+              0.464216,
+              0.452155833,
+              0.303294083,
+              0.35418,
+              0.4035755,
+              0.354145125,
+              0.454389333,
+              0.404196291,
+              0.502921,
+              0.403989416,
+              0.45450325
+            ],
+            "reasoningChunkEvents": 160,
+            "reasoningChunkBytes": 10240,
+            "progressAndTerminalMessages": 30,
+            "progressAndTerminalBytes": 2990
+          },
+          "sampledSeconds": 8.002077875
+        }
+      ]
+    }
+  ],
+  "comparison": "not-comparable",
+  "statisticalRegressionGate": false,
+  "limits": [
+    "Descriptive App CPU/footprint observations; two samples per material, no statistical inference.",
+    "Incomplete descendant/exit CPU and unavailable native hitches remain measurement limitations.",
+    "No GPU, WindowServer attribution, energy, optical FPS or pixel-style comparison.",
+    "Both pan scenarios failed their unchanged 14-pixel trajectory oracle in all four runs; no pan benefit conclusion.",
+    "The final-width run nonce is normalized only for workload matching; original source hashes and delivery checks remain intact.",
+    "Missing helper-root samples do not certify complete process accounting; each reported App interval retains that exact App owner in every sample.",
+    "Observation figures belong to the recorded signed artifact; subsequent main reader/Chrome changes were not remeasured."
+  ],
+  "sourceIdentity": {
+    "measured": {
+      "app/macos/README.md": "474c2dc6170a5c3695a3e75c5556b7492b1c6bfc5ae709133a85bc8a09f2b0a3",
+      "app/macos/Sources/App/Mokusei.swift": "377d1d96b5a3302a30c87a2a13889f2c15206ba1907b463feb0cad1b7bf5bc36",
+      "app/macos/Sources/Host/Overview/README.md": "2adc89217e75f662b174f225dabebd667fd67a9d7e8846d0fb1853969221e9bc",
+      "app/macos/Sources/Shared/PluginUI/Cards/HarnessThreadCard.swift": "2725a206fdfef55b21493d0598868b7502bd95847b41501b2a5de6f0505f3005",
+      "app/macos/Sources/Shared/PluginUI/Cards/ThreadCardBrand.swift": "be6087d0c24c1eb163959efea661cfa749eda77251d4bac58528078155338876",
+      "app/macos/Sources/Shared/PluginUI/Cards/ThreadCardMaterials.swift": "34385ac4301bed7462d034ba0d2111c6a7397e484c487238f35e1017e4aa7c16",
+      "app/macos/Sources/Shared/PluginUI/README.md": "6115ec819e1ced2bb773ca379986a52b940d8552c4aceabbec92834e2bcabb65",
+      "tools/benchmarks/README.md": "923ab5bf0fb0ab4f745f77a58b82d3989ec912de0f78b32d224435f7d53f3be2",
+      "tools/benchmarks/benchmark.py": "599edf170e5836686757f86c19f560fac3f5631326f170496c445565a0df0955",
+      "tools/benchmarks/conformance/replay.py": "172b38a346722dadde60e05b53d4044c8772ed5097d61afec6642999ce8717b4",
+      "tools/benchmarks/lifecycle.py": "3b0e2da3d1459607788004913b54562a9a038b08f3b55b15fa67aee547a231a9",
+      "tools/benchmarks/native/Collector.swift": "1ce940b8740ba96c5859af049f92f49a91bedf4be585f23ec615c497fa22d496",
+      "tools/benchmarks/runner.py": "c18c5c5a50bfeb5a060249a4d3cc1d18da313cecd9c1558ab6957c97ed9aa6ab",
+      "tools/benchmarks/badge_comparison.py": "62856a3682c199f07430156cb0080f199e31965917dd532354b4e8ed837b1985"
+    },
+    "finalAnalysis": {
+      "tools/benchmarks/badge_comparison.py": "ff94db074a49ebab73a90dd49cecc81681fb6c479f40586ad2c680a93270edb7",
+      "tools/benchmarks/provider.py": "9142bbefd896b2004921113f9502619ec3921fde2af7e893ac5068287f0f4075",
+      "tools/benchmarks/conformance/replay.py": "cb7cdfa3a9433a6339b556a23467c454e62406679205937d29f2191dd26f3816"
+    }
+  },
+  "evidenceSHA256": {
+    "comparison/00-flat/n-10/00-idle.completed/plan.json": "d43cedfc65ecabee8494aada369ba2beef3ef7f60d0c3f3358a8f7cdff76500c",
+    "comparison/00-flat/n-10/00-idle.completed/observation.json": "8078b9acd765bca83818430417222a755b6fff43e989132b6511448e8984ec9f",
+    "comparison/00-flat/n-10/00-idle.completed/report.json": "8aff6653be52c0da38ddf3e8326cfdef372f2a308696852b04c08c34a55371c3",
+    "comparison/00-flat/n-10/00-idle.completed/manifest.json": "a559f80b9a7669b63388203f880939e3344cf8ff68984cd3d10a802b63523876",
+    "comparison/00-flat/n-10/00-idle.completed/rendering-configuration.json": "09ce78d7be211b30cef8750ac9b4277aaed403538167299e862969e18aa6ec8d",
+    "comparison/00-flat/n-10/00-idle.completed/cleanup.json": "67b036f3ff1df7b6e9cf35fa6e29abc56949dbeebee2466f8aff1e37bce291be",
+    "comparison/00-flat/n-10/00-idle.completed/existing-fixture.json": "6bfd9393ef5d8329c7ae854dfcafeda95e98f194f33d8430bff86c19ef1ed665",
+    "comparison/00-flat/n-10/00-idle.completed/identity.json": "2968e444c4a0259f10705755b1def00c39075f40d12ec6c183a0a2d8ab6384a7",
+    "comparison/00-flat/n-10/00-idle.completed/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/00-flat/n-10/00-idle.completed/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/00-flat/n-10/00-idle.completed/frames.jsonl": "e6acfdfcf37dbdff805208a899679439b53586b0216969a19c531709c373a304",
+    "comparison/00-flat/n-10/00-idle.completed/outcome.json": "b2b31855627fbf377270fddce02da3072879d07c2b5a3c8d15a5e3c4cdc7b919",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/plan.json": "cbf1bce22844765e89f4577ae1eca55916195dbbae28f3615597211f51651bb5",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/observation.json": "c1ba704cc2d79c6c4804ff9f65090ccb7c1a0031f6bc63aac06c2fffc3266691",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/report.json": "c522e76e3bca96f1571ff41815f017ea634a8798a46ff52b5ce22879d97940e2",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/manifest.json": "cb7236636c30437cddffcd2cfaf5bafa5717310b648fd6550a3165bde74f4928",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/rendering-configuration.json": "24c9c45cd8a79d4199ce7fbe1149cb3f9f63b52b018e07c076a3edabf6fc14bc",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/cleanup.json": "8a56739006197911b3d6abd865ad8eaecdec320ed38ae564dfb0b7bcefd4ecb1",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/existing-fixture.json": "2fff8e5a55a0710d2e86b50c9eb363eb2f4ba3dcb53dbd37109af61ae9bd84b9",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/identity.json": "5750a05be9e581cf725a16660f77142e0e6cb3e0f62cf3873c5521b07e44585a",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/frames.jsonl": "9112483598bc55405b48b97e2038967b775be31691d6684bcaf96e935e9bdafc",
+    "comparison/01-liquid-glass/n-10/00-idle.completed/outcome.json": "8642eb041c52f8a0fa0d34e537a21edb6f3339ad791873d5dd15fdb233809b1d",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/plan.json": "6e6325feaaa38edcd4cc0cd0ed8dfcac04ea3a358cae028d0cea3f8010ee4d9c",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/observation.json": "0d0470bab1bb19c6804e7d58fc6ea34ac03aeffc040b3584f6a23b3d172e67a9",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/report.json": "c93398f791cbe0f1a8fdb410b464c1077463021659fb56be8bdddbac61d5d9ae",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/manifest.json": "ead04ff444e559e68bb067214aeb0dc58326d54dbb758c932ca51abab37baff2",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/rendering-configuration.json": "d472a8c1da5701f26d198e0cb7b734509e60ea7824e7a54d135a2325c5cf0d58",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/cleanup.json": "2207b68463f0f9e4b72c97463597c04c12ac7f1f7e62c698ea7b9034216868ad",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/existing-fixture.json": "b11b3b1995e6def362cee2a4a7eefd9172b018f7a86c0a9c65810f237256854c",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/identity.json": "c0a020411f386b94e6e076115f4403903c257786319e08d8755e86f18ab8d7d4",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/frames.jsonl": "1eac61b56b2bfce3c0724dcc3b88673832d9cef923b4032b321c88f5cc3b6dd6",
+    "comparison/02-liquid-glass/n-10/00-idle.completed/outcome.json": "dc964b34d2cb4776f1c7fae00818636671fb53d7ec920d4b77061ae81b069885",
+    "comparison/03-flat/n-10/00-idle.completed/plan.json": "b827c79c305791ee83bf9ce7f546479acae77d1eff9de2516da895e37be7c082",
+    "comparison/03-flat/n-10/00-idle.completed/observation.json": "68e871498c7aa587d20c8e6bd25fc07d1b410a785ae49e8d97497bd7023d3881",
+    "comparison/03-flat/n-10/00-idle.completed/report.json": "d9bec909206c5a7581de0134d12647424b4f8aa9c0bee003503986ff7ab77133",
+    "comparison/03-flat/n-10/00-idle.completed/manifest.json": "b746d7109380c32036532583fa18c32468c0b10cc0554c59397017ec15c9104a",
+    "comparison/03-flat/n-10/00-idle.completed/rendering-configuration.json": "ee7b72c559296483981cef8af5952468fecabc79dc8223e83a4331f70e570789",
+    "comparison/03-flat/n-10/00-idle.completed/cleanup.json": "e69f0669fad8f8ccba793df5bddecd29e9544a40eca8fb7bcd02cf778b5d22b3",
+    "comparison/03-flat/n-10/00-idle.completed/existing-fixture.json": "8158c047612cbb6e36cc875e881766bfd0bbc69f8a28be60bce5653b4f6f3c47",
+    "comparison/03-flat/n-10/00-idle.completed/identity.json": "cfb6bbe43ee443f2b2ff63883c622b209db04c3d53bd158742e19e128f346344",
+    "comparison/03-flat/n-10/00-idle.completed/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/03-flat/n-10/00-idle.completed/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/03-flat/n-10/00-idle.completed/frames.jsonl": "b8028f5b5937386c1eb0171d01b25551deb784891289a993ed99ed9538d127dc",
+    "comparison/03-flat/n-10/00-idle.completed/outcome.json": "3f76260f19c42312ad6f737ba9fa6723041d143f7c30d3f21adacef977343480",
+    "comparison/00-flat/n-10/01-idle.active/plan.json": "30da974439d413f99f71e0ead09d757924ac740f0c2aee4546dabca5e0d2045b",
+    "comparison/00-flat/n-10/01-idle.active/observation.json": "37ed6897f7c40931405f4c215cfcd64dffc68eb124dad5e4abb45fa8231e33f8",
+    "comparison/00-flat/n-10/01-idle.active/report.json": "8415c019dbca40bd38e33ac897dca815b1036318ca4832e02cdbd41d749a5f13",
+    "comparison/00-flat/n-10/01-idle.active/manifest.json": "883cdb875dd8bdc655eb3a2306dc634831ff51c4206dac22533e25750dadc15e",
+    "comparison/00-flat/n-10/01-idle.active/rendering-configuration.json": "09ce78d7be211b30cef8750ac9b4277aaed403538167299e862969e18aa6ec8d",
+    "comparison/00-flat/n-10/01-idle.active/source.json": "29d129094c756a2c6c3e5071ceba4f11c8e9b5ba6f38f6834da3830400886a31",
+    "comparison/00-flat/n-10/01-idle.active/cleanup.json": "67b036f3ff1df7b6e9cf35fa6e29abc56949dbeebee2466f8aff1e37bce291be",
+    "comparison/00-flat/n-10/01-idle.active/existing-fixture.json": "63ad677a0b8cda539da6d5d5f4136233b8bf63e64e223f374f7e23ae14c5515a",
+    "comparison/00-flat/n-10/01-idle.active/identity.json": "55dd735cf8fb010c0895bc76dfc342d511960cfc5e6cb4b512fb9517aba95c77",
+    "comparison/00-flat/n-10/01-idle.active/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/00-flat/n-10/01-idle.active/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/00-flat/n-10/01-idle.active/frames.jsonl": "22945cb882442cb642ee79b9a3809506ba38f084c986b9d37a3760bf08bd09ea",
+    "comparison/00-flat/n-10/01-idle.active/outcome.json": "5aa1378103b0c88dcfcdeaccbfb2f641e7360719fc0be09b0e8935ebbb1bf7da",
+    "comparison/01-liquid-glass/n-10/01-idle.active/plan.json": "d12eec75e02b59f3336e1794fbd2c5e40da24cad2f769d4c8069785cce21692b",
+    "comparison/01-liquid-glass/n-10/01-idle.active/observation.json": "a43b2717df5a50cccbded9d3d752ff0c77274385446592bd225e8b9332a8dd93",
+    "comparison/01-liquid-glass/n-10/01-idle.active/report.json": "8c8ca820eb5fd5d602ca16c5820ad91bf923f714e0728ac5ae759f73d000e472",
+    "comparison/01-liquid-glass/n-10/01-idle.active/manifest.json": "36ab5d05caeb325fd397843342068102ac3e86d4148f2036d8e3287d7d90a250",
+    "comparison/01-liquid-glass/n-10/01-idle.active/rendering-configuration.json": "24c9c45cd8a79d4199ce7fbe1149cb3f9f63b52b018e07c076a3edabf6fc14bc",
+    "comparison/01-liquid-glass/n-10/01-idle.active/source.json": "e6b0e7a04f28d511ee8530605284c7a2e05ddf0ab5ddd51f0c417eb9a227cb5f",
+    "comparison/01-liquid-glass/n-10/01-idle.active/cleanup.json": "8a56739006197911b3d6abd865ad8eaecdec320ed38ae564dfb0b7bcefd4ecb1",
+    "comparison/01-liquid-glass/n-10/01-idle.active/existing-fixture.json": "061a3c1b6ac99a24845225b810de0954b2896b913052b2dc69f34581c1270bc6",
+    "comparison/01-liquid-glass/n-10/01-idle.active/identity.json": "bbac84f5e49aba75bd13af2c2bc95f0d6bd5f63d20c35722fc291a64b4d916b9",
+    "comparison/01-liquid-glass/n-10/01-idle.active/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/01-liquid-glass/n-10/01-idle.active/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/01-liquid-glass/n-10/01-idle.active/frames.jsonl": "d3a58eb6aef1629126ca8c3f3ec523b8e5460c89a775fbb0738788c7d0ca29f7",
+    "comparison/01-liquid-glass/n-10/01-idle.active/outcome.json": "6cd4f026dd6ea61ef5420d015431739630ce73415540942916e348c2b572d31b",
+    "comparison/02-liquid-glass/n-10/01-idle.active/plan.json": "2a1b9281221237cce67ec3ad2e941b404cd990676af3faef5ca275393a1bd4a2",
+    "comparison/02-liquid-glass/n-10/01-idle.active/observation.json": "9e54b44aa71b2bf420d6f335f494ee142ef243851b8809c4b8cd74ca87d6f7c7",
+    "comparison/02-liquid-glass/n-10/01-idle.active/report.json": "2355720ab98e13ee0e6e3124b4fbdebb4ec04161121883d1138a94c542e0479f",
+    "comparison/02-liquid-glass/n-10/01-idle.active/manifest.json": "94dd29cb3ed04d011b307ba000f010ed6bf20d07885352c2564872ad25df1097",
+    "comparison/02-liquid-glass/n-10/01-idle.active/rendering-configuration.json": "d472a8c1da5701f26d198e0cb7b734509e60ea7824e7a54d135a2325c5cf0d58",
+    "comparison/02-liquid-glass/n-10/01-idle.active/source.json": "d36215403aa4df447c93ed64abe1ebb4ab92fc340329418b9ee5d780d2cb4a2d",
+    "comparison/02-liquid-glass/n-10/01-idle.active/cleanup.json": "2207b68463f0f9e4b72c97463597c04c12ac7f1f7e62c698ea7b9034216868ad",
+    "comparison/02-liquid-glass/n-10/01-idle.active/existing-fixture.json": "44fd303d6022ee867c68d2b07726fb227e6528b4a3eb3e9563d84c3b9f4fc526",
+    "comparison/02-liquid-glass/n-10/01-idle.active/identity.json": "a41976b4321b3a9a243c3e6d9a427407fd8ff76064a512db4d151e47342735f1",
+    "comparison/02-liquid-glass/n-10/01-idle.active/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/02-liquid-glass/n-10/01-idle.active/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/02-liquid-glass/n-10/01-idle.active/frames.jsonl": "ed4fd1bb0e1cd9dbee243e1a5dd10ffcb25f13210946508d097c9462e3fc8884",
+    "comparison/02-liquid-glass/n-10/01-idle.active/outcome.json": "3001d870c4fe8b5018c850f6d4f8ab9bda50eb879dd027fcd500af002431f201",
+    "comparison/03-flat/n-10/01-idle.active/plan.json": "e8871f158068612aecd09d056c01631d6369525911522b558df7d4486c41b2b9",
+    "comparison/03-flat/n-10/01-idle.active/observation.json": "6691e4133145afaa7b414ae34acdc7a95afc57a7e54c8282b75828da08842cd6",
+    "comparison/03-flat/n-10/01-idle.active/report.json": "93b61824c67f070b2dbe71c10748b69a6eaac99504f9fc1d4f717f91e5e08159",
+    "comparison/03-flat/n-10/01-idle.active/manifest.json": "dcba0373e18f5738ce0becb5346b1d8d9c7d2ed7661218b388ce4e45e25d82e8",
+    "comparison/03-flat/n-10/01-idle.active/rendering-configuration.json": "ee7b72c559296483981cef8af5952468fecabc79dc8223e83a4331f70e570789",
+    "comparison/03-flat/n-10/01-idle.active/source.json": "aae5b3defb9478d7bfff3136f2c3df97c8695112354c60b833811305ef164e8f",
+    "comparison/03-flat/n-10/01-idle.active/cleanup.json": "e69f0669fad8f8ccba793df5bddecd29e9544a40eca8fb7bcd02cf778b5d22b3",
+    "comparison/03-flat/n-10/01-idle.active/existing-fixture.json": "699efd20af659b9164e31b12a9c024552652ca81f7d2475a4a8b31fd0f730cd8",
+    "comparison/03-flat/n-10/01-idle.active/identity.json": "408c3083c90d5cbf1e3810f0d7fa04ea6c729576f4ba77aa53cbefec70c22cad",
+    "comparison/03-flat/n-10/01-idle.active/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/03-flat/n-10/01-idle.active/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/03-flat/n-10/01-idle.active/frames.jsonl": "4fef697933518164bdc105ee3322b89e5ddb45a90e5c60cf21261a455c22ecb3",
+    "comparison/03-flat/n-10/01-idle.active/outcome.json": "f2ad445051eabaec6792b1899517a65995d6a6b9add530ab233feed1215f5440",
+    "comparison/00-flat/n-10/02-pan/plan.json": "fbfd8afb7277ae74ed3b306f590e373cf90ec8f52747c7867d2b388751a1a4b5",
+    "comparison/00-flat/n-10/02-pan/observation.json": "e6d3cc0d856ca948dd9680661d5d348bbd4dddba4274910bbec2ad2189ca8297",
+    "comparison/00-flat/n-10/02-pan/report.json": "27bee05d24a1ef1cdbcc0dd63894b2df2c931bfe4692be0c0f29bafb9bb2b64f",
+    "comparison/00-flat/n-10/02-pan/manifest.json": "13a13cc7b96d4e0203d5cdd1ba9a6225337ec7d1f7508ca1a2cc17330b07b577",
+    "comparison/00-flat/n-10/02-pan/rendering-configuration.json": "09ce78d7be211b30cef8750ac9b4277aaed403538167299e862969e18aa6ec8d",
+    "comparison/00-flat/n-10/02-pan/cleanup.json": "67b036f3ff1df7b6e9cf35fa6e29abc56949dbeebee2466f8aff1e37bce291be",
+    "comparison/00-flat/n-10/02-pan/existing-fixture.json": "006ab8fc94fb6159fd2990cfde68a2eb144cabd77d92a2f8a46b6fbfcd377e29",
+    "comparison/00-flat/n-10/02-pan/identity.json": "5ece25763fe51c113b70ce7460d0c3d1f5ad9874f4b975a245c994fe7d8a7d2a",
+    "comparison/00-flat/n-10/02-pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/00-flat/n-10/02-pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/00-flat/n-10/02-pan/frames.jsonl": "5259eafbc4cff79364dfb6c4d1ba1c7a7665001bfa762a081eb541f8552a0e19",
+    "comparison/00-flat/n-10/02-pan/outcome.json": "d638a7e796435f1917d5d37d4e81285e1e9d34f99a9b5a50aa494cc1749fb2ba",
+    "comparison/01-liquid-glass/n-10/02-pan/plan.json": "4d4fe137b56c5bf92ad00df310695eaf1a39aea34af31a9d980141db44bae27e",
+    "comparison/01-liquid-glass/n-10/02-pan/observation.json": "caf43b5d2867e7c4267b554d245ebc74123c59126559078fbe4c433d2fc99886",
+    "comparison/01-liquid-glass/n-10/02-pan/report.json": "1c788abc42b31a0cb7a5e614c6df9ca97b52c10fbe3b11f6750f407987c603c0",
+    "comparison/01-liquid-glass/n-10/02-pan/manifest.json": "e37e49301b355ebc016981628e133387247a259e002f51d8aeff28350fcf0e71",
+    "comparison/01-liquid-glass/n-10/02-pan/rendering-configuration.json": "24c9c45cd8a79d4199ce7fbe1149cb3f9f63b52b018e07c076a3edabf6fc14bc",
+    "comparison/01-liquid-glass/n-10/02-pan/cleanup.json": "8a56739006197911b3d6abd865ad8eaecdec320ed38ae564dfb0b7bcefd4ecb1",
+    "comparison/01-liquid-glass/n-10/02-pan/existing-fixture.json": "47b5fc85723917e4fcce7d36b5b92265fe8f859376490ddcd7b90a41adb6fe32",
+    "comparison/01-liquid-glass/n-10/02-pan/identity.json": "fc0136f088fb20be9bce08d4f1c8b6530000439679a90810d4390e64df632b4d",
+    "comparison/01-liquid-glass/n-10/02-pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/01-liquid-glass/n-10/02-pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/01-liquid-glass/n-10/02-pan/frames.jsonl": "2e868b270654b0d24433dfa5d1a9fe936083dafd43a8e376536dbe34afd00379",
+    "comparison/01-liquid-glass/n-10/02-pan/outcome.json": "f3d7432c1fd68014a22393621eb5f974edbf6b31271748e7a502e178db03cfdd",
+    "comparison/02-liquid-glass/n-10/02-pan/plan.json": "e48116c46ee3cf0b9f72aaca54440d12dec7465fc0f1b0a28d26647200edc029",
+    "comparison/02-liquid-glass/n-10/02-pan/observation.json": "ec5c0086929138e2ee569c58c8d4dffaef6f6f57a7d1e591dcf3500a64a2e02f",
+    "comparison/02-liquid-glass/n-10/02-pan/report.json": "2512dffc48ca953f5be3f3885f1010e27b9591a247842b017ca648bb0fdfe048",
+    "comparison/02-liquid-glass/n-10/02-pan/manifest.json": "de550d5f7f683ef5e837b0ae6692a2a44b6d89807c28499dfab681f3a85f977c",
+    "comparison/02-liquid-glass/n-10/02-pan/rendering-configuration.json": "d472a8c1da5701f26d198e0cb7b734509e60ea7824e7a54d135a2325c5cf0d58",
+    "comparison/02-liquid-glass/n-10/02-pan/cleanup.json": "2207b68463f0f9e4b72c97463597c04c12ac7f1f7e62c698ea7b9034216868ad",
+    "comparison/02-liquid-glass/n-10/02-pan/existing-fixture.json": "4aeb4bb298a09b9de675b97beeaeb061658debd44559e84c6c5d05c1d39af738",
+    "comparison/02-liquid-glass/n-10/02-pan/identity.json": "d83994ad01b3a01603648cae9b431ef01aec8983ccb81eb463465a5835b7b18d",
+    "comparison/02-liquid-glass/n-10/02-pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/02-liquid-glass/n-10/02-pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/02-liquid-glass/n-10/02-pan/frames.jsonl": "13a302bbe76010a9c3a981efff92230d78cf0ed5d0321e9e6d750a253dd04e1e",
+    "comparison/02-liquid-glass/n-10/02-pan/outcome.json": "c7bb3519c9da0cf75f050ba3fb3cd28049959da73a8cde1d22e443b73d7c0164",
+    "comparison/03-flat/n-10/02-pan/plan.json": "defba7892b2b597c44f6415140e2f6f950958d70499855d34db05efd7ae88713",
+    "comparison/03-flat/n-10/02-pan/observation.json": "f2d35abd12f965b8c5eed057ff029e5cd8458afe0160d43047eef0653347a7da",
+    "comparison/03-flat/n-10/02-pan/report.json": "3400d9a87ce2567a2d7173ef660ad6460c867018e3cd565c59427d9701076dd8",
+    "comparison/03-flat/n-10/02-pan/manifest.json": "137b29a15a940542e100a45c8e2bb47ef801055a2489f53c63b090ce6825f9bb",
+    "comparison/03-flat/n-10/02-pan/rendering-configuration.json": "ee7b72c559296483981cef8af5952468fecabc79dc8223e83a4331f70e570789",
+    "comparison/03-flat/n-10/02-pan/cleanup.json": "e69f0669fad8f8ccba793df5bddecd29e9544a40eca8fb7bcd02cf778b5d22b3",
+    "comparison/03-flat/n-10/02-pan/existing-fixture.json": "8e1081dc8831e1911eece5c1da3c345c4561173d8b70c6d62d42e37b0e33d1f5",
+    "comparison/03-flat/n-10/02-pan/identity.json": "4bb9c9f51e02cd3e5b5072ce07f2569a6f2abcda2488e3a314dd41d67ad244d6",
+    "comparison/03-flat/n-10/02-pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/03-flat/n-10/02-pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/03-flat/n-10/02-pan/frames.jsonl": "fe4eee3333d1324c806712ae288d879fd543542eb816c0db4c5d8eddc416745f",
+    "comparison/03-flat/n-10/02-pan/outcome.json": "d14a937ad3865f02ec0d10f5621d6c480b513ea2b1cc903e39fc36bdb5fb2fbc",
+    "comparison/00-flat/n-10/03-body/plan.json": "235c4585526bdc9df62ea32e1906ac00475c22e8058903fee4dda0e110bdb667",
+    "comparison/00-flat/n-10/03-body/observation.json": "7fc9dadc8e702452aced937504d4b687348542ea7ed1bd2eccd4903d12a36774",
+    "comparison/00-flat/n-10/03-body/report.json": "e13f72e3bdc37185f2d5f74674e1e78bc677f7cfa84914669997fb9d57db9720",
+    "comparison/00-flat/n-10/03-body/manifest.json": "84db38071cb2c57a9c3c01c4dc834404a9ac99a09cbd1948121ff4927145e7ea",
+    "comparison/00-flat/n-10/03-body/rendering-configuration.json": "09ce78d7be211b30cef8750ac9b4277aaed403538167299e862969e18aa6ec8d",
+    "comparison/00-flat/n-10/03-body/source.json": "5341b7774f602bbf2ffce17dae974318e66ef944561be205bb254b82eecdac14",
+    "comparison/00-flat/n-10/03-body/cleanup.json": "67b036f3ff1df7b6e9cf35fa6e29abc56949dbeebee2466f8aff1e37bce291be",
+    "comparison/00-flat/n-10/03-body/existing-fixture.json": "d848737778e68afd445ce8142d0737c19b2481b5eeb8170b15fd4d07c66861a7",
+    "comparison/00-flat/n-10/03-body/identity.json": "6b5d448875d4671965053e1fcb7f3a393d4cdca694387821a12383089f40999b",
+    "comparison/00-flat/n-10/03-body/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/00-flat/n-10/03-body/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/00-flat/n-10/03-body/frames.jsonl": "3632e054c6957bc542142bdd876677c45b3062c827b11785650ee0a62f0a59cf",
+    "comparison/00-flat/n-10/03-body/outcome.json": "0637e50748f6c14a5da042f9a114f68a8c326d70f40f01b57eff83b6c4434758",
+    "comparison/01-liquid-glass/n-10/03-body/plan.json": "2e0b6ceba47b6bc3c859cdc345ecdcea8d27be6f7c608feda16ffefd0bb65b42",
+    "comparison/01-liquid-glass/n-10/03-body/observation.json": "a9fba37a54d398007ad5458e5ec9aa5ac48642a112d956e3a8490307f90798d4",
+    "comparison/01-liquid-glass/n-10/03-body/report.json": "9d8f24c6bd496c6e1fcc3efb827115c0b50102df97522452b9b5e0a8209e80d6",
+    "comparison/01-liquid-glass/n-10/03-body/manifest.json": "14bc0e2aa2967e959944242ae1216ec1092c506202b864817ef3e18b426c1065",
+    "comparison/01-liquid-glass/n-10/03-body/rendering-configuration.json": "24c9c45cd8a79d4199ce7fbe1149cb3f9f63b52b018e07c076a3edabf6fc14bc",
+    "comparison/01-liquid-glass/n-10/03-body/source.json": "333193f696aae1a9f80b5cbe04d64a87ecb515a8faff9ff8fcc6eed5cc0667a2",
+    "comparison/01-liquid-glass/n-10/03-body/cleanup.json": "8a56739006197911b3d6abd865ad8eaecdec320ed38ae564dfb0b7bcefd4ecb1",
+    "comparison/01-liquid-glass/n-10/03-body/existing-fixture.json": "db696c5ba30e829167146c158d89933cc7ab89eb662819beab9cf36cbc27b454",
+    "comparison/01-liquid-glass/n-10/03-body/identity.json": "273294e0e8d6ce001e92dbd9caaa605aca52f1818ce96dff894f159ba9a60d27",
+    "comparison/01-liquid-glass/n-10/03-body/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/01-liquid-glass/n-10/03-body/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/01-liquid-glass/n-10/03-body/frames.jsonl": "201b4ead732ec3ca6bf2148daa03ae808377189782ab17103948a461104fc96f",
+    "comparison/01-liquid-glass/n-10/03-body/outcome.json": "6464377ce8e44f723c94be85dec03b12957c061cb8ecc6e9963298c162b07aaa",
+    "comparison/02-liquid-glass/n-10/03-body/plan.json": "3424a55ae84dfa137cfda84d54ea654748be04a3f6b0acb27a5527c628accab3",
+    "comparison/02-liquid-glass/n-10/03-body/observation.json": "92946dce298b47a60d44289ef93ebe2108c762681633a633e2de92418a263d4a",
+    "comparison/02-liquid-glass/n-10/03-body/report.json": "eaf3f940e43f767c10b682b6b865ddec3ad6bf28c60f524b28485aa6b7ba7405",
+    "comparison/02-liquid-glass/n-10/03-body/manifest.json": "91fc022ea2996e08e8e555ddc0221ff08ac6afc1d504a8615a143af71d8292f6",
+    "comparison/02-liquid-glass/n-10/03-body/rendering-configuration.json": "d472a8c1da5701f26d198e0cb7b734509e60ea7824e7a54d135a2325c5cf0d58",
+    "comparison/02-liquid-glass/n-10/03-body/source.json": "d9c1bf7fc75dc46a49f79a3fb15be151b337f59a7386fddbad19f2928a3ad7bf",
+    "comparison/02-liquid-glass/n-10/03-body/cleanup.json": "2207b68463f0f9e4b72c97463597c04c12ac7f1f7e62c698ea7b9034216868ad",
+    "comparison/02-liquid-glass/n-10/03-body/existing-fixture.json": "e4e266e86498330a9dcc6454de474068fa47712ef761b7845239185dc347469d",
+    "comparison/02-liquid-glass/n-10/03-body/identity.json": "1deed8343fb6c084428914f2a823d239a1e95fc72a07c4a974634a6b6b266109",
+    "comparison/02-liquid-glass/n-10/03-body/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/02-liquid-glass/n-10/03-body/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/02-liquid-glass/n-10/03-body/frames.jsonl": "f93ac0d0e78caf6762797969fc5d5285b061e01308c7f52dd9b03ca5cf1e68f4",
+    "comparison/02-liquid-glass/n-10/03-body/outcome.json": "88d19d20ed92715be406abae3cae68d7d530566c3c9fc2d25ecd2833fd6e82ae",
+    "comparison/03-flat/n-10/03-body/plan.json": "684e88c63e9055f9a64d9cd985f16a14f7a7639decb82fa8496f5986b13beaf5",
+    "comparison/03-flat/n-10/03-body/observation.json": "1d3ca8fa665b707a130ac8a198635fe86bacd86076ac42be6ff3c026b68f397c",
+    "comparison/03-flat/n-10/03-body/report.json": "fa6a79dd6b9b38f8aa14e823fc02403b52fd46c04df0b535c022bf81efac6aca",
+    "comparison/03-flat/n-10/03-body/manifest.json": "e5d8ca72a2260706cf899529a9fbf2edc9f6c46d8ae63390e6606d372862693a",
+    "comparison/03-flat/n-10/03-body/rendering-configuration.json": "ee7b72c559296483981cef8af5952468fecabc79dc8223e83a4331f70e570789",
+    "comparison/03-flat/n-10/03-body/source.json": "0c743f0daabb4b24f5d50b3a062ecdf5a529de66d4944dec13602d9c0b24f603",
+    "comparison/03-flat/n-10/03-body/cleanup.json": "e69f0669fad8f8ccba793df5bddecd29e9544a40eca8fb7bcd02cf778b5d22b3",
+    "comparison/03-flat/n-10/03-body/existing-fixture.json": "9365590b95d527e2fffb05191ff727de028a99cddd69b54066a6e4c4eab9a296",
+    "comparison/03-flat/n-10/03-body/identity.json": "6e8881975fb75d20a3787c4dda0b3d218177293bbccdd3565b07c5777b8e4a0e",
+    "comparison/03-flat/n-10/03-body/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/03-flat/n-10/03-body/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/03-flat/n-10/03-body/frames.jsonl": "ffaef22b6fdaa5986f2d6c442485d705bc297c1f5f33382dc7b9bf92a1b45d94",
+    "comparison/03-flat/n-10/03-body/outcome.json": "6dc8fc5e384923784b4c9678f462b17de31685a6f77098d5319e670487377250",
+    "comparison/00-flat/n-10/04-body.pan/plan.json": "cbf79fee55218c6859eb56f7849412b0864997f82fd8e7512fa122a4691013fd",
+    "comparison/00-flat/n-10/04-body.pan/observation.json": "0a710d753869c0bbc8eb39ec7b489cbb4dc0ed903d1e8ba87682071b908cbf5e",
+    "comparison/00-flat/n-10/04-body.pan/report.json": "b0cfe7e79fe02e1bf0eac24a1bc2caa57b0f41898dbdefe9a15324c9b479fd9d",
+    "comparison/00-flat/n-10/04-body.pan/manifest.json": "65bcca7f06fa13dfbf73c118489388c4826c148f2455c2300bbce236334bb751",
+    "comparison/00-flat/n-10/04-body.pan/rendering-configuration.json": "09ce78d7be211b30cef8750ac9b4277aaed403538167299e862969e18aa6ec8d",
+    "comparison/00-flat/n-10/04-body.pan/source.json": "e54da7903ea70dcb646faa7f655480d7082b59a3fd7d30b61b45b364a3c6410a",
+    "comparison/00-flat/n-10/04-body.pan/cleanup.json": "67b036f3ff1df7b6e9cf35fa6e29abc56949dbeebee2466f8aff1e37bce291be",
+    "comparison/00-flat/n-10/04-body.pan/existing-fixture.json": "778c55ea3c212057d6e1bf2b6480c7c56d24d773fcc660e27a31bb7633f6a6d5",
+    "comparison/00-flat/n-10/04-body.pan/identity.json": "033d420e10b32417c9c77198c17cea368e9f44d0ce3c7aeb771d0945f5d9d551",
+    "comparison/00-flat/n-10/04-body.pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/00-flat/n-10/04-body.pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/00-flat/n-10/04-body.pan/frames.jsonl": "171f07fa18000200f7a2295ef8054e0302ba255f413d1825aa6e66bd2d9d4e44",
+    "comparison/00-flat/n-10/04-body.pan/outcome.json": "b4d1d11d66a6f8410dc6eead2b9aac1efeaab639f2f19ebb25ef6489b24fd8cc",
+    "comparison/01-liquid-glass/n-10/04-body.pan/plan.json": "fbf541bb7cfb1dd1aa2330e79088dfdc5d317f4606a7b03fd8ac54b1b5bd109e",
+    "comparison/01-liquid-glass/n-10/04-body.pan/observation.json": "51b3cf614a162fc1033f8c2b468b49cee12d1cdba61174079000d18f95403c8b",
+    "comparison/01-liquid-glass/n-10/04-body.pan/report.json": "8f80706c432e740a2cc28d89f51c90a62f828a88f872362fd6456399994e1ac5",
+    "comparison/01-liquid-glass/n-10/04-body.pan/manifest.json": "4ac9f28573654474742ddc446f0fd39cfa27ff23b7a1f7741a86ad281605a3de",
+    "comparison/01-liquid-glass/n-10/04-body.pan/rendering-configuration.json": "24c9c45cd8a79d4199ce7fbe1149cb3f9f63b52b018e07c076a3edabf6fc14bc",
+    "comparison/01-liquid-glass/n-10/04-body.pan/source.json": "b7c35ffadc43b53943c92533bd7c3d210467c4a8a444c801bb4073cde3297038",
+    "comparison/01-liquid-glass/n-10/04-body.pan/cleanup.json": "8a56739006197911b3d6abd865ad8eaecdec320ed38ae564dfb0b7bcefd4ecb1",
+    "comparison/01-liquid-glass/n-10/04-body.pan/existing-fixture.json": "f079be78315f968e25da8547a95ab9d4eb57d81ab8df8754e538d3078112c0de",
+    "comparison/01-liquid-glass/n-10/04-body.pan/identity.json": "b6508106915122f795ddf030e7e58601089cf5dd4386d82bbd6c4e884d6b4dcb",
+    "comparison/01-liquid-glass/n-10/04-body.pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/01-liquid-glass/n-10/04-body.pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/01-liquid-glass/n-10/04-body.pan/frames.jsonl": "1c5b2d6d9a203df002a58290362e77dd56a4c98548a1667bcbb0aac4082c421b",
+    "comparison/01-liquid-glass/n-10/04-body.pan/outcome.json": "2d592c43e877561cc0381f95b5add33d4a71915a710614ac97c727441686c4ff",
+    "comparison/02-liquid-glass/n-10/04-body.pan/plan.json": "3780bd0d764d75c779d32c7a484bec23d665c4e0cfd03aa03de63c21a5fbaa9b",
+    "comparison/02-liquid-glass/n-10/04-body.pan/observation.json": "cc9213fc8dcd776e3defba95e6195a1e7ea05f1591fcab15ac2867a9f52e3358",
+    "comparison/02-liquid-glass/n-10/04-body.pan/report.json": "e8226737cf5c1dd41dac10a0b5955a33561404a75c905b11723497f83640865a",
+    "comparison/02-liquid-glass/n-10/04-body.pan/manifest.json": "898d40e2265e6dc8299908cf925bb7c029ca1706d13ad0cd469dc056513b3501",
+    "comparison/02-liquid-glass/n-10/04-body.pan/rendering-configuration.json": "d472a8c1da5701f26d198e0cb7b734509e60ea7824e7a54d135a2325c5cf0d58",
+    "comparison/02-liquid-glass/n-10/04-body.pan/source.json": "34701edcecbb6ca379e2ba21697581e65349cf225be9bcea57f5735251c9a66c",
+    "comparison/02-liquid-glass/n-10/04-body.pan/cleanup.json": "2207b68463f0f9e4b72c97463597c04c12ac7f1f7e62c698ea7b9034216868ad",
+    "comparison/02-liquid-glass/n-10/04-body.pan/existing-fixture.json": "89585c7009bf25216363d0291503af08d036713c4de29f2fd90078e8091bd772",
+    "comparison/02-liquid-glass/n-10/04-body.pan/identity.json": "cced8efe4d0d636e10448d4ae67b9f1f647938d5df075f1d015c6c38676ba5ce",
+    "comparison/02-liquid-glass/n-10/04-body.pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/02-liquid-glass/n-10/04-body.pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/02-liquid-glass/n-10/04-body.pan/frames.jsonl": "74c3307204c9684ba49f0acd2a1c7e6e5ada7170eaf0900a7f8bb51e7b7b521f",
+    "comparison/02-liquid-glass/n-10/04-body.pan/outcome.json": "fdf37a3c811caa304f9b172a87d70899b6c49c00ea52f856786932578a723ac7",
+    "comparison/03-flat/n-10/04-body.pan/plan.json": "8bb205d780c353904df3ea0f626fedcbc6d6122cd66453db83f88369dea3c7de",
+    "comparison/03-flat/n-10/04-body.pan/observation.json": "ecf670fb3997d1740c907199ca7df05ee5527d37ea93adb89f816cdfc48821ca",
+    "comparison/03-flat/n-10/04-body.pan/report.json": "08e4ea2579b3a5abbaa9cd3e35811afe1ba616e493345b710ef7d4300691dca5",
+    "comparison/03-flat/n-10/04-body.pan/manifest.json": "046b59096c01f59bd10e067a94f4b9b3ec5b6488e2dddd662e2837718ae05f48",
+    "comparison/03-flat/n-10/04-body.pan/rendering-configuration.json": "ee7b72c559296483981cef8af5952468fecabc79dc8223e83a4331f70e570789",
+    "comparison/03-flat/n-10/04-body.pan/source.json": "eb7551410156e233855dea596c5c5c946de2bffc7309c58f6efd68835e5241d8",
+    "comparison/03-flat/n-10/04-body.pan/cleanup.json": "e69f0669fad8f8ccba793df5bddecd29e9544a40eca8fb7bcd02cf778b5d22b3",
+    "comparison/03-flat/n-10/04-body.pan/existing-fixture.json": "576fbad125d19eff4dc5a84f905dfaa0bfd21e4da57ff3cf80fb36f0c7ebe69f",
+    "comparison/03-flat/n-10/04-body.pan/identity.json": "e0b1f344f6acd2b5ac88a6862784af1f9ef7c316e6457fac094b2bf9d10778d1",
+    "comparison/03-flat/n-10/04-body.pan/artifact.json": "9fa64e28e95aac511d02525e131bc93f84b8fd364fa1ff632179b89421e75ccd",
+    "comparison/03-flat/n-10/04-body.pan/native-cli.json": "04f80929e1b884a9e85450c6a42b8bc7e195a1bc190d04c844411b89bf73259c",
+    "comparison/03-flat/n-10/04-body.pan/frames.jsonl": "5492cc55086b53116482ac31cd03f3f9ff4ca9a1a979c7831f33661cf733c58f",
+    "comparison/03-flat/n-10/04-body.pan/outcome.json": "503761f443182b2fdcd0d9995ddfaaeaf27ebc33d93095186909ce5227fc446a"
+  }
+}
