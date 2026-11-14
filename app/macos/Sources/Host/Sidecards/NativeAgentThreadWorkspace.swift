@@ -186,13 +186,6 @@ struct NativeSidecardWorkspaceLayout: View {
             // outside the reader; native hit testing must reach that background.
             let panelSize = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
-            // Prepare the actual destination width once, including a retained
-            // divider ratio. The paper still travels in its folded pose; its
-            // heading and hidden reader already use the destination column.
-            let preparedLayout = preparingExecution.map { card in
-                NativeSidecardWorkspaceGeometry(size: panelSize, open: true,
-                    preferredWidth: card.view.preferredWidth, retainedWidth: snapshot.widths[card.id])
-            }
             let dockFrame = dockFrame(in: layout)
             let mainSize = CGSize(
                 width: layout.mainWidth + (panelSize.width - layout.mainWidth) * handoffProgress,
@@ -212,9 +205,6 @@ struct NativeSidecardWorkspaceLayout: View {
                                     inputTargetChanged?(inputOwner, target)
                                 }) {
                                 mainConversation
-                                    .frame(width: preparedLayout?.mainWidth, height: preparedLayout?.mainHeight,
-                                        alignment: .topLeading)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             }
                                 .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
                                 // Reflow the reader once at its destination width.

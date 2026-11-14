@@ -726,7 +726,8 @@ struct NativeMokuLandingTests {
         // only this fixture's appended bytes; never replace the app descriptor.
         var path = [CChar](repeating: 0, count: Int(MAXPATHLEN))
         try #require(fcntl(STDERR_FILENO, F_GETPATH, &path) == 0)
-        let log = try FileHandle(forReadingFrom: URL(fileURLWithPath: String(cString: path)))
+        let filePath = String(decoding: path.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        let log = try FileHandle(forReadingFrom: URL(fileURLWithPath: filePath))
         defer { try? log.close() }
         _ = try log.seekToEnd()
         let state = ParentFocusState()

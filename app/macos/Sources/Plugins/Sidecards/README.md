@@ -103,8 +103,8 @@ Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 Initial Host presentation is the third entrance stage: the main panel finishes
 its actual travel and the main document is ready, then the folded workspace
 commits and admits the requested Sidecard. Before that commit, a pending available
-execution supplies the main reader's final column width, including the retained
-divider ratio, and its settled body may preload during panel travel. Browser and
+execution may preload its settled body during panel travel. Main body ink waits
+for the admitted column layout, while heading flight keeps its measured target. Browser and
 Voice do not join this preloading. The resident Agent composer's input gate releases through
 the same visit check after the compact Dock's horizontal travel completes,
 then starts its 420ms expansion. Without an owning execution Sidecard, input is

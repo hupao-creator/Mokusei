@@ -34,14 +34,13 @@ history travel keeps the active reader pending until its own arrival.
 
 An Agent workspace initially publishes a folded Sidecard layout even if the
 Conversation plugin has already requested its active execution. Markdown may
-parse and mount during hidden panel preloading. When an available execution
-owns that pending selection, the heading and main reader prepare at the actual
-destination width, using the plugin fraction or retained divider width. This
-also covers a 1:1 split without speculative caches for other widths. Its single
-selected execution body may preload after native travel begins; other Sidecards
-remain deferred. The paper and Sidecard aperture keep their folded presentation,
-input and accessibility gates. Main body ink waits for the admitted column's
-layout commit before its entrance, avoiding a visible wide-to-narrow reflow.
+parse and mount during hidden panel preloading. An available execution that owns
+that pending selection may also preload its settled body after native travel
+begins; other Sidecards remain deferred. The paper and Sidecard aperture keep
+their folded presentation, input and accessibility gates. Main body ink waits
+for the admitted column's layout commit before its entrance, avoiding a visible
+wide-to-narrow reflow. The heading retains its existing measured destination
+until handoff; speculative main-column widths cannot move it during that flight.
 After arrival the host draws the complete parsed document, with the execution
 summary and any terminal footer in their normal layout.
 
