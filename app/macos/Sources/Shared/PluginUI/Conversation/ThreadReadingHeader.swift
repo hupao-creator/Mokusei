@@ -20,23 +20,45 @@ extension EnvironmentValues {
     }
 }
 
+private struct ThreadAuthorHarnessKey: EnvironmentKey {
+    static let defaultValue: ThreadAuthorHarness? = nil
+}
+
+public struct ThreadAuthorHarness {
+    let name: String
+    let logo: AnyView
+    public init(name: String, logo: AnyView) { self.name = name; self.logo = logo }
+}
+
+extension EnvironmentValues {
+    public var threadAuthorHarness: ThreadAuthorHarness? {
+        get { self[ThreadAuthorHarnessKey.self] }
+        set { self[ThreadAuthorHarnessKey.self] = newValue }
+    }
+}
+
 struct ThreadAuthorLabel: View {
     let author: JSONValue?
     /// Turns publish their author by preference after mounting, so a missing
     /// value is not yet evidence that the Harness recorded no model.
     var resolved = true
     @Environment(\.locale) private var locale
+    @Environment(\.threadAuthorHarness) private var harness
 
     private var label: String {
-        let model = author?["model"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
-        let effort = author?["effort"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
-        return "Author: \(model ?? localize("未知模型")) · \(effort ?? localize("未记录"))"
+        "Author: \(authorDetails)"
     }
     var body: some View {
         if resolved {
-            Text(label).font(NativeTypography.mono(size: 12))
-                .lineLimit(1).truncationMode(.middle)
-                .help(label).accessibilityLabel(label).textSelection(.enabled)
+            HStack(spacing: 5) {
+                Text("Author:").fixedSize()
+                if let harness { harness.logo.frame(width: 12, height: 12).accessibilityHidden(true) }
+                Text(authorDetails).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+            }
+            .font(NativeTypography.mono(size: 12))
+            .help(label)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(harness.map { "Author: \($0.name), \(authorDetails)" } ?? label)
         } else {
             // Reserve the line while the owning turn resolves its author, so the
             // header never claims an unknown model during ordinary loading. Use
@@ -50,6 +72,11 @@ struct ThreadAuthorLabel: View {
             .lineLimit(1)
             .accessibilityHidden(true)
         }
+    }
+    private var authorDetails: String {
+        let model = author?["model"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
+        let effort = author?["effort"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
+        return "\(model ?? localize("未知模型")) · \(effort ?? localize("未记录"))"
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
 }
