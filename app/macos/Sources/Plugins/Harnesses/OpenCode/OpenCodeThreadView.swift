@@ -57,6 +57,10 @@ public struct OpenCodeThreadView: View {
                     isActive: execution.status == .running || execution.status == .waitingForUser),
                 node: AnyView(row(execution.executionID, state: state))))
         }
+        if state.contentTruncated {
+            rows.append(.init(id: "opencode-content-truncated", createdAt: input.thread.createdAt,
+                              node: AnyView(OpenCodeTruncationNotice())))
+        }
         let target = input.readingTarget.map { target in
             ThreadConversationReadingTarget(requestId: target.requestID, mode: target.mode == .current ? .current : .history,
                 executionId: target.executionID, anchorId: ocMokuReplyAnchor(state, target: target.message)
@@ -68,7 +72,8 @@ public struct OpenCodeThreadView: View {
             runningTurnId: input.thread.observation.isExecutionActive ? latest?.executionID : nil,
             activeExecutionId: input.thread.observation.isExecutionActive ? latest?.executionID : nil, context: context,
             renderRow: context.content == .manifest ? { key in
-                AnyView(OpenCodeLazyRow(key: key, input: input, actions: actions, context: context,
+                if key == "opencode-content-truncated" { return AnyView(OpenCodeTruncationNotice()) }
+                return AnyView(OpenCodeLazyRow(key: key, input: input, actions: actions, context: context,
                     onAnchor: { request, anchor in resolvedAnchor = (request, anchor) }))
             } : nil)
             .environment(\.threadCardProviderColor, NativePalette.pair(0x33312f, 0xd9d7d4).swiftUI)
@@ -178,12 +183,9 @@ private struct OpenCodeTurn: View {
             rows.append(.init(id: interaction.id, kind: .attention, node: AnyView(OpenCodeInteractionPanel(interaction: interaction,
                 native: state.nativeInteraction(interaction.id), actions: actions).id(interaction.id))))
         }
-        if state.contentTruncated {
-            rows.insert(.init(id: ocJoinedID([execution.executionID, ":content-truncated"]), kind: .content,
-                node: AnyView(Text(ocLocalized("部分内容体积过大，已截断显示；完整内容仍保存在会话记录中。", locale: locale))
-                    .font(NativeTypography.inter(size: 12))
-                    .foregroundStyle(NativePalette.thread.muted.swiftUI)
-                    .frame(maxWidth: .infinity, alignment: .leading))), at: 0)
+        if state.contentTruncated, case .execution = context.presentation {
+            rows.insert(.init(id: "opencode-content-truncated", kind: .content,
+                node: AnyView(OpenCodeTruncationNotice())), at: 0)
         }
         let nativeAuthor = messages.last { $0.role == "assistant" && !ocTrim($0.raw["model"]?.stringValue ?? "").isEmpty && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }
         var author = state.raw["executionAuthors"]?.objectValue?[execution.executionID]?.objectValue ?? [:]
@@ -382,6 +384,15 @@ struct OpenCodeToolOutput: View {
                 .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }.frame(height: min(360, max(18, contentHeight)))
+    }
+}
+private struct OpenCodeTruncationNotice: View {
+    @Environment(\.locale) private var locale
+    var body: some View {
+        Text(ocLocalized("部分内容因体积限制被省略或截断；完整内容仍保存在会话记录中。", locale: locale))
+            .font(NativeTypography.inter(size: 12))
+            .foregroundStyle(NativePalette.thread.muted.swiftUI)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 struct OpenCodeFailure: View {

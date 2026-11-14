@@ -15,6 +15,7 @@ public struct OpenCodeOverviewView {
     public let effort: String
     public let pendingInteractionID: JSONText?
     public let openForm: Bool
+    public let contentTruncated: Bool
 }
 func projectOpenCodeOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<OpenCodeOverviewView> {
     let state = try OpenCodeState(input.thread.sessionState)
@@ -64,7 +65,8 @@ func projectOpenCodeOverview(input: HarnessThreadInput, availableColumns: Int) t
                                     hasVisibleInteraction: pending != nil) : nil
     let view = OpenCodeOverviewView(presentation: presentation, excerpt: initial == nil ? excerpt : "", message: initial == nil ? message : nil,
         initialResponseContent: state.initialResponseScope && agent != nil && input.thread.moku != true, initialResponse: initial, steer: steer,
-        model: model.isEmpty ? "OpenCode" : model, effort: settings["thinking"].map(ocThinkingLabel) ?? "未选择", pendingInteractionID: pending?.id, openForm: openForm)
+        model: model.isEmpty ? "OpenCode" : model, effort: settings["thinking"].map(ocThinkingLabel) ?? "未选择", pendingInteractionID: pending?.id, openForm: openForm,
+        contentTruncated: state.contentTruncated)
     return .init(footprint: .init(columns: presentation.size.cols, rows: presentation.size.rows), structureKey: JSONText(presentation.key), excerpt: excerptRaw, view: view)
 }
 func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONText?, status: PublicExecution.Status?) -> (id: JSONText, text: JSONText)? {
@@ -109,6 +111,12 @@ public struct OpenCodeOverviewCard: View {
             .environment(\.threadCardProviderColor, NativePalette.pair(0x33312f, 0xd9d7d4).swiftUI)
             .environment(\.threadCardCloudPalette, OpenCodeLogo.threadCardCloudPalette)
             .overlay(alignment: .bottomLeading) { if let failure { Text(failure).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18) } }
+            .overlay(alignment: .bottomTrailing) {
+                if projection.contentTruncated {
+                    Text(ocLocalized("部分内容已省略", locale: locale)).font(NativeTypography.inter(size: 11))
+                        .foregroundStyle(NativePalette.thread.muted.swiftUI).padding(18)
+                }
+            }
     }
     private func respond(_ response: ThreadCardInterventionResponse) async throws {
         failure = nil
