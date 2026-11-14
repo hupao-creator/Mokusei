@@ -128,6 +128,12 @@ hidden card tree's viewport unchanged. Return preparation unhides the same host,
 applies the latest environment and viewport, and waits for the existing canvas
 receipt before sampling the destination. Return travel fades the refreshed cards
 back in. No snapshot allocation or CPU rasterization blocks reader admission.
+Freezing closes native hit testing, accessibility and viewport updates immediately;
+the already-transparent parent's native hide is coalesced onto the next main-queue
+turn. Hiding a focused host inside `updateNSView` makes AppKit traverse key views
+and re-enter the SwiftUI geometry graph still being updated. Returning or retiring
+the host invalidates that pending hide. The native Moku landing replay exercises
+this focused-parent boundary, including rapid return and teardown.
 Nested reading stacks keep their existing parent presentation.
 The retained native host consumes the viewport already assigned by the workspace
 and disables its own safe-area regions. Applying the titlebar inset a second time
