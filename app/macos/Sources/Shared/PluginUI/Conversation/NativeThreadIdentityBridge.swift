@@ -300,20 +300,17 @@ public struct NativeThreadPreparedReader<Content: View>: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var contentReady = false
     @State private var revealed = false
-    private let entranceReady: Bool
     private let content: () -> Content
-    public init(entranceReady: Bool = true, @ViewBuilder content: @escaping () -> Content) {
-        self.entranceReady = entranceReady; self.content = content
-    }
+    public init(@ViewBuilder content: @escaping () -> Content) { self.content = content }
     private var entranceHidden: Bool {
         contentReady && !preparing && !revealed && !reduceMotion && scenePhase == .active
     }
     public var body: some View {
         if preparing && !preloading { NativeThreadOpeningContent() }
         else {
-            // The live heading registers the eventual handoff target. The
-            // workspace separately controls hidden execution preparation and
-            // admits ink only after its destination column has committed.
+            // Only the primary reader may prepare during travel. Its live
+            // heading registers the eventual handoff target; secondary surfaces
+            // still inherit the outer preparation gate until the panel arrives.
             // Keep the reader in the same SwiftUI tree: its preferences own
             // navigation, input and secondary-surface admission. Readiness is
             // latched per visit, independently of execution/streaming revisions.
@@ -325,7 +322,7 @@ public struct NativeThreadPreparedReader<Content: View>: View {
                 .background {
                     // Reuse the layout-commit gate so the transparent pose is
                     // rendered before admission, including warm reader opens.
-                    NativeReadingEntranceStage(enabled: !preparing && entranceReady && contentReady && !revealed) {
+                    NativeReadingEntranceStage(enabled: !preparing && contentReady && !revealed) {
                         withAnimation(reduceMotion || scenePhase != .active ? nil : .easeOut(duration: 0.2)) {
                             revealed = true
                         }

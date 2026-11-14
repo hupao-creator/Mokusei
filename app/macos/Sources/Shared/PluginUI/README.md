@@ -1417,12 +1417,8 @@ recenters the entire column normally; it does not start another identity flight.
 Do not lock the reading origin to the panel's left edge to prevent this reflow:
 that breaks wide-window composition. Loading and loaded headings use the same
 layout at a given viewport size.
-The primary Harness reader may preload after native travel begins. An available,
-pending execution Sidecard also prepares its settled body while still folded
-and suppressed; other Sidecard bodies remain deferred until arrival. The heading
-keeps its measured flight destination; main ink waits for column admission
-before appearing at the selected column width.
-No alternate-width reader trees or cross-visit layout cache are introduced. The compositor animates
+The primary Harness reader may preload after native travel begins; sidecard
+bodies remain deferred until arrival. The compositor animates
 native title/emoji ink to that measured destination with the panel's own curve
 and duration. The flight rasterizes the same SwiftUI heading leaves at their
 measured destination size and in the reader's environment. This preserves native

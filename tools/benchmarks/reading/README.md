@@ -54,7 +54,7 @@ use a ten-second formal interval and a three-second observation tail.
 | `reading.reopen` | Return to Overview and click the same existing card in the retained application process. |
 | `reading.scroll` | Fixed-clock pixel-wheel input alternates down/up, with explicit pauses between gestures. |
 | `reading.active-open` | Warm reopen from Overview with one completed main reply and one fixed settled progress message in a running Execution Sidecard. Click, observe both bodies and their anchor stability, then probe scrolling. The execution stays running without new output throughout timing. |
-| `reading.output-scroll` | Read and scroll the prepared reply while one subsequent real execution emits complete, meaningful progress replies, then a final document. This case runs last because it starts another execution. |
+| `reading.output-scroll` | Read and scroll the prepared reply while one subsequent real execution emits complete, meaningful progress replies, then a final document. This runs last within the ordinary fixture because it starts another execution. |
 
 Preparation may read public semantic state, locate actual accessibility controls
 and reset a starting scroll position. Formal intervals do not poll complete

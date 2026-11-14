@@ -34,15 +34,9 @@ history travel keeps the active reader pending until its own arrival.
 
 An Agent workspace initially publishes a folded Sidecard layout even if the
 Conversation plugin has already requested its active execution. Markdown may
-parse and mount during hidden panel preloading. An available execution that owns
-that pending selection may also preload its settled body after native travel
-begins; other Sidecards remain deferred. The paper and Sidecard aperture keep
-their folded presentation, input and accessibility gates. Main body ink waits
-for the admitted column's layout commit before its entrance, avoiding a visible
-wide-to-narrow reflow. The heading retains its existing measured destination
-until handoff; speculative main-column widths cannot move it during that flight.
-After arrival the host draws the complete parsed document, with the execution
-summary and any terminal footer in their normal layout.
+parse and mount during hidden panel preloading. After arrival the host draws
+the complete parsed document, with the execution summary and any terminal
+footer in their normal layout.
 
 `NativeReadingContentStatusKey` combines readable-content readiness with pending
 Markdown parsing, row loading and nested motion. Turns and
@@ -57,7 +51,8 @@ contributes to the workspace's input and Sidecard admission.
 transaction commit and the primary gate, then asks the
 current selection to reveal. If the selected execution Sidecard owns the Dock,
 the compact Moku first travels horizontally into its destination column using a
-380ms ease-out native translation without overshoot. Its actual completion asks the window to admit this exact route
+620ms-response spring with 0.78 damping, allowing gentle braking and a small
+rebound. Its actual removed completion asks the window to admit this exact route
 visit, then the Agent composer expands for 420ms. Destination revisions and local
 travel identity reject stale completions; a native publication already replacing
 the target takes precedence. The shell's sizing, Sidecard's 380ms fold/layout

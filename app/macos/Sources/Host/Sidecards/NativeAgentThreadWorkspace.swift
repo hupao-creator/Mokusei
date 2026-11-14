@@ -146,7 +146,6 @@ private struct NativeThreadWorkspaceBody: View {
 @MainActor
 struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.nativeThreadPreparing) private var preparing
-    @Environment(\.nativeThreadReaderPreloading) private var preloading
     let model: NativeSidecardWorkspaceModel
     let snapshot: NativeSidecardWorkspaceSnapshot
     /// Previews/replays can supply the same policy without changing OS settings.
@@ -173,11 +172,6 @@ struct NativeSidecardWorkspaceLayout: View {
     }
     private var dividerHitWidth: CGFloat {
         6
-    }
-    private var preparingExecution: NativeSidecardWorkspaceCard? {
-        snapshot.cards.first {
-            $0.id == snapshot.preparingSelection && $0.view.available && $0.view.excludeExecutionID != nil
-        }
     }
 
     var body: some View {
@@ -337,7 +331,7 @@ struct NativeSidecardWorkspaceLayout: View {
 
     private var mainConversation: some View {
         VStack(spacing: 0) {
-            NativeThreadPreparedReader(entranceReady: snapshot.entranceReady) {
+            NativeThreadPreparedReader {
                 NativeHarnessThreadView(host: model.harnessHost, input: snapshot.input,
                 presentation: .main(excludedExecutionIDs: snapshot.excludedExecutionIDs),
                 routes: model.routes, onIndexChange: model.receiveIndex)
@@ -381,8 +375,7 @@ struct NativeSidecardWorkspaceLayout: View {
         let destination = CGRect(x: layout.surfaceX, y: layout.surfaceY,
             width: layout.surfaceWidth, height: layout.surfaceHeight)
         return Group {
-            if preparing && !(preloading && preparingExecution?.id == card.id) { Color.clear }
-            else { card.view.content }
+            if preparing { Color.clear } else { card.view.content }
         }
             // Only the main reading body may drive the window's navigation chrome.
             // Sidecards reuse timelines and can contain further nested reading views.
