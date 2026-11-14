@@ -210,3 +210,34 @@ Release `Mokusei` 编译/链接 237.62 秒、`MokuseiEmbedding` 4.87 秒；
 本次仅相机源码、Overview README 和此调查文档改变；diff 和两份文档的
 43 个本地链接目标检查通过。未新增仓库测试，未运行单元测试、GUI 回放、
 全量回归、提交 hooks 或 CI，也未推送。
+
+## 同比例水平收缩补充修复
+
+后续日志和同一生产相机路径确认：旧集合 1112×692（三列）收缩为 736×692
+（两列）时，新旧普通 fit 的 scale 都是 1.0，只有 x 从 114.5 变为 302.5。
+`preservingReadingPosition` 的同比例分支因此保留旧平移，`readingFit` 又被
+`updateAuto()` 视为已完成目标，自动 refit 从未排程；点击空白清掉
+`readingFit` 后才回到 302.5。
+
+相机现在记录最后一次 settled ordinary fit 及其 content bounds。`requestRefit`
+在 `layoutChanged` 时仅当同时满足以下条件才放弃本次阅读目标，交给现有 refit
+节流回到新普通 fit：
+
+- 没有已保留的阅读目标，或该目标本身就是旧 ordinary fit；live transform
+  仍近似该 ordinary fit；
+- 新 content 在两个维度都不大于旧 content，且普通 fit 的 scale 不变；
+- 新普通 fit 的 x 与旧普通 fit 的 x 有可见差异。
+
+因此只处理同比例水平收缩。与 ordinary fit 不同的已保留阅读目标、手动
+pan/zoom、filter/search retained framing，以及行删除造成的纯垂直位移仍保留
+原行为；scale 变大场景的既有修复不变。`retainFraming` 和 `preserveFraming`
+会清除 ordinary-fit 记录，避免把显式 retained framing 误判为普通自动取景。
+
+定向诊断直接编译本 worktree 的 `NativeOverviewLayout.swift`、
+`NativeOverviewStageCoordinator.swift`、`NativeOverviewCamera.swift`，走
+`cutTo → reconcileBounds → requestRefit(preserveReadingPosition: true)` 的
+Canvas 顺序：目标立即变为 x=302.5，等待现有 160ms/360ms 调度后 live 到达
+x=302.5、scale=1.0，未调用 `returnToAuto()`。同一诊断还检查了 retained
+reading、手动取景、连续 footprint 变更和行删除的纯垂直位移均不跳变。
+`./scripts/go.sh run ./cmd/mokusei-check architecture` 与
+`./scripts/go.sh vet ./...` 通过；未运行 GUI 回放、全量回归或托管 CI，也未推送。
