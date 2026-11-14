@@ -273,14 +273,15 @@ Canvas case 已提交到 `NativeOverviewCapacityTests`：
 `NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
 `NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
 64 个测试全部通过（约 94 秒）。额外运行 `make check-swift` 全量 Swift
-suite，结果不是绿色，不能以 focused 结果替代托管 `Complete coverage`。
-最新 final-commit run：headless 194 个测试全部通过；graphical 325 个测试有
+suite（最近一次在 `bf0e1c67` 上），结果不是绿色，不能以 focused 结果替代托管
+`Complete coverage`：headless 194 个测试全部通过；graphical 325 个测试有
 2 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`，
 `NativeThreadSendFeedbackTests` presentation settled 失败；native owner
 `rolling-numbers` 与 `tag-glass-captures`（onboarding first frame、decoration
 motion）未产出成功 receipt。更早一次 full run 还出现
 `NativeVoiceAnalysisTests` 的 3 个音频/pitch/amplitude 失败和
 `NativeMokuExecutionLinkTests`/excerpt 的 settled 失败；这些在最新 run 或单独
-重跑中通过，属于环境/时序相关。上述失败均未涉及相机/Overview 取景路径。
+重跑中通过，属于环境/时序相关。final commit 新增 5 个 headless camera case，
+未重跑 full；上述失败均未涉及相机/Overview 取景路径。
 `./scripts/go.sh run ./cmd/mokusei-check architecture` 与
 `./scripts/go.sh vet ./...` 通过；未运行托管 `Complete coverage`，也未推送。
