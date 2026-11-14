@@ -312,6 +312,28 @@ struct NativeOverviewCameraReadabilityTests {
         #expect(camera.liveTransform.y == seat.y)
     }
 
+    @Test func heightGrowthThenWidthShrinkUsesCompleteNarrowFit() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let wide = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 220)
+        let tall = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let narrow = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.cutTo(content: wide, viewport: viewport)
+        let wideFit = NativeOverviewCameraGeometry.fit(wide, viewport: viewport)
+        camera.requestRefit(content: tall, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let grown = camera.automaticFitTarget ?? .identity
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(grown, wideFit))
+        try await waitForCamera(camera, grown)
+        let narrowFit = NativeOverviewCameraGeometry.fit(narrow, viewport: viewport)
+        camera.requestRefit(content: narrow, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, narrowFit))
+        try await waitForCamera(camera, narrowFit)
+        #expect(abs(camera.liveTransform.y - narrowFit.y) < 1e-9)
+    }
+
     @Test func pendingGrowKeepsItsSeatUntilANewRevision() async throws {
         let camera = NativeOverviewCamera()
         defer { camera.dispose() }

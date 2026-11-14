@@ -550,9 +550,9 @@ public final class NativeOverviewCamera {
                 current.map { NativeOverviewCameraGeometry.approximatelyEqual(live.transform, $0) } ?? false
             } ?? false
             // A settled automatic x follows a same-scale width shrink to the
-            // new ordinary x. A retained x/y seat survives. Height shrink keeps
-            // the prior y as a reading seat; height growth uses the ordinary y
-            // when the width recenter applies.
+            // new ordinary x. A retained x/y seat survives. Only an explicit
+            // height shrink can create a new vertical seat; ordinary height
+            // growth must not turn its preserved translation into one.
             let shouldRecenterX: Bool
             if settled, atCurrent, !priorRetainedX, let current,
                let priorContent, let priorScale {
@@ -574,8 +574,9 @@ public final class NativeOverviewCamera {
                 } else {
                     transform = preserved
                 }
+                let heightShrank = priorContent.map { content.height < $0.height - 1e-6 } ?? false
                 let retainedY = priorRetainedY
-                    || (!shouldRecenterX && abs(preserved.y - automatic.y) > 0.001)
+                    || (!shouldRecenterX && heightShrank && abs(preserved.y - automatic.y) > 0.001)
                 readingFit = .init(transform: transform, content: content,
                                    retainedX: priorRetainedX, retainedY: retainedY)
                 if priorRetainedX || retainedY { lastAutomaticFit = nil }

@@ -230,10 +230,11 @@ content bounds，并为 retained target 按轴标记来源：ordinary fit/clamp 
 - 普通 fit 的 scale 不变；
 - 新普通 fit 的 x 与当前自动 x 有可见差异。
 
-命中时 x 取新普通 fit；y 若来自纵向删除或阅读座位则保留并 clamp，否则使用新
-普通 y。因此同比例宽度收缩会按轴重居中，高度增长不再阻止；纯垂直行删除因 x
-不变仍保留垂直座位。与 ordinary fit 不同的显式 retained filter/reading target、
-手动 pan/zoom、scale 变化和容量不足场景保持原策略。`retainFraming` 和
+命中时 x 取新普通 fit；y 若来自 prior retained seat 或明确的 height shrink 则保留并
+clamp，否则使用新普通 y。普通高度增长不会创建 retained y；随后的宽度收缩使用
+完整新普通 fit。因此同比例宽度收缩会按轴重居中，高度增长不再阻止；纯垂直行删除
+因 x 不变仍保留垂直座位。与 ordinary fit 不同的显式 retained filter/reading
+target、手动 pan/zoom、scale 变化和容量不足场景保持原策略。`retainFraming` 和
 `preserveFraming` 会同时清除 `readingFit` 与 automatic-target 记录；
 `setManualTransform` 也清除 retained target，避免 filtered edit 跳回旧
 `readingFit`。viewport 变更在 `setBounds` 同步清除两类 provenance。
@@ -253,6 +254,7 @@ shrink；隐藏、交互暂停、Reduce Motion、stage 占用。所有 headless 
 `filteredEditKeepsRetainedTargetAfterVerticalSeat`、
 `shrinkGrowShrinkRecentersAfterAutomaticClamp`、
 `verticalSeatSurvivesFollowingWidthShrink`、
+`heightGrowthThenWidthShrinkUsesCompleteNarrowFit`、
 `pendingGrowKeepsItsSeatUntilANewRevision`。实际卡片 envelope 中心的 GUI
 Canvas case 已提交到 `NativeOverviewCapacityTests`：
 `aspectChangingFootprintRecentersRenderedCard`。
@@ -260,11 +262,15 @@ Canvas case 已提交到 `NativeOverviewCapacityTests`：
 相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
 `NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
 `NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
-58 个测试全部通过（约 95 秒）。额外运行 `make check-swift` 全量 Swift
-suite；本改动相关的四个 suite 均通过，全量 run 的失败集中在
-`NativeOnboardingTagSurfaceTests`、`NativeOverviewDecorationCaptureTests`、
-`NativeOverviewTagGlassTests` 的 WindowServer 采样与 native-owner 门槛，
-以及一次 `SwiftUIOverviewInteractionTests` excerpt 视觉检查；该 excerpt case
-单独重跑通过，其余失败未涉及相机/Overview 取景路径。未修改这些边界，也未运行
-托管 `Complete coverage`。`./scripts/go.sh run ./cmd/mokusei-check
-architecture` 与 `./scripts/go.sh vet ./...` 通过；未推送。
+59 个测试全部通过（约 93 秒）。额外运行 `make check-swift` 全量 Swift
+suite，结果不是绿色，不能以 focused 结果替代托管 `Complete coverage`。
+最新 final-commit run：headless 194 个测试全部通过；graphical 325 个测试有
+2 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`，
+`NativeThreadSendFeedbackTests` presentation settled 失败；native owner
+`rolling-numbers` 与 `tag-glass-captures`（onboarding first frame、decoration
+motion）未产出成功 receipt。更早一次 full run 还出现
+`NativeVoiceAnalysisTests` 的 3 个音频/pitch/amplitude 失败和
+`NativeMokuExecutionLinkTests`/excerpt 的 settled 失败；这些在最新 run 或单独
+重跑中通过，属于环境/时序相关。上述失败均未涉及相机/Overview 取景路径。
+`./scripts/go.sh run ./cmd/mokusei-check architecture` 与
+`./scripts/go.sh vet ./...` 通过；未运行托管 `Complete coverage`，也未推送。
