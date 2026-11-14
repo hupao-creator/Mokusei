@@ -915,13 +915,21 @@ and stays absent when a successor starts. The existing running-link case verifie
 that activating the mounted action resumes following. This method requires the
 real AppKit loop and a visible window with Reduce Motion disabled. A display
 callback must observe an intermediate scroll position and deliver the successor
-in that callback. The updated document must then settle at its bottom without
+in that callback. The position must precede both the original and current
+document bottom, including the native clip view's constrained bottom; a shrinking
+lazy estimate must not make an already settled position count as intermediate.
+The updated document must then settle at its bottom without
 manual scrolling; all original withheld-content and full-paragraph assertions remain.
 After traversing a reply, the manual return to its top must commit in both the
 native clip view and its presentation layer across two display callbacks before
 the next content update; a refreshed control descriptor alone is insufficient.
 `MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED` must be emitted for every Harness.
 No production environment flag replaces the animated path with an immediate jump.
+For diagnosis, `MOKUSEI_TIMELINE_PROFILE=1 python tools/verification/reading-presentation/run.py --moku-execution-links --native-owned`
+records up to 120 jump snapshots plus the terminal state, including scroll ownership,
+binding state and native model/presentation geometry. Every Harness receipt must
+confirm that the profile flag reached the app. This instrumentation observes the
+existing path without changing its scrolling decisions or final tolerance.
 The twelve-method replay also mounts the production clear-glass execution capsules
 for all four Harnesses. It checks narrow long-title geometry, native accessible
 activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated
