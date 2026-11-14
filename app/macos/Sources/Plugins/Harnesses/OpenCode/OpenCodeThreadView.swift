@@ -178,6 +178,13 @@ private struct OpenCodeTurn: View {
             rows.append(.init(id: interaction.id, kind: .attention, node: AnyView(OpenCodeInteractionPanel(interaction: interaction,
                 native: state.nativeInteraction(interaction.id), actions: actions).id(interaction.id))))
         }
+        if state.contentTruncated {
+            rows.insert(.init(id: ocJoinedID([execution.executionID, ":content-truncated"]), kind: .content,
+                node: AnyView(Text(ocLocalized("部分内容体积过大，已截断显示；完整内容仍保存在会话记录中。", locale: locale))
+                    .font(NativeTypography.inter(size: 12))
+                    .foregroundStyle(NativePalette.thread.muted.swiftUI)
+                    .frame(maxWidth: .infinity, alignment: .leading))), at: 0)
+        }
         let nativeAuthor = messages.last { $0.role == "assistant" && !ocTrim($0.raw["model"]?.stringValue ?? "").isEmpty && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }
         var author = state.raw["executionAuthors"]?.objectValue?[execution.executionID]?.objectValue ?? [:]
         if let effort = nativeAuthor?.raw["variant"], effort.stringValue?.isEmpty == false { author["effort"] = effort }

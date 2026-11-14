@@ -48,6 +48,12 @@ and child-session replies, without acquiring execution-detail content. Reasoning
 output keep their deferred presentation. Error
 and failed-message payloads, including child sessions, remain available for
 independent diagnostics; retained tool failures do not bypass Agent summaries. Canonical history and full/execution projections retain their existing data.
+If a projection would exceed the content transport boundary, the adapter sends a
+bounded fallback instead of failing the whole surface: redundant tool results and
+displays are removed, large text/tool fields are truncated, and pathological
+message counts are reduced. The projection carries `contentTruncated` so the
+native reader can explain the truncation; the authoritative session state is
+never rewritten.
 An HTTP prompt receipt admits input; terminal native execution facts settle it.
 New executions retain their input before dispatch. Follow-up message retention
 requires a native prompt receipt or matching native inbox/history evidence;

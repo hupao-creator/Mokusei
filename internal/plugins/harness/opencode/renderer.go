@@ -86,12 +86,12 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 		base["backgroundShells"] = state.BackgroundShells[max(0, len(state.BackgroundShells)-32):]
 	}
 	if scope.Kind == "turn" || scope.Kind == "execution" {
-		return rendererExecution(state, base, scope, source)
+		return rendererMarshalProjection(rendererExecution(state, base, scope, source))
 	}
-	return rendererDirectory(state, base, scope, source)
+	return rendererMarshalProjection(rendererDirectory(state, base, scope, source))
 }
 
-func rendererExecution(state *State, base Object, scope model.RendererScope, source rendererSource) (json.RawMessage, error) {
+func rendererExecution(state *State, base Object, scope model.RendererScope, source rendererSource) Object {
 	history := scope.Key == "opencode-fork-history"
 	executions := make([]*model.PublicExecution, 0)
 	if !history {
@@ -208,12 +208,12 @@ func rendererExecution(state *State, base Object, scope model.RendererScope, sou
 		base["forkSource"] = Object{"sessionId": state.ForkSource.SessionID, "transcript": Object{}}
 	}
 	if deferred {
-		return json.Marshal(Object{"kind": "deferred-execution", "state": base, "nonempty": nonempty})
+		return Object{"kind": "deferred-execution", "state": base, "nonempty": nonempty}
 	}
-	return json.Marshal(base)
+	return base
 }
 
-func rendererDirectory(state *State, base Object, scope model.RendererScope, source rendererSource) (json.RawMessage, error) {
+func rendererDirectory(state *State, base Object, scope model.RendererScope, source rendererSource) Object {
 	latest := ""
 	if state.LatestExecutionID != nil {
 		latest = *state.LatestExecutionID
@@ -341,7 +341,7 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 		}
 		base["foregrounds"] = foregrounds
 	}
-	return json.Marshal(base)
+	return base
 }
 
 func rendererLive(status string) bool { return status == "running" || status == "waiting-for-user" }
