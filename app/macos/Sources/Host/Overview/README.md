@@ -190,6 +190,11 @@ Same-scene revisions with identical ID/outer-footprint sets refresh semantic sna
 
 Fresh/filter framing centers the collection horizontally and vertically between persistent controls. In automatic mode, inserting a card refits the complete resulting collection to that anchor after its layout/entry completes; the old single-card camera must not remain the target of a multi-card scene. Ordinary revisions without entrants and with zero survivor world travel preserve the old camera scale/translation wherever the complete collection fits; otherwise translation is clamped to the nearest completely visible position. If the old scale cannot fit, normal readable fitting takes precedence. The resulting target survives delayed refits. Resize and explicit return to automatic framing restore the ordinary policy; manual framing remains user-owned, including during insertion. This protects stationary card origins on deletion and local footprint changes when capacity permits, but does not lock an individual editor through conflicting growth/global repacks.
 
+Automatic mode can therefore retain a smaller reading scale after cards shrink;
+a background click clears that reading target and recomputes the ordinary fit
+even while `manual` was already false. See the
+[recording, same-session layout evidence and production-camera reproduction](../../../../../design/overview-click-refit-investigation.md).
+
 Filter changes with visible survivors retain the old automatic scale only while
 the new collection fits between persistent controls. If it exceeds that actual
 capacity, the filter prepares the ordinary readable fit before presenting its
