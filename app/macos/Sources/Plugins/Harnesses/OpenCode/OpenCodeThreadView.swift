@@ -14,7 +14,10 @@ public struct OpenCodeThreadView: View {
     public let context: HarnessRenderContext
     @Environment(\.locale) private var locale
     private var providedState: OpenCodeState?
-    @State private var stateCache = OpenCodeStateCache()
+    @State private var stateCache = HarnessReadingState<OpenCodeState>(decode: { raw in
+        try PluginJSONValidation.validate(.object(["sessionState": raw]))
+        return try OpenCodeState(raw)
+    })
     @State private var resolvedAnchor: (request: JSONText, anchor: JSONText)?
     public init(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) {
         self.input = input; self.actions = actions; self.context = context; providedState = nil
@@ -23,11 +26,20 @@ public struct OpenCodeThreadView: View {
         self.input = input; self.actions = actions; self.context = context; providedState = state
     }
     public var body: some View {
-        switch providedState.map({ Result<OpenCodeState, Error>.success($0) }) ?? stateCache.decode(input.thread.sessionState) {
-        case .failure(let error): OpenCodeFailure(message: ocLocalized("OpenCode 状态不可用", locale: locale) + " · " + error.localizedDescription)
-        case .success(let state):
-            if case .row(let key) = context.content { row(key, state: state) }
-            else { conversation(state) }
+        Group {
+            if let providedState {
+                if case .row(let id) = context.content { row(id, state: providedState) }
+                else { conversation(providedState) }
+            } else if let (preparedInput, result, _) = stateCache.snapshot(input: input) {
+                switch result {
+                case .success(let state):
+                    OpenCodeThreadView(input: preparedInput, actions: actions, context: context, state: state)
+                case .failure(let error):
+                    OpenCodeFailure(message: ocLocalized("OpenCode 状态不可用", locale: locale) + " · " + error.localizedDescription)
+                }
+            } else { NativeThreadLoadingIndicator() }
+        }.task(id: HarnessReadingRequest(input: input, raw: input.thread.sessionState)) {
+            if providedState == nil { await stateCache.load(input: input, raw: input.thread.sessionState) }
         }
     }
     private func conversation(_ state: OpenCodeState) -> some View {
@@ -38,7 +50,7 @@ public struct OpenCodeThreadView: View {
                               node: AnyView(row("opencode-fork-history", state: state))))
         }
         for execution in state.executions {
-            let primary = state.messages.filter { $0.executionID == execution.executionID && !$0.inherited && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }
+            let primary = (state.messagesByExecution[execution.executionID] ?? []).filter { !$0.inherited && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }
             rows.append(.init(id: execution.executionID, createdAt: execution.startedAt,
                 execution: .init(id: execution.executionID, title: input.thread.executionTitles[execution.executionID]?.string, prompt: primary.first { $0.role == "user" }?.text ?? "",
                     answer: primary.filter { $0.role == "assistant" }.map(\.text).joined(separator: "\n"), completedAt: execution.status == .completed ? execution.finishedAt : nil,
@@ -110,21 +122,29 @@ private struct OpenCodeLoadedRow: View {
     let context: HarnessRenderContext
     let onAnchor: (JSONText, JSONText) -> Void
     let raw: JSONValue
-    @State private var stateCache = OpenCodeStateCache()
+    @State private var stateCache = HarnessReadingState<OpenCodeState>(decode: { raw in
+        try PluginJSONValidation.validate(.object(["sessionState": raw]))
+        return try OpenCodeState(raw)
+    })
+    @Environment(\.threadExecutionPresence) private var presence
+    @Environment(\.threadExecutionLoader) private var loader
+    private var readingEnvironment: HarnessReadingEnvironment { .init(presence: presence, loader: loader) }
     @ViewBuilder var body: some View {
         Group {
-            switch stateCache.decode(raw) {
-            case .failure(let error): OpenCodeFailure(message: error.localizedDescription)
-            case .success(let state):
-                let anchor = ocMokuReplyAnchor(state, target: input.readingTarget?.message)
-                if let thread = try? input.thread.replacingSessionState(raw) {
-                    OpenCodeThreadView(input: HarnessThreadInput(thread: thread, readingTarget: input.readingTarget), actions: actions, context: context.row(key), state: state)
-                        .task(id: AnchorRequest(request: input.readingTarget?.requestID, anchor: anchor)) {
-                            if let target = input.readingTarget, let anchor { onAnchor(target.requestID, anchor) }
-                        }
-                } else { OpenCodeFailure(message: "Invalid OpenCode content") }
-            }
-        }.onDisappear { stateCache.clear() }
+            if let (preparedInput, result, preparedEnvironment) = stateCache.snapshot(input: input) {
+                switch result {
+                case .failure(let error): OpenCodeFailure(message: error.localizedDescription)
+                case .success(let state):
+                    let anchor = ocMokuReplyAnchor(state, target: preparedInput.readingTarget?.message)
+                    OpenCodeThreadView(input: preparedInput, actions: actions, context: context.row(key), state: state)
+                        .environment(\.threadExecutionPresence, preparedEnvironment?.presence ?? ThreadExecutionPresence())
+                        .environment(\.threadExecutionLoader, preparedEnvironment?.loader)
+                            .task(id: AnchorRequest(request: preparedInput.readingTarget?.requestID, anchor: anchor)) {
+                                if let target = preparedInput.readingTarget, let anchor { onAnchor(target.requestID, anchor) }
+                            }
+                }
+            } else { NativeThreadLoadingIndicator() }
+        }.task(id: HarnessReadingRequest(input: input, raw: raw, presence: presence, hasLoader: loader != nil)) { await stateCache.load(input: input, raw: raw, environment: readingEnvironment) }
     }
     private struct AnchorRequest: Hashable { let request: JSONText?; let anchor: JSONText? }
 }
@@ -139,7 +159,7 @@ private struct OpenCodeTurn: View {
     let context: HarnessRenderContext
     @Environment(\.locale) private var locale
     var body: some View {
-        let messages = state.messages.filter { $0.executionID == execution.executionID && !$0.inherited }
+        let messages = (state.messagesByExecution[execution.executionID] ?? []).filter { !$0.inherited }
         let latest = input.thread.observation.latestExecution
         let current = latest?.executionID == execution.executionID
         let waiting = current && latest?.status == .waitingForUser
@@ -377,14 +397,4 @@ struct OpenCodeFailure: View {
 private func ocDocumentTitle(_ thread: HarnessThread, state: OpenCodeState) -> String {
     let initial = state.messages.first { $0.role == "user" && !$0.inherited && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }?.raw.ocText("text")
     return nativeGeneratedThreadDocumentTitle(metadata: thread.metadataState, title: thread.title, initialPrompt: initial)
-}
-
-@MainActor private final class OpenCodeStateCache {
-    private var raw: JSONValue?
-    private var result: Result<OpenCodeState, Error>?
-    func decode(_ value: JSONValue) -> Result<OpenCodeState, Error> {
-        if raw == value, let result { return result }
-        let result = Result { try OpenCodeState(value) }; raw = value; self.result = result; return result
-    }
-    func clear() { raw = nil; result = nil }
 }

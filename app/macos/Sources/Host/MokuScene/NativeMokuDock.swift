@@ -359,8 +359,13 @@ public struct NativeMokuDock: View {
               !state.inputOpen, interaction == nil, !state.dockCovered else { return nil }
         return reply
     }
+    private var inputSuppressesRunningFeedback: Bool {
+        // Agent detail owns its persistent editor during travel and the Harness
+        // flip, before inputOpen can become true. That wait is not a closed input.
+        state.inputOpen || state.inputPinnedOpen
+    }
     private var runningFeedback: Bool {
-        guard !state.inputOpen, !state.settingsOpen, !state.notePanelOpen, !noteMounted, interaction == nil, !voiceModeActive,
+        guard !inputSuppressesRunningFeedback, !state.settingsOpen, !state.notePanelOpen, !noteMounted, interaction == nil, !voiceModeActive,
               presentation?.workspace.runtimeAvailable ?? true else { return false }
         if threadID != nil, sidecardComposer == nil {
             // Submission is pending feedback only. It grants neither success,
@@ -412,6 +417,8 @@ public struct NativeMokuDock: View {
             let dockViewport = column.flatMap { $0.isNull || $0.isEmpty ? nil : $0 } ?? viewport
             let baseFrame = NativeMokuCapsuleLayout.frame(in: dockViewport, landing: landing,
                 reading: state.readingPanelVisible && !state.settingsOpen)
+            let restingFrame = NativeMokuCapsuleLayout.frame(in: dockViewport, landing: landing)
+            let readingOffset = baseFrame.maxY - restingFrame.maxY
             let messageWidth = displayedMessage?.dispatch != nil ? min(400, baseFrame.width) : baseFrame.width
             let frame = baseFrame.insetBy(dx: !noteExpanded && displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
             let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(settingsPreferredHeight, max(0, viewport.height - 48)))
@@ -443,6 +450,7 @@ public struct NativeMokuDock: View {
                                                      question: interactionIsQuestion)
             let noteButtonRect: CGRect? = nil
             let destination = NativeMokuHorizontalDestination(offset: placement.surface.midX - geometry.size.width / 2,
+                verticalOffset: readingOffset,
                 frame: executionFrame, revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
                 dragging: executionPlacement?.dragging == true, reduced: reduceMotion || scenePhase != .active,
                 composer: state.composerGeneration, reading: state.readingPanelVisible)
@@ -458,15 +466,16 @@ public struct NativeMokuDock: View {
                     // making retiring AppKit text jump vertically for a frame.
                     .scaleEffect(placement.scale, anchor: .bottom)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
-                    .offset(y: placement.surface.maxY - geometry.size.height)
+                    .offset(y: placement.surface.maxY - geometry.size.height - readingOffset)
                     .animation(reduceMotion || executionPlacement?.dragging == true ? nil
                         : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
-                    // Inner shell animations must not inherit the discrete
-                    // horizontal offset owned by the native compositor.
+                    // Keep the small reading-seat descent out of SwiftUI layout
+                    // animation too: reader preparation must not stall its frames.
                     .geometryGroup()
-                    .offset(x: destination.offset)
+                    .offset(x: destination.offset, y: destination.verticalOffset)
                     .animation(nil, value: destination.offset)
+                    .animation(nil, value: destination.verticalOffset)
                     // Direct resize settles the native trip and shell together.
                     .transaction(value: geometry.size) {
                         $0.animation = nil; $0.disablesAnimations = true
@@ -934,7 +943,12 @@ public struct NativeMokuDock: View {
             // Switching between an intrinsic-height row and a fixed-height row
             // cannot interpolate, and a delayed expansion fraction starts the
             // eyes a layout pass after the glass has already changed size.
-            NativeMokuDockIdentity(harness: threadHarness, showsHarness: threadTitle != nil && !state.settingsOpen) {
+            let generation = state.composerGeneration
+            NativeMokuDockIdentity(harness: threadHarness,
+                showsHarness: threadTitle != nil && !state.settingsOpen,
+                entranceReady: state.inputAdmissionReady,
+                generation: generation, motion: state.windowVisible,
+                onSettled: { state.completeInputIdentity(generation: generation) }) {
                 face(characterInput)
             }
                 .position(x: faceCenter.x + faceShift.width, y: faceCenter.y + faceShift.height)
@@ -992,10 +1006,10 @@ public struct NativeMokuDock: View {
             NativeMokuCharacterSurface(controller: character, input: characterInput, seat: .decorations)
                 .frame(width: surface.width + decorationPadding * 2, height: rowHeight + decorationPadding * 2)
                 .offset(y: decorationPadding)
-                // The character retains its smooth retirement pose. Hide that
-                // ink immediately when input opens, including rapid reversals.
-                .opacity(state.inputOpen ? 0 : 1)
-                .animation(nil, value: state.inputOpen)
+                // Also hide the character's retiring ink as soon as detail owns
+                // input, including entry from running Moku and rapid replacement.
+                .opacity(inputSuppressesRunningFeedback ? 0 : 1)
+                .animation(nil, value: inputSuppressesRunningFeedback)
                 .allowsHitTesting(false)
         }
         .contentShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)).onHover(perform: updateHover)

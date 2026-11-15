@@ -20,6 +20,7 @@ public final class VoiceSidecardPresentation {
     @ObservationIgnored private weak var capability: SidecardVoiceCapability?
     @ObservationIgnored private var capabilityGeneration: UInt64 = 0
     @ObservationIgnored private var previousExpanded: Bool?
+    @ObservationIgnored private var latestTransition: UUID?
 
     public init(context: SidecardContext, lifetime: PluginLifetime) {
         self.context = context; self.lifetime = lifetime
@@ -35,8 +36,10 @@ public final class VoiceSidecardPresentation {
         guard !lifetime.isCancelled else { return }
         let previous = capability
         let changedCapability = previous !== context.voice
+        if context.suppressed && !self.context.suppressed { cancelLatestTransition() }
         self.context = context
         if changedCapability {
+            cancelLatestTransition()
             capabilityGeneration += 1
             unsubscribe?(); unsubscribe = nil
             capability = context.voice
@@ -52,7 +55,10 @@ public final class VoiceSidecardPresentation {
                 receive(.init(phase: .closed, supported: false, available: false, loading: false, muted: false, error: "", messages: []))
             }
         }
-        if previousExpanded != context.expanded { messagesChanged() }
+        if previousExpanded != context.expanded {
+            cancelLatestTransition()
+            messagesChanged()
+        }
         previousExpanded = context.expanded
         refreshAnnouncement()
     }
@@ -67,12 +73,42 @@ public final class VoiceSidecardPresentation {
         if pinned { scrollToLatest() }
         else if !state.messages.isEmpty { newMessages = true }
     }
-    public func scrollToLatest() {
+    public func jumpToLatest(bottom: CGFloat, reduceMotion: Bool) {
+        let transition = UUID()
+        latestTransition = transition
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
+            // The observable owner must admit its indicator state and scroll
+            // request under the same animation policy.
+            pinned = true; away = false; newMessages = false
+            // A fixed offset does not acquire SwiftUI's growth-following edge
+            // anchor until this transition's completion admits it below.
+            scrollPosition.scrollTo(y: bottom)
+        } completion: {
+            guard self.latestTransition == transition else { return }
+            self.latestTransition = nil
+            if self.pinned { self.scrollToLatest() }
+        }
+    }
+    private func scrollToLatest() {
+        guard latestTransition == nil else { return }
         pinned = true; away = false; newMessages = false
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) { scrollPosition.scrollTo(edge: .bottom) }
     }
+    public func userScrollBegan(offset: CGFloat, contentHeight: CGFloat, viewportHeight: CGFloat) {
+        latestTransition = nil
+        // Tracking can begin without moving at a scroll boundary. The current
+        // geometry, not that phase alone, decides whether following is lost.
+        didScroll(offset: offset, contentHeight: contentHeight, viewportHeight: viewportHeight)
+    }
+    public func cancelLatestTransition() { latestTransition = nil }
+    public func finishLatestTransition() {
+        guard latestTransition != nil else { return }
+        latestTransition = nil
+        if pinned { scrollToLatest() }
+    }
     public func didScroll(offset: CGFloat, contentHeight: CGFloat, viewportHeight: CGFloat) {
+        guard latestTransition == nil else { return }
         let atBottom = contentHeight - offset - viewportHeight < 48
         pinned = atBottom; away = !atBottom
         if atBottom { newMessages = false }
@@ -111,6 +147,7 @@ public final class VoiceSidecardPresentation {
         }
     }
     private func release() {
+        cancelLatestTransition()
         capabilityGeneration += 1
         unsubscribe?(); unsubscribe = nil
         capability = nil

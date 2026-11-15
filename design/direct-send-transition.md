@@ -46,8 +46,12 @@ reverse even with only one target.
 - A ready layout may legitimately have no execution column (for example, a
   terminal execution or folded sidecard). It publishes that final destination
   and still waits for native travel completion before admitting the editor.
-- Horizontal travel uses a non-overshooting curve and samples its presentation
-  position on redirection. Existing revision/composer fences reject stale
+- Horizontal travel now uses one explicitly bounded settling rebound and samples
+  its presentation position on redirection. The requested tail is not an extra
+  layout target or the former underdamped spring: 520ms total, one 2.5% overshoot
+  capped at 6pt, with sub-12pt corrections retaining their monotone timing.
+  Vertical descent remains independent and non-bouncing. Existing
+  revision/composer fences reject stale
   completions. Resize, dragging, inactive scenes and Reduce Motion settle
   directly. Geometry is fitted to the current viewport, including stacked layout.
 

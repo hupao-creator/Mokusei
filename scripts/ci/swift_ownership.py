@@ -23,6 +23,9 @@ NATIVE_METHOD_OWNERS = {
     "MokuseiSettingsIntegrationTests.NativeMokuExecutionLinkTests/noteCapsulesWrapCopyAndRefreshTheirHarnessWithoutChangingTheNote(harness:)": {
         "group": "native", "check": "moku-execution-links", "marker": "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED",
     },
+    "MokuseiSettingsIntegrationTests.NativeMokuExecutionLinkTests/runningLinkFollowsUntilUserScrollsAndJumpLatestRestoresIt(harness:)": {
+        "group": "native", "check": "moku-execution-links", "marker": "MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED",
+    },
     "MokuseiGitIntegrationTests.GitThreadExtensionTests/sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes()": {
         "group": "native", "check": "rolling-numbers", "marker": "GIT_TOKEN_FLIP_FRAMES_CONFIRMED",
     },
