@@ -1,10 +1,9 @@
 # Reading-page background presentation replay
 
-The default command runs twelve reading cases: six mounted lifecycle and
-vertical-history methods plus six windowless geometry and history methods.
-The former full-page horizontal entry and mid-opening Overview return visual
-replays have been retired; current Agent, Report and Moku entry uses panel
-presentation.
+The default command runs seven windowless layout, geometry and history cases. The mounted
+full-page transition replay and its retired horizontal entry fixture have been
+removed; current Agent, Report and Moku entry uses panel presentation, and the
+production history routes are covered by the sidebar and send-feedback replays.
 
 ## Workspace Reload and rejected Quit
 
@@ -131,12 +130,9 @@ rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge
 the focused row before activation while retaining 30ms page reversals; they do
 not wait for the page transition to settle. `hover-panel.png` and `hover-dismissed.png`
 record the mounted result. These are native synthetic events with the real cursor
-and component renders, not physical input or WindowServer capture. The default
-reading-page replay also checks both vertical directions between history identities,
-intermediate geometry, full-column pixel coverage and cancellation. It retains
-`vertical-middle.png`, `earlier-middle.png` and `later-middle.png` under its suite
-evidence directory. The system Reduce Motion
-setting is observed by production code; this replay does not mutate that setting.
+and component renders, not physical input or WindowServer capture. The system
+Reduce Motion setting is observed by production code; this replay does not mutate
+that setting.
 Existing `--moku-execution-links` separately covers
 deferred bodies and exact-result following through all four real Harness renderers.
 
@@ -271,15 +267,15 @@ python3 tools/verification/reading-presentation/run.py
 ```
 
 The isolated AppKit app links the worktree's production reading stack and runs
-its six mounted integration cases with real window visibility. They check parent
-preparation and replacement ownership, retained parent/detail identity, accepted
-Close through focus loss or resize, and cancellation of obsolete returns.
-Vertical history navigation checks edge-to-edge travel and a stable horizontal
-position. The production history route also opens at narrow and wide window
-sizes, checking that long Chinese/path and multiline prompt headings occupy the
-same height as a two-line title and keep the answer in place. The six windowless
-geometry/history cases in the same source file execute too: Swift Testing's
-runtime method IDs include that filename and match the default filter.
+seven windowless layout, geometry and history cases: long Chinese/path and
+multiline prompt headings keep the answer at the same position as a two-line
+title, horizontal return containment and stale-anchor ownership, vertical
+scroller retention, history replacement input gating and obsolete-return
+cancellation. No NSWindow, display link or preference write is involved; these
+cases own their layout and teardown. The previous
+mounted full-page transition replay was removed because current panel entry and
+history navigation are covered by `--thread-sidebar`, `--thread-send-feedback`
+and the Moku execution-link replay.
 
 The launcher stages link objects, modules, headers, framework, replay sources
 and resource bundles outside the checkout. The app validates its temporary

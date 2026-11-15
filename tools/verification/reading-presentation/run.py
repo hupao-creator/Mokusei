@@ -126,7 +126,7 @@ def main():
              "NativeComposerPasteTests" if "--composer-paste" in sys.argv else
              "NativeMokuExecutionLinkTests" if "--moku-execution-links" in sys.argv else
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
-             "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
+             "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPageHeadlessTests")
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
               if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
@@ -301,7 +301,7 @@ def main():
              6 if glass_captures else
              7 if "--moku-composer" in sys.argv else
              7 if tag_glass else
-             12)
+             7)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

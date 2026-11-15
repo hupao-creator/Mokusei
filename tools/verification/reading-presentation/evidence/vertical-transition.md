@@ -1,5 +1,9 @@
 # Conversation history: planar vertical transitions
 
+> Historical evidence. The mounted graphical vertical replay referenced below
+> was replaced by the production sidebar/send-feedback replays and removed with
+> its fixture on 2026-11-15. The windowless methods and their assertions remain.
+
 ## Report and recording
 
 The supplied `录屏2026-10-29 18.11.51.mov` is a 9.835-second screen recording,
@@ -52,7 +56,7 @@ Run from the repository root:
 ```sh
 MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos \
   --scratch-path .build/vertical-transition \
-  --filter 'NativeReadingPagePresentationTests|NativeThreadHistorySidebarTests|NativeMokuExecutionLinkRoutingTests|NativeReadingPageHeadlessTests'
+  --filter 'NativeThreadHistorySidebarTests|NativeMokuExecutionLinkRoutingTests|NativeReadingPageHeadlessTests'
 ```
 
 The two new windowless integration methods mount the production page stack and
@@ -142,7 +146,7 @@ regressions passed alongside the new case.
 ```sh
 MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos \
   --scratch-path .build/vertical-transition \
-  --filter 'NativeReadingPageHeadlessTests|NativeReadingPagePresentationTests|NativeThreadHistorySidebarTests'
+  --filter 'NativeReadingPageHeadlessTests|NativeThreadHistorySidebarTests'
 ```
 
 Before this follow-up's verification, GitHub again showed no open PRs and no
