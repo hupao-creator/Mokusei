@@ -3,7 +3,6 @@ package opencode
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 )
@@ -15,23 +14,11 @@ func readingMessageText(message *Message) string {
 	if message.Role != "assistant" || len(message.Parts) == 0 {
 		return message.Text
 	}
-	var text strings.Builder
-	for _, part := range message.Parts {
-		if part.Type == "text" {
-			text.WriteString(part.Text)
-		}
-	}
-	return text.String()
+	return partContent(message.Parts, "text")
 }
 
 func readingMessageThinking(message *Message) string {
-	var text strings.Builder
-	for _, part := range message.Parts {
-		if part.Type == "reasoning" {
-			text.WriteString(part.Text)
-		}
-	}
-	return text.String()
+	return partContent(message.Parts, "reasoning")
 }
 
 // rendererAgentReading is the count-only Agent reading contract. It retains
@@ -194,5 +181,6 @@ func rendererAgentReading(state *State, scope model.RendererScope) (json.RawMess
 			out.AuxiliaryUsage = append(out.AuxiliaryUsage, sample)
 		}
 	}
-	return json.Marshal(Object{"kind": "deferred-execution", "state": out, "nonempty": nonempty})
+	// Agent summaries cross the same transport boundary as ordinary turns.
+	return rendererMarshalProjection(Object{"kind": "deferred-execution", "state": rendererObject(out), "nonempty": nonempty})
 }

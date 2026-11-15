@@ -435,7 +435,7 @@ func opencodeProjectionState(unrelated int) json.RawMessage {
 		messages = append(messages,
 			&opencode.Message{ID: id + ":user", ExecutionID: id, Role: "user", Text: "prompt"},
 			&opencode.Message{ID: id + ":answer", ExecutionID: id, Role: "assistant", Status: "complete",
-				Text: "UNRELATED_BODY " + strings.Repeat("old", 8_000), Usage: &opencode.Usage{Input: 1}})
+				Parts: []opencode.Part{{Type: "text", Text: "UNRELATED_BODY " + strings.Repeat("old", 8_000)}}, Usage: &opencode.Usage{Input: 1}})
 		authors[id] = opencode.Object{"model": "fixture"}
 		auxiliary = append(auxiliary, opencode.AuxiliaryUsage{ID: id + ":aux", ExecutionID: id, Usage: opencode.Usage{Input: 1}})
 	}
@@ -443,20 +443,20 @@ func opencodeProjectionState(unrelated int) json.RawMessage {
 	executions = append(executions, &reply)
 	messages = append(messages,
 		&opencode.Message{ID: "reply:user", ExecutionID: "reply", Role: "user", Text: "prompt"},
-		&opencode.Message{ID: "reply:answer", ExecutionID: "reply", Role: "assistant", Status: "complete", Text: "REPLY_MARKER"},
+		&opencode.Message{ID: "reply:answer", ExecutionID: "reply", Role: "assistant", Status: "complete", Parts: []opencode.Part{{Type: "text", Text: "REPLY_MARKER"}}},
 		&opencode.Message{ID: "reply:inherited", ExecutionID: "reply", Role: "assistant", Status: "complete",
-			Text: "INHERITED_BODY_MUST_NOT_APPEAR", Inherited: true, NativeSessionID: "source-session"})
+			Parts: []opencode.Part{{Type: "text", Text: "INHERITED_BODY_MUST_NOT_APPEAR"}}, Inherited: true, NativeSessionID: "source-session"})
 	authors["reply"] = opencode.Object{"model": "fixture"}
 	running := model.PublicExecution{ExecutionID: "latest", Status: "running", StartedAt: 901}
 	executions = append(executions, &running)
 	messages = append(messages,
 		&opencode.Message{ID: "latest:user", ExecutionID: "latest", Role: "user", Text: "prompt"},
 		&opencode.Message{ID: "latest:answer", ExecutionID: "latest", Role: "assistant", Status: "streaming",
-			Thinking: "LATEST_MARKER", Usage: &opencode.Usage{Input: 2},
+			Usage: &opencode.Usage{Input: 2},
 			Parts: []opencode.Part{{Type: "reasoning", Ordinal: 1, Text: "LATEST_MARKER"}}})
 	authors["latest"] = opencode.Object{"model": "fixture"}
 	auxiliary = append(auxiliary, opencode.AuxiliaryUsage{ID: "latest:aux", ExecutionID: "latest", Usage: opencode.Usage{Input: 2}})
-	raw, err := json.Marshal(&opencode.State{Version: 1, NativeSessionID: "fixture",
+	raw, err := json.Marshal(&opencode.State{Version: opencode.StateVersion, NativeSessionID: "fixture",
 		Messages: messages, Executions: executions, LatestExecutionID: &latest,
 		ExecutionAuthors: authors, AuxiliaryUsage: auxiliary})
 	if err != nil {

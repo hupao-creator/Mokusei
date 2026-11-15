@@ -326,3 +326,5 @@ See [OpenCode/Claude T3 comparison](../../../services/moku/t3-native-discovery.m
 Agent reading uses ordered assistant parts whenever present. Only a message
 without parts uses its aggregate text; that text becomes a visible text part in
 the reading projection. A stale aggregate never overrides existing parts.
+
+Agent summaries use the same 24 MiB bounded projection pipeline as turn and execution scopes. A 33 MiB final reply regression checks the envelope, preserved reply identity and truncation notice; the native Agent replay decodes that Go-produced fallback.

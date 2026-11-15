@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -34,6 +35,7 @@ const (
 )
 
 type Fixture struct {
+	BoundedRow json.RawMessage `json:"boundedRow,omitempty"`
 	Harness    string          `json:"harness"`
 	Status     string          `json:"status"`
 	State      json.RawMessage `json:"state"`
@@ -50,7 +52,15 @@ type Fixture struct {
 func Export(path string) error {
 	fixtures := []Fixture{}
 	for _, harness := range []string{"codex", "claude", "pi", "opencode"} {
-		fixtures = append(fixtures, fixture(harness))
+		value := fixture(harness)
+		if harness == "opencode" {
+			var err error
+			value.BoundedRow, err = boundedOpenCodeSummary()
+			if err != nil {
+				return err
+			}
+		}
+		fixtures = append(fixtures, value)
 	}
 	encoded, err := json.MarshalIndent(fixtures, "", "  ")
 	if err != nil {
@@ -323,3 +333,18 @@ func pointer[T any](value T) *T { return &value }
 // pluginHost keeps the exported adapter construction independent of runtime
 // services; the projection path does not call host callbacks.
 func pluginHost() plugin.HostContext { return plugin.HostContext{} }
+
+// The native decoder consumes the actual bounded adapter output, not a hand-built Swift fixture.
+func boundedOpenCodeSummary() (json.RawMessage, error) {
+	state, err := opencode.DecodeState(nil)
+	if err != nil {
+		return nil, err
+	}
+	state.NativeSessionID = "session"
+	if err := state.Begin("large", 1); err != nil {
+		return nil, err
+	}
+	state.Messages = append(state.Messages, &opencode.Message{ID: "large-reply", ExecutionID: "large", Role: "assistant", Status: "complete", Parts: []opencode.Part{{Type: "text", Text: strings.Repeat("x", 33<<20)}}})
+	state.Settle("large", "completed", 2, "")
+	return (opencode.StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "turn", Key: "large", Purpose: model.RendererPurposeAgentSummary})
+}

@@ -94,6 +94,18 @@ struct AgentReadingProjectionTests {
             case "pi": _ = try PiState(state)
             default: _ = try OpenCodeState(state)
             }
+            if harness == "opencode" {
+                let bounded = try #require(fixture["boundedRow"])
+                let bytes = try bounded.encodedData().count
+                #expect(bytes <= 24 * 1024 * 1024)
+                #expect(bounded["kind"] == .text("deferred-execution"))
+                let projected = try #require(bounded["state"])
+                #expect(projected["contentTruncated"] == .bool(true))
+                _ = try OpenCodeState(projected)
+                let reply = try #require(projected["messages"]?.arrayValue?.first { $0["id"] == .text("large-reply") })
+                #expect(reply["parts"]?.arrayValue?.first?["text"]?.stringValue?.contains("Truncated for transport") == true)
+                print("AGENT_READING_BOUNDED_DECODE inputBytes=34603008 wireBytes=\(bytes)")
+            }
             let elapsed = started.duration(to: .now)
             let milliseconds = Double(elapsed.components.seconds) * 1_000
                 + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000

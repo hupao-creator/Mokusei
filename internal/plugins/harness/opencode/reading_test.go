@@ -125,3 +125,47 @@ func TestFullOpenCodeProjectionStillCarriesExecutionDetail(t *testing.T) {
 		t.Fatalf("full detail projection dropped its execution body: %s", wire)
 	}
 }
+
+func TestAgentSummaryBoundsLargeFinalReply(t *testing.T) {
+	state := openCodeReadingState("completed", "reasoning")
+	body := strings.Repeat("x", 33<<20)
+	for _, message := range state.Messages {
+		if message.ID == "assistant-final" {
+			message.Parts = []Part{{Type: "text", Text: body}}
+		}
+	}
+	for _, purpose := range []string{"", model.RendererPurposeAgentSummary} {
+		wire, err := (StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "turn", Key: "target", Purpose: purpose})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(wire) > rendererWireBudget {
+			t.Fatalf("purpose %q: envelope is %d bytes", purpose, len(wire))
+		}
+		var envelope Object
+		if err := json.Unmarshal(wire, &envelope); err != nil {
+			t.Fatal(err)
+		}
+		bounded := rendererProjectionState(envelope)
+		if bounded["contentTruncated"] != true {
+			t.Fatal("missing truncation notice")
+		}
+		found := false
+		for _, message := range rendererObjects(bounded["messages"]) {
+			if message["id"] == "assistant-final" {
+				parts := rendererObjects(message["parts"])
+				if len(parts) != 1 || !strings.Contains(rendererText(parts[0]["text"]), "Truncated for transport") {
+					t.Fatal("final reply lost its bounded body")
+				}
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("final reply identity lost")
+		}
+		t.Logf("purpose=%q inputBytes=%d envelopeBytes=%d", purpose, len(body), len(wire))
+	}
+	if got := readingMessageText(state.Messages[4]); got != body {
+		t.Fatal("projection mutated canonical reply")
+	}
+}

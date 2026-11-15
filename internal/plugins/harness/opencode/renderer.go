@@ -476,7 +476,7 @@ func ocReplyExecutionID(state *State) string {
 		for j := len(state.Messages) - 1; j >= 0; j-- {
 			message := state.Messages[j]
 			if message.ExecutionID == execution.ExecutionID && !message.Inherited && message.Role == "assistant" && message.Status == "complete" &&
-				rendererTrim(message.Text) != "" && (message.NativeSessionID == "" || message.NativeSessionID == state.NativeSessionID) {
+				rendererTrim(messageText(message)) != "" && (message.NativeSessionID == "" || message.NativeSessionID == state.NativeSessionID) {
 				return execution.ExecutionID
 			}
 		}
@@ -563,11 +563,11 @@ func ocExecutionDigestMessages(state *State, execution model.PublicExecution, me
 		}
 		answer := ""
 		if complete {
-			answer = rendererTrim(message.Text)
+			answer = rendererTrim(messageText(message))
 		}
 		reasoning := ""
 		if reasoningEligible {
-			reasoning = rendererTrim(message.Thinking)
+			reasoning = rendererTrim(partContent(message.Parts, "reasoning"))
 		}
 		kind := "text"
 		if part != nil {
