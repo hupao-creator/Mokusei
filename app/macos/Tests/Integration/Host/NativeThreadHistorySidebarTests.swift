@@ -119,6 +119,9 @@ struct NativeThreadHistorySidebarTests {
         try await fixture.ready()
         try await fixture.perform("history.open", value: .text(fixture.ids[0].string))
         try await fixture.perform("history.close")
+        // Closing history publishes before the incoming current page admits keys.
+        try await fixture.ready()
+        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .string(fixture.ids.last!) }
         try key(126, "\u{f700}", in: window)
         try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .text(fixture.ids[0].string) }
         let answer = try #require(fixture.answers?.first)

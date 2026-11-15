@@ -1056,3 +1056,5 @@ through a camera change and the spinner's hide/resume behavior. No pre-rendered
 assets, style-equivalence golden or physical FPS claim is involved. The ordinary
 native owner still runs this case inside `--tag-glass-captures`; the focused flag
 does not replace full CI coverage.
+
+Claude sidebar summary verification observes the same reading interaction collector in ordinary Swift tests and the isolated AppKit launcher. Preview facts are not gated by process flags; without a collector the registration is inert. History-close verification waits for input admission before sending its arrow key.

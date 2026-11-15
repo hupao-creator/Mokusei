@@ -1,4 +1,3 @@
-import Foundation
 import MokuseiCore
 import SwiftUI
 
@@ -257,7 +256,11 @@ private struct ThreadHistoryPreview: View {
         .background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(NativePalette.thread.line.swiftUI))
         .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-        .modifier(ThreadHistoryPreviewObservation(row: row.id, summary: summary))
+        // Like the sidebar state, preview facts belong to the supplied reading
+        // interaction collector. Registration is inert without a collector.
+        .nativeReadingObservation("preview", role: "history.sidebar.preview", value: .object([
+            "row": .string(row.id), "summary": .text(summary),
+        ]))
         .task(id: String((row.execution?.answer ?? "").prefix(1024))) {
             let text = await NativeMarkdownSummary.plainText(String((row.execution?.answer ?? "").prefix(1024)), limit: 1024)
             if !Task.isCancelled { summary = text }
@@ -269,29 +272,4 @@ private struct ThreadHistoryPreview: View {
         return prompt.isEmpty ? localize("历史对话") : String(prompt.prefix(240)).split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
-}
-
-/// The transient preview is accessibility-hidden. Register its summary only for
-/// the isolated AppKit replay suites that assert the hover preview, using the
-/// existing replay flags rather than a separate product environment key.
-private struct ThreadHistoryPreviewObservation: ViewModifier {
-    let row: JSONText
-    let summary: String
-
-    private var enabled: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        return environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1"
-            || environment["MOKUSEI_ISOLATED_APPKIT_REPLAY"] == "1"
-    }
-
-    @ViewBuilder func body(content: Content) -> some View {
-        if enabled {
-            content.nativeReadingObservation("preview", role: "history.sidebar.preview", value: .object([
-                "row": .string(row),
-                "summary": .text(summary),
-            ]))
-        } else {
-            content
-        }
-    }
 }
