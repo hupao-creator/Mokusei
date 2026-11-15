@@ -29,6 +29,13 @@ The replay exercises the actual Go adapter and its actual OS subprocess pipes:
 - A real Go MCP subprocess, tool discovery, inactive dispatch rejection, JSON
   tool-result round trips and cancellation when its execution deactivates.
 
+Package tests additionally pin the turn-state v2 read model: repeated activity
+and interaction updates keep one timeline reference, command success/failure
+details stay on the current activity, assistant/reasoning bodies have one
+timeline representation, and forks resolve current entities into their separate
+read-only history shape. The shared golden fixture is also decoded by the native
+reader suite.
+
 A success line is emitted only after all assertions pass. This is a protocol and
 lifecycle integration replay. It does not establish compatibility with a
 particular installed Claude release, SQLite persistence (this runner uses an
