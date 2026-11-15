@@ -1,8 +1,9 @@
 # Conversation history: planar vertical transitions
 
-> Historical evidence. The mounted graphical vertical replay referenced below
-> was replaced by the production sidebar/send-feedback replays and removed with
-> its fixture on 2026-11-15. The windowless methods and their assertions remain.
+> Historical evidence. On 2026-11-15 the mounted vertical assertions moved to
+> `NativeReadingRouteLifecycleTests`; their geometry, pixel coverage and
+> cancellation checks remain. Horizontal entry now uses the production panel
+> fixture. Windowless cases live in `NativeReadingPageHeadlessTests`.
 
 ## Report and recording
 

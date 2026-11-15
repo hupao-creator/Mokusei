@@ -130,6 +130,8 @@ def main():
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
               if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
+    if suite == "NativeReadingPageHeadlessTests" and not isolated_input:
+        suites.append("NativeReadingRouteLifecycleTests")
     if decorations:
         suites = ["NativeOverviewTagGlassTests", "NativeOverviewDecorationCaptureTests"]
     if "--rolling-numbers" in sys.argv:
@@ -208,6 +210,7 @@ def main():
             environment["MOKUSEI_MOKU_HISTORY_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--thread-sidebar" in sys.argv:
             environment["MOKUSEI_SIDEBAR_ARTIFACTS"] = str(replay.workspace / "evidence")
+            environment["MOKUSEI_CLAUDE_TIMELINE_FIXTURE"] = str(repo / "internal/plugins/harness/claude/testdata/thread-reader.golden.json")
         if "--overview-search" in sys.argv:
             environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
         if tag_glass:
@@ -242,6 +245,8 @@ def main():
                     if "--rolling-numbers" in sys.argv else suite)
         if thread_send_native:
             selected = "mountedProductionReadersHandOffAfterContentAdmission|productionDockFoldsOnSendAndOnlyRestoresAFailedCurrentDraft|rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons|sidecardApertureTravelsBetweenItsActualLauncherAndPanel|completedSendAllowsClickingAndTypingIntoTheResidentComposer"
+        if suite == "NativeReadingPageHeadlessTests" and not isolated_input:
+            selected = "NativeReadingPageHeadlessTests|NativeReadingRouteLifecycleTests"
         if composer_refocus:
             selected = "completedSendAllowsClickingAndTypingIntoTheResidentComposer"
         if native_methods is not None:
@@ -284,7 +289,7 @@ def main():
              5 if thread_send_native else
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
-             5 if "--thread-sidebar" in sys.argv else
+             6 if "--thread-sidebar" in sys.argv else
              12 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
@@ -301,7 +306,7 @@ def main():
              6 if glass_captures else
              7 if "--moku-composer" in sys.argv else
              7 if tag_glass else
-             7)
+             12)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

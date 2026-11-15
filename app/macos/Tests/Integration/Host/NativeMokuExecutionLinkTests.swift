@@ -103,41 +103,58 @@ import MokuseiHarnessOpenCode
             let running = [.running, .waitingForUser].contains(execution.status)
             let status = id == "target" ? messageStatus ?? (running ? "streaming" : "complete") : "complete"
             if harness == "pi" || harness == "opencode" { return execution.json }
+            if harness == "codex" {
+                var turn: [JSONText: JSONValue] = ["executionId": .text(id), "createdAt": .number(execution.startedAt),
+                    "updatedAt": .number(execution.startedAt + 4), "status": .text(running ? "running" : execution.status.rawValue),
+                    "reasoning": .text(""), "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
+                if let finished = execution.finishedAt { turn["finishedAt"] = .number(finished) }
+                let item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
+                    "status": .text(status), "createdAt": .number(execution.startedAt + 1), "itemId": .text(id + "-native")]
+                var items: [JSONValue] = empty && id == "target" ? [] : [.object(item)]
+                if id == "target", let pendingText {
+                    var pending = item
+                    pending["id"] = .text(id + "-pending")
+                    pending["itemId"] = .text(id + "-pending-native")
+                    pending["content"] = .text(pendingText)
+                    pending["status"] = .text(running ? "streaming" : "complete")
+                    items.append(.object(pending))
+                }
+                let review: [JSONValue] = execution.status == .completed && !empty ? [.object([
+                    "id": .text(id + "-review"), "kind": .text("review"), "createdAt": .number(execution.startedAt + 2),
+                ])] : []
+                turn["timeline"] = .array(items + review)
+                turn["review"] = .text("LATE REVIEW")
+                turn["answer"] = .text(empty && id == "target" ? "" : body)
+                turn["messages"] = .array([])
+                return .object(turn)
+            }
+            // Claude turn state v2 has no aggregate reasoning/text fields.
             var turn: [JSONText: JSONValue] = ["executionId": .text(id), "createdAt": .number(execution.startedAt),
                 "updatedAt": .number(execution.startedAt + 4), "status": .text(running ? "running" : execution.status.rawValue),
-                "reasoning": .text(""), "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
+                "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
             if let finished = execution.finishedAt { turn["finishedAt"] = .number(finished) }
-            var item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
+            let item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
                 "status": .text(status), "createdAt": .number(execution.startedAt + 1)]
-            if harness == "codex" { item["itemId"] = .text(id + "-native") }
             var items: [JSONValue] = empty && id == "target" ? [] : [.object(item)]
             if id == "target", let pendingText {
                 var pending = item
                 pending["id"] = .text(id + "-pending")
-                if harness == "codex" { pending["itemId"] = .text(id + "-pending-native") }
                 pending["content"] = .text(pendingText)
                 pending["status"] = .text(running ? "streaming" : "complete")
                 items.append(.object(pending))
             }
-            var reviewItem: [JSONText: JSONValue] = ["id": .text(id + "-review"), "kind": .text("review"),
-                "createdAt": .number(execution.startedAt + 2)]
-            if harness == "codex" { turn["review"] = .text("LATE REVIEW") }
-            else { reviewItem["content"] = .text("LATE REVIEW") }
-            let review: [JSONValue] = execution.status == .completed && !empty ? [.object(reviewItem)] : []
+            let review: [JSONValue] = execution.status == .completed && !empty ? [.object([
+                "id": .text(id + "-review"), "kind": .text("review"), "createdAt": .number(execution.startedAt + 2),
+                "content": .text("LATE REVIEW"),
+            ])] : []
             turn["timeline"] = .array(items + review)
-            if harness == "codex" {
-                turn["answer"] = .text(empty && id == "target" ? "" : body)
-                turn["messages"] = .array([])
-            } else {
-                turn["text"] = .text(empty && id == "target" ? "" : body)
-                turn["prompts"] = .array([.text(id + " prompt")]); turn["promptAttachments"] = .array([.array([])])
-            }
+            turn["prompts"] = .array([.text(id + " prompt")]); turn["promptAttachments"] = .array([.array([])])
             return .object(turn)
         }
         switch harness {
         case "codex": return .object(["schema": .text("mokusei.harness.codex.thread.v1"), "updatedAt": .number(40),
                                        "turns": .array(turns), "backgroundTerminals": .array([])])
-        case "claude": return .object(["version": .integer(1), "turns": .array(turns), "nativeNotifications": .array([])])
+        case "claude": return .object(["version": .integer(2), "turns": .array(turns), "nativeNotifications": .array([])])
         default:
             let messages: [JSONValue] = executions.flatMap { execution -> [JSONValue] in
                 let id = execution.executionID.string
@@ -897,9 +914,19 @@ struct NativeMokuExecutionLinkTests {
         try await requireEveryReplyBlock("STREAMING CONTENT", count: 200, fixture: fixture, in: root,
                                         paragraphSuffix: paragraphSuffix)
         let secondInput = (0..<220).map { "NEW STREAMING CONTENT \($0)" }.joined(separator: "\n\n")
-        try fixture.update(status: .running, text: firstInput, messageStatus: "complete", pendingText: secondInput)
+        let revisedFirstInput = firstInput.replacingOccurrences(of: "STREAMING CONTENT 0",
+            with: "STREAMING CONTENT 0 — second revision admitted")
+        try fixture.update(status: .running, text: revisedFirstInput, messageStatus: "complete", pendingText: secondInput)
         record("second-source", inputBytes: secondInput.utf8.count)
-        try await Task.sleep(for: .milliseconds(200))
+        // The previous top offset can already satisfy this predicate before
+        // the asynchronous decoder admits the update. The settled reply marker
+        // proves this exact payload reached the mounted production reader.
+        try await SwiftUIReplay.wait {
+            guard let value = fixture.scroll?["value"],
+                  let top = value["top"]?.numberValue else { return false }
+            return abs(top) < 5 && value["following"] == .bool(false)
+                && textViews(root).contains { $0.string.contains("second revision admitted") }
+        }
         record("second-stream", inputBytes: secondInput.utf8.count)
         #expect(!textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") })
         #expect(textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
@@ -954,7 +981,7 @@ struct NativeMokuExecutionLinkTests {
             record("jump-latest")
             // Deliver in this display callback: resuming an async waiter could
             // otherwise happen after the animated transition has already ended.
-            do { try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput) }
+            do { try fixture.update(status: .completed, text: revisedFirstInput, successor: true, pendingText: secondInput) }
             catch { successorError = error }
             successorDelivered = true
             return false

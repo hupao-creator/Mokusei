@@ -1,9 +1,10 @@
 # Reading-page background presentation replay
 
-The default command runs seven windowless layout, geometry and history cases. The mounted
-full-page transition replay and its retired horizontal entry fixture have been
-removed; current Agent, Report and Moku entry uses panel presentation, and the
-production history routes are covered by the sidebar and send-feedback replays.
+The default command runs seven windowless layout, geometry and history cases
+plus five mounted route lifecycle cases. The retired full-page horizontal
+fixture has been replaced with the production panel configuration. Vertical
+history still uses the production page stack and retains its intermediate
+geometry, pixel-coverage and cancellation assertions.
 
 ## Workspace Reload and rejected Quit
 
@@ -103,9 +104,11 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Five integration tests cover selection and Back scroll
+isolated AppKit host. Six integration tests cover selection and Back scroll
 retention, author and visibility controls, Up/Down, End, Return and Escape,
 inherited history, deletion, arriving successors and external result anchors.
+One mounted case feeds a real Claude thread projection's bounded assistant
+summary through the history sidebar and verifies the preview text.
 The visibility case also mounts a production execution summary with reasoning/tool
 counts, checks that its detail body and execution-group action are absent, and
 hides/restores it through the existing overall execution visibility control.
@@ -122,7 +125,7 @@ The ordinary Swift suite runs the four state/layout tests. The pointer test
 requires the isolated application's running AppKit loop and a foreground visible
 window; CI executes that exact method in `--isolated-input` and the coverage
 collector requires its observed passing outcome. Forced headless admission
-skips display assertions explicitly. The sidebar launcher requires all five
+skips display assertions explicitly. The sidebar launcher requires all six
 tests without skips. A finite onscreen pointer replay synchronizes the system
 cursor and native events (restoring the original cursor on exit) to exercise the
 production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
@@ -267,15 +270,16 @@ python3 tools/verification/reading-presentation/run.py
 ```
 
 The isolated AppKit app links the worktree's production reading stack and runs
-seven windowless layout, geometry and history cases: long Chinese/path and
-multiline prompt headings keep the answer at the same position as a two-line
-title, horizontal return containment and stale-anchor ownership, vertical
+both suites. `NativeReadingPageHeadlessTests` owns seven windowless cases:
+bounded heading layout, return containment and stale-anchor ownership, vertical
 scroller retention, history replacement input gating and obsolete-return
-cancellation. No NSWindow, display link or preference write is involved; these
-cases own their layout and teardown. The previous
-mounted full-page transition replay was removed because current panel entry and
-history navigation are covered by `--thread-sidebar`, `--thread-send-feedback`
-and the Moku execution-link replay.
+cancellation. `NativeReadingRouteLifecycleTests` owns five mounted cases:
+panel return preparation and replacement, accepted Close during focus loss,
+vertical history entry/replacement/return without a gap, cancellation of an
+obsolete Close, and accepted Close through resize or scene changes. These
+assertions cover behavior still used by the panel and vertical history routes;
+sidebar and execution-link replays do not replace their intermediate pixels or
+controlled preparation interleavings.
 
 The launcher stages link objects, modules, headers, framework, replay sources
 and resource bundles outside the checkout. The app validates its temporary
@@ -1050,3 +1054,5 @@ through a camera change and the spinner's hide/resume behavior. No pre-rendered
 assets, style-equivalence golden or physical FPS claim is involved. The ordinary
 native owner still runs this case inside `--tag-glass-captures`; the focused flag
 does not replace full CI coverage.
+
+Claude sidebar summary verification observes the same reading interaction collector in ordinary Swift tests and the isolated AppKit launcher. Preview facts are not gated by process flags; without a collector the registration is inert. History-close verification waits for input admission before sending its arrow key.

@@ -89,7 +89,7 @@ func TestObservationProjectsFailedTurnError(t *testing.T) {
 func goldenAuthorThinkingState() *State {
 	finished := int64(2_000)
 	return &State{
-		Version:          1,
+		Version:          2,
 		PrimarySessionID: "claude-native-session",
 		Turns: []*Turn{{
 			Author: map[string]any{
@@ -102,8 +102,6 @@ func goldenAuthorThinkingState() *State {
 			FinishedAt:        &finished,
 			Prompts:           []string{"Explain the failure"},
 			PromptAttachments: [][]map[string]any{{}},
-			Text:              "The upstream request failed.",
-			Reasoning:         "",
 			Status:            "completed",
 			Plan:              []map[string]any{},
 			Activities:        []map[string]any{},

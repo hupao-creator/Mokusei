@@ -38,8 +38,8 @@ contribute more than one issue. Swift Testing reported 378 tests in 71 suites, i
 methods. XCTest separately reported 17 tests, 8 skips, 0 failures.
 
 Three baseline rows for the retired mounted reading-page transition suite are
-omitted: that suite, its fixture and its replay selection were removed on
-2026-11-15. The counts above describe the original audit, not the current suite
+omitted: that suite was split into windowless and mounted lifecycle suites on
+2026-11-15, with the horizontal fixture updated to production panel presentation. The counts above describe the original audit, not the current suite
 inventory.
 
 A = confirmed product regression; B = test environment/scheduling; C = explicit

@@ -207,11 +207,10 @@ func (p *frameParser) apply(s *State, t *Turn, f map[string]any, canonical func(
 		}
 		p.projectUsage(t)
 	case "diff_update":
-		t.Diff = clip(str(f["diff"]), 500000)
-		t.append("diff", map[string]any{"content": t.Diff})
+		// Diffs are not part of the current reader timeline; the current Git
+		// projection owns them independently.
 	case "review_update":
-		t.Review = clip(str(f["text"]), 500000)
-		t.append("review", map[string]any{"content": t.Review})
+		t.review(str(f["text"]))
 	case "rate_limit_event":
 		t.notice("warning", "Claude Code 使用额度状态已更新")
 	case "auth_status":
@@ -349,12 +348,6 @@ func (p *frameParser) messageStart(t *Turn, id, model string) {
 		}
 		t.Author["model"] = model
 	}
-	if t.LastAssistantMessage == nil || id == "" || str(t.LastAssistantMessage["id"]) != id {
-		t.LastAssistantMessage = map[string]any{"text": ""}
-		if id != "" {
-			t.LastAssistantMessage["id"] = id
-		}
-	}
 }
 func (p *frameParser) messageEnd(t *Turn, id string) {
 	if id == "" {
@@ -467,7 +460,6 @@ func (p *frameParser) applyTask(t *Turn, tool *nativeTool, result string) {
 			t.Plan = append(t.Plan, cloneObject(item))
 		}
 	}
-	t.append("plan", map[string]any{"plan": t.Plan})
 }
 func nativeUsage(raw map[string]any) map[string]any {
 	result := map[string]any{}
