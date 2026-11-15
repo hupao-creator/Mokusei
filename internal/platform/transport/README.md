@@ -26,7 +26,7 @@ and other shutdown errors remain failures.
 
 [stream.go](stream.go), [content.go](content.go) and [delta.go](delta.go) carry snapshots and revisioned updates over HTTP/NDJSON. Clients reject stale epochs and recover gaps from authoritative snapshots. Catalogs carry bounded overview data; conversation/turn/execution scopes fetch the owned Harness projection on demand. JSON null, missing fields and integer values remain distinct. Swift encodes integer cursors and revisions as integer JSON tokens.
 
-Requests, in-flight bytes, responses, clients and content-worker queues have explicit limits in the transport implementation. Slow or cancelled content readers release their leases; close joins workers and prevents late writes. [files.go](files.go) authorizes host files and attachment transfers without treating an arbitrary client path as an attachment capability.
+Requests, in-flight bytes, responses, clients and content-worker queues have explicit limits in the transport implementation. A single content event is capped below the 32 MiB response/event limit; Harness projections that can grow with native tool output must bound or degrade their presentation rather than relying on the transport to accept it. Slow or cancelled content readers release their leases; close joins workers and prevents late writes. [files.go](files.go) authorizes host files and attachment transfers without treating an arbitrary client path as an attachment capability.
 
 Overview and thread-content session controls have their own 16-request admission
 pool, separate from the 16 command/file request slots. Slow native queries cannot

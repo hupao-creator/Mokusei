@@ -15,7 +15,7 @@ struct OpenCodeState: Hashable, Sendable {
         if let flag = value["initialResponseScope"], flag.boolValue == nil { throw OpenCodeError.invalidState }
         initialResponseScope = value == .null || value["initialResponseScope"] == .bool(true)
         let value = value == .null ? JSONValue.object(["version": .number(1), "messages": .array([]), "executions": .array([]), "latestExecutionId": .null, "interactions": .array([])]) : value
-        try ocOnly(value, ["initialResponseScope", "version", "nativeSessionId", "nativeSessionCreated", "nativeTranscript", "nativeReadPrefix", "nativeContextEntries", "forkSource", "messages", "executions", "executionAuthors", "latestExecutionId", "interactions", "foregrounds", "backgroundSessions", "backgroundShells", "cursors", "nativeExecutions", "automaticExecutions", "auxiliaryUsage", "usageRecorded"])
+        try ocOnly(value, ["initialResponseScope", "contentTruncated", "version", "nativeSessionId", "nativeSessionCreated", "nativeTranscript", "nativeReadPrefix", "nativeContextEntries", "forkSource", "messages", "executions", "executionAuthors", "latestExecutionId", "interactions", "foregrounds", "backgroundSessions", "backgroundShells", "cursors", "nativeExecutions", "automaticExecutions", "auxiliaryUsage", "usageRecorded"])
         guard value["version"]?.intValue == 1, let messages = value["messages"]?.arrayValue,
               let executions = value["executions"]?.arrayValue, let interactions = value["interactions"]?.arrayValue,
               value["latestExecutionId"] != nil else { throw OpenCodeError.invalidState }
@@ -30,6 +30,7 @@ struct OpenCodeState: Hashable, Sendable {
         }
         try ocOptionalText(value, ["nativeSessionId"])
         if let created = value["nativeSessionCreated"] { guard created == .bool(true), let id = value.ocText("nativeSessionId"), !id.codeUnits.isEmpty else { throw OpenCodeError.invalidState } }
+        if let truncated = value["contentTruncated"], truncated != .bool(true) { throw OpenCodeError.invalidState }
         for key in ["nativeTranscript", "nativeReadPrefix", "executionAuthors", "cursors", "nativeExecutions", "automaticExecutions"] {
             if let field = value[key], field.objectValue == nil { throw OpenCodeError.invalidState }
         }
@@ -93,6 +94,7 @@ struct OpenCodeState: Hashable, Sendable {
     }
     var nativeSessionID: JSONText? { raw.ocText("nativeSessionId") }
     var latestExecutionID: JSONText? { raw.ocText("latestExecutionId") }
+    var contentTruncated: Bool { raw["contentTruncated"] == .bool(true) }
     var auxiliary: [JSONValue] { raw["auxiliaryUsage"]?.arrayValue ?? [] }
     func nativeInteraction(_ publicID: JSONText) -> JSONValue? {
         interactions.first { ocPublicID("interaction", [$0.ocID("executionId"), $0.ocID("id")]) == publicID }
