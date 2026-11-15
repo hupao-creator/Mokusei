@@ -270,4 +270,3 @@ struct NativeReadingRouteLifecycleTests {
         try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
     }
 }
-
