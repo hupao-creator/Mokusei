@@ -161,8 +161,9 @@ import MokuseiHarnessOpenCode
                 if empty && id == "target" { return [] }
                 let text = id == "target" ? answer : "OTHER EXECUTION \(id)"
                 var message: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "executionId": .text(id), "role": .text("assistant"),
-                    "text": .text(text), "status": .text(id == "target" ? messageStatus ?? ([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete") : "complete")]
+                    "status": .text(id == "target" ? messageStatus ?? ([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete") : "complete")]
                 if harness == "opencode" {
+                    // Assistant bodies exist only in ordered parts.
                     message["parts"] = .array([
                         .object(["type": .text("text"), "ordinal": .integer(0), "text": .text(text)]),
                         .object(["type": .text("text"), "ordinal": .integer(1), "text": .text("Final reply second part")])])
@@ -172,18 +173,21 @@ import MokuseiHarnessOpenCode
                             .object(["type": .text("reasoning"), "ordinal": .integer(1), "text": .text("REASONING RECORD")]),
                             .object(["type": .text("tool"), "toolCallId": .text("fixture-tool")])])
                         let tool: JSONValue = .object(["id": .text(id + "-answer:tool:fixture-tool"),
-                            "executionId": .text(id), "role": .text("tool"), "text": .text("TOOL RECORD"),
+                            "executionId": .text(id), "role": .text("tool"), "resultDisplay": .text("TOOL RECORD"),
                             "status": .text("complete"), "toolCallId": .text("fixture-tool"), "toolName": .text("Fixture tool")])
                         return [.object(message), tool]
                     }
+                } else {
+                    message["text"] = .text(text)
                 }
                 if id == "target", let pendingText {
                     var pending = message
                     pending["id"] = .text(id + "-pending")
-                    pending["text"] = .text(pendingText)
                     pending["status"] = .text([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete")
                     if harness == "opencode" {
                         pending["parts"] = .array([.object(["type": .text("text"), "ordinal": .integer(0), "text": .text(pendingText)])])
+                    } else {
+                        pending["text"] = .text(pendingText)
                     }
                     return [.object(message), .object(pending)]
                 }

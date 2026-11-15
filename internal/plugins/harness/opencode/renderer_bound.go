@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -206,10 +207,21 @@ func rendererBoundMessage(message Object, limits rendererLimits) bool {
 			delete(message, "presentation")
 		}
 	}
-	message["text"] = rendererBoundText(message["text"], limits.text)
-	if value, exists := message["thinking"]; exists {
-		message["thinking"] = rendererBoundText(value, limits.text)
+	// Assistant bodies live only in parts. Never synthesize an empty aggregate:
+	// an absent body and an explicitly empty body are different contracts, and a
+	// reader that prefers text would otherwise erase every assistant reply. A
+	// compact preview is optional; an empty one carries no body.
+	if value, exists := message["text"]; exists {
+		if text := rendererBoundText(value, limits.text); role != "assistant" || text != "" {
+			message["text"] = text
+		} else {
+			delete(message, "text")
+		}
 	}
+	// Canonical state v2 keeps thinking in reasoning parts. Drop any legacy
+	// aggregate so the projection never carries a field the native reader
+	// rejects.
+	delete(message, "thinking")
 	if value, exists := message["parts"]; exists {
 		parts := rendererObjects(value)
 		trimmed := make([]Object, 0, len(parts))
@@ -227,14 +239,14 @@ func rendererBoundMessage(message Object, limits rendererLimits) bool {
 		if rendererText(message["toolCallId"]) == "" {
 			return false
 		}
-		message["text"] = rendererBoundText(message["text"], limits.tool)
-		if rendererText(message["text"]) != "" {
-			delete(message, "result")
-			delete(message, "resultDisplay")
-		} else {
-			rendererBoundToolField(message, "result", limits.tool)
-		}
-		rendererBoundToolField(message, "arguments", limits.tool)
+		// Projections carry only producer-rendered displays. Raw tool payloads
+		// stay in canonical state, so there is no raw/display pair to reconcile
+		// at this boundary.
+		delete(message, "text")
+		delete(message, "result")
+		delete(message, "arguments")
+		rendererBoundToolDisplay(message, "argumentsDisplay", limits.tool)
+		rendererBoundToolDisplay(message, "resultDisplay", limits.tool)
 	}
 	if limits.dropOptional {
 		delete(message, "metadata")
@@ -279,21 +291,12 @@ func rendererBoundPart(part Object, limits rendererLimits) bool {
 	return true
 }
 
-func rendererBoundToolField(message Object, key string, limit int) {
+func rendererBoundToolDisplay(message Object, key string, limit int) {
 	value, exists := message[key]
 	if !exists {
 		return
 	}
-	size := rendererEncodedSize(value)
-	if size <= limit {
-		if display, ok := message[key+"Display"]; ok && rendererEncodedSize(display) > limit {
-			message[key] = rendererTruncationMarker(size)
-			delete(message, key+"Display")
-		}
-		return
-	}
-	message[key] = rendererTruncationMarker(size)
-	delete(message, key+"Display")
+	message[key] = rendererBoundText(value, limit)
 }
 
 func rendererDropLargeField(object Object, key string) {
@@ -925,22 +928,33 @@ func rendererBoundForkSource(value any, limits rendererLimits) (Object, bool) {
 	return next, true
 }
 
+// rendererFilterNonempty filters the renderer's original presence list to the
+// messages and parts that survived degradation. It deliberately does not scan
+// for nonempty text: hidden deferred bodies are empty by contract, so scanning
+// would erase every marker for collapsed reasoning and tool work.
 func rendererFilterNonempty(value, state Object, original []Object, budget int) {
 	if value["kind"] != "deferred-execution" {
 		return
 	}
-	retained := map[string]bool{}
-	for _, message := range rendererObjects(state["messages"]) {
+	messages := rendererObjects(state["messages"])
+	retained := make(map[string]Object, len(messages))
+	for _, message := range messages {
 		if id := rendererText(message["id"]); id != "" {
-			retained[id] = true
+			retained[id] = message
 		}
 	}
 	entries := make([]Object, 0)
+	seen := make(map[string]bool)
 	used := 2
 	for index := len(original) - 1; index >= 0; index-- {
 		entry := original[index]
 		id, field := rendererText(entry["id"]), rendererText(entry["field"])
-		if !retained[id] || !rendererValidPresenceField(field) {
+		message, exists := retained[id]
+		if !exists || !rendererValidPresenceField(field) || !rendererPresenceField(message, field) {
+			continue
+		}
+		key := id + "\x00" + field
+		if seen[key] {
 			continue
 		}
 		next := Object{"id": id, "field": field}
@@ -948,6 +962,7 @@ func rendererFilterNonempty(value, state Object, original []Object, budget int) 
 		if used+size > budget {
 			break
 		}
+		seen[key] = true
 		entries = append(entries, next)
 		used += size
 	}
@@ -957,11 +972,48 @@ func rendererFilterNonempty(value, state Object, original []Object, budget int) 
 	value["nonempty"] = entries
 }
 
+func rendererPresenceField(message Object, field string) bool {
+	switch field {
+	case "text":
+		// Deferred turn projections hide only child-session prompts. A visible
+		// user body is already present, and assistant text lives in visible
+		// parts, so neither may claim omitted content.
+		value, exists := message["text"]
+		return exists && rendererText(message["role"]) == "user" && rendererText(value) == ""
+	case "argumentsDisplay", "resultDisplay":
+		return rendererText(message["role"]) == "tool"
+	}
+	if !strings.HasPrefix(field, "parts:") {
+		return false
+	}
+	rest := strings.TrimPrefix(field, "parts:")
+	colon := strings.LastIndexByte(rest, ':')
+	if colon <= 0 {
+		return false
+	}
+	kind, ordinalText := rest[:colon], rest[colon+1:]
+	ordinal, err := strconv.Atoi(ordinalText)
+	if err != nil || ordinal < 0 {
+		return false
+	}
+	for _, part := range rendererObjects(message["parts"]) {
+		value, ok := rendererInteger(part["ordinal"])
+		if ok && value == ordinal && rendererText(part["type"]) == kind {
+			return true
+		}
+	}
+	return false
+}
+
 func rendererValidPresenceField(field string) bool {
 	if field == "" || len(field) > rendererMaxPresenceField || strings.ContainsRune(field, 0) {
 		return false
 	}
-	return field == "text" || field == "thinking" || strings.HasPrefix(field, "parts:")
+	switch field {
+	case "text", "argumentsDisplay", "resultDisplay":
+		return true
+	}
+	return strings.HasPrefix(field, "parts:")
 }
 
 func rendererMinimalProjection(state Object) Object {

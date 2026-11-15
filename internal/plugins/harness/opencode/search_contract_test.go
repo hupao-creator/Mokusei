@@ -20,19 +20,20 @@ func TestSearchTextPublicCompletedOnly(t *testing.T) {
 			text = "公开内容"
 		}
 		for _, role := range []string{"user", "assistant", "tool"} {
-			body := text
-			if role == "tool" {
-				body = "PRIVATE_TOOL"
-			}
-			message := map[string]any{"id": status + role, "executionId": status, "role": role, "text": body}
+			message := map[string]any{"id": status + role, "executionId": status, "role": role}
 			if role == "assistant" {
-				message["thinking"] = "PRIVATE_REASONING"
+				message["parts"] = []any{
+					map[string]any{"type": "reasoning", "ordinal": 0, "text": "PRIVATE_REASONING"},
+					map[string]any{"type": "text", "ordinal": 0, "text": text},
+				}
+			} else if role == "user" {
+				message["text"] = text
 			}
 			messages = append(messages, message)
 		}
 	}
-	messages = append(messages, map[string]any{"id": "unknown", "executionId": "unknown", "role": "assistant", "text": "PRIVATE_UNKNOWN"})
-	raw, err := json.Marshal(map[string]any{"version": 1, "messages": messages, "executions": executions, "latestExecutionId": "running"})
+	messages = append(messages, map[string]any{"id": "unknown", "executionId": "unknown", "role": "assistant", "parts": []any{map[string]any{"type": "text", "ordinal": 0, "text": "PRIVATE_UNKNOWN"}}})
+	raw, err := json.Marshal(map[string]any{"version": StateVersion, "messages": messages, "executions": executions, "latestExecutionId": "running"})
 	if err != nil {
 		t.Fatal(err)
 	}

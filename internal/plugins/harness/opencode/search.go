@@ -30,7 +30,7 @@ func (StateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage,
 				parts = append(parts, plugin.SearchPassage{ExecutionID: message.ExecutionID, Unavailable: true})
 				continue
 			}
-			parts = append(parts, plugin.SearchPassage{ExecutionID: message.ExecutionID, Text: message.Text})
+			parts = append(parts, plugin.SearchPassage{ExecutionID: message.ExecutionID, Text: messageText(message)})
 		}
 	}
 	return parts, nil
@@ -44,7 +44,7 @@ func (StateAdapter) ReadableCharacters(raw json.RawMessage) (int, error) {
 	total := 0
 	for _, m := range state.Messages {
 		if m.Role == "assistant" && m.Presentation != "internal" {
-			total += utf8.RuneCountInString(m.Text)
+			total += utf8.RuneCountInString(messageText(m))
 		}
 	}
 	return total, nil
