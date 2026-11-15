@@ -289,3 +289,16 @@ and input ownership keep their existing boundaries. See the
 for the demo comparison and Sprint observation scope.
 
 Same-document SPA history keeps the current address and annotation source synchronized. Unsupported protocol links and popup non-GET requests display a non-destructive notice; the latter are never rewritten as GET. The source document and unsent DOM input remain usable.
+
+The Voice transcript’s explicit jump to latest animates unless Reduce Motion is
+enabled. Its follow state and fixed-offset request share one animation transaction.
+Automatic follow remains immediate; growth during the transition is
+resolved afterward by restoring the bottom edge anchor from a fixed-offset
+animation. Manual scrolling takes ownership using its latest geometry: tracking
+at the bottom without displacement does not abandon following, while taking over
+an in-flight jump immediately updates the away indicator. Capability replacement,
+suppression, folding, release and disappearance invalidate completion. Enabling
+Reduce Motion during the transition settles directly to the latest content.
+The native thread-send replay mounts the production Voice plugin and checks
+unchanged-offset tracking, user takeover and late completion after suppression,
+folding and release.

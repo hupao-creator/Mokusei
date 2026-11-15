@@ -5,7 +5,7 @@ import time
 import uuid
 
 from provider import Provider
-from reading.corpus import document
+from reading.corpus import document, active_reply
 from reading.contract import terminal_fragment
 
 
@@ -78,6 +78,24 @@ class ReadingProvider(Provider):
                                "events": [], "messages": [], "startNS": None}
         return token
 
+    def prepare_active_open(self):
+        token = uuid.uuid4().hex
+        self.streams[token] = {"opening": active_reply().manifest(), "gate": threading.Event(),
+                               "ready": set(), "done": set(), "messages": [], "releasedNS": None}
+        return token
+
+    def release_active_open(self, token):
+        source = self.streams[token]
+        source["releasedNS"] = time.monotonic_ns()
+        source["gate"].set()
+
+    def active_open_evidence(self, token):
+        source = self.streams[token]
+        return {"version": 1, "clock": "macos.mach_absolute_time.nanoseconds",
+                "corpus": source["opening"], "messages": list(source["messages"]),
+                "releasedNS": source["releasedNS"], "complete": source["done"] == {1},
+                "failures": list(self.failures)}
+
     def source_evidence(self, token):
         source = self.streams[token]
         return {"version": 1, "clock": "macos.mach_absolute_time.nanoseconds",
@@ -90,6 +108,9 @@ class ReadingProvider(Provider):
         if source is None or card != 1 or source["ready"]:
             raise ValueError("unexpected or duplicate reader output request")
         source["ready"].add(card)
+        if "opening" in source:
+            yield from self.active_open_stream(source, token, request_id)
+            return
         response = {"id": f"reading_response_{request_id}", "object": "response",
                     "status": "in_progress", "model": self.model, "output": []}
         yield {"type": "response.created", "response": response}
@@ -125,3 +146,30 @@ class ReadingProvider(Provider):
         yield {"type": "response.completed", "response": {**response, "status": "completed", "output": output,
                "usage": {"input_tokens": 10, "output_tokens": 10, "total_tokens": 20}}}
         source["done"].add(card)
+
+    def active_open_stream(self, source, token, request_id):
+        text = active_reply().markdown
+        response = {"id": f"opening_response_{request_id}", "object": "response",
+                    "status": "in_progress", "model": self.model, "output": []}
+        item = {"id": f"opening_message_{request_id}", "type": "message", "role": "assistant",
+                "status": "completed", "phase": "commentary",
+                "content": [{"type": "output_text", "text": text, "annotations": []}]}
+        identity = {"item_id": item["id"], "output_index": 0}
+        yield {"type": "response.created", "response": response}
+        yield {"type": "response.output_item.added", "output_index": 0,
+               "item": {**item, "status": "in_progress", "content": []}}
+        yield {"type": "response.content_part.added", **identity, "content_index": 0,
+               "part": {"type": "output_text", "text": "", "annotations": []}}
+        yield {"type": "response.output_text.delta", **identity, "content_index": 0, "delta": text}
+        yield {"type": "response.output_text.done", **identity, "content_index": 0, "text": text}
+        yield {"type": "response.output_item.done", "output_index": 0, "item": item,
+               "_source": {"token": token, "ledger": "messages", "plannedNS": time.monotonic_ns(), **payload(text)}}
+        # The message settles before preparation. No content or completion is
+        # emitted while the real execution remains running through the capture.
+        deadline = time.monotonic() + 180
+        while not source["gate"].wait(.05):
+            if self.stopping.is_set() or time.monotonic() > deadline:
+                raise RuntimeError("active opening source gate cancelled or timed out")
+        yield {"type": "response.completed", "response": {**response, "status": "completed", "output": [item],
+               "usage": {"input_tokens": 10, "output_tokens": 10, "total_tokens": 20}}}
+        source["done"].add(1)

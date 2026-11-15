@@ -874,8 +874,8 @@ Markdown cases explicitly skip; this run does not certify those cases.
 runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 message-completion follow/stop/resume, successor isolation, archived/failed and missing
-execution targets. CI adds `--native-owned` to select only the capsule method
-declared in `swift_ownership.py`; the other nine mounted and two windowless
+execution targets. CI adds `--native-owned` to select the capsule and animated
+execution-follow methods declared in `swift_ownership.py`; the other eight mounted and two windowless
 methods run in the complete ordinary Swift suite. The original local command
 retains all twelve methods for diagnosis.
 The running-link case sends enough streaming blocks to fill multiple pages and
@@ -912,7 +912,38 @@ The lifecycle case checks current and result timelines across completed, running
 waiting for input and completed states for all four Harnesses. Jump to latest
 is absent for completed executions, disappears on completion without scrolling,
 and stays absent when a successor starts. The existing running-link case verifies
-that activating the mounted action resumes following.
+that activating the mounted action resumes following. This method requires the
+real AppKit loop and a visible window with Reduce Motion disabled. A display
+callback must observe an intermediate scroll position and deliver the successor
+in that callback. The position must precede both the original and current
+document bottom, including the native clip view's constrained bottom; a shrinking
+lazy estimate must not make an already settled position count as intermediate.
+After the new reply mounts, the updated long document must settle without manual
+scrolling: the control retains following, and the same attached native reader's
+model and presentation offsets both reach its live constrained bottom within 5pt
+on two consecutive display callbacks. The final `NEW STREAMING CONTENT 219`
+paragraph must also be visible in that reader. A transient short layout with
+bottom zero cannot pass. Registry geometry remains diagnostic because its
+projection can disagree with the mounted document. All original withheld-content
+and full-paragraph assertions remain.
+After traversing a reply, preparation observes the current long document under
+manual ownership. Its document frame/bounds and native clip bounds must remain
+unchanged across two display callbacks; the clip model must lie within its current
+constrained range, and presentation bounds must agree with the model within 5pt.
+A [numeric scroll position](https://developer.apple.com/documentation/swiftui/scrollposition)
+does not guarantee its old offset across content-size changes, so preparation
+checks stable presentation. The second callback
+synchronously issues the return to top exactly once.
+The return must then commit across two display callbacks before the next content
+update; a refreshed control descriptor alone is insufficient. Preparation and
+return retain independent 3s deadlines and distinct failure receipts.
+`MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED` must be emitted for every Harness.
+No production environment flag replaces the animated path with an immediate jump.
+For diagnosis, `MOKUSEI_TIMELINE_PROFILE=1 python tools/verification/reading-presentation/run.py --moku-execution-links --native-owned`
+records up to 120 jump snapshots plus the terminal state, including scroll ownership,
+binding state and native model/presentation geometry. Every Harness receipt must
+confirm that the profile flag reached the app. This instrumentation observes the
+existing path without changing its scrolling decisions or final tolerance.
 The twelve-method replay also mounts the production clear-glass execution capsules
 for all four Harnesses. It checks narrow long-title geometry, native accessible
 activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated

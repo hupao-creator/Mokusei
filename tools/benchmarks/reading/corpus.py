@@ -7,6 +7,39 @@ BODY_KIB = (8, 32, 128)
 DEFAULT_BODY_KIB = (8, 32)
 
 
+def active_reply():
+    """One settled progress message; execution stays running during entry."""
+    anchors = ("SIDE 002 BLOCK 0001", "SIDE 002 BLOCK 0002", "SIDE 002 READY")
+    text = f"""## Review in progress
+
+I have checked the reader's **content** and *layout*. The completed document
+remains available while I prepare the final review. 正文已完成，执行仍在继续。
+
+- Keep the selected reply available.
+- Preserve the reading position when the side panel opens.
+
+```swift
+let review = "in progress"
+```
+
+| Check | Result |
+| --- | --- |
+| Content | Preserved |
+| Position | Retained |
+
+{anchors[0]}
+
+> This message is complete. The execution is waiting for the next review step.
+
+{anchors[1]}
+
+The remaining work will resume after the opening observation finishes.
+
+{anchors[2]}
+"""
+    return Corpus(2, len(text.encode("utf-8")), text, anchors, 1)
+
+
 @dataclass(frozen=True)
 class Corpus:
     execution: int
