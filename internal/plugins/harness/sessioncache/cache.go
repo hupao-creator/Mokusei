@@ -217,7 +217,9 @@ func (h *Handle) AddSize(delta int64) {
 		h.Entry.size = 0
 		h.Entry.removed = true
 		h.Entry.oversized = true
-		delete(h.cache.threads, h.Entry.ThreadID)
+		if h.cache.threads[h.Entry.ThreadID] == h.Entry {
+			delete(h.cache.threads, h.Entry.ThreadID)
+		}
 		return
 	}
 	h.Entry.size += delta
@@ -245,7 +247,10 @@ func (c *Cache) release(entry *Entry) {
 			c.used -= entry.size
 			entry.size = 0
 			entry.removed = true
-			delete(c.threads, entry.ThreadID)
+			// A retired handle can outlive a replacement for this Thread.
+			if c.threads[entry.ThreadID] == entry {
+				delete(c.threads, entry.ThreadID)
+			}
 		}
 	}
 	entry.lastUse = c.clock

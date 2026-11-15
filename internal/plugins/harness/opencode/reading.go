@@ -12,7 +12,7 @@ import (
 // valid in both the current canonical schema and the single-source schema. The
 // aggregate Message text/thinking fields are not a second source of truth.
 func readingMessageText(message *Message) string {
-	if message.Role != "assistant" {
+	if message.Role != "assistant" || len(message.Parts) == 0 {
 		return message.Text
 	}
 	var text strings.Builder
@@ -142,6 +142,9 @@ func rendererAgentReading(state *State, scope model.RendererScope) (json.RawMess
 					}
 					parts = append(parts, Part{Type: "reasoning", Ordinal: part.Ordinal})
 				}
+			}
+			if visible && len(message.Parts) == 0 && rendererNativeNonempty(message.Text) {
+				parts = append(parts, Part{Type: "text", Text: message.Text})
 			}
 			copy.Parts = parts
 			copy.Text = ""

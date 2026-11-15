@@ -175,7 +175,7 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
     /// Assistant text is single-sourced from ordered parts after projection
     /// dedup; canonical rows may have an empty aggregate text field.
     var readingText: String {
-        guard role == "assistant" else { return text }
+        guard role == "assistant", !parts.isEmpty else { return text }
         // Ordered parts are the canonical assistant text source; never combine
         // them with a stale aggregate text field.
         return parts.compactMap { part in

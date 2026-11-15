@@ -1,3 +1,4 @@
+import MokuseiCore
 import MokuseiPluginAPI
 import XCTest
 
@@ -22,6 +23,15 @@ final class OpenCodeAgentReadingTests: XCTestCase {
     XCTAssertEqual(message.readingText, "VISIBLE_FINAL_REPLY")
     let replies = ocFinalReplyIDs([message], sessionID: nil, splitTurns: false)
     XCTAssertTrue(replies.contains(message.id))
+    for parts in [nil, []] as [[JSONValue]?] {
+      var raw = message.raw.objectValue!
+      raw["text"] = .text("AGGREGATE_ONLY_REPLY")
+      raw["parts"] = parts.map { .array($0) }
+      let aggregate = try OpenCodeMessage(.object(raw))
+      XCTAssertEqual(aggregate.readingText, "AGGREGATE_ONLY_REPLY")
+      XCTAssertTrue(ocFinalReplyIDs([aggregate], sessionID: nil, splitTurns: false).contains(aggregate.id))
+    }
+
   }
 
   func testReadingTextKeepsInterleavedTextPartOrder() throws {

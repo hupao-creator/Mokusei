@@ -121,14 +121,11 @@ private struct CodexLazyTurnRow: View {
                 case .loading: NativeReadingPlaceholder(placement: .inline).id(key)
                 case .error(let message): CodexContentError(message: message, retry: { try await resource.retry() })
                 case .ready(let raw):
-                    // Agent-summary rows arrive as complete envelopes. Remount
-                    // the decoded row when that snapshot changes so a settled
-                    // reply replaces the earlier streaming state.
-                    let deferred = raw["kind"] == .text("deferred-execution")
+                    // Snapshot changes update the existing decode task; the row
+                    // keeps its interaction, selection and scroll lifetime.
                     ThreadDeferredExecutionContent(raw: raw, rowKey: key, context: context) { value in
                         CodexLoadedTurnRow(key: key, input: input, actions: actions, context: context, onAnchor: onAnchor, raw: value)
                     }
-                    .id(deferred ? raw : nil)
                 }
             } else { NativeReadingPlaceholder(placement: .inline).id(key) }
         }

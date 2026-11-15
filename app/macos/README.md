@@ -275,3 +275,7 @@ Reduce Transparency uses opaque palette fills. Single Report cards and search
 results retain their ordinary flat material. Search results remain individual.
 See [Overview collection ownership](Sources/Host/Overview/README.md#viewed-application-collections)
 and the [production fixture](../../demos/super-thread-carousel/README.md).
+
+Codex Agent summary revisions refresh the mounted row's cancellable decode task;
+wire envelopes are not SwiftUI identities. Streaming and settlement preserve
+row-local selection, interaction and scroll lifetimes.

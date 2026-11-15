@@ -224,6 +224,10 @@ def main():
             fixture = replay.workspace / "harness-forms.json"
             subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/opencode/cases/renderer", "-forms-output", str(fixture)], cwd=repo, check=True)
             environment["MOKUSEI_HARNESS_FORM_FIXTURE"] = str(fixture)
+        if "--moku-execution-links" in sys.argv:
+            projector = replay.workspace / "codex-reading-projector"
+            subprocess.run([str(repo / "scripts/go.sh"), "build", "-o", str(projector), "./tools/verification/agent-reading"], cwd=repo, check=True)
+            environment["MOKUSEI_CODEX_READING_PROJECTOR"] = str(projector)
         if agent_reading:
             fixture = replay.workspace / "agent-reading.json"
             subprocess.run([str(repo / "scripts/go.sh"), "run", "./tools/verification/agent-reading", "-output", str(fixture)], cwd=repo, check=True)

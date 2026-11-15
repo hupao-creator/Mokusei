@@ -1069,3 +1069,8 @@ through a camera change and the spinner's hide/resume behavior. No pre-rendered
 assets, style-equivalence golden or physical FPS claim is involved. The ordinary
 native owner still runs this case inside `--tag-glass-captures`; the focused flag
 does not replace full CI coverage.
+
+Execution-link fixtures use the production Codex Go summary projector and the
+shell's route-visit fence for navigation callbacks. A retiring asynchronous
+reader must not clear a subsequent visit's Back action. Snapshot changes update
+the mounted Codex decode task rather than changing the row's SwiftUI identity.

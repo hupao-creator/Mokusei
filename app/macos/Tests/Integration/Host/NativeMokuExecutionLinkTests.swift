@@ -84,41 +84,44 @@ import MokuseiHarnessOpenCode
         switch scope {
         case .thread:
             return .object(["version": .integer(1), "state": state, "executionTitles": .object([:])])
-        case .reading(let key, _) where harness == "codex":
-            // Runtime returns an agent-summary envelope, not the raw directory.
-            // Match stReadingTurn: keep the active/failed replies, otherwise
-            // only the final readable assistant item, plus error/review facts.
-            let executionID = key.string.replacingOccurrences(of: "turn:", with: "")
-            guard let turn = (state["turns"]?.arrayValue ?? []).first(where: { $0["executionId"]?.stringValue == executionID }) else {
-                return .object(["kind": .text("deferred-execution"), "state": state, "nonempty": .array([])])
-            }
-            var fields = turn.objectValue ?? [:]
-            let items = fields["timeline"]?.arrayValue ?? []
-            let active = fields["status"] == .text("running") || fields["status"] == .text("waiting-input")
-            let finalID = items.last {
-                $0["kind"] == .text("assistant") && $0["status"] != .text("streaming") &&
-                    $0["status"] != .text("failed") && !($0["content"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            }?["id"]
-            let timeline = items.filter { item in
-                switch item["kind"]?.stringValue {
-                case "assistant":
-                    let failed = item["status"] == .text("failed") || item["isError"] == .bool(true)
-                    return failed || (active ? item["status"] != .text("streaming") && !(item["content"]?.stringValue ?? "").isEmpty : item["id"] == finalID)
-                case "error", "review", "notice", "interaction", "user-message", "context-compaction":
-                    return true
-                default:
-                    return false
-                }
-            }
-            fields["timeline"] = .array(timeline)
-            fields["answer"] = .text("")
-            fields["messages"] = .array([])
-            var stateFields = state.objectValue ?? [:]
-            stateFields["turns"] = .array([.object(fields)])
-            return .object(["kind": .text("deferred-execution"), "state": .object(stateFields), "nonempty": .array([])])
+        case .reading(let key, let target) where harness == "codex":
+            // Exercise the production Go projector, including interaction
+            // normalization and nonempty metadata, rather than a Swift copy.
+            let input = directory.appendingPathComponent("projection-input.json")
+            let output = directory.appendingPathComponent("projection-output.json")
+            try JSONValue.object(["state": state, "scope": .object([
+                "kind": .text("turn"), "key": .string(key),
+                "purpose": .text("agent-summary"), "target": target ?? .null
+            ])]).encodedData().write(to: input)
+            let process = Process()
+            process.executableURL = try Self.codexProjector.get()
+            process.arguments = ["-codex-input", input.path, "-output", output.path]
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw PluginContractError("Codex fixture projection failed") }
+            return try JSONValue(data: Data(contentsOf: output))
         default:
             return state
         }
+    }
+
+    private static let codexProjector: Result<URL, Error> = Result {
+        if let path = ProcessInfo.processInfo.environment["MOKUSEI_CODEX_READING_PROJECTOR"] {
+            return URL(fileURLWithPath: path)
+        }
+        // Ordinary SwiftPM tests use the same producer as the isolated replay.
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let output = FileManager.default.temporaryDirectory.appendingPathComponent("codex-reading-" + UUID().uuidString)
+        let build = Process()
+        build.currentDirectoryURL = repo
+        build.executableURL = repo.appendingPathComponent("scripts/go.sh")
+        build.arguments = ["build", "-o", output.path, "./tools/verification/agent-reading"]
+        try build.run()
+        build.waitUntilExit()
+        guard build.terminationStatus == 0 else { throw PluginContractError("Build Codex fixture projector failed") }
+        return output
     }
 
     private func publish(_ resource: HarnessContentResource, scope: HarnessContentScope, state: JSONValue) {
@@ -249,11 +252,16 @@ private struct ExecutionLinkSurface: View {
                 let context = HarnessRenderContext(content: .manifest, presentation: .main(excludedExecutionIDs: []),
                     contentResource: fixture.resource, onIndexChange: { _ in })
                 if let view = try? fixture.plugin.threadView(input: .init(thread: fixture.thread, readingTarget: fixture.presentation.readingTarget), actions: actions, context: context) {
-                    ThreadDetailFrame(navigation: fixture.back, onNavigationChange: { fixture.presentation.navigation = $0 }) {
+                    let routeID = fixture.presentation.navigationRouteID
+                    ThreadDetailFrame(navigation: fixture.back, onNavigationChange: {
+                        // Match the production shell: a retiring visit cannot
+                        // clear the next visit's navigation after async decode.
+                        if fixture.presentation.navigationRouteID == routeID { fixture.presentation.navigation = $0 }
+                    }) {
                         view
                     }
                     .nativeReadingPanelClose(label: "Close thread", onClose: fixture.presentation.finishBack)
-                    .id(fixture.presentation.navigationRouteID)
+                    .id(routeID)
                 }
             }
         }

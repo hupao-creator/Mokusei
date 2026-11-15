@@ -322,3 +322,7 @@ must match it. The outer routing cache verifies that identity rather than
 relabeling an inner result. A source change during acquisition rejects that
 observation; an old same-key directory remains available on failed refresh.
 See [OpenCode/Claude T3 comparison](../../../services/moku/t3-native-discovery.md).
+
+Agent reading uses ordered assistant parts whenever present. Only a message
+without parts uses its aggregate text; that text becomes a visible text part in
+the reading projection. A stale aggregate never overrides existing parts.

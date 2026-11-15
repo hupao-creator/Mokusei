@@ -41,3 +41,9 @@ These are fixture measurements for the projection boundary, not a claim about
 CPU, frame rate or a real provider session. Increasing hidden reasoning/tool
 bodies does not change the summary wire bytes; the package tests grow those
 bodies and require byte-stable output.
+
+The execution-link replay also builds this producer once and supplies
+`MOKUSEI_CODEX_READING_PROJECTOR`. Its `-codex-input` mode projects each dynamic
+native state/scope through Codex's production `ProjectRenderer`; the Swift
+fixture does not implement a second agent-summary filter. Ordinary SwiftPM
+execution-link tests build the same producer once on demand.
