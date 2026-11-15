@@ -31,6 +31,15 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 | [Sources/Plugins/Sidecards](Sources/Plugins/Sidecards/README.md) | Conversation, browser and retained voice transcripts |
 | [Sources/Voice](Sources/Voice/README.md) | Native media, WebRTC and ownership |
 
+The explicit `--benchmark-scenario overview` launch requires an isolated
+`--data-dir` and automation socket, completes onboarding before workspace creation
+and disables scene restoration. `--benchmark-agent-emoji-badge flat|liquid-glass`
+is accepted only in that scenario; it changes the Agent emoji backdrop through
+a scoped rendering policy, leaving ordinary launches flat. Its public
+`benchmark-scenario.json` receipt records PID, material and accessibility settings.
+The [external comparison runner](../../tools/benchmarks/README.md#agent-emoji-badge-material-comparison)
+uses only the built artifact and that protocol, without linking product modules.
+
 Agent Thread detail admits assistant replies and execution records: reasoning,
 tools/activities, approvals/questions, review, context compaction, background work,
 execution status, author and usage. Errors are exempt from the content allowlist:
