@@ -91,6 +91,20 @@ def provider_replay(directory, waiting=False):
     directory.mkdir()
     provider=Provider(directory,5);provider.model='fixture-model';provider.effort='low'
     try:
+        record = {'title': provider.title(1), 'observation': {'latestExecution': {
+            'status': 'completed', 'summary': provider.body(1)}}, 'metadataState': {'emoji': '📄'}}
+        assert provider.initial_result(1, record)
+        assert not provider.initial_result(1, {**record, 'metadataState': {}})
+        from badge_comparison import workload_signature
+        left, right = schedule(5, 2, 'sustained'), schedule(5, 2, 'sustained')
+        provider.prepare_stream(left); provider.prepare_stream(right)
+        assert left['terminal'] != right['terminal']
+        assert workload_signature(left) == workload_signature(right)
+        right['terminal'][0]['bytes'] += 1
+        assert workload_signature(left) != workload_signature(right)
+        right['terminal'][0]['bytes'] -= 1
+        right['terminal'][0]['text'] = 'Different task result. ' + right['terminal'][0]['text']
+        assert workload_signature(left) != workload_signature(right)
         workload=schedule(5,2,'sustained')
         token=provider.prepare_stream(workload,waiting=waiting)
         def receive(card):
@@ -209,6 +223,75 @@ def shutdown_replay(directory):
     finally:
         connection.close()
         if not provider.stopping.is_set():provider.close()
+
+
+def badge_comparison_replay(root):
+    from badge_comparison import ORDER, summarize, validate_receipt
+    from lifecycle import Application
+    valid = {'version': 1, 'scenario': 'overview', 'pid': 101, 'agentEmojiBadge': 'liquid-glass',
+        'reduceTransparency': False, 'reduceMotion': False, 'increaseContrast': False}
+    assert validate_receipt(valid, 'liquid-glass', 101) == valid
+    for patch in ({'version': True}, {'pid': 102}, {'agentEmojiBadge': 'flat'},
+                  {'reduceTransparency': True}, {'reduceMotion': 0}, {'scenario': 'reading'}):
+        try: validate_receipt({**valid, **patch}, 'liquid-glass', 101)
+        except ValueError: pass
+        else: raise AssertionError('invalid badge receipt admitted: ' + str(patch))
+    app = Application(Path('/artifact.app'), root/'fixture', 5, Path('/collector'), emoji_badge='liquid-glass')
+    assert app.launch_arguments()[-2:] == ['--benchmark-agent-emoji-badge', 'liquid-glass']
+    app.socket = root/'reopened.sock'
+    arguments = app.launch_arguments()
+    assert str(app.socket) in arguments and app.socket.name == 'reopened.sock'
+    assert len(str(app.socket).encode()) < 104
+    socket_directory = app.socket.parent
+    assert socket_directory.stat().st_mode & 0o777 == 0o700
+    assert not app.close()['errors'] and not socket_directory.exists()
+    root.mkdir()
+    attempts = []
+    for index, style in enumerate(ORDER):
+        directory = root/f'{index:02d}-{style}'; directory.mkdir()
+        case = directory/'pan'; case.mkdir(); fixture(case)
+        save(case/'artifact.json', {'executableSHA256': 'synthetic-artifact'})
+        save(case/'native-cli.json', {'sha256': 'synthetic-cli'})
+        identity = json.loads((case/'identity.json').read_text())
+        save(case/'identity.json', {**identity, 'host': {'os': 'synthetic', 'screens': []}})
+        save(case/'rendering-configuration.json', {**valid, 'agentEmojiBadge': style})
+        save(case/'hitch.json', {'pid': 101, 'processIdentity': '101:1000', 'status': 'unavailable',
+            'reason': 'native XCTest hitch collection not requested; default collection never starts the privileged performance service'})
+        seal(case)
+        attempts.append({'index': index, 'style': style, 'directory': directory.name,
+            'results': [{'count': 5, 'scenario': 'pan', 'path': 'pan'}]})
+    result = summarize(root, attempts)
+    assert result['results'][0]['matchedResourceObservations'], result
+    assert result['comparison'] == 'not-comparable'
+    assert result['results'][0]['glassMinusFlatCPUPoints'] == 0
+    case = root/attempts[-1]['directory']/'pan'
+    save(case/'artifact.json', {'executableSHA256': 'different-artifact'}); seal(case)
+    assert not summarize(root, attempts)['results'][0]['matchedResourceObservations']
+    save(case/'artifact.json', {'executableSHA256': 'synthetic-artifact'})
+    save(case/'rendering-configuration.json', {**valid, 'agentEmojiBadge': 'flat', 'pid': 102}); seal(case)
+    assert not summarize(root, attempts)['results'][0]['matchedResourceObservations']
+    save(case/'rendering-configuration.json', {**valid, 'agentEmojiBadge': 'flat'}); seal(case)
+    manifest = json.loads((case/'manifest.json').read_text())
+    del manifest['files']['rendering-configuration.json']; save(case/'manifest.json', manifest)
+    assert not summarize(root, attempts)['results'][0]['matchedResourceObservations']
+    assert not summarize(root, attempts[:2])['results'][0]['matchedResourceObservations']
+    identity = json.loads((case/'identity.json').read_text())
+    save(case/'identity.json', {**identity, 'collectorSHA256': 'different-collector'}); seal(case)
+    assert not summarize(root, attempts)['results'][0]['matchedResourceObservations']
+    save(case/'identity.json', identity)
+    # A missing declared helper keeps full accounting incomplete without erasing
+    # the independently sampled App interval. Missing the App must withhold it.
+    for attempt in attempts:
+        case = root/attempt['directory']/'pan'
+        plan = json.loads((case/'plan.json').read_text())
+        plan['processRoots'].append({'pid': 102, 'identity': '102:1001', 'role': 'helper'})
+        save(case/'plan.json', plan); seal(case)
+    assert summarize(root, attempts)['results'][0]['matchedResourceObservations']
+    observation = json.loads((case/'observation.json').read_text())
+    observation['resources'][10]['processes'] = []
+    save(case/'observation.json', observation); seal(case)
+    assert not summarize(root, attempts)['results'][0]['matchedResourceObservations']
+    return 17
 
 
 def main():
@@ -404,6 +487,7 @@ def main():
         for control in (False,True):cancellation_replay(base/('disconnect-'+str(control)),control);count+=1
         shutdown_replay(base/'shutdown-gated-stream');count+=1
         ownership_replay();count+=3
+        count += badge_comparison_replay(base/'badge-comparison')
         fixed={'threads':[{'id':str(n)} for n in range(5)]}
         owner={'active':True,'axTruncated':False,'windowID':2,'process':{'identity':'101:1000'},
                'bounds':{'x':50,'y':60,'width':1000,'height':700},'accessibility':[

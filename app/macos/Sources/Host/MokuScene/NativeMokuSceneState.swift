@@ -25,9 +25,10 @@ import MokuseiPluginUI
     public private(set) var inputOpen = false
     public private(set) var inputPinnedOpen = false
     public private(set) var inputAdmissionReady = true
+    private var inputIdentityReady = true
     private let readingPanelMotion: NativeReadingPageMotion?
     public var inputInteractionReady: Bool {
-        inputAdmissionReady && (!readingPanelVisible || readingPanelMotion?.active != true)
+        inputAdmissionReady && inputIdentityReady && (!readingPanelVisible || readingPanelMotion?.active != true)
     }
     public private(set) var inputLeaving = false
     public private(set) var composerGeneration = UUID()
@@ -170,8 +171,12 @@ import MokuseiPluginUI
     /// Draft ownership changes synchronously with navigation. Retiring ink and
     /// editor selection must never cross from Moku or one Thread to another.
     public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool, keepsInputOpen: Bool = false,
-                                   inputAdmissionReady: Bool = true, autofocus: Bool = true) {
+                                   inputAdmissionReady: Bool = true, waitsForHarnessIdentity: Bool = false,
+                                   autofocus: Bool = true) {
+        let identity = ObjectIdentifier(draft)
         inputPinnedOpen = keepsInputOpen
+        if !waitsForHarnessIdentity { inputIdentityReady = true }
+        else if !inputAdmissionReady || composerIdentity != identity { inputIdentityReady = false }
         if self.inputAdmissionReady != inputAdmissionReady {
             self.inputAdmissionReady = inputAdmissionReady
             if !inputAdmissionReady {
@@ -183,7 +188,6 @@ import MokuseiPluginUI
                 inputOpen = false; inputLeaving = false; capsuleSealed = false
             }
         }
-        let identity = ObjectIdentifier(draft)
         guard composerIdentity != identity else { return }
         composerIdentity = identity
         composerAutofocus = autofocus
@@ -194,6 +198,13 @@ import MokuseiPluginUI
         retainDraft(draft)
         setInputOpen(opensInput)
         command?(.position)
+    }
+    func completeInputIdentity(generation: UUID) {
+        // A removed flip may report after route replacement or Dock teardown.
+        // Only the admitted composer visit can release its own expansion.
+        guard composerGeneration == generation, inputAdmissionReady, !inputIdentityReady else { return }
+        inputIdentityReady = true
+        if inputPinnedOpen, !dockCovered, !dockInteractionVisible { setInputOpen(true) }
     }
     func ownsComposer(_ draft: NativeComposerDraft) -> Bool {
         composerIdentity == nil || composerIdentity == ObjectIdentifier(draft)

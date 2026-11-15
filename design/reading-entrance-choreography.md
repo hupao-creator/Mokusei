@@ -3,12 +3,19 @@
 ## Contract
 
 Agent detail, Report and Git entry share a primary reading entrance. The retained
-tag chrome withdraws upward and fades while Moku takes its reading seat; both use
+tag chrome withdraws upward and fades using
 `NativeReadingPageTiming.openingAnimation` (420ms, cubic 0.76/0/0.24/1), matching
-the emphasized panel opening. The existing identity-target preparation may precede
+the emphasized panel opening. Moku's short downward seat shift instead uses the
+native Dock travel host with a gentler 420ms ease-in/ease-out curve, independently
+of main-actor reader preparation after submission. SwiftUI applies the destination
+baseline discretely outside shell layout animation; the compositor compensates
+from the presented position and reports completion for both axes. Resize,
+dragging, inactive scenes and Reduce Motion settle through the same native owner.
+The existing identity-target preparation may precede
 compositor travel; secondary work never estimates its completion with a 420ms timer.
 Only the collapsed Moku position participates in this first stage. Its input
-expansion follows the main document's content readiness.
+expansion follows the main document's content readiness and the Harness identity
+flip described below.
 Tag layout/canvas clearance and Moku's
 bottom-anchored native editor stay intact.
 
@@ -51,14 +58,19 @@ contributes to the workspace's input and Sidecard admission.
 transaction commit and the primary gate, then asks the
 current selection to reveal. If the selected execution Sidecard owns the Dock,
 the compact Moku first travels horizontally into its destination column using a
-620ms-response spring with 0.78 damping, allowing gentle braking and a small
-rebound. Its actual removed completion asks the window to admit this exact route
-visit, then the Agent composer expands for 420ms. Destination revisions and local
+520ms native keyframe curve. One overshoot, 2.5% of the remaining distance and
+capped at 6pt, peaks at 76% of the timeline and settles back at zero velocity.
+Sub-12pt corrections keep their existing monotone curve. Vertical descent has
+separate timing and never inherits the horizontal rebound. The native group's
+actual completion after both axes settle asks the window to admit this exact route
+visit. Once admitted, the compact Dock flips its eyes into the Harness logo for
+420ms using the existing emphasized curve, then expands the Agent composer for
+420ms. Destination revisions and local
 travel identity reject stale completions; a native publication already replacing
 the target takes precedence. The shell's sizing, Sidecard's 380ms fold/layout
 animation and return keep their existing curves.
 An empty registry, folded selection or ineligible execution still commits and
-opens input without a horizontal travel wait. Later card choices keep an already
+releases the identity stage without a horizontal travel wait. Later card choices keep an already
 admitted editor open. There is no elapsed-time opening task.
 Plugin sessions, execution exclusion and user selection revisions keep their
 existing ownership; hiding presentation does not transfer an execution to main.
@@ -75,8 +87,19 @@ Application reading commits release the gate without automatically opening their
 Moku composer. Covering history/interventions keep their surface priority: an
 admitted visit may restore input only through the existing eligible route.
 
-The existing 180ms focus delay starts with input expansion after horizontal travel
-when needed, never with primary travel. Delivery checks the current draft,
+The identity seat retains its current mark until reading admission, keeping eyes
+through initial downward travel and preserving an existing Harness logo during
+an Agent continuation. The flip's actual removed completion releases a separate
+scene input gate; no duration-based phase task is scheduled. A replacement
+composer may reuse a flip to the same mark, but must await its completion rather
+than infer readiness from its target value. A different mark or view teardown
+invalidates the old completion; the composer generation independently rejects
+late delivery. Reduce Motion, inactive scenes and hidden windows settle the mark
+immediately without bypassing reading/content admission. The existing return and
+composer-collapse paths remain independent.
+
+The existing 180ms focus delay starts with input expansion after travel and the
+identity flip when needed, never with primary travel. Delivery checks the current draft,
 composer generation, route visibility and covering state. Reduce Motion skips this delay, including when
 enabled while a focus request waits. Closing before admission, replacing the
 route or releasing the window rejects a late admission; repeated settled entry
@@ -97,6 +120,33 @@ interaction delay while retaining layout/readiness and cancellation ownership.
 It still waits for data and Markdown parsing.
 
 ## Scope and verification limits
+
+The horizontal settling tail is reviewed as part of this entrance sequence. Its
+520ms native keyframe, 2.5%/6pt maximum excursion and sub-12pt monotone guard are
+implemented on this branch's existing travel owner. The supplied recording was
+inspected with headless frame extraction for the monotone arrival that precedes
+this new tail. Headless Debug product build, diff review and local link checks
+passed. No tests or graphical replay were run; the new single-tail feel and rapid
+user-driven reversal still need on-screen acceptance.
+The same-day descent follow-up moves only the reading baseline into the existing
+native Dock travel transform, retaining SwiftUI shell sizing and the sequential
+identity/input gates. Headless Swift syntax parsing, the final Debug `Mokusei`
+product build (25.39s) and diff review passed. No tests were added or run, and no
+graphical replay or visual smoothness acceptance was performed. Return,
+replacement, resize, Reduce Motion and both-axis hit protection were reviewed
+statically. The local commit is handed to the coordinator without pushing.
+
+The 2026-11-14 identity-order follow-up changes only the Dock mark's presentation
+and composer admission. Headless validation passed Swift syntax parsing, the
+Debug `Mokusei` product build, diff review and the new local documentation link.
+The first build was blocked by nested sandbox/cache access; the final build used
+`--disable-sandbox` and a temporary SwiftPM cache. An intervening build stopped
+because review changed a source while it was compiling; a fresh build of the
+final sources passed (30.07s). No tests were added or run, no graphical replay
+or visual acceptance was performed, and no CI was triggered. Static review
+covered return, rapid replacement, in-flight completion reuse, Reduce Motion
+and teardown; it does not certify rendered frames or actual focus/IME behavior.
+This detached commit is handed to the coordinator without pushing or merging.
 
 The Sidecard Dock motion adjustment was inspected against the reported recording:
 around 3.7s, the compact Dock moves right while expanding. The adjustment now

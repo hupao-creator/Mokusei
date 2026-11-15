@@ -644,6 +644,7 @@ public final class NativeWorkspacePresentation {
         state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil,
             inputAdmissionReady: (selected == nil || readingEntranceAdmitted)
                 && (selected?.typeID != "report.document" || (thread != nil && reportInputReady)),
+            waitsForHarnessIdentity: thread != nil,
             autofocus: autofocus)
         if started {
             workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner,

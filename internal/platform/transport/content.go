@@ -286,11 +286,30 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 				c.fail(clientID, subscription, err)
 				return
 			}
-			if len(encodedSnapshot) > limit {
+			if len(encodedSnapshot) <= limit {
+				encoded = encodedSnapshot
+			} else if !delta.Complete && delta.Examined <= maxDeltaOperations && len(snapshot.Value) < limit {
+				// Raw JSON can contain literal HTML characters that grow during
+				// wire encoding. A delta stopped at the smaller raw-byte budget
+				// may still be the only representation that fits. Retry only this
+				// failed-snapshot path, retaining the operation-count safety valve.
+				retry := CreateBoundedJSONDelta(subscription.value, value, DeltaBudget{MaxOperations: maxDeltaOperations, MaxBytes: limit})
+				if retry.Complete {
+					patchEvent := map[string]any{"type": "patch", "subscriptionId": subscription.id, "baseRevision": subscription.revision, "revision": revision, "patch": retry.Operations}
+					encodedPatch, err = client.encodeContent(patchEvent)
+					if err != nil {
+						c.fail(clientID, subscription, err)
+						return
+					}
+					if len(encodedPatch) <= limit {
+						encoded = encodedPatch
+					}
+				}
+			}
+			if len(encoded) == 0 {
 				c.fail(clientID, subscription, model.NewError("CONTENT_TOO_LARGE", "This conversation turn exceeds the content transport limit"))
 				return
 			}
-			encoded = encodedSnapshot
 		}
 	} else {
 		if subscription.ctx.Err() != nil {

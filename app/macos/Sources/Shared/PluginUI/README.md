@@ -2,6 +2,16 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+The timeline's floating Jump to latest control uses a 42pt circular interactive
+regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
+action and localized accessibility label remain owned by the timeline.
+
+Reading author labels use the validated owning Harness's native logo and name
+from the host environment, independently of the recorded model and effort.
+Without that identity they retain the text-only fallback. The shared label is
+used in reading headers and turn footers, and exposes the Harness name to
+accessibility while keeping the logo decorative.
+
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread
 collections opt into it for their full backdrop and emoji badge; the badge keeps
@@ -128,6 +138,12 @@ hidden card tree's viewport unchanged. Return preparation unhides the same host,
 applies the latest environment and viewport, and waits for the existing canvas
 receipt before sampling the destination. Return travel fades the refreshed cards
 back in. No snapshot allocation or CPU rasterization blocks reader admission.
+Freezing closes native hit testing, accessibility and viewport updates immediately;
+the already-transparent parent's native hide is coalesced onto the next main-queue
+turn. Hiding a focused host inside `updateNSView` makes AppKit traverse key views
+and re-enter the SwiftUI geometry graph still being updated. Returning or retiring
+the host invalidates that pending hide. The native Moku landing replay exercises
+this focused-parent boundary, including rapid return and teardown.
 Nested reading stacks keep their existing parent presentation.
 The retained native host consumes the viewport already assigned by the workspace
 and disables its own safe-area regions. Applying the titlebar inset a second time
@@ -163,7 +179,16 @@ contributes readiness, and pending Markdown parsing or loading placeholders
 keep the gate closed. Loaded empty/error states can finish without Markdown.
 Agent loading placeholders keep the gate pending even alongside loaded sibling
 rows and during their visual grace period. The identity-only reader cannot
-admit content. Reduce Motion preserves the same readiness rules. See the
+admit content. Agent main readers fade only their first readable timeline body in with the
+same 200ms ease-out opacity timing as Report referenced readers. Admission
+waits for arrival and content readiness for both running and completed executions;
+loading remains visible while data prepares. Readiness is latched once per
+reader visit, so streaming, retries and history changes do not replay the fade.
+The timeline toolbar (including title, emoji and header controls), history rail
+and scroll container stay visible; the title/emoji handoff never fades again.
+The transparent preparation frame excludes hit testing and accessibility.
+The fade changes only opacity and preserves layout and scroll ownership. Reduce Motion and inactive scenes settle the fade
+immediately while preserving readiness rules. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
 
@@ -390,7 +415,11 @@ initial placement and follows content/viewport geometry through scoped row loadi
 projection and Markdown layout. Native scrolling or reading scroll controls take
 over from automatic following; later content cannot pull an upward reader back.
 Returning to the running document or choosing “jump to latest” enables following
-again. Explicit reading visits retain position ownership while their anchors
+again. The explicit jump animates to the bottom unless Reduce Motion is enabled;
+ordinary following and initial positioning remain immediate. Growth during a jump
+is resolved at its end: the animation uses a fixed offset before restoring the
+bottom edge anchor. A new manual scroll takes ownership; hiding the reader or
+enabling Reduce Motion invalidates the old completion. Explicit reading visits retain position ownership while their anchors
 resolve, including when an inline historical execution stops pausing follow.
 Generic execution changes cannot supersede that visit. This does not change
 reading-stack motion or projection/resource ownership.
@@ -481,7 +510,14 @@ formatting and is preserved by native partial copies. Selection, Select All and
 copy belong to the active paragraph, code block or table cell; dragging does not
 join selections across blocks. The document context menu's Copy Markdown action
 still copies the complete source. List marker widths and table inline-code padding participate in actual
-layout measurements. Footnote returns reveal references through nested table and
+layout measurements. Inline code keeps its 5pt edge padding with the adjacent
+code text at word breaks; long code still wraps using native TextKit rules.
+Its 3pt rounded background is painted separately for each visual line segment,
+bounded by the actual code glyphs rather than selection rectangles extending to
+the line edge. Padding-only fragments in extremely narrow containers paint no
+background. Characters, link attributes and native selection remain in the text
+storage, and Copy continues to omit the synthetic padding cells.
+Footnote returns reveal references through nested table and
 conversation viewports. Run the [Markdown native replay](../../../../../tools/verification/reading-presentation/README.md#markdown-reading-regressions)
 for production rendering, selection, copying and navigation fixtures.
 
@@ -541,6 +577,8 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
 conversation's turn index as a left-hand TOC. The selected mark is longer and
 brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
+The answer wraps naturally to at most three lines, with the title and timestamp
+remaining visible; shorter answers do not reserve unused lines.
 Restoring focus after Back does not reopen the preview. The mark and preview share
 a cancellable 100ms pointer handoff, including the gap between them; leaving both,
 unmounting or deactivating the scene retires pointer previews. The
@@ -750,9 +788,16 @@ emoji use static palette fills, and the in-progress plan row uses the accent-sof
 surface without a glass container or effect. The 44pt emoji badge uses a static
 opaque palette fill with no added border: adaptive accent-soft green when
 completed, neutral surface-strong otherwise, including under Reduce Transparency.
-It contains no Liquid Glass effect, avoiding per-card spatial glass updates when
+By default it contains no Liquid Glass effect, avoiding per-card spatial glass updates when
 panning Overview. Overview card shells remain neutral after completion. The emoji
 stays 21pt, with the existing terminal mark preserving a non-color status cue.
+The explicit isolated Overview benchmark can supply
+`agentThreadEmojiUsesLiquidGlass` to `HarnessThreadCard` to compare the emoji
+backdrop with untinted regular Liquid Glass. Only its emoji-bearing default
+provider badge consumes the override; terminal marks, custom provider views,
+clouds, plan rows and Report/collection badges retain their own materials.
+The shared glass helper still respects Reduce Transparency. This is a launch-scoped
+experiment, not a persisted preference; ordinary launches stay flat.
 Agent and Report cards share its upper-right placement and title clearance.
 Report uses the completed badge's accent-soft background without an execution
 terminal mark; Agent execution status and its terminal mark remain independent.
@@ -1556,10 +1601,13 @@ reserved rail, alongside a retained Browser launcher when links have been opened
 the fold, including Browser splits and narrow-window stacking.
 
 The host scopes `threadRelatedExecution` to Report's referenced execution reader.
-Completed references keep the exact execution title (instruction, then timestamp
-fallback), the Harness's thread emoji, final reply and ordinary non-work facts,
-while hiding execution work and its process summary. Active references show the
-shared live process summary again. After an accepted send from a Super Thread,
+Running, waiting and completed references keep the exact execution title
+(instruction, then timestamp fallback) and the Harness's thread emoji. The
+heading waits for the selected row rather than borrowing the latest catalog
+title while loading; ordinary Agent execution Sidecards keep their heading policy.
+Completed references keep the final reply and ordinary non-work facts while
+hiding execution work and its process summary. Active references show the
+shared live process summary. After an accepted send from a Super Thread,
 its active referenced execution shows the submitted text and a random emoji.
 The Report visit retains that emoji by exact Thread/execution identity, including
 same-execution steering, folding and catalog refresh. Later accepted sends to the

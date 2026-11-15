@@ -330,7 +330,7 @@ func TestPublishUsesSnapshotWhenPatchWouldExceedSmallFrame(t *testing.T) {
 	}
 }
 
-func TestPublishRejectsWhenNeitherRepresentationFitsSmallFrame(t *testing.T) {
+func TestPublishRejectsOnlyWhenNeitherRepresentationFitsSmallFrame(t *testing.T) {
 	const limit = 160
 	before := map[string]any{"a": 0}
 	after := map[string]any{"a": strings.Repeat("x", 100)}
@@ -361,6 +361,41 @@ func TestPublishRejectsWhenNeitherRepresentationFitsSmallFrame(t *testing.T) {
 	if fixture.server.clients["client"]["row"] != nil {
 		t.Fatal("unfittable subscription was not retired")
 	}
+
+	// Native projections need not escape HTML. Re-encoding a small raw value
+	// can grow its snapshot past the frame while a patch still fits; the raw
+	// byte budget must not turn that valid update into CONTENT_TOO_LARGE.
+	raw := func(bodySize, status int) json.RawMessage {
+		value := map[string]any{"body": strings.Repeat("<", bodySize)}
+		for index := range 8 {
+			value[fmt.Sprintf("k%d", index)] = status
+		}
+		var buffer bytes.Buffer
+		encoder := json.NewEncoder(&buffer)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(value); err != nil {
+			t.Fatal(err)
+		}
+		return buffer.Bytes()
+	}
+	fixture = newContentPublishRawFixture(t, raw(139, 0), 1024)
+	if first := fixture.publish(t); first.Event.Type != "snapshot" || first.Event.Revision != 1 {
+		t.Fatalf("initial escaped snapshot did not fit: %+v", first.Event)
+	}
+	fixture.setRaw(t, raw(140, 1))
+	update := fixture.publish(t)
+	if update.Event.Type != "patch" || update.Event.BaseRevision != 1 || update.Event.Revision != 2 || len(update.Event.Patch) != 9 {
+		t.Fatalf("fitting patch was rejected after the raw-byte budget stopped refinement: %+v", update.Event)
+	}
+	if fixture.server.clients["client"]["row"] == nil {
+		t.Fatal("fitting patch retired the subscription")
+	}
+	fixture.setRaw(t, bytes.Replace(raw(140, 1), []byte(`"k0":1`), []byte(`"k0":2`), 1))
+	next := fixture.publish(t)
+	if next.Event.Type != "patch" || next.Event.BaseRevision != 2 || next.Event.Revision != 3 || len(next.Event.Patch) != 1 {
+		t.Fatalf("patch after the frame-budget retry broke its revision chain: %+v", next.Event)
+	}
+	fixture.requireNoEvent(t)
 }
 
 func TestPublishRetainsRawProjectionHardLimitBeforeDiff(t *testing.T) {

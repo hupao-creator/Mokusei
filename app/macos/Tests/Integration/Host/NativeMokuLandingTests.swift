@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Observation
 import SwiftUI
 import ScreenCaptureKit
 import Testing
@@ -33,6 +34,23 @@ extension RuntimeClient {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMokuLandingTests {
+    @MainActor @Observable fileprivate final class ParentFocusState {
+        var frozen = false
+        var text = "Retained Overview input"
+    }
+
+    private struct ParentFocusSurface: View {
+        let state: ParentFocusState
+        var body: some View {
+            NativeReadingParentSurface(frozen: state.frozen, content:
+                TextField("Input", text: Binding(get: { state.text }, set: { state.text = $0 }))
+                    .padding())
+                .disabled(state.frozen)
+                .accessibilityHidden(state.frozen)
+                .opacity(state.frozen ? 0 : 1)
+        }
+    }
+
     @MainActor private final class Fixture {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let workspace: NativeWorkspaceModel
@@ -368,6 +386,7 @@ struct NativeMokuLandingTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
         "Requires the isolated AppKit event loop for native landing input: python3 tools/verification/reading-presentation/run.py --moku-landing"))
     func realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer() async throws {
+        try await focusedParentHideDoesNotReenterSwiftUI()
         try await withFixture { fixture in
             fixture.mount(fullWorkspace: true)
             #expect(!fixture.moku.landing && !fixture.scene.inputOpen)
@@ -700,6 +719,57 @@ struct NativeMokuLandingTests {
                 try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
             }
         }
+    }
+
+    private func focusedParentHideDoesNotReenterSwiftUI() async throws {
+        // The native launcher already captures stderr in a regular file. Read
+        // only this fixture's appended bytes; never replace the app descriptor.
+        var path = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        try #require(fcntl(STDERR_FILENO, F_GETPATH, &path) == 0)
+        let filePath = String(decoding: path.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        let log = try FileHandle(forReadingFrom: URL(fileURLWithPath: filePath))
+        defer { try? log.close() }
+        _ = try log.seekToEnd()
+        let state = ParentFocusState()
+        let window = SwiftUIReplay.window(ParentFocusSurface(state: state), width: 600, height: 300)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        @MainActor func parentView(_ view: NSView) -> NativeReadingParentView? {
+            if let parent = view as? NativeReadingParentView { return parent }
+            return view.subviews.lazy.compactMap { parentView($0) }.first
+        }
+        try await SwiftUIReplay.wait { parentView(root) != nil && SwiftUIReplay.textField(in: root) != nil }
+        let parent = try #require(parentView(root))
+        let host = try #require(parent.subviews.compactMap { $0 as? NSHostingView<AnyView> }.first)
+        for _ in 0..<3 {
+            let field = try #require(SwiftUIReplay.textField(in: root))
+            try #require(window.makeFirstResponder(field))
+            let editor = try #require(field.currentEditor())
+            try #require(editor === window.firstResponder)
+            state.frozen = true
+            try await SwiftUIReplay.wait { host.isHidden }
+            #expect(parent.hitTest(.init(x: 10, y: 10)) == nil)
+            #expect(parent.accessibilityChildren()?.isEmpty == true)
+            state.frozen = false
+            try await SwiftUIReplay.wait { !host.isHidden }
+            #expect(SwiftUIReplay.textField(in: root) === field && state.text == "Retained Overview input")
+        }
+        // Returning or dismantling before the queued hide must not let an old
+        // request hide the current/retired native host on the next turn.
+        parent.update(content: AnyView(Text("Pending")), frozen: true)
+        #expect(parent.hitTest(.init(x: 10, y: 10)) == nil)
+        #expect(parent.accessibilityChildren()?.isEmpty == true)
+        parent.update(content: AnyView(Text("Returned")), frozen: false)
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(!host.isHidden)
+        parent.update(content: AnyView(Text("Pending")), frozen: true)
+        parent.retire()
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(!host.isHidden)
+        let output = String(decoding: try log.readToEnd() ?? Data(), as: UTF8.self)
+        #expect(!output.contains("AttributeGraph: cycle detected"),
+                "Hiding a focused parent must not re-enter SwiftUI through AppKit key-view traversal")
+        print("READING_PARENT_FOCUS_FREEZE_CONFIRMED")
     }
 
     @Test func pendingShellAndFailureStayCenteredUntilExplicitDispatchSuccess() async throws {

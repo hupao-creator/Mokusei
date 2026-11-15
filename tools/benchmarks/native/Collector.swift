@@ -319,7 +319,7 @@ final class Sampler: @unchecked Sendable {
         guard let command = args.first else { throw fail("command required") }
         let counts = ["launch": 2, "startup": 3, "quit": 3, "probe": 1, "process": 2,
                       "inspect": 2, "prepare": 2, "hit-test": 4, "capture": 3, "ocr": 2, "input": 2, "collect": 3]
-        guard command == "tree" ? args.count > 1 : counts[command] == args.count else { throw fail("invalid command arguments") }
+        guard command == "tree" ? args.count > 1 : (counts[command] == args.count || (command == "prepare" && args.count == 3)) else { throw fail("invalid command arguments") }
         switch command {
         case "launch":
             let config = try launchConfiguration(readJSON(args[1]))
@@ -342,7 +342,12 @@ final class Sampler: @unchecked Sendable {
                       "accessibility": AXIsProcessTrusted(), "capture": CGPreflightScreenCaptureAccess(),
                       "input": CGPreflightPostEventAccess(), "pid": ProcessInfo.processInfo.processIdentifier,
                       "os": ProcessInfo.processInfo.operatingSystemVersionString,
-                      "screens": await MainActor.run { NSScreen.screens.map { ["width": $0.frame.width, "height": $0.frame.height, "scale": $0.backingScaleFactor] } }])
+                      "screens": await MainActor.run { NSScreen.screens.map { screen -> Record in
+                          let id = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+                          return ["id": id, "x": screen.frame.minX, "y": screen.frame.minY,
+                              "width": screen.frame.width, "height": screen.frame.height, "scale": screen.backingScaleFactor,
+                              "maximumFPS": screen.maximumFramesPerSecond, "modeHz": CGDisplayCopyDisplayMode(id)?.refreshRate ?? 0]
+                      } }])
         case "tree":
             var roots = Set(args.dropFirst().compactMap(Int32.init))
             var pids = [Int32](repeating: 0, count: 32768)
@@ -387,12 +392,24 @@ final class Sampler: @unchecked Sendable {
             var expectedBounds: CGRect?
             if command == "prepare" {
                 guard AXIsProcessTrusted(), CGPreflightPostEventAccess() else { throw fail("input/accessibility permission missing") }
+                var requested: CGRect?
+                if args.count == 3 {
+                    let bounds = try readJSON(args[2])
+                    func coordinate(_ key: String, _ limits: ClosedRange<Double>) throws -> Double {
+                        guard let value = bounds[key] as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(),
+                              value.doubleValue.isFinite, limits.contains(value.doubleValue) else { throw fail("invalid requested window " + key) }
+                        return value.doubleValue
+                    }
+                    requested = try CGRect(x: coordinate("x", -100_000...100_000), y: coordinate("y", -100_000...100_000),
+                        width: coordinate("width", 100...16384), height: coordinate("height", 100...16384))
+                }
                 running.activate(options: [.activateAllWindows])
                 let app = AXUIElementCreateApplication(pid)
                 if let first = (ax(app, kAXWindowsAttribute) as? [AXUIElement])?.first {
                     var point = CGPoint(x: 50, y: 60)
                     let screen = await MainActor.run { NSScreen.screens.first?.visibleFrame ?? .zero }
                     var size = CGSize(width: min(1280, screen.width - 100), height: min(820, screen.height - 100))
+                    if let requested { point = requested.origin; size = requested.size }
                     expectedBounds = CGRect(origin: point, size: size)
                     AXUIElementSetAttributeValue(first, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &point)!)
                     AXUIElementSetAttributeValue(first, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)

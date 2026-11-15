@@ -65,6 +65,14 @@ both representations fit, the smaller event wins; when only one fits, the
 fitting representation is used. When neither fits, the update fails with
 `CONTENT_TOO_LARGE`.
 
+The raw projection's byte length is an initial refinement budget, not proof
+that a replacement snapshot will fit: wire encoding can expand literal HTML
+characters. If that budget stopped the delta and the encoded snapshot exceeds
+the frame, publication retries once with the full frame byte budget, retaining
+the operation-count safety valve. A fitting patch keeps the subscription alive;
+this exceptional retry does not change the ordinary small-patch or dense-update
+paths.
+
 A raw projection (`snapshot.Value`) larger than the content frame remains a hard
 failure before diffing, even if a theoretical patch could be smaller. This is
 the separate oversized-authoritative-snapshot boundary, not an incremental
