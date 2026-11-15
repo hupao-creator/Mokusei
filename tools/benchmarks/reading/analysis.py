@@ -140,8 +140,62 @@ def pixels(root, plan, observation, frames, times, result, mark):
         else:
             mark("reader stopped making progress during supplied scroll input", product="overloaded")
     result["scenarioEvidence"] = successful
+    if plan["scenario"] == "reading.active-open":
+        active_opening(plan, observation, frames, rows, onset, result, mark)
     if plan["scenario"] == "reading.output-scroll":
         source(root, plan, frames, times, result, mark)
+
+
+def active_opening(plan, observation, frames, main_rows, onset, result, mark):
+    expected = set(plan["reading"]["activeExecution"]["corpus"]["anchors"])
+    rows = []
+    for frame, main in zip(frames, main_rows):
+        matches = [item for item in frame["texts"] if item["text"] in expected
+                   and item["confidence"] >= .5 and not item.get("edgeClipped", False)]
+        if len({item["text"] for item in matches}) != len(matches):
+            mark("ambiguous active Sidecard body anchor", "incomplete")
+            result["scenarioEvidence"] = False
+        rows.append({**main, "side": {item["text"]: item for item in matches}})
+    if any(len(row["side"]) >= 2 for row in rows if row["at"] <= onset):
+        mark("active Sidecard body was already readable before entry", "invalid")
+        result["scenarioEvidence"] = False
+    first = next((row for row in rows if row["request"] >= onset and len(row["side"]) >= 2), None)
+
+    def interval(row):
+        if row is None:
+            return None
+        previous = next((item for item in reversed(rows) if item["at"] < row["request"]), None)
+        return {"lower": max(0, (previous["request"] - onset) / 1e9) if previous else 0,
+                "upper": (row["at"] - onset) / 1e9}
+
+    # Compare only the quiet entry interval. Each column needs independent
+    # business anchors; a title, empty shell or a neighboring reply cannot pass.
+    scroll_start = min(event["postedNS"] for event in observation["inputs"] if event["kind"] == "scroll")
+    quiet = [row for row in rows if row["request"] >= onset and row["at"] < scroll_start]
+    stable = []
+    if quiet:
+        last = quiet[-1]
+        for row in reversed(quiet):
+            same = True
+            for column in ("anchors", "side"):
+                common = row[column].keys() & last[column].keys()
+                if len(common) < 2 or any(abs(row[column][key][axis] / row["scale"]
+                    - last[column][key][axis] / last["scale"]) > 2
+                    for key in common for axis in ("x", "y", "width", "height")):
+                    same = False
+            if not same or (stable and (stable[-1]["request"] - row["at"]) / 1e9 > plan["maximumCaptureGapSeconds"]):
+                break
+            stable.append(row)
+    settled = stable[-1] if len(stable) >= 3 and (stable[0]["request"] - stable[-1]["at"]) >= 400_000_000 else None
+    result["metrics"]["reading"]["activeOpening"] = {
+        "firstSidecardContentSeconds": interval(first), "bodyAnchorSettledSeconds": interval(settled),
+        "stableObservationSeconds": (stable[0]["at"] - stable[-1]["request"]) / 1e9 if settled else None,
+        "positionTolerancePoints": 2, "minimumStableSeconds": .4,
+        "endpoint": "two body anchors in each column, stable through the remaining quiet interval",
+        "certifiesComposerReadiness": False, "captureCadenceIsDisplayFPS": False}
+    if first is None or settled is None:
+        mark("active Sidecard content or stable body geometry not observed", "incomplete")
+        result["scenarioEvidence"] = False
 
 
 def source(root, plan, frames, times, result, mark):
@@ -197,7 +251,7 @@ def source(root, plan, frames, times, result, mark):
 
 
 def outcome(root, plan, observed, mark):
-    from reading.corpus import document
+    from reading.corpus import document, active_reply
     from reading.public import verify_reply
     reading = plan["reading"]
     fixture = load(root / "reading-fixture.json")
@@ -223,6 +277,22 @@ def outcome(root, plan, observed, mark):
         mark("reader outcome does not match its raw public reply", "invalid")
     if observed.get("semanticAfter", {}).get("page") != "thread":
         mark("final public route is not the reader", product="wrong-result")
+    if plan["scenario"] == "reading.active-open":
+        active_id = reading["activeExecution"]["executionId"]
+        before = load(root / "active-prepared-content.json")
+        after = load(root / "active-observed-content.json")
+        verify_reply(before, active_id, active_reply(), status="running")
+        verify_reply(after, active_id, active_reply(), status="running")
+        source = load(root / "active-source.json")
+        tail = load(root / "observation.json")["boundaries"]["tailEnd"]
+        messages = source["messages"]
+        expected = active_reply().manifest()
+        if (source.get("clock") != CLOCK or source.get("corpus") != expected or len(messages) != 1
+                or messages[0].get("bytes") != expected["bytes"] or messages[0].get("sha256") != expected["sha256"]
+                or not messages[0]["sentNS"] <= before["atNS"] < plan["startNS"]
+                or not tail <= after["atNS"] <= source["releasedNS"]
+                or source.get("complete") is not True or source.get("failures")):
+            raise ValueError("active opening did not retain one settled reply and running execution across timing")
 
 
 def native_motion_truth(directory, report):
