@@ -74,12 +74,9 @@ struct NativePiReaderDetailTests {
             .environment(\.threadAgentDetail, false)
             .environment(\.nativeReadingInteractions, controls)
             .environment(\.nativeReadingInteractionVisit, visit)
-        let host = NSHostingView(rootView: root.frame(width: 640, height: 480))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
+        let window = SwiftUIReplay.window(root, width: 640, height: 480)
+        defer { window.close() }
+        let host = try #require(window.contentView)
 
         func activate(role: String) async throws {
             let deadline = ContinuousClock.now + .seconds(3)

@@ -39,12 +39,9 @@ struct NativeHarnessDetailResourceTests {
         }
         .environment(\.threadAgentDetail, false)
 
-        let host = NSHostingView(rootView: root.frame(width: 420, height: 240))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 240),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
+        let window = SwiftUIReplay.window(root, width: 420, height: 240)
+        defer { window.close() }
+        let host = try #require(window.contentView)
 
         for _ in 0..<100 {
             host.layoutSubtreeIfNeeded()
@@ -91,12 +88,9 @@ struct NativeHarnessDetailResourceTests {
                                       slot: "detail", context: context, gate: gate)
             }
         }
-        let host = NSHostingView(rootView: root.frame(width: 420, height: 300))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 300),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
+        let window = SwiftUIReplay.window(root, width: 420, height: 300)
+        defer { window.close() }
+        let host = try #require(window.contentView)
 
         for _ in 0..<30 {
             host.layoutSubtreeIfNeeded()
@@ -158,12 +152,9 @@ struct NativeHarnessDetailResourceTests {
                                       slot: "detail", context: context, gate: gate)
             }
         }
-        let host = NSHostingView(rootView: root.frame(width: 420, height: 300))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 300),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
+        let window = SwiftUIReplay.window(root, width: 420, height: 300)
+        defer { window.close() }
+        let host = try #require(window.contentView)
 
         for _ in 0..<30 {
             host.layoutSubtreeIfNeeded()
@@ -320,12 +311,9 @@ struct NativeHarnessDetailResourceTests {
             },
             onIndexChange: { _ in })
         let root = HarnessDetailList(directory: directory, context: context)
-        let host = NSHostingView(rootView: root.frame(width: 420, height: 240))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 240),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
+        let window = SwiftUIReplay.window(root, width: 420, height: 240)
+        defer { window.close() }
+        let host = try #require(window.contentView)
 
         try await SwiftUIReplay.wait {
             host.layoutSubtreeIfNeeded()
@@ -376,12 +364,9 @@ struct NativeHarnessDetailResourceTests {
         let body = JSONValue.object(["slot": .text("detail"), "format": .text("text"), "length": .integer(4)])
         let root = HarnessDetailBodyView(execution: "execution", contentID: contentID, item: "row",
                                          bodyData: body, slot: "detail", context: context, gate: gate)
-        let host = NSHostingView(rootView: root.frame(width: 420, height: 200))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 200),
-                              styleMask: [.borderless], backing: .buffered, defer: false)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
+        let window = SwiftUIReplay.window(root, width: 420, height: 200)
+        defer { window.close() }
+        let host = try #require(window.contentView)
 
         for _ in 0..<100 {
             host.layoutSubtreeIfNeeded()
