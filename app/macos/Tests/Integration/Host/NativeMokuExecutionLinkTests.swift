@@ -914,9 +914,19 @@ struct NativeMokuExecutionLinkTests {
         try await requireEveryReplyBlock("STREAMING CONTENT", count: 200, fixture: fixture, in: root,
                                         paragraphSuffix: paragraphSuffix)
         let secondInput = (0..<220).map { "NEW STREAMING CONTENT \($0)" }.joined(separator: "\n\n")
-        try fixture.update(status: .running, text: firstInput, messageStatus: "complete", pendingText: secondInput)
+        let revisedFirstInput = firstInput.replacingOccurrences(of: "STREAMING CONTENT 0",
+            with: "STREAMING CONTENT 0 — second revision admitted")
+        try fixture.update(status: .running, text: revisedFirstInput, messageStatus: "complete", pendingText: secondInput)
         record("second-source", inputBytes: secondInput.utf8.count)
-        try await Task.sleep(for: .milliseconds(200))
+        // The previous top offset can already satisfy this predicate before
+        // the asynchronous decoder admits the update. The settled reply marker
+        // proves this exact payload reached the mounted production reader.
+        try await SwiftUIReplay.wait {
+            guard let value = fixture.scroll?["value"],
+                  let top = value["top"]?.numberValue else { return false }
+            return abs(top) < 5 && value["following"] == .bool(false)
+                && textViews(root).contains { $0.string.contains("second revision admitted") }
+        }
         record("second-stream", inputBytes: secondInput.utf8.count)
         #expect(!textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") })
         #expect(textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
@@ -971,7 +981,7 @@ struct NativeMokuExecutionLinkTests {
             record("jump-latest")
             // Deliver in this display callback: resuming an async waiter could
             // otherwise happen after the animated transition has already ended.
-            do { try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput) }
+            do { try fixture.update(status: .completed, text: revisedFirstInput, successor: true, pendingText: secondInput) }
             catch { successorError = error }
             successorDelivered = true
             return false
