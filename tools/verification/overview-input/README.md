@@ -81,7 +81,7 @@ for example:
 
 ```sh
 MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY=1 xcrun swift test --package-path app/macos \
-  --no-parallel --filter 'NativeOverview|NativeReadingPagePresentation|NativeMoku|NativeComposer|SwiftUIOverviewInteraction|NativeHTMLGeometry|NativePerformanceCache|NativeWindowControlPlacement'
+  --no-parallel --filter 'NativeOverview|NativeReadingPageHeadless|NativeReadingRouteLifecycle|NativeMoku|NativeComposer|SwiftUIOverviewInteraction|NativeHTMLGeometry|NativePerformanceCache|NativeWindowControlPlacement'
 ./scripts/go.sh run -race ./tools/verification/runtime-helpers --swift-shutdown
 ```
 

@@ -45,7 +45,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "FAIL transport replay:", err)
 		os.Exit(1)
 	}
-	fmt.Println("PASS transport replay: profile ownership/privacy; HTTP authorization and bounded admission; multi-client content/UTF-16 deltas; overview lifecycle; durable command recovery; protected shutdown")
+	fmt.Println("PASS transport replay: profile ownership/privacy; HTTP authorization and bounded admission; multi-client content/UTF-16 deltas and dense-update snapshot fallback; overview lifecycle; durable command recovery; protected shutdown")
 }
 
 func run() (failure error) {
@@ -66,6 +66,7 @@ func run() (failure error) {
 	defer func() { failure = errors.Join(failure, owner.Release()) }()
 	verifyProfile(p, owner, directory)
 	verifyContentWorkers(ctx, directory)
+	verifyContentBudget(ctx, directory)
 	verifyFileWorkerShutdown(ctx, directory)
 	verifyCommandShutdown(ctx, directory)
 	host := newMockHost()

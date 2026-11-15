@@ -758,7 +758,7 @@ func (h *Handle) CompletedReply(id string) (string, bool) {
 	if t == nil || t.Status != "completed" {
 		return "", false
 	}
-	return str(t.LastAssistantMessage["text"]), true
+	return t.lastAssistantText(), true
 }
 func (h *Handle) Read(ctx context.Context, question string) (string, error) {
 	question = strings.TrimSpace(question)
@@ -1008,9 +1008,9 @@ func runSteerablePrompt(ctx context.Context, options TransportOptions, prompt st
 		if result.Outcome == "interrupted" {
 			return "", false, context.Canceled
 		}
-		text := strings.TrimSpace(turn.Text)
+		text := strings.TrimSpace(turn.assistantText())
 		if steering != nil {
-			text = strings.TrimSpace(nonempty(str(turn.LastAssistantMessage["text"]), text))
+			text = strings.TrimSpace(nonempty(turn.lastAssistantText(), text))
 		}
 		if structured != "" {
 			text = strings.TrimSpace(structured)

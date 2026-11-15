@@ -1,8 +1,6 @@
 package opencode
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -28,42 +26,36 @@ const (
 const rendererTruncationSuffix = "\n\n[Truncated for transport; full content remains in the saved conversation.]"
 
 type rendererLimits struct {
-	text, tool, short          int
-	parts                      int
-	messages, messageHead      int
-	executions, interactions   int
-	actions, questions, fields int
-	options                    int
-	nonemptyBudget             int
-	dropOptional               bool
+	text, tool, short        int
+	parts                    int
+	messages, messageHead    int
+	executions, interactions int
+	nonemptyBudget           int
+	dropOptional             bool
 }
 
 var rendererStages = []rendererLimits{
 	{
 		text: 512 << 10, tool: 256 << 10, short: 16 << 10,
 		parts: 256, executions: 1000, interactions: 200,
-		actions: 64, questions: 64, fields: 64, options: 64,
 		nonemptyBudget: 2 << 20,
 	},
 	{
 		text: 8 << 10, tool: 8 << 10, short: 2 << 10,
 		parts: 16, messages: 2000, messageHead: 100,
 		executions: 200, interactions: 32,
-		actions: 16, questions: 16, fields: 32, options: 32,
 		nonemptyBudget: 512 << 10, dropOptional: true,
 	},
 	{
 		text: 2 << 10, tool: 2 << 10, short: 512,
 		parts: 8, messages: 500, messageHead: 20,
 		executions: 100, interactions: 8,
-		actions: 8, questions: 8, fields: 16, options: 16,
 		nonemptyBudget: 128 << 10, dropOptional: true,
 	},
 	{
 		text: 512, tool: 512, short: 256,
 		parts: 4, messages: 10,
 		executions: 1, interactions: 1,
-		actions: 4, questions: 4, fields: 4, options: 4,
 		nonemptyBudget: 16 << 10, dropOptional: true,
 	},
 }
@@ -85,6 +77,9 @@ func rendererMarshalProjection(value Object) (json.RawMessage, error) {
 		if len(encoded) <= rendererWireBudget {
 			return encoded, nil
 		}
+	}
+	if len(rendererPendingInteractionIDs(state)) > 0 {
+		return nil, fmt.Errorf("OpenCode pending interaction exceeds the renderer transport budget without changing its response contract")
 	}
 	// The envelope itself is checked again after every stage. This final shape
 	// is deliberately tiny and valid even when every retained field is hostile.
@@ -117,7 +112,14 @@ func rendererApplyLimits(value, state Object, originalNonempty []Object, limits 
 	rendererBoundTopInteractions(state, limits)
 	rendererBoundExecutions(state, limits)
 	rendererBoundTopLevel(state, limits)
-	rendererClampTree(state, limits.text)
+	// Interaction values are a response contract, not display text. A generic
+	// tree clamp would rewrite form keys, options, defaults and conditions after
+	// the paired native/public representations have been bounded.
+	for key, item := range state {
+		if key != "interactions" && key != "executions" {
+			state[key] = rendererClampTree(item, limits.text)
+		}
+	}
 	rendererFilterNonempty(value, state, originalNonempty, limits.nonemptyBudget)
 }
 
@@ -417,11 +419,9 @@ func rendererBoundExecution(execution Object, limits rendererLimits, pending map
 			bound = bound[:limits.interactions]
 		}
 		if len(bound) == 0 {
-			status = "failed"
-			next["status"] = status
-			next["finishedAt"] = started
-			next["error"] = rendererTruncationNote
-			break
+			// An omitted interaction cannot turn the authoritative execution
+			// into a synthetic failure. Omit this row with the surface notice.
+			return nil, false
 		}
 		next["interactions"] = bound
 	case "failed":
@@ -457,15 +457,12 @@ func rendererBoundPublicInteraction(interaction Object, limits rendererLimits) (
 	next := Object{
 		"id":    id,
 		"kind":  kind,
-		"title": rendererNonblankText(interaction["title"], limits.short, "OpenCode interaction"),
+		"title": rendererNonblankText(interaction["title"], min(limits.short, 2_000), "OpenCode interaction"),
 	}
 	if value, exists := interaction["description"]; exists {
 		next["description"] = rendererBoundText(value, limits.short)
 	}
 	actions := rendererObjects(interaction["actions"])
-	if len(actions) > limits.actions {
-		actions = actions[:limits.actions]
-	}
 	boundActions := make([]Object, 0, len(actions))
 	for _, action := range actions {
 		id, ok := rendererPublicIdentity(rendererText(action["id"]))
@@ -474,22 +471,19 @@ func rendererBoundPublicInteraction(interaction Object, limits rendererLimits) (
 		}
 		intent := rendererText(action["intent"])
 		if !rendererOneOf(intent, "allow", "deny", "submit", "cancel") {
-			intent = "allow"
+			return nil, false
 		}
 		boundActions = append(boundActions, Object{
 			"id":     id,
 			"intent": intent,
-			"label":  rendererNonblankText(action["label"], limits.short, "Allow"),
+			"label":  rendererNonblankText(action["label"], min(limits.short, 2_000), "Action"),
 		})
 	}
 	if len(boundActions) == 0 {
-		boundActions = append(boundActions, Object{"id": "allow", "intent": "allow", "label": "Allow"})
+		return nil, false
 	}
 	next["actions"] = boundActions
 	questions := rendererObjects(interaction["questions"])
-	if len(questions) > limits.questions {
-		questions = questions[:limits.questions]
-	}
 	boundQuestions := make([]Object, 0, len(questions))
 	for _, question := range questions {
 		if value, ok := rendererBoundQuestion(question, limits); ok {
@@ -513,26 +507,23 @@ func rendererBoundQuestion(question Object, limits rendererLimits) (Object, bool
 		"secret":     rendererBool(question["secret"]),
 	}
 	if value, exists := question["header"]; exists {
-		next["header"] = rendererBoundText(value, limits.short)
+		next["header"] = rendererBoundText(value, min(limits.short, 2_000))
 	}
 	if value, exists := question["answerFormat"]; exists {
 		if format := rendererText(value); format == "json-object" {
 			next["answerFormat"] = format
 		}
 	}
-	if value, exists := question["form"]; exists && rendererEncodedSize(value) <= limits.short*4 {
+	if value, exists := question["form"]; exists {
 		next["form"] = value
 	}
 	options := rendererObjects(question["options"])
-	if len(options) > limits.options {
-		options = options[:limits.options]
-	}
 	boundOptions := make([]Object, 0, len(options))
-	for index, option := range options {
+	for _, option := range options {
 		boundOptions = append(boundOptions, Object{
-			"value":       rendererOptionValue(option["value"], index),
+			"value":       option["value"],
 			"label":       rendererNonblankText(option["label"], 2_000, "Option"),
-			"description": rendererOptionalText(option["description"], limits.short),
+			"description": rendererOptionalText(option["description"], min(limits.short, 10_000)),
 		})
 	}
 	next["options"] = boundOptions
@@ -598,17 +589,18 @@ func rendererBoundNativeInteraction(interaction Object, limits rendererLimits) (
 		"status":      status,
 	}
 	if kind == "permission" {
-		next["action"] = rendererNonblankText(interaction["action"], limits.short, "allow")
-		next["resources"] = rendererBoundStringArray(interaction["resources"], limits.actions, limits.short)
-		next["save"] = rendererBoundStringArray(interaction["save"], limits.actions, limits.short)
+		next["action"] = interaction["action"]
+		next["resources"] = []string{}
+		for _, key := range []string{"resources", "save"} {
+			if value, exists := interaction[key]; exists {
+				next[key] = value
+			}
+		}
 		if value, exists := interaction["description"]; exists {
 			next["description"] = rendererBoundText(value, limits.short)
 		}
 	} else {
 		fields := rendererObjects(interaction["fields"])
-		if len(fields) > limits.fields {
-			fields = fields[:limits.fields]
-		}
 		boundFields := make([]Object, 0, len(fields))
 		for _, field := range fields {
 			if value, ok := rendererBoundFormField(field, limits); ok {
@@ -627,102 +619,37 @@ func rendererBoundNativeInteraction(interaction Object, limits rendererLimits) (
 }
 
 func rendererBoundFormField(field Object, limits rendererLimits) (Object, bool) {
-	kind := rendererText(field["type"])
-	if !rendererOneOf(kind, "string", "number", "integer", "boolean", "multiselect", "external") {
-		kind = "string"
-	}
-	key := rendererBoundText(field["key"], limits.short)
-	if key == "" {
+	kind, key := rendererText(field["type"]), rendererText(field["key"])
+	if !rendererOneOf(kind, "string", "number", "integer", "boolean", "multiselect", "external") || key == "" || strings.ContainsRune(key, 0) {
 		return nil, false
 	}
-	next := Object{"type": kind, "key": key, "required": rendererBool(field["required"])}
-	for _, name := range []string{"title", "description", "placeholder", "pattern"} {
+	// Core derives response IDs and validates answers from these exact values.
+	// Retain the complete contract, even when it alone exceeds a stage's text
+	// allowance. The whole-envelope budget then fails explicitly if necessary.
+	next := Object{"type": kind, "key": key}
+	for _, name := range []string{"required", "pattern", "format", "custom", "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems", "hidden", "default", "url", "when"} {
+		if value, exists := field[name]; exists {
+			next[name] = value
+		}
+	}
+	for _, name := range []string{"title", "description", "placeholder"} {
 		if value, exists := field[name]; exists {
 			next[name] = rendererBoundText(value, limits.short)
 		}
 	}
-	if value, exists := field["format"]; exists {
-		if format := rendererText(value); rendererOneOf(format, "email", "uri", "date", "date-time") {
-			next["format"] = format
-		}
-	}
-	if value, exists := field["custom"]; exists {
-		next["custom"] = rendererBool(value)
-	}
-	for _, name := range []string{"minimum", "maximum"} {
-		if value, exists := field[name]; exists {
-			if number, ok := rendererNumber(value); ok {
-				next[name] = number
-			}
-		}
-	}
-	for _, name := range []string{"minLength", "maxLength", "minItems", "maxItems"} {
-		if value, exists := field[name]; exists {
-			if integer, ok := rendererInteger(value); ok {
-				next[name] = integer
-			}
-		}
-	}
-	if value, exists := field["hidden"]; exists {
-		next["hidden"] = rendererBool(value)
-	}
-	if value, exists := field["default"]; exists && rendererEncodedSize(value) <= limits.short {
-		next["default"] = value
-	}
-	if value, exists := field["url"]; exists {
-		next["url"] = rendererBoundText(value, 4_096)
-	}
-	if options := rendererObjects(field["options"]); len(options) > 0 {
-		if len(options) > limits.options {
-			options = options[:limits.options]
-		}
+	if raw, exists := field["options"]; exists {
+		options := rendererObjects(raw)
 		bound := make([]Object, 0, len(options))
-		for index, option := range options {
-			bound = append(bound, Object{
-				"value":       rendererOptionValue(option["value"], index),
-				"label":       rendererNonblankText(option["label"], 2_000, "Option"),
-				"description": rendererOptionalText(option["description"], limits.short),
-			})
+		for _, option := range options {
+			nextOption := Object{"value": option["value"], "label": rendererBoundText(option["label"], 2_000)}
+			if description, exists := option["description"]; exists {
+				nextOption["description"] = rendererBoundText(description, limits.short)
+			}
+			bound = append(bound, nextOption)
 		}
 		next["options"] = bound
 	}
-	if when := rendererObjects(field["when"]); len(when) > 0 {
-		if len(when) > limits.options {
-			when = when[:limits.options]
-		}
-		bound := make([]Object, 0, len(when))
-		for _, condition := range when {
-			key := rendererBoundText(condition["key"], limits.short)
-			if strings.TrimSpace(key) == "" {
-				continue
-			}
-			op := rendererText(condition["op"])
-			if !rendererOneOf(op, "eq", "neq") {
-				op = "eq"
-			}
-			bound = append(bound, Object{
-				"key":   key,
-				"op":    op,
-				"value": condition["value"],
-			})
-		}
-		next["when"] = bound
-	}
 	return next, true
-}
-
-func rendererBoundStringArray(value any, limit, size int) []string {
-	values := rendererArrayValues(value)
-	if len(values) > limit {
-		values = values[:limit]
-	}
-	result := make([]string, 0, len(values))
-	for _, item := range values {
-		if text := rendererBoundText(item, size); text != "" {
-			result = append(result, text)
-		}
-	}
-	return result
 }
 
 func rendererBoundTopLevel(state Object, limits rendererLimits) {
@@ -1104,17 +1031,9 @@ func rendererMinimalProjection(state Object) Object {
 	}
 	tiny := make([]Object, 0, len(executions))
 	for _, execution := range executions {
-		id, ok := rendererPublicIdentity(rendererText(execution["executionId"]))
-		if !ok {
-			continue
+		if value, ok := rendererBoundExecution(execution, rendererStages[len(rendererStages)-1], nil); ok {
+			tiny = append(tiny, value)
 		}
-		tiny = append(tiny, Object{
-			"executionId": id,
-			"status":      "failed",
-			"startedAt":   0,
-			"finishedAt":  0,
-			"error":       rendererTruncationNote,
-		})
 	}
 	if len(tiny) > 0 {
 		minimal["executions"] = tiny
@@ -1266,32 +1185,6 @@ func rendererOptionalText(value any, limit int) string {
 		return ""
 	}
 	return rendererBoundText(value, limit)
-}
-
-func rendererBoundUniqueText(value any, limit int) string {
-	text := rendererBoundText(value, limit)
-	if text == "" {
-		return ""
-	}
-	if len(rendererText(value)) <= limit {
-		return text
-	}
-	hash := sha256.Sum256([]byte(rendererText(value)))
-	suffix := "~" + hex.EncodeToString(hash[:6])
-	keep := limit - len(suffix)
-	if keep < 1 {
-		return hex.EncodeToString(hash[:6])
-	}
-	text = rendererTruncateText(rendererText(value), keep)
-	return text + suffix
-}
-
-func rendererOptionValue(value any, index int) string {
-	text := rendererBoundUniqueText(value, 2_000)
-	if strings.TrimSpace(text) == "" {
-		return fmt.Sprintf("option-%d", index)
-	}
-	return text
 }
 
 func rendererTextIdentity(value string, limit int) (string, bool) {

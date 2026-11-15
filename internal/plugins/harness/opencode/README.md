@@ -72,10 +72,16 @@ and surviving parts, and pathological execution, interaction and message counts
 are reduced. Unreferenceable oversized or malformed public IDs are dropped instead
 of hashed, so observation targets, tool composite IDs and native interaction
 public IDs cannot silently diverge. Public and native interactions use the same
-pending-first retention, and authors are capped at Swift's 4,096-byte field limit;
+pending-first retention. Each retained interaction keeps its complete response
+contract: field keys, required fields, option values/sets, defaults, conditions,
+validation constraints, external URLs and permission resources are never clipped
+or rewritten. Only presentation labels/descriptions may shrink. If a pending
+contract cannot fit within the whole-envelope budget, projection reports an
+explicit error instead of publishing an unanswerable form or changing the
+execution outcome. Authors are capped at Swift's 4,096-byte field limit;
 reasoning foregrounds are capped at Swift's 32,768-code-point head guard. A final
-whole-envelope check falls back to a minimal legal projection if any hostile field
-still escapes the budget. The adapter may encode the envelope at most six times:
+whole-envelope check falls back to a minimal legal projection, preserving
+execution outcomes, if a non-interaction field still escapes the budget. The adapter may encode the envelope at most six times:
 one initial check, four degraded stages, and one fixed-size minimal fallback.
 The renderer source indexes only the message fields used by the one-body
 projection (identity, tool display inputs and presence flags) and releases the

@@ -1,0 +1,269 @@
+{
+  "completed": {
+    "state": {
+      "version": 2,
+      "turns": [
+        {
+          "author": {
+            "model": "claude-sonnet-4-5"
+          },
+          "executionId": "execution-terminal",
+          "createdAt": 1000,
+          "updatedAt": 1004,
+          "finishedAt": 1004,
+          "prompts": [
+            "terminal prompt"
+          ],
+          "promptAttachments": [
+            []
+          ],
+          "status": "completed",
+          "plan": [],
+          "activities": [],
+          "interactions": [],
+          "notices": [],
+          "timeline": [
+            {
+              "createdAt": 1001,
+              "id": "user-message:1001:0",
+              "kind": "user-message",
+              "promptIndex": 0
+            },
+            {
+              "content": "COMPLETED ASSISTANT",
+              "createdAt": 1002,
+              "id": "assistant:1002:1",
+              "kind": "assistant",
+              "messageId": "completed-message",
+              "status": "complete"
+            },
+            {
+              "content": "LATER REASONING",
+              "createdAt": 1003,
+              "id": "reasoning:1003:2",
+              "kind": "reasoning"
+            }
+          ]
+        }
+      ],
+      "nativeNotifications": []
+    },
+    "observation": {
+      "latestExecution": {
+        "executionId": "execution-terminal",
+        "status": "completed",
+        "startedAt": 1000,
+        "summary": "COMPLETED ASSISTANT",
+        "finishedAt": 1004
+      },
+      "backgroundWork": null
+    },
+    "overview": {
+      "version": 2,
+      "turns": [
+        {
+          "author": {
+            "model": "claude-sonnet-4-5"
+          },
+          "executionId": "execution-terminal",
+          "createdAt": 1000,
+          "updatedAt": 1004,
+          "finishedAt": 1004,
+          "prompts": [
+            "terminal prompt"
+          ],
+          "promptAttachments": [
+            []
+          ],
+          "status": "completed",
+          "plan": [],
+          "activities": [],
+          "interactions": [],
+          "notices": [],
+          "timeline": [
+            {
+              "content": "COMPLETED ASSISTANT",
+              "createdAt": 1002,
+              "id": "assistant:1002:1",
+              "kind": "assistant",
+              "messageId": "completed-message",
+              "status": "complete"
+            }
+          ]
+        }
+      ],
+      "nativeNotifications": [],
+      "initialResponseScope": true
+    }
+  },
+  "failed": {
+    "state": {
+      "version": 2,
+      "turns": [
+        {
+          "executionId": "execution-terminal",
+          "createdAt": 1000,
+          "updatedAt": 1003,
+          "finishedAt": 1003,
+          "prompts": [
+            "terminal prompt"
+          ],
+          "promptAttachments": [
+            []
+          ],
+          "status": "failed",
+          "plan": [],
+          "activities": [],
+          "interactions": [],
+          "notices": [],
+          "timeline": [
+            {
+              "createdAt": 1001,
+              "id": "user-message:1001:0",
+              "kind": "user-message",
+              "promptIndex": 0
+            },
+            {
+              "content": "FAILED ASSISTANT",
+              "createdAt": 1002,
+              "id": "assistant:1002:1",
+              "kind": "assistant",
+              "messageId": "failed-message",
+              "status": "failed"
+            }
+          ]
+        }
+      ],
+      "nativeNotifications": []
+    },
+    "observation": {
+      "latestExecution": {
+        "executionId": "execution-terminal",
+        "status": "failed",
+        "startedAt": 1000,
+        "summary": "FAILED ASSISTANT",
+        "finishedAt": 1003
+      },
+      "backgroundWork": null
+    },
+    "overview": {
+      "version": 2,
+      "turns": [
+        {
+          "executionId": "execution-terminal",
+          "createdAt": 1000,
+          "updatedAt": 1003,
+          "finishedAt": 1003,
+          "prompts": [
+            "terminal prompt"
+          ],
+          "promptAttachments": [
+            []
+          ],
+          "status": "failed",
+          "plan": [],
+          "activities": [],
+          "interactions": [],
+          "notices": [],
+          "timeline": [
+            {
+              "content": "FAILED ASSISTANT",
+              "createdAt": 1002,
+              "id": "assistant:1002:1",
+              "kind": "assistant",
+              "messageId": "failed-message",
+              "status": "failed"
+            }
+          ]
+        }
+      ],
+      "nativeNotifications": [],
+      "initialResponseScope": true
+    }
+  },
+  "interrupted": {
+    "state": {
+      "version": 2,
+      "turns": [
+        {
+          "executionId": "execution-terminal",
+          "createdAt": 1000,
+          "updatedAt": 1003,
+          "finishedAt": 1003,
+          "prompts": [
+            "terminal prompt"
+          ],
+          "promptAttachments": [
+            []
+          ],
+          "status": "interrupted",
+          "plan": [],
+          "activities": [],
+          "interactions": [],
+          "notices": [],
+          "timeline": [
+            {
+              "createdAt": 1001,
+              "id": "user-message:1001:0",
+              "kind": "user-message",
+              "promptIndex": 0
+            },
+            {
+              "content": "INTERRUPTED ASSISTANT",
+              "createdAt": 1002,
+              "id": "assistant:1002:1",
+              "kind": "assistant",
+              "messageId": "interrupted-message",
+              "status": "cancelled"
+            }
+          ]
+        }
+      ],
+      "nativeNotifications": []
+    },
+    "observation": {
+      "latestExecution": {
+        "executionId": "execution-terminal",
+        "status": "interrupted",
+        "startedAt": 1000,
+        "summary": "INTERRUPTED ASSISTANT",
+        "finishedAt": 1003
+      },
+      "backgroundWork": null
+    },
+    "overview": {
+      "version": 2,
+      "turns": [
+        {
+          "executionId": "execution-terminal",
+          "createdAt": 1000,
+          "updatedAt": 1003,
+          "finishedAt": 1003,
+          "prompts": [
+            "terminal prompt"
+          ],
+          "promptAttachments": [
+            []
+          ],
+          "status": "interrupted",
+          "plan": [],
+          "activities": [],
+          "interactions": [],
+          "notices": [],
+          "timeline": [
+            {
+              "content": "INTERRUPTED ASSISTANT",
+              "createdAt": 1002,
+              "id": "assistant:1002:1",
+              "kind": "assistant",
+              "messageId": "interrupted-message",
+              "status": "cancelled"
+            }
+          ]
+        }
+      ],
+      "nativeNotifications": [],
+      "initialResponseScope": true
+    }
+  }
+}

@@ -72,6 +72,11 @@ by Go's HTTP replay and Swift's hand-authored invalid-patch tests. It adds no
 production API or dependency and reuses the Core test target. The private fixture
 file is removed after the run, which fails if the Swift check is skipped. Cold
 Swift compilation may dominate execution time; no app or provider is launched.
+The native fallback fixture now carries the actual outer NDJSON events produced
+by the Go HTTP publisher: initial snapshot, dense replacement snapshot, then a
+small patch. The Swift test feeds those envelopes through the production event
+dispatcher and content receiver. The ordinary Core suite runs the same dispatch
+with a hand-authored sequence when the Go fixture is absent.
 
 The runner uses exported Go APIs, a fixed mock `transport.Host`, real loopback HTTP/NDJSON connections, and a temporary private profile. It needs no Node installation, Harness executable, provider account, or paid network request. Fixtures are in the Go source; only temporary paths, ownership/session identities, loopback ports, and command freshness timestamps vary. Assertions fail with a nonzero exit status. Profiles, sockets, streams, and worker goroutines are cleaned up on success or failure.
 
@@ -81,6 +86,7 @@ The replay verifies:
 - Missing/wrong authorization, present Origin (including an empty header), stale epoch, protocol mismatch, unknown channels/query paths, malformed command identity, and health responses without bearer credentials.
 - The 2 MiB overview body limit; declared bodies above the 144 MiB request limit; the 192 MiB aggregate body reservation; and independent 16-request command/file and session-control limits. Content release cancels a blocked worker and re-subscription succeeds while all command slots are occupied. Filling session slots still permits a command and rejects a seventeenth session request. Body/slot reservation cases exchange headers only, using `100 Continue` as the admission barrier, so they do not allocate or upload hundreds of MiB.
 - Two independent NDJSON clients, hello identities, scoped content snapshots, mutation delivery, local revision chains, UTF-16 text deltas across emoji, cancellation of an obsolete read, replacement snapshots, resource-local projection-panic errors, and continued delivery afterward.
+- A real HTTP/NDJSON dense array update must stop its diff at the byte budget, fall back to a complete snapshot without dropping the subscription, then continue with a one-element patch whose base revision is that snapshot. Content publication unit tests additionally cover the 5,000-row status-only patch beyond the old operation cap, patch-larger-than-snapshot selection, no-op digest suppression, wire-envelope and raw hard limits, and queue backpressure after fallback. Outside race instrumentation, the same publisher path runs the issue's exact one-million-element array and checks the complete snapshot.
 - Overview selection through real HTTP context/claim/ack endpoints and the NDJSON delivery stream. Additional public-broker replays cover detached reads, strict JSON validation, claim-once acknowledgement, stale/superseded requests, cancellation, timeout, disconnect, retired renderer contexts, the 128-context retirement bound, and shutdown rejection.
 - Concurrent duplicate command receipts, argument reuse rejection, a client disconnect after durable admission, unchanged replayed outcomes after reopening the receipt store, indeterminate recovery of a pending receipt, expired command rejection, and malformed persisted-outcome rejection. Both read and write handlers receive their exact command ID through `transport.CommandID(ctx)`.
 - `/stop` retaining its HTTP response while closing other connections. `Server.Finish` runs outside the stop handler, after the response, to join response writers without a shutdown deadlock.

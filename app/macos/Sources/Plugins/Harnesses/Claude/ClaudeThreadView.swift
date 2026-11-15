@@ -41,7 +41,7 @@ public struct ClaudeThreadView: View {
         if !state.history.isEmpty { rows.append(ThreadConversationRow(id: "fork-history", createdAt: 0, history: true, node: AnyView(row("fork-history", state: state)))) }
         rows += state.turns.map { turn in
             ThreadConversationRow(id: turn.id, createdAt: turn.createdAt,
-                execution: ThreadConversationExecution(id: turn.id, title: input.thread.executionTitles[turn.id]?.string, prompt: turn.visiblePrompts.first?.stringValue ?? "", answer: turn.raw["text"]?.stringValue ?? "", completedAt: turn.status == "completed" ? turn.finishedAt : nil, isActive: turn.status == "running"),
+                execution: ThreadConversationExecution(id: turn.id, title: input.thread.executionTitles[turn.id]?.string, prompt: turn.visiblePrompts.first?.stringValue ?? "", answer: turn.assistantText, completedAt: turn.status == "completed" ? turn.finishedAt : nil, isActive: turn.status == "running"),
                 node: AnyView(row(turn.id, state: state)))
         }
         if !state.tasks.isEmpty { rows.append(ThreadConversationRow(id: "native-background-tasks", createdAt: input.thread.updatedAt, node: AnyView(ClaudeBackgroundTasks(tasks: state.tasks)))) }
@@ -168,7 +168,7 @@ struct ClaudeTurnView: View {
         while index < timeline.count {
             let item = timeline[index]; index += 1
             if item.claudeKind == "assistant" && item["status"]?.stringValue == "streaming" { continue }
-            if item.claudeKind == "usage" || item.claudeKind == "assistant" && claudeTrim(item["content"]).isEmpty { continue }
+            if item.claudeKind == "assistant" && claudeTrim(item["content"]).isEmpty { continue }
             if item.claudeKind == "user-message", turn.internalIndexes.contains(item["promptIndex"]?.intValue ?? -1) { continue }
             if item.claudeKind == "activity" {
                 var activities = [item["activity"]!]
@@ -185,19 +185,7 @@ struct ClaudeTurnView: View {
                 rows.append(detail(synthetic("prompt:\(index)", kind: "user-message", fields: ["promptIndex": .integer(index)]), final: false))
             }
         }
-        func appendFallback(_ fallbackKinds: [String]) {
-        for kind in fallbackKinds where !kinds.contains(kind) {
-            if kind == "assistant" && turn.status == "running" { continue }
-            let field = kind == "assistant" ? "text" : kind
-            var fields: [String: JSONValue] = [:]
-            if kind == "context-compaction" { guard turn.raw["compacted"] == .bool(true) else { continue } }
-            else { guard kind == "reasoning" ? (!claudeTrim(turn.raw[field]).isEmpty || executionPresence.contains(turn.id, "reasoning")) : turn.raw[field]?.stringValue?.isEmpty == false else { continue }; fields[kind == "error" ? "message" : "content"] = turn.raw[field]; if kind == "assistant" { fields["status"] = .text(active ? "streaming" : "complete") } }
-            let row = detail(synthetic(kind, kind: kind, fields: fields), final: kind == "assistant" && (!waiting || turn.status != "running"))
-            rows.append(ThreadDetailRow(id: row.id, kind: row.kind, node: row.node, execution: kind == "reasoning" ? .member : nil, executionSummary: row.executionSummary, finalReply: row.finalReply))
-        }
-        }
-        appendFallback(["reasoning","assistant"])
-        let activityIDs = Set(timeline.filter { $0.claudeKind == "activity" }.map { $0["activity"]!.claudeID("id") })
+        let activityIDs = Set(timeline.filter { $0.claudeKind == "activity" }.map { $0.claudeID("activityId") })
         let remaining = turn.activities.filter { !activityIDs.contains($0.claudeID("id")) }
         if agentDetail {
             for activity in remaining {
@@ -211,10 +199,15 @@ struct ClaudeTurnView: View {
                 executionSummary: ThreadExecutionSummary(toolCalls: remaining.filter { $0["toolName"] != nil }.count, hasContent: remaining.contains { claudeActivityHasContent($0, presence: executionPresence) })))
         }
         for (kind, values) in [("interaction",turn.interactions),("notice",turn.notices.filter { !agentDetail || $0["level"]?.stringValue == "error" })] {
-            let referenced = Set(timeline.filter { $0.claudeKind == kind }.map { $0[kind]!.claudeID("id") })
+            let referenced = Set(timeline.filter { $0.claudeKind == kind }.map { $0.claudeID(kind + "Id") })
             for value in values where !referenced.contains(value.claudeID("id")) { rows.append(detail(syntheticID(JSONText(codeUnits: Array((kind + ":").utf16) + value.claudeID("id").codeUnits), kind: kind, fields: [kind:value]), final: false)) }
         }
-        appendFallback(["error","review","context-compaction"])
+        if !kinds.contains("error"), !turn.raw.claudeID("error").codeUnits.isEmpty, let error = turn.raw["error"] {
+            rows.append(detail(synthetic("error", kind: "error", fields: ["message": error]), final: false))
+        }
+        if !kinds.contains("context-compaction"), turn.raw["compacted"] == .bool(true) {
+            rows.append(detail(synthetic("context-compaction", kind: "context-compaction"), final: false))
+        }
         let interimReplies = Set(rows.filter { agentDetail && $0.kind == .work }.map(\.id))
         return bindThreadExecutionSource(rows: rows, source: agentDetail ? timeline : turn.timeline.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) || $0.claudeKind == "assistant" && interimReplies.contains($0.claudeID("id")) })
     }
