@@ -126,10 +126,12 @@ def main():
              "NativeComposerPasteTests" if "--composer-paste" in sys.argv else
              "NativeMokuExecutionLinkTests" if "--moku-execution-links" in sys.argv else
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
-             "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
+             "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPageHeadlessTests")
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
               if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
+    if suite == "NativeReadingPageHeadlessTests" and not isolated_input:
+        suites.append("NativeReadingRouteLifecycleTests")
     if decorations:
         suites = ["NativeOverviewTagGlassTests", "NativeOverviewDecorationCaptureTests"]
     if "--rolling-numbers" in sys.argv:
@@ -243,6 +245,8 @@ def main():
                     if "--rolling-numbers" in sys.argv else suite)
         if thread_send_native:
             selected = "mountedProductionReadersHandOffAfterContentAdmission|productionDockFoldsOnSendAndOnlyRestoresAFailedCurrentDraft|rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons|sidecardApertureTravelsBetweenItsActualLauncherAndPanel|completedSendAllowsClickingAndTypingIntoTheResidentComposer"
+        if suite == "NativeReadingPageHeadlessTests" and not isolated_input:
+            selected = "NativeReadingPageHeadlessTests|NativeReadingRouteLifecycleTests"
         if composer_refocus:
             selected = "completedSendAllowsClickingAndTypingIntoTheResidentComposer"
         if native_methods is not None:

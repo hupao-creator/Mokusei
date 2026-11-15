@@ -101,7 +101,7 @@ Each row below names the existing source, not a replacement test.
 | `NativeOverviewScopeFilterTests` | 7 | [NativeOverviewScopeFilterTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewScopeFilterTests.swift) |
 | `NativePerformanceCacheTests` | 8 | [NativePerformanceCacheTests.swift](../../../app/macos/Tests/Integration/Host/NativePerformanceCacheTests.swift) |
 | `NativePerformanceDeliveryReviewTests` | 2 | [NativePerformanceDeliveryReviewTests.swift](../../../app/macos/Tests/Integration/Host/NativePerformanceDeliveryReviewTests.swift) |
-| `NativeReadingPageHeadlessTests` | 6 | [NativeReadingPagePresentationTests.swift](../../../app/macos/Tests/Integration/Host/NativeReadingPagePresentationTests.swift) |
+| `NativeReadingPageHeadlessTests` | 7 | [NativeReadingPageHeadlessTests.swift](../../../app/macos/Tests/Integration/Host/NativeReadingPageHeadlessTests.swift) |
 | `NativeSettingsAnimationVisitTests` | 2 | [NativeSettingsAnimationVisitTests.swift](../../../app/macos/Tests/Integration/Host/NativeSettingsAnimationVisitTests.swift) |
 | `NativeSettingsDiscoveryTests` | 1 | [NativeSettingsLoadingReplay.swift](../../../app/macos/Tests/Integration/Host/NativeSettingsLoadingReplay.swift) |
 | `NativeThreadVisibilityTests` | 2 | [NativeThreadVisibilityTests.swift](../../../app/macos/Tests/Integration/Host/NativeThreadVisibilityTests.swift) |
