@@ -61,6 +61,7 @@ private struct WorkspaceApp: App {
 @MainActor @Observable
 final class WorkspaceSession {
     private(set) var benchmarkOverview = false
+    private(set) var benchmarkEmojiGlass = false
     var model: NativeWorkspaceModel?
     var presentation: NativeWorkspacePresentation?
     var error: String?
@@ -87,6 +88,7 @@ final class WorkspaceSession {
         do {
             let options = try LaunchOptions()
             benchmarkOverview = options.benchmarkOverview
+            benchmarkEmojiGlass = options.benchmarkEmojiBadge == "liquid-glass"
             let lease = try RuntimeProfileClientLease(dataDirectory: options.dataDirectory)
             lease.retainForProcess()
             let profile = lease.profile
@@ -102,7 +104,16 @@ final class WorkspaceSession {
             let preferences = DesktopPreferences(directory: profile.dataDirectory)
             // Explicit scenario setup belongs to the application. External runners
             // never synthesize preference files or bypass the production renderer.
-            if options.benchmarkOverview { try preferences.setOnboardingCompleted(true) }
+            if options.benchmarkOverview {
+                try preferences.setOnboardingCompleted(true)
+                let receipt: [String: Any] = ["version": 1, "scenario": "overview",
+                    "pid": ProcessInfo.processInfo.processIdentifier, "agentEmojiBadge": options.benchmarkEmojiBadge,
+                    "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
+                    "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                    "increaseContrast": NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast]
+                try JSONSerialization.data(withJSONObject: receipt, options: [.sortedKeys])
+                    .write(to: profile.dataDirectory.appendingPathComponent("benchmark-scenario.json"), options: .atomic)
+            }
             let client = RuntimeClient(profile: profile, launch: options.launch)
             let composition = try NativePlugins.make()
             let model = NativeWorkspaceModel(client: client, preferences: preferences, plugins: composition, startupPerformance: startup)
@@ -251,6 +262,7 @@ private struct WorkspaceWindow: View {
             Group {
                 if let model = session.model, let presentation = session.presentation {
                     NativeWorkspaceView(model: model, presentation: presentation).id(session.generation)
+                        .environment(\.agentThreadEmojiUsesLiquidGlass, session.benchmarkEmojiGlass)
                 } else { ContentUnavailableView("无法打开 Mokusei", systemImage: "exclamationmark.triangle", description: Text(session.error ?? "")) }
             }
             .frame(width: geometry.size.width / session.scale, height: geometry.size.height / session.scale)
@@ -281,6 +293,7 @@ private struct LaunchOptions {
     let automationSocket: String?
     let explicitDataDirectory: Bool
     let benchmarkOverview: Bool
+    let benchmarkEmojiBadge: String
 
     init() throws {
         let arguments = Array(CommandLine.arguments.dropFirst())
@@ -289,10 +302,11 @@ private struct LaunchOptions {
         while index < arguments.count {
             let flag = arguments[index]
             if flag.hasPrefix("-psn_") { index += 1; continue }
-            let benchmarkFlag = flag == "--benchmark-scenario"
-            guard (benchmarkFlag || ["--data-dir", "--runtime", "--automation-socket"].contains(flag)),
+            let allowedValues: [String: [String]] = ["--benchmark-scenario": ["overview"],
+                "--benchmark-agent-emoji-badge": ["flat", "liquid-glass"]]
+            guard (allowedValues[flag] != nil || ["--data-dir", "--runtime", "--automation-socket"].contains(flag)),
                   index + 1 < arguments.count, options[flag] == nil,
-                  benchmarkFlag ? arguments[index + 1] == "overview" : arguments[index + 1].hasPrefix("/") else {
+                  allowedValues[flag].map({ $0.contains(arguments[index + 1]) }) ?? arguments[index + 1].hasPrefix("/") else {
                 throw NSError(domain: "MokuseiLaunch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unknown launch argument: \(flag)"])
             }
             options[flag] = arguments[index + 1]
@@ -301,6 +315,11 @@ private struct LaunchOptions {
         automationSocket = options["--automation-socket"]
         explicitDataDirectory = options["--data-dir"] != nil
         benchmarkOverview = options["--benchmark-scenario"] == "overview"
+        benchmarkEmojiBadge = options["--benchmark-agent-emoji-badge"] ?? "flat"
+        if options["--benchmark-agent-emoji-badge"] != nil, !benchmarkOverview {
+            throw NSError(domain: "MokuseiLaunch", code: 6,
+                          userInfo: [NSLocalizedDescriptionKey: "Badge experiments require --benchmark-scenario overview."])
+        }
         if benchmarkOverview, !explicitDataDirectory || automationSocket == nil {
             throw NSError(domain: "MokuseiLaunch", code: 5,
                           userInfo: [NSLocalizedDescriptionKey: "Benchmark scenarios require explicit --data-dir and --automation-socket."])

@@ -258,6 +258,12 @@ def main():
         if (replay.root / "stderr.log").is_file():
             output += (replay.root / "stderr.log").read_text()
         print(output, end="")
+        if "--moku-execution-links" in sys.argv and os.environ.get("MOKUSEI_TIMELINE_PROFILE") == "1":
+            prefix = "MOKU_EXECUTION_LINK_RECEIPTS "
+            receipts = [json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
+            if (Counter(receipt.get("harness") for receipt in receipts) != Counter(("codex", "claude", "pi", "opencode"))
+                    or any(receipt.get("profileEnabled") is not True for receipt in receipts)):
+                raise SystemExit("FAIL: requested timeline diagnostics did not reach every native Harness case")
         result = subprocess.CompletedProcess([], status, stdout=output)
         result.check_returncode()
     finally:

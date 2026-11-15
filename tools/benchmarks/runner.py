@@ -307,13 +307,13 @@ def startup(application, tools, directory, count, mode, seconds):
     from types import SimpleNamespace
     helper = tools/'collector'
     fixture=existing_fixture(application,directory)
-    native(helper,'prepare',application.app.pid)
+    application.prepare_window()
     time.sleep(.5)
     preparation=prepare_input(application,directory,fixture,'reopen')
     cleanup = application.stop(); save(directory/'prelaunch-cleanup.json', cleanup)
     if cleanup['errors']: raise RuntimeError('prelaunch owned shutdown failed')
     application.owned.clear()
-    application.socket=application.root/('ui-'+uuid.uuid4().hex[:8]+'.sock')
+    application.socket=application.socket.with_name('ui-'+uuid.uuid4().hex[:8]+'.sock')
     source = {**native(helper, 'process', os.getpid()), 'role':'source'}
     plan = {'version':1,'kind':'plan','clock':CLOCK,'scenario':'first-render','count':count,'mode':mode,'targetKind':'application','fixture':fixture,
         'warmupSeconds':1.0,'formalSeconds':float(seconds),'tailSeconds':2.0,'sampleHz':10.0,'captureHz':5.0,
@@ -329,8 +329,7 @@ def startup(application, tools, directory, count, mode, seconds):
             for axis,size,margin in (('x','width',70),('y','height',110))}
     relative=reanchor(relative,offset,{'x':0,'y':0})
     plan['events'] = [{**event,'atSeconds':event['atSeconds']+2} for event in relative]
-    config = {'plan':plan, 'launch': {'app':str(application.bundle), 'arguments':['--data-dir',str(application.profile),
-              '--automation-socket',str(application.socket),'--benchmark-scenario','overview'], 'environment':application.env}}
+    config = {'plan':plan, 'launch': {'app':str(application.bundle), 'arguments':application.launch_arguments(), 'environment':application.env}}
     before = clock_bracket(helper)
     try:
         with (directory/'collector.log').open('w') as log:
@@ -346,6 +345,8 @@ def startup(application, tools, directory, count, mode, seconds):
             application.ui = UI(application.socket,application.app.pid)
         save(directory/'tail-outcome.json',boundary_outcome(application))
         save(directory/'clock.json',{'observations':[before,clock_bracket(helper)]})
+    if application.emoji_badge is not None:
+        save(directory/'rendering-configuration.json', application.rendering_configuration())
     validate_plan(json.loads((directory/'plan.json').read_text()))
     connection = json.loads((application.profile/'runtime/connection.json').read_text())
     runtime = native(helper,'process',connection['pid']); application.owned[connection['pid']] = runtime
@@ -357,7 +358,8 @@ def startup(application, tools, directory, count, mode, seconds):
 
 
 def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capability_dir=None,
-              pacing=DEFAULT_PACING, chunk_bytes=64, message_bytes=512, native_hitches=False):
+              pacing=DEFAULT_PACING, chunk_bytes=64, message_bytes=512, native_hitches=False,
+              emoji_badge=None, warmup_seconds=1.0, window_bounds=None):
     from lifecycle import Application
     from adapter import wait_for
     from workload import schedule
@@ -375,7 +377,8 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
     summaries=[]
     for count in counts:
         group = directory/f'n-{count}'; group.mkdir()
-        application = Application(bundle,group/'fixture',count,tools/'collector')
+        application = Application(bundle,group/'fixture',count,tools/'collector',
+                                  emoji_badge=emoji_badge,window_bounds=window_bounds)
         trials=[]
         try:
             print(f'Preparing {count} tasks through public Moku commands',flush=True)
@@ -395,7 +398,9 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                         startup(application,tools,case,count,mode,seconds)
                         save(case/'outcome.json',outcome(application))
                         continue
-                    owner=native(tools/'collector','prepare',application.app.pid)
+                    owner=application.prepare_window()
+                    if emoji_badge is not None:
+                        save(case/'rendering-configuration.json',application.rendering_configuration())
                     fixture=existing_fixture(application,case)
                     state=application.ui.request()
                     if state.get('page')!='overview':
@@ -412,6 +417,7 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                     roots.append({**native(tools/'collector','process',os.getpid()),'role':'source'})
                     plan=make_plan(owner,roots,scenario,count,mode,seconds)
                     plan['fixture']=fixture
+                    plan['warmupSeconds']=warmup_seconds
                     if scenario in ('idle.completed','idle.active','body'):
                         # A tail interaction probe leaves the formal idle/source interval uncontaminated.
                         plan['events']=[{**e,'atSeconds':e['atSeconds']+seconds-.15} for e in trajectory(owner['bounds'],2)]

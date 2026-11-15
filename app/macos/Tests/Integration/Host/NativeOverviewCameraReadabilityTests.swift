@@ -227,6 +227,622 @@ struct NativeOverviewCameraReadabilityTests {
     }
 
 
+    @Test func sameScaleAspectChangingShrinkRecentersBothAxes() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let wide = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 220)
+        let tall = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 456)
+        camera.cutTo(content: wide, viewport: viewport)
+        camera.requestRefit(content: tall, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let expected = NativeOverviewCameraGeometry.fit(tall, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, expected))
+        try await waitForCamera(camera, expected)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, expected))
+    }
+
+    @Test func filteredEditKeepsRetainedTargetAfterVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let filtered = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        try await waitForCamera(camera, seat)
+        camera.retainFraming(content: filtered, viewport: viewport)
+        let retained = NativeOverviewCameraGeometry.fit(filtered, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, retained))
+        camera.requestRefit(content: filtered, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, retained))
+        camera.requestRefit(content: filtered, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, retained))
+        try await waitForCamera(camera, retained)
+    }
+
+    @Test func shrinkGrowShrinkRecentersAfterAutomaticClamp() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let small = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 692)
+        camera.cutTo(content: large, viewport: viewport)
+        let smallFit = NativeOverviewCameraGeometry.fit(small, viewport: viewport)
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, smallFit))
+        try await waitForCamera(camera, smallFit)
+        camera.requestRefit(content: large, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let clamped = camera.automaticFitTarget ?? .identity
+        #expect(abs(clamped.x - 165) < 1e-9)
+        try await waitForCamera(camera, clamped)
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, smallFit))
+        try await waitForCamera(camera, smallFit)
+    }
+
+    @Test func verticalSeatSurvivesFollowingWidthShrink() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let narrower = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, seat))
+        try await waitForCamera(camera, seat)
+        let narrowerFit = NativeOverviewCameraGeometry.fit(narrower, viewport: viewport)
+        let expected = NativeOverviewTransform(scale: narrowerFit.scale,
+                                               x: narrowerFit.x, y: seat.y)
+        camera.requestRefit(content: narrower, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, expected))
+        try await waitForCamera(camera, expected)
+        #expect(camera.liveTransform.y == seat.y)
+    }
+
+    @Test func heightGrowthThenWidthShrinkUsesCompleteNarrowFit() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let wide = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 220)
+        let tall = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let narrow = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.cutTo(content: wide, viewport: viewport)
+        let wideFit = NativeOverviewCameraGeometry.fit(wide, viewport: viewport)
+        camera.requestRefit(content: tall, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let grown = camera.automaticFitTarget ?? .identity
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(grown, wideFit))
+        try await waitForCamera(camera, grown)
+        let narrowFit = NativeOverviewCameraGeometry.fit(narrow, viewport: viewport)
+        camera.requestRefit(content: narrow, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, narrowFit))
+        try await waitForCamera(camera, narrowFit)
+        #expect(abs(camera.liveTransform.y - narrowFit.y) < 1e-9)
+    }
+
+    @Test func cardHeightShrinkCreatesPersistentVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let tallCard = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        let shortCard = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 220)
+        let narrowCard = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
+        camera.cutTo(content: tallCard, viewport: viewport)
+        let tallFit = NativeOverviewCameraGeometry.fit(tallCard, viewport: viewport)
+        camera.requestRefit(content: shortCard, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, tallFit))
+        try await waitForCamera(camera, tallFit)
+        let narrowFit = NativeOverviewCameraGeometry.fit(narrowCard, viewport: viewport)
+        let expected = NativeOverviewTransform(scale: narrowFit.scale,
+                                               x: narrowFit.x, y: tallFit.y)
+        camera.requestRefit(content: narrowCard, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, expected))
+        try await waitForCamera(camera, expected)
+    }
+
+    @Test func widthAndHeightShrinkInSameRevisionKeepsNewXAndOldY() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let narrowAndShort = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let largeFit = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        let narrowFit = NativeOverviewCameraGeometry.fit(narrowAndShort, viewport: viewport)
+        let expected = NativeOverviewTransform(scale: narrowFit.scale,
+                                               x: narrowFit.x, y: largeFit.y)
+        camera.requestRefit(content: narrowAndShort, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, expected))
+        try await waitForCamera(camera, expected)
+    }
+
+    @Test func consecutiveHeightShrinksKeepTheFirstVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let middle = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let short = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 220)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: middle, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        camera.requestRefit(content: short, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, seat))
+        try await waitForCamera(camera, seat)
+    }
+
+    @Test func heightSeatPersistsAcrossGrowthAndClampsAtExtremeTallAspect() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let tall = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 700)
+        let short = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
+        let medium = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 600)
+        let extreme = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 760)
+        camera.cutTo(content: tall, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(tall, viewport: viewport)
+        camera.requestRefit(content: short, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        camera.requestRefit(content: medium, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let persisted = NativeOverviewTransform(scale: seat.scale, x: seat.x, y: seat.y)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, persisted))
+        try await waitForCamera(camera, persisted)
+        camera.requestRefit(content: extreme, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let clamped = camera.automaticFitTarget ?? .identity
+        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+        #expect(abs(clamped.y - (region.top + region.height - extreme.height * clamped.scale)) < 0.001)
+        try await waitForCamera(camera, clamped)
+        #expect(clamped.y >= region.top - 0.001)
+        #expect(clamped.y <= region.top + region.height - extreme.height * clamped.scale + 0.001)
+        #expect(clamped.y + extreme.height * clamped.scale <= region.top + region.height + 0.001)
+        #expect(clamped.x >= region.left - 0.001)
+        #expect(clamped.x + extreme.width * clamped.scale <= region.left + region.width + 0.001)
+    }
+
+    @Test func extremeWideRetainedSeatStaysVisible() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let wideTall = NativeOverviewContentRect(left: 0, top: 0, width: 1200, height: 692)
+        let wideShort = NativeOverviewContentRect(left: 0, top: 0, width: 1200, height: 100)
+        let narrowShort = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 100)
+        camera.cutTo(content: wideTall, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(wideTall, viewport: viewport)
+        camera.requestRefit(content: wideShort, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        let narrowFit = NativeOverviewCameraGeometry.fit(narrowShort, viewport: viewport)
+        let expected = NativeOverviewTransform(scale: narrowFit.scale,
+                                               x: narrowFit.x, y: seat.y)
+        camera.requestRefit(content: narrowShort, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, expected))
+        try await waitForCamera(camera, expected)
+        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+        #expect(expected.x >= region.left - 0.001)
+        #expect(expected.y >= region.top - 0.001)
+        #expect(expected.x + narrowShort.width * expected.scale <= region.left + region.width + 0.001)
+        #expect(expected.y + narrowShort.height * expected.scale <= region.top + region.height + 0.001)
+    }
+
+    @Test func returnToAutoClearsPersistentVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        let ordinary = NativeOverviewCameraGeometry.fit(vertical, viewport: viewport)
+        camera.returnToAuto()
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        try await waitForCamera(camera, ordinary)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        try await waitForCamera(camera, ordinary)
+    }
+
+    @Test func retainFramingClearsPersistentVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let filtered = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        camera.retainFraming(content: filtered, viewport: viewport)
+        let ordinary = NativeOverviewCameraGeometry.fit(filtered, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, ordinary))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        camera.requestRefit(content: filtered, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        try await waitForCamera(camera, ordinary)
+    }
+
+    @Test func retainFramingSameContentKeepsCurrentViewAsBaseline() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        camera.retainFraming(content: vertical, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, seat))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, seat))
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, seat))
+        try await waitForCamera(camera, seat)
+        let ordinary = NativeOverviewCameraGeometry.fit(vertical, viewport: viewport)
+        camera.returnToAuto()
+        try await waitForCamera(camera, ordinary)
+    }
+
+    @Test func retainFramingPublishesBaselineAtomically() {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 900, height: 700)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let filtered = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
+        camera.cutTo(content: large, viewport: viewport)
+        var observed: [NativeOverviewTransform] = []
+        camera.onChange = { [weak camera] in
+            guard let camera else { return }
+            observed.append(camera.automaticFitTarget ?? .identity)
+        }
+        camera.retainFraming(content: filtered, viewport: viewport)
+        let retained = camera.liveTransform
+        #expect(!observed.isEmpty)
+        #expect(observed.allSatisfy { NativeOverviewCameraGeometry.approximatelyEqual($0, retained) })
+    }
+
+    @Test func preserveFramingKeepsCurrentViewAsRetainedBaseline() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, seat))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, seat))
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, seat))
+        try await waitForCamera(camera, seat)
+        let ordinary = NativeOverviewCameraGeometry.fit(vertical, viewport: viewport)
+        camera.returnToAuto()
+        try await waitForCamera(camera, ordinary)
+    }
+
+    @Test func preserveFramingDuringRefitCancelsThePendingTarget() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let small = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 692)
+        camera.onChange = {}
+        camera.cutTo(content: large, viewport: viewport)
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        for _ in 0..<100 {
+            if camera.isAnimating { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(camera.isAnimating)
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        let baseline = camera.liveTransform
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, baseline))
+        #expect(!camera.isAnimating)
+        #expect(!camera.hasScheduledMotion)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, baseline))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, baseline))
+    }
+
+    @Test func preserveFramingDuringAutomaticReturnDoesNotCreateBaseline() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let content = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        let displaced = NativeOverviewTransform(scale: 1, x: 50, y: 100)
+        camera.onChange = {}
+        camera.restore(view: .init(transform: displaced, manual: false),
+                       content: content, viewport: viewport)
+        for _ in 0..<200 {
+            if camera.isAnimating { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(camera.isAnimating)
+        #expect(camera.returning)
+        camera.requestRefit(content: content, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        let ordinary = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        for _ in 0..<200 {
+            if !camera.isAnimating, !camera.hasScheduledMotion { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, ordinary))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+    }
+
+    @Test func preserveFramingWhileRefitWaitsForStageKeepsLiveBaseline() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let small = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 692)
+        let coordinator = NativeOverviewStageCoordinator()
+        camera.onChange = {}
+        camera.stageCoordinator = coordinator
+        camera.cutTo(content: large, viewport: viewport)
+        let lease = try await coordinator.acquire(owner: "test")
+        defer { lease.release() }
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!camera.isAnimating)
+        #expect(camera.hasScheduledMotion)
+        let baseline = camera.liveTransform
+        camera.requestRefit(content: small, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, baseline))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, baseline))
+        #expect(!camera.hasScheduledMotion)
+        lease.release()
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, baseline))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, baseline))
+    }
+
+    @Test func preserveFramingWhileRefitWaitsForStageCommitsClampedBaseline() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let small = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 692)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let coordinator = NativeOverviewStageCoordinator()
+        camera.onChange = {}
+        camera.stageCoordinator = coordinator
+        camera.cutTo(content: small, viewport: viewport)
+        let lease = try await coordinator.acquire(owner: "test")
+        defer { lease.release() }
+        camera.requestRefit(content: large, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(!camera.isAnimating)
+        #expect(camera.hasScheduledMotion)
+        camera.requestRefit(content: large, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        let expected = NativeOverviewTransform(scale: 1, x: 165, y: 107)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, expected))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, expected))
+        #expect(!camera.hasScheduledMotion)
+        lease.release()
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, expected))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, expected))
+    }
+
+    @Test func preserveFramingDuringReturnAutoDoesNotCreateBaseline() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let content = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.onChange = {}
+        camera.cutTo(content: content, viewport: viewport)
+        camera.setManualTransform(.init(scale: 1, x: 50, y: 100))
+        camera.returnToAuto()
+        for _ in 0..<200 {
+            if camera.isAnimating { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(camera.isAnimating)
+        #expect(camera.hasPendingAutomaticFit)
+        camera.requestRefit(content: content, viewport: viewport,
+                            layoutChanged: true, preserveFraming: true)
+        let ordinary = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        for _ in 0..<200 {
+            if !camera.isAnimating, !camera.hasScheduledMotion { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, ordinary))
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        #expect(!camera.hasPendingAutomaticFit)
+    }
+
+    @Test func setManualTransformClearsPersistentVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        let manual = NativeOverviewTransform(scale: 1, x: 50, y: 100)
+        camera.setManualTransform(manual)
+        #expect(camera.manual)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, manual))
+        let ordinary = NativeOverviewCameraGeometry.fit(vertical, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        camera.returnToAuto()
+        try await waitForCamera(camera, ordinary)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        try await waitForCamera(camera, ordinary)
+    }
+
+    @Test func viewportChangeClearsPersistentVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let expanded = NativeOverviewViewport(width: 1341, height: 1000)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        let ordinary = NativeOverviewCameraGeometry.fit(vertical, viewport: expanded)
+        camera.requestRefit(content: vertical, viewport: expanded)
+        try await waitForCamera(camera, ordinary)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        camera.requestRefit(content: vertical, viewport: expanded,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        try await waitForCamera(camera, ordinary)
+    }
+
+    @Test func resetClearsPersistentVerticalSeat() async throws {
+        let camera = NativeOverviewCamera()
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let filtered = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        camera.dispose()
+        #expect(camera.automaticFitTarget == nil)
+        camera.cutTo(content: filtered, viewport: viewport)
+        let ordinary = NativeOverviewCameraGeometry.fit(filtered, viewport: viewport)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, ordinary))
+        camera.requestRefit(content: filtered, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, ordinary))
+        try await waitForCamera(camera, ordinary)
+        camera.dispose()
+    }
+
+    @Test func persistentSeatSurvivesMixedWidthAndHeightSequence() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let large = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 692)
+        let vertical = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 456)
+        let narrow = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        let grown = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 600)
+        let narrowTall = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 600)
+        let short = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
+        camera.cutTo(content: large, viewport: viewport)
+        let seat = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
+        camera.requestRefit(content: vertical, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        try await waitForCamera(camera, seat)
+        let firstWidthShrink = NativeOverviewTransform(
+            scale: NativeOverviewCameraGeometry.fit(narrow, viewport: viewport).scale,
+            x: NativeOverviewCameraGeometry.fit(narrow, viewport: viewport).x,
+            y: seat.y)
+        camera.requestRefit(content: narrow, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, firstWidthShrink))
+        try await waitForCamera(camera, firstWidthShrink)
+        camera.requestRefit(content: grown, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, firstWidthShrink))
+        try await waitForCamera(camera, firstWidthShrink)
+        let secondWidthShrink = NativeOverviewTransform(
+            scale: NativeOverviewCameraGeometry.fit(narrowTall, viewport: viewport).scale,
+            x: NativeOverviewCameraGeometry.fit(narrowTall, viewport: viewport).x,
+            y: seat.y)
+        camera.requestRefit(content: narrowTall, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, secondWidthShrink))
+        try await waitForCamera(camera, secondWidthShrink)
+        camera.requestRefit(content: short, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, secondWidthShrink))
+        try await waitForCamera(camera, secondWidthShrink)
+    }
+
+    @Test func pendingGrowKeepsItsSeatUntilANewRevision() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let viewport = NativeOverviewViewport(width: 1341, height: 906)
+        let one = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
+        let grown = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 220)
+        let shrunk = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 220)
+        camera.cutTo(content: one, viewport: viewport)
+        camera.requestRefit(content: grown, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        let pending = camera.automaticFitTarget ?? .identity
+        #expect(abs(pending.x - 165) < 1e-9)
+        camera.requestRefit(content: shrunk, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, pending))
+        try await waitForCamera(camera, pending)
+        let shrunkFit = NativeOverviewCameraGeometry.fit(shrunk, viewport: viewport)
+        camera.requestRefit(content: shrunk, viewport: viewport,
+                            layoutChanged: true, preserveReadingPosition: true)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.automaticFitTarget ?? .identity, shrunkFit))
+        try await waitForCamera(camera, shrunkFit)
+    }
+
+    private func waitForCamera(_ camera: NativeOverviewCamera,
+                               _ expected: NativeOverviewTransform) async throws {
+        for _ in 0..<300 {
+            if NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, expected),
+               !camera.isAnimating, !camera.hasScheduledMotion {
+                return
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, expected))
+        #expect(!camera.isAnimating)
+        #expect(!camera.hasScheduledMotion)
+    }
+
     private func viewportCenter(_ viewport: NativeOverviewViewport) -> CGPoint {
         let region = NativeOverviewCameraGeometry.framingRegion(viewport)
         return CGPoint(x: region.left + region.width / 2, y: region.top + region.height / 2)

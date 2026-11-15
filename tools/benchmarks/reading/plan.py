@@ -1,7 +1,8 @@
 """Absolute-clock system inputs; preparation never counts as measured work."""
 
-SCENARIOS = ("reading.first-open", "reading.reopen", "reading.scroll",
+SCENARIOS = ("reading.first-open", "reading.reopen", "reading.scroll", "reading.active-open",
              "reading.output-scroll")
+ENTRY_SCENARIOS = ("reading.first-open", "reading.reopen", "reading.active-open")
 
 
 def click(point, at):
@@ -30,7 +31,7 @@ def interaction(scenario, document_point, card_point=None):
         raise ValueError("unknown reading scenario")
     events, segments = [], []
     trigger = None
-    if scenario in ("reading.first-open", "reading.reopen"):
+    if scenario in ENTRY_SCENARIOS:
         if card_point is None:
             raise ValueError("entry requires the observed card position")
         events.extend(click(card_point, .2))

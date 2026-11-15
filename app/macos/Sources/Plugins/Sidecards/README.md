@@ -291,7 +291,8 @@ for the demo comparison and Sprint observation scope.
 Same-document SPA history keeps the current address and annotation source synchronized. Unsupported protocol links and popup non-GET requests display a non-destructive notice; the latter are never rewritten as GET. The source document and unsent DOM input remain usable.
 
 The Voice transcript’s explicit jump to latest animates unless Reduce Motion is
-enabled. Automatic follow remains immediate; growth during the transition is
+enabled. Its follow state and fixed-offset request share one animation transaction.
+Automatic follow remains immediate; growth during the transition is
 resolved afterward by restoring the bottom edge anchor from a fixed-offset
 animation. Manual scrolling takes ownership using its latest geometry: tracking
 at the bottom without displacement does not abandon following, while taking over

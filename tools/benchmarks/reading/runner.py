@@ -10,8 +10,8 @@ from adapter import Runtime, UI, wait_for
 from analysis.report import seal, write_report
 from lifecycle import Application, native, save, sha256
 from runner import collect, existing_fixture, boundary_outcome
-from reading.corpus import document
-from reading.plan import interaction
+from reading.corpus import document, active_reply
+from reading.plan import interaction, ENTRY_SCENARIOS
 from reading.provider import ReadingProvider
 from reading.public import content, verify_reply
 
@@ -143,6 +143,27 @@ def roots(application):
     return result
 
 
+def prepare_active_open(application, execution_id, directory):
+    token = application.provider.prepare_active_open()
+    result = application.runtime.invoke("thread:follow-up", [{"threadId": application.threads[1],
+        "expectedExecutionId": execution_id, "input": {"parts": [{"kind": "text",
+        "text": f"BENCH ITEM 01: BENCH STREAM 01 {token}. Review the document and retain the completed progress message."}]}}])
+    save(directory / "active-execution.json", result)
+    active_id = result["executionId"]
+
+    def ready(snapshot):
+        try:
+            verify_reply(snapshot, active_id, active_reply(), status="running")
+            return True
+        except ValueError:
+            return False
+
+    snapshot = wait_for(lambda: content(application.runtime, application.threads[1],
+        {"kind": "turn", "key": "turn:" + active_id}), ready, 45)
+    save(directory / "active-prepared-content.json", snapshot)
+    return token, active_id
+
+
 def run_case(application, tools, directory, scenario, kib, execution_id, mode, capability):
     directory.mkdir()
     for name in ("artifact.json", "native-cli.json", "selection.json", "reading-fixture.json"):
@@ -150,15 +171,25 @@ def run_case(application, tools, directory, scenario, kib, execution_id, mode, c
     corpus = document(1, kib)
     save(directory / "body-corpus.json", corpus.manifest())
     token = None
+    active_token = None
+    active_id = None
     if scenario == "reading.first-open":
         save(directory / "restart-cleanup.json", restart(application))
     owner = native(application.helper, "prepare", application.app.pid)
     fixture = existing_fixture(application, directory)
     card = None
     body_point = center(owner["bounds"])
-    if scenario in ("reading.first-open", "reading.reopen"):
-        if scenario == "reading.reopen":
-            open_reader(application)
+    if scenario == "reading.active-open":
+        active_token, active_id = prepare_active_open(application, execution_id, directory)
+        open_reader(application)
+        wait_for(application.ui.request, lambda state: any(
+            "turn:" + active_id in item["value"].get("visibleRowIds", [])
+            for item in controls(state, "timeline")), 30)
+        body_point, owner = body_position(application, execution_id, directory)
+    if scenario in ENTRY_SCENARIOS:
+        if scenario in ("reading.reopen", "reading.active-open"):
+            if scenario == "reading.reopen":
+                open_reader(application)
             application.ui.request({"name": "overview.show"})
             wait_for(application.ui.request, lambda state: state.get("page") == "overview"
                      and not state.get("transitioning"), 30)
@@ -192,7 +223,7 @@ def run_case(application, tools, directory, scenario, kib, execution_id, mode, c
             "windowID": owner["windowID"], "windowBounds": owner["bounds"],
             "startNS": time.monotonic_ns() + 2_000_000_000, "warmupSeconds": 1.0,
             "formalSeconds": schedule["formalSeconds"], "tailSeconds": schedule["tailSeconds"],
-            "sampleHz": 10.0, "captureHz": 5.0, "maximumNoProgressSeconds": .65,
+            "sampleHz": 10.0, "captureHz": 20.0 if active_token else 5.0, "maximumNoProgressSeconds": .65,
             "maximumCaptureGapSeconds": .65, "motionTolerancePixels": 14.0,
             "anchors": list(corpus.anchors), "processRoots": roots(application), "events": schedule["events"],
             "fixture": fixture,
@@ -200,10 +231,27 @@ def run_case(application, tools, directory, scenario, kib, execution_id, mode, c
                         "segments": schedule["segments"], "entryTrigger": schedule["entryTrigger"]}}
     if token:
         plan["reading"]["source"] = application.provider.streams[token]["workload"]
+    if active_token:
+        plan["reading"]["activeExecution"] = {"executionId": active_id, "corpus": active_reply().manifest()}
     save(directory / "prepared-window.json", owner)
+    active_semantic = None
+
+    def checkpoint():
+        nonlocal active_semantic
+        boundary = boundary_outcome(application)
+        if active_token:
+            snapshot = content(application.runtime, application.threads[1], {"kind": "turn", "key": "turn:" + active_id})
+            verify_reply(snapshot, active_id, active_reply(), status="running")
+            save(directory / "active-observed-content.json", snapshot)
+            active_semantic = application.ui.request()
+            # The capture tail has ended. Do not hold a real execution open
+            # while the independent collector performs offline OCR.
+            application.provider.release_active_open(active_token)
+        return boundary
+
     collect(tools, directory, plan, application.bundle, capability,
             arm=(lambda start: application.provider.arm(token, start)) if token else None,
-            checkpoint=lambda: boundary_outcome(application))
+            checkpoint=checkpoint)
     if token:
         save(directory / "source.json", application.provider.source_evidence(token))
     state = application.runtime.state()
@@ -214,8 +262,11 @@ def run_case(application, tools, directory, scenario, kib, execution_id, mode, c
     reply = verify_reply(snapshot, outcome_id, outcome_corpus)
     save(directory / "public-content.json", snapshot)
     save(directory / "outcome.json", {"status": "passed", "threads": [{"id": thread["id"], "title": thread["title"]}],
-         "readingReply": reply, "semanticAfter": application.ui.request(),
+         "readingReply": reply, "semanticAfter": active_semantic or application.ui.request(),
          "controlCancellations": list(application.provider.cancellations)})
+    if active_token:
+        wait_for(lambda: application.provider.streams[active_token]["done"], lambda done: done == {1}, 15)
+        save(directory / "active-source.json", application.provider.active_open_evidence(active_token))
 
 
 def run_suite(tools, bundle, directory, body_kib, scenarios, mode, capability_dir=None):
@@ -232,36 +283,54 @@ def run_suite(tools, bundle, directory, body_kib, scenarios, mode, capability_di
     for kib in sorted(body_kib):
         group = directory / f"body-{kib}"
         group.mkdir()
-        application = Application(bundle, group / "fixture", 1, tools / "collector",
-                                  provider_factory=lambda root, total: ReadingProvider(root, total, kib))
-        trials = []
-        try:
-            print(f"Preparing one {kib} KiB reply through the real Harness", flush=True)
-            application.start()
-            execution_id = prepare_reply(application, kib)
-            for index, scenario in enumerate(scenarios):
-                case = group / f"{index:02d}-{scenario}"
-                trials.append(case)
-                print(f"Measuring {scenario}, body={kib} KiB", flush=True)
-                try:
-                    run_case(application, tools, case, scenario, kib, execution_id, mode, capability)
-                except Exception as error:
-                    case.mkdir(exist_ok=True)
-                    save(case / "failure.json", {"error": str(error), "atNS": time.monotonic_ns()})
-                    save(case / "outcome.json", {"status": "timeout" if isinstance(error, TimeoutError) else "unknown",
-                                               "error": str(error)})
-                    break
-        except Exception as error:
-            save(group / "preparation-failure.json", {"error": str(error)})
-            summaries.append({"path": str(group.relative_to(directory)), "measurement": "incomplete", "product": "unknown",
-                              "comparison": "not-comparable", "reasons": [str(error)], "metrics": {}})
-        finally:
-            cleanup = application.close()
-            for case in trials:
-                save(case / "cleanup.json", cleanup)
-                seal(case)
-                report = write_report(case)
-                summaries.append({"path": str(case.relative_to(directory)), **report})
+        cohorts = [("fixture", [(i, s) for i, s in enumerate(scenarios) if s != "reading.active-open"]),
+                   ("active-fixture", [(i, s) for i, s in enumerate(scenarios) if s == "reading.active-open"])]
+        for fixture_name, cohort in cohorts:
+            if not cohort:
+                continue
+            application = Application(bundle, group / fixture_name, 1, tools / "collector",
+                                      provider_factory=lambda root, total: ReadingProvider(root, total, kib))
+            trials = []
+            try:
+                print(f"Preparing one {kib} KiB reply through the real Harness", flush=True)
+                application.start()
+                execution_id = prepare_reply(application, kib)
+                for index, scenario in cohort:
+                    case = group / f"{index:02d}-{scenario}"
+                    trials.append(case)
+                    print(f"Measuring {scenario}, body={kib} KiB", flush=True)
+                    try:
+                        run_case(application, tools, case, scenario, kib, execution_id, mode, capability)
+                    except Exception as error:
+                        case.mkdir(exist_ok=True)
+                        save(case / "failure.json", {"error": str(error), "atNS": time.monotonic_ns()})
+                        save(case / "outcome.json", {"status": "timeout" if isinstance(error, TimeoutError) else "unknown",
+                                                   "error": str(error)})
+                        break
+            except Exception as error:
+                save(group / (fixture_name + "-failure.json"), {"error": str(error)})
+                summaries.append({"path": str(group.relative_to(directory)), "measurement": "incomplete", "product": "unknown",
+                                  "comparison": "not-comparable", "reasons": [str(error)], "metrics": {}})
+            finally:
+                # Release held sources even when preparation or collection failed;
+                # no request writer may outlive its isolated fixture.
+                release_errors = []
+                if application.provider:
+                    for token, source in application.provider.streams.items():
+                        if "opening" in source and source["releasedNS"] is None:
+                            application.provider.release_active_open(token)
+                            if source["ready"]:
+                                try:
+                                    wait_for(lambda: source["done"], lambda done: done == {1}, 15)
+                                except Exception as error:
+                                    release_errors.append(str(error))
+                cleanup = application.close()
+                cleanup["errors"].extend(release_errors)
+                for case in trials:
+                    save(case / "cleanup.json", cleanup)
+                    seal(case)
+                    report = write_report(case)
+                    summaries.append({"path": str(case.relative_to(directory)), **report})
     observed_paths = {row["path"] for row in summaries}
     for path in planned:
         if path not in observed_paths:
@@ -289,6 +358,17 @@ def run_suite(tools, bundle, directory, body_kib, scenarios, mode, capability_di
         response_ms = f"{max(responses) * 1000:.0f}" if responses else "unavailable"
         gap_ms = f"{max(gaps) * 1000:.0f}" if gaps else "unavailable"
         lines.append(f"| {row['path']} | {row['measurement']} | {row['product']} | {content_ms} | {response_ms} | {gap_ms} |")
+    active_rows = [row for row in summaries if row.get("metrics", {}).get("reading", {}).get("activeOpening")]
+    if active_rows:
+        lines += ["", "Active Sidecard entry (body-anchor stability does not certify composer readiness):", "",
+                  "| Trial | Sidecard body ms (interval) | Body anchors settled ms (interval) |",
+                  "| --- | ---: | ---: |"]
+        for row in active_rows:
+            metrics = row["metrics"]["reading"]["activeOpening"]
+            bounds = [metrics[key] for key in ("firstSidecardContentSeconds", "bodyAnchorSettledSeconds")]
+            values = [f"{value['lower'] * 1000:.0f}–{value['upper'] * 1000:.0f}" if value else "unavailable"
+                      for value in bounds]
+            lines.append(f"| {row['path']} | {values[0]} | {values[1]} |")
     lines += ["", "Observed application-process resources (complete process-tree accounting remains separate):", "",
              "| Trial | Measurement | Product | App CPU seconds | Sampled peak MiB |",
              "| --- | --- | --- | ---: | ---: |"]

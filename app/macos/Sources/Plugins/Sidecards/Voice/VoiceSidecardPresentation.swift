@@ -74,10 +74,12 @@ public final class VoiceSidecardPresentation {
         else if !state.messages.isEmpty { newMessages = true }
     }
     public func jumpToLatest(bottom: CGFloat, reduceMotion: Bool) {
-        pinned = true; away = false; newMessages = false
         let transition = UUID()
         latestTransition = transition
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
+            // The observable owner must admit its indicator state and scroll
+            // request under the same animation policy.
+            pinned = true; away = false; newMessages = false
             // A fixed offset does not acquire SwiftUI's growth-following edge
             // anchor until this transition's completion admits it below.
             scrollPosition.scrollTo(y: bottom)
