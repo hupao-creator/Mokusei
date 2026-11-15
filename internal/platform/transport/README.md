@@ -52,5 +52,34 @@ changing streams do not pay for hashing. An identical projection at a new source
 without another decode, delta or event encoding. Equivalent re-encodings retain
 the semantic comparison; empty patches never advance the wire revision. Changed
 content and cancellation/replacement keep the existing ordered publication path.
+
+Visible updates build a delta under an encoded-byte budget plus a high
+operation-count safety valve. Reaching either budget stops refinement
+immediately; the transport then encodes a complete snapshot instead of salvaging
+a partial patch. A clearly smaller patch skips re-encoding the whole snapshot by
+comparing against a conservative lower bound for the decoded value. That trades
+a structural pass (no encoded snapshot allocation) for avoiding the full
+snapshot encoding; once the patch reaches that bound, both complete wire events
+are compared exactly. When
+both representations fit, the smaller event wins; when only one fits, the
+fitting representation is used. When neither fits, the update fails with
+`CONTENT_TOO_LARGE`.
+
+The raw projection's byte length is an initial refinement budget, not proof
+that a replacement snapshot will fit: wire encoding can expand literal HTML
+characters. If that budget stopped the delta and the encoded snapshot exceeds
+the frame, publication retries once with the full frame byte budget, retaining
+the operation-count safety valve. A fitting patch keeps the subscription alive;
+this exceptional retry does not change the ordinary small-patch or dense-update
+paths.
+
+A raw projection (`snapshot.Value`) larger than the content frame remains a hard
+failure before diffing, even if a theoretical patch could be smaller. This is
+the separate oversized-authoritative-snapshot boundary, not an incremental
+encoding fallback. Replacing an existing value with a newer
+snapshot is authoritative on the same resource; the next patch uses that
+snapshot's revision as its base. Frame selection does not weaken queue
+backpressure: a representation that fits the frame can still fail with
+`CONTENT_BACKPRESSURE` for its client's bounded queue.
 The [reader projection replay and publication benchmark](../../../tools/verification/thread-detail-performance/README.md)
 measure this boundary independently of Harness projection and native rendering.

@@ -187,6 +187,7 @@ extension RuntimeClient {
             resource.timer?.cancel(); resource.timer = nil
             resource.measurement?.end(); resource.measurement = nil
             resource.value = value; resource.revision = revision; resource.failure = nil
+            resource.recoveries = 0; resource.isRecovering = false
             contentResources[id] = resource
             readingContentDirty.insert(id); scheduleReadingCache()
             if idleContentCosts[id] == nil { emit(.threadContent(subscriptionId: id, state: .ready(value))) }
