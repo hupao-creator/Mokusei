@@ -253,6 +253,11 @@ native activity ID before stripping its body. The native Agent reader uses that
 presence to distinguish completed no-output Hook bookkeeping from actual output;
 canonical activity state and full execution content remain unchanged.
 
+Reader detail selections use timeline row identities. Selecting one activity row
+expands only its contiguous native activity block; unrelated runs are never
+serialized. Reasoning, activity and assistant bodies become independent versioned
+resources, so the group directory remains metadata-only.
+
 Matching id/status/name-only successful Hook JSON is lifecycle metadata, not
 summary output; unknown fields remain conservative and full detail is retained.
 

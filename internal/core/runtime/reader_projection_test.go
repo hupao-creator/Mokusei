@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -160,5 +161,28 @@ func TestReadThreadContentCancelsReaderBuild(t *testing.T) {
 	}
 	if elapsed := time.Since(started); elapsed > time.Second {
 		t.Fatalf("blocked reader did not cancel promptly: %s", elapsed)
+	}
+}
+
+func TestRendererContentScopePreservesEveryWireDimension(t *testing.T) {
+	scope := transport.ContentScope{Kind: "body", Key: "execution", Items: []string{"row"}, Slot: "result", Cursor: "cursor", Offset: 3, Limit: 7, Purpose: "agent-summary", Target: json.RawMessage(`{"messageId":"message"}`)}
+	// Check the DTO boundary, independent of per-kind validation at transport entry.
+	wire, err := json.Marshal(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projected, err := json.Marshal(rendererContentScope(scope))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, got map[string]any
+	if err := json.Unmarshal(wire, &want); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(projected, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("renderer scope dropped dimensions: got %v want %v", got, want)
 	}
 }

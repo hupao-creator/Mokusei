@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 
@@ -88,7 +89,7 @@ func (c *contentServer) publish() {
 	c.signal()
 }
 func validContentIdentity(value string) bool {
-	return strings.TrimSpace(value) != "" && utf16Length(value) <= 256
+	return strings.TrimSpace(value) != "" && utf16Length(value) <= model.MaximumContentIdentityUnits
 }
 func parseContentSubscription(raw []byte) (string, string, *contentTarget, error) {
 	fail := func() (string, string, *contentTarget, error) {
@@ -113,31 +114,6 @@ func parseContentSubscription(raw []byte) (string, string, *contentTarget, error
 	if json.Unmarshal(targetRaw, &target) != nil || !validContentIdentity(target.ThreadID) {
 		return fail()
 	}
-	switch target.Scope.Kind {
-	case "thread":
-		target.Scope.Key, target.Scope.Offset, target.Scope.Limit = "", 0, 0
-	case "turn", "execution":
-		if !validContentIdentity(target.Scope.Key) {
-			return fail()
-		}
-		target.Scope.Offset, target.Scope.Limit = 0, 0
-	case "directory":
-		target.Scope.Key = ""
-		if target.Scope.Offset < 0 || target.Scope.Limit < 0 ||
-			target.Scope.Limit > model.MaximumExecutionDirectoryLimit {
-			return fail()
-		}
-		if target.Scope.Limit == 0 {
-			target.Scope.Limit = model.DefaultExecutionDirectoryLimit
-		}
-	case "preview":
-		if !validContentIdentity(target.Scope.Key) {
-			return fail()
-		}
-		target.Scope.Offset, target.Scope.Limit = 0, 0
-	default:
-		return fail()
-	}
 	switch target.Scope.Purpose {
 	case "", model.RendererPurposeAgentSummary:
 	default:
@@ -148,6 +124,56 @@ func parseContentSubscription(raw []byte) (string, string, *contentTarget, error
 		return fail()
 	}
 	if len(target.Scope.Target) > 64*1024 || len(target.Scope.Target) > 0 && (target.Scope.Kind != "turn" || target.Scope.Purpose != model.RendererPurposeAgentSummary || !json.Valid(target.Scope.Target) || model.IsNull(target.Scope.Target) || json.Unmarshal(target.Scope.Target, &targetObject) != nil || targetObject == nil) {
+		return fail()
+	}
+	switch target.Scope.Kind {
+	case "thread":
+		target.Scope = ContentScope{Kind: "thread"}
+	case "turn", "execution":
+		if !validContentIdentity(target.Scope.Key) || len(target.Scope.Items) != 0 ||
+			target.Scope.Slot != "" || target.Scope.Cursor != "" || target.Scope.Offset != 0 || target.Scope.Limit != 0 {
+			return fail()
+		}
+	case "detail":
+		if !validContentIdentity(target.Scope.Key) || len(target.Scope.Items) == 0 || len(target.Scope.Items) > maxDetailItems ||
+			target.Scope.Slot != "" || target.Scope.Cursor != "" || target.Scope.Purpose != "" ||
+			len(target.Scope.Target) != 0 || target.Scope.Offset != 0 || target.Scope.Limit != 0 {
+			return fail()
+		}
+		for _, item := range target.Scope.Items {
+			if !validContentIdentity(item) {
+				return fail()
+			}
+		}
+	case "body":
+		if !validContentIdentity(target.Scope.Key) || len(target.Scope.Items) != 1 || !validContentIdentity(target.Scope.Items[0]) ||
+			!validContentIdentity(target.Scope.Slot) || target.Scope.Purpose != "" || len(target.Scope.Target) != 0 ||
+			target.Scope.Offset != 0 || target.Scope.Limit != 0 {
+			return fail()
+		}
+		if len(target.Scope.Cursor) > maxDetailCursorBytes || strings.ContainsRune(target.Scope.Cursor, 0) {
+			return fail()
+		}
+	case "directory":
+		if target.Scope.Purpose != "" || len(target.Scope.Target) != 0 || len(target.Scope.Items) != 0 ||
+			target.Scope.Slot != "" || target.Scope.Cursor != "" {
+			return fail()
+		}
+		target.Scope.Key = ""
+		if target.Scope.Offset < 0 || target.Scope.Limit < 0 ||
+			target.Scope.Limit > model.MaximumExecutionDirectoryLimit {
+			return fail()
+		}
+		if target.Scope.Limit == 0 {
+			target.Scope.Limit = model.DefaultExecutionDirectoryLimit
+		}
+	case "preview":
+		if !validContentIdentity(target.Scope.Key) || target.Scope.Purpose != "" || len(target.Scope.Target) != 0 ||
+			len(target.Scope.Items) != 0 || target.Scope.Slot != "" || target.Scope.Cursor != "" ||
+			target.Scope.Offset != 0 || target.Scope.Limit != 0 {
+			return fail()
+		}
+	default:
 		return fail()
 	}
 	return clientID, subscriptionID, &target, nil
@@ -282,7 +308,7 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 		delete(c.clients[clientID], subscription.id)
 		subscription.cancel()
 		client.cancelContent(subscription.id)
-		client.deliverContentError(subscription.id, err.Error())
+		client.deliverContentError(subscription.id, contentFailureCode(err), err.Error())
 		return
 	}
 	subscription.revision = revision
@@ -303,7 +329,15 @@ func (c *contentServer) fail(clientID string, subscription *contentSubscription,
 		return
 	}
 	client.cancelContent(subscription.id)
-	client.deliverContentError(subscription.id, cause.Error())
+	client.deliverContentError(subscription.id, contentFailureCode(cause), cause.Error())
+}
+
+func contentFailureCode(err error) string {
+	var failure *model.Error
+	if errors.As(err, &failure) {
+		return failure.Code
+	}
+	return "CONTENT_UNAVAILABLE"
 }
 
 func (c *contentServer) read(subscription *contentSubscription) (snapshot *ContentSnapshot, err error) {

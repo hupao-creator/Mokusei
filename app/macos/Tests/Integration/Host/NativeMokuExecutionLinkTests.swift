@@ -1163,7 +1163,9 @@ struct NativeMokuExecutionLinkRoutingTests {
         await fixture.close()
     }
 
-    @Test(arguments: [HarnessContentScope.thread, .row("target"), .execution("target")])
+    @Test(arguments: [HarnessContentScope.thread, .row("target"), .execution("target"),
+                      .detail(.init(execution: "target", items: ["row"])),
+                      .body(.init(execution: "target", item: "row", slot: "content"))])
     func concurrentConsumersKeepIndependentProductionResources(scope: HarnessContentScope) async throws {
         let fixture = try ExecutionLinkFixture("codex")
         let surface = try fixture.workspace.harnessHost.makeThreadSurface(input: .init(thread: fixture.thread))

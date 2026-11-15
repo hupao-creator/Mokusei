@@ -26,6 +26,14 @@ final class RuntimeProtocolTests: XCTestCase {
         XCTAssertNotEqual(reading, RuntimeContentScope.turn(key: "execution").json)
     }
 
+    func testDetailBodyScopesEncodeEverySelectionDimension() throws {
+        XCTAssertEqual(RuntimeProtocol.version, 13)
+        XCTAssertEqual(RuntimeContentScope.detail(execution: "execution", items: ["one", "two"]).json,
+            try json(#"{"kind":"detail","key":"execution","items":["one","two"]}"#))
+        XCTAssertEqual(RuntimeContentScope.body(execution: "execution", item: "one", slot: "result", cursor: "next-page").json,
+            try json(#"{"kind":"body","key":"execution","items":["one"],"slot":"result","cursor":"next-page"}"#))
+    }
+
     func testDeltaUsesUTF16OffsetsAndKeepsEditsWhenArrayElementsMove() throws {
         let original = try json(#"{"rows":[{"text":"A😀B"},{"text":"second"}],"note":"keep"}"#)
         let patch = try json(#"""

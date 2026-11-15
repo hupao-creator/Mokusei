@@ -114,7 +114,7 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 
 | Command after `./scripts/go.sh run -race` | Boundary exercised |
 | --- | --- |
-| `./tools/verification/transport` | HTTP/NDJSON, identity/privacy, admission, clients, bounded concurrent content, stalled file-worker and admitted-command cancellation with joined shutdown, Overview and host command receipts |
+| `./tools/verification/transport` | HTTP/NDJSON, identity/privacy, admission, clients, bounded concurrent content, 24 MiB detail paging over 384 subscriptions, stalled file-worker and admitted-command cancellation with joined shutdown, Overview and host command receipts |
 | `./tools/verification/transport -swift-deltas` | Current Go content delta producer consumed by real Swift Core: Unicode, array edits, exact keys and null/absence |
 | `./tools/verification/transport -swift-files` | Real Swift file upload/download against Go transport: regular-file symlinks, prompt FIFO rejection and `.partial` basename retention; no GUI |
 | `./tools/verification/transport -swift-settings-capacity` | Real Swift cold settings burst through Go's unchanged request limit: four Harnesses/four scopes plus installation reads, command headroom, queued/active cancellation and recovery |

@@ -134,6 +134,10 @@ canonical activity state and full execution content remain unchanged.
 
 Inherited activities have no embedded activity id; deferred output presence uses
 the enclosing timeline item id so unrelated empty Hooks cannot share a marker.
+Reader detail selections resolve timeline rows, including `fork-history` and the
+same synthetic fallback identities used by the native reader. A selected activity
+row expands only its contiguous activity block; each body is an independent
+versioned resource rather than part of the group directory.
 
 The `agent-summary` purpose used by the ordinary Agent reader always returns the
 lightweight deferred envelope, including running, waiting, failed and interrupted

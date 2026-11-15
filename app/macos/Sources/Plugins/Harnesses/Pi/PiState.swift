@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
@@ -85,6 +86,43 @@ struct PiState: Sendable {
     }
 }
 
+/// Reader detail identities mirror the Go adapter exactly. Native Pi ids may be
+/// longer than the shared content identity bound, so the detail row uses a
+/// NUL-namespaced SHA-256 digest of the id instead of the raw value.
+enum PiDetailIdentity {
+    static let thinkingPrefix = "\u{0}pi:thinking:"
+    static let messagePrefix = "\u{0}pi:message:"
+    /// A settled execution error stays a native row; this identity only keeps
+    /// that row distinct from a real message id of the same literal text.
+    static let executionError = JSONText(codeUnits: Array("\u{0}pi:execution-error".utf16))
+
+    static func message(_ id: JSONText) -> JSONText {
+        bounded(id, prefix: messagePrefix)
+    }
+
+    static func thinking(_ id: JSONText) -> JSONText {
+        let prefix = thinkingPrefix.utf16.map { $0 }
+        guard prefix.count + id.codeUnits.count > RuntimeProtocol.maximumContentIdentityUnits else {
+            return JSONText(codeUnits: prefix + id.codeUnits)
+        }
+        return JSONText(codeUnits: prefix + digest(id))
+    }
+
+    private static func bounded(_ id: JSONText, prefix: String) -> JSONText {
+        guard id.codeUnits.count <= RuntimeProtocol.maximumContentIdentityUnits else {
+            return JSONText(codeUnits: Array(prefix.utf16) + digest(id))
+        }
+        return id
+    }
+
+    private static func digest(_ id: JSONText) -> [UInt16] {
+        // Go hashes the canonical UTF-8 native id; String(decoding:) repairs
+        // isolated surrogates the same way JSON decoding does on the Go side.
+        let value = SHA256.hash(data: Data(id.string.utf8)).map { String(format: "%02x", $0) }.joined()
+        return Array(value.utf16)
+    }
+}
+
 struct PiMessage: Identifiable, Sendable {
     let raw: JSONValue
     let id: JSONText
@@ -108,6 +146,10 @@ struct PiMessage: Identifiable, Sendable {
         let r = try PiReader(raw)
         id = try r.text("id", maximum: 100_000, nonempty: true, noNUL: true)
         executionID = try r.text("executionId", maximum: 1_024, nonempty: true, noNUL: true)
+        // Detail identities are cross-language hashes. Go JSON decoding repairs
+        // isolated surrogates to U+FFFD, so accepting them here would let Swift
+        // and Go derive different row identities from the same text.
+        guard PiReader.validUnicode(id), PiReader.validUnicode(executionID) else { throw PiReader.failure }
         role = try r.text("role"); text = try r.text("text")
         let common: Set<JSONText> = ["id", "executionId", "role", "text"]
         switch role {
@@ -181,6 +223,23 @@ struct PiReader {
     static func validate(_ value: JSONText, maximum: Int = .max, nonempty: Bool = false, noNUL: Bool = false) throws {
         guard value.codeUnits.count <= maximum, !nonempty || !value.codeUnits.isEmpty,
               !noNUL || !value.codeUnits.contains(0) else { throw failure }
+    }
+    /// Identity bytes must be valid Unicode scalars so Swift's UTF-8 digest and
+    /// Go's JSON-decoded string name the same value.
+    static func validUnicode(_ value: JSONText) -> Bool {
+        var index = 0
+        while index < value.codeUnits.count {
+            let unit = value.codeUnits[index]
+            if (0xD800...0xDBFF).contains(unit) {
+                guard index + 1 < value.codeUnits.count, (0xDC00...0xDFFF).contains(value.codeUnits[index + 1]) else { return false }
+                index += 2
+            } else if (0xDC00...0xDFFF).contains(unit) {
+                return false
+            } else {
+                index += 1
+            }
+        }
+        return true
     }
     func text(_ key: String, maximum: Int = .max, nonempty: Bool = false, noNUL: Bool = false) throws -> JSONText {
         guard case let .string(text) = try required(key) else { throw Self.failure }

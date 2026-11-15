@@ -46,4 +46,43 @@ struct RuntimeOfflineStoreTests {
         let cache = RuntimeOfflineStore(storageDirectory: directory, hostID: nil)
         #expect(cache.content(thread: "thread", scope: scope) == nil)
     }
+
+    @Test func jsonTextPreservesNULNamespacedContentIdentities() throws {
+        let identity = JSONText("\u{0}pi:thinking:row")
+        #expect(identity.codeUnits.first == 0)
+        let value = JSONValue.object(["id": .string(identity)])
+        let decoded = try JSONValue(data: value.encodedData())
+        #expect(decoded == value)
+        #expect(decoded["id"]?.stringValue == "\u{0}pi:thinking:row")
+        let detail = RuntimeContentScope.detail(execution: "execution", items: [identity, "row"]).json
+        #expect(detail["items"] == .array([.string(identity), .text("row")]))
+    }
+
+    @Test func remainingContentSlotsTrackOpenResources() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
+        for index in 0..<30 {
+            _ = try await client.subscribeThreadContent(threadId: "thread", scope: .turn(key: JSONText("row-\(index)")))
+        }
+        let remaining = await client.availableContentSlotCount()
+        #expect(remaining == 2)
+    }
+
+    @Test func offlineReaderDetailFailsClearly() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
+        let stream = await client.events()
+        _ = try await client.subscribeThreadContent(threadId: "thread",
+            scope: .body(execution: "execution", item: "row", slot: "detail", cursor: ""))
+        for await event in stream {
+            if case .threadContent(_, .failure(let code, let message)) = event {
+                #expect(code == "OFFLINE_UNAVAILABLE")
+                #expect(!message.isEmpty)
+                return
+            }
+        }
+        Issue.record("Offline detail body did not report its unavailability")
+    }
 }

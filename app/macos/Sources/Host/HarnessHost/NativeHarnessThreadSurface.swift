@@ -79,6 +79,9 @@ public final class NativeHarnessThreadSurface {
         case .row(let key): runtimeScope = .turn(key: key)
         case .reading(let key, let target): runtimeScope = .reading(key: key, target: target)
         case .execution(let key): runtimeScope = .execution(key: key)
+        case .detail(let selection): runtimeScope = .detail(execution: selection.execution, items: selection.items)
+        case .body(let reference): runtimeScope = .body(execution: reference.execution, item: reference.item,
+                                                        slot: reference.slot, cursor: reference.cursor)
         }
         let client = host.client
         let threadID = threadID
@@ -110,7 +113,9 @@ public final class NativeHarnessThreadSurface {
                     performanceContext: performanceOperation)
                 if isReleased || resources[subscriptionID] == nil { await client.releaseThreadContent(subscriptionID) }
             } catch {
-                if !resource.isReleased { resource.publish(.error(error.localizedDescription)) }
+                if !resource.isReleased {
+                    resource.publish(.error(error.localizedDescription), code: (error as? RuntimeError)?.code)
+                }
             }
         }
         return resource
@@ -139,7 +144,11 @@ public final class NativeHarnessThreadSurface {
                         let data = try await preview(threadID, attachmentID)
                         try checkLifetime(); return data
                     }
-                }, resolveMedia: host.callbacks.resolveMedia)
+                }, resolveMedia: host.callbacks.resolveMedia, openExternal: { url in
+                    Task { try? await self.actions.openExternal(JSONText(url.absoluteString)) }
+                }, detailBodyCapacity: { [weak client = host.client] in
+                    await client?.availableContentSlotCount() ?? 4
+                })
             let result = try plugin.threadView(input: materialized, actions: actions, context: context)
             measurement?.end()
             return AnyView(result.environment(\.threadAuthorHarness,

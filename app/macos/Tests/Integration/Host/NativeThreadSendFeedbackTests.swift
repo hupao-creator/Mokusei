@@ -238,15 +238,29 @@ struct NativeThreadSendFeedbackTests {
             switch scope {
             case .thread:
                 return .object(["version": .integer(1), "state": state, "executionTitles": .object([:])])
-            case .directory(let offset, let limit):
+            case let .directory(offset: offset, limit: limit):
                 return .object(["version": .integer(1), "offset": .integer(offset), "limit": .integer(limit),
                     "total": .integer(0), "executions": .array([])])
-            case .turn(let key), .reading(let key, _), .execution(let key):
+            case let .detail(execution: execution, items: items):
+                return .object(["kind": .text("detail"), "executionId": .string(execution),
+                    "contentId": .text("fixture-content"),
+                    "items": .array(items.map { item in
+                        .object(["id": .string(item), "kind": .text("reasoning"), "status": .text("complete"),
+                            "bodies": .array([.object(["slot": .text("detail"), "format": .text("text"),
+                                "length": .integer("detail body".utf8.count)])])])
+                    })])
+            case let .body(execution: execution, item: item, slot: slot, cursor: _):
+                return .object(["kind": .text("body"), "executionId": .string(execution),
+                    "itemId": .string(item), "slot": .string(slot),
+                    "version": .text("fixture-v1"), "offset": .integer(0),
+                    "length": .integer("detail body".utf8.count), "text": .text("detail body")])
+            case let .turn(key: key), let .reading(key: key, target: _), let .execution(key: key):
                 let turns = state["turns"]!.arrayValue!.filter { JSONText("turn:" + $0["executionId"]!.stringValue!) == key }
                 let row = JSONValue.object(["schema": state["schema"]!, "updatedAt": state["updatedAt"]!,
                     "backgroundTerminals": .array([]), "turns": .array(turns)])
-                // Match the runtime's completed-row envelope. Execution detail
-                // stays full; active rows become deferred at settlement.
+                // Match the runtime's completed-row envelope. The detail scopes
+                // serve the production detail renderer; active rows become
+                // deferred at settlement.
                 if case .turn = scope, let turn = turns.first,
                    !["running", "waiting-input"].contains(turn["status"]!.stringValue!) {
                     return .object(["kind": .text("deferred-execution"), "state": row, "nonempty": .array([])])

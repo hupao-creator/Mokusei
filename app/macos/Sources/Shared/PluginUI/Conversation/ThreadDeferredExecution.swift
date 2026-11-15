@@ -24,7 +24,7 @@ private struct ExecutionPresenceKey: EnvironmentKey {
     static let defaultValue = ThreadExecutionPresence()
 }
 private struct ExecutionLoaderKey: EnvironmentKey {
-    static let defaultValue: (@MainActor (JSONText) -> AnyView)? = nil
+    static let defaultValue: (@MainActor (JSONText, [ThreadDetailRow]) -> AnyView)? = nil
 }
 private struct ExecutionGroupKey: EnvironmentKey {
     static let defaultValue: JSONText? = nil
@@ -34,7 +34,7 @@ public extension EnvironmentValues {
         get { self[ExecutionPresenceKey.self] }
         set { self[ExecutionPresenceKey.self] = newValue }
     }
-    var threadExecutionLoader: (@MainActor (JSONText) -> AnyView)? {
+    var threadExecutionLoader: (@MainActor (JSONText, [ThreadDetailRow]) -> AnyView)? {
         get { self[ExecutionLoaderKey.self] }
         set { self[ExecutionLoaderKey.self] = newValue }
     }
@@ -44,25 +44,36 @@ public extension EnvironmentValues {
     }
 }
 
-/// Own one resource per turn, with distinct leases for concurrently open groups.
-/// Closing one group must never revoke another group's resource.
+/// Own one resource per selected detail run, with distinct leases for
+/// concurrently open groups. Closing one group must never revoke another.
 @MainActor @Observable
 final class ThreadExecutionDemand {
-    private(set) var resource: HarnessContentResource?
-    @ObservationIgnored private var leases = Set<UUID>()
+    private var resources: [HarnessDetailSelection: HarnessContentResource] = [:]
+    private var leases: [HarnessDetailSelection: Set<UUID>] = [:]
 
-    func acquire(_ lease: UUID, make: () -> HarnessContentResource) {
-        guard leases.insert(lease).inserted else { return }
-        if resource == nil || resource?.isReleased == true { resource = make() }
+    func resource(_ selection: HarnessDetailSelection) -> HarnessContentResource? { resources[selection] }
+    func acquire(_ selection: HarnessDetailSelection, lease: UUID, make: () -> HarnessContentResource) {
+        var owned = leases[selection] ?? []
+        guard owned.insert(lease).inserted else { return }
+        leases[selection] = owned
+        if resources[selection] == nil || resources[selection]?.isReleased == true {
+            resources[selection] = make()
+        }
     }
-    func release(_ lease: UUID) {
-        leases.remove(lease)
-        if leases.isEmpty { clear() }
+    func release(_ selection: HarnessDetailSelection, lease: UUID) {
+        var owned = leases[selection] ?? []
+        owned.remove(lease)
+        if owned.isEmpty {
+            leases[selection] = nil
+            resources.removeValue(forKey: selection)?.beginRelease()
+        } else {
+            leases[selection] = owned
+        }
     }
     func clear() {
         leases.removeAll()
-        resource?.beginRelease()
-        resource = nil
+        for resource in resources.values { resource.beginRelease() }
+        resources.removeAll()
     }
 }
 
@@ -99,30 +110,28 @@ public struct ThreadDeferredExecutionContent<Content: View>: View {
         .onDisappear { demand.clear() }
     }
 
-    private func executionGroup(_ group: JSONText) -> AnyView {
-        AnyView(DeferredExecutionGroup(demand: demand,
-            make: { context.contentResource(.execution(rowKey)) }) { value in
-                render(value)
-                    .environment(\.threadExecutionPresence, ThreadExecutionPresence())
-                    .environment(\.threadExecutionLoader, nil)
-                    .environment(\.threadExecutionGroup, group)
-            })
+    private func executionGroup(_ group: JSONText, rows: [ThreadDetailRow]) -> AnyView {
+        guard !rows.isEmpty else { return AnyView(EmptyView()) }
+        let selection = HarnessDetailSelection(execution: rowKey, items: rows.map(\.id))
+        return AnyView(DeferredExecutionGroup(demand: demand, selection: selection, context: context, group: group))
     }
 }
 
-private struct DeferredExecutionGroup<Content: View>: View {
+private struct DeferredExecutionGroup: View {
     let demand: ThreadExecutionDemand
-    let make: () -> HarnessContentResource
-    @ViewBuilder let render: (JSONValue) -> Content
+    let selection: HarnessDetailSelection
+    let context: HarnessRenderContext
+    let group: JSONText
     @State private var lease = UUID()
+    @State private var activeSelection: HarnessDetailSelection?
     @State private var retryError: String?
     @Environment(\.locale) private var locale
 
     var body: some View {
         Group {
-            if let resource = demand.resource {
+            if let resource = demand.resource(selection) {
                 switch resource.state {
-                case .ready(let value): render(value)
+                case .ready(let value): HarnessDetailList(directory: value, selection: selection, context: context)
                 case .loading: ProgressView().controlSize(.small)
                 case .error(let message):
                     VStack(alignment: .leading, spacing: 8) {
@@ -135,12 +144,22 @@ private struct DeferredExecutionGroup<Content: View>: View {
             } else { ProgressView().controlSize(.small) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .nativeReadingObservation("load", role: "execution.load", value: loadState)
-        .task { guard !Task.isCancelled else { return }; demand.acquire(lease, make: make) }
-        .onDisappear { demand.release(lease) }
+        .environment(\.threadExecutionGroup, group)
+        .nativeReadingObservation("load", role: "detail.load", value: loadState)
+        .task(id: selection) {
+            guard !Task.isCancelled else { return }
+            if let activeSelection { demand.release(activeSelection, lease: lease) }
+            activeSelection = selection
+            guard !selection.items.isEmpty else { return }
+            demand.acquire(selection, lease: lease, make: { context.contentResource(.detail(selection)) })
+        }
+        .onDisappear {
+            if let activeSelection { demand.release(activeSelection, lease: lease) }
+            activeSelection = nil
+        }
     }
     private var loadState: JSONValue {
-        guard let resource = demand.resource else { return .object(["state": .text("loading")]) }
+        guard let resource = demand.resource(selection) else { return .object(["state": .text("loading")]) }
         switch resource.state {
         case .loading: return .object(["state": .text("loading")])
         case .ready: return .object(["state": .text("ready")])

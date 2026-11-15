@@ -16,6 +16,24 @@ message fields and timeline identities; deferred reasoning presence; and source,
 overview, context and full-execution isolation. A fixture cannot put a running
 Codex turn in fork history: that would violate canonical admission.
 
+All four production adapters also run a detail fixture with a short row and a
+large sibling body. Selecting the short row must omit the sibling marker; its
+directory entry carries length but no body text or hash; reading the large row
+must reassemble its retained bytes from multiple bounded UTF-8 chunks; and
+changing bytes must change the cursor version. Claude verifies duplicate
+start/end timeline entries resolve once from the canonical activity; OpenCode
+verifies the #318 parts/display schema, child sessions expanding at their Reader
+position, a separate nested child body and deferred tool display lengths (the
+directory reports zero, the first body page supplies the exact length); Codex
+verifies duplicate activity references collapse to one row. Pi verifies the NUL thinking namespace, the
+retired execution-error detail path, literal `foo:thinking` ids and the 256
+UTF-16 identity boundary for overlong native ids.
+
+The runtime replay additionally exercises the real `detail`/`body` scopes, a
+24 MiB body across 385 bounded pages with one cached projection read, complete
+chunk assembly, stale-cursor rejection and the explicit directory truncation
+flag.
+
 The benchmarks call the actual transport `publishOne` implementation with a
 prebuilt 2 KiB or 256 KiB projection and an advancing source revision. They cover
 identical bytes, alternating equivalent whitespace encodings, and real alternating

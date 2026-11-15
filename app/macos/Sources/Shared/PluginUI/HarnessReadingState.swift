@@ -66,8 +66,8 @@ public struct HarnessReadingRequest: Hashable {
 /// Deferred row metadata must advance with the state decoded from its envelope.
 @MainActor public struct HarnessReadingEnvironment {
     public let presence: ThreadExecutionPresence
-    public let loader: (@MainActor (JSONText) -> AnyView)?
-    public init(presence: ThreadExecutionPresence, loader: (@MainActor (JSONText) -> AnyView)?) {
+    public let loader: (@MainActor (JSONText, [ThreadDetailRow]) -> AnyView)?
+    public init(presence: ThreadExecutionPresence, loader: (@MainActor (JSONText, [ThreadDetailRow]) -> AnyView)?) {
         self.presence = presence; self.loader = loader
     }
 }

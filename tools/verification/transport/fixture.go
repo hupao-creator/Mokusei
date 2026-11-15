@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 
+	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
 )
 
@@ -98,7 +100,12 @@ func (h *mockHost) mutate(text string) {
 	}
 }
 
+const transportDetailBodyBytes = 24 << 20
+
 func (h *mockHost) ReadThreadContent(ctx context.Context, id string, scope transport.ContentScope, known *int64) (*transport.ContentSnapshot, error) {
+	if id == "detail-paging" {
+		return detailPagingContent(scope)
+	}
 	if id == "projection-panic" {
 		panic("fixed projection failure")
 	}
@@ -119,4 +126,44 @@ func (h *mockHost) ReadThreadContent(ctx context.Context, id string, scope trans
 		return nil, err
 	}
 	return &transport.ContentSnapshot{Revision: revision, Value: value}, nil
+}
+
+func detailPagingContent(scope transport.ContentScope) (*transport.ContentSnapshot, error) {
+	const contentID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	text := strings.Repeat("x", transportDetailBodyBytes)
+	switch scope.Kind {
+	case "detail":
+		value, err := json.Marshal(model.DetailDirectory{Kind: "detail", ExecutionID: scope.Key, ContentID: contentID,
+			Items: []model.DetailDirectoryItem{{ID: "row", Kind: "activity",
+				Bodies: []model.DetailBodyDescriptor{{Slot: "detail", Format: model.DetailBodyText, Length: len(text)}}}}})
+		if err != nil {
+			return nil, err
+		}
+		return &transport.ContentSnapshot{Revision: 1, Value: value}, nil
+	case "body":
+		offset := 0
+		if scope.Cursor != "" {
+			version, parsed, ok := model.DecodeDetailCursor(scope.Cursor)
+			if !ok || version != contentID {
+				return nil, model.NewError("DETAIL_VERSION_CHANGED", "The detail body changed; reload the detail")
+			}
+			offset = parsed
+		}
+		chunkText, next, err := model.DetailChunkText(text, offset, 64<<10)
+		if err != nil {
+			return nil, err
+		}
+		chunk := model.DetailChunk{Kind: "body", ExecutionID: scope.Key, ItemID: "row", Slot: "detail",
+			Version: contentID, Offset: offset, Length: len(text), Text: chunkText}
+		if next < len(text) {
+			chunk.Next = model.EncodeDetailCursor(contentID, next)
+		}
+		value, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, err
+		}
+		return &transport.ContentSnapshot{Revision: 1, Value: value}, nil
+	}
+	value, err := json.Marshal(map[string]any{"thread": "detail-paging", "scope": scope.Kind})
+	return &transport.ContentSnapshot{Revision: 1, Value: value}, err
 }

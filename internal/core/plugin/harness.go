@@ -290,6 +290,15 @@ type SettleRequest struct {
 	Outcome      string // failed or interrupted
 	FinishedAt   int64
 }
+
+// DetailStateAdapter exposes stable reader detail identities without making the
+// shared Runtime interpret a Harness's private tool/message schema. Implementations
+// must return only the requested rows and never serialize sibling bodies as a
+// prerequisite for selection.
+type DetailStateAdapter interface {
+	ProjectDetail(state json.RawMessage, request model.DetailRequest) (model.DetailProjection, error)
+	ReadDetailBody(state json.RawMessage, request model.DetailBodyRequest) (model.DetailBody, error)
+}
 type ThreadMetadataAdapter interface {
 	Initialize(threadID string, input model.AgentInput, settings json.RawMessage) (json.RawMessage, error)
 	Project(state json.RawMessage) (string, error)

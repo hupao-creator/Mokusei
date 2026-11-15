@@ -13,6 +13,7 @@ historical continuation.
 - Harness 解释自己的原生会话。Core 只读取 `PublicObservation`、身份、时间和配置边界。
 - Catalog 中只放 `SessionStateAdapter.ProjectRenderer(..., {Kind:"overview"})` 的当前卡片投影；目录（`directory`，按 offset/limit 分页）、单条执行（`execution`/`turn`）与执行预览（`preview`）通过独立 content scope 读取。`ThreadRecord.executionTitles` 不再进入 catalog。
 - `RuntimePlugin` 只投影插件 key、当前启用状态和不可用原因，供原生执行权限与内容可用性判断；不提供插件管理页专用的名称或分类。
+- Detail 目录携带 SessionState 内容身份、所选 Harness 行身份、显示元数据和正文长度，不返回正文或哈希；首块正文声明版本。正文按 64 KiB UTF-8 字节块读取。`DetailBodyVersion` 绑定 execution/item/slot/正文，游标失配时拒绝跨版本拼接，不把旧正文追加到新正文。目录超过上限时显式标记截断。
 - `model.ParsePublicAgentInput` 拒绝客户端提供附件路径；附件 ID 先由 Core 解析、验证并保留 owner，再交给 Harness。媒体和 annotation URL 采用 WHATWG 解析；域名拒绝解码后只有 ASCII 的 Punycode 标签，正常国际化域名仍受支持。
   解析后的规范化 URL 进入可信输入；批注的附件边界继续采用同一 WHATWG 解析规则，避免后续解析器拒绝合法的 URL 路径或重新解释原始写法。
 - `ParsePublicObservation`、`ParsePublicExecution`、响应 DTO 的严格 JSON 解码及 `ValidatePublicInteractionAnswers` 处理公开交互边界。字符上限沿用 UTF-16 单位。表单 regex 使用 ECMAScript 规则和有限匹配时间。
@@ -90,3 +91,5 @@ execution admission, alongside the existing configuration fields.
 `search:retry` is a zero-argument write command that wakes local model/index
 recovery. `search:status` and `search:query` remain read channels; their responses
 include bounded semantic preparation state and may report `hybrid` mode.
+
+`DetailChunkText` accepts an exact end-of-body cursor as an empty terminal chunk, rejects offsets inside UTF-8 runes, and bounds addition before computing the next byte offset.

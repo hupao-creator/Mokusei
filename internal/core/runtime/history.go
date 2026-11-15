@@ -405,6 +405,7 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 	for _, thread := range threads {
 		r.evictThreadReader(thread.HarnessID, thread.ID)
 	}
+	r.clearDetailCache()
 	r.pruneCancellationStates()
 	if r.search != nil {
 		if err := r.search.ClearDerived(); err != nil {

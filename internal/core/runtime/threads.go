@@ -1527,6 +1527,7 @@ func (r *Runtime) DeleteThread(ctx context.Context, id string) error {
 	// Reports derive their directory labels from live source threads. Refresh
 	// after the delete commits so a Report referencing this thread drops the
 	// stale task-… label in the same session instead of after a restart.
+	r.dropThreadDetailCache(id)
 	r.log("thread.delete.directory_tags", r.RefreshApplicationDirectoryTags(cleanup))
 	return nil
 }

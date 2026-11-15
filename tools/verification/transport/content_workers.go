@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -49,6 +50,9 @@ func (h *workerHost) releaseWorkers() {
 	}
 }
 func (h *workerHost) ReadThreadContent(ctx context.Context, id string, scope transport.ContentScope, known *int64) (*transport.ContentSnapshot, error) {
+	if id == "detail-paging" {
+		return detailPagingContent(scope)
+	}
 	h.mu.Lock()
 	revision, text := h.contentRev, h.contentText
 	h.mu.Unlock()
@@ -103,6 +107,45 @@ func workerSnapshot(ctx context.Context, api *apiClient, stream *eventConnection
 	check(value["thread"] == target, "late content from former target escaped")
 	return value
 }
+func verifyDetailTransportPaging(ctx context.Context, api *apiClient, stream *eventConnection) {
+	subscribeWorker(ctx, api, stream, "detail-page", map[string]any{
+		"threadId": "detail-paging",
+		"scope":    map[string]any{"kind": "detail", "key": "execution", "items": []any{"row"}},
+	})
+	event := workerEvent(ctx, api, stream)
+	directory, ok := event["value"].(map[string]any)
+	check(ok && directory["kind"] == "detail" && directory["contentId"] != nil, "detail page directory missing")
+	subscribeWorker(ctx, api, stream, "detail-page", nil)
+
+	var assembled strings.Builder
+	cursor := ""
+	pages := 0
+	for {
+		id := fmt.Sprintf("detail-body-%d", pages)
+		target := map[string]any{"threadId": "detail-paging", "scope": map[string]any{
+			"kind": "body", "key": "execution", "items": []any{"row"}, "slot": "detail", "cursor": cursor,
+		}}
+		subscribeWorker(ctx, api, stream, id, target)
+		event = workerEvent(ctx, api, stream)
+		chunk, ok := event["value"].(map[string]any)
+		check(ok && chunk["kind"] == "body", "detail body chunk missing")
+		text, _ := chunk["text"].(string)
+		check(len(text) <= 64<<10, "detail body page exceeded 64 KiB")
+		check(int(chunk["offset"].(float64)) == assembled.Len(), "detail body offset changed over transport")
+		check(chunk["version"] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "detail body version changed over transport")
+		assembled.WriteString(text)
+		pages++
+		subscribeWorker(ctx, api, stream, id, nil)
+		next, _ := chunk["next"].(string)
+		if next == "" {
+			break
+		}
+		cursor = next
+	}
+	check(assembled.Len() == transportDetailBodyBytes, "transport detail pages did not reassemble 24 MiB")
+	fmt.Printf("PASS transport detail paging: bytes=%d pages=%d\n", assembled.Len(), pages)
+}
+
 func verifyContentWorkers(ctx context.Context, directory string) {
 	p, err := profile.Resolve(profile.Options{DataDir: filepath.Join(directory, "content-workers"), HomeDir: directory})
 	must(err)
@@ -189,6 +232,15 @@ func verifyContentWorkers(ctx context.Context, directory string) {
 	subscribeWorker(ctx, api, stream, "barrier", contentTarget("barrier", "thread", ""))
 	workerSnapshot(ctx, api, stream, "barrier", "barrier")
 	subscribeWorker(ctx, api, stream, "barrier", nil)
+	detailTarget := map[string]any{"threadId": "detail", "scope": map[string]any{"kind": "detail", "key": "execution", "items": []any{"row-0", "row-1"}}}
+	subscribeWorker(ctx, api, stream, "detail", detailTarget)
+	detail := workerEvent(ctx, api, stream)["value"].(map[string]any)
+	check(detail["thread"] == "detail", "valid reader detail scope was rejected")
+	subscribeWorker(ctx, api, stream, "detail", nil)
+	api.request(ctx, "POST", "/thread-content/subscription", map[string]any{
+		"clientId": stream.id, "subscriptionId": "invalid-detail",
+		"target": map[string]any{"threadId": "detail", "scope": map[string]any{"kind": "detail", "key": "execution", "items": []any{}}},
+	}, nil).requireFailure(400, "INVALID_REQUEST")
 	other := api.events(ctx)
 	disconnected := host.hold("disconnected")
 	subscribeWorker(ctx, api, other, "gone", contentTarget("disconnected", "thread", ""))
@@ -199,7 +251,7 @@ func verifyContentWorkers(ctx context.Context, directory string) {
 	await(ctx, disconnected.finished, "disconnected read did not end")
 	subscribeWorker(ctx, api, stream, "large", contentTarget("oversized", "thread", ""))
 	event = workerEvent(ctx, api, stream)
-	check(event["type"] == "error" && event["subscriptionId"] == "large" && event["message"] == "This conversation turn exceeds the content transport limit", "oversized raw content was decoded or leaked")
+	check(event["type"] == "error" && event["subscriptionId"] == "large" && event["code"] == "CONTENT_TOO_LARGE" && event["message"] == "This conversation turn exceeds the content transport limit", "oversized raw content was decoded or leaked")
 	// Reserve both raw-resource slots. A third pending resource must wait.
 	holds := []*contentBarrier{host.hold("slot-0"), host.hold("slot-1"), host.hold("slot-2")}
 	for i := 0; i < 2; i++ {
@@ -229,6 +281,7 @@ func verifyContentWorkers(ctx context.Context, directory string) {
 	peak := host.peak
 	host.workersMu.Unlock()
 	check(peak == 2, "content workers were not globally bounded to two")
+	verifyDetailTransportPaging(ctx, api, stream)
 	closing := host.hold("closing")
 	subscribeWorker(ctx, api, stream, "closing", contentTarget("closing", "thread", ""))
 	await(ctx, closing.started, "shutdown fixture did not start")

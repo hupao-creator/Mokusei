@@ -75,6 +75,7 @@ struct MokuseiProbe {
             case .threadContent(_, let state):
                 if case .ready = state { contentReady += 1 }
                 if case .error(let message) = state { failures.append(message) }
+                if case .failure(_, let message) = state { failures.append(message) }
             case .failure(let error): failures.append(error.message)
             case .overviewFilter: break
             }

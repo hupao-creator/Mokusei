@@ -201,11 +201,14 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 func (c *eventStream) encodeContent(event any) ([]byte, error) {
 	return encodeEvent(map[string]any{"type": "thread-content", "epoch": c.epoch, "event": event})
 }
-func (c *eventStream) deliverContentError(subscription, message string) {
+func (c *eventStream) deliverContentError(subscription, code, message string) {
 	if len(message) > 4000 {
 		message = message[:4000]
 	}
-	body, err := c.encodeContent(map[string]any{"type": "error", "subscriptionId": subscription, "message": message})
+	if code == "" {
+		code = "CONTENT_UNAVAILABLE"
+	}
+	body, err := c.encodeContent(map[string]any{"type": "error", "subscriptionId": subscription, "code": code, "message": message})
 	if err != nil || c.enqueueWithLimit(body, subscription, MaxEventBytes) != nil {
 		c.abort()
 	}

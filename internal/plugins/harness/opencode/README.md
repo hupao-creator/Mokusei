@@ -91,6 +91,18 @@ and the size estimator; Swift tests decode the minimal projection and a
 conditional native form, and verify one truncation notice per presentation. A
 transport test covers the 32 MiB accept/reject boundary.
 
+Reader detail selections address only the #318 version-2 schema: assistant text
+and reasoning exist in ordered `parts`, never in aggregate message fields. Tool
+display text is formatted only when its exact body is read. The directory
+records argument/result slots with a zero length; the first body page is
+authoritative for the exact length. This keeps a 24 MiB sibling out of an
+unrelated exact-body read. A child-session row expands in place at its first
+native message position, and its messages stay in native part order. The detail list is flat because the parent
+disclosure has already been replaced by the selected group; top-level rows and
+child-session rows therefore keep the same relative order as the Reader. A
+different child session keeps its own disclosure row, so a selected nested child
+body still resolves through the same execution and native session identity.
+
 The `agent-summary` purpose used by the ordinary Agent reader always returns the
 lightweight deferred envelope, including running, waiting, failed and interrupted
 executions and fork history. It keeps visible replies, public follow-ups,
