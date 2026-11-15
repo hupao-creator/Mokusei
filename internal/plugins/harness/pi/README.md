@@ -37,6 +37,16 @@ to show conversation content. Reasoning and successful tool output remain
 deferred. Failed-tool payload retention does not authorize showing it in an
 Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
+Reader detail selections address messages and their NUL-namespaced thinking
+rows directly; tool text and reply Markdown become independent versioned body
+resources. The NUL prefix cannot collide with a native message id, and a
+failing execution stays a native attention row rather than a detail item.
+Native ids longer than the shared 256 UTF-16 content-identity bound derive a
+namespaced SHA-256 identity that the native Reader computes identically.
+Message and execution identities must be valid Unicode scalar sequences;
+isolated surrogates are rejected at the decode boundary because Go's JSON
+decoder would repair them to U+FFFD and the two sides would otherwise hash
+different bytes. Selecting one message never serializes sibling message bodies.
 
 The `agent-summary` purpose used by the ordinary Agent reader always returns the
 lightweight deferred envelope, including running, waiting, failed and interrupted

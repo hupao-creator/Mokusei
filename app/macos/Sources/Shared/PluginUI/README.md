@@ -201,6 +201,50 @@ The mounted `NativeThreadSendFeedbackTests` settlement regression checks
 continuity across this boundary. See the
 [recording investigation and regression evidence](../../../../../design/message-settlement-flicker.md).
 
+## Execution detail paging
+
+A deferred execution group leases a `detail` directory keyed by the execution and
+the selected run's stable row identities. Row identities are opaque JSON text and
+may contain NUL namespace separators; `JSONText`, `ForEach` identities and
+reading-anchor keys preserve code units rather than normalizing a control
+character. The directory carries a SessionState content identity, labels,
+status, order and body lengths only.
+`ThreadExecutionDemand` keeps one resource per selection, so opening or closing
+one group does not affect a sibling group.
+
+Each descriptor becomes a `body` lease only when its reasoning or activity row is
+expanded. The body view appends 64 KiB pages until complete and releases every
+page lease. A gate derives its limit from the Runtime client's remaining content
+slots (up to four by default), so group resources plus body leases stay within
+the 32-resource cap. The gate re-reads remaining capacity while waiting and
+subtracts outstanding page reservations, because another surface can consume
+slots while the view is suspended. Once admitted, each page must reserve the one
+resource it is about to create, so pending sibling reservations make later
+pages wait instead of racing into `CONTENT_CAPACITY`. External (non-body)
+capacity is not owned by the gate. A waiting view admission and an admitted
+page both poll external capacity (admission via a 100 ms gate wake, pages via
+20–250 ms backoff) for up to five seconds; if capacity stays zero they return to
+the same capacity/retry state. Gate releases broadcast to all waiters; there is
+no FIFO guarantee, and a continuously reserved long body can delay siblings. A
+zero-capacity admission read is not queued: the row shows the capacity failure
+and an explicit retry. Default message/error/notice bodies
+are eager: each holds one gate token until all pages finish. Four 24 MiB bodies
+can therefore occupy the default gate for a long time; sibling body views wait
+and then surface the same capacity/retry state instead of exceeding the client
+cap. Cursor versions bind the
+execution, item, slot and exact bytes; only an explicit
+`DETAIL_VERSION_CHANGED` discards the partial text and restarts from the current
+first page, whose new length becomes authoritative. Agent summary presentations do not mount the loader and therefore
+acquire no detail lease.
+
+Selected run rows use the shared `HarnessDetailList` for labels, status, order
+and bodies. This deliberately does not reconstruct Harness-specific inner tool
+group summaries, file-change decoration or per-Harness icon variants; activity
+rows retain their scroll container and disclosure. Keeping that chrome would
+require re-decoding the full Harness projection, defeating the bounded detail
+boundary. Directories over 1024 rows, or selections over 1024 identities, show
+an explicit incomplete-content notice.
+
 Codex reading validates and decodes each changed opaque state on its background
 actor before publishing its immutable typed result. Superseded and unmounted
 requests cancel delivery. Collapsed execution work also skips native row

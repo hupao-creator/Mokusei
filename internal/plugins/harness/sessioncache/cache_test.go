@@ -578,3 +578,21 @@ func TestScopeKeyDistinguishesReadingPurposeAndTarget(t *testing.T) {
 		t.Fatal("different reading targets shared a projection key")
 	}
 }
+
+func TestScopeKeySeparatesBodySelectionsAndCursors(t *testing.T) {
+	scopes := []model.RendererScope{
+		{Kind: "detail", Key: "execution", Items: []string{"one"}},
+		{Kind: "detail", Key: "execution", Items: []string{"two"}},
+		{Kind: "body", Key: "execution", Items: []string{"one"}, Slot: "arguments"},
+		{Kind: "body", Key: "execution", Items: []string{"one"}, Slot: "result"},
+		{Kind: "body", Key: "execution", Items: []string{"one"}, Slot: "result", Cursor: "next-page"},
+	}
+	keys := map[Key]bool{}
+	for _, scope := range scopes {
+		key := ScopeKey(scope)
+		if keys[key] {
+			t.Fatalf("scope aliased another selection: %+v", scope)
+		}
+		keys[key] = true
+	}
+}

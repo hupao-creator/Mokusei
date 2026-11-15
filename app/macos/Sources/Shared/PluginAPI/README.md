@@ -73,6 +73,11 @@ handle and releases it when leaving; it cannot revoke another consumer's handle.
 Shared execution-disclosure demand belongs within the mounted row. The host
 revokes every remaining handle when the conversation surface retires.
 
+Reader details use `.detail(selection)` for a metadata directory and
+`.body(reference)` for one versioned body page. Selections name stable Harness
+row identities; bodies never share a handle across cursor versions. A surface
+releases both kinds through the same lifetime rules as other content resources.
+
 Global Harness settings sessions belong to the connected workspace and may be
 prefetched before any editor mounts. Editors join the resource's pending read;
 unmounting a global editor keeps its typed presentation cached. Source changes

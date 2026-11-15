@@ -58,6 +58,10 @@ _Avoid_: Report Thread
 
 **Thread catalog projection**: The public description a thread's owner supplies for identification and cross-thread references. Its readable name does not prescribe how the owner creates or stores metadata.
 
+**Detail directory**: The bounded metadata page for selected reader rows within one execution. It lists stable Harness-owned row identities, display facts and independent body descriptors without carrying unselected sibling bodies.
+
+**Detail body chunk**: One bounded page of a single detail body, addressed by a cursor that binds the execution, row, slot, content version and byte offset. A changed version rejects the cursor rather than mixing text.
+
 **Lifecycle subject**: The thread, report document, application, or configuration whose state a lifecycle fact describes. A thread subject retains its type even after deletion.
 
 **Lifecycle source**: The actor or application authority that produced a lifecycle fact. A Tag Agent edit to an ordinary Agent Thread has Tag Agent as its source and the ordinary thread as its subject.

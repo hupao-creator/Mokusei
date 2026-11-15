@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -17,6 +18,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -100,6 +102,37 @@ func (stateAdapter) ProjectRenderer(value json.RawMessage, scope model.RendererS
 	return value, nil
 }
 func (stateAdapter) ReadContext(value json.RawMessage) (json.RawMessage, error) { return value, nil }
+
+var detailBodyReads atomic.Int64
+
+func (stateAdapter) ProjectDetail(value json.RawMessage, request model.DetailRequest) (model.DetailProjection, error) {
+	var s state
+	if err := json.Unmarshal(value, &s); err != nil {
+		return model.DetailProjection{}, err
+	}
+	result := model.DetailProjection{ExecutionID: request.ExecutionID, Items: []model.DetailItem{}}
+	for _, id := range request.Items {
+		var index int
+		if _, err := fmt.Sscanf(id, "detail:%d", &index); err != nil || index < 0 || index >= len(s.Messages) {
+			continue
+		}
+		result.Items = append(result.Items, model.DetailItem{ID: id, Kind: "activity", Label: "fixture", Status: "completed",
+			Bodies: []model.DetailBody{{Slot: "body", Format: model.DetailBodyText, Length: len(s.Messages[index])}}})
+	}
+	return result, nil
+}
+func (stateAdapter) ReadDetailBody(value json.RawMessage, request model.DetailBodyRequest) (model.DetailBody, error) {
+	detailBodyReads.Add(1)
+	var s state
+	if err := json.Unmarshal(value, &s); err != nil {
+		return model.DetailBody{}, err
+	}
+	var index int
+	if _, err := fmt.Sscanf(request.ItemID, "detail:%d", &index); err != nil || index < 0 || index >= len(s.Messages) {
+		return model.DetailBody{}, model.NewError("DETAIL_NOT_FOUND", "fixture detail is unavailable")
+	}
+	return model.DetailBody{Slot: request.Slot, Format: model.DetailBodyText, Length: len(s.Messages[index]), Text: s.Messages[index]}, nil
+}
 func (stateAdapter) ResolveExecution(value json.RawMessage, id string) (*model.PublicExecution, error) {
 	o, err := (stateAdapter{}).Project(value)
 	if err != nil {
@@ -267,6 +300,7 @@ func main() {
 	if unchanged != nil {
 		panic("known revision changed")
 	}
+	verifyRuntimeDetail(ctx, r, id, created.Execution.ExecutionID)
 	settings, revision, err := r.Settings()
 	must(err)
 	prompt := "verify"
@@ -363,4 +397,117 @@ func main() {
 	must(r.Close(ctx))
 	must(db.Close())
 	fmt.Printf("PASS runtime SQLite lifecycle, steering, cancellation, fork/delete, settings CAS, content revisions, reentrant mutation subscribers, private sessions, tags, restart, history reset; %d mutations\n", mutations.Load())
+}
+
+func verifyRuntimeDetail(ctx context.Context, r *core.Runtime, threadID, executionID string) {
+	thread, err := r.Thread(threadID)
+	must(err)
+	original := thread.SessionState
+	small := "small runtime detail"
+	huge := "RUNTIME_DETAIL_MARKER" + strings.Repeat("a", 24<<20)
+	must(r.UpdateThread(ctx, threadID, func(t *model.ThreadRecord) error {
+		t.SessionState = raw(state{Messages: []string{small, huge}})
+		return nil
+	}))
+	defer func() {
+		must(r.UpdateThread(context.Background(), threadID, func(t *model.ThreadRecord) error {
+			t.SessionState = original
+			return nil
+		}))
+	}()
+
+	directoryRaw, err := r.ReadThreadContent(ctx, threadID, transport.ContentScope{Kind: "detail", Key: executionID, Items: []string{"detail:0"}}, nil)
+	must(err)
+	if bytes.Contains(directoryRaw.Value, []byte("RUNTIME_DETAIL_MARKER")) {
+		panic("runtime detail directory serialized an unselected sibling body")
+	}
+	var directory model.DetailDirectory
+	must(json.Unmarshal(directoryRaw.Value, &directory))
+	if directory.Kind != "detail" || directory.ContentID == "" || len(directory.Items) != 1 || directory.Items[0].ID != "detail:0" || len(directory.Items[0].Bodies) != 1 {
+		panic("runtime detail directory lost the selected item or content identity")
+	}
+	if directory.Items[0].Bodies[0].Length != len(small) || directory.Items[0].Bodies[0].Slot != "body" {
+		panic("runtime detail directory lost body metadata")
+	}
+	if bytes.Contains(directoryRaw.Value, []byte("version")) {
+		panic("runtime detail directory exposed a body hash")
+	}
+
+	detailBodyReads.Store(0)
+	started := time.Now()
+	firstRaw, err := r.ReadThreadContent(ctx, threadID, transport.ContentScope{Kind: "body", Key: executionID, Items: []string{"detail:1"}, Slot: "body"}, nil)
+	must(err)
+	var first model.DetailChunk
+	must(json.Unmarshal(firstRaw.Value, &first))
+	if first.Length != len(huge) || first.Text == "" || first.Next == "" || first.Version == "" || first.Offset != 0 {
+		panic("runtime detail body did not start a versioned chunked read")
+	}
+	var assembled strings.Builder
+	assembled.WriteString(first.Text)
+	cursor := first.Next
+	pages := 1
+	for cursor != "" {
+		chunkRaw, err := r.ReadThreadContent(ctx, threadID, transport.ContentScope{Kind: "body", Key: executionID, Items: []string{"detail:1"}, Slot: "body", Cursor: cursor}, nil)
+		must(err)
+		var chunk model.DetailChunk
+		must(json.Unmarshal(chunkRaw.Value, &chunk))
+		if chunk.Offset != assembled.Len() || chunk.Length != len(huge) || chunk.Version != first.Version {
+			panic("runtime detail chunk identity changed")
+		}
+		if len(chunk.Text) > 64*1024 {
+			panic("runtime detail chunk exceeded its byte budget")
+		}
+		assembled.WriteString(chunk.Text)
+		cursor = chunk.Next
+		pages++
+	}
+	if assembled.String() != huge {
+		panic("runtime detail chunks did not reassemble the retained body")
+	}
+	if reads := detailBodyReads.Load(); reads != 1 {
+		panic(fmt.Sprintf("runtime detail body was reprojected per page: %d reads", reads))
+	}
+	if pages <= 1 {
+		panic("24 MiB detail body was not paged")
+	}
+	fmt.Printf("detail budget body=%d pages=%d reads=%d elapsed=%s\n", len(huge), pages, detailBodyReads.Load(), time.Since(started))
+
+	must(r.UpdateThread(ctx, threadID, func(t *model.ThreadRecord) error {
+		t.Title += " metadata-only"
+		return nil
+	}))
+	metadataRaw, err := r.ReadThreadContent(ctx, threadID, transport.ContentScope{Kind: "body", Key: executionID, Items: []string{"detail:1"}, Slot: "body"}, nil)
+	must(err)
+	var metadataFirst model.DetailChunk
+	must(json.Unmarshal(metadataRaw.Value, &metadataFirst))
+	if metadataFirst.Version != first.Version || detailBodyReads.Load() != 1 {
+		panic("metadata-only update evicted the detail body cache or changed its version")
+	}
+
+	must(r.UpdateThread(ctx, threadID, func(t *model.ThreadRecord) error {
+		t.SessionState = raw(state{Messages: []string{small, huge + "changed"}})
+		return nil
+	}))
+	_, err = r.ReadThreadContent(ctx, threadID, transport.ContentScope{Kind: "body", Key: executionID, Items: []string{"detail:1"}, Slot: "body", Cursor: first.Next}, nil)
+	if err == nil || !strings.Contains(err.Error(), "detail body changed") {
+		panic("runtime detail cursor crossed content versions")
+	}
+
+	items := make([]string, 1025)
+	messages := make([]string, 1025)
+	for index := range items {
+		items[index] = fmt.Sprintf("detail:%d", index)
+		messages[index] = "x"
+	}
+	must(r.UpdateThread(ctx, threadID, func(t *model.ThreadRecord) error {
+		t.SessionState = raw(state{Messages: messages})
+		return nil
+	}))
+	truncatedRaw, err := r.ReadThreadContent(ctx, threadID, transport.ContentScope{Kind: "detail", Key: executionID, Items: items}, nil)
+	must(err)
+	var truncated model.DetailDirectory
+	must(json.Unmarshal(truncatedRaw.Value, &truncated))
+	if !truncated.Truncated || len(truncated.Items) != 1024 {
+		panic("runtime detail directory truncated without a visible flag")
+	}
 }

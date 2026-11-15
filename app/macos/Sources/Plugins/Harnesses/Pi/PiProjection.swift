@@ -131,7 +131,10 @@ func piMokuAnchor(_ state: PiState, _ value: JSONValue?) -> JSONText? {
     guard let object = value?.objectValue,
           let executionID = piText(object["executionId"]),
           let messageID = piText(object["messageId"]) else { return nil }
-    return state.messages.contains { $0.id == messageID && $0.executionID == executionID && $0.role == "assistant" } ? messageID : nil
+    // The anchor names the rendered row, not the raw native id. Both differ
+    // only when the native id exceeds the shared content identity bound.
+    return state.messages.contains { $0.id == messageID && $0.executionID == executionID && $0.role == "assistant" }
+        ? PiDetailIdentity.message(messageID) : nil
 }
 
 struct PiOverviewCard: View {

@@ -1,15 +1,17 @@
 import Foundation
 
 public enum RuntimeProtocol {
-    /// 12 is the final #320 reader-adapter + #322 directory/preview + #316
-    /// reading-purpose/target contract. Future ContentScope changes require a
-    /// new protocol version.
-    public static let version = 12
+    /// 13 adds bounded reader detail/body scopes on top of the coordinated
+    /// #320 reader-adapter and #322 directory/preview contract.
+    public static let version = 13
     public static let maxRequestBytes = 144 * 1024 * 1024
     public static let maxResponseBytes = 32 * 1024 * 1024
     public static let maxEventBytes = maxResponseBytes
     public static let maxOverviewBytes = 2 * 1024 * 1024
     public static let maximumSafeInteger = 9_007_199_254_740_991
+    /// Shared bound for every content scope identity, measured in UTF-16 units.
+    /// Harnesses derive a bounded row identity when a native id is longer.
+    public static let maximumContentIdentityUnits = 256
 }
 
 public struct RuntimeError: Error, Sendable, LocalizedError, Equatable {
@@ -39,6 +41,22 @@ public enum RuntimeContentScope: Sendable, Equatable {
     /// full thread scope; later directory consumers must send a positive limit
     /// (1...200). The raw Go protocol also accepts zero as its default limit.
     case directory(offset: Int, limit: Int)
+    case detail(execution: JSONText, items: [JSONText])
+    case body(execution: JSONText, item: JSONText, slot: JSONText, cursor: String)
+    /// Detail metadata and chunk pages are live derivatives, not offline
+    /// reading content; retaining cursor pages would only serve stale bytes.
+    var persistsOffline: Bool {
+        switch self {
+        case .detail, .body: return false
+        default: return true
+        }
+    }
+    var isReaderDetail: Bool {
+        switch self {
+        case .detail, .body: return true
+        default: return false
+        }
+    }
     var json: JSONValue {
         switch self {
         case .thread: return runtimeObject(["kind": .text("thread")])
@@ -50,6 +68,11 @@ public enum RuntimeContentScope: Sendable, Equatable {
         case .execution(let key): return runtimeObject(["kind": .text("execution"), "key": .string(key)])
         case .directory(let offset, let limit):
             return runtimeObject(["kind": .text("directory"), "offset": .integer(offset), "limit": .integer(limit)])
+        case .detail(let execution, let items):
+            return runtimeObject(["kind": .text("detail"), "key": .string(execution), "items": .array(items.map(JSONValue.string))])
+        case .body(let execution, let item, let slot, let cursor):
+            return runtimeObject(["kind": .text("body"), "key": .string(execution), "items": .array([.string(item)]),
+                                  "slot": .text(slot.string), "cursor": .text(cursor)])
         }
     }
 }
@@ -57,6 +80,9 @@ public enum RuntimeContentState: Sendable, Equatable {
     case loading
     case ready(JSONValue)
     case error(String)
+    /// Preserves the Runtime error identity for callers that must distinguish a
+    /// stale detail cursor from a transport or projection failure.
+    case failure(code: String, message: String)
 }
 public enum RuntimeClientEvent: Sendable {
     case connection(RuntimeConnectionStatus)

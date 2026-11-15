@@ -271,7 +271,7 @@ extension RuntimeClient {
         do {
             if readingStateDirty, let state { try offlineStore.saveState(state); readingStateDirty = false }
             for id in Array(readingContentDirty) {
-                if let resource = contentResources[id], let value = resource.value {
+                if let resource = contentResources[id], resource.scope.persistsOffline, let value = resource.value {
                     try offlineStore.saveContent(value, thread: resource.threadID, scope: resource.scope)
                 }
                 readingContentDirty.remove(id)

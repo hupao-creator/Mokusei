@@ -16,10 +16,9 @@ import (
 )
 
 const (
-	// ProtocolVersion 12 is the final #320 reader-adapter + #322
-	// directory/preview + #316 reading-purpose/target contract. Future
-	// ContentScope shape changes must publish a new version.
-	ProtocolVersion      = 12
+	// ProtocolVersion 13 adds bounded reader detail/body scopes on top of the
+	// coordinated #320 reader-adapter and #322 directory/preview contract.
+	ProtocolVersion      = 13
 	MaxRequestBytes      = 144 * 1024 * 1024
 	MaxOverviewBytes     = 2 * 1024 * 1024
 	MaxResponseBytes     = 32 * 1024 * 1024
@@ -29,6 +28,8 @@ const (
 	maxSessionRequests   = 16
 	maxInFlightBodyBytes = 192 * 1024 * 1024
 	contentWriteLimit    = MaxEventBytes - 256*1024
+	maxDetailItems       = 1024
+	maxDetailCursorBytes = 512
 )
 
 type Failure struct {
@@ -41,10 +42,13 @@ type Result struct {
 	Error *Failure        `json:"error,omitempty"`
 }
 type ContentScope struct {
-	Kind   string `json:"kind"`
-	Key    string `json:"key,omitempty"`
-	Offset int    `json:"offset,omitempty"`
-	Limit  int    `json:"limit,omitempty"`
+	Items  []string `json:"items,omitempty"`
+	Slot   string   `json:"slot,omitempty"`
+	Cursor string   `json:"cursor,omitempty"`
+	Kind   string   `json:"kind"`
+	Key    string   `json:"key,omitempty"`
+	Offset int      `json:"offset,omitempty"`
+	Limit  int      `json:"limit,omitempty"`
 	// Purpose and Target select a narrower reading contract for the same
 	// execution identity. The Runtime forwards them without decoding the
 	// Harness's private target shape.

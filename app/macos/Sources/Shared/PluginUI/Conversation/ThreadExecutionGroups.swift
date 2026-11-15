@@ -101,7 +101,7 @@ public func groupThreadExecutionRows(_ rows: [ThreadDetailRow],
             let loading = running && index == lastExecution && index == runs.indices.last
 
             // Classify by native content, never by row position or zero tool counts.
-            // Full readers keep their original rows, disclosures and detail leases.
+            // Full readers lease detail only for this run's selected row identities.
             guard !summaryOnly || rows.contains(where: { $0.executionSummary?.hasContent != false }) ||
                 (usage?.hasValidTokens == true && (usage?.tokens ?? 0) > 0) else { return nil }
             return ThreadDetailRow(
@@ -137,7 +137,7 @@ public struct ThreadExecutionProcess: View {
             // Agent reading stops at the summary, including for failed tools.
             // Do not acquire historical detail leases for this presentation.
             if !agentDetail {
-                if let loader { loader(groupID) }
+                if let loader { loader(groupID, rows) }
                 else { ThreadExecutionMemberRows(rows: rows) }
             }
         }

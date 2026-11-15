@@ -31,6 +31,10 @@ struct AgentReadingProjectionTests {
                 return HarnessContentResource(state: .ready(state), retry: {}, release: {})
             case .row, .reading:
                 return HarnessContentResource(state: .ready(row), retry: {}, release: {})
+            case .detail, .body:
+                // Agent reading stops at the summary and must never acquire a
+                // reader detail lease.
+                return HarnessContentResource(state: .error("unexpected detail lease"), retry: {}, release: {})
             }
         }
     }

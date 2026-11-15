@@ -82,6 +82,10 @@ type Runtime struct {
 	mokuHarnessChanging       bool
 	threadCacheMu             sync.Mutex
 	threadCacheRevision       uint64
+	detailMu                  sync.Mutex
+	detailCache               map[detailBodyKey]detailBodyEntry
+	detailOrder               []detailBodyKey
+	detailBytes               int64
 	projectionMu              sync.Mutex
 	compute                   *workpool.Pool
 	threadCache               map[string]cachedThread
@@ -151,7 +155,7 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 		return nil, err
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	r := &Runtime{config: config, ctx: lifetime, cancel: cancel, handles: map[string]*threadHandle{}, locks: map[string]*threadCommandLock{}, listeners: map[uint64]func(json.RawMessage){}, publisherDone: make(chan struct{})}
+	r := &Runtime{config: config, ctx: lifetime, cancel: cancel, handles: map[string]*threadHandle{}, locks: map[string]*threadCommandLock{}, listeners: map[uint64]func(json.RawMessage){}, publisherDone: make(chan struct{}), detailCache: map[detailBodyKey]detailBodyEntry{}}
 	r.configurationGate = make(chan struct{}, 1)
 	r.configurationAdmissions = map[*serviceAdmissionToken]struct{}{}
 	r.lifecycle = &lifecycleCapability{runtime: r, consumers: map[string]*lifecycleConsumer{}}
@@ -474,6 +478,17 @@ func (r *Runtime) ReadThreadContent(ctx context.Context, id string, scope transp
 	if h == nil {
 		return nil, fmt.Errorf("unknown thread harness: %s", t.HarnessID)
 	}
+	// Detail/body scopes carry their own target dimensions and cursors. They are
+	// intercepted before the general reader/cache boundary so they cannot share
+	// a turn projection or page cache key with a different selection. An
+	// already-current revision means no projection can have changed; skip the
+	// expensive Harness call instead of rebuilding it for an unrelated wake.
+	if scope.Kind == "detail" || scope.Kind == "body" {
+		if known != nil && *known == t.Revision {
+			return nil, nil
+		}
+		return r.readDetailThreadContent(ctx, snapshot, id, t, h, scope, entry.contentID)
+	}
 	content, err := r.projectThreadContent(ctx, snapshot, entry, h, scope, known)
 	if err != nil {
 		return nil, err
@@ -482,6 +497,131 @@ func (r *Runtime) ReadThreadContent(ctx context.Context, id string, scope transp
 		return nil, err
 	}
 	return content, nil
+}
+
+func (r *Runtime) readDetailThreadContent(ctx context.Context, snapshot store.Snapshot, threadID string, thread model.ThreadRecord, h plugin.Harness, scope transport.ContentScope, contentID string) (*transport.ContentSnapshot, error) {
+	detail, ok := h.SessionState().(plugin.DetailStateAdapter)
+	if !ok {
+		return nil, model.NewError("DETAIL_UNAVAILABLE", "This Harness does not expose reader detail resources")
+	}
+	var value json.RawMessage
+	err := r.computeTasks(ctx, []workpool.Task{{Bytes: snapshot.RecordBytes("thread:" + threadID), Run: func(ctx context.Context) error {
+		var err error
+		if scope.Kind == "detail" {
+			value, err = r.projectDetailDirectory(detail, thread.SessionState, scope, contentID)
+		} else {
+			value, err = r.projectDetailBody(detail, thread.SessionState, scope, threadID, contentID)
+		}
+		return err
+	}}})
+	if err != nil {
+		return nil, err
+	}
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	return &transport.ContentSnapshot{Revision: thread.Revision, Value: value}, nil
+}
+
+const detailBodyChunkBytes = 64 * 1024
+
+// The Harness selects only the requested rows. The directory carries lengths
+// but never body hashes or body text; the first body page names its version.
+func (r *Runtime) projectDetailDirectory(detail plugin.DetailStateAdapter, state json.RawMessage, scope transport.ContentScope, contentID string) (json.RawMessage, error) {
+	projection, err := detail.ProjectDetail(state, model.DetailRequest{ExecutionID: scope.Key, Items: scope.Items})
+	if err != nil {
+		return nil, err
+	}
+	directory := model.DetailDirectory{Kind: "detail", ExecutionID: scope.Key, ContentID: contentID,
+		Items: make([]model.DetailDirectoryItem, 0, len(projection.Items))}
+	seen := make(map[string]bool, len(projection.Items))
+	for _, item := range projection.Items {
+		if item.ID == "" || seen[item.ID] {
+			continue
+		}
+		if len(directory.Items) >= maxDetailDirectoryItems {
+			directory.Truncated = true
+			break
+		}
+		seen[item.ID] = true
+		projected := model.DetailDirectoryItem{ID: item.ID, Kind: detailClip(item.Kind, 64), Label: detailClip(item.Label, 2000),
+			Status: detailClip(item.Status, 128), ToolName: detailClip(item.ToolName, 256)}
+		for _, body := range item.Bodies {
+			if body.Slot == "" || len([]rune(body.Slot)) > 64 {
+				continue
+			}
+			format := body.Format
+			if format != model.DetailBodyMarkdown {
+				format = model.DetailBodyText
+			}
+			length := body.Length
+			if length == 0 && body.Text != "" {
+				length = len(body.Text)
+			}
+			projected.Bodies = append(projected.Bodies, model.DetailBodyDescriptor{
+				Slot: body.Slot, Label: detailClip(body.Label, 200), Format: format, Length: length,
+			})
+		}
+		directory.Items = append(directory.Items, projected)
+	}
+	return json.Marshal(directory)
+}
+
+func (r *Runtime) projectDetailBody(detail plugin.DetailStateAdapter, state json.RawMessage, scope transport.ContentScope, threadID, contentID string) (json.RawMessage, error) {
+	if len(scope.Items) != 1 {
+		return nil, model.NewError("INVALID_REQUEST", "A detail body request names exactly one item")
+	}
+	itemID := scope.Items[0]
+	key := detailCacheKey(threadID, contentID, scope.Key, itemID, scope.Slot)
+	entry, cached := r.cachedDetailBody(key)
+	if !cached {
+		body, err := detail.ReadDetailBody(state, model.DetailBodyRequest{ExecutionID: scope.Key, ItemID: itemID, Slot: scope.Slot})
+		if err != nil {
+			return nil, err
+		}
+		if body.Slot != scope.Slot {
+			return nil, model.NewError("DETAIL_NOT_FOUND", "This reader detail body is no longer available")
+		}
+		if !detailBodyTextValid(body.Text) {
+			return nil, model.NewError("DETAIL_UNAVAILABLE", "The detail body is not valid UTF-8")
+		}
+		entry = detailBodyEntry{text: body.Text, version: model.DetailBodyVersion(scope.Key, itemID, scope.Slot, body.Text), length: len(body.Text)}
+		r.retainDetailBody(key, entry)
+	}
+	offset := 0
+	if scope.Cursor != "" {
+		cursorVersion, cursorOffset, ok := model.DecodeDetailCursor(scope.Cursor)
+		if !ok {
+			return nil, model.NewError("INVALID_CURSOR", "The detail body cursor is invalid")
+		}
+		if cursorVersion != entry.version {
+			return nil, model.NewError("DETAIL_VERSION_CHANGED", "The detail body changed; reload the detail")
+		}
+		offset = cursorOffset
+	}
+	text, next, err := model.DetailChunkText(entry.text, offset, detailBodyChunkBytes)
+	if err != nil {
+		if offset > 0 {
+			return nil, model.NewError("DETAIL_VERSION_CHANGED", "The detail body changed; reload the detail")
+		}
+		return nil, model.NewError("DETAIL_UNAVAILABLE", "The detail body is unavailable")
+	}
+	chunk := model.DetailChunk{Kind: "body", ExecutionID: scope.Key, ItemID: itemID, Slot: scope.Slot,
+		Version: entry.version, Offset: offset, Length: entry.length, Text: text}
+	if next < entry.length {
+		chunk.Next = model.EncodeDetailCursor(entry.version, next)
+	}
+	return json.Marshal(chunk)
+}
+
+const maxDetailDirectoryItems = 1024
+
+func detailClip(value string, maximum int) string {
+	points := []rune(value)
+	if len(points) <= maximum {
+		return value
+	}
+	return string(points[:maximum])
 }
 
 func (r *Runtime) Close(ctx context.Context) error {
@@ -533,6 +673,7 @@ func (r *Runtime) Close(ctx context.Context) error {
 			r.settleClosed(h)
 		}
 		r.operations.Wait()
+		r.clearDetailCache()
 		r.mu.Lock()
 		r.generation++
 		r.mu.Unlock()

@@ -121,6 +121,26 @@ content and error admission policies remain owned by their existing boundaries.
 See the [manual investigation](../../design/thread-open-animation-investigation.md)
 for evidence and the limits of the isolated measurements.
 
+Full-reader execution groups lease one metadata-only detail directory for their
+own row identities, not the whole execution. Row identities are opaque and may
+carry NUL namespaces; readers preserve their code units for selection, `ForEach`
+identity and reading anchors. Directories carry a SessionState content identity
+and lengths, not body hashes or text; the first body page names its version. Each expanded reasoning/activity row then reads its body through
+independent 64 KiB pages; closing one group cannot revoke another. Agent summary
+readers never request a detail lease. A changing body invalidates its cursor and
+restarts that body from offset zero instead of mixing versions; the new first
+page supplies the new length. Body leases derive their concurrency from the
+Runtime client's remaining content slots; each page reserves the resource it is
+about to create, so sibling pages wait when another surface consumes slots.
+External capacity is observed while a view waits for admission and while an
+admitted page waits for its resource; a waiter that remains without a slot for
+five seconds returns to capacity/retry. Message/error/notice
+bodies are eager, so a 24 MiB body holds its lease until all pages finish; other
+body views wait and surface capacity/retry rather than exceeding the client cap.
+Gate wakeups are broadcast without FIFO; a continuously reserved long body can
+delay siblings. Truncated directories show an explicit notice. See the
+[detail contract](Sources/Shared/PluginUI/README.md#execution-detail-paging).
+
 Report HTML fades in over 200ms after its first successful WebKit load in a
 reader visit; later content revisions do not repeat the entrance. Reduce Motion
 shows the document immediately. Loading and error controls remain independent.

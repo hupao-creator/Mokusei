@@ -133,6 +133,11 @@ type ExecutionDirectoryPage struct {
 const (
 	DefaultExecutionDirectoryLimit = 100
 	MaximumExecutionDirectoryLimit = 200
+	// MaximumContentIdentityUnits bounds every content scope identity on the
+	// wire. It is measured in UTF-16 code units so both encoders agree; a
+	// Harness that exposes longer native row identities must derive a bounded
+	// identity instead of forwarding the native string.
+	MaximumContentIdentityUnits = 256
 	// MaxThreadOverviewBytes bounds one catalog ThreadRecord after its overview
 	// projection. It is a response/projection budget, independent of the
 	// transport's request and full-response limits.

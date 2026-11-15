@@ -80,6 +80,7 @@ public final class NativeHarnessHost {
             case .loading: resource.publish(.loading)
             case .ready(let value): resource.publish(.ready(value))
             case .error(let message): resource.publish(.error(message))
+            case .failure(let code, let message): resource.publish(.error(message), code: code)
             }
         case .snapshot(_, let authority), .mutation(_, _, let authority):
             if settingsAuthority != authority {
@@ -129,6 +130,9 @@ public final class NativeHarnessHost {
                 case .row(let key): runtimeScope = .turn(key: key)
                 case .reading(let key, let target): runtimeScope = .reading(key: key, target: target)
                 case .execution(let key): runtimeScope = .execution(key: key)
+                case .detail(let selection): runtimeScope = .detail(execution: selection.execution, items: selection.items)
+                case .body(let reference): runtimeScope = .body(execution: reference.execution, item: reference.item,
+                                                                slot: reference.slot, cursor: reference.cursor)
                 }
                 group.addTask {
                     await client.prefetchThreadContent(threadId: input.thread.id, scope: runtimeScope,

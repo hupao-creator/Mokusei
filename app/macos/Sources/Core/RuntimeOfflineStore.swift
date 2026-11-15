@@ -31,9 +31,9 @@ struct RuntimeOfflineStore: Sendable {
     }
 
     private func contentKey(thread: JSONText, scope: RuntimeContentScope) -> String {
-        // This schema component invalidates pre-#322 content. Protocol 12 is the
-        // final #320+#322+#316 scope shape; future scope changes must publish a
-        // new protocol version and update this namespace component.
+        // Content envelopes, scope kinds and protocol revisions are bound into
+        // the key. Version 2 is the #322 namespace and protocol 13 keeps #321's
+        // detail scopes from sharing cached thread bytes with older layouts.
         let key = runtimeObject(["version": .integer(2), "protocol": .integer(RuntimeProtocol.version),
             "thread": .string(thread), "scope": scope.json])
         return "content-" + RuntimePrivateFile.key((try? key.encodedData()) ?? Data())

@@ -54,6 +54,21 @@ Catalog snapshots contain bounded overview projections. [projection_cache.go](pr
 
 Content reads may use a Harness `ReaderProjectionAdapter`. Runtime passes the complete renderer scope, including directory `Offset`/`Limit` and any reading `Purpose`/`Target`, and the exact session `ContentID`. For runtime-enveloped scopes (`thread`, `directory`, `preview`) Runtime does not pass the final envelope revision as the adapter `Known`, because adapter revisions may be 63-bit content hashes while a title-only change advances only Thread revision. After the adapter, Runtime overlays the full-content title envelope and returns the Thread revision for those scopes; non-enveloped `turn`/`execution` reads retain the adapter revision. A metadata/title change therefore produces a new snapshot even when the adapter reuses unchanged content. Harnesses keep the immutable parse/index, share one build across subscriptions, and cache scope results by the complete scope. Reader index builds enter the same bounded compute pool as catalog projection, so content workers cannot parse two unbounded states in parallel; waiters and builds observe cancellation. The Runtime passes the Thread generation, evicts cached generations on deletion/history reset or Harness replacement, and never interprets Harness-private state. Cache lifetime belongs to the Harness: 128 MiB per adapter and per entry, a 64 MiB per-session scope LRU and a bounded Thread count; late generations may return their own value but cannot replace a newer index. `Stats.Bytes`/`Threads` are retained logical estimates with fixed overhead, while the replay reports process `HeapInuse` separately.
 
+Reader detail requests select stable Harness row identities within one execution.
+A request whose `known` revision already matches the Thread skips the Harness
+projection entirely. The directory carries the content identity computed from
+the cached Thread record (`sessionContentID`) plus metadata and body lengths
+only; the Harness does not materialize unselected siblings or body text
+for the directory. The first body
+page names the version digest bound to execution/item/slot/content. Body reads
+return at most 64 KiB of UTF-8 text per envelope. A cursor carries that digest
+and byte offset; a changed body rejects the old cursor instead of appending
+across versions. Digest and body text are retained by content identity while
+pages are read, so a 24 MiB body is not re-parsed or re-hashed per page, and a
+title/metadata-only update does not evict it. The client keys body views by that
+content identity rather than the Thread revision. The shared Runtime owns selection
+validation, chunk boundaries, cursor encoding, truncation flags and size limits;
+Harnesses only supply the requested row values.
 Publication reconciles structurally changed store keys into private identity maps;
 an activity-only wake or telemetry commit does not enumerate the catalog. Only
 changed Thread/application records are projected and compared. Private session

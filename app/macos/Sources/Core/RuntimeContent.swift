@@ -10,6 +10,7 @@ struct ContentResource {
     var value: JSONValue?
     var revision: Int?
     var failure: String?
+    var failureCode: String?
     var recoveries = 0
     var isRecovering = false
     var timer: Task<Void, Never>?
@@ -18,6 +19,13 @@ struct ContentResource {
 }
 
 extension RuntimeClient {
+    /// Remaining content-resource slots. Detail body views use this before
+    /// leasing another page so group/detail resources cannot be pushed past the
+    /// transport's per-client cap.
+    public func availableContentSlotCount() async -> Int {
+        max(0, 32 - contentResources.count)
+    }
+
     /// Handles remain independently owned. A released, current subscription can
     /// stay live briefly for another reader; no view/navigation state is retained.
     @discardableResult
@@ -31,6 +39,15 @@ extension RuntimeClient {
         case .directory(let offset, let limit):
             guard offset >= 0, limit > 0, limit <= 200 else {
                 throw RuntimeError("INVALID_REQUEST", "Execution directory pages require a nonnegative offset and 1...200 entries")
+            }
+        case .detail(let execution, let items):
+            try validateIdentity(execution)
+            guard (1...1024).contains(items.count) else { throw RuntimeError("INVALID_REQUEST", "Detail selections require 1...1024 items") }
+            for item in items { try validateIdentity(item) }
+        case .body(let execution, let item, let slot, let cursor):
+            try validateIdentity(execution); try validateIdentity(item); try validateIdentity(slot)
+            guard cursor.utf8.count <= 512, !cursor.contains("\0") else {
+                throw RuntimeError("INVALID_REQUEST", "The detail body cursor is invalid")
             }
         case .thread: break
         }
@@ -56,12 +73,23 @@ extension RuntimeClient {
         try assertOpen(); try Task.checkCancellation()
         guard contentResources.count < 32 else { throw RuntimeError("CONTENT_CAPACITY", "Too many open content subscriptions") }
         var resource = ContentResource(threadID: threadId, scope: scope)
-        if clientID == nil { resource.value = offlineStore.content(thread: threadId, scope: scope) }
+        if clientID == nil {
+            if !scope.isReaderDetail { resource.value = offlineStore.content(thread: threadId, scope: scope) }
+            if resource.value == nil, scope.isReaderDetail {
+                resource.failure = "Reader details are unavailable offline"
+                resource.failureCode = "OFFLINE_UNAVAILABLE"
+            }
+        }
         resource.performanceContext = performanceContext
         resource.measurement = NativePerformance.begin(.contentReady, context: performanceContext,
             values: ["row": { if case .thread = scope { return 0.0 }; return 1.0 }()])
         contentResources[subscriptionId] = resource
-        emit(.threadContent(subscriptionId: subscriptionId, state: resource.value.map(RuntimeContentState.ready) ?? .loading))
+        if let failure = resource.failure {
+            emit(.threadContent(subscriptionId: subscriptionId,
+                state: resource.failureCode.map { .failure(code: $0, message: failure) } ?? .error(failure)))
+        } else {
+            emit(.threadContent(subscriptionId: subscriptionId, state: resource.value.map(RuntimeContentState.ready) ?? .loading))
+        }
         if let wire = previous?.wireID { await releaseWireContent(wire) }
         try assertOpen()
         guard contentResources[subscriptionId]?.instanceID == resource.instanceID else { throw CancellationError() }
@@ -129,14 +157,14 @@ extension RuntimeClient {
         let wire = UUID().uuidString.lowercased()
         // A new stream/retry must deliver a fresh snapshot before connected
         // reading resumes; retained bytes are only an offline fallback.
-        resource.wireID = wire; resource.revision = nil; resource.failure = nil; resource.acknowledged = false
+        resource.wireID = wire; resource.revision = nil; resource.failure = nil; resource.failureCode = nil; resource.acknowledged = false
         resource.value = nil
         resource.isRecovering = false
         resource.timer = Task {
             do {
                 try await Task.sleep(for: .seconds(30))
                 if self.contentResources[id]?.wireID == wire {
-                    await self.failContent(id, message: "Reading thread content timed out")
+                    await self.failContent(id, code: "CONTENT_TIMEOUT", message: "Reading thread content timed out")
                 }
             } catch { }
         }
@@ -156,7 +184,8 @@ extension RuntimeClient {
         } catch {
             acknowledgement?.end(error is CancellationError ? .cancelled : .failed)
             if error is CancellationError { resource.measurement?.end(.cancelled) }
-            if contentResources[id]?.wireID == wire { await failContent(id, message: error.localizedDescription) }
+            let code = (error as? RuntimeError)?.code
+            if contentResources[id]?.wireID == wire { await failContent(id, code: code, message: error.localizedDescription) }
             throw error
         }
     }
@@ -183,14 +212,14 @@ extension RuntimeClient {
         switch type {
         case "error":
             guard let message = event["message"]?.stringValue else { throw RuntimeError("INVALID_EVENT", "Content error has no message") }
-            await failContent(id, message: message)
+            await failContent(id, code: event["code"]?.stringValue, message: message)
         case "snapshot":
             guard let revision = event["revision"]?.intValue, (0...RuntimeProtocol.maximumSafeInteger).contains(revision), let value = event["value"] else {
                 await recoverContent(id); return
             }
             resource.timer?.cancel(); resource.timer = nil
             resource.measurement?.end(); resource.measurement = nil
-            resource.value = value; resource.revision = revision; resource.failure = nil
+            resource.value = value; resource.revision = revision; resource.failure = nil; resource.failureCode = nil
             contentResources[id] = resource
             readingContentDirty.insert(id); scheduleReadingCache()
             if idleContentCosts[id] == nil { emit(.threadContent(subscriptionId: id, state: .ready(value))) }
@@ -207,7 +236,7 @@ extension RuntimeClient {
                 defer { measurement?.end(.failed) }
                 let result = try JSONDelta.apply(patch, to: value)
                 measurement?.end()
-                resource.value = result; resource.revision = revision; resource.recoveries = 0; resource.failure = nil
+                resource.value = result; resource.revision = revision; resource.recoveries = 0; resource.failure = nil; resource.failureCode = nil
                 contentResources[id] = resource
                 readingContentDirty.insert(id); scheduleReadingCache()
                 if idleContentCosts[id] == nil { emit(.threadContent(subscriptionId: id, state: .ready(result))) }
@@ -224,7 +253,7 @@ extension RuntimeClient {
         guard contentResources[id] != nil, contentResources[id]?.isRecovering == false else { return }
         contentResources[id]?.isRecovering = true
         contentResources[id]?.recoveries += 1
-        if contentResources[id]!.recoveries > 3 { await failContent(id, message: "Thread content revisions are inconsistent; retry this surface") }
+        if contentResources[id]!.recoveries > 3 { await failContent(id, code: "CONTENT_REVISIONS_INCONSISTENT", message: "Thread content revisions are inconsistent; retry this surface") }
         else {
             // Do not block the event reader on hydration requests: snapshots share this stream.
             let wire = contentResources[id]?.wireID
@@ -234,16 +263,17 @@ extension RuntimeClient {
             }
         }
     }
-    private func failContent(_ id: String, message: String) async {
+    private func failContent(_ id: String, code: String?, message: String) async {
         if idleContentCosts[id] != nil { await evictIdleContent(id); return }
         guard var resource = contentResources[id] else { return }
         resource.measurement?.end(.failed); resource.measurement = nil
         let wire = resource.wireID
         resource.timer?.cancel(); resource.timer = nil; resource.wireID = nil
-        resource.value = nil; resource.revision = nil; resource.failure = message
+        resource.value = nil; resource.revision = nil; resource.failure = message; resource.failureCode = code
         resource.isRecovering = false
         contentResources[id] = resource
-        emit(.threadContent(subscriptionId: id, state: .error(message)))
+        if let code { emit(.threadContent(subscriptionId: id, state: .failure(code: code, message: message))) }
+        else { emit(.threadContent(subscriptionId: id, state: .error(message))) }
         if let wire { await releaseWireContent(wire) }
     }
     func releaseWireContent(_ wire: String) async {
@@ -270,8 +300,8 @@ extension RuntimeClient {
             default: true
             }
         }
-        guard nonblank, value.codeUnits.count <= 256 else {
-            throw RuntimeError("INVALID_REQUEST", "Content identities must be nonempty and at most 256 UTF-16 units")
+        guard nonblank, value.codeUnits.count <= RuntimeProtocol.maximumContentIdentityUnits else {
+            throw RuntimeError("INVALID_REQUEST", "Content identities must be nonempty and at most \(RuntimeProtocol.maximumContentIdentityUnits) UTF-16 units")
         }
     }
 

@@ -82,8 +82,9 @@ public actor RuntimeClient {
         // forever although the transport has already completed the request.
         for (subscriptionID, resource) in contentResources where idleContentCosts[subscriptionID] == nil {
             let current: RuntimeContentState
-            if let failure = resource.failure { current = .error(failure) }
-            else if let value = resource.value { current = .ready(value) }
+            if let failure = resource.failure {
+                current = resource.failureCode.map { .failure(code: $0, message: failure) } ?? .error(failure)
+            } else if let value = resource.value { current = .ready(value) }
             else { current = .loading }
             pair.continuation.yield(.threadContent(subscriptionId: subscriptionID, state: current))
         }
@@ -204,6 +205,7 @@ public actor RuntimeClient {
             contentResources[id]?.wireID = nil
             contentResources[id]?.revision = nil
             contentResources[id]?.failure = nil
+            contentResources[id]?.failureCode = nil
             contentResources[id]?.recoveries = 0
             contentResources[id]?.isRecovering = false
             if let value = contentResources[id]?.value { emit(.threadContent(subscriptionId: id, state: .ready(value))) }

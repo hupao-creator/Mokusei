@@ -195,7 +195,7 @@ private struct PiTurn: View {
                 // Lightweight history omits empty fields after stripping the body.
                 // Its presence marker still contributes a reasoning segment.
                 let thinking = message.thinking?.string ?? ""
-                rows.append(ThreadDetailRow(id: JSONText(codeUnits: message.id.codeUnits + Array(":thinking".utf16)), kind: .work,
+                rows.append(ThreadDetailRow(id: PiDetailIdentity.thinking(message.id), kind: .work,
                     node: AnyView(ThreadSurfaceDisclosure(label: piLocalized("思考过程", locale)) {
                         NativeMarkdownView(text: thinking, streaming: message.status == "streaming", openExternal: openExternal, resolveMedia: context.resolveMedia)
                     }), execution: .member, executionSummary: ThreadExecutionSummary(reasoningSegments: 1)))
@@ -204,17 +204,21 @@ private struct PiTurn: View {
             // Release that retained text once the execution is no longer active.
             if message.role == "assistant" && withholdingReplies && message.status == "streaming" { continue }
             if message.role == "assistant" && piTrim(message.text).codeUnits.isEmpty && !executionPresence.contains(message.id, "text") { continue }
+            let rowID = PiDetailIdentity.message(message.id)
             let kind: ThreadDetailRow.Kind
             if agentDetail && message.role != "tool" && (message.isError || message.status == "failed") { kind = .attention }
             else if message.role == "user" { kind = agentDetail ? .steer : .user }
-            else if agentDetail && message.role == "assistant" && (withholdingReplies || final || message.id == visibility.messageAnchorID) { kind = .content }
+            else if agentDetail && message.role == "assistant" && (withholdingReplies || final || rowID == visibility.messageAnchorID) { kind = .content }
             else { kind = message.role == "tool" || !final ? .work : .content }
-            rows.append(ThreadDetailRow(id: message.id, kind: kind,
+            rows.append(ThreadDetailRow(id: rowID, kind: kind,
                 node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && kind == .work) ? .member : nil,
                 executionSummary: message.role == "tool" && message.toolCallID != nil ? ThreadExecutionSummary(toolCalls: 1) : nil, finalReply: final))
         }
         if execution.status == .failed, let error = execution.error, !error.codeUnits.isEmpty {
-            rows.append(ThreadDetailRow(id: "execution-error", kind: .attention, node: AnyView(PiFailure(message: error.string))))
+            // The native row owns the error. It has no execution membership and
+            // therefore no detail lease; the NUL identity only prevents a
+            // collision with a real "execution-error" message id.
+            rows.append(ThreadDetailRow(id: PiDetailIdentity.executionError, kind: .attention, node: AnyView(PiFailure(message: error.string))))
         }
         if waiting {
             for interaction in input.thread.observation.latestExecution?.interactions ?? [] {
