@@ -57,6 +57,8 @@ struct CodexTurnRows: View {
     }
 
     private var executionReasoningTokens: Double? {
+        if let total = turn.raw["readingReasoningTokens"]?.numberValue,
+           total.isFinite, total >= 0, total.rounded() == total { return total }
         guard let samples = turn.raw["reasoningTokensByGeneration"]?.objectValue, !samples.isEmpty,
               samples.values.allSatisfy({ $0.numberValue != nil }) else { return nil }
         return samples.values.reduce(0) { $0 + ($1.numberValue ?? 0) }

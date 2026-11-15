@@ -194,6 +194,28 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, err
 		}
 		return r.ReadThread(ctx, request.ThreadID, strings.TrimFunc(request.Question, settingsSpace))
+	case "thread:execution-previews":
+		var request struct {
+			References []struct {
+				ThreadID    string `json:"threadId"`
+				ExecutionID string `json:"executionId"`
+			} `json:"references"`
+		}
+		if err := model.Unmarshal(args[0], &request); err != nil {
+			return nil, err
+		}
+		references := make([]model.ExecutionRef, 0, len(request.References))
+		for _, reference := range request.References {
+			references = append(references, model.ExecutionRef{
+				Thread:      model.ThreadRef{ThreadID: reference.ThreadID, TypeID: "agent"},
+				ExecutionID: reference.ExecutionID,
+			})
+		}
+		previews, err := r.ExecutionPreviews(ctx, references)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"previews": previews}, nil
 	case "thread:fork":
 		var request struct {
 			ThreadID string          `json:"threadId"`

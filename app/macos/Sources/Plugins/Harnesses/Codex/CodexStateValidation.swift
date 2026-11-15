@@ -63,7 +63,7 @@ private enum CodexStateAdmission {
     }
 
     static func turn(_ value: JSONValue, at stateUpdatedAt: Double) -> Bool {
-        guard keys(value, ["executionId", "createdAt", "updatedAt", "finishedAt", "status", "statusLabel", "foreground", "reasoningBreak", "author", "runtimeModel", "runtimeServiceTier", "messages", "timeline", "answer", "lastAssistantMessage", "reasoning", "plan", "planExplanation", "activities", "interactions", "notices", "usage", "reasoningTokensByGeneration", "diff", "review", "contextCompacted", "error"]),
+        guard keys(value, ["executionId", "createdAt", "updatedAt", "finishedAt", "status", "statusLabel", "foreground", "reasoningBreak", "author", "runtimeModel", "runtimeServiceTier", "messages", "timeline", "answer", "lastAssistantMessage", "reasoning", "plan", "planExplanation", "activities", "interactions", "notices", "usage", "reasoningTokensByGeneration", "readingReasoningTokens", "diff", "review", "contextCompacted", "error"]),
               canonical(value["executionId"], 1_024),
               let createdAt = timestamp(value["createdAt"]), let updatedAt = timestamp(value["updatedAt"]),
               updatedAt >= createdAt, updatedAt <= stateUpdatedAt,
@@ -87,6 +87,7 @@ private enum CodexStateAdmission {
               optional(value, "planExplanation", { bounded($0, detail) }),
               optional(value, "usage", usage),
               optional(value, "reasoningTokensByGeneration", reasoningSamples),
+              optional(value, "readingReasoningTokens", { integer($0, minimum: 0) }),
               optional(value, "diff", { bounded($0, answer) }),
               optional(value, "review", { bounded($0, answer) }),
               optional(value, "contextCompacted", { $0.boolValue != nil }),

@@ -102,7 +102,14 @@ public final class HarnessSettingsResource<Value> {
     }
 }
 
-public enum HarnessContentScope: Hashable, Sendable { case thread, row(JSONText), execution(JSONText) }
+public enum HarnessContentScope: Hashable, Sendable {
+    case thread
+    case row(JSONText)
+    /// Count-only Agent reading. Target is the owning Harness's explicit
+    /// message selector, retained only when the reader requested that reply.
+    case reading(JSONText, target: JSONValue?)
+    case execution(JSONText)
+}
 public enum HarnessContentMode: Hashable, Sendable { case materialized, manifest, row(JSONText) }
 public enum HarnessConversationPresentation: Hashable, Sendable {
     case main(excludedExecutionIDs: [JSONText])

@@ -104,13 +104,80 @@ func SnapshotNote(note *ThreadNote) NoteState {
 	return state
 }
 
+// ExecutionDigest is the bounded per-execution value shared by the reading
+// directory and Report references. Title is runtime-owned naming evidence and
+// is filled after the Harness projection; the remaining fields belong to the
+// owning Harness. Excerpt is capped at 600 Unicode code points and never carries
+// a complete execution body.
+type ExecutionDigest struct {
+	ThreadID    string `json:"threadId,omitempty"`
+	ExecutionID string `json:"executionId"`
+	Title       string `json:"title,omitempty"`
+	Status      string `json:"status"`
+	StartedAt   int64  `json:"startedAt"`
+	FinishedAt  *int64 `json:"finishedAt,omitempty"`
+	Excerpt     string `json:"excerpt"`
+}
+
+// ExecutionDirectoryPage is one bounded page of the chronological directory.
+// Offset and Total describe the complete directory, not this page's length.
+type ExecutionDirectoryPage struct {
+	Version    int               `json:"version"`
+	Offset     int               `json:"offset"`
+	Limit      int               `json:"limit"`
+	Total      int               `json:"total"`
+	Executions []ExecutionDigest `json:"executions"`
+	NextOffset *int              `json:"nextOffset,omitempty"`
+}
+
+const (
+	DefaultExecutionDirectoryLimit = 100
+	MaximumExecutionDirectoryLimit = 200
+	// MaxThreadOverviewBytes bounds one catalog ThreadRecord after its overview
+	// projection. It is a response/projection budget, independent of the
+	// transport's request and full-response limits.
+	MaxThreadOverviewBytes = 512 * 1024
+)
+
+func ExecutionDirectoryBounds(total, offset, limit int) (int, int, ExecutionDirectoryPage) {
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		limit = DefaultExecutionDirectoryLimit
+	}
+	if limit > MaximumExecutionDirectoryLimit {
+		limit = MaximumExecutionDirectoryLimit
+	}
+	if offset > total {
+		offset = total
+	}
+	end := min(offset+limit, total)
+	page := ExecutionDirectoryPage{Version: 1, Offset: offset, Limit: limit, Total: total,
+		Executions: []ExecutionDigest{}}
+	if end < total {
+		next := end
+		page.NextOffset = &next
+	}
+	return offset, end, page
+}
+
+func PaginateExecutionDigests(entries []ExecutionDigest, offset, limit int) ExecutionDirectoryPage {
+	start, end, page := ExecutionDirectoryBounds(len(entries), offset, limit)
+	page.Executions = append(page.Executions, entries[start:end]...)
+	return page
+}
+
 type ThreadRecord struct {
 	SessionRecord
 	// DirectoryTag and DirectoryScope are host-derived presentation metadata.
 	// The runtime fills them on public projection, never from client filesystem state.
-	DirectoryTag     string            `json:"directoryTag"`
-	DirectoryScope   string            `json:"directoryScope"`
-	Title            string            `json:"title"`
+	DirectoryTag   string `json:"directoryTag"`
+	DirectoryScope string `json:"directoryScope"`
+	Title          string `json:"title"`
+	// ExecutionTitles is durable runtime naming evidence. It is never published
+	// in the catalog; the full-content envelope and execution scopes attach only
+	// the exact titles their consumers need.
 	ExecutionTitles  map[string]string `json:"executionTitles,omitempty"`
 	MetadataState    json.RawMessage   `json:"metadataState,omitempty"`
 	MetadataRevision *int64            `json:"metadataRevision,omitempty"`

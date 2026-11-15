@@ -50,6 +50,7 @@ jobs:
       MOKUSEI_GO_RACE_PATTERNS: >-
         ./internal/plugins/... ./internal/hosts/... ./internal/core/runtime
         ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment
+        ./tools/verification/execution-catalog
     steps:
       - uses: actions/checkout@v4
         with:

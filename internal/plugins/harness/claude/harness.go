@@ -22,14 +22,16 @@ import (
 type Harness struct {
 	host     plugin.HostContext
 	settings *settingsAdapter
+	state    StateAdapter
 }
 
 func New(host plugin.HostContext) *Harness {
-	h := &Harness{host: host}
+	h := &Harness{host: host, state: NewStateAdapter()}
 	h.settings = &settingsAdapter{harness: h}
 	return h
 }
 func (h *Harness) Close() error {
+	h.state.closeReader()
 	return errors.Join(h.settings.routingCatalogs.Close(), h.settings.catalogs.Close())
 }
 
@@ -38,7 +40,7 @@ func (h *Harness) Descriptor() plugin.HarnessDescriptor {
 }
 func (h *Harness) DefaultSettings() json.RawMessage         { return json.RawMessage(`{"threadSettings":{}}`) }
 func (h *Harness) Settings() plugin.HarnessSettings         { return h.settings }
-func (h *Harness) SessionState() plugin.SessionStateAdapter { return StateAdapter{} }
+func (h *Harness) SessionState() plugin.SessionStateAdapter { return h.state }
 func (h *Harness) Metadata() plugin.ThreadMetadataAdapter   { return plugin.GeneratedThreadMetadata{} }
 func (h *Harness) resolve(ctx context.Context, cwd, configured string) (string, map[string]string, error) {
 	if err := ctx.Err(); err != nil {

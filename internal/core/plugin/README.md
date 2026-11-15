@@ -8,6 +8,7 @@
 
 - `ReadThread` 返回会话快照。
 - `SessionState.Read/Commit` 是原生状态的唯一发布入口。Commit 在返回前完成宿主定义的投影与持久化边界。
+- `ReaderProjectionAdapter` 是可选的内容读取缓存边界。Runtime 以 exact session bytes 的 `ContentID`、Thread generation 和完整 renderer scope（含分页字段）请求投影；Harness 拥有不可变解析索引、按依赖 fingerprint 复用的 scope 结果、内存预算和删除/关闭清理。`ReaderRequest.State` 是不可变 canonical bytes，adapter 只能在有界索引生命周期内保留；`ReaderSnapshot.Value` 是只读共享 JSON，调用方不得原地修改。旧 generation 的晚到结果不能覆盖新索引，索引构建与等待都响应取消。Runtime 在 adapter 返回后仍应用完整内容 envelope、runtime 标题和 Thread revision。
 - `ExecutionAdmission.Accept` 为插件主动产生的执行分配身份并先完成工作目录和状态准入。
 - `MetadataStore` 使用独立 revision 的 CAS，不与流式 session revision 混用。
 - `PublishActivity` 提供有序、短暂的前台活动；它不取代持久化状态。

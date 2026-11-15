@@ -6,17 +6,25 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/plugins/harness/sessioncache"
 )
 
-type sessionStateAdapter struct{}
+type sessionStateAdapter struct {
+	cache *sessioncache.Cache
+}
 
-func NewSessionStateAdapter() plugin.SessionStateAdapter { return sessionStateAdapter{} }
+func newSessionStateAdapter() sessionStateAdapter {
+	return sessionStateAdapter{cache: sessioncache.NewCache(sessioncache.DefaultBudget)}
+}
+
+func NewSessionStateAdapter() plugin.SessionStateAdapter { return newSessionStateAdapter() }
 
 func stDecodeRaw(raw json.RawMessage) (Map, error) {
 	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
@@ -47,11 +55,27 @@ func (sessionStateAdapter) Project(raw json.RawMessage) (model.PublicObservation
 }
 
 func (sessionStateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
+	return projectCodexRenderer(raw, scope)
+}
+
+func projectCodexRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
 	state, err := stDecodeRaw(raw)
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(ProjectRenderer(state, Map{"kind": scope.Kind, "key": scope.Key}))
+	// ReaderProjectionAdapter wrappers must forward every RendererScope field,
+	// including paging and reading purpose/target; dropping them changes output.
+	value := Map{"kind": scope.Kind, "key": scope.Key, "offset": scope.Offset, "limit": scope.Limit}
+	if scope.Purpose != "" {
+		value["purpose"] = scope.Purpose
+	}
+	if len(scope.Target) > 0 {
+		var target any
+		if err := json.Unmarshal(scope.Target, &target); err == nil {
+			value["target"] = target
+		}
+	}
+	return json.Marshal(ProjectRenderer(state, value))
 }
 
 func (sessionStateAdapter) ReadContext(raw json.RawMessage) (json.RawMessage, error) {
@@ -135,6 +159,12 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 	}
 	kind := stString(scope["kind"])
 	turns, history := stArray(state["turns"]), stArray(state["forkHistory"])
+	if kind == "directory" {
+		return stMapOf(codexExecutionDirectory(state, int(stInt(scope["offset"])), int(stInt(scope["limit"]))))
+	}
+	if kind == "preview" {
+		return stMapOf(codexExecutionPreview(state, stString(scope["key"])))
+	}
 	if kind == "overview" {
 		base["initialResponseScope"] = len(turns) <= 1 && state["nativeHistorySeed"] == nil && state["forkHistory"] == nil
 	}
@@ -149,6 +179,20 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 		selected := current
 		if selected == nil {
 			selected = inherited
+		}
+		if stString(scope["purpose"]) == model.RendererPurposeAgentSummary && kind == "turn" {
+			base["turns"] = []any{}
+			nonempty := []any{}
+			if selected != nil {
+				projected, marked := stReadingTurn(selected, stMap(scope["target"]))
+				nonempty = marked
+				if current != nil {
+					base["turns"] = []any{projected}
+				} else {
+					base["forkHistory"] = []any{projected}
+				}
+			}
+			return Map{"kind": "deferred-execution", "state": base, "nonempty": nonempty}
 		}
 		base["turns"] = []any{}
 		deferred := kind == "turn" && selected != nil && !stActive(selected)
@@ -202,6 +246,23 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 		}
 		return base
 	}
+	if kind == "overview" {
+		selected := stOverviewTurns(turns)
+		projected := []any{}
+		for index, value := range turns {
+			if !selected[index] {
+				continue
+			}
+			projected = append(projected, stCompactTurn(stMap(value), true, index == len(turns)-1, true))
+		}
+		base["turns"] = projected
+		// A fork may have no current turn yet. Retain one bounded inherited
+		// fallback; the complete inherited directory remains an explicit read.
+		if len(history) > 0 {
+			base["forkHistory"] = []any{stCompactTurn(stMap(history[len(history)-1]), true, false, true)}
+		}
+		return base
+	}
 	if kind != "" && kind != "full" {
 		base["turns"] = stCompactTurns(turns, stOverviewTurns(turns), false, true)
 		if len(history) > 0 {
@@ -225,6 +286,129 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 		}
 	}
 	return base
+}
+
+// stReadingTurn produces the count-only Agent reading contract. Visible reply
+// text, follow-ups, independent errors and pending interactions retain their
+// native identity and order; execution work keeps only the facts needed for
+// the summary and never carries tool, reasoning or input bodies.
+func stReadingTurn(turn Map, target Map) (Map, []any) {
+	projected := stProjectTurn(turn, true)
+	nonempty := []any{}
+	active := stActive(turn)
+	finalID := stString(stLastReaderReply(turn)["id"])
+	targetItemID := stString(target["itemId"])
+
+	followUps := map[string]bool{}
+	messages := []any{}
+	for _, value := range stArray(projected["messages"]) {
+		message := stMap(value)
+		if message["kind"] == "follow-up" && message["internal"] != true {
+			followUps[stString(message["id"])] = true
+			messages = append(messages, message)
+		}
+	}
+	projected["messages"] = messages
+
+	pendingInteractions := map[string]bool{}
+	interactions := []any{}
+	for _, value := range stArray(projected["interactions"]) {
+		interaction := stMap(value)
+		if interaction["status"] == "pending" {
+			pendingInteractions[stString(interaction["id"])] = true
+			interactions = append(interactions, interaction)
+		}
+	}
+	projected["interactions"] = interactions
+
+	errorNotices := map[string]bool{}
+	notices := []any{}
+	for _, value := range stArray(projected["notices"]) {
+		notice := stMap(value)
+		if notice["level"] == "error" {
+			errorNotices[stString(notice["id"])] = true
+			notices = append(notices, notice)
+		}
+	}
+	projected["notices"] = notices
+
+	timeline := []any{}
+	for _, value := range stArray(projected["timeline"]) {
+		item := stMap(value)
+		switch stString(item["kind"]) {
+		case "user-message":
+			if !followUps[stString(item["messageId"])] {
+				continue
+			}
+		case "assistant":
+			itemID, id := stString(item["itemId"]), stString(item["id"])
+			failed := item["status"] == "failed"
+			visible := failed || itemID != "" && itemID == targetItemID
+			if active {
+				visible = visible || item["status"] != "streaming" && strings.TrimSpace(stString(item["content"])) != ""
+			} else {
+				visible = visible || id == finalID
+			}
+			if !visible {
+				continue
+			}
+		case "reasoning":
+			if strings.TrimSpace(stString(item["content"])) != "" {
+				nonempty = append(nonempty, Map{"id": item["id"], "field": "content"})
+			}
+			item["content"] = ""
+		case "interaction":
+			if !pendingInteractions[stString(item["interactionId"])] {
+				continue
+			}
+		case "notice":
+			if !errorNotices[stString(item["noticeId"])] {
+				continue
+			}
+		case "plan", "diff":
+			continue
+		}
+		timeline = append(timeline, item)
+	}
+	projected["timeline"] = timeline
+
+	activities := []any{}
+	for _, value := range stArray(projected["activities"]) {
+		activity := stMap(value)
+		if stActivityHasSummaryOutput(activity) {
+			nonempty = append(nonempty, Map{"id": activity["id"], "field": "detail"})
+		}
+		delete(activity, "detail")
+		delete(activity, "filePaths")
+		activity["label"] = ""
+		activities = append(activities, activity)
+	}
+	projected["activities"] = activities
+
+	delete(projected, "foreground")
+	delete(projected, "reasoningBreak")
+	delete(projected, "planExplanation")
+	delete(projected, "diff")
+	projected["answer"] = ""
+	projected["reasoning"] = ""
+	delete(projected, "lastAssistantMessage")
+
+	if samples := stMap(turn["reasoningTokensByGeneration"]); len(samples) > 0 {
+		total, known := 0.0, true
+		for _, value := range samples {
+			count, ok := stNumber(value)
+			if !ok || count < 0 || count != math.Trunc(count) {
+				known = false
+				break
+			}
+			total += count
+		}
+		if known {
+			projected["readingReasoningTokens"] = total
+		}
+	}
+	delete(projected, "reasoningTokensByGeneration")
+	return projected, nonempty
 }
 
 // Hook completion detail can be the native run's metadata rather than output.
@@ -527,6 +711,9 @@ func ProjectObservation(state Map) Map {
 func ResolveExecution(state Map, id string) Map {
 	turn := stFindTurn(stArray(state["turns"]), id)
 	if turn == nil {
+		turn = stFindTurn(stArray(state["forkHistory"]), id)
+	}
+	if turn == nil {
 		return nil
 	}
 	selected := stClone(state)
@@ -553,6 +740,107 @@ func stSummary(turn Map) string {
 		}
 	}
 	return stHead(strings.Join(strings.Fields(source), " "), 2000)
+}
+
+func stMapOf(value any) Map {
+	encoded, _ := json.Marshal(value)
+	var result Map
+	_ = json.Unmarshal(encoded, &result)
+	return result
+}
+
+func codexExecutionDirectory(state Map, offset, limit int) model.ExecutionDirectoryPage {
+	turns := codexProjectionTurns(state)
+	start, end, page := model.ExecutionDirectoryBounds(len(turns), offset, limit)
+	for _, turn := range turns[start:end] {
+		page.Executions = append(page.Executions, codexExecutionDigest(turn))
+	}
+	return page
+}
+
+func codexExecutionPreview(state Map, executionID string) model.ExecutionDigest {
+	for _, turn := range codexProjectionTurns(state) {
+		if stString(turn["executionId"]) == executionID {
+			return codexExecutionDigest(turn)
+		}
+	}
+	return model.ExecutionDigest{}
+}
+
+// codexProjectionTurns follows the reader's chronology: inherited fork turns
+// precede the current Thread's turns. A fork may have no current turns yet.
+func codexProjectionTurns(state Map) []Map {
+	history, turns := stArray(state["forkHistory"]), stArray(state["turns"])
+	result := make([]Map, 0, len(history)+len(turns))
+	for _, value := range history {
+		result = append(result, stMap(value))
+	}
+	for _, value := range turns {
+		result = append(result, stMap(value))
+	}
+	return result
+}
+
+func codexExecutionDigest(turn Map) model.ExecutionDigest {
+	digest := model.ExecutionDigest{ExecutionID: stString(turn["executionId"]), Status: stPublicExecutionStatus(turn),
+		StartedAt: stInt(turn["createdAt"])}
+	if finished, exists := turn["finishedAt"]; exists {
+		value := stInt(finished)
+		digest.FinishedAt = &value
+	}
+	digest.Excerpt = codexExecutionExcerpt(turn)
+	return digest
+}
+
+func stPublicExecutionStatus(turn Map) string {
+	status := stString(turn["status"])
+	if status == "waiting-input" {
+		return "waiting-for-user"
+	}
+	if status == "running" {
+		for _, value := range stArray(turn["interactions"]) {
+			interaction := stMap(value)
+			if interaction["status"] == "pending" && interaction["blocksTurn"] == true {
+				return "waiting-for-user"
+			}
+		}
+	}
+	return status
+}
+
+// Match the ordinary card's single-execution selector: complete assistant text
+// or eligible reasoning, then the retained completed answer. Never borrow a
+// sibling execution's reply.
+func codexExecutionExcerpt(turn Map) string {
+	active := stActive(turn)
+	timeline := stArray(turn["timeline"])
+	hasText := false
+	for index := len(timeline) - 1; index >= 0; index-- {
+		item := stMap(timeline[index])
+		kind := stString(item["kind"])
+		if kind == "assistant" || kind == "reasoning" {
+			hasText = true
+		}
+		eligible := kind == "assistant" && item["status"] == "complete" ||
+			kind == "reasoning" && (active || stString(turn["status"]) == "completed")
+		text := strings.TrimSpace(stString(item["content"]))
+		if eligible && text != "" {
+			return stHeadPoints(text, 600)
+		}
+	}
+	if stString(turn["status"]) == "completed" && !hasText {
+		text := strings.TrimSpace(stString(turn["answer"]))
+		if text == "" {
+			text = strings.TrimSpace(stString(turn["reasoning"]))
+		}
+		if text != "" {
+			return stHeadPoints(text, 600)
+		}
+	}
+	if !active {
+		return stHeadPoints(strings.TrimSpace(stString(turn["answer"])), 600)
+	}
+	return ""
 }
 
 func PublicInteractionID(nativeID string) string {

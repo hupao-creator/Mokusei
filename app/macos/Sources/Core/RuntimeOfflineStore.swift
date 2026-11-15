@@ -16,6 +16,8 @@ struct RuntimeOfflineStore: Sendable {
 
     func state() -> JSONValue? {
         guard let value = read("state") else { return nil }
+        // A catalog snapshot from before #322 can still contain executionTitles;
+        // it is replaced by the first connected snapshot, not migrated.
         return try? RuntimeState.admittingSnapshot(value)
     }
 
@@ -29,7 +31,11 @@ struct RuntimeOfflineStore: Sendable {
     }
 
     private func contentKey(thread: JSONText, scope: RuntimeContentScope) -> String {
-        let key = runtimeObject(["thread": .string(thread), "scope": scope.json])
+        // This schema component invalidates pre-#322 content. Protocol 12 is the
+        // final #320+#322+#316 scope shape; future scope changes must publish a
+        // new protocol version and update this namespace component.
+        let key = runtimeObject(["version": .integer(2), "protocol": .integer(RuntimeProtocol.version),
+            "thread": .string(thread), "scope": scope.json])
         return "content-" + RuntimePrivateFile.key((try? key.encodedData()) ?? Data())
     }
 

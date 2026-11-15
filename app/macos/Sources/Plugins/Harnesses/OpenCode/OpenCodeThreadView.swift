@@ -101,6 +101,7 @@ private struct OpenCodeLazyRow: View {
     let actions: HarnessThreadActions
     let context: HarnessRenderContext
     let onAnchor: (JSONText, JSONText) -> Void
+    @Environment(\.threadAgentDetail) private var agentDetail
     @State private var resource: HarnessContentResource?
     var body: some View {
         Group {
@@ -115,7 +116,11 @@ private struct OpenCodeLazyRow: View {
                 }
             } else { NativeThreadLoadingIndicator(alignedLeading: true) }
         }
-        .task(id: key) { resource = context.contentResource(.row(key)) }
+        .task(id: key) {
+            resource = context.contentResource(agentDetail
+                ? .reading(key, target: input.readingTarget?.message)
+                : .row(key))
+        }
         .onDisappear { let old = resource; old?.beginRelease(); resource = nil; Task { await old?.release() } }
     }
 }
@@ -222,7 +227,7 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
     for message in messages {
         if let native = message.nativeSessionID, let sessionID, native != sessionID { continue }
         if splitTurns && message.role == "user" { if let reply { replies.insert(reply) }; reply = nil }
-        else if message.role == "assistant", message.status != "streaming", (!agentDetail || message.status != "failed" && message.raw["isError"] != .bool(true)), !ocTrim(message.text).isEmpty || presence.contains(message.id, "text") { reply = message.id }
+        else if message.role == "assistant", message.status != "streaming", (!agentDetail || message.status != "failed" && message.raw["isError"] != .bool(true)), !ocTrim(message.readingText).isEmpty || presence.contains(message.id, "text") { reply = message.id }
     }
     if let reply { replies.insert(reply) }; return replies
 }

@@ -22,13 +22,14 @@ import (
 type Adapter struct {
 	host     plugin.HostContext
 	settings plugin.HarnessSettings
+	state    sessionStateAdapter
 	mu       sync.Mutex
 	handles  map[*Handle]bool
 	voices   map[string]*VoiceSession
 }
 
 func New(host plugin.HostContext) *Adapter {
-	a := &Adapter{host: host, handles: map[*Handle]bool{}, voices: map[string]*VoiceSession{}}
+	a := &Adapter{host: host, handles: map[*Handle]bool{}, voices: map[string]*VoiceSession{}, state: newSessionStateAdapter()}
 	a.settings = NewSettingsAPI(func(ctx context.Context, cwd, executable string) (*AppServer, error) {
 		return a.server(ctx, cwd, executable, "", "")
 	})
@@ -88,7 +89,7 @@ func (a *Adapter) Descriptor() plugin.HarnessDescriptor {
 }
 func (a *Adapter) DefaultSettings() json.RawMessage         { return json.RawMessage(`{"threadSettings":{}}`) }
 func (a *Adapter) Settings() plugin.HarnessSettings         { return a.settings }
-func (a *Adapter) SessionState() plugin.SessionStateAdapter { return NewSessionStateAdapter() }
+func (a *Adapter) SessionState() plugin.SessionStateAdapter { return a.state }
 func (a *Adapter) Metadata() plugin.ThreadMetadataAdapter   { return plugin.GeneratedThreadMetadata{} }
 func (a *Adapter) environment(ctx context.Context) ([]string, error) {
 	if a.host.Environment == nil {
@@ -213,6 +214,7 @@ func (a *Adapter) Open(ctx context.Context, o plugin.OpenContext) (plugin.Handle
 	}), nil
 }
 func (a *Adapter) Close() error {
+	a.state.closeReader()
 	a.mu.Lock()
 	handles := []*Handle{}
 	for h := range a.handles {

@@ -809,6 +809,7 @@ public struct NativeWorkspaceView: View {
     @Environment(\.controlActiveState) private var controlActiveState
     @State private var presentation: NativeWorkspacePresentation
     @State private var canvasInputRegions = NativeCanvasInputRegions()
+    @State private var dockExecutionTitle = NativeExecutionPreviewTitle()
     public init(model: NativeWorkspaceModel, presentation: NativeWorkspacePresentation? = nil) {
         self.model = model; _presentation = State(initialValue: presentation ?? NativeWorkspacePresentation(workspace: model))
     }
@@ -928,10 +929,12 @@ public struct NativeWorkspaceView: View {
                 }
                 let detailTitle = detail.map { thread in
                     if let execution {
-                        return thread.executionTitles[execution.executionID]?.string ?? model.preferences.locale.text("当前执行", "Selected execution")
+                        return dockExecutionTitle.title(threadID: thread.id, executionID: execution.executionID)?.string
+                            ?? model.preferences.locale.text("当前执行", "Selected execution")
                     }
                     return thread.title.string.isEmpty ? model.preferences.locale.text("当前 Thread", "Current thread") : thread.title.string
                 }
+                let dockTitleIdentity = "\(detail?.id.string ?? ""):\(execution?.executionID.string ?? "")"
                 NativeMokuDock(state: presentation.scene, draft: presentation.dockDraft, cwd: detail?.cwd ?? JSONText(model.catalog.defaultCwd),
                     landing: detail == nil && superThreadID == nil && presentation.moku.landing,
                     threadID: detail?.id,
@@ -1007,6 +1010,12 @@ public struct NativeWorkspaceView: View {
                     .animation(nil, value: presentation.onboarding.dockVisible)
                     .allowsHitTesting(!presentation.onboarding.blocksWorkspace)
                     .accessibilityHidden(presentation.onboarding.blocksWorkspace)
+                    .task(id: dockTitleIdentity) {
+                        guard let detail, let execution else { dockExecutionTitle.detach(); return }
+                        dockExecutionTitle.attach(host: presentation.applicationHost, threadID: detail.id,
+                                                  executionID: execution.executionID)
+                    }
+                    .onDisappear { dockExecutionTitle.detach() }
             }
         } onCloseSettings: {
             presentation.settingsNavigation.requestClose(model: model.settingsModel) { _ in presentation.scene.closeSettings() }

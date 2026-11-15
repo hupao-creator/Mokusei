@@ -27,11 +27,12 @@ type Harness struct {
 	closed       bool
 	closeOnce    sync.Once
 	closeErr     error
+	state        StateAdapter
 }
 
 func New(host plugin.HostContext) *Harness {
 	lifetime, stop := context.WithCancel(context.Background())
-	h := &Harness{host: host, lifetime: lifetime, stop: stop, pending: map[string]bool{}, telemetry: map[string]telemetryCacheEntry{}}
+	h := &Harness{host: host, lifetime: lifetime, stop: stop, pending: map[string]bool{}, telemetry: map[string]telemetryCacheEntry{}, state: NewStateAdapter()}
 	// Production discovery launches the captured source directly. A callback here
 	// would resolve the environment and executable again after fingerprinting.
 	h.settings = NewSettings(host, nil)
@@ -42,7 +43,7 @@ func (h *Harness) Descriptor() plugin.HarnessDescriptor {
 }
 func (h *Harness) DefaultSettings() json.RawMessage         { return json.RawMessage(`{"threadSettings":{}}`) }
 func (h *Harness) Settings() plugin.HarnessSettings         { return h.settings }
-func (h *Harness) SessionState() plugin.SessionStateAdapter { return StateAdapter{} }
+func (h *Harness) SessionState() plugin.SessionStateAdapter { return h.state }
 func (h *Harness) Metadata() plugin.ThreadMetadataAdapter   { return plugin.GeneratedThreadMetadata{} }
 func (h *Harness) Detect(ctx context.Context, cwd string) (plugin.Installation, error) {
 	env, err := hostEnvironment(ctx, h.host)
@@ -203,6 +204,7 @@ func (h *Harness) Close() error {
 		h.stop()
 		h.backgroundMu.Unlock()
 		h.workers.Wait()
+		h.state.closeReader()
 		h.closeErr = h.settings.Close()
 	})
 	return h.closeErr

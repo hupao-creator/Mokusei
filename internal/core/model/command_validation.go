@@ -121,6 +121,31 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		return uuid(id)
 	case "thread:set-archived":
 		return text(value, 128)
+	case "thread:execution-previews":
+		object, err := objectKeys(value, []string{"references"}, []string{"references"})
+		if err != nil {
+			return err
+		}
+		array, ok := object["references"].([]any)
+		if !ok || len(array) > 256 {
+			return errors.New("expected up to 256 execution references")
+		}
+		for _, entry := range array {
+			reference, ok := entry.(map[string]any)
+			if !ok {
+				return errors.New("execution reference must be an object")
+			}
+			if _, err = objectKeys(reference, []string{"threadId", "executionId"}, []string{"threadId", "executionId"}); err != nil {
+				return err
+			}
+			if err = text(reference["threadId"], 128); err != nil {
+				return err
+			}
+			if err = text(reference["executionId"], 128); err != nil {
+				return err
+			}
+		}
+		return CommandJSONSize(value, 64*1024)
 	case "harness:detect-installation":
 		return text(value, 128)
 	case "harness:install":

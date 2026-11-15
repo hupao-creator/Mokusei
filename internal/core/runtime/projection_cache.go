@@ -1,21 +1,43 @@
 package runtime
 
 import (
-	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
 	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
 )
 
 type cachedThread struct {
-	hash   string
-	record model.ThreadRecord
+	hash      string
+	contentID string
+	record    model.ThreadRecord
 }
+
+// sessionContentID identifies exact native-state bytes. Host metadata and
+// unrelated Thread fields do not change it, so a reader can skip work without
+// treating a whole record revision as conversation content.
+func sessionContentID(state json.RawMessage) string {
+	sum := sha256.Sum256(state)
+	return hex.EncodeToString(sum[:])
+}
+
+func (r *Runtime) evictThreadReader(harnessID, threadID string) {
+	harness := r.config.Harnesses[harnessID]
+	if harness == nil {
+		return
+	}
+	if reader, ok := harness.SessionState().(plugin.ReaderProjectionAdapter); ok {
+		reader.EvictThread(threadID)
+	}
+}
+
 type cachedOverview struct {
 	hash   string
 	record model.ThreadRecord
@@ -78,6 +100,7 @@ func (r *Runtime) cachedThreads(snapshot store.Snapshot) ([]model.ThreadRecord, 
 			if _, err := snapshot.Get(key, &entry.record); err != nil {
 				return err
 			}
+			entry.contentID = sessionContentID(entry.record.SessionState)
 			entries[index] = entry
 			return ctx.Err()
 		}})
@@ -103,22 +126,28 @@ func (r *Runtime) cachedThreads(snapshot store.Snapshot) ([]model.ThreadRecord, 
 	return threads, nil
 }
 
-func (r *Runtime) cachedThread(ctx context.Context, snapshot store.Snapshot, id string) (model.ThreadRecord, error) {
+func (r *Runtime) cachedThread(ctx context.Context, snapshot store.Snapshot, id string) (cachedThread, error) {
 	key := "thread:" + id
 	hash, exists := snapshot.RecordHash(key)
 	if !exists {
-		return model.ThreadRecord{}, fmt.Errorf("unknown thread: %s", id)
+		return cachedThread{}, fmt.Errorf("unknown thread: %s", id)
 	}
 	r.threadCacheMu.Lock()
 	entry, ok := r.threadCache[id]
 	r.threadCacheMu.Unlock()
 	if ok && entry.hash == hash {
-		return entry.record, nil
+		return entry, nil
 	}
 	entry = cachedThread{hash: hash}
-	err := r.computeTasks(ctx, []workpool.Task{{Bytes: snapshot.RecordBytes(key), Run: func(ctx context.Context) error { _, err := snapshot.Get(key, &entry.record); return err }}})
+	err := r.computeTasks(ctx, []workpool.Task{{Bytes: snapshot.RecordBytes(key), Run: func(ctx context.Context) error {
+		if _, err := snapshot.Get(key, &entry.record); err != nil {
+			return err
+		}
+		entry.contentID = sessionContentID(entry.record.SessionState)
+		return nil
+	}}})
 	if err != nil {
-		return model.ThreadRecord{}, err
+		return cachedThread{}, err
 	}
 	r.threadCacheMu.Lock()
 	liveHash, _ := r.config.Store.Snapshot().RecordHash(key)
@@ -130,7 +159,30 @@ func (r *Runtime) cachedThread(ctx context.Context, snapshot store.Snapshot, id 
 		r.threadCacheRevision = max(r.threadCacheRevision, snapshot.Revision())
 	}
 	r.threadCacheMu.Unlock()
-	return entry.record, nil
+	return entry, nil
+}
+
+func (r *Runtime) projectOverview(ctx context.Context, thread model.ThreadRecord, contentID string) (json.RawMessage, error) {
+	harness := r.config.Harnesses[thread.HarnessID]
+	if harness == nil {
+		// Preserve the durable state when a catalog projection races a missing
+		// Harness registration; callers that require a harness validate first.
+		return thread.SessionState, nil
+	}
+	if contentID == "" {
+		contentID = sessionContentID(thread.SessionState)
+	}
+	if reader, ok := harness.SessionState().(plugin.ReaderProjectionAdapter); ok {
+		result, err := reader.ProjectReader(ctx, plugin.ReaderRequest{ThreadID: thread.ID, ContentID: contentID, State: thread.SessionState, Scope: model.RendererScope{Kind: "overview"}, Generation: thread.Revision})
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			return json.RawMessage("null"), nil
+		}
+		return result.Value, nil
+	}
+	return harness.SessionState().ProjectRenderer(model.CloneRaw(thread.SessionState), model.RendererScope{Kind: "overview"})
 }
 
 // Called under projectionMu, which orders whole-snapshot computation and cache
@@ -149,18 +201,20 @@ func (r *Runtime) projectThreads(snapshot store.Snapshot) ([]model.ThreadRecord,
 			entries[index] = entry
 			continue
 		}
+		contentID := sessionContentID(thread.SessionState)
 		tasks = append(tasks, workpool.Task{Bytes: snapshot.RecordBytes("thread:" + thread.ID), Run: func(ctx context.Context) error {
 			entry := cachedOverview{hash: hash, record: thread}
-			if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
-				value, err := harness.SessionState().ProjectRenderer(bytes.Clone(thread.SessionState), model.RendererScope{Kind: "overview"})
-				if err != nil {
-					r.log("catalog.projection", err)
-					entry.record.SessionState = json.RawMessage("null")
-					entry.hash = ""
-				} else {
-					entry.record.SessionState = value
-				}
+			value, err := r.projectOverview(ctx, thread, contentID)
+			if err != nil {
+				r.log("catalog.projection", err)
+				entry.record.SessionState = json.RawMessage("null")
+				entry.hash = ""
+			} else {
+				entry.record.SessionState = value
 			}
+			// Naming evidence stays durable but is read through execution scopes;
+			// the catalog card must not grow with the execution directory.
+			entry.record.ExecutionTitles = nil
 			if thread.Moku || thread.MokuHistory {
 				entry.record.Transcript = auditPreview(thread.Transcript)
 			}
@@ -179,8 +233,10 @@ func (r *Runtime) projectThreads(snapshot store.Snapshot) ([]model.ThreadRecord,
 			}
 			r.publicationRetries[threads[i].ID] = true
 		}
+		entry.record.ExecutionTitles = nil
 		next[threads[i].ID] = entry
 		threads[i] = entry.record
+		threads[i].ExecutionTitles = nil
 		// Resolve against the host filesystem after copying the cached record.
 		// Derived values must not enter durable storage or depend on a client
 		// being able to resolve the host's symlinks and worktree metadata.

@@ -128,11 +128,13 @@ public struct HarnessThread: Hashable, Sendable {
     public static func == (lhs: Self, rhs: Self) -> Bool { lhs.json == rhs.json }
     public func hash(into hasher: inout Hasher) { hasher.combine(json) }
 
-    public func replacingSessionState(_ state: JSONValue) throws -> Self {
+    public func replacingSessionState(_ state: JSONValue, executionTitles: [JSONText: JSONText] = [:]) throws -> Self {
         guard case var .object(object) = json else {
             throw PluginContractError("thread must be an object")
         }
         object["sessionState"] = state
+        if executionTitles.isEmpty { object.removeValue(forKey: "executionTitles") }
+        else { object["executionTitles"] = .object(executionTitles.mapValues(JSONValue.string)) }
         return try Self(json: .object(object))
     }
 }

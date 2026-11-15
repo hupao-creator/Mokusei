@@ -89,7 +89,23 @@ type StateMutation struct {
 	Plugins            *[]RuntimePlugin                    `json:"plugins,omitempty"`
 	Activities         []RuntimeActivity                   `json:"activities,omitempty"`
 }
+
+// Renderer purposes distinguish reading experiences that use the same native
+// execution identity but admit different content. Empty means the full detail
+// contract; AgentSummary is the count-only Agent reading page.
+const (
+	RendererPurposeDetail       = ""
+	RendererPurposeAgentSummary = "agent-summary"
+)
+
 type RendererScope struct {
-	Kind string `json:"kind"`
-	Key  string `json:"key,omitempty"`
+	Kind   string `json:"kind"`
+	Key    string `json:"key,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	// Purpose is interpreted by the owning Harness. Target carries the
+	// explicitly requested native message, if any, so a lightweight projection
+	// can retain that reply without keeping every interim reply body.
+	Purpose string          `json:"purpose,omitempty"`
+	Target  json.RawMessage `json:"target,omitempty"`
 }

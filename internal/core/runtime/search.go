@@ -71,11 +71,11 @@ func (r *Runtime) searchSourceChanges(snapshot, previous store.Snapshot, include
 		if !snapshot.Has(key) {
 			continue
 		}
-		thread, err := r.cachedThread(r.ctx, snapshot, strings.TrimPrefix(key, "thread:"))
+		entry, err := r.cachedThread(r.ctx, snapshot, strings.TrimPrefix(key, "thread:"))
 		if err != nil {
 			return nil, err
 		}
-		if source, eligible := r.searchThreadSource(snapshot, thread, includeContent); eligible {
+		if source, eligible := r.searchThreadSource(snapshot, entry.record, includeContent); eligible {
 			sources = append(sources, source)
 		}
 	}

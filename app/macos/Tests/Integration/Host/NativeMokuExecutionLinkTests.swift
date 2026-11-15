@@ -27,7 +27,7 @@ import MokuseiHarnessOpenCode
     var loaded = false
     var external: [URL] = []
     var noteText = "[View result](mokusei://execution?threadId=ordinary&executionId=target)"
-    @ObservationIgnored var resources: [HarnessContentResource] = []
+    @ObservationIgnored var resources: [(scope: HarnessContentScope, resource: HarnessContentResource)] = []
     @ObservationIgnored var revision = 0
     @ObservationIgnored lazy var back = ThreadDetailBackAction(label: "Back to overview", onBack: { [weak self] in self?.presentation.finishBack() })
 
@@ -66,17 +66,66 @@ import MokuseiHarnessOpenCode
         try workspace.catalog.install(.object(["revision": .integer(revision), "settingsRevision": .integer(0),
             "defaultCwd": .text(directory.path), "settings": .object([:]), "threads": .array([thread.json]),
             "executions": .array([]), "applicationThreads": .array([])]))
-        if loaded { resources.forEach { $0.publish(.ready(raw)) } }
+        if loaded { resources.forEach { publish($0.resource, scope: $0.scope, state: raw) } }
     }
 
     func load() {
         loaded = true
-        resources.forEach { $0.publish(.ready(thread.sessionState)) }
+        resources.forEach { publish($0.resource, scope: $0.scope, state: thread.sessionState) }
     }
     func resource(_ scope: HarnessContentScope) -> HarnessContentResource {
-        let resource = HarnessContentResource(state: loaded ? .ready(thread.sessionState) : .loading, retry: {}, release: {})
-        resources.append(resource)
+        let content = try! content(scope, state: thread.sessionState)
+        let resource = HarnessContentResource(state: loaded ? .ready(content) : .loading, retry: {}, release: {})
+        resources.append((scope, resource))
         return resource
+    }
+
+    private func content(_ scope: HarnessContentScope, state: JSONValue) throws -> JSONValue {
+        switch scope {
+        case .thread:
+            return .object(["version": .integer(1), "state": state, "executionTitles": .object([:])])
+        case .reading(let key, let target) where harness == "codex":
+            // Exercise the production Go projector, including interaction
+            // normalization and nonempty metadata, rather than a Swift copy.
+            let input = directory.appendingPathComponent("projection-input.json")
+            let output = directory.appendingPathComponent("projection-output.json")
+            try JSONValue.object(["state": state, "scope": .object([
+                "kind": .text("turn"), "key": .string(key),
+                "purpose": .text("agent-summary"), "target": target ?? .null
+            ])]).encodedData().write(to: input)
+            let process = Process()
+            process.executableURL = try Self.codexProjector.get()
+            process.arguments = ["-codex-input", input.path, "-output", output.path]
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw PluginContractError("Codex fixture projection failed") }
+            return try JSONValue(data: Data(contentsOf: output))
+        default:
+            return state
+        }
+    }
+
+    private static let codexProjector: Result<URL, Error> = Result {
+        if let path = ProcessInfo.processInfo.environment["MOKUSEI_CODEX_READING_PROJECTOR"] {
+            return URL(fileURLWithPath: path)
+        }
+        // Ordinary SwiftPM tests use the same producer as the isolated replay.
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let output = FileManager.default.temporaryDirectory.appendingPathComponent("codex-reading-" + UUID().uuidString)
+        let build = Process()
+        build.currentDirectoryURL = repo
+        build.executableURL = repo.appendingPathComponent("scripts/go.sh")
+        build.arguments = ["build", "-o", output.path, "./tools/verification/agent-reading"]
+        try build.run()
+        build.waitUntilExit()
+        guard build.terminationStatus == 0 else { throw PluginContractError("Build Codex fixture projector failed") }
+        return output
+    }
+
+    private func publish(_ resource: HarnessContentResource, scope: HarnessContentScope, state: JSONValue) {
+        if let value = try? content(scope, state: state) { resource.publish(.ready(value)) }
     }
     func close() async {
         await presentation.release()
@@ -203,11 +252,16 @@ private struct ExecutionLinkSurface: View {
                 let context = HarnessRenderContext(content: .manifest, presentation: .main(excludedExecutionIDs: []),
                     contentResource: fixture.resource, onIndexChange: { _ in })
                 if let view = try? fixture.plugin.threadView(input: .init(thread: fixture.thread, readingTarget: fixture.presentation.readingTarget), actions: actions, context: context) {
-                    ThreadDetailFrame(navigation: fixture.back, onNavigationChange: { fixture.presentation.navigation = $0 }) {
+                    let routeID = fixture.presentation.navigationRouteID
+                    ThreadDetailFrame(navigation: fixture.back, onNavigationChange: {
+                        // Match the production shell: a retiring visit cannot
+                        // clear the next visit's navigation after async decode.
+                        if fixture.presentation.navigationRouteID == routeID { fixture.presentation.navigation = $0 }
+                    }) {
                         view
                     }
                     .nativeReadingPanelClose(label: "Close thread", onClose: fixture.presentation.finishBack)
-                    .id(fixture.presentation.navigationRouteID)
+                    .id(routeID)
                 }
             }
         }
@@ -903,7 +957,14 @@ struct NativeMokuExecutionLinkTests {
         let secondInput = (0..<220).map { "NEW STREAMING CONTENT \($0)" }.joined(separator: "\n\n")
         try fixture.update(status: .running, text: firstInput, messageStatus: "complete", pendingText: secondInput)
         record("second-source", inputBytes: secondInput.utf8.count)
-        try await Task.sleep(for: .milliseconds(200))
+        // The OpenCode decoder can publish the new pending message after the
+        // fixed sleep. Wait for the committed top position before asserting
+        // that a user scroll survived the content update.
+        try await SwiftUIReplay.wait {
+            guard let value = fixture.scroll?["value"],
+                  let top = value["top"]?.numberValue else { return false }
+            return top < 5 && value["following"] == .bool(false)
+        }
         record("second-stream", inputBytes: secondInput.utf8.count)
         #expect(!textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") })
         #expect(textViews(root).contains { $0.string.contains("STREAMING CONTENT") })

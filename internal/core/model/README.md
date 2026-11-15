@@ -11,7 +11,7 @@ historical continuation.
 - `model.Object` 用于动态 JSON 对象；`model.Decode` 使用 `json.Number`，避免原生长整数在 Go 中转时变成 `float64`。
 - `SessionRecord.SessionState`、Harness settings、metadata 和 application record value 使用 `json.RawMessage`。读写边界复制这些字节；接收方不得修改共享权威状态。
 - Harness 解释自己的原生会话。Core 只读取 `PublicObservation`、身份、时间和配置边界。
-- Catalog 中只放 `SessionStateAdapter.ProjectRenderer(..., {Kind:"overview"})` 的有界投影。完整 turn/execution 内容通过独立订阅按需提供。
+- Catalog 中只放 `SessionStateAdapter.ProjectRenderer(..., {Kind:"overview"})` 的当前卡片投影；目录（`directory`，按 offset/limit 分页）、单条执行（`execution`/`turn`）与执行预览（`preview`）通过独立 content scope 读取。`ThreadRecord.executionTitles` 不再进入 catalog。
 - `RuntimePlugin` 只投影插件 key、当前启用状态和不可用原因，供原生执行权限与内容可用性判断；不提供插件管理页专用的名称或分类。
 - `model.ParsePublicAgentInput` 拒绝客户端提供附件路径；附件 ID 先由 Core 解析、验证并保留 owner，再交给 Harness。媒体和 annotation URL 采用 WHATWG 解析；域名拒绝解码后只有 ASCII 的 Punycode 标签，正常国际化域名仍受支持。
   解析后的规范化 URL 进入可信输入；批注的附件边界继续采用同一 WHATWG 解析规则，避免后续解析器拒绝合法的 URL 路径或重新解释原始写法。
@@ -40,6 +40,11 @@ string. It returns that Harness's installation facts independently. The existing
 zero-argument `harness:detect-installations` command remains explicit environment
 refresh and batch recovery.
 
+`thread:execution-previews` is a read-only command accepting up to 256
+`{threadId, executionId}` Agent references. It resolves each exact execution's
+runtime-owned title, status, timing and bounded Harness excerpt without creating
+a turn/execution content lease or complete body.
+
 `moku:submit` admits an optional host-derived `directoryScopeId` alongside the
 display-only `directoryTag`. The scope must be nonempty, at most 4096 UTF-16 units
 and contain no NUL; a display tag never identifies a selected directory.
@@ -48,11 +53,13 @@ and contain no NUL; a display tag never identifies a selected directory.
 
 Native string default admission and public answers share `ValidatePublicQuestionString`: UTF-16 length, ECMAScript patterns (including all four dot line terminators), email shape, WHATWG URI and date formats. Date-time accepts signed expanded ISO years and JavaScript Date.toString offset/comment forms; unknown legacy timezone abbreviations are rejected.
 
-`ThreadRecord.executionTitles` is an optional execution-ID-to-title map, separate
-from the mutable catalog `title`. Missing entries mean unknown historical names;
-clients must not fill them with the current title or another execution's name.
-Runtime records successful naming ownership and conservatively restores older
-entries from durable lifecycle evidence at startup.
+`ThreadRecord.executionTitles` is durable runtime naming evidence, separate
+from the mutable catalog `title`. It is not published in the catalog. The full
+thread-content envelope and execution directory/preview scopes attach only the
+exact titles their consumers read. Missing entries mean unknown historical
+names; clients must not fill them with the current title or another execution's
+name. Runtime records successful naming ownership and conservatively restores
+older entries from durable lifecycle evidence at startup.
 
 `ThreadRecord.mokuInterruptedExecutionId` is optional Runtime-owned evidence of a
 successful Moku interrupt tool request for that exact execution. Missing means

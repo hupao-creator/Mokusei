@@ -7,6 +7,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
 	"time"
 )
 
@@ -39,11 +40,15 @@ func (r *Runtime) ProjectSession(ctx context.Context, session model.SessionRecor
 	if err := ctx.Err(); err != nil {
 		return session, err
 	}
-	h := r.config.Harnesses[session.HarnessID]
-	if h == nil {
+	if r.config.Harnesses[session.HarnessID] == nil {
 		return session, errors.New("unknown session harness")
 	}
-	value, err := h.SessionState().ProjectRenderer(session.SessionState, model.RendererScope{Kind: "overview"})
+	var value json.RawMessage
+	err := r.computeTasks(ctx, []workpool.Task{{Bytes: int64(len(session.SessionState)), Run: func(taskCtx context.Context) error {
+		var projectErr error
+		value, projectErr = r.projectOverview(taskCtx, model.ThreadRecord{SessionRecord: session}, sessionContentID(session.SessionState))
+		return projectErr
+	}}})
 	if err != nil {
 		return session, err
 	}

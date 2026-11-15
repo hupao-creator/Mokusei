@@ -235,14 +235,54 @@ type ThreadReadingLength interface {
 }
 
 // SessionStateAdapter read projections may run concurrently across independent
-// threads. Implementations must keep shared state immutable or synchronized;
-// each projection receives caller-owned native-state bytes.
+// threads. Implementations must treat state as immutable read-only bytes: Runtime
+// may share one slice across concurrent projections. Returned values are
+// caller-owned and must not alias mutable adapter state. Renderer scopes may
+// carry a trusted reading purpose and opaque native target; the Harness
+// interprets both without Runtime decoding its private state.
 type SessionStateAdapter interface {
 	Project(state json.RawMessage) (model.PublicObservation, error)
 	ProjectRenderer(state json.RawMessage, scope model.RendererScope) (json.RawMessage, error)
 	ReadContext(state json.RawMessage) (json.RawMessage, error)
 	ResolveExecution(state json.RawMessage, executionID string) (*model.PublicExecution, error)
 	Settle(SettleRequest) (json.RawMessage, error)
+}
+
+// ReaderRequest is one content read over an exact immutable session version.
+// ContentID changes whenever State bytes change and remains stable when host
+// metadata changes. State is immutable canonical bytes: an adapter may retain it
+// only through its bounded per-Thread index and must never modify it. Known is
+// the caller's last final content revision for this scope; a matching result is
+// omitted. Generation orders cache replacements for one Thread.
+type ReaderRequest struct {
+	ThreadID  string
+	ContentID string
+	State     json.RawMessage
+	Scope     model.RendererScope
+	Known     *int64
+	// Generation orders cached generations for one Thread. A stale in-flight
+	// reader may still return its own value but cannot replace a newer index.
+	Generation int64
+}
+
+type ReaderSnapshot struct {
+	// Revision identifies the visible projection for this complete scope.
+	Revision int64
+	// Value is immutable, read-only JSON shared with the reader cache. Callers
+	// must not modify it; the transport decodes its own detached value.
+	Value json.RawMessage
+}
+
+// ReaderProjectionAdapter lets a Harness reuse an immutable parse/index across
+// readers and subscriptions of one Thread. Implementations own their cache
+// bounds and must keep projections detached from mutable shared state. Runtime
+// still applies the final content envelope, runtime-owned execution titles and
+// Thread revision after this boundary; an adapter must never publish those
+// itself.
+type ReaderProjectionAdapter interface {
+	ProjectReader(context.Context, ReaderRequest) (*ReaderSnapshot, error)
+	// EvictThread drops every cached generation for a deleted or replaced Thread.
+	EvictThread(threadID string)
 }
 type SettleRequest struct {
 	SessionState json.RawMessage

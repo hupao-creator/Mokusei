@@ -25,17 +25,15 @@ public struct CodexHarnessPlugin: HarnessPlugin {
 
     public func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope] {
         guard let execution = input.readingTarget?.executionID ?? input.thread.observation.latestExecution?.executionID else { return [] }
-        return [.row(JSONText(codeUnits: JSONText("turn:").codeUnits + execution.codeUnits))]
+        let key = JSONText(codeUnits: JSONText("turn:").codeUnits + execution.codeUnits)
+        if input.thread.moku != true && !input.thread.mokuHistory {
+            return [.reading(key, target: input.readingTarget?.message)]
+        }
+        return [.row(key)]
     }
 
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<CodexOverviewView> {
         try projectCodexOverview(input: input, availableColumns: availableColumns)
-    }
-    public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
-        let state = try CodexState(thread.sessionState, createdAt: thread.createdAt)
-        guard let turn = state.turns.first(where: { $0.executionId == executionID }) else { return nil }
-        let excerpt = CodexOverviewProjector.overviewMessage([turn])?.codexIdentity("text") ?? (turn.active ? "" : JSONText(turn.answer))
-        return try .init(startedAt: turn.createdAt, finishedAt: turn.finishedAt, running: turn.active, excerpt: excerpt)
     }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? {
         try codexExecutionTokenUsage(thread: thread, executionID: executionID)

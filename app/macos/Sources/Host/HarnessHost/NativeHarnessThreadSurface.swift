@@ -77,6 +77,7 @@ public final class NativeHarnessThreadSurface {
         switch scope {
         case .thread: runtimeScope = .thread
         case .row(let key): runtimeScope = .turn(key: key)
+        case .reading(let key, let target): runtimeScope = .reading(key: key, target: target)
         case .execution(let key): runtimeScope = .execution(key: key)
         }
         let client = host.client
@@ -223,7 +224,10 @@ private struct NativeHarnessContentView: View {
     private(set) var materializationCount = 0
     func thread(_ envelope: HarnessThread, content: JSONValue) throws -> HarnessThread {
         if self.envelope == envelope, self.content == content, let result { return try result.get() }
-        let next = Result { try envelope.replacingSessionState(content) }
+        let next = Result {
+            let value = try HarnessThreadContent(content)
+            return try envelope.replacingSessionState(value.state, executionTitles: value.executionTitles)
+        }
         materializationCount += 1
         self.envelope = envelope; self.content = content; result = next
         return try next.get()

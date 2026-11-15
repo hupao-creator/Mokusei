@@ -136,18 +136,26 @@ public struct ApplicationExecutionPresentation: Hashable, Sendable {
 }
 @MainActor
 public struct ApplicationExecutionReferencesUI {
+    /// Presents the current exact-reference cache. Subscribe first: `read` alone
+    /// does not start preview reads and returns the localized title fallback
+    /// until the subscribed reference cache has resolved.
     public let read: ([ApplicationExecutionRef]) throws -> [ApplicationExecutionPresentation]
     /// Only changes to these source Threads or their application bindings notify
     /// this observer. Replace the subscription when the reference set changes.
     public let subscribe: ([ApplicationExecutionRef], @escaping () -> Void) -> () -> Void
+    /// Metadata-only subscription for cards that need logos/titles but not
+    /// excerpt previews. It must not start preview reads for every reference.
+    public let subscribeMetadata: ([ApplicationExecutionRef], @escaping () -> Void) -> () -> Void
     /// Renderer-only native factory; public reference metadata stays plain data.
     public let execution: (ApplicationExecutionRef) throws -> AnyView
     public let logo: (JSONText, CGFloat) throws -> AnyView
     public init(read: @escaping ([ApplicationExecutionRef]) throws -> [ApplicationExecutionPresentation],
                 subscribe: @escaping ([ApplicationExecutionRef], @escaping () -> Void) -> () -> Void,
+                subscribeMetadata: (([ApplicationExecutionRef], @escaping () -> Void) -> () -> Void)? = nil,
                 logo: @escaping (JSONText, CGFloat) throws -> AnyView,
                 execution: @escaping (ApplicationExecutionRef) throws -> AnyView = { _ in throw PluginContractError("Execution reader unavailable") }) {
-        self.read = read; self.subscribe = subscribe; self.logo = logo; self.execution = execution
+        self.read = read; self.subscribe = subscribe; self.subscribeMetadata = subscribeMetadata ?? subscribe
+        self.logo = logo; self.execution = execution
     }
 }
 public struct ApplicationHTMLFailure: Sendable {

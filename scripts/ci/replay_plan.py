@@ -26,7 +26,7 @@ def replay_groups(go_executable, output):
                                        "-benchtime", "3x"])],
         "adapters": [(name.replace("/", "-"), go + ["./tools/verification/" + name]) for name in [
             "claude", "codex", "opencode", "harness-install", "console-oauth", "artificialanalysis",
-            "artificialanalysis/lifecycle", "maintenance", "thread-detail-performance",
+            "artificialanalysis/lifecycle", "maintenance", "thread-detail-performance", "projection-reuse",
         ]] + [("pi-read-guard", [sys.executable, "tools/verification/pi/read-guard.py"])],
         "fixtures": [
             # Start the longest independent fixture first to avoid a late tail.

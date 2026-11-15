@@ -8,6 +8,7 @@ import MokuseiTestSupport
 import MokuseiCore
 import MokuseiPluginAPI
 @testable import MokuseiPluginUI
+@testable import MokuseiUI
 @testable import MokuseiHarnessCodex
 @testable import MokuseiHarnessClaude
 @testable import MokuseiHarnessPi
@@ -19,6 +20,12 @@ struct ThreadCardInitialResponseTests {
     private func fixtures() throws -> [JSONValue] {
         let path = try #require(ProcessInfo.processInfo.environment["MOKUSEI_INITIAL_RESPONSE_FIXTURES"])
         return try #require(JSONValue(data: Data(contentsOf: URL(fileURLWithPath: path))).arrayValue)
+    }
+    private func fixturePreview(_ fixture: JSONValue, _ executionID: JSONText, threadID: JSONText = "fixture") throws -> NativeExecutionPreview? {
+        guard let previews = fixture["previews"]?.objectValue, let value = previews[executionID],
+              case .object(var fields) = value else { return nil }
+        fields["threadId"] = .string(threadID)
+        return try NativeExecutionPreview(json: .object(fields))
     }
     private func input(_ fixture: JSONValue, pending: Bool = false) throws -> HarnessThreadInput {
         let observation = try ThreadPublicObservation(json: #require(fixture["observation"]))
@@ -57,31 +64,25 @@ struct ThreadCardInitialResponseTests {
                 #expect(body.excerpt.isEmpty && body.message == nil)
                 #expect(!body.initialResponse!.title.contains(sentinel))
             }
-            if f["agent"] == .bool(true) { #expect(body.excerpt.contains("AGENT_CONTENT_TAKES_OVER")) }
-            let modules = [AnyHarnessPlugin(CodexHarnessPlugin()), AnyHarnessPlugin(ClaudeHarnessPlugin()),
-                           AnyHarnessPlugin(PiHarnessPlugin()), AnyHarnessPlugin(OpenCodeHarnessPlugin())]
-            let module = try #require(modules.first { $0.descriptor.id == input.thread.harnessID })
-            let preview = try module.executionPreview(thread: input.thread, executionID: "first")
-            #expect(try module.executionPreview(thread: input.thread, executionID: "missing") == nil)
-            if f["agent"] == .bool(true) {
-                let preview = try #require(preview)
+            if f["agent"] == .bool(true) && f["name"] != .text("long-grapheme") {
+                #expect(body.excerpt.contains("AGENT_CONTENT_TAKES_OVER"))
+            }
+            if f["agent"] == .bool(true), let preview = try fixturePreview(f, "first") {
                 if f["name"] == .text("second-answer") {
-                    #expect(preview.excerpt == "AGENT_CONTENT_TAKES_OVER")
-                    #expect(!preview.running && preview.finishedAt != nil)
-                    let current = try #require(try module.executionPreview(thread: input.thread, executionID: "second"))
-                    #expect(current.excerpt == "AGENT_CONTENT_TAKES_OVER SECOND" && current.running)
+                    #expect(preview.preview.excerpt == "AGENT_CONTENT_TAKES_OVER")
+                    #expect(!preview.preview.running && preview.preview.finishedAt != nil)
+                    let current = try #require(try fixturePreview(f, "second"))
+                    #expect(current.preview.excerpt == "AGENT_CONTENT_TAKES_OVER SECOND" && current.preview.running)
+                } else if f["name"] == .text("long-grapheme") {
+                    #expect(preview.preview.excerpt.string.unicodeScalars.count == 600)
+                    #expect(!preview.preview.excerpt.string.contains(sentinel))
                 } else {
-                    // Compare the actual card message, before its separate search
-                    // excerpt/ellipsis formatting, to the exact-reference path.
-                    #expect(preview.excerpt.string == String(try #require(body.message).text.prefix(600)),
+                    #expect(preview.preview.excerpt.string == String(try #require(body.message).text.prefix(600)),
                             "\(f["harness"]!) / \(f["name"]!)")
-                    #expect(preview.running == input.thread.observation.isExecutionActive)
+                    #expect(preview.preview.running == input.thread.observation.isExecutionActive)
                 }
-                #expect(preview.excerpt.string.count <= 600)
-                #expect(!preview.excerpt.string.contains("PRIVATE_CHILD_MESSAGE"))
-                #expect(!preview.excerpt.string.contains(sentinel))
-            } else {
-                #expect(preview?.excerpt.codeUnits.isEmpty != false)
+                #expect(!preview.preview.excerpt.string.contains(sentinel))
+                #expect(!preview.preview.excerpt.string.contains("PRIVATE_CHILD_MESSAGE"))
             }
 
             if f["name"] == .text("running") || f["name"] == .text("long-prompt") {

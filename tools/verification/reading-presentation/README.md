@@ -6,6 +6,20 @@ The former full-page horizontal entry and mid-opening Overview return visual
 replays have been retired; current Agent, Report and Moku entry uses panel
 presentation.
 
+## Agent reading projection
+
+```sh
+python3 tools/verification/reading-presentation/run.py --agent-reading
+```
+
+Generates the four production Harness `agent-summary` wires with
+[tools/verification/agent-reading](../agent-reading/README.md), then mounts the
+manifest conversation and projected row through each real native reader. The
+replay requires the Agent row to use `.reading`, rejects `.row` and `.execution`
+leases, keeps the visible reply/error/target text mounted and proves hidden
+reasoning/tool bodies are absent. It also records projected wire bytes and
+native decode time without claiming CPU or frame-rate effects.
+
 ## Workspace Reload and rejected Quit
 
 ```sh
@@ -771,11 +785,12 @@ Four integration cases consume actual overview payloads exported by all four Go
 adapters. They exercise first-scope eligibility, null/empty state, pending versus
 execution precedence, reasoning/completed-answer eligibility, incomplete text,
 no-text terminal states, second execution and fork exclusion, plans and bounded
-Unicode prompts. The same Go-produced payloads also compare exact-execution
-previews with ordinary card messages during reasoning updates, completed
-messages, completion/failure/interruption, long Unicode replies and a later
-execution. OpenCode includes a child-session sentinel. Missing references and
-prompt-only/incomplete states must remain empty. They require unchanged search excerpts and composition keys,
+Unicode prompts. The same export carries exact execution previews computed from
+each full fixture state; the mounted Report reference row uses those previews
+while the production command contract is covered by
+`tools/verification/execution-catalog` and the runtime catalog test. Missing
+references and prompt-only/incomplete states must remain empty. They require
+unchanged search excerpts and composition keys,
 reject malformed flags, and conservatively disable missing flags and Moku.
 The mounted production plugin cards check body accessibility at their actual
 1×1/extended footprints and save light/dark
@@ -1054,3 +1069,8 @@ through a camera change and the spinner's hide/resume behavior. No pre-rendered
 assets, style-equivalence golden or physical FPS claim is involved. The ordinary
 native owner still runs this case inside `--tag-glass-captures`; the focused flag
 does not replace full CI coverage.
+
+Execution-link fixtures use the production Codex Go summary projector and the
+shell's route-visit fence for navigation callbacks. A retiring asynchronous
+reader must not clear a subsequent visit's Back action. Snapshot changes update
+the mounted Codex decode task rather than changing the row's SwiftUI identity.

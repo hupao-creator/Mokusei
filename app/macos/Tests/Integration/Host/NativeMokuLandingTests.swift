@@ -24,11 +24,15 @@ extension RuntimeClient {
         contentResources.map { ($0.key, $0.value.threadID) }
     }
     fileprivate func deliverLandingContent(_ state: JSONValue, subscription: String) {
-        guard contentResources[subscription] != nil else { return }
-        contentResources[subscription]?.value = state
+        guard let resource = contentResources[subscription] else { return }
+        let value: JSONValue
+        if case .thread = resource.scope {
+            value = .object(["version": .integer(1), "state": state, "executionTitles": .object([:])])
+        } else { value = state }
+        contentResources[subscription]?.value = value
         // Use the workspace's ordered event stream, after subscribe's loading
         // event, rather than racing a direct call into its Harness host.
-        emit(.threadContent(subscriptionId: subscription, state: .ready(state)))
+        emit(.threadContent(subscriptionId: subscription, state: .ready(value)))
     }
 }
 

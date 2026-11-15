@@ -309,6 +309,7 @@ struct NativeLocalChangeFanoutTests {
         let path = try #require(ProcessInfo.processInfo.environment["MOKUSEI_INITIAL_RESPONSE_FIXTURES"])
         let rows = try #require(JSONValue(data: Data(contentsOf: URL(fileURLWithPath: path))).arrayValue)
         var revision = 0
+        var previews: [JSONText: [JSONText: NativeExecutionPreview]] = [:]
         func source(_ name: String, privateField: JSONText? = nil) throws -> HarnessThread {
             let row = try #require(rows.first { $0["harness"] == .text("codex") && $0["name"] == .text(name) })
             revision += 1
@@ -320,11 +321,23 @@ struct NativeLocalChangeFanoutTests {
                 if privateField == "mokuHistory" { json["archived"] = .bool(true) }
                 else { json.removeValue(forKey: "archived") }
             }
+            var fixturePreviews: [JSONText: NativeExecutionPreview] = [:]
+            for (execution, value) in row["previews"]?.objectValue ?? [:] {
+                guard case .object(var fields) = value else { continue }
+                fields["threadId"] = .text("target")
+                if let preview = try? NativeExecutionPreview(json: .object(fields)) {
+                    fixturePreviews[execution] = preview
+                }
+            }
+            previews["target"] = fixturePreviews
             return try HarnessThread(json: .object(json))
         }
         try await withFixture(threads: [source("running"), thread("unrelated")]) { fixture in
             let host = NativeApplicationHost(workspace: fixture.workspace, navigationCallbacks: .init(
                 openThread: { _, _ in }, openExecution: { _ in }, followUp: { _, _ in }, openExternal: { _ in }))
+            host.previewResolver = { references in
+                references.compactMap { previews[$0.thread.threadID]?[$0.executionID] }
+            }
             defer { host.release() }
             let first = ApplicationExecutionRef(thread: .init(threadID: "target", typeID: "agent"), executionID: "first")
             let second = ApplicationExecutionRef(thread: first.thread, executionID: "second")
@@ -356,11 +369,11 @@ struct NativeLocalChangeFanoutTests {
                                      ("final-answer", "AGENT_CONTENT_TAKES_OVER"),
                                      ("second-answer", "AGENT_CONTENT_TAKES_OVER")] {
                 try await fixture.patch(["threads": patch(upserts: [try source(name).json])])
-                #expect(presentation.item?.preview?.excerpt.string == expected)
+                try await SwiftUIReplay.wait { presentation.item?.preview?.excerpt.string == expected }
                 try await SwiftUIReplay.wait { shows(expected) }
                 #expect(!SwiftUIReplay.text(in: root).joined().contains("USER_PROMPT_MUST_NOT_APPEAR_IN_BODY"))
             }
-            #expect(presentation.item?.preview?.running == false)
+            try await SwiftUIReplay.wait { presentation.item?.preview?.running == false }
             let beforeUnrelated = callbacks
             try await fixture.patch(["threads": patch(upserts: [try thread("unrelated", revision: 1).json])])
             #expect(callbacks == beforeUnrelated)
@@ -374,7 +387,7 @@ struct NativeLocalChangeFanoutTests {
             #expect(!shows("AGENT_CONTENT_TAKES_OVER SECOND"))
             presentation.visible = false
             try await fixture.patch(["threads": patch(upserts: [try source("reasoning-update").json])])
-            #expect(presentation.item?.preview?.excerpt == "AGENT_CONTENT_TAKES_OVER UPDATED")
+            try await SwiftUIReplay.wait { presentation.item?.preview?.excerpt == "AGENT_CONTENT_TAKES_OVER UPDATED" }
             presentation.visible = true
             try await SwiftUIReplay.wait { shows("AGENT_CONTENT_TAKES_OVER UPDATED") }
             for privateField in [JSONText("moku"), "mokuHistory"] {
@@ -384,13 +397,132 @@ struct NativeLocalChangeFanoutTests {
             try await fixture.patch(["threads": patch(upserts: [try source("reasoning-update").json])])
             try await SwiftUIReplay.wait { shows("AGENT_CONTENT_TAKES_OVER UPDATED") }
             try await fixture.patch(["threads": patch(removed: ["target"])])
-            #expect(presentation.item?.missing == true && presentation.item?.preview == nil)
+            try await SwiftUIReplay.wait { presentation.item?.missing == true && presentation.item?.preview == nil }
             try await SwiftUIReplay.wait { !SwiftUIReplay.text(in: root).joined().contains("AGENT_CONTENT_TAKES_OVER") }
             lifetime.cancel()
+            #expect(host.retainedPreviewCount == 0)
             let retiredCallbacks = callbacks
             try await fixture.patch(["threads": patch(upserts: [try source("answer").json])])
             #expect(callbacks == retiredCallbacks)
         }
+    }
+
+    @Test func reportExecutionRowUsesCitedExcerptAndCurrentStatus() async throws {
+        let reference = ApplicationExecutionRef(thread: .init(threadID: "source", typeID: "agent"), executionID: "cited")
+        let item = ApplicationExecutionPresentation(reference: reference, title: "Cited execution", emoji: "📝",
+            missing: false, running: false, harness: nil,
+            preview: try HarnessExecutionPreview(startedAt: 1, finishedAt: 5, running: false, excerpt: "CITED EXCERPT"))
+        let relation = try NativeReportRelation(.object([
+            "reference": .object(["thread": .object(["typeId": .text("agent"), "threadId": .text("source")]),
+                                  "executionId": .text("cited")]),
+            "thread": .object(["title": .text("Source"), "harnessId": .text("codex"), "cwd": .text("/tmp"),
+                               "executionCwd": .text("/tmp"), "archived": .bool(false),
+                               "currentExecution": .object(["executionId": .text("current"), "status": .text("running"), "startedAt": .integer(10)]),
+                               "backgroundRunning": .bool(false)]),
+            "execution": .object(["executionId": .text("cited"), "status": .text("completed"),
+                                  "startedAt": .integer(1_000), "finishedAt": .integer(5_000)]),
+            "unavailable": .text(""), "bindingCount": .integer(1)
+        ]))
+        let presentation = ReferenceCardPresentation()
+        presentation.item = item
+        let window = SwiftUIReplay.window(ReferenceCardReplay(presentation: presentation, relation: relation), width: 400, height: 260)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).joined().contains("CITED EXCERPT") }
+        let text = SwiftUIReplay.text(in: root).joined()
+        #expect(text.contains("运行中") || text.contains("Running"))
+        #expect(text.contains("00:00:04"))
+        #expect(!text.contains("耗时未知") && !text.contains("Duration unavailable"))
+    }
+
+    /// Host/model-level coverage: this exercises the Dock title model and cache,
+    /// not the mounted NativeWorkspaceView task/onDisappear wiring.
+    @Test func executionTitleModelMatchesThreadAndExecutionAndReleases() async throws {
+        try await withFixture(threads: [thread("a"), thread("b")]) { fixture in
+            let host = NativeApplicationHost(workspace: fixture.workspace, navigationCallbacks: .init(
+                openThread: { _, _ in }, openExecution: { _ in }, followUp: { _, _ in }, openExternal: { _ in }))
+            defer { host.release() }
+            host.previewResolver = { references in
+                references.map { self.preview(thread: $0.thread.threadID, execution: $0.executionID,
+                                               title: "Title \($0.thread.threadID.string)", excerpt: "Exact excerpt") }
+            }
+            let title = NativeExecutionPreviewTitle()
+            title.attach(host: host, threadID: "a", executionID: "e1")
+            for _ in 0..<100 {
+                if title.title(threadID: "a", executionID: "e1") == "Title a" { break }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            #expect(title.title(threadID: "a", executionID: "e1") == "Title a")
+            #expect(title.title(threadID: "b", executionID: "e1") == nil)
+            #expect(host.retainedPreviewCount == 1)
+            title.attach(host: host, threadID: "b", executionID: "e1")
+            for _ in 0..<100 {
+                if title.title(threadID: "b", executionID: "e1") == "Title b" { break }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            #expect(title.title(threadID: "b", executionID: "e1") == "Title b")
+            #expect(title.title(threadID: "a", executionID: "e1") == nil)
+            title.detach()
+            #expect(host.retainedPreviewCount == 0)
+        }
+    }
+
+    /// Host-level coverage for the metadata path used by NativeReportCard.
+    @Test func hostMetadataSubscriptionDoesNotStartPreviewReads() async throws {
+        try await withFixture(threads: [thread("a")]) { fixture in
+            let host = NativeApplicationHost(workspace: fixture.workspace, navigationCallbacks: .init(
+                openThread: { _, _ in }, openExecution: { _ in }, followUp: { _, _ in }, openExternal: { _ in }))
+            defer { host.release() }
+            var previewCalls = 0
+            host.previewResolver = { _ in
+                previewCalls += 1
+                return []
+            }
+            let reference = ApplicationExecutionRef(thread: .init(threadID: "a", typeID: "agent"), executionID: "e1")
+            let lifetime = PluginLifetime()
+            let stop = host.subscribeReferences([reference], listener: {}, previews: false, lifetime: lifetime)
+            _ = try host.executionReferences([reference])
+            try await Task.sleep(for: .milliseconds(200))
+            #expect(previewCalls == 0 && host.retainedPreviewCount == 0)
+            stop(); lifetime.cancel()
+        }
+    }
+
+    @Test func previewCacheDropsAReferenceClosedDuringAnInFlightFetch() async throws {
+        try await withFixture(threads: [thread("a"), thread("b")]) { fixture in
+            let host = NativeApplicationHost(workspace: fixture.workspace, navigationCallbacks: .init(
+                openThread: { _, _ in }, openExecution: { _ in }, followUp: { _, _ in }, openExternal: { _ in }))
+            defer { host.release() }
+            let gate = PreviewGate()
+            host.previewResolver = { _ in await gate.wait() }
+            let first = ApplicationExecutionRef(thread: .init(threadID: "a", typeID: "agent"), executionID: "e1")
+            let second = ApplicationExecutionRef(thread: .init(threadID: "b", typeID: "agent"), executionID: "e1")
+            let firstLifetime = PluginLifetime(), secondLifetime = PluginLifetime()
+            let stopFirst = host.subscribeReferences([first], listener: {}, lifetime: firstLifetime)
+            let stopSecond = host.subscribeReferences([second], listener: {}, lifetime: secondLifetime)
+            try await SwiftUIReplay.wait { gate.started }
+            stopFirst(); firstLifetime.cancel()
+            gate.resume([
+                preview(thread: "a", execution: "e1", excerpt: "closed reference"),
+                preview(thread: "b", execution: "e1", excerpt: "retained reference"),
+            ])
+            try await SwiftUIReplay.wait { host.retainedPreviewCount == 1 }
+            #expect(host.retainedPreviewCount == 1)
+            stopSecond(); secondLifetime.cancel()
+            try await SwiftUIReplay.wait { host.retainedPreviewCount == 0 }
+        }
+    }
+
+    private func preview(thread: JSONText, execution: JSONText, title: String? = nil,
+                         excerpt: String, running: Bool = false) -> NativeExecutionPreview {
+        var fields: [JSONText: JSONValue] = [
+            "threadId": .string(thread), "executionId": .string(execution),
+            "status": .text(running ? "running" : "completed"),
+            "startedAt": .integer(1), "excerpt": .text(excerpt)
+        ]
+        if let title { fields["title"] = .text(title) }
+        if !running { fields["finishedAt"] = .integer(2) }
+        return try! NativeExecutionPreview(json: .object(fields))
     }
 
     private func withFixture(threads: [HarnessThread], applications: [JSONValue] = [],
@@ -499,6 +631,21 @@ private final class NativeLocalChangeFixture {
     }
 }
 
+@MainActor @Observable private final class PreviewGate {
+    var started = false
+    private var continuation: CheckedContinuation<[NativeExecutionPreview], Never>?
+
+    func wait() async -> [NativeExecutionPreview] {
+        started = true
+        return await withCheckedContinuation { continuation = $0 }
+    }
+
+    func resume(_ previews: [NativeExecutionPreview]) {
+        continuation?.resume(returning: previews)
+        continuation = nil
+    }
+}
+
 @MainActor @Observable private final class ReferenceCardPresentation {
     var item: ApplicationExecutionPresentation?
     var visible = true
@@ -506,10 +653,11 @@ private final class NativeLocalChangeFixture {
 
 private struct ReferenceCardReplay: View {
     let presentation: ReferenceCardPresentation
+    var relation: NativeReportRelation?
     var body: some View {
         if let item = presentation.item {
             NativeReportExecutionRow(item: item, locale: "en", logo: { _ in AnyView(Color.clear) },
-                                     relation: nil, visible: presentation.visible, open: {})
+                                     relation: relation, visible: presentation.visible, open: {})
         }
     }
 }

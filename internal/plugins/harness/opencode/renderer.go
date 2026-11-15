@@ -123,9 +123,19 @@ func rendererProjectedMessage(message *Message, source rendererSource) Object {
 }
 
 func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
+	return projectOpenCodeRenderer(raw, scope)
+}
+
+func projectOpenCodeRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
 	state, err := DecodeState(raw)
 	if err != nil {
 		return nil, err
+	}
+	if scope.Kind == "directory" {
+		return json.Marshal(ocExecutionDirectory(state, scope))
+	}
+	if scope.Kind == "preview" {
+		return json.Marshal(ocExecutionPreview(state, scope.Key))
 	}
 	source := newRendererSource(raw)
 	base := Object{"version": 1}
@@ -149,6 +159,9 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 		base["backgroundShells"] = state.BackgroundShells[max(0, len(state.BackgroundShells)-32):]
 	}
 	if scope.Kind == "turn" || scope.Kind == "execution" {
+		if scope.Kind == "turn" && scope.Purpose == model.RendererPurposeAgentSummary {
+			return rendererAgentReading(state, scope)
+		}
 		return rendererMarshalProjection(rendererExecution(state, base, scope, source))
 	}
 	return rendererMarshalProjection(rendererDirectory(state, base, scope, source))
@@ -291,6 +304,15 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 	if state.LatestExecutionID != nil {
 		latest = *state.LatestExecutionID
 	}
+	overview := scope.Kind == "overview"
+	replyExecution := ocReplyExecutionID(state)
+	included := map[string]bool{}
+	if overview {
+		included[latest] = true
+		if replyExecution != "" {
+			included[replyExecution] = true
+		}
+	}
 	groups := make(map[string][]*Message)
 	order := make([]string, 0)
 	for _, message := range state.Messages {
@@ -318,6 +340,9 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 	}
 	usages := make(map[*Message]Object)
 	for _, id := range order {
+		if overview && id != latest {
+			continue
+		}
 		messages := groups[id]
 		samples := make([]Usage, 0)
 		var carrier *Message
@@ -377,10 +402,26 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 	}
 	base["latestExecutionId"] = state.LatestExecutionID
 	if source.has("executionAuthors") {
-		base["executionAuthors"] = state.ExecutionAuthors
+		if overview {
+			authors := Object{}
+			for _, execution := range state.Executions {
+				if !included[execution.ExecutionID] {
+					continue
+				}
+				if author, exists := state.ExecutionAuthors[execution.ExecutionID]; exists {
+					authors[execution.ExecutionID] = author
+				}
+			}
+			base["executionAuthors"] = authors
+		} else {
+			base["executionAuthors"] = state.ExecutionAuthors
+		}
 	}
 	executions := make([]Object, 0, len(state.Executions))
 	for _, execution := range state.Executions {
+		if overview && !included[execution.ExecutionID] {
+			continue
+		}
 		executions = append(executions, rendererCompactExecution(execution, source))
 	}
 	base["executions"] = executions
@@ -401,7 +442,16 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 	}
 	base["interactions"] = interactions
 	if source.has("auxiliaryUsage") {
-		base["auxiliaryUsage"] = rendererCompactAuxiliary(state.AuxiliaryUsage, source)
+		samples := state.AuxiliaryUsage
+		if overview {
+			samples = nil
+			for _, sample := range state.AuxiliaryUsage {
+				if sample.ExecutionID == latest {
+					samples = append(samples, sample)
+				}
+			}
+		}
+		base["auxiliaryUsage"] = rendererCompactAuxiliary(samples, source)
 	}
 	if scope.Kind == "overview" && source.has("foregrounds") {
 		foregrounds := make([]Object, 0)
@@ -415,6 +465,136 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 		base["foregrounds"] = foregrounds
 	}
 	return base
+}
+
+func ocReplyExecutionID(state *State) string {
+	for i := len(state.Executions) - 1; i >= 0; i-- {
+		execution := state.Executions[i]
+		if execution.Status != "completed" {
+			continue
+		}
+		for j := len(state.Messages) - 1; j >= 0; j-- {
+			message := state.Messages[j]
+			if message.ExecutionID == execution.ExecutionID && !message.Inherited && message.Role == "assistant" && message.Status == "complete" &&
+				rendererTrim(messageText(message)) != "" && (message.NativeSessionID == "" || message.NativeSessionID == state.NativeSessionID) {
+				return execution.ExecutionID
+			}
+		}
+	}
+	return ""
+}
+
+func ocExecutionDirectory(state *State, scope model.RendererScope) model.ExecutionDirectoryPage {
+	start, end, page := model.ExecutionDirectoryBounds(len(state.Executions), scope.Offset, scope.Limit)
+	groups := make(map[string][]*Message, len(state.Executions))
+	for _, message := range state.Messages {
+		groups[message.ExecutionID] = append(groups[message.ExecutionID], message)
+	}
+	for _, execution := range state.Executions[start:end] {
+		page.Executions = append(page.Executions, ocExecutionDigestMessages(state, *execution, groups[execution.ExecutionID]))
+	}
+	return page
+}
+
+func ocExecutionPreview(state *State, executionID string) model.ExecutionDigest {
+	for _, execution := range state.Executions {
+		if execution.ExecutionID == executionID {
+			return ocExecutionDigestMessages(state, *execution, ocMessagesForExecution(state.Messages, executionID))
+		}
+	}
+	return model.ExecutionDigest{}
+}
+
+func ocMessagesForExecution(messages []*Message, executionID string) []*Message {
+	result := make([]*Message, 0)
+	for _, message := range messages {
+		if message.ExecutionID == executionID {
+			result = append(result, message)
+		}
+	}
+	return result
+}
+
+func rendererClipPoints(text string, limit int) string {
+	runes := []rune(strings.ReplaceAll(text, "\x00", ""))
+	if len(runes) > limit {
+		return string(runes[:limit])
+	}
+	return string(runes)
+}
+
+func ocExecutionDigestMessages(state *State, execution model.PublicExecution, messages []*Message) model.ExecutionDigest {
+	digest := model.ExecutionDigest{ExecutionID: execution.ExecutionID, Status: execution.Status,
+		StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt}
+	live := execution.Status == "running" || execution.Status == "waiting-for-user"
+	reasoningEligible := execution.Status == "completed" || live
+	for i := len(messages) - 1; i >= 0; i-- {
+		message := messages[i]
+		if message.Role != "assistant" || message.Inherited ||
+			(message.NativeSessionID != "" && message.NativeSessionID != state.NativeSessionID) {
+			continue
+		}
+		complete := message.Status == "complete"
+		if !complete && !live {
+			continue
+		}
+		var part *Part
+		eligible := func(candidate Part) bool {
+			text := rendererTrim(candidate.Text)
+			return (candidate.Type == "text" && complete || candidate.Type == "reasoning" && reasoningEligible) && text != ""
+		}
+		if live {
+			for index := len(message.Parts) - 1; index >= 0; index-- {
+				candidate := &message.Parts[index]
+				if candidate.Type == "text" && eligible(*candidate) {
+					part = candidate
+					break
+				}
+			}
+		}
+		if part == nil {
+			for index := len(message.Parts) - 1; index >= 0; index-- {
+				candidate := &message.Parts[index]
+				if eligible(*candidate) {
+					part = candidate
+					break
+				}
+			}
+		}
+		answer := ""
+		if complete {
+			answer = rendererTrim(messageText(message))
+		}
+		reasoning := ""
+		if reasoningEligible {
+			reasoning = rendererTrim(partContent(message.Parts, "reasoning"))
+		}
+		kind := "text"
+		if part != nil {
+			kind = part.Type
+		} else if answer == "" {
+			kind = "reasoning"
+		}
+		text := ""
+		switch {
+		case kind == "reasoning" && part != nil:
+			text = rendererTrim(part.Text)
+		case answer != "":
+			text = answer
+		case part != nil && part.Type == "text":
+			text = rendererTrim(part.Text)
+		default:
+			text = reasoning
+		}
+		if text != "" {
+			digest.Excerpt = rendererClipPoints(text, rendererDirectoryPreview)
+			return digest
+		}
+	}
+	if !live && execution.Summary != nil {
+		digest.Excerpt = rendererClipPoints(rendererTrim(*execution.Summary), rendererDirectoryPreview)
+	}
+	return digest
 }
 
 func rendererLive(status string) bool { return status == "running" || status == "waiting-for-user" }

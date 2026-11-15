@@ -9,7 +9,7 @@ var commandReadOnly = map[string]bool{
 	"moku:submit": false, "moku:clear": false, "moku:stage-attachments": false, "moku:cancel": false,
 	"moku:record-note-exposure": false,
 	"history:clear":             false, "thread:follow-up": false, "thread:interrupt": false,
-	"thread:interaction-respond": false, "thread:read": true, "thread:fork": false,
+	"thread:interaction-respond": false, "thread:read": true, "thread:execution-previews": true, "thread:fork": false,
 	"thread:update-settings": false, "app:update-settings": false, "settings:diagnostics": true,
 	"harness:detect-installations": false, "harness:detect-installation": true, "workspace:list-known-directories": true,
 	"harness:install": false, "harness:settings-presentation": true, "harness:extension": false,
