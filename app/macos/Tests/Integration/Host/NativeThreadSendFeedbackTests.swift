@@ -830,12 +830,25 @@ struct NativeThreadSendFeedbackTests {
         #expect(presentation.pinned && !presentation.newMessages)
 
         func startJump(_ label: String, action: @escaping @MainActor () -> Void) async throws {
+            func layerPose(_ view: NSView) -> String {
+                guard let layer = view.layer else { return "none" }
+                let presented = layer.presentation()
+                return "model=\(layer.bounds) presented=\(String(describing: presented?.bounds)) "
+                    + "translationY=\(layer.transform.m42)/\(String(describing: presented?.transform.m42)) "
+                    + "sublayerY=\(layer.sublayerTransform.m42)/\(String(describing: presented?.sublayerTransform.m42)) "
+                    + "animations=\(layer.animationKeys() ?? [])"
+            }
             func sample() -> String {
                 "time=\(ProcessInfo.processInfo.systemUptime) clip=\(scroll.contentView.bounds) "
                     + "clipPresented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
                     + "document=\(document.frame) documentPresented=\(String(describing: document.layer?.presentation()?.frame)) "
-                    + "edge=\(String(describing: presentation.scrollPosition.edge)) pinned=\(presentation.pinned) away=\(presentation.away) "
-                    + "expanded=\(presentation.context.expanded) suppressed=\(presentation.context.suppressed)"
+                    + "edge=\(String(describing: presentation.scrollPosition.edge)) point=\(String(describing: presentation.scrollPosition.point)) "
+                    + "positionedByUser=\(presentation.scrollPosition.isPositionedByUser) pinned=\(presentation.pinned) away=\(presentation.away) "
+                    + "expanded=\(presentation.context.expanded) suppressed=\(presentation.context.suppressed) "
+                    + "window=\(String(describing: scroll.window?.windowNumber)) active=\(NSApp.isActive) "
+                    + "key=\(scroll.window?.isKeyWindow == true) visible=\(scroll.window?.isVisible == true) "
+                    + "occlusion=\(String(describing: scroll.window?.occlusionState.rawValue)) viewport=\(scroll.visibleRect) "
+                    + "scrollLayer={\(layerPose(scroll))} clipLayer={\(layerPose(scroll.contentView))} documentLayer={\(layerPose(document))}"
             }
             var resetFrames = 0
             var settledFrames = 0
@@ -887,7 +900,7 @@ struct NativeThreadSendFeedbackTests {
             } catch {
                 observer.stop()
                 let ended = ProcessInfo.processInfo.systemUptime
-                print("VOICE_TRANSCRIPT_JUMP_FAILURE label=\(label) started=\(started) ended=\(ended) elapsed=\(ended - started) frames=\(frames) initial={\(initial)} requested={\(requested)} samples=\(samples) final={\(sample())}")
+                print("VOICE_TRANSCRIPT_JUMP_FAILURE label=\(label) started=\(started) ended=\(ended) elapsed=\(ended - started) frames=\(frames) retainedScroll=\(voiceScroll(in: root) === scroll) retainedDocument=\(scroll.documentView === document) initial={\(initial)} requested={\(requested)} samples=\(samples) final={\(sample())}")
                 if let window = root.window { try? await capture(window, name: "voice-jump-\(label)-failure") }
                 throw error
             }

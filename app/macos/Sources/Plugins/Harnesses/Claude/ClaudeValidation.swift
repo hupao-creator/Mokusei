@@ -81,15 +81,20 @@ func claudeValidateTimeline(_ value: JSONValue, history: Bool = false) throws {
         try claudeText(value["content"], max: 4_000_000)
         guard (history ? ["complete","failed","cancelled"] : ["complete","streaming","failed","cancelled"]).contains(value["status"]?.stringValue ?? "") else { throw claudeInvalid() }
         if let id = value["messageId"] { try claudeText(id, max: 512, nonempty: true) }
-    case "reasoning","diff","review":
+    case "reasoning","review":
         try claudeKeys(value, base.union(["content"])); try claudeText(value["content"], max: value.claudeKind == "reasoning" ? 4_000_000 : 500_000)
-    case "activity": try claudeKeys(value, base.union(["activity"])); try claudeValidateActivity(value["activity"] ?? .null, history: history)
-    case "interaction": try claudeKeys(value, base.union(["interaction"])); try claudeValidateInteraction(value["interaction"] ?? .null, history: history)
-    case "notice": try claudeKeys(value, base.union(["notice"])); try claudeValidateNotice(value["notice"] ?? .null, history: history)
-    case "plan": try claudeKeys(value, base.union(["plan","explanation"])); try claudeValidatePlan(value["plan"])
-        if let explanation = value["explanation"] { try claudeText(explanation, max: 32_000) }
-    case "usage": try claudeKeys(value, base.union(["usage"])); try claudeValidateUsage(value["usage"] ?? .null)
-    case "error": try claudeKeys(value, base.union(["message"])); try claudeText(value["message"], max: 100_000)
+    case "activity":
+        if history { try claudeKeys(value, base.union(["activity"])); try claudeValidateActivity(value["activity"] ?? .null, history: true) }
+        else { try claudeKeys(value, base.union(["activityId"])); try claudeText(value["activityId"], max: 512, nonempty: true) }
+    case "interaction":
+        if history { try claudeKeys(value, base.union(["interaction"])); try claudeValidateInteraction(value["interaction"] ?? .null, history: true) }
+        else { try claudeKeys(value, base.union(["interactionId"])); try claudeText(value["interactionId"], max: 512, nonempty: true) }
+    case "notice":
+        if history { try claudeKeys(value, base.union(["notice"])); try claudeValidateNotice(value["notice"] ?? .null, history: true) }
+        else { try claudeKeys(value, base.union(["noticeId"])); try claudeText(value["noticeId"], max: 512, nonempty: true) }
+    case "error":
+        if history { try claudeKeys(value, base.union(["message"])); try claudeText(value["message"], max: 100_000) }
+        else { try claudeKeys(value, base) }
     case "context-compaction": try claudeKeys(value, base)
     default: throw claudeInvalid()
     }

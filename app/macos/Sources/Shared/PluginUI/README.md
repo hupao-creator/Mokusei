@@ -510,7 +510,14 @@ formatting and is preserved by native partial copies. Selection, Select All and
 copy belong to the active paragraph, code block or table cell; dragging does not
 join selections across blocks. The document context menu's Copy Markdown action
 still copies the complete source. List marker widths and table inline-code padding participate in actual
-layout measurements. Footnote returns reveal references through nested table and
+layout measurements. Inline code keeps its 5pt edge padding with the adjacent
+code text at word breaks; long code still wraps using native TextKit rules.
+Its 3pt rounded background is painted separately for each visual line segment,
+bounded by the actual code glyphs rather than selection rectangles extending to
+the line edge. Padding-only fragments in extremely narrow containers paint no
+background. Characters, link attributes and native selection remain in the text
+storage, and Copy continues to omit the synthetic padding cells.
+Footnote returns reveal references through nested table and
 conversation viewports. Run the [Markdown native replay](../../../../../tools/verification/reading-presentation/README.md#markdown-reading-regressions)
 for production rendering, selection, copying and navigation fixtures.
 
@@ -570,6 +577,8 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
 conversation's turn index as a left-hand TOC. The selected mark is longer and
 brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
+The answer wraps naturally to at most three lines, with the title and timestamp
+remaining visible; shorter answers do not reserve unused lines.
 Restoring focus after Back does not reopen the preview. The mark and preview share
 a cancellable 100ms pointer handoff, including the gap between them; leaving both,
 unmounting or deactivating the scene retires pointer previews. The
@@ -779,9 +788,16 @@ emoji use static palette fills, and the in-progress plan row uses the accent-sof
 surface without a glass container or effect. The 44pt emoji badge uses a static
 opaque palette fill with no added border: adaptive accent-soft green when
 completed, neutral surface-strong otherwise, including under Reduce Transparency.
-It contains no Liquid Glass effect, avoiding per-card spatial glass updates when
+By default it contains no Liquid Glass effect, avoiding per-card spatial glass updates when
 panning Overview. Overview card shells remain neutral after completion. The emoji
 stays 21pt, with the existing terminal mark preserving a non-color status cue.
+The explicit isolated Overview benchmark can supply
+`agentThreadEmojiUsesLiquidGlass` to `HarnessThreadCard` to compare the emoji
+backdrop with untinted regular Liquid Glass. Only its emoji-bearing default
+provider badge consumes the override; terminal marks, custom provider views,
+clouds, plan rows and Report/collection badges retain their own materials.
+The shared glass helper still respects Reduce Transparency. This is a launch-scoped
+experiment, not a persisted preference; ordinary launches stay flat.
 Agent and Report cards share its upper-right placement and title clearance.
 Report uses the completed badge's accent-soft background without an execution
 terminal mark; Agent execution status and its terminal mark remain independent.
@@ -1585,10 +1601,13 @@ reserved rail, alongside a retained Browser launcher when links have been opened
 the fold, including Browser splits and narrow-window stacking.
 
 The host scopes `threadRelatedExecution` to Report's referenced execution reader.
-Completed references keep the exact execution title (instruction, then timestamp
-fallback), the Harness's thread emoji, final reply and ordinary non-work facts,
-while hiding execution work and its process summary. Active references show the
-shared live process summary again. After an accepted send from a Super Thread,
+Running, waiting and completed references keep the exact execution title
+(instruction, then timestamp fallback) and the Harness's thread emoji. The
+heading waits for the selected row rather than borrowing the latest catalog
+title while loading; ordinary Agent execution Sidecards keep their heading policy.
+Completed references keep the final reply and ordinary non-work facts while
+hiding execution work and its process summary. Active references show the
+shared live process summary. After an accepted send from a Super Thread,
 its active referenced execution shows the submitted text and a random emoji.
 The Report visit retains that emoji by exact Thread/execution identity, including
 same-execution steering, folding and catalog refresh. Later accepted sends to the

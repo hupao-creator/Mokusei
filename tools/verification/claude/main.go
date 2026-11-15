@@ -309,8 +309,14 @@ func verify() {
 	wait("one", "completed")
 	s, e := claude.ParseState(state.Read())
 	must(e)
-	if s.Turns[0].Text != "answer" {
-		panic("duplicate fallback: " + s.Turns[0].Text)
+	answer := ""
+	for _, item := range s.Turns[0].Timeline {
+		if item["kind"] == "assistant" {
+			answer += item["content"].(string)
+		}
+	}
+	if answer != "answer" {
+		panic("duplicate fallback: " + answer)
 	}
 	if s.Turns[0].Usage["inputTokens"] != float64(10) {
 		panic("usage")
@@ -350,10 +356,10 @@ func verify() {
 	if fs.PendingFork == nil || len(fs.Turns) != 0 {
 		panic("fork")
 	}
-	answer, e := handle.Read(ctx, "what happened")
+	readAnswer, e := handle.Read(ctx, "what happened")
 	must(e)
-	if answer != "answer" {
-		panic("read: " + answer)
+	if readAnswer != "answer" {
+		panic("read: " + readAnswer)
 	}
 	_, e = h.Complete(ctx, plugin.PromptRequest{Messages: []plugin.PromptMessage{{Role: "user", Content: "hello"}}, OutputFormat: plugin.PromptOutputFormat{Type: "text"}, Settings: json.RawMessage(`{"model":"claude-fixture","effort":"high"}`)})
 	must(e)

@@ -251,10 +251,16 @@ private struct ThreadHistoryPreview: View {
                     .foregroundStyle(NativePalette.thread.muted.swiftUI)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading).padding(12)
         .background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(NativePalette.thread.line.swiftUI))
         .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+        // Like the sidebar state, preview facts belong to the supplied reading
+        // interaction collector. Registration is inert without a collector.
+        .nativeReadingObservation("preview", role: "history.sidebar.preview", value: .object([
+            "row": .string(row.id), "summary": .text(summary),
+        ]))
         .task(id: String((row.execution?.answer ?? "").prefix(1024))) {
             let text = await NativeMarkdownSummary.plainText(String((row.execution?.answer ?? "").prefix(1024)), limit: 1024)
             if !Task.isCancelled { summary = text }

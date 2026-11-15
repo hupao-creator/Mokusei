@@ -15,8 +15,8 @@ func TestSearchTextPublicCompletedOnly(t *testing.T) {
 			text = "公开内容"
 		}
 		turn := state.NewTurn(status, model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: text}}}, Settings{})
-		turn.Text = text
-		turn.Reasoning = "PRIVATE_REASONING"
+		turn.text(text+" assistant reply", "", false)
+		turn.reasoning("PRIVATE_REASONING")
 		turn.Status = status
 		if status != "running" {
 			finished := turn.UpdatedAt + 1

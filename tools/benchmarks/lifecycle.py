@@ -7,6 +7,8 @@ from types import SimpleNamespace
 import plistlib
 import re
 import signal
+import shutil
+import tempfile
 import subprocess
 import time
 
@@ -34,10 +36,11 @@ def native(helper, *arguments):
 
 
 class Application:
-    def __init__(self, bundle, directory, count, helper, provider_factory=Provider):
+    def __init__(self, bundle, directory, count, helper, provider_factory=Provider, emoji_badge=None, window_bounds=None):
         self.bundle, self.root, self.count, self.helper = bundle.resolve(), directory, count, helper
         self.profile = directory / "profile"
         self.socket = directory / "ui.sock"
+        self.socket_directory = None
         self.app = None
         self.provider = None
         self.owned = {}
@@ -45,6 +48,8 @@ class Application:
                     if key in ("PATH", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL")}
         self.log = None
         self.provider_factory = provider_factory
+        self.emoji_badge = emoji_badge
+        self.window_bounds = window_bounds
 
     def start(self):
         self.root.mkdir(mode=0o700, parents=True, exist_ok=False)
@@ -150,9 +155,34 @@ trace_exporter = "none"
             raise ValueError("benchmark scenario did not bypass onboarding")
         return self
 
+    def launch_arguments(self):
+        # macOS sockaddr_un allows only 104 bytes including the terminator.
+        # Evidence paths can be arbitrarily deep; only IPC needs a short parent.
+        if self.socket_directory is None:
+            self.socket_directory = Path(tempfile.mkdtemp(prefix='mkb-ui-', dir='/tmp'))
+        self.socket = self.socket_directory/self.socket.name
+        arguments = ["--data-dir", str(self.profile), "--automation-socket", str(self.socket), "--benchmark-scenario", "overview"]
+        if self.emoji_badge is not None:
+            if self.emoji_badge not in ('flat', 'liquid-glass'):
+                raise ValueError('unsupported agent emoji badge material')
+            arguments += ['--benchmark-agent-emoji-badge', self.emoji_badge]
+        return arguments
+
+    def rendering_configuration(self):
+        from badge_comparison import validate_receipt
+        value = json.loads((self.profile/'benchmark-scenario.json').read_text())
+        validate_receipt(value, self.emoji_badge, self.app.pid)
+        return value
+
+    def prepare_window(self):
+        if self.window_bounds is None:
+            return native(self.helper, 'prepare', self.app.pid)
+        path = self.root/'window-bounds.json'
+        save(path, self.window_bounds)
+        return native(self.helper, 'prepare', self.app.pid, path)
+
     def launch(self):
-        config = {"app": str(self.bundle), "arguments": ["--data-dir", str(self.profile),
-                  "--automation-socket", str(self.socket), "--benchmark-scenario", "overview"], "environment": self.env}
+        config = {"app": str(self.bundle), "arguments": self.launch_arguments(), "environment": self.env}
         started = time.monotonic_ns()
         launch = subprocess.run([str(self.helper), "launch", "-"], input=json.dumps(config), text=True,
                                 capture_output=True, timeout=45, check=True)
@@ -167,6 +197,9 @@ trace_exporter = "none"
             if time.monotonic() >= deadline:
                 raise TimeoutError("application socket startup timeout")
             time.sleep(.1)
+
+        if self.emoji_badge is not None:
+            save(self.root/'rendering-configuration.json', self.rendering_configuration())
 
     def alive(self, pid):
         try:
@@ -246,5 +279,11 @@ trace_exporter = "none"
         try: receipt = self.stop()
         except Exception as error: receipt = {"owned": self.owned, "errors": [str(error)]}
         if self.provider: self.provider.close()
+        if self.socket_directory is not None:
+            if not receipt['errors']:
+                try: shutil.rmtree(self.socket_directory)
+                except OSError as error: receipt['errors'].append(str(error))
+            if receipt['errors']: receipt['retainedSocketDirectory'] = str(self.socket_directory)
+            else: self.socket_directory = None
         if self.root.exists(): save(self.root / "cleanup.json", receipt)
         return receipt
