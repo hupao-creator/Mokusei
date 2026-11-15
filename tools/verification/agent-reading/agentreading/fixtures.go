@@ -54,7 +54,14 @@ func Export(path string) error {
 	for _, harness := range []string{"codex", "claude", "pi", "opencode"} {
 		value := fixture(harness)
 		if harness == "opencode" {
-			var err error
+			// Canonical v2 is not a native renderer envelope. Export the same
+			// thread projection that Runtime serves to the manifest consumer.
+			manifest, err := (opencode.StateAdapter{}).ProjectRenderer(value.State, model.RendererScope{Kind: "thread"})
+			if err != nil {
+				return err
+			}
+			value.State = manifest
+			value.StateBytes = len(manifest)
 			value.BoundedRow, err = boundedOpenCodeSummary()
 			if err != nil {
 				return err
