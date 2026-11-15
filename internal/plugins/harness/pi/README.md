@@ -38,6 +38,14 @@ deferred. Failed-tool payload retention does not authorize showing it in an
 Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
 
+The `agent-summary` purpose used by the ordinary Agent reader always returns the
+lightweight deferred envelope, including running, waiting, failed and interrupted
+executions. It keeps visible replies, public follow-ups, failed assistant text,
+independently failed executions, ordered reasoning/tool summary facts and the
+existing execution usage total; tool output, thinking bodies and initial/internal
+input are omitted. A native message target retains only that explicitly requested
+reply. Unknown usage remains absent.
+
 Failed or empty initial Pi catalogs block Moku task preparation. Unknown thinking
 capabilities restrict creation branches without omitting model identities. Discovery
 does not require the configured default model to be usable. Native admission
@@ -162,13 +170,25 @@ Voice discussions use a private native JSONL fork with the exclusive Host extens
 and Core project read tools. Persisted source history and execution remain owned
 by the source Thread. See [discussion semantics](../../../services/threadvoice/README.md).
 
+Reader projections are served from a Harness-owned immutable index keyed by
+the exact persisted state bytes. Overview, thread, turn and execution readers
+share that index; a narrow scope reuses its previous result when only unrelated
+executions or host metadata changed. Parsed mutable objects are never shared
+across scopes. The cache is bounded, evicted with the Thread, and closed with the
+Harness; `tools/verification/projection-reuse` covers the production Runtime
+boundary.
+
 ## Initial response cards
 
 The overview renderer supplies `initialResponseScope`, computed from the full
 execution index and fork/history provenance before compaction. This fixed-size
 fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
-retains its existing precedence. Other scopes omit the field.
+retains its existing precedence. Other scopes omit the field. The same overview
+projection retains only the current card, required prompt fallback and one last
+completed reply entry; unrelated executions, authors and usage stay out of the
+catalog. The paged `directory` and exact `preview` scopes read those facts on
+demand.
 
 The adapter replay also checks this boundary with shared production-renderer
 fixtures in `tools/verification/firstresponse`. The native cross-language replay
@@ -229,8 +249,19 @@ Compact renderer directories retain up to 600 characters of execution `summary` 
 execution, including historical executions, so Report can display a bounded
 assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
+Execution and turn renderer scopes carry only the target execution's author;
+directory/overview/full scopes retain the complete author index. Narrow reads
+rebuild only when their own indexed records or that author change.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+Execution directory and preview scopes retain up to 600 Unicode code points of the
+exact execution's selected reply or retained `summary`, so Report can display a
+bounded assistant excerpt without acquiring full conversation content. The
+catalog overview keeps only the current card and last completed reply; native
+preview reads pair that exact execution's text with its own timestamps. Prompt,
+reasoning and tool-payload admission is unchanged; no latest-execution fallback
+is used for historical references.
 
 Discovery discards results when tracked native configuration files change during
 the probe, then makes at most one fresh attempt after the old process drains.

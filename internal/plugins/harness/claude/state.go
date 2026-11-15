@@ -11,6 +11,7 @@ import (
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/plugins/harness/sessioncache"
 )
 
 type State struct {
@@ -574,7 +575,13 @@ func (s *State) observation() model.PublicObservation {
 	return out
 }
 
-type StateAdapter struct{}
+type StateAdapter struct {
+	cache *sessioncache.Cache
+}
+
+func NewStateAdapter() StateAdapter {
+	return StateAdapter{cache: sessioncache.NewCache(sessioncache.DefaultBudget)}
+}
 
 func (StateAdapter) Project(raw json.RawMessage) (model.PublicObservation, error) {
 	s, e := ParseState(raw)
@@ -613,12 +620,25 @@ func (StateAdapter) Settle(req plugin.SettleRequest) (json.RawMessage, error) {
 	return s.Encode()
 }
 func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
+	return projectClaudeRenderer(raw, scope)
+}
+
+func projectClaudeRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
 	s, e := ParseState(raw)
 	if e != nil {
 		return nil, e
 	}
+	if scope.Kind == "directory" {
+		return json.Marshal(claudeExecutionDirectory(s, scope))
+	}
+	if scope.Kind == "preview" {
+		return json.Marshal(claudeExecutionPreview(s, scope.Key))
+	}
 	initialResponseScope := len(s.Turns) <= 1 && s.PendingFork == nil && s.ForkHistory == nil
 	compactRuntime(s)
+	if scope.Purpose == model.RendererPurposeAgentSummary && scope.Kind == "turn" {
+		return agentReadingRenderer(s, scope)
+	}
 	if scope.Kind == "turn" || scope.Kind == "execution" {
 		turns := []*Turn{}
 		for _, t := range s.Turns {

@@ -1,7 +1,10 @@
 import Foundation
 
 public enum RuntimeProtocol {
-    public static let version = 11
+    /// 12 is the final #320 reader-adapter + #322 directory/preview + #316
+    /// reading-purpose/target contract. Future ContentScope changes require a
+    /// new protocol version.
+    public static let version = 12
     public static let maxRequestBytes = 144 * 1024 * 1024
     public static let maxResponseBytes = 32 * 1024 * 1024
     public static let maxEventBytes = maxResponseBytes
@@ -28,12 +31,25 @@ public enum RuntimeConnectionStatus: String, Sendable { case connecting, connect
 public enum RuntimeContentScope: Sendable, Equatable {
     case thread
     case turn(key: JSONText)
+    /// Agent reading keeps only content the count-only page can display.
+    /// The opaque target is the Harness's explicitly requested native message.
+    case reading(key: JSONText, target: JSONValue?)
     case execution(key: JSONText)
+    /// Paged backend directory. The production Swift reader still consumes the
+    /// full thread scope; later directory consumers must send a positive limit
+    /// (1...200). The raw Go protocol also accepts zero as its default limit.
+    case directory(offset: Int, limit: Int)
     var json: JSONValue {
         switch self {
         case .thread: return runtimeObject(["kind": .text("thread")])
         case .turn(let key): return runtimeObject(["kind": .text("turn"), "key": .string(key)])
+        case .reading(let key, let target):
+            var value: [String: JSONValue] = ["kind": .text("turn"), "key": .string(key), "purpose": .text("agent-summary")]
+            value["target"] = target
+            return runtimeObject(value)
         case .execution(let key): return runtimeObject(["kind": .text("execution"), "key": .string(key)])
+        case .directory(let offset, let limit):
+            return runtimeObject(["kind": .text("directory"), "offset": .integer(offset), "limit": .integer(limit)])
         }
     }
 }

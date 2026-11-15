@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/plugins/harness/sessioncache"
 	"slices"
 	"strings"
 )
@@ -189,6 +190,17 @@ func clean(value string, maximum int) string {
 	return value
 }
 
+// cleanPoints counts Unicode code points, matching the native preview's former
+// Swift Character prefix rather than UTF-16 units.
+func cleanPoints(value string, maximum int) string {
+	value = strings.ReplaceAll(value, "\x00", "")
+	runes := []rune(value)
+	if len(runes) > maximum {
+		return string(runes[:maximum])
+	}
+	return value
+}
+
 func lastAssistant(state State, executionID string) string {
 	for i := len(state.Messages) - 1; i >= 0; i-- {
 		row := state.Messages[i]
@@ -211,7 +223,13 @@ func activeExecution(state *State) *model.PublicExecution {
 	return nil
 }
 
-type stateAdapter struct{}
+type stateAdapter struct {
+	cache *sessioncache.Cache
+}
+
+func newStateAdapter() stateAdapter {
+	return stateAdapter{cache: sessioncache.NewCache(sessioncache.DefaultBudget)}
+}
 
 func (stateAdapter) Project(raw json.RawMessage) (model.PublicObservation, error) {
 	state, err := decodeState(raw)
@@ -273,6 +291,10 @@ func (stateAdapter) Settle(input plugin.SettleRequest) (json.RawMessage, error) 
 	return json.Marshal(state)
 }
 func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
+	return projectPiRenderer(raw, scope)
+}
+
+func projectPiRenderer(raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
 	state, err := decodeState(raw)
 	if err != nil {
 		return nil, err
@@ -308,6 +330,19 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 			}
 		}
 		out.ExecutionUsage = executionUsage(out.Messages)
+		if scope.Kind == "turn" && scope.Purpose == model.RendererPurposeAgentSummary {
+			targetID := ""
+			if len(scope.Target) > 0 {
+				var target map[string]any
+				if json.Unmarshal(scope.Target, &target) == nil {
+					targetID, _ = target["messageId"].(string)
+				}
+			}
+			messages, nonempty := readingMessages(out.Messages, out.Executions, targetID)
+			out.Messages = messages
+			out.Foregrounds = nil
+			return json.Marshal(model.Object{"kind": "deferred-execution", "state": out, "nonempty": nonempty})
+		}
 		deferred := scope.Kind == "turn" && len(out.Executions) > 0
 		for _, execution := range out.Executions {
 			if !execution.Terminal() {
@@ -341,21 +376,40 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 		}
 		return json.Marshal(out)
 	}
+	if scope.Kind == "directory" {
+		return json.Marshal(piExecutionDirectory(state, scope))
+	}
+	if scope.Kind == "preview" {
+		return json.Marshal(piExecutionPreview(state, scope.Key))
+	}
 	if scope.Kind == "overview" {
 		// A fork retains inherited executions even after its native fork source is consumed.
 		initial := len(state.Executions) <= 1 && state.ForkSource == nil && (len(state.Executions) == 0 || state.LatestExecutionID != nil)
 		out.InitialResponseScope = &initial
 	}
-	out.ExecutionUsage = executionUsage(state.Messages)
+	latest := ""
+	if state.LatestExecutionID != nil {
+		latest = *state.LatestExecutionID
+	}
+	replyExecution := piReplyExecutionID(state)
+	overview := scope.Kind == "overview"
+	included := map[string]bool{}
+	if overview {
+		included[latest] = true
+		if replyExecution != "" {
+			included[replyExecution] = true
+		}
+	}
+	usageMessages := state.Messages
+	if overview {
+		usageMessages = piMessagesForExecution(state.Messages, latest)
+	}
+	out.ExecutionUsage = executionUsage(usageMessages)
 	completed := map[string]bool{}
 	for _, e := range state.Executions {
 		if e.Status == "completed" {
 			completed[e.ExecutionID] = true
 		}
-	}
-	latest := ""
-	if state.LatestExecutionID != nil {
-		latest = *state.LatestExecutionID
 	}
 	live := activeExecution(&state) != nil
 	card, reply := -1, -1
@@ -370,16 +424,18 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 			card = i
 		}
 	}
-	for e := len(state.Executions) - 1; e >= 0 && reply < 0; e-- {
-		execution := state.Executions[e]
-		if execution.Status == "completed" {
-			for i := len(state.Messages) - 1; i >= 0; i-- {
-				row := state.Messages[i]
-				if row.ExecutionID == execution.ExecutionID && row.Role == "assistant" && strings.TrimSpace(row.Text) != "" {
-					reply = i
-					break
-				}
+	if replyExecution != "" {
+		for i := len(state.Messages) - 1; i >= 0; i-- {
+			row := state.Messages[i]
+			if row.ExecutionID == replyExecution && row.Role == "assistant" && strings.TrimSpace(row.Text) != "" {
+				reply = i
+				break
 			}
+		}
+	}
+	if overview && card >= 0 {
+		if id := state.Messages[card].ExecutionID; id != "" {
+			included[id] = true
 		}
 	}
 	selected, preview := map[int]bool{}, map[int]bool{}
@@ -394,6 +450,9 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 		groups[row.ExecutionID] = append(groups[row.ExecutionID], i)
 	}
 	for id, indexes := range groups {
+		if overview && id != latest {
+			continue
+		}
 		first, last, answer, usage := -1, -1, -1, -1
 		for _, i := range indexes {
 			row := state.Messages[i]
@@ -469,8 +528,25 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 		}
 		out.Messages = append(out.Messages, result)
 	}
-	out.ExecutionAuthors = state.ExecutionAuthors
+	if overview {
+		for _, e := range state.Executions {
+			if !included[e.ExecutionID] {
+				continue
+			}
+			if author, ok := state.ExecutionAuthors[e.ExecutionID]; ok {
+				if out.ExecutionAuthors == nil {
+					out.ExecutionAuthors = map[string]json.RawMessage{}
+				}
+				out.ExecutionAuthors[e.ExecutionID] = author
+			}
+		}
+	} else if scope.Kind != "turn" && scope.Kind != "execution" {
+		out.ExecutionAuthors = state.ExecutionAuthors
+	}
 	for _, e := range state.Executions {
+		if overview && !included[e.ExecutionID] {
+			continue
+		}
 		if e.Summary != nil {
 			// Historical Report links use the same bounded assistant excerpt.
 			text := clean(*e.Summary, 600)
@@ -495,6 +571,84 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 		}
 	}
 	return json.Marshal(out)
+}
+
+func piMessagesForExecution(messages []MessageState, executionID string) []MessageState {
+	result := make([]MessageState, 0)
+	for _, row := range messages {
+		if row.ExecutionID == executionID {
+			result = append(result, row)
+		}
+	}
+	return result
+}
+
+func piReplyExecutionID(state State) string {
+	for i := len(state.Executions) - 1; i >= 0; i-- {
+		execution := state.Executions[i]
+		if execution.Status != "completed" {
+			continue
+		}
+		for j := len(state.Messages) - 1; j >= 0; j-- {
+			row := state.Messages[j]
+			if row.ExecutionID == execution.ExecutionID && row.Role == "assistant" && strings.TrimSpace(row.Text) != "" {
+				return execution.ExecutionID
+			}
+		}
+	}
+	return ""
+}
+
+func piExecutionDirectory(state State, scope model.RendererScope) model.ExecutionDirectoryPage {
+	start, end, page := model.ExecutionDirectoryBounds(len(state.Executions), scope.Offset, scope.Limit)
+	groups := make(map[string][]MessageState, len(state.Executions))
+	for _, row := range state.Messages {
+		groups[row.ExecutionID] = append(groups[row.ExecutionID], row)
+	}
+	for _, execution := range state.Executions[start:end] {
+		page.Executions = append(page.Executions, piExecutionDigestMessages(execution, groups[execution.ExecutionID]))
+	}
+	return page
+}
+
+func piExecutionPreview(state State, executionID string) model.ExecutionDigest {
+	for _, execution := range state.Executions {
+		if execution.ExecutionID == executionID {
+			return piExecutionDigestMessages(execution, piMessagesForExecution(state.Messages, executionID))
+		}
+	}
+	return model.ExecutionDigest{}
+}
+
+func piExecutionDigestMessages(execution model.PublicExecution, messages []MessageState) model.ExecutionDigest {
+	digest := model.ExecutionDigest{ExecutionID: execution.ExecutionID, Status: execution.Status,
+		StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt}
+	live := execution.Status == "running" || execution.Status == "waiting-for-user"
+	for i := len(messages) - 1; i >= 0; i-- {
+		row := messages[i]
+		if row.Role != "assistant" {
+			continue
+		}
+		complete := row.Status == "complete"
+		if !complete && !live {
+			continue
+		}
+		text := ""
+		if complete {
+			text = strings.TrimSpace(row.Text)
+		}
+		if text == "" && (execution.Status == "completed" || live) {
+			text = strings.TrimSpace(row.Thinking)
+		}
+		if text != "" {
+			digest.Excerpt = cleanPoints(text, 600)
+			return digest
+		}
+	}
+	if !live && execution.Summary != nil {
+		digest.Excerpt = cleanPoints(*execution.Summary, 600)
+	}
+	return digest
 }
 
 func utf16Length(text string) int64 {

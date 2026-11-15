@@ -3,7 +3,6 @@
 package runtime
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -356,6 +355,10 @@ func (r *Runtime) Settings() (model.Settings, int64, error) {
 	_, err = snap.Get("settings-revision", &rev)
 	return s, rev, err
 }
+
+// Threads returns raw durable records for internal enumeration. Unlike the
+// catalog Snapshot, these records retain native SessionState, ExecutionTitles
+// and other fields that must not be published directly to clients.
 func (r *Runtime) Threads() ([]model.ThreadRecord, error) {
 	return readThreads(r.config.Store.Snapshot())
 }
@@ -438,6 +441,16 @@ func (r *Runtime) UpdateThread(ctx context.Context, id string, update func(*mode
 	return err
 }
 
+// rendererContentScope preserves every public scope field without making the
+// shared Runtime understand a Harness-private target shape. Marshaling also
+// carries future purpose/target dimensions added to both DTOs.
+func rendererContentScope(scope transport.ContentScope) model.RendererScope {
+	encoded, _ := json.Marshal(scope)
+	var result model.RendererScope
+	_ = json.Unmarshal(encoded, &result)
+	return result
+}
+
 func (r *Runtime) ReadThreadContent(ctx context.Context, id string, scope transport.ContentScope, known *int64) (*transport.ContentSnapshot, error) {
 	if err := r.begin(); err != nil {
 		return nil, err
@@ -452,30 +465,23 @@ func (r *Runtime) ReadThreadContent(ctx context.Context, id string, scope transp
 		return nil, err
 	}
 	snapshot := r.config.Store.Snapshot()
-	t, err := r.cachedThread(ctx, snapshot, id)
+	entry, err := r.cachedThread(ctx, snapshot, id)
 	if err != nil {
 		return nil, err
 	}
-	if known != nil && *known == t.Revision {
-		return nil, nil
-	}
+	t := entry.record
 	h := r.config.Harnesses[t.HarnessID]
 	if h == nil {
 		return nil, fmt.Errorf("unknown thread harness: %s", t.HarnessID)
 	}
-	var value json.RawMessage
-	err = r.computeTasks(ctx, []workpool.Task{{Bytes: snapshot.RecordBytes("thread:" + id), Run: func(ctx context.Context) error {
-		var err error
-		value, err = h.SessionState().ProjectRenderer(bytes.Clone(t.SessionState), model.RendererScope{Kind: scope.Kind, Key: scope.Key})
-		return err
-	}}})
+	content, err := r.projectThreadContent(ctx, snapshot, entry, h, scope, known)
 	if err != nil {
 		return nil, err
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
-	return &transport.ContentSnapshot{Revision: t.Revision, Value: value}, nil
+	return content, nil
 }
 
 func (r *Runtime) Close(ctx context.Context) error {

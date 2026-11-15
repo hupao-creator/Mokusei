@@ -17,18 +17,24 @@ import (
 type Adapter struct {
 	host     plugin.HostContext
 	settings *settingsAPI
+	state    stateAdapter
 }
 
-func New(host plugin.HostContext) *Adapter { return &Adapter{host: host, settings: newSettings(host)} }
-func (a *Adapter) Close() error            { return a.settings.close() }
+func New(host plugin.HostContext) *Adapter {
+	return &Adapter{host: host, settings: newSettings(host), state: newStateAdapter()}
+}
+func (a *Adapter) Close() error {
+	a.state.closeReader()
+	return a.settings.close()
+}
 
 func (*Adapter) Descriptor() plugin.HarnessDescriptor {
 	return plugin.HarnessDescriptor{ID: "pi", DisplayName: "Pi Agent", ThreadCapabilities: plugin.ThreadCapabilities{Instructions: true, ThreadContext: true, SendContext: true, ToolModes: []string{"exclusive"}}}
 }
-func (*Adapter) DefaultSettings() json.RawMessage         { return json.RawMessage(`{"threadSettings":{}}`) }
-func (a *Adapter) Settings() plugin.HarnessSettings       { return a.settings }
-func (*Adapter) SessionState() plugin.SessionStateAdapter { return stateAdapter{} }
-func (*Adapter) Metadata() plugin.ThreadMetadataAdapter   { return plugin.GeneratedThreadMetadata{} }
+func (*Adapter) DefaultSettings() json.RawMessage           { return json.RawMessage(`{"threadSettings":{}}`) }
+func (a *Adapter) Settings() plugin.HarnessSettings         { return a.settings }
+func (a *Adapter) SessionState() plugin.SessionStateAdapter { return a.state }
+func (*Adapter) Metadata() plugin.ThreadMetadataAdapter     { return plugin.GeneratedThreadMetadata{} }
 func (a *Adapter) Open(ctx context.Context, input plugin.OpenContext) (plugin.Handle, error) {
 	handle, err := openThread(ctx, a.host, input)
 	if err != nil {

@@ -109,11 +109,12 @@ default to manifest-only preparation. Cancellation belongs to the route visit.
 Runtime retention owns a live subscription independently of any view or action;
 each visible consumer still acquires and retires its own handle.
 
-`HarnessThread.executionTitles` decodes the optional public execution-ID-to-title
-map (missing means empty; malformed or empty entries are rejected). Harness
-readers pass only the matching execution's title into their conversation rows.
-The catalog title remains independent metadata and cannot fill a missing history
-entry. This envelope also persists through ordinary offline catalog recovery.
+`HarnessThread.executionTitles` decodes the exact execution-ID-to-title map carried
+by the full conversation content envelope for its matching revision (missing
+means empty; malformed or empty entries are rejected). Harness readers pass only
+the matching execution's title into their conversation rows. The catalog itself
+does not carry this directory, and the catalog title remains independent metadata
+that cannot fill a missing history entry.
 
 `HarnessThread.mokuInterruptedExecutionID` decodes the optional nonblank
 `mokuInterruptedExecutionId` envelope field. `userInterruptedExecutionID` similarly
@@ -127,28 +128,33 @@ without inspecting private Harness state.
 validated ordinary execution reference. The mounted host observes deletion and excludes private Moku conversations, while `NativeHarnessThreadView` owns acquisition/release and the
 single-execution presentation. Report plugins never decode Harness timelines.
 
-`HarnessPlugin.executionPreview` projects bounded agent message text and validated
-start/end timestamps for the requested execution ID. It reuses the Harness's
-Overview message selector on that execution only, including eligible live
-reasoning and complete assistant messages. It never uses Overview's prompt/title
-fallback or another execution's content. When compact terminal history no longer
-contains a selected message, its own retained reply summary remains available;
-active incomplete assistant text is not a summary fallback. Each Harness
-interprets its own private state; Host/Report never parse another Harness's
-timeline. Existing catalog notifications drive updates without new content
-subscriptions, polling or broader wire payloads.
+`thread:execution-previews` resolves only the cited Agent references and returns
+each exact execution's runtime-owned title, status, start/end timestamps and a
+bounded Harness-selected excerpt. The Harness reuses its Overview message
+selector on that execution only, including eligible live reasoning and complete
+assistant messages. It never uses Overview's prompt/title fallback or another
+execution's content. When compact terminal history no longer contains a selected
+message, its own retained reply summary remains available; active incomplete
+assistant text is not a summary fallback. Each Harness interprets its own private
+state; Host/Report never parse another Harness's timeline. The Host caches by
+Thread revision, invalidates from the existing catalog subscription, and releases
+entries when the last reference listener closes. `subscribe` is the prerequisite
+for exact preview reads: `read` itself returns the current cache and a localized
+fallback without starting a new preview command. `subscribeMetadata` observes the
+same Threads without starting preview reads, for cards that only need logos/counts.
+No turn/execution content lease, polling or broader catalog payload is introduced.
 `ApplicationExecutionPresentation.preview` carries that value to the related
 list. `ApplicationExecutionPresentation.emoji` uses the same validated generated
 Thread metadata as all Harness cards/readers. Emoji is Thread-scoped, not an
 execution history field; absent/invalid metadata and deleted Threads yield nil.
 The related list uses the reader's 📝 fallback and hides decorative emoji from
-accessibility. Titles use the matching `executionTitles` entry (a localized generic
+accessibility. Titles come from the cited preview response (a localized generic
 execution label when absent), never the current Thread title. Missing historical
 preview data stays absent rather than borrowing the latest execution. Preview
-text is capped at 600 characters; a non-running execution with no end time is
+text is capped at 600 Unicode code points; a non-running execution with no end time is
 shown as unknown duration rather than ticking indefinitely. Super Thread relations
-now obtain authoritative exact-execution state/timing from `report.relations`,
-separate from current Thread state. Bounded native previews remain exact-ID-only.
+obtain authoritative exact-execution state/timing from `report.relations`,
+separate from current Thread state. Bounded previews remain exact-reference-only.
 
 
 ### Application overview collections

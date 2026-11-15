@@ -115,12 +115,39 @@ func parseContentSubscription(raw []byte) (string, string, *contentTarget, error
 	}
 	switch target.Scope.Kind {
 	case "thread":
-		target.Scope.Key = ""
+		target.Scope.Key, target.Scope.Offset, target.Scope.Limit = "", 0, 0
 	case "turn", "execution":
 		if !validContentIdentity(target.Scope.Key) {
 			return fail()
 		}
+		target.Scope.Offset, target.Scope.Limit = 0, 0
+	case "directory":
+		target.Scope.Key = ""
+		if target.Scope.Offset < 0 || target.Scope.Limit < 0 ||
+			target.Scope.Limit > model.MaximumExecutionDirectoryLimit {
+			return fail()
+		}
+		if target.Scope.Limit == 0 {
+			target.Scope.Limit = model.DefaultExecutionDirectoryLimit
+		}
+	case "preview":
+		if !validContentIdentity(target.Scope.Key) {
+			return fail()
+		}
+		target.Scope.Offset, target.Scope.Limit = 0, 0
 	default:
+		return fail()
+	}
+	switch target.Scope.Purpose {
+	case "", model.RendererPurposeAgentSummary:
+	default:
+		return fail()
+	}
+	var targetObject map[string]json.RawMessage
+	if target.Scope.Purpose != "" && target.Scope.Kind != "turn" {
+		return fail()
+	}
+	if len(target.Scope.Target) > 64*1024 || len(target.Scope.Target) > 0 && (target.Scope.Kind != "turn" || target.Scope.Purpose != model.RendererPurposeAgentSummary || !json.Valid(target.Scope.Target) || model.IsNull(target.Scope.Target) || json.Unmarshal(target.Scope.Target, &targetObject) != nil || targetObject == nil) {
 		return fail()
 	}
 	return clientID, subscriptionID, &target, nil

@@ -81,13 +81,25 @@ default clearing without launching a CLI. Set
 wide dark and compact light captures. The protocol replay above covers the Go
 adapter; neither fixture establishes compatibility with an installed CLI release.
 
+Reader projections are served from a Harness-owned immutable index keyed by
+the exact persisted state bytes. Overview, thread, turn and execution readers
+share that index; a narrow scope reuses its previous result when only unrelated
+executions or host metadata changed. Parsed mutable objects are never shared
+across scopes. The cache is bounded, evicted with the Thread, and closed with the
+Harness; `tools/verification/projection-reuse` covers the production Runtime
+boundary.
+
 ## Initial response cards
 
 The overview renderer supplies `initialResponseScope`, computed from the full
 execution index and fork/history provenance before compaction. This fixed-size
 fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
-retains its existing precedence. Other scopes omit the field.
+retains its existing precedence. Other scopes omit the field. The same overview
+projection retains only the current card, required prompt fallback and one last
+completed reply entry; unrelated executions, authors and usage stay out of the
+catalog. The paged `directory` and exact `preview` scopes read those facts on
+demand.
 
 The adapter replay also checks this boundary with shared production-renderer
 fixtures in `tools/verification/firstresponse`. The native cross-language replay
@@ -123,6 +135,13 @@ canonical activity state and full execution content remain unchanged.
 Inherited activities have no embedded activity id; deferred output presence uses
 the enclosing timeline item id so unrelated empty Hooks cannot share a marker.
 
+The `agent-summary` purpose used by the ordinary Agent reader always returns the
+lightweight deferred envelope, including running, waiting, failed and interrupted
+turns and fork history. It keeps visible replies, public follow-ups, error-level
+notices/records, pending interactions and ordered reasoning/tool summary facts;
+tool labels/details, reasoning bodies and initial/internal input are omitted. A
+native message target retains only that explicitly requested reply.
+
 This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
 input protocol has no proven atomic active-only condition. Lazy Moku notices
 therefore wait for the next independently triggered input and travel with its
@@ -142,12 +161,13 @@ thinking-token metrics do not become zero. The reader uses the persisted turn
 aggregate for live and historical execution summaries. In-flight unreported
 usage is not estimated.
 
-Compact renderer directories retain up to 600 characters of `text` for each
-execution, including historical executions, so Report can display a bounded
-assistant excerpt without acquiring full conversation content. Native
-`executionPreview` pairs that exact execution's text with its own timestamps.
-Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
-fallback is used for historical references.
+Execution directory and preview scopes retain up to 600 Unicode code points of `text`
+for the exact execution, so Report can display a bounded assistant excerpt
+without acquiring full conversation content. The catalog overview keeps only
+the current card and last completed reply; native preview reads pair that exact
+execution's text with its own timestamps. Prompt, reasoning and tool-payload
+admission is unchanged; no latest-execution fallback is used for historical
+references.
 
 Discovery rejects results when tracked native configuration files change during
 the probe, so an in-flight read cannot publish a known-obsolete snapshot.

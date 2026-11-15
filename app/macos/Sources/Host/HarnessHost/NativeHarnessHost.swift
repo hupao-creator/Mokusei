@@ -127,6 +127,7 @@ public final class NativeHarnessHost {
                 switch scope {
                 case .thread: runtimeScope = .thread
                 case .row(let key): runtimeScope = .turn(key: key)
+                case .reading(let key, let target): runtimeScope = .reading(key: key, target: target)
                 case .execution(let key): runtimeScope = .execution(key: key)
                 }
                 group.addTask {

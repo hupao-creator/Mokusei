@@ -79,6 +79,9 @@ extension NativeApplicationHost {
                     guard let self else { throw CancellationError() }; try lifetime.checkCancellation()
                     return try executionReferences(references)
                 }, subscribe: { [weak self] references, listener in self?.subscribeReferences(references, listener: listener, lifetime: lifetime) ?? {} },
+                subscribeMetadata: { [weak self] references, listener in
+                    self?.subscribeReferences(references, listener: listener, previews: false, lifetime: lifetime) ?? {}
+                },
                 logo: { [weak self] id, size in
                     guard let self, !isReleased else { throw CancellationError() }
                     try lifetime.checkCancellation()

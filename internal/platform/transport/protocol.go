@@ -16,7 +16,10 @@ import (
 )
 
 const (
-	ProtocolVersion      = 11
+	// ProtocolVersion 12 is the final #320 reader-adapter + #322
+	// directory/preview + #316 reading-purpose/target contract. Future
+	// ContentScope shape changes must publish a new version.
+	ProtocolVersion      = 12
 	MaxRequestBytes      = 144 * 1024 * 1024
 	MaxOverviewBytes     = 2 * 1024 * 1024
 	MaxResponseBytes     = 32 * 1024 * 1024
@@ -38,10 +41,19 @@ type Result struct {
 	Error *Failure        `json:"error,omitempty"`
 }
 type ContentScope struct {
-	Kind string `json:"kind"`
-	Key  string `json:"key,omitempty"`
+	Kind   string `json:"kind"`
+	Key    string `json:"key,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	// Purpose and Target select a narrower reading contract for the same
+	// execution identity. The Runtime forwards them without decoding the
+	// Harness's private target shape.
+	Purpose string          `json:"purpose,omitempty"`
+	Target  json.RawMessage `json:"target,omitempty"`
 }
 type ContentSnapshot struct {
+	// Revision identifies the visible projection version for this scope. Equal
+	// bytes keep the same revision across unrelated Thread or session updates.
 	Revision int64
 	Value    json.RawMessage
 }

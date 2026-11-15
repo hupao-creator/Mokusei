@@ -65,21 +65,24 @@ struct NativePerformanceCacheTests {
     @Test func materializationRetainsEnvelopeAndValidatesChangedContentAtFullDepth() throws {
         let cache = NativeThreadMaterializationCache(), original = try thread()
         let state: JSONValue = .object(["text": .text("😀")])
+        func content(_ state: JSONValue) -> JSONValue {
+            .object(["version": .integer(1), "state": state, "executionTitles": .object([:])])
+        }
         for _ in 0..<10 {
-            let result = try cache.thread(original, content: state)
+            let result = try cache.thread(original, content: content(state))
             #expect(result.sessionState == state && result.json["sessionState"] == state)
         }
         #expect(cache.materializationCount == 1)
-        #expect(throws: (any Error).self) { try cache.thread(original, content: .number(.infinity)) }
-        #expect(throws: (any Error).self) { try cache.thread(original, content: .number(.infinity)) }
+        #expect(throws: (any Error).self) { try cache.thread(original, content: content(.number(.infinity))) }
+        #expect(throws: (any Error).self) { try cache.thread(original, content: content(.number(.infinity))) }
         #expect(cache.materializationCount == 2)
         var deep: JSONValue = .null
         for _ in 0..<JSONValue.maximumDepth { deep = .array([deep]) }
         try PluginJSONValidation.validate(deep)
-        #expect(throws: (any Error).self) { try cache.thread(original, content: deep) }
-        #expect(try cache.thread(thread(1), content: state).revision == 1)
+        #expect(throws: (any Error).self) { try cache.thread(original, content: content(deep)) }
+        #expect(try cache.thread(thread(1), content: content(state)).revision == 1)
         cache.clear()
-        #expect(try cache.thread(original, content: state).sessionState == state)
+        #expect(try cache.thread(original, content: content(state)).sessionState == state)
     }
 
     @Test func nativeLineCacheMatchesTabsUnicodeAndFontChanges() {

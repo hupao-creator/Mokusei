@@ -92,13 +92,30 @@ public struct HarnessExecutionPreview: Hashable, Sendable {
     public let startedAt: Double
     public let finishedAt: Double?
     public let running: Bool
+    /// At most 600 Unicode code points, matching the Harness projection. It is
+    /// intentionally neither a UTF-16 nor extended-grapheme-cluster limit.
     public let excerpt: JSONText
     public init(startedAt: Double, finishedAt: Double?, running: Bool, excerpt: JSONText) throws {
         guard startedAt.isFinite, startedAt >= 0,
               finishedAt.map({ $0.isFinite && $0 >= startedAt }) ?? true,
               !running || finishedAt == nil else { throw PluginContractError("Invalid execution preview timing") }
         self.startedAt = startedAt; self.finishedAt = finishedAt; self.running = running
-        self.excerpt = JSONText(String(excerpt.string.prefix(600)))
+        self.excerpt = Self.codePointPrefix(excerpt, limit: 600)
+    }
+
+    private static func codePointPrefix(_ text: JSONText, limit: Int) -> JSONText {
+        var units: [UInt16] = []
+        var points = 0, index = 0
+        while index < text.codeUnits.count, points < limit {
+            let unit = text.codeUnits[index]
+            let pair = (0xD800...0xDBFF).contains(unit) && index + 1 < text.codeUnits.count &&
+                (0xDC00...0xDFFF).contains(text.codeUnits[index + 1])
+            units.append(unit)
+            if pair { units.append(text.codeUnits[index + 1]) }
+            index += pair ? 2 : 1
+            points += 1
+        }
+        return JSONText(codeUnits: units)
     }
 }
 
@@ -153,7 +170,6 @@ public protocol HarnessPlugin {
     var settingsPresentationCodec: PluginValueCodec<SettingsPresentation> { get }
     func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<Overview>
     func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage?
-    func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview?
     func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope]
     func projectMokuDock(input: HarnessThreadInput) throws -> HarnessMokuPresentation?
     @ViewBuilder func threadView(input: HarnessThreadInput, actions: HarnessThreadActions,
@@ -171,11 +187,5 @@ extension HarnessPlugin {
     public func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope] { [] }
     public var translations: HarnessTranslationCatalog { [:] }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? { nil }
-    public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
-        guard let execution = thread.observation.latestExecution, execution.executionID == executionID else { return nil }
-        return try .init(startedAt: execution.startedAt, finishedAt: execution.finishedAt,
-                         running: execution.status == .running || execution.status == .waitingForUser,
-                         excerpt: execution.summary ?? "")
-    }
     public func projectMokuDock(input: HarnessThreadInput) throws -> HarnessMokuPresentation? { nil }
 }

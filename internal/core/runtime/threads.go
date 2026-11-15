@@ -1509,6 +1509,7 @@ func (r *Runtime) DeleteThread(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	r.evictThreadReader(t.HarnessID, id)
 	r.mu.Lock()
 	if r.handles[id] == owner {
 		delete(r.handles, id)

@@ -90,6 +90,15 @@ correspondence, latest-execution retention, parts normalization, helper contract
 and the size estimator; Swift tests decode the minimal projection and a
 conditional native form, and verify one truncation notice per presentation. A
 transport test covers the 32 MiB accept/reject boundary.
+
+The `agent-summary` purpose used by the ordinary Agent reader always returns the
+lightweight deferred envelope, including running, waiting, failed and interrupted
+executions and fork history. It keeps visible replies, public follow-ups,
+independent failures, pending interactions, ordered reasoning/tool summary facts
+and aggregate usage; tool arguments/results/metadata, reasoning bodies and
+initial/internal input are omitted. A native message target retains only that
+explicitly requested reply, and child-session failures keep their identity
+without exposing sibling tools.
 An HTTP prompt receipt admits input; terminal native execution facts settle it.
 New executions retain their input before dispatch. Follow-up message retention
 requires a native prompt receipt or matching native inbox/history evidence;
@@ -210,13 +219,25 @@ descendants, SSE shutdown, completion cleanup and Thread admission/cancellation
 with local HTTP and filesystem fixtures. The installed-native `thread` replay
 also verifies that reserved JavaScript property names remain callable tool aliases.
 
+Reader projections are served from a Harness-owned immutable index keyed by
+the exact persisted state bytes. Overview, thread, turn and execution readers
+share that index; a narrow scope reuses its previous result when only unrelated
+executions or host metadata changed. Parsed mutable objects are never shared
+across scopes. The cache is bounded, evicted with the Thread, and closed with the
+Harness; `tools/verification/projection-reuse` covers the production Runtime
+boundary.
+
 ## Initial response cards
 
 The overview renderer supplies `initialResponseScope`, computed from the full
 execution index and fork/history provenance before compaction. This fixed-size
 fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
-retains its existing precedence. Other scopes omit the field.
+retains its existing precedence. Other scopes omit the field. The same overview
+projection retains only the current card, required prompt fallback and one last
+completed reply entry; unrelated executions, authors and usage stay out of the
+catalog. The paged `directory` and exact `preview` scopes read those facts on
+demand.
 
 The adapter replay also checks this boundary with shared production-renderer
 fixtures in `tools/verification/firstresponse`. The native cross-language replay
@@ -260,15 +281,14 @@ visibility. Grep reports `unknown-input-visibility` for omitted inputs, includin
 older persisted messages and native messages without a visibility marker. Public
 assistant text remains available even when input coverage is incomplete.
 
-Compact renderer directories retain up to 600 characters of execution `summary` for each
-execution, including historical executions, so Report can display a bounded
-assistant excerpt without acquiring full conversation content. Native
-`executionPreview` pairs that exact execution's text with its own timestamps.
-Compact card `text` is still a bounded preview, not the full assistant body; when
-the card also selects a reasoning part, the preview is retained instead of being
-erased, and a selected text part remains the single body. Prompt, reasoning and
-tool-payload admission is unchanged; no latest-execution fallback is used for
-historical references.
+Execution directory and preview scopes retain up to 600 Unicode code points of the
+exact execution's selected reply or retained `summary`, so Report can display a
+bounded assistant excerpt without acquiring full conversation content. The
+catalog overview keeps only the current card and last completed reply; native
+preview reads pair that exact execution's text with its own timestamps. Prompt,
+reasoning and tool-payload admission is unchanged; no latest-execution fallback
+is used for historical references.
+Compact card text keeps its selected reasoning preview; a selected text part remains the single body.
 
 Catalog caches live on the Harness instance and are not persisted to disk. Close
 cancels and joins background refreshes; Moku handle replacement retains caches.

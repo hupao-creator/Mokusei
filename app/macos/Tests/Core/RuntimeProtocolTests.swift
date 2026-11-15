@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-import MokuseiCore
+@testable import MokuseiCore
 
 final class RuntimeProtocolTests: XCTestCase {
     private func json(_ text: String) throws -> JSONValue { try JSONValue(data: Data(text.utf8)) }
@@ -14,6 +14,16 @@ final class RuntimeProtocolTests: XCTestCase {
         let encoded = try value.encodedData()
         XCTAssertTrue(String(decoding: encoded, as: UTF8.self).contains("\\ud800"))
         XCTAssertEqual(try JSONValue(data: encoded), value)
+    }
+
+    func testAgentReadingScopeCarriesPurposeAndOpaqueTarget() throws {
+        let target = try json(#"{"executionId":"execution","messageId":"message"}"#)
+        let reading = RuntimeContentScope.reading(key: "execution", target: target).json
+        XCTAssertEqual(reading["kind"], .text("turn"))
+        XCTAssertEqual(reading["key"], .text("execution"))
+        XCTAssertEqual(reading["purpose"], .text("agent-summary"))
+        XCTAssertEqual(reading["target"], target)
+        XCTAssertNotEqual(reading, RuntimeContentScope.turn(key: "execution").json)
     }
 
     func testDeltaUsesUTF16OffsetsAndKeepsEditsWhenArrayElementsMove() throws {

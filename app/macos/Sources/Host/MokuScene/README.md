@@ -732,6 +732,8 @@ Report execution details borrow that same Agent composer and native column
 placement. Exact-execution drafts are shared with Agent history/result readers
 for the same Thread/execution pair. The placeholder uses the exact
 execution title (neutral fallback), never a newer execution's Thread title.
+The Dock resolves its selected execution title through the same exact-reference
+preview cache; the generic fallback is shown only until that exact title arrives.
 The editor opens after its horizontal travel settles. Returning to the list,
 folding, Browser selection or departure restores Moku and retains the draft;
 editor Escape follows Report's auxiliary Back. Only the viewed current active

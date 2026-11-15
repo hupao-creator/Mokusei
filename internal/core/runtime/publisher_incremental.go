@@ -10,6 +10,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
 	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
 	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 )
@@ -261,35 +262,48 @@ func changedRecord(current, previous store.Snapshot, key string) bool {
 }
 
 func (r *Runtime) projectChangedThread(snapshot store.Snapshot, id string) (model.ThreadRecord, error) {
-	thread, err := r.cachedThread(r.ctx, snapshot, id)
+	threadEntry, err := r.cachedThread(r.ctx, snapshot, id)
 	if err != nil {
-		return thread, err
+		return model.ThreadRecord{}, err
 	}
+	thread := threadEntry.record
 	hash, _ := snapshot.RecordHash("thread:" + id)
-	entry, found := r.overviewCache[id]
-	if !found || entry.hash != hash {
-		entry = cachedOverview{hash: hash, record: thread}
-		if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
-			entry.record.SessionState, err = harness.SessionState().ProjectRenderer(model.CloneRaw(thread.SessionState), model.RendererScope{Kind: "overview"})
+	overview, found := r.overviewCache[id]
+	if !found || overview.hash != hash {
+		overview = cachedOverview{hash: hash, record: thread}
+		err = r.computeTasks(r.ctx, []workpool.Task{{Bytes: snapshot.RecordBytes("thread:" + id), Run: func(ctx context.Context) error {
+			value, err := r.projectOverview(ctx, thread, threadEntry.contentID)
 			if err != nil {
-				r.log("catalog.projection", err)
-				entry.record.SessionState = json.RawMessage("null")
-				entry.hash = ""
-				if r.publicationRetries == nil {
-					r.publicationRetries = map[string]bool{}
-				}
-				r.publicationRetries[id] = true
+				return err
 			}
+			overview.record.SessionState = value
+			return nil
+		}}})
+		if err != nil {
+			r.log("catalog.projection", err)
+			overview.record.SessionState = json.RawMessage("null")
+			overview.hash = ""
+			if r.publicationRetries == nil {
+				r.publicationRetries = map[string]bool{}
+			}
+			r.publicationRetries[id] = true
 		}
+		overview.record.ExecutionTitles = nil
 		if thread.Moku || thread.MokuHistory {
-			entry.record.Transcript = auditPreview(thread.Transcript)
+			overview.record.Transcript = auditPreview(thread.Transcript)
 		}
 		if r.overviewCache == nil {
 			r.overviewCache = map[string]cachedOverview{}
 		}
-		r.overviewCache[id] = entry
+		r.overviewCache[id] = overview
 	}
-	thread = entry.record
+	overview.record.ExecutionTitles = nil
+	if r.overviewCache == nil {
+		r.overviewCache = map[string]cachedOverview{}
+	}
+	r.overviewCache[id] = overview
+	thread = overview.record
+	thread.ExecutionTitles = nil
 	thread.DirectoryTag = directorytag.Name(thread.Cwd)
 	thread.DirectoryScope = directorytag.Scope(thread.Cwd)
 	return thread, nil
@@ -370,6 +384,9 @@ func (r *Runtime) applyPublication(mutation model.StateMutation) {
 		}
 		for _, id := range patch.RemovedIDs {
 			if !upserted[id] {
+				if before, ok := r.publishedThreads[id]; ok {
+					r.evictThreadReader(before.HarnessID, id)
+				}
 				delete(r.publicationRetries, id)
 				delete(r.overviewCache, id)
 				r.threadCacheMu.Lock()
@@ -379,6 +396,9 @@ func (r *Runtime) applyPublication(mutation model.StateMutation) {
 			delete(r.publishedThreads, id)
 		}
 		for _, thread := range patch.Upserts {
+			if before, ok := r.publishedThreads[thread.ID]; ok && before.HarnessID != thread.HarnessID {
+				r.evictThreadReader(before.HarnessID, thread.ID)
+			}
 			r.publishedThreads[thread.ID] = thread
 		}
 		if patch.Order != nil {

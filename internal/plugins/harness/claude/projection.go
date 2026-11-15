@@ -86,6 +86,17 @@ func compactRenderer(s *State, scope model.RendererScope, initialResponseScope b
 			break
 		}
 	}
+	if overview {
+		// Keep the current card plus the one completed reply entry. Unrelated
+		// historical turns belong to the explicit execution directory.
+		turns := make([]*Turn, 0, len(preview))
+		for _, turn := range s.Turns {
+			if preview[turn] {
+				turns = append(turns, turn)
+			}
+		}
+		s.Turns = turns
+	}
 	for _, turn := range s.Turns {
 		compactTurn(turn, scope.Kind == "thread" || preview[turn], overview && turn == current, overview)
 	}
@@ -279,6 +290,72 @@ func compactTurn(t *Turn, preview, current, overview bool) {
 		t.Foreground = nil
 	}
 }
+func claudeExecutionDirectory(s *State, scope model.RendererScope) model.ExecutionDirectoryPage {
+	start, end, page := model.ExecutionDirectoryBounds(len(s.Turns), scope.Offset, scope.Limit)
+	for _, turn := range s.Turns[start:end] {
+		page.Executions = append(page.Executions, claudeExecutionDigest(turn))
+	}
+	return page
+}
+
+func claudeExecutionPreview(s *State, executionID string) model.ExecutionDigest {
+	if turn := s.Find(executionID); turn != nil {
+		return claudeExecutionDigest(turn)
+	}
+	return model.ExecutionDigest{}
+}
+
+func claudeExecutionDigest(turn *Turn) model.ExecutionDigest {
+	digest := model.ExecutionDigest{ExecutionID: turn.ExecutionID, Status: turn.Status,
+		StartedAt: turn.CreatedAt, FinishedAt: turn.FinishedAt}
+	unfinished := map[string]bool{}
+	for _, item := range turn.Timeline {
+		if str(item["kind"]) == "assistant" && str(item["messageId"]) != "" && str(item["status"]) != "complete" {
+			unfinished[str(item["messageId"])] = true
+		}
+	}
+	for index := len(turn.Timeline) - 1; index >= 0; index-- {
+		item := turn.Timeline[index]
+		kind := str(item["kind"])
+		allowed := kind == "assistant" && str(item["status"]) == "complete" && !unfinished[str(item["messageId"])] ||
+			kind == "reasoning" && (turn.Status == "running" || turn.Status == "completed")
+		content := strings.TrimSpace(str(item["content"]))
+		if !allowed || content == "" {
+			continue
+		}
+		if kind == "assistant" && str(item["messageId"]) != "" {
+			content = ""
+			for _, segment := range turn.Timeline {
+				if str(segment["kind"]) == "assistant" && str(segment["messageId"]) == str(item["messageId"]) {
+					content += str(segment["content"])
+					if len([]rune(content)) >= 1200 {
+						break
+					}
+				}
+			}
+		}
+		return digestWithExcerpt(digest, clip(strings.TrimSpace(content), 600))
+	}
+	if turn.Status == "completed" {
+		text := strings.TrimSpace(turn.Text)
+		if text == "" {
+			text = strings.TrimSpace(turn.Reasoning)
+		}
+		if text != "" {
+			return digestWithExcerpt(digest, clip(text, 600))
+		}
+	}
+	if turn.Status == "running" {
+		return digest
+	}
+	return digestWithExcerpt(digest, clip(strings.TrimSpace(turn.Text), 600))
+}
+
+func digestWithExcerpt(digest model.ExecutionDigest, excerpt string) model.ExecutionDigest {
+	digest.Excerpt = excerpt
+	return digest
+}
+
 func compactInteraction(interaction map[string]any) map[string]any {
 	copy := cloneObject(interaction)
 	delete(copy, "schema")

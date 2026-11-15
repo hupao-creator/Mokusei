@@ -1,6 +1,6 @@
 # Runtime transport
 
-[protocol.go](protocol.go) defines protocol version **11**, public result envelopes and content scopes. Both peers require the exact version. The host owns business state; transport owns authentication, client leases, bounded delivery, command receipts and content streams.
+[protocol.go](protocol.go) defines protocol version **12**, public result envelopes and content scopes. Both peers require the exact version. Protocol 12 is the final #320 reader-adapter + #322 directory/preview + #316 reading-purpose/target contract. Future `ContentScope` shape changes require a new protocol version. The host owns business state; transport owns authentication, client leases, bounded delivery, command receipts and content streams.
 
 Local clients discover the selected profile's private connection metadata and authenticate requests against its token and service epoch. The server listens only on loopback.
 
@@ -24,7 +24,7 @@ has not yet removed its listener wrapper, Shutdown can report `net.ErrClosed`
 after all connections drain; this expected repeated close is success. Deadlines
 and other shutdown errors remain failures.
 
-[stream.go](stream.go), [content.go](content.go) and [delta.go](delta.go) carry snapshots and revisioned updates over HTTP/NDJSON. Clients reject stale epochs and recover gaps from authoritative snapshots. Catalogs carry bounded overview data; conversation/turn/execution scopes fetch the owned Harness projection on demand. JSON null, missing fields and integer values remain distinct. Swift encodes integer cursors and revisions as integer JSON tokens.
+[stream.go](stream.go), [content.go](content.go) and [delta.go](delta.go) carry snapshots and revisioned updates over HTTP/NDJSON. Clients reject stale epochs and recover gaps from authoritative snapshots. Catalogs carry bounded overview data; full conversation, execution directory (paged by offset/limit), single execution preview and turn/execution scopes fetch the owned Harness projection on demand. A content scope may also carry the trusted `agent-summary` purpose and an opaque native message target; the Runtime forwards both without decoding Harness-private state. JSON null, missing fields and integer values remain distinct. Swift encodes integer cursors and revisions as integer JSON tokens.
 
 Requests, in-flight bytes, responses, clients and content-worker queues have explicit limits in the transport implementation. A single content event is capped below the 32 MiB response/event limit; Harness projections that can grow with native tool output must bound or degrade their presentation rather than relying on the transport to accept it. Slow or cancelled content readers release their leases; close joins workers and prevents late writes. [files.go](files.go) authorizes host files and attachment transfers without treating an arbitrary client path as an attachment capability.
 

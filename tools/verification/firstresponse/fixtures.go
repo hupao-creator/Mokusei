@@ -22,12 +22,13 @@ const Prompt = "USER_PROMPT_MUST_NOT_APPEAR_IN_BODY"
 const Answer = "AGENT_CONTENT_TAKES_OVER"
 
 type Fixture struct {
-	Harness     string                  `json:"harness"`
-	Name        string                  `json:"name"`
-	State       json.RawMessage         `json:"state"`
-	Observation model.PublicObservation `json:"observation"`
-	Initial     bool                    `json:"initial"`
-	Agent       bool                    `json:"agent"`
+	Harness     string                           `json:"harness"`
+	Name        string                           `json:"name"`
+	State       json.RawMessage                  `json:"state"`
+	Observation model.PublicObservation          `json:"observation"`
+	Initial     bool                             `json:"initial"`
+	Agent       bool                             `json:"agent"`
+	Previews    map[string]model.ExecutionDigest `json:"previews,omitempty"`
 }
 
 func encode(value any) json.RawMessage {
@@ -89,12 +90,12 @@ func first(state map[string]any, id string) map[string]any {
 func Verify(id string) ([]Fixture, error) {
 	a := adapter(id)
 	fixtures := []Fixture{}
-	for _, name := range []string{"empty", "running", "incomplete", "reasoning", "answer", "failed", "interrupted", "completed", "second", "fork", "tool-plan", "long-prompt", "reasoning-update", "final-answer", "failed-answer", "interrupted-answer", "long-answer", "second-answer", "child-session"} {
+	for _, name := range []string{"empty", "running", "incomplete", "reasoning", "answer", "failed", "interrupted", "completed", "second", "fork", "tool-plan", "long-prompt", "reasoning-update", "final-answer", "failed-answer", "interrupted-answer", "long-answer", "long-grapheme", "second-answer", "child-session"} {
 		state := base(id)
 		turn := first(state, id)
 		initial, agent := true, false
 		switch name {
-		case "incomplete", "reasoning", "answer", "reasoning-update", "final-answer", "failed-answer", "interrupted-answer", "long-answer", "second-answer", "child-session":
+		case "incomplete", "reasoning", "answer", "reasoning-update", "final-answer", "failed-answer", "interrupted-answer", "long-answer", "long-grapheme", "second-answer", "child-session":
 			complete := name != "incomplete" && name != "reasoning" && name != "reasoning-update"
 			agent = name != "incomplete"
 			status := "streaming"
@@ -193,10 +194,12 @@ func Verify(id string) ([]Fixture, error) {
 				state["messages"].([]any)[0].(map[string]any)["text"] = strings.Repeat(Prompt+"😀", 1000)
 			}
 		}
-		if name == "reasoning-update" || name == "long-answer" {
+		if name == "reasoning-update" || name == "long-answer" || name == "long-grapheme" {
 			text := Answer + " UPDATED"
 			if name == "long-answer" {
 				text = strings.Repeat(Answer+"😀", 100)
+			} else if name == "long-grapheme" {
+				text = strings.Repeat("e\u0301👩🏽‍💻", 500)
 			}
 			if id == "codex" || id == "claude" {
 				items := turn["timeline"].([]any)
@@ -300,7 +303,20 @@ func Verify(id string) ([]Fixture, error) {
 		if _, ok := fullValue["initialResponseScope"]; ok {
 			return nil, fmt.Errorf("%s flag escaped overview", id)
 		}
-		fixtures = append(fixtures, Fixture{id, name, projected, obs, initial, agent})
+		previews := map[string]model.ExecutionDigest{}
+		for _, executionID := range []string{"first", "second"} {
+			previewRaw, err := a.ProjectRenderer(raw, model.RendererScope{Kind: "preview", Key: executionID})
+			if err != nil {
+				return nil, fmt.Errorf("%s/%s preview: %w", id, name, err)
+			}
+			var digest model.ExecutionDigest
+			_ = json.Unmarshal(previewRaw, &digest)
+			if digest.ExecutionID == executionID {
+				previews[executionID] = digest
+			}
+		}
+		fixtures = append(fixtures, Fixture{Harness: id, Name: name, State: projected,
+			Observation: obs, Initial: initial, Agent: agent, Previews: previews})
 	}
 	fmt.Printf("PASS %s initial-response overview scope and canonical isolation (%d fixtures)\n", id, len(fixtures))
 	return fixtures, nil

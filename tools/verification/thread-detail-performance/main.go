@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/claude"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/codex"
+	"github.com/hupao-creator/Mokusei/internal/plugins/harness/sessioncache"
 )
 
 func main() {
@@ -53,6 +55,21 @@ func main() {
 	verifyClaudeHistory()
 	fmt.Println("PASS reader plans omitted; other fields, source, overview, context and full execution preserved")
 }
+func projectReader(name string, adapter plugin.SessionStateAdapter, raw json.RawMessage, scope model.RendererScope) (json.RawMessage, error) {
+	reader, ok := adapter.(plugin.ReaderProjectionAdapter)
+	if !ok {
+		return adapter.ProjectRenderer(raw, scope)
+	}
+	result, err := reader.ProjectReader(context.Background(), plugin.ReaderRequest{ThreadID: name, ContentID: sessioncache.Identity(raw), State: raw, Scope: scope, Generation: 1})
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, fmt.Errorf("reader projection returned no value")
+	}
+	return result.Value, nil
+}
+
 func encode(value any) json.RawMessage { raw, err := json.Marshal(value); must(err); return raw }
 func decode(raw json.RawMessage) map[string]any {
 	var value map[string]any
@@ -67,13 +84,13 @@ func must(err error) {
 
 func verify(name string, adapter plugin.SessionStateAdapter, raw json.RawMessage, key string, history bool) {
 	before := bytes.Clone(raw)
-	full, err := adapter.ProjectRenderer(raw, model.RendererScope{Kind: "execution", Key: key})
+	full, err := projectReader(name, adapter, raw, model.RendererScope{Kind: "execution", Key: key})
 	must(err)
-	overview, err := adapter.ProjectRenderer(raw, model.RendererScope{Kind: "overview"})
+	overview, err := projectReader(name, adapter, raw, model.RendererScope{Kind: "overview"})
 	must(err)
 	context, err := adapter.ReadContext(raw)
 	must(err)
-	reading, err := adapter.ProjectRenderer(raw, model.RendererScope{Kind: "turn", Key: key})
+	reading, err := projectReader(name, adapter, raw, model.RendererScope{Kind: "turn", Key: key})
 	must(err)
 	value := decode(reading)
 	if value["kind"] == "deferred-execution" {
@@ -139,9 +156,9 @@ func verify(name string, adapter plugin.SessionStateAdapter, raw json.RawMessage
 			panic(name + ": unrelated reader field changed")
 		}
 	}
-	again, err := adapter.ProjectRenderer(raw, model.RendererScope{Kind: "execution", Key: key})
+	again, err := projectReader(name, adapter, raw, model.RendererScope{Kind: "execution", Key: key})
 	must(err)
-	overviewAgain, err := adapter.ProjectRenderer(raw, model.RendererScope{Kind: "overview"})
+	overviewAgain, err := projectReader(name, adapter, raw, model.RendererScope{Kind: "overview"})
 	must(err)
 	contextAgain, err := adapter.ReadContext(raw)
 	must(err)
@@ -159,9 +176,9 @@ func verifyClaudeHistory() {
 	}}
 	raw := encode(s)
 	adapter := claude.StateAdapter{}
-	full, err := adapter.ProjectRenderer(raw, model.RendererScope{Kind: "execution", Key: "fork-history"})
+	full, err := projectReader("claude-history", adapter, raw, model.RendererScope{Kind: "execution", Key: "fork-history"})
 	must(err)
-	reading, err := adapter.ProjectRenderer(raw, model.RendererScope{Kind: "turn", Key: "fork-history"})
+	reading, err := projectReader("claude-history", adapter, raw, model.RendererScope{Kind: "turn", Key: "fork-history"})
 	must(err)
 	state := decode(reading)["state"].(map[string]any)
 	items := state["forkHistory"].(map[string]any)["items"].([]any)

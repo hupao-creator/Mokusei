@@ -172,6 +172,16 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
     var status: String? { raw["status"]?.stringValue }
     var inherited: Bool { raw["inherited"] == .bool(true) }
     var parts: [JSONValue] { raw["parts"]?.arrayValue ?? [] }
+    /// Assistant text is single-sourced from ordered parts after projection
+    /// dedup; canonical rows may have an empty aggregate text field.
+    var readingText: String {
+        guard role == "assistant" else { return text }
+        // Ordered parts are the canonical assistant text source; never combine
+        // them with a stale aggregate text field.
+        return parts.compactMap { part in
+            part["type"] == .text("text") ? part["text"]?.stringValue : nil
+        }.joined()
+    }
 }
 struct OpenCodeUsage: Hashable, Sendable {
     var input: Double = 0, output: Double = 0, cacheRead: Double = 0, cacheWrite: Double = 0, reasoning: Double = 0, cost: Double = 0

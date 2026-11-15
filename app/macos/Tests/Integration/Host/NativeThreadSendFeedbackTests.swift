@@ -236,8 +236,12 @@ struct NativeThreadSendFeedbackTests {
         func contentState(for scope: RuntimeContentScope) -> JSONValue {
             let state = contentState
             switch scope {
-            case .thread: return state
-            case .turn(let key), .execution(let key):
+            case .thread:
+                return .object(["version": .integer(1), "state": state, "executionTitles": .object([:])])
+            case .directory(let offset, let limit):
+                return .object(["version": .integer(1), "offset": .integer(offset), "limit": .integer(limit),
+                    "total": .integer(0), "executions": .array([])])
+            case .turn(let key), .reading(let key, _), .execution(let key):
                 let turns = state["turns"]!.arrayValue!.filter { JSONText("turn:" + $0["executionId"]!.stringValue!) == key }
                 let row = JSONValue.object(["schema": state["schema"]!, "updatedAt": state["updatedAt"]!,
                     "backgroundTerminals": .array([]), "turns": .array(turns)])

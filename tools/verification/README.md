@@ -16,6 +16,7 @@ checksums describe the sanitized copies; measurements and historical build
 identities are retained. Repacked archives preserve their member names and order.
 
 `make check-modules` separately runs offline, race-enabled [plugin module tests](../../internal/plugins/README.md), Runtime and Moku tests. It is included in `make check`; the replays below continue to cover cross-module production boundaries.
+`./scripts/go.sh test -race ./tools/verification/execution-catalog` additionally fixes the four production overview projections and their paged directory/preview scopes without a native process.
 
 `make check-swift`, also included in `make check`, runs the ordinary Swift
 selection followed by the declared native-owner checks, retaining their logs
@@ -118,6 +119,7 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/transport -swift-files` | Real Swift file upload/download against Go transport: regular-file symlinks, prompt FIFO rejection and `.partial` basename retention; no GUI |
 | `./tools/verification/transport -swift-settings-capacity` | Real Swift cold settings burst through Go's unchanged request limit: four Harnesses/four scopes plus installation reads, command headroom, queued/active cancellation and recovery |
 | `./tools/verification/thread-metadata` | Generated titles/emoji, subsequent messages, steer, completion races, timed retries, reopen and cancellation |
+| `./tools/verification/projection-reuse` | Production Runtime plus all four Harness reader caches: cold index build, same-version reuse, metadata/unrelated-execution no-op, visible target update, concurrent scope isolation, cross-Thread isolation, cancellation and deletion eviction |
 | `./tools/verification/runtime` | Health client through production HTTP/NDJSON/SQLite (continuation identity, detached read, stale interaction rejection, interrupt and fork); Runtime/SQLite, bounded projection workers/byte admission and detached cache, execution lifecycle, steering, fork/delete, settings, private sessions, tags, independent Tag/Report enablement (active/discovery cancellation, native/write fences, receipt retention and disabled restart/resume), restart/history, ordinary-task question capability through Harness and cancellation; production scoped Report runners, evidence/domain isolation, steering, idle disposal and durable recovery; retained thread voice history/removal and global Moku device ownership, takeover, revocation and media lease lifetime |
 | `./tools/verification/runtime -swift-voice` | Actual Swift integer JSON encoding → Go int64 DTOs, retained thread history/cleanup and removed-call rejection; global Moku prepare, initial poll, SDP start, event cursors, stop and retired poll; exact signed boundaries and fractional/unsafe cursor rejection |
 | `./tools/verification/runtime-concurrency` | Pending admission/open/fork/delete/interrupt; two-client execution-fenced cancellation and native successor races; thread settings CAS; native settings snapshot convergence, initialized reads, source fences and concurrent saves; first-answer claims; host drain admission |

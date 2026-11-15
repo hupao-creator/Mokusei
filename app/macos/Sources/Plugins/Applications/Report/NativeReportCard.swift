@@ -91,7 +91,7 @@ import SwiftUI
         unsubscribe?(); unsubscribe = nil
         do {
             let capability = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI)
-            unsubscribe = capability.subscribe(requestedReferences) { readReferences() }; readReferences()
+            unsubscribe = capability.subscribeMetadata(requestedReferences) { readReferences() }; readReferences()
         } catch { failure = error.localizedDescription }
     }
     private func readReferences() {

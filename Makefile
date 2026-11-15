@@ -42,7 +42,7 @@ install-hooks:
 
 .PHONY: check-modules
 check-modules:
-	$(GO) test -race ./internal/plugins/... ./internal/hosts/... ./internal/core/runtime ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment
+	$(GO) test -race ./internal/plugins/... ./internal/hosts/... ./internal/core/runtime ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment ./tools/verification/execution-catalog
 
 .PHONY: check-system
 check-system:

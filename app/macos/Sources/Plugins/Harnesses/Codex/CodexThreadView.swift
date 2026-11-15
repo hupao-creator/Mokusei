@@ -111,6 +111,7 @@ private struct CodexLazyTurnRow: View {
     let actions: HarnessThreadActions
     let context: HarnessRenderContext
     let onAnchor: (JSONText, JSONText) -> Void
+    @Environment(\.threadAgentDetail) private var agentDetail
     @State private var resource: HarnessContentResource?
 
     var body: some View {
@@ -120,16 +121,23 @@ private struct CodexLazyTurnRow: View {
                 case .loading: NativeReadingPlaceholder(placement: .inline).id(key)
                 case .error(let message): CodexContentError(message: message, retry: { try await resource.retry() })
                 case .ready(let raw):
+                    // Agent-summary rows arrive as complete envelopes. Remount
+                    // the decoded row when that snapshot changes so a settled
+                    // reply replaces the earlier streaming state.
+                    let deferred = raw["kind"] == .text("deferred-execution")
                     ThreadDeferredExecutionContent(raw: raw, rowKey: key, context: context) { value in
                         CodexLoadedTurnRow(key: key, input: input, actions: actions, context: context, onAnchor: onAnchor, raw: value)
                     }
+                    .id(deferred ? raw : nil)
                 }
             } else { NativeReadingPlaceholder(placement: .inline).id(key) }
         }
         .nativeReadingObservation("load", role: "row.load", value: loadState)
         .task(id: key) {
             guard !Task.isCancelled else { return }
-            resource = context.contentResource(.row(key))
+            resource = context.contentResource(agentDetail
+                ? .reading(key, target: input.readingTarget?.message)
+                : .row(key))
         }
         .onDisappear {
             let old = resource; old?.beginRelease(); resource = nil

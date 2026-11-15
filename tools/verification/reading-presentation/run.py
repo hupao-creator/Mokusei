@@ -104,7 +104,9 @@ def main():
     thread_send_native = "--thread-send-feedback-native" in sys.argv
     composer_refocus = "--execution-composer-focus" in sys.argv
     thread_send = "--thread-send-feedback" in sys.argv or thread_send_native or composer_refocus
-    suite = ("NativeOverviewDecorationCaptureTests" if decorations else
+    agent_reading = "--agent-reading" in sys.argv
+    suite = ("AgentReadingProjectionTests" if agent_reading else
+             "NativeOverviewDecorationCaptureTests" if decorations else
              "NativeWorkspaceLifecycleReplay" if workspace_lifecycle else
              "RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
@@ -222,6 +224,10 @@ def main():
             fixture = replay.workspace / "harness-forms.json"
             subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/opencode/cases/renderer", "-forms-output", str(fixture)], cwd=repo, check=True)
             environment["MOKUSEI_HARNESS_FORM_FIXTURE"] = str(fixture)
+        if agent_reading:
+            fixture = replay.workspace / "agent-reading.json"
+            subprocess.run([str(repo / "scripts/go.sh"), "run", "./tools/verification/agent-reading", "-output", str(fixture)], cwd=repo, check=True)
+            environment["MOKUSEI_AGENT_READING_FIXTURES"] = str(fixture)
         isolated_methods = ["ordinaryClickFocusesAndPersistsExactUnicodeReplacement",
                             "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
                             "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
@@ -238,6 +244,7 @@ def main():
                     "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels|excerptRevealKeepsMovingThroughRewriteAndWidthChanges|nativeCloudAndScanMoveInComposedOverview|productionAnimationMountsWithoutAnOpaqueFirstFrame"
                     if glass_captures else
                     "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else
+                    "AgentReadingProjectionTests" if agent_reading else
                     "RollingNumberCellTests|sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes"
                     if "--rolling-numbers" in sys.argv else suite)
         if thread_send_native:
@@ -280,6 +287,7 @@ def main():
     count = (
              len(native_methods) if native_methods is not None else
              1 if decorations else
+             2 if agent_reading else
              1 if composer_refocus else
              5 if thread_send_native else
              9 if isolated_input else

@@ -176,13 +176,25 @@ original voice error event is retained.
 
 Verification: [Codex runner](../../../../tools/verification/codex/README.md), `./scripts/go.sh test -race ./internal/plugins/harness/codex`, and the runtime/Moku replays. Protocol fixtures establish adapter behavior, not live account entitlement or audible playback.
 
+Reader projections are served from a Harness-owned immutable index keyed by
+the exact persisted state bytes. Overview, thread, turn and execution readers
+share that index; a narrow scope reuses its previous result when only unrelated
+executions or host metadata changed. Parsed mutable objects are never shared
+across scopes. The cache is bounded, evicted with the Thread, and closed with the
+Harness; `tools/verification/projection-reuse` covers the production Runtime
+boundary.
+
 ## Initial response cards
 
 The overview renderer supplies `initialResponseScope`, computed from the full
 execution index and fork/history provenance before compaction. This fixed-size
 fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
-retains its existing precedence. Other scopes omit the field.
+retains its existing precedence. Other scopes omit the field. The same overview
+projection retains only the current card, required prompt fallback and one last
+completed reply entry; unrelated executions, authors and usage stay out of the
+catalog. The paged `directory` and exact `preview` scopes read those facts on
+demand.
 
 The adapter replay also checks this boundary with shared production-renderer
 fixtures in `tools/verification/firstresponse`. The native cross-language replay
@@ -244,6 +256,14 @@ canonical activity state and full execution content remain unchanged.
 Matching id/status/name-only successful Hook JSON is lifecycle metadata, not
 summary output; unknown fields remain conservative and full detail is retained.
 
+The `agent-summary` purpose used by the ordinary Agent reader always returns the
+lightweight deferred envelope, including running, waiting, failed and interrupted
+turns. It keeps visible replies, public follow-ups, independent errors, pending
+interactions and ordered reasoning/tool summary facts; tool labels/details,
+reasoning bodies and initial/internal input are omitted. A native message target
+retains only that explicitly requested reply, and generation reasoning samples
+collapse to one optional total.
+
 Lazy Moku delivery uses `SendRequest.FollowUpOnly`. The adapter checks its own
 active execution before retaining input and returns `ErrFollowUpUnavailable`
 when the target is gone; it must not create a replacement execution for this
@@ -266,10 +286,11 @@ when resumed. Unfinished calls contribute only after reporting usage.
 Asynchronous telemetry receives an owned event snapshot before the notification
 receiver adds projection metadata, so ledger reads cannot race those writes.
 
-Compact renderer directories retain up to 600 characters of `answer` for each
-execution, including historical executions, so Report can display a bounded
-assistant excerpt without acquiring full conversation content. Native
-`executionPreview` pairs that exact execution's text with its own timestamps.
+Execution directory and preview scopes retain up to 600 Unicode code points of the
+exact execution's answer (or the card selector's item text), so Report can
+display a bounded assistant excerpt without acquiring full conversation content.
+The catalog overview keeps only the current card and last completed reply;
+native preview reads pair that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
 

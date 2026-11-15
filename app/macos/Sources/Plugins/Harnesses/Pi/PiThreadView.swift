@@ -83,6 +83,7 @@ private struct PiLazyRow: View {
     let actions: HarnessThreadActions
     let context: HarnessRenderContext
     let onAnchor: (JSONText, JSONText) -> Void
+    @Environment(\.threadAgentDetail) private var agentDetail
     @State private var resource: HarnessContentResource?
     var body: some View {
         Group {
@@ -97,7 +98,11 @@ private struct PiLazyRow: View {
                 }
             } else { NativeThreadLoadingIndicator() }
         }
-        .task(id: key) { resource = context.contentResource(.row(key)) }
+        .task(id: key) {
+            resource = context.contentResource(agentDetail
+                ? .reading(key, target: input.readingTarget?.message)
+                : .row(key))
+        }
         .onDisappear {
             let old = resource; old?.beginRelease(); resource = nil
             Task { await old?.release() }

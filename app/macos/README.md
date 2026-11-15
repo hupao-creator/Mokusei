@@ -55,7 +55,10 @@ History headings and sidebar labels use the title
 stored for their exact execution. Until it is available, they use that execution's
 user instruction, falling back to its timestamp when the instruction is blank or unavailable.
 Thread title/emoji remain catalog metadata; the current title is never used to
-fill missing historical titles.
+fill missing historical titles. Full conversation content carries the exact
+title map for its matching revision; the catalog itself stays bounded. The paged
+execution directory remains a backend read contract for this issue; the
+production Swift reader continues to consume the full thread scope.
 
 This is a native reader policy shared by Codex, Claude, Pi and OpenCode across
 live, loaded historical, inherited/fork and deferred execution content (including
@@ -66,6 +69,16 @@ executions retain settled assistant replies. Unfinished assistant messages do
 not display incrementally: each message renders its complete body only after
 it settles, even if the execution continues. This also applies to the Execution
 Sidecard.
+The Agent reader requests a separate `agent-summary` projection purpose for its
+rows instead of the full execution contract. That wire carries only the replies,
+follow-ups, independent errors, execution status/author/usage, pending
+interactions and ordered summary facts the page can display. Tool output,
+arguments, metadata, reasoning bodies and initial/internal input are not
+generated, transported or decoded. The projection always uses the deferred row
+envelope, including while running, waiting, failed or interrupted, and an
+explicit message target keeps that native reply without promoting the whole
+execution. Agent detail acquires no execution detail lease; the full reader
+keeps the existing full/execution projections.
 After termination, intermediate ordinary replies belong to summary-only execution
 work; only the last non-error reply, independent errors, pending interactions
 and an explicitly targeted reply remain separate from summaries.
@@ -137,9 +150,13 @@ uses the same Harness-owned message selector as the ordinary Overview card,
 restricted to the cited execution: eligible live reasoning and complete assistant
 messages refresh through existing catalog invalidation. Terminal compact history
 can fall back to its own retained reply summary; active incomplete assistant text
-and user-prompt fallbacks are excluded. The Host still excludes Moku and Moku
-history, and OpenCode retains its main-session/inherited-message filters. No
-conversation content lease, polling or additional catalog payload is introduced.
+and user-prompt fallbacks are excluded. The Host resolves only cited references
+through `thread:execution-previews`, which returns title, status, timing and a
+bounded excerpt for that exact execution without a turn/execution content lease
+or complete body. Its cache is keyed by Thread revision, invalidated by the
+existing catalog subscription, and released when the last reference listener
+closes. The Host still excludes Moku and Moku history, and OpenCode retains its
+main-session/inherited-message filters.
 Missing, out-of-scope or execution-less Threads leave the list open with an unavailable
 notice; query failures remain retryable by clicking again. Closing, covering or
 replacing the sidecard invalidates pending navigation. Unknown timing is

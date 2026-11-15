@@ -13,6 +13,7 @@ import (
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/plugins/harness/sessioncache"
 )
 
 type Usage struct {
@@ -854,7 +855,13 @@ func NewSessionID() string {
 }
 func newMessageID() string { return "msg_" + strings.TrimPrefix(NewSessionID(), "ses_") }
 
-type StateAdapter struct{}
+type StateAdapter struct {
+	cache *sessioncache.Cache
+}
+
+func NewStateAdapter() StateAdapter {
+	return StateAdapter{cache: sessioncache.NewCache(sessioncache.DefaultBudget)}
+}
 
 func (StateAdapter) Project(raw json.RawMessage) (model.PublicObservation, error) {
 	s, err := DecodeState(raw)

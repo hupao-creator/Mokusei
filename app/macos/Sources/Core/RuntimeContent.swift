@@ -27,7 +27,11 @@ extension RuntimeClient {
         try assertOpen(); try Task.checkCancellation()
         try validateIdentity(threadId); try validateIdentity(JSONText(subscriptionId))
         switch scope {
-        case .turn(let key), .execution(let key): try validateIdentity(key)
+        case .turn(let key), .reading(let key, _), .execution(let key): try validateIdentity(key)
+        case .directory(let offset, let limit):
+            guard offset >= 0, limit > 0, limit <= 200 else {
+                throw RuntimeError("INVALID_REQUEST", "Execution directory pages require a nonnegative offset and 1...200 entries")
+            }
         case .thread: break
         }
         let previous = takeIdleContent(subscriptionId) ?? contentResources.removeValue(forKey: subscriptionId)

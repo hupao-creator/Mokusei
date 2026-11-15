@@ -33,8 +33,10 @@ Ordinary Threads retain `executionTitles`, keyed by exact execution ID. A
 successful metadata completion commits its title and ownership atomically with
 its metadata revision; input retention alone never copies the current Thread
 title onto a new execution. Later naming changes only the covered execution.
-The map survives reload and accompanies catalog envelopes, independently of lazy
-conversation bodies. Forks retain matching inherited execution identities.
+The map survives reload but is not part of the catalog envelope; full content
+carries the matching title map for its exact revision, while directory and
+preview scopes attach only the titles they return. Forks retain matching
+inherited execution identities.
 
 [execution_titles.go](execution_titles.go) performs one transactional startup
 backfill for older records. Lifecycle title changes prove naming commits;
@@ -48,7 +50,10 @@ explicit entries take precedence.
 The migration neither consults the mutable current title nor runs a model;
 unknown titles remain absent so the reader uses the execution timestamp.
 
-Catalog snapshots contain bounded overview projections. [projection_cache.go](projection_cache.go) and [publisher.go](publisher.go) provide revisioned catalog/content publication. Full conversation, turn and execution bodies use independent content subscriptions.
+Catalog snapshots contain bounded overview projections. [projection_cache.go](projection_cache.go) and [publisher.go](publisher.go) provide revisioned catalog/content publication. Full conversation, execution directory (`directory`, paged by offset/limit), single execution preview (`preview`) and turn/execution bodies use independent content subscriptions. Overview keeps only the current card, its latest author/usage/interaction/foreground facts, required prompt fallback and the last completed reply entry; unrelated executions do not enlarge the catalog record. `model.MaxThreadOverviewBytes` is a verification bound asserted by the projection tests, not a runtime truncation rule; a legitimately oversized valid card is not silently clipped. Execution titles remain durable naming evidence but are always stripped from the catalog and supplied by thread, execution, directory and preview scopes as appropriate.
+
+Content reads may use a Harness `ReaderProjectionAdapter`. Runtime passes the complete renderer scope, including directory `Offset`/`Limit` and any reading `Purpose`/`Target`, and the exact session `ContentID`. For runtime-enveloped scopes (`thread`, `directory`, `preview`) Runtime does not pass the final envelope revision as the adapter `Known`, because adapter revisions may be 63-bit content hashes while a title-only change advances only Thread revision. After the adapter, Runtime overlays the full-content title envelope and returns the Thread revision for those scopes; non-enveloped `turn`/`execution` reads retain the adapter revision. A metadata/title change therefore produces a new snapshot even when the adapter reuses unchanged content. Harnesses keep the immutable parse/index, share one build across subscriptions, and cache scope results by the complete scope. Reader index builds enter the same bounded compute pool as catalog projection, so content workers cannot parse two unbounded states in parallel; waiters and builds observe cancellation. The Runtime passes the Thread generation, evicts cached generations on deletion/history reset or Harness replacement, and never interprets Harness-private state. Cache lifetime belongs to the Harness: 128 MiB per adapter and per entry, a 64 MiB per-session scope LRU and a bounded Thread count; late generations may return their own value but cannot replace a newer index. `Stats.Bytes`/`Threads` are retained logical estimates with fixed overhead, while the replay reports process `HeapInuse` separately.
+
 Publication reconciles structurally changed store keys into private identity maps;
 an activity-only wake or telemetry commit does not enumerate the catalog. Only
 changed Thread/application records are projected and compared. Private session

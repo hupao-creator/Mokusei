@@ -27,7 +27,7 @@ import MokuseiHarnessOpenCode
     var loaded = false
     var external: [URL] = []
     var noteText = "[View result](mokusei://execution?threadId=ordinary&executionId=target)"
-    @ObservationIgnored var resources: [HarnessContentResource] = []
+    @ObservationIgnored var resources: [(scope: HarnessContentScope, resource: HarnessContentResource)] = []
     @ObservationIgnored var revision = 0
     @ObservationIgnored lazy var back = ThreadDetailBackAction(label: "Back to overview", onBack: { [weak self] in self?.presentation.finishBack() })
 
@@ -66,17 +66,63 @@ import MokuseiHarnessOpenCode
         try workspace.catalog.install(.object(["revision": .integer(revision), "settingsRevision": .integer(0),
             "defaultCwd": .text(directory.path), "settings": .object([:]), "threads": .array([thread.json]),
             "executions": .array([]), "applicationThreads": .array([])]))
-        if loaded { resources.forEach { $0.publish(.ready(raw)) } }
+        if loaded { resources.forEach { publish($0.resource, scope: $0.scope, state: raw) } }
     }
 
     func load() {
         loaded = true
-        resources.forEach { $0.publish(.ready(thread.sessionState)) }
+        resources.forEach { publish($0.resource, scope: $0.scope, state: thread.sessionState) }
     }
     func resource(_ scope: HarnessContentScope) -> HarnessContentResource {
-        let resource = HarnessContentResource(state: loaded ? .ready(thread.sessionState) : .loading, retry: {}, release: {})
-        resources.append(resource)
+        let content = try! content(scope, state: thread.sessionState)
+        let resource = HarnessContentResource(state: loaded ? .ready(content) : .loading, retry: {}, release: {})
+        resources.append((scope, resource))
         return resource
+    }
+
+    private func content(_ scope: HarnessContentScope, state: JSONValue) throws -> JSONValue {
+        switch scope {
+        case .thread:
+            return .object(["version": .integer(1), "state": state, "executionTitles": .object([:])])
+        case .reading(let key, _) where harness == "codex":
+            // Runtime returns an agent-summary envelope, not the raw directory.
+            // Match stReadingTurn: keep the active/failed replies, otherwise
+            // only the final readable assistant item, plus error/review facts.
+            let executionID = key.string.replacingOccurrences(of: "turn:", with: "")
+            guard let turn = (state["turns"]?.arrayValue ?? []).first(where: { $0["executionId"]?.stringValue == executionID }) else {
+                return .object(["kind": .text("deferred-execution"), "state": state, "nonempty": .array([])])
+            }
+            var fields = turn.objectValue ?? [:]
+            let items = fields["timeline"]?.arrayValue ?? []
+            let active = fields["status"] == .text("running") || fields["status"] == .text("waiting-input")
+            let finalID = items.last {
+                $0["kind"] == .text("assistant") && $0["status"] != .text("streaming") &&
+                    $0["status"] != .text("failed") && !($0["content"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }?["id"]
+            let timeline = items.filter { item in
+                switch item["kind"]?.stringValue {
+                case "assistant":
+                    let failed = item["status"] == .text("failed") || item["isError"] == .bool(true)
+                    return failed || (active ? item["status"] != .text("streaming") && !(item["content"]?.stringValue ?? "").isEmpty : item["id"] == finalID)
+                case "error", "review", "notice", "interaction", "user-message", "context-compaction":
+                    return true
+                default:
+                    return false
+                }
+            }
+            fields["timeline"] = .array(timeline)
+            fields["answer"] = .text("")
+            fields["messages"] = .array([])
+            var stateFields = state.objectValue ?? [:]
+            stateFields["turns"] = .array([.object(fields)])
+            return .object(["kind": .text("deferred-execution"), "state": .object(stateFields), "nonempty": .array([])])
+        default:
+            return state
+        }
+    }
+
+    private func publish(_ resource: HarnessContentResource, scope: HarnessContentScope, state: JSONValue) {
+        if let value = try? content(scope, state: state) { resource.publish(.ready(value)) }
     }
     func close() async {
         await presentation.release()

@@ -8,8 +8,9 @@ Run from the repository root with the pinned Go toolchain:
 ./scripts/go.sh run -race ./tools/verification/transport
 ```
 
-The projection replay calls production Codex/Claude adapters with synthetic
-100-step plans (1,024 characters per step), prompts and answers. It checks active,
+The projection replay calls the production `ReaderProjectionAdapter` path for
+Codex/Claude with synthetic 100-step plans (1,024 characters per step), prompts
+and answers. It checks active,
 completed, failed, interrupted and inherited turns; reader plan omission; retained
 message fields and timeline identities; deferred reasoning presence; and source,
 overview, context and full-execution isolation. A fixture cannot put a running
