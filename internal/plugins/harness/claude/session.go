@@ -97,26 +97,26 @@ func (h *Harness) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 				stop = true
 			}
 		}
-		latestActivities, latestInteractions := map[string]map[string]any{}, map[string]map[string]any{}
-		replace := map[string]int{}
-		for index, item := range selected {
-			kind := str(item["kind"])
-			if kind == "activity" {
-				v := obj(item["activity"])
-				latestActivities[str(v["id"])] = v
-			}
-			if kind == "interaction" {
-				v := obj(item["interaction"])
-				latestInteractions[str(v["id"])] = v
-			}
-			if contains([]string{"plan", "usage", "diff", "review"}, kind) {
-				replace[kind] = index
-			}
+		// Fork history resolves timeline references against the turn's current
+		// entity tables at fork time. An entity that began before the selected
+		// checkpoint but finished later therefore carries its final state here;
+		// running/pending entities still become cancelled. review and error are
+		// canonical latest-only markers, so a marker replaced after the selected
+		// prefix is not inherited from an earlier revision.
+		activities, interactions, notices := map[string]map[string]any{}, map[string]map[string]any{}, map[string]map[string]any{}
+		for _, value := range turn.Activities {
+			activities[str(value["id"])] = value
+		}
+		for _, value := range turn.Interactions {
+			interactions[str(value["id"])] = value
+		}
+		for _, value := range turn.Notices {
+			notices[str(value["id"])] = value
 		}
 		emitted := map[string]bool{}
-		for index, item := range selected {
+		for _, item := range selected {
 			kind := str(item["kind"])
-			if last, ok := replace[kind]; ok && last != index {
+			if contains([]string{"plan", "usage", "diff"}, kind) {
 				continue
 			}
 			out := cloneObject(item)
@@ -141,17 +141,20 @@ func (h *Harness) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 					out["status"] = "cancelled"
 				}
 			case "activity", "interaction":
-				raw := obj(item[kind])
-				id := str(raw["id"])
+				field := map[string]string{"activity": "activityId", "interaction": "interactionId"}[kind]
+				id := str(item[field])
 				key := kind + ":" + id
 				if emitted[key] {
 					continue
 				}
 				emitted[key] = true
-				if kind == "activity" {
-					raw = latestActivities[id]
-				} else {
-					raw = latestInteractions[id]
+				delete(out, field)
+				raw := activities[id]
+				if kind == "interaction" {
+					raw = interactions[id]
+				}
+				if raw == nil {
+					return plugin.ForkResult{}, errors.New("invalid Claude " + kind + " timeline reference")
 				}
 				value := map[string]any{}
 				keys := []string{"kind", "label", "status", "detail", "toolName"}
@@ -168,9 +171,15 @@ func (h *Harness) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 				}
 				out[kind] = value
 			case "notice":
-				notice := cloneObject(obj(item["notice"]))
+				delete(out, "noticeId")
+				notice := cloneObject(notices[str(item["noticeId"])])
+				if notice == nil {
+					return plugin.ForkResult{}, errors.New("invalid Claude notice timeline reference")
+				}
 				delete(notice, "id")
 				out["notice"] = notice
+			case "error":
+				out["message"] = turn.Error
 			}
 			items = append(items, out)
 			if len(items) > 4000 {
@@ -357,7 +366,7 @@ func (d *discussion) event(e NativeEvent) {
 	if e.Frame != nil {
 		d.parser.apply(d.state, d.turn, e.Frame, d.bridge.CanonicalToolName)
 	}
-	if len(d.turn.Text) > 256000 {
+	if len(d.turn.assistantText()) > 256000 {
 		d.finish("", errors.New("discussion answer exceeds size limit"))
 		go d.Close()
 		return
@@ -453,15 +462,6 @@ var _ plugin.DiscussionPreparer = (*Harness)(nil)
 var _ plugin.MokuContextContributor = (*Harness)(nil)
 
 func fullAssistantReply(turn *Turn) string {
-	id := str(turn.LastAssistantMessage["id"])
-	if id == "" {
-		return str(turn.LastAssistantMessage["text"])
-	}
-	var text strings.Builder
-	for _, item := range turn.Timeline {
-		if str(item["kind"]) == "assistant" && str(item["messageId"]) == id {
-			text.WriteString(str(item["content"]))
-		}
-	}
-	return text.String()
+	_, text := turn.lastAssistantMessage()
+	return text
 }

@@ -37,6 +37,11 @@ failed for both `files` and `mixed`. Repeated assertions within one instance
 contribute more than one issue. Swift Testing reported 378 tests in 71 suites, including 22 skipped
 methods. XCTest separately reported 17 tests, 8 skips, 0 failures.
 
+Three baseline rows for the retired mounted reading-page transition suite are
+omitted: that suite was split into windowless and mounted lifecycle suites on
+2026-11-15, with the horizontal fixture updated to production panel presentation. The counts above describe the original audit, not the current suite
+inventory.
+
 A = confirmed product regression; B = test environment/scheduling; C = explicit
 fixture/capability gate. All 23 baseline failures are B: every original assertion
 passed with the unchanged binary under serial scheduling, then with the shared
@@ -58,15 +63,12 @@ extrapolation.
 | `NativeComposerPasteTests` | `shortcutPastesIntoMoku(content:control:)` — `png, false` | `NativeComposerPasteTests.swift:105:42` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `RollingNumberCellTests` | `threadCardUsageRollsInsideStableCells()` | `RollingNumberCellTests.swift:60:9` — `Expectation failed: (initial != during && during != settled → false) && (initial != settled → <not evaluated>)` | B |
 | `NativeOverviewAutoReturnTests` | `explicitReturnFitsBeforeResumingAttentionEvenWhenTargetIsVisible()` | `NativeOverviewAutoReturnTests.swift:24:24` — `Issue recorded; Camera did not reach the expected framing` | B |
-| `NativeReadingPagePresentationTests` | `ordinaryDetailSlidesOpaqueOverTheVisibleOverview()` | `NativeReadingPagePresentationTests.swift:94:9` — `Expectation failed: (right.blueComponent > 0.9 → false) && (right.redComponent < 0.1 → <not evaluated>)` | B |
 | `RollingNumberCellTests` | `projectedUsageUpdatesKeepTheirAnimation()` | `RollingNumberCellTests.swift:155:13` — `Expectation failed: (before != during && during != settled → false) && (before != settled → <not evaluated>)` | B |
 | `NativeOverviewTagGlassTests` | `closedChildSelectionUpdatesDirectoryLabelAndClears()` | `NativeOverviewTagGlassTests.swift:420:38` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `NativeOverviewTransitionTests` | `ordinaryExitFinishesBeforeReflowAndEntryRisesWithoutScaling()` | `NativeOverviewTransitionTests.swift:149:9` — `Expectation failed: try redness(window, at: exiting) < originalRedness * 0.8` | B |
 | `NativeOverviewCenteringTests` | `dockReservationRePacksThePreviousFiveCardCaseWithoutOverflow()` | `NativeOverviewCenteringTests.swift:201:38` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `GitThreadExtensionTests` | `sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes()` | `GitThreadExtensionTests.swift:217:9` — `Expectation failed: (initial != during && during != settled → false) && (initial != settled → <not evaluated>)` | B |
-| `NativeReadingPagePresentationTests` | `closeRetainsDestinationUntilReturnFinishesAndCanBeCancelled()` | `NativeReadingPagePresentationTests.swift:105:38` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `NativeReportNavigationTests` | `reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack()` | `NativeReportNavigationTests.swift:147:9` — `Expectation failed: (intermediateSamples → 0) > 0` | B |
-| `NativeReadingPagePresentationTests` | `interruptedNavigationKeepsCloseActionAvailable()` | `NativeReadingPagePresentationTests.swift:131:42` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `NativeSettingsTransitionTests` | `reverseResizeAndInactiveSceneRetireObsoleteCompletions()` | `NativeSettingsTransitionTests.swift:116:38` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `NativeSidecardAttachmentPasteTests` | `shortcutDisplaysRemovesAndSendsAttachments(content:)` — `files` | `NativeSidecardAttachmentPasteTests.swift:145:42` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `NativeSidecardAttachmentPasteTests` | `shortcutDisplaysRemovesAndSendsAttachments(content:)` — `mixed` | `NativeSidecardAttachmentPasteTests.swift:145:42` — `Issue recorded; SwiftUI presentation did not settle` | B |

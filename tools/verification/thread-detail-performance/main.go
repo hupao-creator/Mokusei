@@ -40,9 +40,6 @@ func main() {
 			t.Plan = append(t.Plan, step.(map[string]any))
 		}
 		t.PlanExplanation = "hidden explanation"
-		t.Timeline = append(t.Timeline, map[string]any{"id": "plan", "kind": "plan", "createdAt": t.CreatedAt})
-		t.Text = "answer"
-		t.Reasoning = "reasoning"
 		t.Timeline = append(t.Timeline, map[string]any{"id": "reasoning", "kind": "reasoning", "content": "reasoning", "createdAt": t.CreatedAt}, map[string]any{"id": "answer", "kind": "assistant", "content": "answer", "status": "complete", "createdAt": t.CreatedAt})
 		t.Status = status
 		if status != "running" {

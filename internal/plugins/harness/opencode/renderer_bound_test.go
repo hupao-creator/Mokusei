@@ -238,7 +238,7 @@ func TestRendererBoundsExecutionsAndInteractions(t *testing.T) {
 		"interactions": []Object{{
 			"id": "huge", "executionId": "exec", "sessionId": "session", "kind": "permission",
 			"title": strings.Repeat("t", 34<<20), "status": "pending", "action": "allow",
-			"resources": []any{strings.Repeat("r", 34<<20)}, "save": []any{},
+			"resources": []any{"/workspace/document"}, "save": []any{},
 		}},
 	}
 	projected, err := rendererMarshalProjection(wholeState)
@@ -295,7 +295,7 @@ func TestRendererBudgetBoundaryAndMinimalFallback(t *testing.T) {
 	latest := "exec"
 	hostile := Object{
 		"version": 1, "messages": []Object{}, "executions": []Object{
-			{"executionId": latest, "status": "failed", "startedAt": 0, "finishedAt": 0, "error": "failed"},
+			{"executionId": latest, "status": "completed", "startedAt": 10, "finishedAt": 20},
 		}, "latestExecutionId": latest, "interactions": []Object{},
 		"junk": map[string]any{strings.Repeat("k", rendererWireBudget+1): true},
 	}
@@ -312,6 +312,10 @@ func TestRendererBudgetBoundaryAndMinimalFallback(t *testing.T) {
 		value["contentTruncated"] != true || value["junk"] != nil {
 		t.Fatalf("final fallback was not minimal/legal: %d bytes %#v", len(minimal), value)
 	}
+	execution := value["executions"].([]any)[0].(map[string]any)
+	if execution["status"] != "completed" || execution["startedAt"] != float64(10) || execution["finishedAt"] != float64(20) {
+		t.Fatal("minimal fallback invented a different execution outcome")
+	}
 }
 
 func TestRendererFormConditionUsesKey(t *testing.T) {
@@ -323,7 +327,7 @@ func TestRendererFormConditionUsesKey(t *testing.T) {
 	if !ok {
 		t.Fatal("conditional form field was dropped")
 	}
-	conditions := bound["when"].([]Object)
+	conditions := rendererObjects(bound["when"])
 	if len(conditions) != 1 || conditions[0]["key"] != "mode" {
 		t.Fatalf("conditional form condition lost its key: %#v", conditions)
 	}
@@ -504,8 +508,8 @@ func TestRendererBoundHelperContracts(t *testing.T) {
 		t.Fatalf("question fallback failed: %#v", question)
 	}
 	first, second := question["options"].([]Object)[0], question["options"].([]Object)[1]
-	if first["value"] == second["value"] || len(rendererText(first["value"])) > 2_000 {
-		t.Fatal("long question option values were not unique and bounded")
+	if first["value"] != strings.Repeat("a", 3_000) || second["value"] != strings.Repeat("a", 2_999)+"b" {
+		t.Fatal("question option response values changed during display bounding")
 	}
 
 	executionState := Object{"executions": []Object{{"executionId": "exec"}}}
@@ -572,9 +576,81 @@ func TestRendererBoundHelperContracts(t *testing.T) {
 	if estimate := rendererEncodedSize(value); estimate < len(encoded)-8 || estimate > len(encoded)+32 {
 		t.Fatalf("size estimator %d differs from encoding %d", estimate, len(encoded))
 	}
-	firstUnique := rendererBoundUniqueText(strings.Repeat("z", 3_000)+"a", 2_000)
-	secondUnique := rendererBoundUniqueText(strings.Repeat("z", 3_000)+"b", 2_000)
-	if firstUnique == secondUnique || len(firstUnique) > 2_000 || len(secondUnique) > 2_000 {
-		t.Fatal("unique text hash did not distinguish truncated values")
+}
+func TestRendererFallbackPreservesPendingFormContract(t *testing.T) {
+	choiceKey := strings.Repeat("k", 17<<10)
+	chosen := strings.Repeat("v", 3_000)
+	options := make([]any, 70)
+	for index := range options {
+		options[index] = Object{"value": fmt.Sprintf("option-%d", index), "label": fmt.Sprintf("Option %d", index)}
+	}
+	options[len(options)-1] = Object{"value": chosen, "label": "Selected option"}
+	fields := make([]Object, 65)
+	fields[0] = Object{"type": "string", "key": choiceKey, "title": "Choice", "required": true, "options": options, "default": chosen}
+	for index := 1; index < len(fields); index++ {
+		fields[index] = Object{"type": "string", "key": fmt.Sprintf("field-%d", index), "title": "Required answer", "required": true}
+	}
+	fields[2]["when"] = []any{Object{"key": "field-1", "op": "neq", "value": "never"}}
+	if err := ValidateFields(fields); err != nil {
+		t.Fatalf("invalid native form fixture: %v", err)
+	}
+	latest := "exec"
+	state := State{Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Executions:   []*model.PublicExecution{{ExecutionID: latest, Status: "running", StartedAt: 0}},
+		Messages:     []*Message{{ID: "tool", ExecutionID: latest, Role: "tool", ToolCallID: "call", ToolName: "read", Status: "complete", Text: strings.Repeat("x", rendererWireBudget+1)}},
+		Interactions: []*Interaction{{ID: "form", ExecutionID: latest, SessionID: "session", Kind: "form", Title: "Required form", Status: "pending", Fields: fields}},
+	}
+	state.RefreshInteractions(latest)
+	projected, err := (StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "execution", Key: latest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded State
+	if err := json.Unmarshal(projected, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(projected) > rendererWireBudget || len(decoded.Interactions) != 1 || len(decoded.Executions) != 1 {
+		t.Fatalf("fallback lost the bounded form/execution pair: bytes=%d native=%d executions=%d", len(projected), len(decoded.Interactions), len(decoded.Executions))
+	}
+	actualFields := decoded.Interactions[0].Fields
+	if len(actualFields) != len(fields) {
+		t.Errorf("fallback dropped required fields: got %d, want %d", len(actualFields), len(fields))
+	}
+	if err := ValidateFields(actualFields); err != nil {
+		t.Error("fallback corrupted the native form contract")
+	}
+	if actualFields[0]["key"] != choiceKey {
+		t.Error("fallback changed the field key used to derive the public question ID")
+	}
+	if len(fieldOptions(actualFields[0])) != len(options) || fieldOptions(actualFields[0])[len(fieldOptions(actualFields[0]))-1]["value"] != chosen {
+		t.Error("fallback changed the option set/value used to derive response IDs")
+	}
+	if decoded.Executions[0].Status != "waiting-for-user" || len(decoded.Executions[0].Interactions) != 1 || len(decoded.Executions[0].Interactions[0].Questions) != len(fields) {
+		t.Error("fallback changed the authoritative waiting state or public questions")
+	}
+	answers := make(map[string]json.RawMessage, len(actualFields))
+	for index, field := range actualFields {
+		key := str(field["key"])
+		answer := "answer"
+		if index == 0 {
+			answer = optionID(decoded.Interactions[0], key, chosen)
+		}
+		answers[questionID(decoded.Interactions[0], key)], _ = json.Marshal(answer)
+	}
+	if result := model.ValidatePublicInteractionAnswers(state.Executions[0].Interactions[0], answers); !result.Valid {
+		t.Fatalf("answers generated from the fallback form no longer satisfy Core: %v", result.Errors)
+	}
+}
+
+func TestRendererRejectsUnrepresentablePermissionContract(t *testing.T) {
+	latest := "exec"
+	state := State{Version: 1, NativeSessionID: "session", LatestExecutionID: &latest,
+		Executions:   []*model.PublicExecution{{ExecutionID: latest, Status: "running", StartedAt: 0}},
+		Interactions: []*Interaction{{ID: "permission", ExecutionID: latest, SessionID: "session", Kind: "permission", Title: "Allow request", Status: "pending", Action: "read", Resources: []string{strings.Repeat("x", rendererWireBudget+1)}}},
+	}
+	state.RefreshInteractions(latest)
+	projected, err := (StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "execution", Key: latest})
+	if err == nil || !strings.Contains(err.Error(), "response contract") || len(projected) != 0 {
+		t.Fatalf("unrepresentable permission must fail without rewriting authorization resources: bytes=%d err=%v", len(projected), err)
 	}
 }
