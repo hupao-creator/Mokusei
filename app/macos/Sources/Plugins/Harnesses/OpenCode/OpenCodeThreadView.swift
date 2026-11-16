@@ -57,6 +57,10 @@ public struct OpenCodeThreadView: View {
                     isActive: execution.status == .running || execution.status == .waitingForUser),
                 node: AnyView(row(execution.executionID, state: state))))
         }
+        if openCodeTruncationPlacement(truncated: state.contentTruncated, presentation: context.presentation) == .surface {
+            rows.append(.init(id: "opencode-content-truncated", createdAt: input.thread.createdAt,
+                              node: AnyView(OpenCodeTruncationNotice())))
+        }
         let target = input.readingTarget.map { target in
             ThreadConversationReadingTarget(requestId: target.requestID, mode: target.mode == .current ? .current : .history,
                 executionId: target.executionID, anchorId: ocMokuReplyAnchor(state, target: target.message)
@@ -68,7 +72,8 @@ public struct OpenCodeThreadView: View {
             runningTurnId: input.thread.observation.isExecutionActive ? latest?.executionID : nil,
             activeExecutionId: input.thread.observation.isExecutionActive ? latest?.executionID : nil, context: context,
             renderRow: context.content == .manifest ? { key in
-                AnyView(OpenCodeLazyRow(key: key, input: input, actions: actions, context: context,
+                if key == "opencode-content-truncated" { return AnyView(OpenCodeTruncationNotice()) }
+                return AnyView(OpenCodeLazyRow(key: key, input: input, actions: actions, context: context,
                     onAnchor: { request, anchor in resolvedAnchor = (request, anchor) }))
             } : nil)
             .environment(\.threadCardProviderColor, NativePalette.pair(0x33312f, 0xd9d7d4).swiftUI)
@@ -178,6 +183,10 @@ private struct OpenCodeTurn: View {
             rows.append(.init(id: interaction.id, kind: .attention, node: AnyView(OpenCodeInteractionPanel(interaction: interaction,
                 native: state.nativeInteraction(interaction.id), actions: actions).id(interaction.id))))
         }
+        if openCodeTruncationPlacement(truncated: state.contentTruncated, presentation: context.presentation) == .inline {
+            rows.insert(.init(id: "opencode-content-truncated", kind: .content,
+                node: AnyView(OpenCodeTruncationNotice())), at: 0)
+        }
         let nativeAuthor = messages.last { $0.role == "assistant" && !ocTrim($0.raw["model"]?.stringValue ?? "").isEmpty && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }
         var author = state.raw["executionAuthors"]?.objectValue?[execution.executionID]?.objectValue ?? [:]
         if let effort = nativeAuthor?.raw["variant"], effort.stringValue?.isEmpty == false { author["effort"] = effort }
@@ -200,7 +209,7 @@ private struct OpenCodeTurn: View {
                 if let part = message.parts.last {
                     return ["reasoning", "tool"].contains(part["type"]?.stringValue ?? "")
                 }
-                return message.text.isEmpty && message.raw["thinking"]?.stringValue?.isEmpty == false
+                return message.text.isEmpty && !message.thinking.isEmpty
             } ?? false)
             .nativeReadingExecutionReady(execution.executionID, settled: !executionActive)
     }
@@ -277,7 +286,9 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
         guard message.role == "assistant" else { continue }
         var parts = message.parts
         if parts.isEmpty {
-            if let thinking = message.raw["thinking"], (thinking.stringValue?.isEmpty == false || presence.contains(message.id, "thinking")) { parts.append(.object(["type": .text("reasoning"), "ordinal": .number(-1), "text": thinking])) }
+            // Canonical state v2 stores assistant reasoning in parts. A parts-less
+            // assistant row is only a compact directory preview, so it can carry
+            // text but never a separate thinking aggregate.
             if !message.text.isEmpty || presence.contains(message.id, "text") { parts.append(.object(["type": .text("text"), "ordinal": .number(0), "text": .text(message.text)])) }
         }
         var renderedText = false
@@ -291,7 +302,7 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
                 if let tool = tools[ocJoinedID([message.id, ":tool:", part.ocID("toolCallId")])], renderedTools.insert(tool.id).inserted { result.append(ocToolRow(tool, locale: locale, agentDetail: agentDetail)) }; continue
             }
             let text = part["text"]?.stringValue ?? ""
-            let field = message.parts.isEmpty ? (type == "text" ? "text" : "thinking") : "parts:\(type):\(part["ordinal"]?.intValue ?? 0)"
+            let field = message.parts.isEmpty ? "text" : "parts:\(type):\(part["ordinal"]?.intValue ?? 0)"
             guard !ocTrim(text).isEmpty || presence.contains(message.id, field) else { continue }
             if type == "text" { renderedText = true }
             let id = ocMessagePartRowID(message, part)
@@ -342,16 +353,14 @@ private struct OpenCodeChildSessionContent: View {
     return .init(id: message.id, kind: .work, node: AnyView(ThreadSurfaceDisclosure(
         label: (message.raw["toolName"]?.stringValue ?? ocLocalized("工具", locale: locale)) + (failed ? " · " + ocLocalized("失败", locale: locale) : ""), live: message.status == "streaming") {
         VStack(alignment: .leading, spacing: 4) {
-            if message.raw["arguments"] != nil {
+            if message.raw["argumentsDisplay"] != nil {
                 Text(ocLocalized("输入", locale: locale)).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI).padding(.top, 8)
                 OpenCodeProjectedToolOutput(message: message, field: "arguments")
             }
-            if message.raw["result"] != nil || !message.text.isEmpty {
+            if message.raw["resultDisplay"] != nil {
                 Text(ocLocalized("输出", locale: locale)).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI).padding(.top, 8)
-                Group {
-                    if message.text.isEmpty { OpenCodeProjectedToolOutput(message: message, field: "result") }
-                    else { OpenCodeToolOutput(text: message.text) }
-                }.foregroundStyle(failed ? NativePalette.thread.danger.swiftUI : NativePalette.thread.ink.swiftUI)
+                OpenCodeProjectedToolOutput(message: message, field: "result")
+                    .foregroundStyle(failed ? NativePalette.thread.danger.swiftUI : NativePalette.thread.ink.swiftUI)
             }
         }
     }), execution: .member, executionSummary: .init(toolCalls: 1))
@@ -360,10 +369,7 @@ private struct OpenCodeProjectedToolOutput: View {
     let message: OpenCodeMessage
     let field: String
     var body: some View {
-        switch Result(catching: { try message.toolDisplay(field) }) {
-        case .success(let display): OpenCodeToolOutput(text: display?.string ?? "")
-        case .failure(let error): OpenCodeFailure(message: error.localizedDescription)
-        }
+        OpenCodeToolOutput(text: message.toolDisplay(field)?.string ?? "")
     }
 }
 struct OpenCodeToolOutput: View {
@@ -375,6 +381,21 @@ struct OpenCodeToolOutput: View {
                 .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }.frame(height: min(360, max(18, contentHeight)))
+    }
+}
+enum OpenCodeTruncationPlacement: Equatable { case none, surface, inline }
+func openCodeTruncationPlacement(truncated: Bool, presentation: HarnessConversationPresentation) -> OpenCodeTruncationPlacement {
+    guard truncated else { return .none }
+    if case .execution = presentation { return .inline }
+    return .surface
+}
+private struct OpenCodeTruncationNotice: View {
+    @Environment(\.locale) private var locale
+    var body: some View {
+        Text(ocLocalized("部分内容因体积限制被省略或截断；完整内容仍保存在会话记录中。", locale: locale))
+            .font(NativeTypography.inter(size: 12))
+            .foregroundStyle(NativePalette.thread.muted.swiftUI)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 struct OpenCodeFailure: View {

@@ -15,6 +15,7 @@ public struct OpenCodeOverviewView {
     public let effort: String
     public let pendingInteractionID: JSONText?
     public let openForm: Bool
+    public let contentTruncated: Bool
 }
 func projectOpenCodeOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<OpenCodeOverviewView> {
     let state = try OpenCodeState(input.thread.sessionState)
@@ -64,7 +65,8 @@ func projectOpenCodeOverview(input: HarnessThreadInput, availableColumns: Int) t
                                     hasVisibleInteraction: pending != nil) : nil
     let view = OpenCodeOverviewView(presentation: presentation, excerpt: initial == nil ? excerpt : "", message: initial == nil ? message : nil,
         initialResponseContent: state.initialResponseScope && agent != nil && input.thread.moku != true, initialResponse: initial, steer: steer,
-        model: model.isEmpty ? "OpenCode" : model, effort: settings["thinking"].map(ocThinkingLabel) ?? "未选择", pendingInteractionID: pending?.id, openForm: openForm)
+        model: model.isEmpty ? "OpenCode" : model, effort: settings["thinking"].map(ocThinkingLabel) ?? "未选择", pendingInteractionID: pending?.id, openForm: openForm,
+        contentTruncated: state.contentTruncated)
     return .init(footprint: .init(columns: presentation.size.cols, rows: presentation.size.rows), structureKey: JSONText(presentation.key), excerpt: excerptRaw, view: view)
 }
 func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONText?, status: PublicExecution.Status?) -> (id: JSONText, text: JSONText)? {
@@ -78,11 +80,17 @@ func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONText?, stat
             ((part["type"]?.stringValue == "text" && complete) || (part["type"]?.stringValue == "reasoning" && reasoningEligible)) && !ocTrimText(part.ocID("text")).codeUnits.isEmpty
         }
         let part = live ? message.parts.last(where: { $0["type"]?.stringValue == "text" && eligible($0) }) ?? message.parts.last(where: eligible) : message.parts.last(where: eligible)
-        let answer = complete ? ocTrimText(message.raw.ocID("text")) : JSONText("")
-        let reasoning = reasoningEligible ? ocTrimText(message.raw.ocID("thinking")) : JSONText("")
-        let kind = part?["type"]?.stringValue ?? (answer.codeUnits.isEmpty ? "reasoning" : "text")
-        let text = kind == "reasoning" && part != nil ? ocTrimText(part?.ocID("text") ?? "") : !answer.codeUnits.isEmpty ? answer : part?["type"]?.stringValue == "text" ? ocTrimText(part?.ocID("text") ?? "") : reasoning
-        if !text.codeUnits.isEmpty { return (id: ocJSONStringID([.string(message.executionID), .text(message.role), .string(message.id), .text(kind), part?["ordinal"] ?? .null]), text: text) }
+        let answer = complete ? ocTrimText(JSONText(message.text)) : JSONText("")
+        let reasoning = reasoningEligible ? ocTrimText(JSONText(message.thinking)) : JSONText("")
+        // A settled preview is the answer even when a later reasoning part is
+        // the card's detail part; compact [text, reasoning] must not hide text.
+        let kind = !answer.codeUnits.isEmpty ? "text" : part?["type"]?.stringValue ?? "reasoning"
+        let text = !answer.codeUnits.isEmpty ? answer : kind == "reasoning" && part != nil ? ocTrimText(part?.ocID("text") ?? "") : part?["type"]?.stringValue == "text" ? ocTrimText(part?.ocID("text") ?? "") : reasoning
+        // The aggregate answer has no part ordinal. Attach an ordinal only when
+        // the selected part has the returned kind; otherwise the anchor would
+        // claim text while pointing at a reasoning row.
+        let ordinal = part?["type"]?.stringValue == kind ? part?["ordinal"] ?? .null : .null
+        if !text.codeUnits.isEmpty { return (id: ocJSONStringID([.string(message.executionID), .text(message.role), .string(message.id), .text(kind), ordinal]), text: text) }
     }
     return nil
 }
@@ -109,6 +117,12 @@ public struct OpenCodeOverviewCard: View {
             .environment(\.threadCardProviderColor, NativePalette.pair(0x33312f, 0xd9d7d4).swiftUI)
             .environment(\.threadCardCloudPalette, OpenCodeLogo.threadCardCloudPalette)
             .overlay(alignment: .bottomLeading) { if let failure { Text(failure).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18) } }
+            .overlay(alignment: .bottomTrailing) {
+                if openCodeOverviewShowsTruncation(projection.contentTruncated) {
+                    Text(ocLocalized("部分内容已省略", locale: locale)).font(NativeTypography.inter(size: 11))
+                        .foregroundStyle(NativePalette.thread.muted.swiftUI).padding(18)
+                }
+            }
     }
     private func respond(_ response: ThreadCardInterventionResponse) async throws {
         failure = nil
@@ -122,6 +136,8 @@ public struct OpenCodeOverviewCard: View {
         } catch { failure = error.localizedDescription; throw error }
     }
 }
+func openCodeOverviewShowsTruncation(_ truncated: Bool) -> Bool { truncated }
+
 func ocThinkingLabel(_ value: JSONValue) -> String {
     value["mode"]?.stringValue == "effort" ? value["effort"]?.stringValue ?? "" : value["mode"]?.stringValue ?? "未选择"
 }
@@ -156,7 +172,7 @@ func projectOpenCodeMoku(_ state: OpenCodeState) -> HarnessMokuPresentation {
     for candidate in state.executions.reversed() where candidate.status == .completed {
         if let message = state.messages.last(where: { $0.executionID == candidate.executionID && $0.role == "assistant" && $0.status == "complete" && !$0.inherited && !ocTrim($0.text).isEmpty && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }) {
             reply = .init(id: ocJSONStringID([.string(candidate.executionID), .string(message.id)]), executionID: candidate.executionID,
-                excerpt: ocHeadText(ocTrimText(message.raw.ocID("text")), points: HarnessMokuPresentation.maximumReplyExcerptPoints),
+                excerpt: ocHeadText(ocTrimText(JSONText(message.text)), points: HarnessMokuPresentation.maximumReplyExcerptPoints),
                 target: .object(["executionId": .string(candidate.executionID), "messageId": .string(message.id)])); break
         }
     }

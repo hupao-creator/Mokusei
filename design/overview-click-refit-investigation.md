@@ -195,7 +195,7 @@ Canvas 仍等卡片的退出/收缩/移动/进入阶段结束后才请求 refit�
 - 原本已手动取景，以及自动动画中被手动接管：后续收缩与等待均不覆盖手动 transform。
 - 相机等待布局 stage 时不会抢先播放；排队中替换 bounds 后采用最新目标。
 - 自动镜头已经播放时再次变更 footprint：最终收敛到最新目标，而非旧动画终点。
-- 普通取景比例仍为 1.0 的进一步收缩：保留阅读位置，不产生额外镜头动画。
+- 普通取景比例仍为 1.0 的进一步收缩：当时保留阅读位置；后续同比例宽度收缩改为自动重居中，见下节。
 - 交互开始打断已播放的自动 refit；暂停期间位置稳定，解除后完成剩余取景。
 
 这些是直接运行生产相机及 stage 的定向诊断，不是挂载 Canvas 的端到端证据。
@@ -210,3 +210,98 @@ Release `Mokusei` 编译/链接 237.62 秒、`MokuseiEmbedding` 4.87 秒；
 本次仅相机源码、Overview README 和此调查文档改变；diff 和两份文档的
 43 个本地链接目标检查通过。未新增仓库测试，未运行单元测试、GUI 回放、
 全量回归、提交 hooks 或 CI，也未推送。
+
+## 同比例水平收缩补充修复
+
+后续日志和同一生产相机路径确认：旧集合 1112×692（三列）收缩为 736×692
+（两列）时，新旧普通 fit 的 scale 都是 1.0，只有 x 从 114.5 变为 302.5。
+`preservingReadingPosition` 的同比例分支因此保留旧平移，`readingFit` 又被
+`updateAuto()` 视为已完成目标，自动 refit 从未排程；点击空白清掉
+`readingFit` 后才回到 302.5。
+
+相机现在记录最后一次 settled automatic target（包括被 clamp 的自动目标）及其
+content bounds，并为 retained target 按轴标记来源：ordinary fit/clamp 产生的
+自动 x/y，或显式 retained filter/reading seat。`requestRefit` 在
+`layoutChanged` 时仅当同时满足以下条件才把自动 x 换成新普通 x，并交给现有 refit
+节流；y 按来源保留或取新普通 y：
+
+- 当前目标或 live 是自动来源，且 live 仍近似该自动目标；
+- 新 content 宽度不大于旧 content；高度可以增长，覆盖 2×1→1×2 这类 aspect 变化；
+- 普通 fit 的 scale 不变；
+- 新普通 fit 的 x 与当前自动 x 有可见差异。
+
+命中时 x 取新普通 fit；任何 height shrink 都会创建 persistent vertical seat：
+若旧 y 与新普通 y 不同，则保留旧 y 并 clamp；同一事务的 width shrink 只替换 x，
+仍保留该 seat。普通高度增长不会创建 retained y，但已有 seat 会跨后续增长保留，
+直到 explicit return、manual、viewport 变更或 reset；`retainFraming` /
+`preserveFraming` 会重置 automatic provenance 并把当前视图转成 intentional
+baseline。纯垂直 height shrink 因 x 不变仍保留垂直座位；height shrink + width
+shrink 同事务时 x 重居中、y 保留。与 ordinary fit 不同的显式 retained
+filter/reading target、手动 pan/zoom、scale 变化和容量不足场景保持原策略。
+`retainFraming` 和 `preserveFraming` 会把当前视图写成 intentional retained
+baseline；后续 local edit 保留该视图，而不是复活旧 automatic seat。in-flight
+`preserveFraming` 会取消 refit，并把采样帧先经 `preservingReadingPosition`
+clamp 后作为 baseline；它可能停在中间帧，而不是起点或终点。refit 仍在等待
+spatial stage（`track == nil`）时，`cancelMotion(committing:)` 也提交同一
+clamped baseline，确保 live 与 target 不分裂。
+`setManualTransform` 清除 retained target，避免 filtered edit 跳回旧
+`readingFit`。viewport 变更在 `setBounds` 同步清除两类 provenance。连续
+shrink→grow→shrink 中 grow 产生的 clamp 仍标记为自动来源，后续 shrink 会重新
+居中。grow 目标尚未 settle 时到达的 shrink 保留 pending target；后续 layout
+revision 或显式 return 再重新判断自动 clamp。该 pending 语义是本轮接受的现状，
+不会仅因目标 settle 就重新评估，由
+`consecutiveFootprintChangesKeepPendingReadingTarget` 和新增 camera case 覆盖。
+
+定向诊断直接编译本 worktree 的 `NativeOverviewLayout.swift`、
+`NativeOverviewStageCoordinator.swift`、`NativeOverviewCamera.swift`，覆盖：
+原始 x=114.5→302.5 的 Canvas 顺序；2×1→1×2（宽度收缩、高度增长）；
+filtered retained target 及 filter 后 local edit；shrink→grow→shrink；
+纵向 seat 后 width shrink（保留 y）；height shrink 纯垂直座位；height shrink
++ width shrink 同事务；非 row-deletion 的卡片高度缩小；连续 height shrink；
+height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 shrink；
+隐藏、交互暂停、Reduce Motion、stage 占用。所有 headless 断言通过。
+关键 camera case 已提交到 `NativeOverviewCameraReadabilityTests`：
+`sameScaleAspectChangingShrinkRecentersBothAxes`、
+`filteredEditKeepsRetainedTargetAfterVerticalSeat`、
+`shrinkGrowShrinkRecentersAfterAutomaticClamp`、
+`verticalSeatSurvivesFollowingWidthShrink`、
+`heightGrowthThenWidthShrinkUsesCompleteNarrowFit`、
+`cardHeightShrinkCreatesPersistentVerticalSeat`、
+`widthAndHeightShrinkInSameRevisionKeepsNewXAndOldY`、
+`consecutiveHeightShrinksKeepTheFirstVerticalSeat`、
+`heightSeatPersistsAcrossGrowthAndClampsAtExtremeTallAspect`、
+`extremeWideRetainedSeatStaysVisible`、
+`returnToAutoClearsPersistentVerticalSeat`、
+`retainFramingClearsPersistentVerticalSeat`、
+`retainFramingSameContentKeepsCurrentViewAsBaseline`、
+`retainFramingPublishesBaselineAtomically`、
+`preserveFramingKeepsCurrentViewAsRetainedBaseline`、
+`preserveFramingDuringRefitCancelsThePendingTarget`、
+`preserveFramingDuringAutomaticReturnDoesNotCreateBaseline`、
+`preserveFramingDuringReturnAutoDoesNotCreateBaseline`、
+`preserveFramingWhileRefitWaitsForStageKeepsLiveBaseline`、
+`preserveFramingWhileRefitWaitsForStageCommitsClampedBaseline`、
+`setManualTransformClearsPersistentVerticalSeat`、
+`viewportChangeClearsPersistentVerticalSeat`、
+`resetClearsPersistentVerticalSeat`、
+`persistentSeatSurvivesMixedWidthAndHeightSequence`、
+`pendingGrowKeepsItsSeatUntilANewRevision`。实际卡片 envelope 中心的 GUI
+Canvas case 已提交到 `NativeOverviewCapacityTests`：
+`aspectChangingFootprintRecentersRenderedCard`、
+`persistentVerticalSeatSurvivesRenderedWidthShrink`、
+`inFlightPreserveFramingKeepsRenderedContentVisible`。
+
+相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
+`NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
+`NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
+80 个测试全部通过（约 99 秒）。额外运行 `make check-swift` 全量 Swift
+suite（final working tree），结果不是绿色，不能以 focused 结果替代托管
+`Complete coverage`：headless 213 个测试全部通过；graphical 327 个测试有
+2 个 issue，`GitNativeTests` 缺 `MOKUSEI_GIT_CONTRACT_EVIDENCE`，
+`NativeThreadSendFeedbackTests` presentation settled 失败。本次 native owner
+均产出成功 receipt；更早 full run 还出现过 `NativeVoiceAnalysisTests` 音频、
+`NativeMokuExecutionLinkTests`/excerpt、`NativeBrowserViewportTests`、
+`rolling-numbers` 与 tag-glass onboarding/decoration 的环境/时序相关失败，
+均在不同 run 中波动或单独重跑通过。上述失败均未涉及相机/Overview 取景路径。
+`./scripts/go.sh run ./cmd/mokusei-check architecture` 与
+`./scripts/go.sh vet ./...` 通过；未运行托管 `Complete coverage`，也未推送。

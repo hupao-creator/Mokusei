@@ -14,8 +14,8 @@ Both signed Release artifacts use the same calibrated external collector, a
 There is one trial per artifact, with a 10-second formal interval and 3-second
 tail. See the [machine-readable record](reader-active-opening-20261114.json)
 for binary/report digests, raw evidence paths, scroll results and resource roles.
-These candidate production sources match `536f2a8f`; subsequent local integration
-also includes the separate Overview badge work from `51edadab`.
+These candidate production sources match `536f2a8f`; this PR is benchmark-only
+and does not include the separate Overview badge work.
 
 | Observable endpoint | Before | Candidate |
 | --- | ---: | ---: |
@@ -60,9 +60,10 @@ composer expansion. In these two captures, the first visible composer ink is
 around 1.36 s before and 1.27 s after; by about 1.7 s both appear expanded.
 These are sampled visual observations, not focus readiness or frame-pacing
 measurements. No independent Moku improvement is established by this change.
-The current production horizontal animation is already a 380 ms native ease-out
-translation, followed by the existing 420 ms composer expansion; outdated spring
-descriptions were identified as stale; choreography is outside this final change.
+The production horizontal animation is a 520 ms native keyframe translation with
+a 2.5%/6 pt maximum settling excursion, followed by the existing 420 ms composer
+expansion; outdated spring and 380 ms descriptions were stale. Choreography is
+delivered separately in PR4 and is outside this benchmark change.
 
 The [parallel AttributeGraph investigation](attributegraph-focus-20261114.md)
 reproduced focused-parent hide reentrancy (35 warnings in five iterations) and

@@ -2,15 +2,15 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+The timeline's floating Jump to latest control uses a 42pt circular interactive
+regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
+action and localized accessibility label remain owned by the timeline.
+
 Reading author labels use the validated owning Harness's native logo and name
 from the host environment, independently of the recorded model and effort.
 Without that identity they retain the text-only fallback. The shared label is
 used in reading headers and turn footers, and exposes the Harness name to
 accessibility while keeping the logo decorative.
-
-The timeline's floating Jump to latest control uses a 42pt circular interactive
-regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
-action and localized accessibility label remain owned by the timeline.
 
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread

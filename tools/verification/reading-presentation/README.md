@@ -1,10 +1,10 @@
 # Reading-page background presentation replay
 
-The default command runs twelve reading cases: six mounted lifecycle and
-vertical-history methods plus six windowless geometry and history methods.
-The former full-page horizontal entry and mid-opening Overview return visual
-replays have been retired; current Agent, Report and Moku entry uses panel
-presentation.
+The default command runs seven windowless layout, geometry and history cases
+plus five mounted route lifecycle cases. The retired full-page horizontal
+fixture has been replaced with the production panel configuration. Vertical
+history still uses the production page stack and retains its intermediate
+geometry, pixel-coverage and cancellation assertions.
 
 ## Workspace Reload and rejected Quit
 
@@ -104,9 +104,11 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Five integration tests cover selection and Back scroll
+isolated AppKit host. Six integration tests cover selection and Back scroll
 retention, author and visibility controls, Up/Down, End, Return and Escape,
 inherited history, deletion, arriving successors and external result anchors.
+One mounted case feeds a real Claude thread projection's bounded assistant
+summary through the history sidebar and verifies the preview text.
 The visibility case also mounts a production execution summary with reasoning/tool
 counts, checks that its detail body and execution-group action are absent, and
 hides/restores it through the existing overall execution visibility control.
@@ -123,7 +125,7 @@ The ordinary Swift suite runs the four state/layout tests. The pointer test
 requires the isolated application's running AppKit loop and a foreground visible
 window; CI executes that exact method in `--isolated-input` and the coverage
 collector requires its observed passing outcome. Forced headless admission
-skips display assertions explicitly. The sidebar launcher requires all five
+skips display assertions explicitly. The sidebar launcher requires all six
 tests without skips. A finite onscreen pointer replay synchronizes the system
 cursor and native events (restoring the original cursor on exit) to exercise the
 production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
@@ -131,12 +133,9 @@ rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge
 the focused row before activation while retaining 30ms page reversals; they do
 not wait for the page transition to settle. `hover-panel.png` and `hover-dismissed.png`
 record the mounted result. These are native synthetic events with the real cursor
-and component renders, not physical input or WindowServer capture. The default
-reading-page replay also checks both vertical directions between history identities,
-intermediate geometry, full-column pixel coverage and cancellation. It retains
-`vertical-middle.png`, `earlier-middle.png` and `later-middle.png` under its suite
-evidence directory. The system Reduce Motion
-setting is observed by production code; this replay does not mutate that setting.
+and component renders, not physical input or WindowServer capture. The system
+Reduce Motion setting is observed by production code; this replay does not mutate
+that setting.
 Existing `--moku-execution-links` separately covers
 deferred bodies and exact-result following through all four real Harness renderers.
 
@@ -271,15 +270,16 @@ python3 tools/verification/reading-presentation/run.py
 ```
 
 The isolated AppKit app links the worktree's production reading stack and runs
-its six mounted integration cases with real window visibility. They check parent
-preparation and replacement ownership, retained parent/detail identity, accepted
-Close through focus loss or resize, and cancellation of obsolete returns.
-Vertical history navigation checks edge-to-edge travel and a stable horizontal
-position. The production history route also opens at narrow and wide window
-sizes, checking that long Chinese/path and multiline prompt headings occupy the
-same height as a two-line title and keep the answer in place. The six windowless
-geometry/history cases in the same source file execute too: Swift Testing's
-runtime method IDs include that filename and match the default filter.
+both suites. `NativeReadingPageHeadlessTests` owns seven windowless cases:
+bounded heading layout, return containment and stale-anchor ownership, vertical
+scroller retention, history replacement input gating and obsolete-return
+cancellation. `NativeReadingRouteLifecycleTests` owns five mounted cases:
+panel return preparation and replacement, accepted Close during focus loss,
+vertical history entry/replacement/return without a gap, cancellation of an
+obsolete Close, and accepted Close through resize or scene changes. These
+assertions cover behavior still used by the panel and vertical history routes;
+sidebar and execution-link replays do not replace their intermediate pixels or
+controlled preparation interleavings.
 
 The launcher stages link objects, modules, headers, framework, replay sources
 and resource bundles outside the checkout. The app validates its temporary
@@ -874,8 +874,8 @@ Markdown cases explicitly skip; this run does not certify those cases.
 runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 message-completion follow/stop/resume, successor isolation, archived/failed and missing
-execution targets. CI adds `--native-owned` to select only the capsule method
-declared in `swift_ownership.py`; the other nine mounted and two windowless
+execution targets. CI adds `--native-owned` to select the capsule and animated
+execution-follow methods declared in `swift_ownership.py`; the other eight mounted and two windowless
 methods run in the complete ordinary Swift suite. The original local command
 retains all twelve methods for diagnosis.
 The running-link case sends enough streaming blocks to fill multiple pages and
@@ -912,7 +912,38 @@ The lifecycle case checks current and result timelines across completed, running
 waiting for input and completed states for all four Harnesses. Jump to latest
 is absent for completed executions, disappears on completion without scrolling,
 and stays absent when a successor starts. The existing running-link case verifies
-that activating the mounted action resumes following.
+that activating the mounted action resumes following. This method requires the
+real AppKit loop and a visible window with Reduce Motion disabled. A display
+callback must observe an intermediate scroll position and deliver the successor
+in that callback. The position must precede both the original and current
+document bottom, including the native clip view's constrained bottom; a shrinking
+lazy estimate must not make an already settled position count as intermediate.
+After the new reply mounts, the updated long document must settle without manual
+scrolling: the control retains following, and the same attached native reader's
+model and presentation offsets both reach its live constrained bottom within 5pt
+on two consecutive display callbacks. The final `NEW STREAMING CONTENT 219`
+paragraph must also be visible in that reader. A transient short layout with
+bottom zero cannot pass. Registry geometry remains diagnostic because its
+projection can disagree with the mounted document. All original withheld-content
+and full-paragraph assertions remain.
+After traversing a reply, preparation observes the current long document under
+manual ownership. Its document frame/bounds and native clip bounds must remain
+unchanged across two display callbacks; the clip model must lie within its current
+constrained range, and presentation bounds must agree with the model within 5pt.
+A [numeric scroll position](https://developer.apple.com/documentation/swiftui/scrollposition)
+does not guarantee its old offset across content-size changes, so preparation
+checks stable presentation. The second callback
+synchronously issues the return to top exactly once.
+The return must then commit across two display callbacks before the next content
+update; a refreshed control descriptor alone is insufficient. Preparation and
+return retain independent 3s deadlines and distinct failure receipts.
+`MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED` must be emitted for every Harness.
+No production environment flag replaces the animated path with an immediate jump.
+For diagnosis, `MOKUSEI_TIMELINE_PROFILE=1 python tools/verification/reading-presentation/run.py --moku-execution-links --native-owned`
+records up to 120 jump snapshots plus the terminal state, including scroll ownership,
+binding state and native model/presentation geometry. Every Harness receipt must
+confirm that the profile flag reached the app. This instrumentation observes the
+existing path without changing its scrolling decisions or final tolerance.
 The twelve-method replay also mounts the production clear-glass execution capsules
 for all four Harnesses. It checks narrow long-title geometry, native accessible
 activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated
@@ -1023,3 +1054,5 @@ through a camera change and the spinner's hide/resume behavior. No pre-rendered
 assets, style-equivalence golden or physical FPS claim is involved. The ordinary
 native owner still runs this case inside `--tag-glass-captures`; the focused flag
 does not replace full CI coverage.
+
+Claude sidebar summary verification observes the same reading interaction collector in ordinary Swift tests and the isolated AppKit launcher. Preview facts are not gated by process flags; without a collector the registration is inert. History-close verification waits for input admission before sending its arrow key.

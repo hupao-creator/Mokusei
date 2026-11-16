@@ -84,21 +84,48 @@ private struct TimelineInteractionRegistration: View {
     let firstIndex: Int
     let visibleRowIds: [JSONText]
     let showOlderRows: Bool
+    // Read profiled scroll state here so diagnostics cannot subscribe the
+    // document's construction to each position update.
+    @Binding var position: ScrollPosition
+    @Binding var latestTransition: UUID?
+    @Binding var userScrolling: Bool
+    @Binding var userPositioned: Bool
+    let followOutput: Bool
+    let followPaused: Bool
+    let suspended: Bool
     let perform: (String, JSONValue) throws -> Void
 
-    var body: some View {
+    private var diagnostics: JSONValue? {
+        guard TimelineConstructionProfile.enabled else { return nil }
+        return .object([
+            "edge": position.edge.map { JSONValue.text(String(describing: $0)) } ?? .null,
+            "point": position.point.map { JSONValue.object(["x": .number(Double($0.x)), "y": .number(Double($0.y))]) } ?? .null,
+            "y": position.y.map { JSONValue.number(Double($0)) } ?? .null,
+            "isPositionedByUser": .bool(position.isPositionedByUser),
+            "latestTransition": .bool(latestTransition != nil),
+            "followOutput": .bool(followOutput), "followPaused": .bool(followPaused),
+            "userScrolling": .bool(userScrolling), "userPositioned": .bool(userPositioned),
+            "suspended": .bool(suspended)
+        ])
+    }
+    private var value: JSONValue {
         let geometry = viewport.geometry
+        var value: [JSONText: JSONValue] = [
+            "top": .number(Double(geometry.top)), "height": .number(Double(geometry.height)),
+            "contentOffset": .number(Double(geometry.contentOffset)), "insetTop": .number(Double(geometry.insetTop)),
+            "viewport": .number(Double(geometry.viewport)), "following": .bool(following),
+            "locatedRequestId": locatedRequest.map(JSONValue.string) ?? .null, "showLatest": .bool(showLatest),
+            "rowCount": .integer(rowCount), "firstIndex": .integer(firstIndex), "visibleCount": .integer(visibleRowIds.count),
+            "visibleRowIds": .array(visibleRowIds.map(JSONValue.string)), "showOlderRows": .bool(showOlderRows)
+        ]
+        if let diagnostics { value["diagnostics"] = diagnostics }
+        return .object(value)
+    }
+    var body: some View {
         NativeReadingControlRegistration(id: "timeline", descriptor: .object([
             "kind": .text("scroll"), "role": .text("timeline"), "label": .text(label),
             "enabled": .bool(enabled), "operations": .array([.text("scrollTo"), .text("scrollBy")]),
-            "value": .object([
-                "top": .number(Double(geometry.top)), "height": .number(Double(geometry.height)),
-                "contentOffset": .number(Double(geometry.contentOffset)), "insetTop": .number(Double(geometry.insetTop)),
-                "viewport": .number(Double(geometry.viewport)), "following": .bool(following),
-                "locatedRequestId": locatedRequest.map(JSONValue.string) ?? .null, "showLatest": .bool(showLatest),
-                "rowCount": .integer(rowCount), "firstIndex": .integer(firstIndex), "visibleCount": .integer(visibleRowIds.count),
-                "visibleRowIds": .array(visibleRowIds.map(JSONValue.string)), "showOlderRows": .bool(showOlderRows)
-            ])
+            "value": value
         ]), perform: perform)
     }
 }
@@ -300,8 +327,11 @@ public struct HarnessMessageTimeline: View {
                         else if new.distance <= 1 { following = !followPaused }
                     }
                     showLatest = new.distance >= 64
-                    if (new.height != old.height || new.viewport != old.viewport) && following && !followPaused && followOutput && prependSnapshot == nil && latestTransition == nil {
-                        position.scrollTo(edge: .bottom)
+                    // Lazy content can settle its offset after its size. Keep
+                    // following that correction until scrolling takes ownership.
+                    if (new.height != old.height || new.viewport != old.viewport || new.distance > 1)
+                        && following && !userScrolling && !followPaused && followOutput && prependSnapshot == nil && latestTransition == nil {
+                        alignToLatest()
                     }
                     locate()
                 }
@@ -328,7 +358,7 @@ public struct HarnessMessageTimeline: View {
                     }
                 }
                 .onChange(of: followKey) { old, new in
-                    if new != nil && new != old && !followPaused && !suspended && readingTarget == nil && readingVisitId == nil && latestTransition == nil {
+                    if new != nil && new != old && !followPaused && !suspended && readingTarget == nil && readingVisitId == nil {
                         if opensAtBottom { openBottom() }
                         else { follow(proxy) }
                     }
@@ -414,7 +444,9 @@ public struct HarnessMessageTimeline: View {
     private func interactionRegistration(visible: [ThreadTimelineRow]) -> some View {
         TimelineInteractionRegistration(viewport: viewport, label: localize("消息时间线"), enabled: !suspended,
             following: following, locatedRequest: locatedRequest, showLatest: showLatest,
-            rowCount: rows.count, firstIndex: firstIndex, visibleRowIds: visible.map(\.id), showOlderRows: showOlderRows) { operation, value in
+            rowCount: rows.count, firstIndex: firstIndex, visibleRowIds: visible.map(\.id), showOlderRows: showOlderRows,
+            position: $position, latestTransition: $latestTransition, userScrolling: $userScrolling, userPositioned: $userPositioned,
+            followOutput: followOutput, followPaused: followPaused, suspended: suspended) { operation, value in
             guard let amount = value.numberValue, amount.isFinite, abs(amount) <= 10_000_000 else {
                 throw NativeReadingControlError("invalid_request", "Scroll offset must be a finite number within 10000000 points")
             }
@@ -435,10 +467,11 @@ public struct HarnessMessageTimeline: View {
         tailLength = rows.count
     }
     private func jumpToLatest() {
-        onJumpToLatest?(); following = true; showLatest = false; clampedRequest = nil; userPositioned = true
+        onJumpToLatest?()
         let transition = UUID()
-        latestTransition = transition
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
+            following = true; showLatest = false; clampedRequest = nil; userPositioned = true
+            latestTransition = transition
             // An edge target follows content growth inside SwiftUI itself.
             // Animate to this snapshot instead, then admit ordinary following.
             position.scrollTo(y: max(0, geometry.height - geometry.viewport))

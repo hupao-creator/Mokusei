@@ -1517,8 +1517,9 @@ func (t *Thread) CompletedReply(executionID string) (string, bool) {
 	}
 	for i := len(t.state.Messages) - 1; i >= 0; i-- {
 		m := t.state.Messages[i]
-		if m.ExecutionID == executionID && m.Role == "assistant" && m.Status == "complete" && (m.NativeSessionID == "" || m.NativeSessionID == t.state.NativeSessionID) && strings.TrimSpace(m.Text) != "" {
-			return m.Text, true
+		text := messageText(m)
+		if m.ExecutionID == executionID && m.Role == "assistant" && m.Status == "complete" && (m.NativeSessionID == "" || m.NativeSessionID == t.state.NativeSessionID) && strings.TrimSpace(text) != "" {
+			return text, true
 		}
 	}
 	return "", false

@@ -316,7 +316,6 @@ struct NativeMokuLandingTests {
         let root = try #require(window.contentView)
         let location = root.convert(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), to: nil)
         let timestamp = ProcessInfo.processInfo.systemUptime
-        print("MOKU_REPLAY_CLICK time=\(timestamp) active=\(NSApp.isActive) key=\(window.isKeyWindow) point=\(point)")
         func event(_ type: NSEvent.EventType) throws -> NSEvent {
             try #require(NSEvent.mouseEvent(with: type,
                 location: location, modifierFlags: [],

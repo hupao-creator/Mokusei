@@ -104,7 +104,7 @@ benchmark 与被拒绝的性能实验记录保留，未增加比例预计算缓�
 恢复原阅读策略后，最终 MokuLanding 10/10 通过（26.181s），包含
 `READING_PARENT_FOCUS_FREEZE_CONFIRMED`。验证前有一次既有 Sidecard 第二次
 点击未恢复主栏宽度，3s 等待超时；之后增加输入诊断重跑通过，最后移除会
-额外调用 hitTest 的诊断，只保留 active/key/point 被动日志，再次 10/10 通过。
+额外调用 hitTest 的诊断与临时点击日志（`MOKU_REPLAY_CLICK`），再次 10/10 通过。
 未放宽断言、增加等待或跳过场景。失败那次没有输入状态证据，不能据后两次
 通过就认定原失败为误报，也没有证明它由本次隐藏修复造成。
 

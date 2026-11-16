@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import QuartzCore
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -102,49 +103,67 @@ import MokuseiHarnessOpenCode
             let running = [.running, .waitingForUser].contains(execution.status)
             let status = id == "target" ? messageStatus ?? (running ? "streaming" : "complete") : "complete"
             if harness == "pi" || harness == "opencode" { return execution.json }
+            if harness == "codex" {
+                var turn: [JSONText: JSONValue] = ["executionId": .text(id), "createdAt": .number(execution.startedAt),
+                    "updatedAt": .number(execution.startedAt + 4), "status": .text(running ? "running" : execution.status.rawValue),
+                    "reasoning": .text(""), "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
+                if let finished = execution.finishedAt { turn["finishedAt"] = .number(finished) }
+                let item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
+                    "status": .text(status), "createdAt": .number(execution.startedAt + 1), "itemId": .text(id + "-native")]
+                var items: [JSONValue] = empty && id == "target" ? [] : [.object(item)]
+                if id == "target", let pendingText {
+                    var pending = item
+                    pending["id"] = .text(id + "-pending")
+                    pending["itemId"] = .text(id + "-pending-native")
+                    pending["content"] = .text(pendingText)
+                    pending["status"] = .text(running ? "streaming" : "complete")
+                    items.append(.object(pending))
+                }
+                let review: [JSONValue] = execution.status == .completed && !empty ? [.object([
+                    "id": .text(id + "-review"), "kind": .text("review"), "createdAt": .number(execution.startedAt + 2),
+                ])] : []
+                turn["timeline"] = .array(items + review)
+                turn["review"] = .text("LATE REVIEW")
+                turn["answer"] = .text(empty && id == "target" ? "" : body)
+                turn["messages"] = .array([])
+                return .object(turn)
+            }
+            // Claude turn state v2 has no aggregate reasoning/text fields.
             var turn: [JSONText: JSONValue] = ["executionId": .text(id), "createdAt": .number(execution.startedAt),
                 "updatedAt": .number(execution.startedAt + 4), "status": .text(running ? "running" : execution.status.rawValue),
-                "reasoning": .text(""), "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
+                "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
             if let finished = execution.finishedAt { turn["finishedAt"] = .number(finished) }
-            var item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
+            let item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
                 "status": .text(status), "createdAt": .number(execution.startedAt + 1)]
-            if harness == "codex" { item["itemId"] = .text(id + "-native") }
             var items: [JSONValue] = empty && id == "target" ? [] : [.object(item)]
             if id == "target", let pendingText {
                 var pending = item
                 pending["id"] = .text(id + "-pending")
-                if harness == "codex" { pending["itemId"] = .text(id + "-pending-native") }
                 pending["content"] = .text(pendingText)
                 pending["status"] = .text(running ? "streaming" : "complete")
                 items.append(.object(pending))
             }
-            var reviewItem: [JSONText: JSONValue] = ["id": .text(id + "-review"), "kind": .text("review"),
-                "createdAt": .number(execution.startedAt + 2)]
-            if harness == "codex" { turn["review"] = .text("LATE REVIEW") }
-            else { reviewItem["content"] = .text("LATE REVIEW") }
-            let review: [JSONValue] = execution.status == .completed && !empty ? [.object(reviewItem)] : []
+            let review: [JSONValue] = execution.status == .completed && !empty ? [.object([
+                "id": .text(id + "-review"), "kind": .text("review"), "createdAt": .number(execution.startedAt + 2),
+                "content": .text("LATE REVIEW"),
+            ])] : []
             turn["timeline"] = .array(items + review)
-            if harness == "codex" {
-                turn["answer"] = .text(empty && id == "target" ? "" : body)
-                turn["messages"] = .array([])
-            } else {
-                turn["text"] = .text(empty && id == "target" ? "" : body)
-                turn["prompts"] = .array([.text(id + " prompt")]); turn["promptAttachments"] = .array([.array([])])
-            }
+            turn["prompts"] = .array([.text(id + " prompt")]); turn["promptAttachments"] = .array([.array([])])
             return .object(turn)
         }
         switch harness {
         case "codex": return .object(["schema": .text("mokusei.harness.codex.thread.v1"), "updatedAt": .number(40),
                                        "turns": .array(turns), "backgroundTerminals": .array([])])
-        case "claude": return .object(["version": .integer(1), "turns": .array(turns), "nativeNotifications": .array([])])
+        case "claude": return .object(["version": .integer(2), "turns": .array(turns), "nativeNotifications": .array([])])
         default:
             let messages: [JSONValue] = executions.flatMap { execution -> [JSONValue] in
                 let id = execution.executionID.string
                 if empty && id == "target" { return [] }
                 let text = id == "target" ? answer : "OTHER EXECUTION \(id)"
                 var message: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "executionId": .text(id), "role": .text("assistant"),
-                    "text": .text(text), "status": .text(id == "target" ? messageStatus ?? ([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete") : "complete")]
+                    "status": .text(id == "target" ? messageStatus ?? ([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete") : "complete")]
                 if harness == "opencode" {
+                    // Assistant bodies exist only in ordered parts.
                     message["parts"] = .array([
                         .object(["type": .text("text"), "ordinal": .integer(0), "text": .text(text)]),
                         .object(["type": .text("text"), "ordinal": .integer(1), "text": .text("Final reply second part")])])
@@ -154,18 +173,21 @@ import MokuseiHarnessOpenCode
                             .object(["type": .text("reasoning"), "ordinal": .integer(1), "text": .text("REASONING RECORD")]),
                             .object(["type": .text("tool"), "toolCallId": .text("fixture-tool")])])
                         let tool: JSONValue = .object(["id": .text(id + "-answer:tool:fixture-tool"),
-                            "executionId": .text(id), "role": .text("tool"), "text": .text("TOOL RECORD"),
+                            "executionId": .text(id), "role": .text("tool"), "resultDisplay": .text("TOOL RECORD"),
                             "status": .text("complete"), "toolCallId": .text("fixture-tool"), "toolName": .text("Fixture tool")])
                         return [.object(message), tool]
                     }
+                } else {
+                    message["text"] = .text(text)
                 }
                 if id == "target", let pendingText {
                     var pending = message
                     pending["id"] = .text(id + "-pending")
-                    pending["text"] = .text(pendingText)
                     pending["status"] = .text([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete")
                     if harness == "opencode" {
                         pending["parts"] = .array([.object(["type": .text("text"), "ordinal": .integer(0), "text": .text(pendingText)])])
+                    } else {
+                        pending["text"] = .text(pendingText)
                     }
                     return [.object(message), .object(pending)]
                 }
@@ -280,8 +302,100 @@ struct NativeMokuExecutionLinkTests {
             offset = min(bottom, offset + max(50, viewport / 2))
         }
         #expect(seen == Set((0..<count).map { "\(phrase) \($0)\(paragraphSuffix)" }))
-        try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
-        try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5 }
+        let scroll = try #require(textViews(root).first {
+            !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty && $0.string.hasPrefix(phrase + " ")
+        }?.enclosingScrollView)
+        let window = try #require(root.window)
+        var settledFrames = 0
+        var frames = 0
+        var samples: [String] = []
+        func nativeBottom() -> CGFloat? {
+            guard let document = scroll.documentView else { return nil }
+            var beyondBottom = scroll.contentView.bounds
+            beyondBottom.origin.y = document.frame.maxY + beyondBottom.height + max(0, scroll.contentInsets.bottom)
+            return scroll.contentView.constrainBoundsRect(beyondBottom).minY
+        }
+        func withinTolerance(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
+            abs(lhs.minX - rhs.minX) < 5 && abs(lhs.minY - rhs.minY) < 5
+                && abs(lhs.width - rhs.width) < 5 && abs(lhs.height - rhs.height) < 5
+        }
+        func sample() -> String {
+            "time=\(ProcessInfo.processInfo.systemUptime) control=\(String(describing: fixture.scroll)) "
+                + "documentFrame=\(String(describing: scroll.documentView?.frame)) documentBounds=\(String(describing: scroll.documentView?.bounds)) "
+                + "clip=\(scroll.contentView.bounds) presented=\(String(describing: scroll.contentView.layer?.presentation()?.bounds)) "
+                + "nativeBottom=\(String(describing: nativeBottom())) constrainedClip=\(scroll.contentView.constrainBoundsRect(scroll.contentView.bounds))"
+        }
+        let preparationInitial = sample()
+        var preparationFrames = 0
+        var preparedFrames = 0
+        var preparationSamples: [String] = []
+        var previousGeometry: (frame: CGRect, bounds: CGRect, clip: CGRect)?
+        var originAttempted = false
+        var originError: (any Error)?
+        var initial = preparationInitial
+        // A numeric target does not pin its old offset across content-size changes.
+        // Present stable current geometry before issuing the explicit return.
+        let preparation = SwiftUIReplay.FrameObserver(view: scroll) {
+            guard !originAttempted else { return true }
+            preparationFrames += 1
+            if preparationSamples.count < 32 { preparationSamples.append(sample()) }
+            if let control = fixture.scroll, let value = control["value"],
+               let document = scroll.documentView, let bottom = nativeBottom(),
+               let presented = scroll.contentView.layer?.presentation(),
+               scroll.window === window, !scroll.isHiddenOrHasHiddenAncestor,
+               control["pending"] == .bool(false), value["following"] == .bool(false),
+               bottom > 5, withinTolerance(scroll.contentView.bounds, scroll.contentView.constrainBoundsRect(scroll.contentView.bounds)),
+               withinTolerance(presented.bounds, scroll.contentView.bounds) {
+                let geometry = (frame: document.frame, bounds: document.bounds, clip: scroll.contentView.bounds)
+                if let previousGeometry, previousGeometry.frame == geometry.frame,
+                   previousGeometry.bounds == geometry.bounds, previousGeometry.clip == geometry.clip { preparedFrames += 1 }
+                else { preparedFrames = 1 }
+                previousGeometry = geometry
+            } else {
+                preparedFrames = 0
+                previousGeometry = nil
+            }
+            guard preparedFrames >= 2 else { return false }
+            originAttempted = true
+            initial = sample()
+            do { try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0)) }
+            catch { originError = error }
+            return true
+        }
+        defer { preparation.stop() }
+        do {
+            try await SwiftUIReplay.wait(driveLayout: false) { originAttempted }
+            if let originError { throw originError }
+        } catch {
+            let stage = originAttempted ? "origin-request" : "prior-presentation"
+            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_PREPARATION_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=\(stage) frames=\(preparationFrames) preparedFrames=\(preparedFrames) initial={\(preparationInitial)} samples=\(preparationSamples) final={\(sample())} error=\(error)")
+            throw error
+        }
+        print("MOKU_EXECUTION_LINK_MANUAL_ORIGIN_REQUESTED harness=\(fixture.harness) phrase=\(phrase) preparationFrames=\(preparationFrames) at=\(ProcessInfo.processInfo.systemUptime)")
+        // Registration can report the new offset before the previous bottom
+        // request leaves the compositor. Commit the manual reading position
+        // before a subsequent projection can lay out against that old request.
+        let observer = SwiftUIReplay.FrameObserver(view: scroll) {
+            frames += 1
+            if samples.count < 32 { samples.append(sample()) }
+            if let control = fixture.scroll, let value = control["value"],
+               let top = value["top"]?.numberValue, let inset = value["insetTop"]?.numberValue,
+               let presented = scroll.contentView.layer?.presentation(),
+               control["pending"] == .bool(false), value["following"] == .bool(false),
+               value["showLatest"] == .bool(true), abs(top) < 5,
+               abs(scroll.contentView.bounds.minY + CGFloat(inset)) < 5,
+               abs(presented.bounds.minY + CGFloat(inset)) < 5 { settledFrames += 1 }
+            else { settledFrames = 0 }
+            return settledFrames >= 2
+        }
+        defer { observer.stop() }
+        do {
+            try await SwiftUIReplay.wait(driveLayout: false) { settledFrames >= 2 }
+        } catch {
+            print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_FAILURE harness=\(fixture.harness) phrase=\(phrase) stage=origin-settlement frames=\(frames) settledFrames=\(settledFrames) preparationFrames=\(preparationFrames) initial={\(initial)} samples=\(samples) final={\(sample())}")
+            throw error
+        }
+        print("MOKU_EXECUTION_LINK_MANUAL_SCROLL_COMMITTED harness=\(fixture.harness) phrase=\(phrase) frames=\(frames) final={\(sample())}")
     }
     private func click(_ label: String, in root: NSView) throws {
         if let capsule = element(id: "moku-note-execution-link", nativeOnly: true, label: label, in: root) {
@@ -673,25 +787,79 @@ struct NativeMokuExecutionLinkTests {
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
     func runningLinkFollowsUntilUserScrollsAndJumpLatestRestoresIt(harness: String) async throws {
+        try #require(NSApp?.isRunning == true, "Animated following requires its declared AppKit replay owner")
+        try #require(!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                     "The animated-follow replay requires Reduce Motion to be disabled")
         let fixture = try ExecutionLinkFixture(harness)
         try fixture.update(status: .running, mixedParts: true)
         fixture.load()
-        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640)
         defer { window.close() }
         let root = try #require(window.contentView)
+        let profileEnabled = ProcessInfo.processInfo.environment["MOKUSEI_TIMELINE_PROFILE"] == "1"
         var receipts: [JSONValue] = []
+        var jumpSamples: [JSONValue] = []
+        var jumpFrameCount = 0
+        var jumpTerminal: JSONValue = .null
+        func visibleReplyReader() -> NSScrollView? {
+            textViews(root).first {
+                !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                    && ($0.string.hasPrefix("STREAMING CONTENT ") || $0.string.hasPrefix("NEW STREAMING CONTENT "))
+            }?.enclosingScrollView
+        }
+        func rectValue(_ rect: CGRect) -> JSONValue {
+            .object(["x": .number(Double(rect.minX)), "y": .number(Double(rect.minY)),
+                     "width": .number(Double(rect.width)), "height": .number(Double(rect.height))])
+        }
+        func nativeBottom(_ scroll: NSScrollView) -> CGFloat? {
+            guard let document = scroll.documentView else { return nil }
+            var beyondBottom = scroll.contentView.bounds
+            beyondBottom.origin.y = document.frame.maxY + beyondBottom.height + max(0, scroll.contentInsets.bottom)
+            return scroll.contentView.constrainBoundsRect(beyondBottom).minY
+        }
+        func nativeGeometry(_ scroll: NSScrollView) -> JSONValue {
+            let document = scroll.documentView
+            let clip = scroll.contentView
+            let insets = scroll.contentInsets
+            let documentPresentation = document?.layer?.presentation()
+            let clipPresentation = clip.layer?.presentation()
+            return .object([
+                "attached": .bool(scroll.window === window), "hidden": .bool(scroll.isHiddenOrHasHiddenAncestor),
+                "documentFrame": document.map { rectValue($0.frame) } ?? .null,
+                "documentBounds": document.map { rectValue($0.bounds) } ?? .null,
+                "documentPresentedFrame": documentPresentation.map { rectValue($0.frame) } ?? .null,
+                "documentPresentedBounds": documentPresentation.map { rectValue($0.bounds) } ?? .null,
+                "documentFlipped": document.map { JSONValue.bool($0.isFlipped) } ?? .null,
+                "clipBounds": rectValue(clip.bounds),
+                "clipPresentedBounds": clipPresentation.map { rectValue($0.bounds) } ?? .null,
+                "insets": .object(["top": .number(Double(insets.top)), "bottom": .number(Double(insets.bottom)),
+                                   "left": .number(Double(insets.left)), "right": .number(Double(insets.right))]),
+                "nativeBottom": nativeBottom(scroll).map { JSONValue.number(Double($0)) } ?? .null
+            ])
+        }
         @MainActor func record(_ phase: String, inputBytes: Int? = nil) {
+            let native = visibleReplyReader()
+            let presented = native?.contentView.layer?.presentation()
             receipts.append(.object([
                 "phase": .text(phase), "at": .number(ProcessInfo.processInfo.systemUptime),
                 "revision": .integer(fixture.revision),
                 "inputUTF8Bytes": inputBytes.map { JSONValue.integer($0) } ?? .null,
+                "nativeTop": native.map { JSONValue.number(Double($0.contentView.bounds.minY)) } ?? .null,
+                "presentedTop": presented.map { JSONValue.number(Double($0.bounds.minY)) } ?? .null,
                 "scroll": fixture.scroll ?? .null
             ]))
         }
         defer {
             record("exit")
             do {
-                let data = try JSONValue.object(["harness": .text(harness), "stages": .array(receipts)]).encodedData()
+                var report: [JSONText: JSONValue] = ["harness": .text(harness), "profileEnabled": .bool(profileEnabled),
+                                                    "stages": .array(receipts)]
+                if profileEnabled {
+                    report["jumpFrameCount"] = .integer(jumpFrameCount)
+                    report["jumpFrames"] = .array(jumpSamples)
+                    report["jumpTerminal"] = jumpTerminal
+                }
+                let data = try JSONValue.object(report).encodedData()
                 FileHandle.standardOutput.write(Data("MOKU_EXECUTION_LINK_RECEIPTS ".utf8) + data + Data("\n".utf8))
             } catch {
                 Issue.record(Comment(rawValue: "Could not encode execution-link receipts: \(error)"))
@@ -750,23 +918,116 @@ struct NativeMokuExecutionLinkTests {
         try await requireEveryReplyBlock("STREAMING CONTENT", count: 200, fixture: fixture, in: root,
                                         paragraphSuffix: paragraphSuffix)
         let secondInput = (0..<220).map { "NEW STREAMING CONTENT \($0)" }.joined(separator: "\n\n")
-        try fixture.update(status: .running, text: firstInput, messageStatus: "complete", pendingText: secondInput)
+        let revisedFirstInput = firstInput.replacingOccurrences(of: "STREAMING CONTENT 0",
+            with: "STREAMING CONTENT 0 — second revision admitted")
+        try fixture.update(status: .running, text: revisedFirstInput, messageStatus: "complete", pendingText: secondInput)
         record("second-source", inputBytes: secondInput.utf8.count)
-        try await Task.sleep(for: .milliseconds(200))
+        // The previous top offset can already satisfy this predicate before
+        // the asynchronous decoder admits the update. The settled reply marker
+        // proves this exact payload reached the mounted production reader.
+        try await SwiftUIReplay.wait {
+            guard let value = fixture.scroll?["value"],
+                  let top = value["top"]?.numberValue else { return false }
+            return abs(top) < 5 && value["following"] == .bool(false)
+                && textViews(root).contains { $0.string.contains("second revision admitted") }
+        }
         record("second-stream", inputBytes: secondInput.utf8.count)
         #expect(!textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") })
         #expect(textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
         #expect(fixture.thread.observation.latestExecution?.status == .running)
         #expect((fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5)
         let jump = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("jumpLatest") })
-        try fixture.perform(jump, "activate")
-        try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(true) }
-        record("jump-latest")
-        try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput)
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
+        let beforeJump = try #require(fixture.scroll?["value"])
+        let jumpStart = try #require(beforeJump["top"]?.numberValue)
+        let jumpHeight = try #require(beforeJump["height"]?.numberValue)
+        let jumpViewport = try #require(beforeJump["viewport"]?.numberValue)
+        let jumpBottom = max(0, jumpHeight - jumpViewport)
+        if profileEnabled {
+            try #require(beforeJump["diagnostics"]?.objectValue != nil,
+                         "Timeline profile reached the test but its production scroll diagnostics are missing")
+        }
+        let native = try #require(visibleReplyReader())
+        let nativeStart = native.contentView.bounds.minY
+        var successorDelivered = false
+        var successorError: (any Error)?
+        func lastReplyVisible() -> Bool {
+            guard let document = native.documentView else { return false }
+            return textViews(document).contains {
+                $0.enclosingScrollView === native && !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                    && $0.string == "NEW STREAMING CONTENT 219"
+            }
+        }
+        func jumpSample(_ phase: String) -> JSONValue {
+            let control = fixture.scroll
+            return .object([
+                "phase": .text(phase), "at": .number(ProcessInfo.processInfo.systemUptime),
+                "revision": .integer(fixture.revision), "successorDelivered": .bool(successorDelivered),
+                "pending": control?["pending"] ?? .null, "value": control?["value"] ?? .null,
+                "native": nativeGeometry(native), "frozenBottom": .number(jumpBottom),
+                "nativeStart": .number(Double(nativeStart)), "lastReplyVisible": .bool(lastReplyVisible())
+            ])
+        }
+        if profileEnabled { jumpSamples.append(jumpSample("before-jump")) }
+        let jumpFrames = SwiftUIReplay.FrameObserver(view: root) {
+            jumpFrameCount += 1
+            if profileEnabled && jumpSamples.count < 120 {
+                jumpSamples.append(jumpSample(successorDelivered ? "post-update" : "jump"))
+            }
+            guard !successorDelivered,
+                  let value = fixture.scroll?["value"], let top = value["top"]?.numberValue,
+                  let height = value["height"]?.numberValue, let viewport = value["viewport"]?.numberValue,
+                  let bottom = nativeBottom(native), let presented = native.contentView.layer?.presentation(),
+                  native.window === window, !native.isHiddenOrHasHiddenAncestor,
+                  value["following"] == .bool(true), top > jumpStart + 1, top < jumpBottom - 1,
+                  top < max(0, height - viewport) - 1,
+                  native.contentView.bounds.minY > nativeStart + 1, native.contentView.bounds.minY < bottom - 1,
+                  presented.bounds.minY > nativeStart + 1, presented.bounds.minY < bottom - 1 else { return false }
+            record("jump-latest")
+            // Deliver in this display callback: resuming an async waiter could
+            // otherwise happen after the animated transition has already ended.
+            do { try fixture.update(status: .completed, text: revisedFirstInput, successor: true, pendingText: secondInput) }
+            catch { successorError = error }
+            successorDelivered = true
+            return false
+        }
+        defer {
+            jumpFrames.stop()
+            if profileEnabled && jumpTerminal == .null { jumpTerminal = jumpSample("exit") }
+        }
+        do {
+            try fixture.perform(jump, "activate")
+            if profileEnabled { jumpSamples.append(jumpSample("activation-returned")) }
+            try await SwiftUIReplay.wait(driveLayout: false) { successorDelivered }
+            if let successorError { throw successorError }
+            try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
+            // Manual traversal below takes scrolling ownership. First require the
+            // final reply paragraph at the native bottom on two display frames.
+            // SwiftUI's projected geometry can disagree with the mounted document.
+            var updatedBottomFrames = 0
+            let settlementFrames = SwiftUIReplay.FrameObserver(view: root) {
+                if fixture.scroll?["value"]?["following"] == .bool(true),
+                   let bottom = nativeBottom(native), let presented = native.contentView.layer?.presentation(),
+                   native.window === window, !native.isHiddenOrHasHiddenAncestor,
+                   bottom - nativeStart > 5, lastReplyVisible(),
+                   abs(native.contentView.bounds.minY - bottom) < 5,
+                   abs(presented.bounds.minY - bottom) < 5 { updatedBottomFrames += 1 }
+                else { updatedBottomFrames = 0 }
+                return false
+            }
+            defer { settlementFrames.stop() }
+            try await SwiftUIReplay.wait(driveLayout: false) { updatedBottomFrames >= 2 }
+            if profileEnabled { jumpTerminal = jumpSample("settled") }
+            jumpFrames.stop()
+        } catch {
+            if profileEnabled { jumpTerminal = jumpSample("failed") }
+            jumpFrames.stop()
+            throw error
+        }
+        record("jump-following-updated-bottom")
         try await requireEveryReplyBlock("NEW STREAMING CONTENT", count: 220, fixture: fixture, in: root)
         try await Task.sleep(for: .milliseconds(150))
         #expect(fixture.presentation.readingTarget?.executionID == "target")
+        print("MOKU_EXECUTION_LINK_ANIMATED_FOLLOW_CONFIRMED harness=\(harness)")
         window.close(); await fixture.close()
     }
 

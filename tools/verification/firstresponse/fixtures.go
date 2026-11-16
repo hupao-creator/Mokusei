@@ -75,6 +75,9 @@ func base(id string) map[string]any {
 	return result
 }
 func ptr[T any](v T) *T { return &v }
+func openCodePart(_type, text string) map[string]any {
+	return map[string]any{"type": _type, "ordinal": 0, "text": text}
+}
 func first(state map[string]any, id string) map[string]any {
 	key := "executions"
 	if id == "codex" || id == "claude" {
@@ -114,16 +117,29 @@ func Verify(id string) ([]Fixture, error) {
 				}
 				turn["timeline"] = append(turn["timeline"].([]any), item)
 			} else {
-				m := map[string]any{"id": "agent", "executionId": "first", "role": "assistant", "status": status, "text": ""}
+				m := map[string]any{"id": "agent", "executionId": "first", "role": "assistant", "status": status}
+				text, reasoning := "", ""
 				if complete {
-					m["text"] = Answer
+					text = Answer
 				} else if name == "reasoning" || name == "reasoning-update" {
-					m["thinking"] = Answer
+					reasoning = Answer
 				} else {
-					m["text"] = Answer
+					text = Answer
 				}
 				if id == "opencode" {
+					// OpenCode's ordered parts are the sole assistant body.
 					m["parts"] = []any{}
+					if text != "" {
+						m["parts"] = append(m["parts"].([]any), openCodePart("text", text))
+					}
+					if reasoning != "" {
+						m["parts"] = append(m["parts"].([]any), openCodePart("reasoning", reasoning))
+					}
+				} else {
+					m["text"] = text
+					if reasoning != "" {
+						m["thinking"] = reasoning
+					}
 				}
 				state["messages"] = append(state["messages"].([]any), m)
 			}
@@ -185,6 +201,13 @@ func Verify(id string) ([]Fixture, error) {
 			if id == "codex" || id == "claude" {
 				items := turn["timeline"].([]any)
 				items[len(items)-1].(map[string]any)["content"] = text
+			} else if id == "opencode" {
+				message := state["messages"].([]any)
+				partType := "text"
+				if name == "reasoning-update" {
+					partType = "reasoning"
+				}
+				message[len(message)-1].(map[string]any)["parts"] = []any{openCodePart(partType, text)}
 			} else {
 				items := state["messages"].([]any)
 				key := "text"
@@ -211,9 +234,7 @@ func Verify(id string) ([]Fixture, error) {
 			// Historical compact projections keep these exact-execution summaries.
 			if id == "codex" {
 				turn["answer"] = Answer
-			} else if id == "claude" {
-				turn["text"] = Answer
-			} else {
+			} else if id != "claude" {
 				turn["summary"] = Answer
 			}
 			if name == "second-answer" {
@@ -233,7 +254,9 @@ func Verify(id string) ([]Fixture, error) {
 				} else {
 					message := map[string]any{"id": "second-reasoning", "executionId": "second", "role": "assistant", "status": "streaming", "text": "", "thinking": Answer + " SECOND"}
 					if id == "opencode" {
-						message["parts"] = []any{}
+						delete(message, "text")
+						delete(message, "thinking")
+						message["parts"] = []any{openCodePart("reasoning", Answer+" SECOND")}
 					}
 					state["messages"] = append(state["messages"].([]any), message)
 					state["latestExecutionId"] = "second"
@@ -243,7 +266,7 @@ func Verify(id string) ([]Fixture, error) {
 		}
 		if name == "child-session" && id == "opencode" {
 			state["nativeSessionId"] = "main-session"
-			state["messages"] = append(state["messages"].([]any), map[string]any{"id": "child", "executionId": "first", "role": "assistant", "status": "complete", "text": "PRIVATE_CHILD_MESSAGE", "nativeSessionId": "child-session", "parts": []any{}})
+			state["messages"] = append(state["messages"].([]any), map[string]any{"id": "child", "executionId": "first", "role": "assistant", "status": "complete", "nativeSessionId": "child-session", "parts": []any{openCodePart("text", "PRIVATE_CHILD_MESSAGE")}})
 		}
 		raw := encode(state)
 		if name == "empty" {

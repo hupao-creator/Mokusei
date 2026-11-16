@@ -29,18 +29,17 @@ type Message struct {
 	Role            string          `json:"role"`
 	Presentation    string          `json:"presentation,omitempty"`
 	FollowUp        bool            `json:"followUp,omitempty"`
-	Text            string          `json:"text"`
+	Text            string          `json:"text,omitempty"`
 	NativeSessionID string          `json:"nativeSessionId,omitempty"`
 	NativeMessageID string          `json:"nativeMessageId,omitempty"`
 	CreatedAt       int64           `json:"createdAt,omitempty"`
 	Status          string          `json:"status,omitempty"`
-	Thinking        string          `json:"thinking,omitempty"`
 	Parts           []Part          `json:"parts,omitempty"`
 	ToolCallID      string          `json:"toolCallId,omitempty"`
 	ToolName        string          `json:"toolName,omitempty"`
 	Arguments       any             `json:"arguments,omitempty"`
 	Result          any             `json:"result,omitempty"`
-	Metadata        Object          `json:"metadata,omitempty"`
+	ToolError       any             `json:"toolError,omitempty"`
 	IsError         bool            `json:"isError,omitempty"`
 	Model           string          `json:"model,omitempty"`
 	Provider        string          `json:"provider,omitempty"`
@@ -63,6 +62,56 @@ func (part Part) MarshalJSON() ([]byte, error) {
 		return json.Marshal(Object{"type": "tool", "toolCallId": part.ToolCallID})
 	}
 	return json.Marshal(Object{"type": part.Type, "ordinal": part.Ordinal, "text": part.Text})
+}
+
+// Assistant text and reasoning live only in their ordered parts. User input and
+// tool payloads never use the aggregate fields, so there is one durable source
+// for each visible body.
+func partContent(parts []Part, kind string) string {
+	first := -1
+	for index := range parts {
+		if parts[index].Type != kind {
+			continue
+		}
+		if first < 0 {
+			first = index
+			continue
+		}
+		// Reuse the first part's string instead of copying a single large body
+		// every time a compact projection asks for it.
+		size := len(parts[first].Text) + len(parts[index].Text)
+		for _, part := range parts[index+1:] {
+			if part.Type == kind {
+				size += len(part.Text)
+			}
+		}
+		var text strings.Builder
+		text.Grow(size)
+		text.WriteString(parts[first].Text)
+		text.WriteString(parts[index].Text)
+		for _, part := range parts[index+1:] {
+			if part.Type == kind {
+				text.WriteString(part.Text)
+			}
+		}
+		return text.String()
+	}
+	if first >= 0 {
+		return parts[first].Text
+	}
+	return ""
+}
+func messageText(message *Message) string {
+	if message.Role != "assistant" {
+		return message.Text
+	}
+	return partContent(message.Parts, "text")
+}
+func messageThinking(message *Message) string {
+	if message.Role != "assistant" {
+		return ""
+	}
+	return partContent(message.Parts, "reasoning")
 }
 
 type Interaction struct {
@@ -140,14 +189,26 @@ type State struct {
 	Foregrounds          []Object                 `json:"foregrounds,omitempty"`
 }
 
+// StateVersion 2 stores assistant bodies only in ordered parts and tool bodies
+// only in raw payloads. Version 1 duplicated assistant text/reasoning as
+// aggregates and tool text beside structured data, so it cannot be decoded into
+// this schema without silently losing thinking-only replies. There is no
+// migration: the project has not shipped and a retained version 1 thread must be
+// rebuilt or cleared instead of guessing which copy was authoritative.
+const StateVersion = 2
+
 func DecodeState(raw json.RawMessage) (*State, error) {
-	s := &State{Version: 1, Messages: []*Message{}, Executions: []*model.PublicExecution{}, Interactions: []*Interaction{}}
+	s := &State{Version: StateVersion, Messages: []*Message{}, Executions: []*model.PublicExecution{}, Interactions: []*Interaction{}}
 	if len(raw) > 0 && string(raw) != "null" {
 		if err := json.Unmarshal(raw, s); err != nil {
 			return nil, err
 		}
-		if s.Version != 1 {
-			return nil, errors.New("unsupported OpenCode state version")
+		switch s.Version {
+		case StateVersion:
+		case 1:
+			return nil, errors.New("OpenCode state version 1 uses the retired duplicated-content schema; rebuild or clear the thread")
+		default:
+			return nil, fmt.Errorf("unsupported OpenCode state version %d", s.Version)
 		}
 	}
 	if s.NativeExecutions == nil {
@@ -169,6 +230,9 @@ func DecodeState(raw json.RawMessage) (*State, error) {
 		}
 		if v.FollowUp && v.Role != "user" {
 			return nil, errors.New("OpenCode follow-up identity belongs to user input")
+		}
+		if v.Role != "user" && v.Text != "" {
+			return nil, errors.New("OpenCode assistant and tool bodies must use parts or display payloads")
 		}
 		ids[v.ID] = true
 	}
@@ -239,9 +303,13 @@ func (s *State) Settle(id, outcome string, at int64, reason string) {
 		e.Interactions = nil
 		for i := len(s.Messages) - 1; i >= 0; i-- {
 			m := s.Messages[i]
-			if m.ExecutionID == id && m.Role == "assistant" && (m.NativeSessionID == "" || m.NativeSessionID == s.NativeSessionID) && strings.TrimSpace(m.Text) != "" {
-				text := clip(m.Text, 100000)
-				e.Summary = &text
+			if m.ExecutionID != id || m.Role != "assistant" || (m.NativeSessionID != "" && m.NativeSessionID != s.NativeSessionID) {
+				continue
+			}
+			text := messageText(m)
+			if strings.TrimSpace(text) != "" {
+				summary := clip(text, 100000)
+				e.Summary = &summary
 				break
 			}
 		}
@@ -399,15 +467,6 @@ func segment(m *Message, kind string, ordinal int, text string, replace bool) {
 	} else {
 		m.Parts[found].Text += text
 	}
-	m.Text = ""
-	m.Thinking = ""
-	for _, p := range m.Parts {
-		if p.Type == "text" {
-			m.Text += p.Text
-		} else if p.Type == "reasoning" {
-			m.Thinking += p.Text
-		}
-	}
 }
 func nativeUsage(tokens any, cost any) *Usage {
 	t := object(tokens)
@@ -435,16 +494,18 @@ func contentText(value any) string {
 	}
 	return strings.Join(parts, "\n")
 }
-func toolResult(t *Message, content, nativeError, metadata any) {
+func toolResult(t *Message, content, nativeError any) {
 	t.Result = content
-	t.Text = contentText(content)
-	t.Metadata = object(metadata)
 	t.Status = "complete"
+	// Native retries can settle the same call successfully after an earlier
+	// failure. Clear both diagnostic copies so the projection cannot show a
+	// stale error beside a successful result.
+	t.IsError = false
+	t.ToolError = nil
 	if nativeError != nil {
 		t.IsError = true
 		t.Status = "failed"
-		t.Text = strings.TrimSpace(t.Text + "\n" + nativeFailure(nativeError))
-		t.Result = Object{"content": content, "error": nativeError}
+		t.ToolError = nativeError
 	}
 	if !t.IsError && (t.ToolName == "todo" || t.ToolName == "todowrite") {
 		for i, v := range array(object(t.Arguments)["todos"]) {
@@ -497,7 +558,6 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 		}
 		m.Parts = []Part{}
 		m.Text = ""
-		m.Thinking = ""
 		ordinals := map[string]int{}
 		for _, part := range array(v["content"]) {
 			p := object(part)
@@ -522,7 +582,7 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 				tool.Arguments = state["input"]
 				tool.Status = "streaming"
 				if state["status"] == "completed" || state["status"] == "error" {
-					toolResult(tool, state["content"], state["error"], state["metadata"])
+					toolResult(tool, state["content"], state["error"])
 				}
 			}
 		}
@@ -725,12 +785,10 @@ func (s *State) Reduce(event Event, owner string) error {
 			tool.Arguments = str(data["text"])
 		case "session.tool.called":
 			tool.Arguments = data["input"]
-		case "session.tool.progress":
-			tool.Metadata = object(data["metadata"])
 		case "session.tool.success":
-			toolResult(tool, data["content"], nil, data["metadata"])
+			toolResult(tool, data["content"], nil)
 		case "session.tool.failed":
-			toolResult(tool, data["content"], data["error"], data["metadata"])
+			toolResult(tool, data["content"], data["error"])
 		}
 	}
 	return nil

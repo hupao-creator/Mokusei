@@ -15,7 +15,7 @@ struct OpenCodeState: Hashable, Sendable {
         if let flag = value["initialResponseScope"], flag.boolValue == nil { throw OpenCodeError.invalidState }
         initialResponseScope = value == .null || value["initialResponseScope"] == .bool(true)
         let value = value == .null ? JSONValue.object(["version": .number(1), "messages": .array([]), "executions": .array([]), "latestExecutionId": .null, "interactions": .array([])]) : value
-        try ocOnly(value, ["initialResponseScope", "version", "nativeSessionId", "nativeSessionCreated", "nativeTranscript", "nativeReadPrefix", "nativeContextEntries", "forkSource", "messages", "executions", "executionAuthors", "latestExecutionId", "interactions", "foregrounds", "backgroundSessions", "backgroundShells", "cursors", "nativeExecutions", "automaticExecutions", "auxiliaryUsage", "usageRecorded"])
+        try ocOnly(value, ["initialResponseScope", "contentTruncated", "version", "nativeSessionId", "nativeSessionCreated", "nativeTranscript", "nativeReadPrefix", "nativeContextEntries", "forkSource", "messages", "executions", "executionAuthors", "latestExecutionId", "interactions", "foregrounds", "backgroundSessions", "backgroundShells", "cursors", "nativeExecutions", "automaticExecutions", "auxiliaryUsage", "usageRecorded"])
         guard value["version"]?.intValue == 1, let messages = value["messages"]?.arrayValue,
               let executions = value["executions"]?.arrayValue, let interactions = value["interactions"]?.arrayValue,
               value["latestExecutionId"] != nil else { throw OpenCodeError.invalidState }
@@ -30,6 +30,7 @@ struct OpenCodeState: Hashable, Sendable {
         }
         try ocOptionalText(value, ["nativeSessionId"])
         if let created = value["nativeSessionCreated"] { guard created == .bool(true), let id = value.ocText("nativeSessionId"), !id.codeUnits.isEmpty else { throw OpenCodeError.invalidState } }
+        if let truncated = value["contentTruncated"], truncated != .bool(true) { throw OpenCodeError.invalidState }
         for key in ["nativeTranscript", "nativeReadPrefix", "executionAuthors", "cursors", "nativeExecutions", "automaticExecutions"] {
             if let field = value[key], field.objectValue == nil { throw OpenCodeError.invalidState }
         }
@@ -93,6 +94,7 @@ struct OpenCodeState: Hashable, Sendable {
     }
     var nativeSessionID: JSONText? { raw.ocText("nativeSessionId") }
     var latestExecutionID: JSONText? { raw.ocText("latestExecutionId") }
+    var contentTruncated: Bool { raw["contentTruncated"] == .bool(true) }
     var auxiliary: [JSONValue] { raw["auxiliaryUsage"]?.arrayValue ?? [] }
     func nativeInteraction(_ publicID: JSONText) -> JSONValue? {
         interactions.first { ocPublicID("interaction", [$0.ocID("executionId"), $0.ocID("id")]) == publicID }
@@ -101,25 +103,27 @@ struct OpenCodeState: Hashable, Sendable {
 struct OpenCodeMessage: Hashable, Sendable, Identifiable {
     let raw: JSONValue
     init(_ value: JSONValue) throws {
-        try ocOnly(value, ["id", "executionId", "role", "text", "nativeSessionId", "nativeMessageId", "createdAt", "status", "thinking", "parts", "toolCallId", "toolName", "arguments", "result", "argumentsDisplay", "resultDisplay", "metadata", "isError", "model", "provider", "variant", "usage", "attachments", "todos", "inherited", "annotations", "presentation", "followUp"])
+        try ocOnly(value, ["id", "executionId", "role", "text", "nativeSessionId", "nativeMessageId", "createdAt", "status", "parts", "toolCallId", "toolName", "arguments", "result", "toolError", "argumentsDisplay", "resultDisplay", "isError", "model", "provider", "variant", "usage", "attachments", "todos", "inherited", "annotations", "presentation", "followUp"])
         _ = try ocRequiredText(value, "id", nonempty: true); _ = try ocRequiredText(value, "executionId", nonempty: true)
-        _ = try ocRequiredText(value, "text")
+        try ocOptionalText(value, ["text"])
         guard ["user", "assistant", "tool"].contains(value["role"]?.stringValue ?? "") else { throw OpenCodeError.invalidState }
         if let presentation = value["presentation"], !["ordinary", "internal"].contains(presentation.stringValue ?? "") { throw OpenCodeError.invalidState }
         if let followUp = value["followUp"], value["role"] != .text("user") || followUp.boolValue == nil { throw OpenCodeError.invalidState }
-        try ocOptionalText(value, ["nativeSessionId", "nativeMessageId", "thinking", "toolCallId", "toolName", "model", "provider", "variant"])
-        for field in ["arguments", "result"] {
-            if let display = value[field + "Display"] {
-                guard value["role"] == .text("tool"), let source = value[field], let text = display.ocString,
-                      ocToolDisplayMatches(text, source: source) else { throw OpenCodeError.invalidState }
-            }
+        try ocOptionalText(value, ["nativeSessionId", "nativeMessageId", "toolCallId", "toolName", "model", "provider", "variant", "argumentsDisplay", "resultDisplay"])
+        if value["role"] == .text("tool") {
+            guard value["arguments"] == nil || value["argumentsDisplay"] == nil,
+                  value["result"] == nil || value["resultDisplay"] == nil,
+                  (value.ocText("text").map { $0.codeUnits.isEmpty } ?? true) else { throw OpenCodeError.invalidState }
+        }
+        if value["role"] == .text("assistant"), value.ocText("text")?.codeUnits.isEmpty == false,
+           value["parts"]?.arrayValue?.contains(where: { $0["type"] == .text("text") }) == true {
+            throw OpenCodeError.invalidState
         }
         if let status = value["status"], !["streaming", "complete", "failed", "cancelled"].contains(status.stringValue ?? "") { throw OpenCodeError.invalidState }
         if let createdAt = value["createdAt"], !ocNonnegative(createdAt) { throw OpenCodeError.invalidState }
         if let inherited = value["inherited"], inherited != .bool(true) { throw OpenCodeError.invalidState }
         if let error = value["isError"], error.boolValue == nil { throw OpenCodeError.invalidState }
         if let usage = value["usage"] { _ = try OpenCodeUsage(usage) }
-        if let metadata = value["metadata"], metadata.objectValue == nil { throw OpenCodeError.invalidState }
         for key in ["parts", "attachments", "todos", "annotations"] { if let item = value[key], item.arrayValue == nil { throw OpenCodeError.invalidState } }
         for part in value["parts"]?.arrayValue ?? [] {
             if part["type"]?.stringValue == "tool" {
@@ -143,12 +147,28 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
         }
         raw = value
     }
+    // Computed rather than stored: raw.parts already owns each body, and a
+    // stored join would double peak memory for a 25 MiB assistant reply.
+    // Assistant boundaries read a compact preview from text; a nonempty
+    // aggregate is never injected when the body lives only in parts.
+    var text: String {
+        if let preview = raw["text"]?.stringValue, !preview.isEmpty { return preview }
+        guard role == "assistant" else { return "" }
+        return parts.compactMap { part in
+            part["type"] == .text("text") ? part["text"]?.stringValue : nil
+        }.joined()
+    }
+    var thinking: String {
+        guard role == "assistant" else { return "" }
+        return parts.compactMap { part in
+            part["type"] == .text("reasoning") ? part["text"]?.stringValue : nil
+        }.joined()
+    }
     var id: JSONText { raw.ocID("id") }
     var executionID: JSONText { raw.ocID("executionId") }
     var nativeSessionID: JSONText? { raw.ocText("nativeSessionId") }
     var role: String { raw["role"]!.stringValue! }
     var isSteer: Bool { raw["followUp"] == .bool(true) && raw["presentation"] == .text("ordinary") }
-    var text: String { raw["text"]!.stringValue! }
     var status: String? { raw["status"]?.stringValue }
     var inherited: Bool { raw["inherited"] == .bool(true) }
     var parts: [JSONValue] { raw["parts"]?.arrayValue ?? [] }

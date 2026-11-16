@@ -121,27 +121,13 @@ It still waits for data and Markdown parsing.
 
 ## Scope and verification limits
 
-The horizontal rebound follow-up starts from local main
-`3ffc4bdaad155bd769e04ec64d62a1e354980416`, including its parallel running Super
-Thread heading repair. The three earlier animation commits were confirmed as
-patch-equivalent to main's integrated commits before this detached worktree was
-rebased; none is replayed as a new dependency.
-
-The 9.412s source `录屏2026-11-14 16.05.31.mov` was inspected through headless
-AVFoundation frames, including exact 40ms samples around the initial rightward
-travel at 1.8–2.2s. Those frames document the existing monotone arrival, not this
-new tail. Sandboxed decoding initially failed; permitted headless decoding
-succeeded without opening a window. The final headless Debug `Mokusei` product
-build passed (18.54s), with Swift syntax parsing, diff review and local link
-checks. Static review covered same-target updates, interruption/reversal,
-destination/composer fences, pointer protection throughout the overshoot,
-resize, dragging, detach and Reduce Motion. The animation group's completion
-retains the travel → identity flip → input expansion sequence.
-No tests were added or run; no graphical replay, live pointer/focus check,
-rendered feel acceptance or hosted CI was performed. The new single-tail feel
-and rapid user-driven reversal still need on-screen acceptance. This detached
-commit is handed to the coordinator without pushing or changing local main.
-
+The horizontal settling tail is reviewed as part of this entrance sequence. Its
+520ms native keyframe, 2.5%/6pt maximum excursion and sub-12pt monotone guard are
+implemented on this branch's existing travel owner. The supplied recording was
+inspected with headless frame extraction for the monotone arrival that precedes
+this new tail. Headless Debug product build, diff review and local link checks
+passed. No tests or graphical replay were run; the new single-tail feel and rapid
+user-driven reversal still need on-screen acceptance.
 The same-day descent follow-up moves only the reading baseline into the existing
 native Dock travel transform, retaining SwiftUI shell sizing and the sequential
 identity/input gates. Headless Swift syntax parsing, the final Debug `Mokusei`
