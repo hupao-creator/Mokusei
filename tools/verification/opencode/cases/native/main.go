@@ -111,7 +111,7 @@ func main() {
 		panic("native bridge fixture verification incomplete")
 	}
 	must(runtime.Close())
-	fmt.Println("PASS: real OpenCode 2.0.25 isolated native plugin, refresh acknowledgement, session/prompt, local mocked inference, schema transform, SSE and durable export")
+	fmt.Println("PASS: real OpenCode 2.3 lazy plugin activation, isolated native plugin, refresh acknowledgement, session/prompt, local mocked inference, schema transform, SSE and durable export")
 	verifyNativeSettings(parent, nativeCLI, cwd, env, config, func() []map[string]any {
 		mu.Lock()
 		defer mu.Unlock()

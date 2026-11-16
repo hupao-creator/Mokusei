@@ -29,6 +29,16 @@ var subscribers = map[chan O]bool{}
 var seq int
 var durableLog []O
 
+// OpenCode 2.3 activates configured plugins asynchronously after boot. The
+// fixture models that window: the plugin inventory omits mokusei.harness and
+// RPC calls are rejected until FIXTURE_PLUGIN_DELAY_MS has elapsed.
+var fixtureStart = time.Now()
+
+func pluginActive() bool {
+	delay, err := strconv.Atoi(os.Getenv("FIXTURE_PLUGIN_DELAY_MS"))
+	return err != nil || delay <= 0 || time.Since(fixtureStart) >= time.Duration(delay)*time.Millisecond
+}
+
 func log(line string) {
 	f, e := os.OpenFile(filepath.Join(os.Getenv("FIXTURE_ROOT"), "operations.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if e == nil {
@@ -93,6 +103,12 @@ func config() O {
 	return out
 }
 func rpc(w http.ResponseWriter, r *http.Request, method string) {
+	if !pluginActive() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(O{"_tag": "RpcError", "type": "rpc.unavailable", "message": "RPC is unavailable: mokusei.harness"})
+		return
+	}
 	var envelope O
 	json.NewDecoder(r.Body).Decode(&envelope)
 	var result any = O{}
@@ -142,6 +158,17 @@ func serve(w http.ResponseWriter, r *http.Request) {
 	log(r.Method + " " + p + " location=" + r.URL.Query().Get("location[directory]"))
 	if strings.HasPrefix(p, "/api/rpc/mokusei.harness/") {
 		rpc(w, r, strings.TrimPrefix(p, "/api/rpc/mokusei.harness/"))
+		return
+	}
+	if p == "/api/plugin" {
+		w.Header().Set("Content-Type", "application/json")
+		inventory := []any{}
+		if pluginActive() {
+			inventory = append(inventory, O{"id": "mokusei.harness",
+				"source": O{"type": "local", "path": filepath.Dir(os.Args[0])},
+				"state":  O{"status": "active"}})
+		}
+		json.NewEncoder(w).Encode(O{"location": O{"directory": r.URL.Query().Get("location[directory]")}, "data": inventory})
 		return
 	}
 	if p == "/api/event" {
@@ -421,7 +448,7 @@ func serve(w http.ResponseWriter, r *http.Request) {
 }
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Println("opencode v2.0.25")
+		fmt.Println("opencode v2.3.0")
 		return
 	}
 	if len(os.Args) < 2 || os.Args[1] != "serve" {

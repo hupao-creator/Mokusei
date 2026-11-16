@@ -269,6 +269,10 @@ func NewRuntime(ctx context.Context, opts Options) (*Runtime, error) {
 		_ = r.Close()
 		return nil, startup.Err()
 	}
+	if err = r.waitForPlugin(startup, rpcPluginID); err != nil {
+		_ = r.Close()
+		return nil, err
+	}
 	if err = r.RPC(startup, "refresh", Object{}, nil); err != nil {
 		_ = r.Close()
 		return nil, err
@@ -380,11 +384,61 @@ func (r *Runtime) authorizeSessionRequest(method string, u *url.URL, body any) e
 	}
 	return nil
 }
+
+const rpcPluginID = "mokusei.harness"
+
+// OpenCode activates configured plugins asynchronously after the first location
+// boots. Calling an RPC before that registration settles is rejected as
+// rpc.unavailable, which reaches the caller as HTTP 400. Wait for this plugin's
+// inventory state instead of racing its activation.
+func (r *Runtime) waitForPlugin(ctx context.Context, id string) error {
+	wait, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	var lastErr error
+	for {
+		var inventory []Object
+		lastErr = r.Request(wait, "GET", "/api/plugin", nil, &inventory)
+		if lastErr == nil {
+			for _, entry := range inventory {
+				if str(entry["id"]) != id {
+					continue
+				}
+				state := object(entry["state"])
+				switch str(state["status"]) {
+				case "active":
+					return nil
+				case "failed":
+					return fmt.Errorf("OpenCode plugin %s failed to activate: %s", id, clip(str(state["error"]), 512))
+				case "disabled":
+					return fmt.Errorf("OpenCode plugin %s is disabled", id)
+				}
+			}
+		} else {
+			var request *RequestError
+			if errors.As(lastErr, &request) && (request.Status == http.StatusNotFound || request.Status == http.StatusUnauthorized) {
+				// Older servers may not expose plugin inventory. The RPC itself
+				// remains the authority for reporting availability.
+				return nil
+			}
+		}
+		select {
+		case <-wait.Done():
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if lastErr != nil {
+				return fmt.Errorf("OpenCode plugin %s did not activate: %w", id, lastErr)
+			}
+			return fmt.Errorf("OpenCode plugin %s did not activate", id)
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
 func (r *Runtime) RPC(ctx context.Context, method string, input, out any) error {
 	var result struct {
 		Output json.RawMessage `json:"output"`
 	}
-	if err := r.Request(ctx, "POST", "/api/rpc/mokusei.harness/"+url.PathEscape(method), Object{"input": input}, &result); err != nil {
+	if err := r.Request(ctx, "POST", "/api/rpc/"+rpcPluginID+"/"+url.PathEscape(method), Object{"input": input}, &result); err != nil {
 		return err
 	}
 	if out != nil {

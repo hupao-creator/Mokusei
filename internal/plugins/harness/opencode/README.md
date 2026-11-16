@@ -120,6 +120,13 @@ identity and read narrow account facts from native APIs. Instructions, seeded hi
 exclusive tool policy, request admission, JSON schema selection and account routing
 policy are prepared or checked in Go. The application does not launch a separate
 Node service for this adapter.
+Runtime startup waits for the native plugin inventory to report `mokusei.harness`
+active before its first RPC. OpenCode activates configured plugins asynchronously
+after the location boots, and a call made before registration settles is rejected
+as `rpc.unavailable` (HTTP 400). The embedded plugin identifies its own inventory
+entry by either the entrypoint file or the configured directory after resolving
+symlinks; newer OpenCode releases report the configured directory, which must not
+be mistaken for an external plugin in isolated sessions.
 Bridge configuration is validated and copied before a revision is published, so
 invalid schema data or later caller mutation cannot replace a working revision.
 Tool aliases include names such as `__proto__`. Closing the bridge cancels and
