@@ -38,7 +38,7 @@ mounted state rather than fixed animation sleeps.
 `snapshot.overview` includes hierarchical filters with explicit `kind`, `scope`,
 raw tag, display label, aliases and children; visible card refs and directory
 metadata; actual mounted card/menu IDs; grid placements; camera transform,
-readable scale limits, viewport and motion state; and Moku capsule route state.
+declared zoom bounds, viewport and motion state; and Moku capsule route state.
 Camera completion is explicit: `motionPending` includes queued reservations and
 refits before a track exists; `automaticFitPending` stays true until an explicit
 fit completes; `automaticFitBlocked` reports hidden-window, interaction or layout
@@ -72,7 +72,7 @@ then closes Compose and waits for the fit to apply.
 | Semantic tags | Parent/child membership, same tag name in different scopes, single-member tags, separate tags with equal membership, count and archive exclusion |
 | Directory glass menu | Filter-bar scroll, actual menu mounting/opening, every child callback, selection-driven close/reopen, explicit close, closed-menu and wrong-child rejection |
 | Search | Empty/nonempty/Unicode/no-match queries, global eligible results for nonempty queries, selected-scope browsing for empty queries and clear/exit, manual camera restoration; Runtime keyword mode |
-| Canvas | Pan, zoom/clamping, return to automatic view, deferred fit while Compose is open, finite transforms, readable scale bounds, actual mounted cards, stable non-overlapping placement cells |
+| Canvas | Pan, zoom/clamping, return to automatic view, deferred fit while Compose is open, finite transforms, declared zoom bounds, actual mounted cards, stable non-overlapping placement cells |
 | Cards/navigation | Open each seeded conversation and return; retained Overview state |
 | Moku Dock | Compose open/close, history open/close, note open/close, route guards |
 | Persistence | Independent public Runtime metadata before/during/after browsing; no unintended durable thread edits |

@@ -139,7 +139,7 @@ class Driver:
         camera = overview["camera"]
         assert all(math.isfinite(camera[field]) for field in ("x", "y", "scale")), "Nonfinite camera transform"
         if camera["initialized"]:
-            assert camera["minimumScale"] - 1e-6 <= camera["scale"] <= camera["maximumScale"] + 1e-6, "Camera escaped readable scale limits"
+            assert camera["scale"] > 0 and camera["scale"] <= camera["maximumScale"] + 1e-6, "Camera escaped automatic/manual zoom bounds"
         if state["search"]["active"]:
             assert not overview["menu"]["mountedMenuIds"], "Directory submenu remained mounted over search"
 

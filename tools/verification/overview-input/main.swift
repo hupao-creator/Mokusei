@@ -73,57 +73,72 @@ import MokuseiPluginUI
         if !condition { throw Failure(message: message) }
     }
     private var resultURL: URL { URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "MokuseiReplayResult") as? String ?? "/tmp/mokusei-overview-swiftui-replay-result.txt") }
+    func verifyFitAll() throws {
+        let usable = NativeOverviewCameraGeometry.framingRegion(
+            .init(width: viewport.width, height: viewport.height, toolbarBottom: NativeOverviewViewportDefaults.toolbarBottom))
+        let placements = state.presentedPlacements
+        guard !placements.isEmpty else { return }
+        let world = placements.map(\.cardFrame).reduce(CGRect.null) { $0.union($1) }
+        let raw = min(usable.width / world.width, usable.height / world.height)
+        let expected = min(NativeOverviewCameraGeometry.scaleCap, raw)
+        let transform = state.camera.liveTransform
+        try check(abs(transform.scale - expected) < 1e-6,
+                  "Camera is not FitAll: scale=\(transform.scale) expected=\(expected)")
+        let screen = placements.map { placement -> CGRect in
+            let frame = placement.cardFrame
+            return CGRect(x: transform.x + frame.minX * transform.scale,
+                          y: transform.y + frame.minY * transform.scale,
+                          width: frame.width * transform.scale,
+                          height: frame.height * transform.scale)
+        }.reduce(CGRect.null) { $0.union($1) }
+        try check(abs(screen.midX - (usable.left + usable.width / 2)) < 1
+                  && abs(screen.midY - (usable.top + usable.height / 2)) < 1,
+                  "Rendered collection is not centered: \(screen), usable=\(usable)")
+    }
+
+    func settleCameraAndLayout() async throws {
+        try await wait("camera and layout settled") {
+            !state.isLayingOut && !state.camera.isAnimating && !state.camera.hasPendingAutomaticFit
+        }
+    }
+
     func verifyCardTransitions() async throws {
         try await wait("settled before filter") { !state.isLayingOut }
-        let retained = frames["second"]!
+        let survivorAppearances = appearances["second"]
         items = [.init(id: "second"), .init(id: "third")]
         scene = "transition-filter"; selection = "filtered"
-        try await wait("filter entry") { state.isLayingOut && frames["third"] != nil }
-        let camera = state.camera.liveTransform
-        let placement = state.presentedPlacements.first { $0.id == "third" }!
-        let target = placement.cardFrame
-        try check(abs(frames["third"]!.width - target.width * camera.scale * 0.94) < 1,
-                  "Filter entry lost its initial .94 scale")
-        try check(abs(frames["third"]!.midY - (camera.y + target.midY * camera.scale + 12)) < 1,
-                  "Filter entry lost its screen-space 12pt offset: frame=\(frames["third"]!), target=\(target), camera=\(camera)")
-        try check(abs(frames["second"]!.minX - retained.minX) < 1,
-                  "Filter survivor jumped at filter entry")
-        try await Task.sleep(for: .milliseconds(95))
-        let interrupted = frames["second"]!
-        let sampledAt = frameTimes["second"]!
-        let survivorTarget = state.presentedPlacements.first { $0.id == "second" }!.cardFrame
-        let travel = abs(camera.x + survivorTarget.minX * camera.scale - retained.minX)
+        try await wait("filter complete") { !state.isLayingOut && state.mountedCardIDs == ["second", "third"] }
+        try await settleCameraAndLayout()
+        try verifyFitAll()
         items = [.init(id: "first"), .init(id: "second")]
         scene = "replay"; selection = "all"
-        try await wait("filter reversal") { state.presentedPlacements.contains { $0.id == "first" } }
-        let elapsed = (frameTimes["second"] ?? sampledAt) - sampledAt + 1.0 / 60
-        try check(abs(frames["second"]!.minX - interrupted.minX) <= travel / 0.32 / 0.22 * elapsed + 2,
-                  "Filter reversal snapped to a destination")
-        try await wait("filter complete") { !state.isLayingOut && state.mountedCardIDs == ["first", "second"] }
-        try await Task.sleep(for: .milliseconds(750))
-        try check(abs(frames["second"]!.minX - retained.minX) < 1 && abs(frames["second"]!.minY - retained.minY) < 1,
-                  "Compact filter reversal moved the shared visible card")
-        try check(state.camera.liveTransform == camera, "Delayed refit moved the retained filter view")
-        try check(appearances["second"] == 1, "Filter transition replaced survivor content")
-        state.camera.setManualTransform(.init(scale: state.camera.minimumScale, x: 80, y: 120))
+        try await wait("filter reversal complete") { !state.isLayingOut && state.mountedCardIDs == ["first", "second"] }
+        try await settleCameraAndLayout()
+        try verifyFitAll()
+        try check(appearances["second"] == survivorAppearances, "Filter transition replaced survivor content")
+        state.camera.setManualTransform(.init(scale: 0.9, x: 80, y: 120))
         try await wait("restored manual camera") { abs((frames["first"]?.minX ?? 0) - 80) < 1 }
+        state.camera.returnToAuto()
+        try await settleCameraAndLayout()
+        try verifyFitAll()
     }
 
     func verifySearchCameraRestoration() async throws {
         let browsingItems = items, browsingScene = scene, browsingSelection = selection
-        let initial = state.camera.liveTransform
         for results in [[browsingItems[0]], []] {
             // Keep every browse card offscreen so a nonempty query has to fit
             // its result. Otherwise both scenes retain the same manual camera
             // and a missing bookmark restoration is invisible to this replay.
-            state.camera.setManualTransform(.init(scale: state.camera.minimumScale, x: -10_000, y: -10_000))
+            state.camera.setManualTransform(.init(scale: 0.9, x: -10_000, y: -10_000))
             guard let bookmark = state.camera.live else { throw Failure(message: "Browse camera is missing") }
             items = results; scene = browsingScene + "\u{0}search:camera-replay"; selection = nil
             let resultIDs = Set(results.map(\.id))
             try await wait("search result framing") {
                 !state.isLayingOut && Set(state.presentedPlacements.map(\.id)) == resultIDs
             }
+            try await settleCameraAndLayout()
             try check(!state.camera.manual, "Search fixture did not enter automatic result framing")
+            try verifyFitAll()
             // This is the model-to-canvas restoration contract. The real canvas
             // must consume it on both a visible-survivor return and empty reentry.
             state.pendingSearchCameraRestoration = (browsingScene, bookmark)
@@ -139,7 +154,7 @@ import MokuseiPluginUI
             try check(state.camera.manual && state.camera.liveTransform == bookmark.transform,
                       "Delayed search refit replaced the restored manual camera")
         }
-        state.camera.setManualTransform(initial)
+        state.camera.setManualTransform(.init(scale: 0.9, x: 80, y: 120))
         try await wait("manual camera after search replay") { abs((frames["first"]?.minX ?? 0) - 80) < 1 }
     }
 
@@ -148,8 +163,8 @@ import MokuseiPluginUI
             try await wait("initial card and viewport") {
                 guard appearances["first"] == 1, let frame = frames["first"], state.camera.isInitialized,
                       !state.isLayingOut, viewport.width > 0 else { return false }
-                let fit = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 220),
-                    viewport: .init(width: viewport.width, height: viewport.height, toolbarBottom: 58))
+                guard let fit = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: NativeOverviewLayout.columnWidth, height: NativeOverviewLayout.rowHeight),
+                    viewport: .init(width: viewport.width, height: viewport.height, toolbarBottom: NativeOverviewViewportDefaults.toolbarBottom)) else { return false }
                 return abs(frame.minX - fit.x) < 1
             }
             // Placement is coalesced onto the next main-queue turn. A background
@@ -162,15 +177,17 @@ import MokuseiPluginUI
                 do { try verifyWindowChrome(); return true } catch { return false }
             }
             try verifyWindowChrome()
-            let expected = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 220),
-                viewport: .init(width: viewport.width, height: viewport.height, toolbarBottom: 58))
+            guard let expected = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: NativeOverviewLayout.columnWidth, height: NativeOverviewLayout.rowHeight),
+                viewport: .init(width: viewport.width, height: viewport.height, toolbarBottom: NativeOverviewViewportDefaults.toolbarBottom)) else {
+                throw Failure(message: "Initial FitAll camera is unavailable")
+            }
             try check(abs(frames["first"]!.minX - expected.x) < 1, "First card not centered: frame=\(frames["first"]!), expected=\(expected), viewport=\(viewport), camera=\(state.camera.liveTransform)")
             guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "replay" }) else {
                 throw Failure(message: "Gesture replay window is missing")
             }
             try await verifyOverviewGestures(state: state, window: window)
             try await wait("automatic framing after gestures") { !state.camera.manual && !state.camera.isAnimating }
-            let manualScale = state.camera.minimumScale
+            let manualScale = 0.9
             state.camera.setManualTransform(.init(scale: manualScale, x: 80, y: 120))
             try await wait("manual camera") { abs((frames["first"]?.minX ?? 0) - 80) < 1 }
             items.append(.init(id: "second")); scene = "members:first,second"

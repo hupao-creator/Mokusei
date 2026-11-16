@@ -20,6 +20,19 @@ struct OverviewCardPose: Equatable {
     }
 }
 
+/// One bounded transition clock shared by exits, moves and entries. Offsets are
+/// world points in the camera plane, not screen points.
+enum OverviewCardTransition {
+    static let exitDuration: TimeInterval = 0.16
+    static let moveDuration: TimeInterval = 0.26
+    static let entryDuration: TimeInterval = 0.23
+    static let exitScale = 0.98
+    static let exitRise: Double = -8
+    static let entryScale = 0.94
+    static let entryRise: Double = 8
+    static var longest: TimeInterval { max(exitDuration, moveDuration, entryDuration) }
+}
+
 struct OverviewCardMotion: Equatable {
     enum Curve: Equatable {
         case filter, layout, entry
@@ -119,9 +132,5 @@ struct OverviewCardFrame<Content: View>: View {
 }
 
 extension NativeOverviewPlacement {
-    var cardFrame: CGRect {
-        CGRect(x: Double(column) * NativeOverviewLayout.columnPitch, y: Double(row) * NativeOverviewLayout.rowPitch,
-               width: Double(columns) * NativeOverviewLayout.columnPitch - NativeOverviewLayout.gap,
-               height: Double(rows) * NativeOverviewLayout.rowPitch - NativeOverviewLayout.gap)
-    }
+    var cardFrame: CGRect { cardFrame(using: .standard) }
 }

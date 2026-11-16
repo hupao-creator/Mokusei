@@ -124,13 +124,13 @@ private func snapshot(count: Int) throws -> JSONValue {
         }
         for count in [5, 6, 12, 30] {
             let members = (0..<count).map { NativeOverviewMember(id: "layout-\($0)", columns: count <= 6 && $0 == 0 ? 2 : 1, rows: 1) }
-            var previous: [NativeOverviewPlacement] = []
             records.append(try measure("layout-initial", count: count, iterations: 5) { _ in
-                previous = try NativeOverviewLayout.plan(previous: [], next: members, fittingSize: CGSize(width: 1440, height: 780)).placements
+                _ = try NativeOverviewLayout.solve(members: members,
+                    usableViewport: .init(left: 0, top: 0, width: 1440, height: 780))
             })
             records.append(try measure("layout-resize", count: count, iterations: 5) { i in
-                let result = try NativeOverviewLayout.plan(previous: previous, next: members,
-                    fittingSize: CGSize(width: i.isMultiple(of: 2) ? 900 : 1440, height: 780))
+                let result = try NativeOverviewLayout.solve(members: members,
+                    usableViewport: .init(left: 0, top: 0, width: i.isMultiple(of: 2) ? 900 : 1440, height: 780))
                 guard result.placements.count == count else { throw Failure(message: "Layout membership mismatch") }
             })
         }

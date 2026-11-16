@@ -113,7 +113,10 @@ private enum ThreadCardComposer {
                 for cols in 1...totalArea {
                     guard totalArea.isMultiple(of: cols) else { continue }
                     let rows = totalArea / cols
-                    // A one-column viewport must be able to stack every extension.
+                    // Card composition prefers a compact near-square plate. This
+                    // is a card-shape policy, not an Overview packing rule: the
+                    // viewport and previous layouts never feed back here. A
+                    // one-column capability limit may still stack every extension.
                     guard abs(cols - rows) <= 1 || (availableCols == 1 && cols == 1) else { continue }
                     guard identitySize.cols <= cols, identitySize.rows <= rows else { continue }
                     for placements in enumeratePlacements(selection, cols: cols, rows: rows, identitySize: identitySize) {

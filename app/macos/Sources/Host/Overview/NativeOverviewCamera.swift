@@ -27,6 +27,8 @@ public struct NativeOverviewContentRect: Codable, Equatable, Sendable {
         self.width = width
         self.height = height
     }
+
+    public static let zero = Self(left: 0, top: 0, width: 0, height: 0)
 }
 
 public struct NativeOverviewViewport: Equatable, Sendable {
@@ -85,7 +87,7 @@ public struct NativeOverviewCameraSubmission: Sendable {
     public var from: NativeOverviewTransform
     public var to: NativeOverviewTransform
     public var frames: [NativeOverviewCameraFrame]
-    /// Total seconds, including delay. A zero duration is a direct/cancelled write.
+    /// Total seconds. A zero duration is a direct commit.
     public var duration: TimeInterval
     public var delay: TimeInterval
     /// Monotonic start time in seconds since boot.
@@ -93,11 +95,16 @@ public struct NativeOverviewCameraSubmission: Sendable {
 }
 
 public enum NativeOverviewCameraGeometry {
-    public static let scaleFloor = 0.85
-    public static let scaleMaximum = 1.7
-    public static let readableCellBudget = 16.0
-    private static let standardCellArea = NativeOverviewLayout.columnPitch * NativeOverviewLayout.rowPitch
+    /// Explicit product zoom ceiling. Automatic FitAll respects it; the same
+    /// ceiling bounds manual zoom so both paths share one declared limit.
+    public static let scaleCap = NativeOverviewGeometryPolicy.standard.scaleCap ?? 1.7
+    /// Numerical guard for manual transforms, not a readability policy.
+    public static let manualScaleFloor = 0.01
     public static let wheelZoomIntensity = 0.0015
+    public static let motionDuration: TimeInterval = 0.36
+    public static let motionFrameCount = 48
+    /// Single product breakpoint for the compact tag bar and framing margin.
+    public static let compactViewportWidth: Double = 620
 
     public static func contentRegion(_ viewport: NativeOverviewViewport) -> NativeOverviewContentRect {
         let top = min(max(0, viewport.toolbarBottom), viewport.height)
@@ -105,126 +112,52 @@ public enum NativeOverviewCameraGeometry {
         return .init(left: 0, top: top, width: max(0, viewport.width), height: bottom - top)
     }
 
+    /// The persistent controls own their actual space. The remaining inset is
+    /// a product margin around the collection, never a hidden fit floor.
     public static func framingRegion(_ viewport: NativeOverviewViewport) -> NativeOverviewContentRect {
-        let margin = viewport.width <= 620 ? 32.0 : 64.0
+        let margin = viewport.width <= compactViewportWidth ? 32.0 : 64.0
         let left = min(margin, viewport.width / 2)
         let content = contentRegion(viewport)
-        // The persistent Dock consumes the existing vertical padding budget.
-        // Center the remaining breathing room between controls instead of
-        // reserving the Dock on top of two full margins and shrinking cards.
         let verticalMargin = min(content.height / 2, max(0, margin - viewport.bottomReservedHeight / 2))
         let top = content.top + verticalMargin
         return .init(left: left, top: top, width: max(0, viewport.width - 2 * left),
                      height: max(0, content.height - 2 * verticalMargin))
     }
 
-    /// Limit the readable world area, rather than hiding a fixed number of cards.
-    /// Partial cards at the viewport edges may extend beyond this cell budget.
-    public static func minimumScale(in viewport: NativeOverviewViewport) -> Double {
-        let region = framingRegion(viewport)
-        let area = region.width * region.height
-        guard area.isFinite, area > 0 else { return scaleFloor }
-        return max(scaleFloor, sqrt(area / (readableCellBudget * standardCellArea)))
-    }
-
-    public static func maximumScale(minimumScale: Double = scaleFloor) -> Double {
-        let minimum = minimumScale.isFinite ? max(scaleFloor, minimumScale) : scaleFloor
-        return max(scaleMaximum, minimum * 2)
-    }
-
-    public static func clampScale(_ scale: Double, minimumScale: Double = scaleFloor) -> Double {
-        let minimum = minimumScale.isFinite ? max(scaleFloor, minimumScale) : scaleFloor
-        let maximum = maximumScale(minimumScale: minimum)
-        guard scale.isFinite else { return maximum }
-        return min(maximum, max(minimum, scale))
-    }
-
-    public static func wholeSceneFitScale(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport) -> Double {
-        guard hasGeometry(content, viewport: viewport) else { return 1 }
-        let region = framingRegion(viewport)
-        return min(region.width / content.width, region.height / content.height)
-    }
-
-    public static func fitsAtReadingScale(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport) -> Bool {
-        wholeSceneFitScale(content, viewport: viewport) + 1e-6 >= minimumScale(in: viewport)
-    }
-
-    /// Collection fitting and retained filters share the center of
-    /// the region between persistent controls. Overflow stays symmetric.
-    static func framingTransform(_ content: NativeOverviewContentRect,
-                                 viewport: NativeOverviewViewport,
-                                 scale: Double) -> NativeOverviewTransform {
-        guard hasGeometry(content, viewport: viewport), scale.isFinite, scale > 0 else { return .identity }
-        let region = framingRegion(viewport)
-        let remainingHeight = region.height - content.height * scale
+    /// Fit a complete world rect into an explicit usable rect and center it.
+    /// Nil means the caller has no finite, positive geometry to frame.
+    public static func centeredTransform(content: NativeOverviewContentRect,
+                                         usable: NativeOverviewContentRect,
+                                         scaleCap: Double?) -> NativeOverviewTransform? {
+        guard content.width > 0, content.height > 0,
+              content.left.isFinite, content.top.isFinite,
+              content.width.isFinite, content.height.isFinite,
+              usable.left.isFinite, usable.top.isFinite,
+              usable.width > 0, usable.height > 0,
+              usable.width.isFinite, usable.height.isFinite else { return nil }
+        let fit = min(usable.width / content.width, usable.height / content.height)
+        guard fit.isFinite, fit > 0 else { return nil }
+        let scale = min(scaleCap ?? fit, fit)
+        guard scale.isFinite, scale > 0 else { return nil }
         return .init(scale: scale,
-                     x: region.left + (region.width - content.width * scale) / 2 - content.left * scale,
-                     y: region.top + remainingHeight / 2 - content.top * scale)
-    }
-
-    /// Keep the retained reading scale when the collection fits between the
-    /// controls, and move a repacked collection to the shared framing
-    /// anchor. A tag filter can change the packed footprint; a frozen
-    /// translation would leave the narrower result anchored to the old scene's
-    /// edge instead of the usable viewport.
-    ///
-    /// Clamping matters when the viewport changes in the same frame as the
-    /// filter: the retained scale can be outside the new readable range, and
-    /// retained framing suppresses the refit that would otherwise correct it.
-    public static func recenter(content: NativeOverviewContentRect,
-                                viewport: NativeOverviewViewport,
-                                scale: Double) -> NativeOverviewTransform? {
-        guard hasGeometry(content, viewport: viewport), scale.isFinite, scale > 0 else { return nil }
-        let clamped = clampScale(scale, minimumScale: minimumScale(in: viewport))
-        let region = contentRegion(viewport)
-        // Retained filter framing suppresses later refits. A larger result must
-        // resolve capacity here rather than stay clipped until a background click.
-        // Preferred margins may yield to the old scale; persistent controls may not.
-        if content.width * clamped > region.width + 1e-6 || content.height * clamped > region.height + 1e-6 {
-            return fit(content, viewport: viewport)
-        }
-        return framingTransform(content, viewport: viewport, scale: clamped)
+                     x: usable.left + (usable.width - content.width * scale) / 2 - content.left * scale,
+                     y: usable.top + (usable.height - content.height * scale) / 2 - content.top * scale)
     }
 
     public static func fit(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
-                           minimumScale: Double = scaleFloor) -> NativeOverviewTransform {
-        guard hasGeometry(content, viewport: viewport) else { return .identity }
-        let minimum = max(minimumScale, self.minimumScale(in: viewport))
-        // Preferred margins can yield to the minimum readable scale.
-        let naturalScale = min(wholeSceneFitScale(content, viewport: viewport), max(1, minimum))
-        let scale = clampScale(naturalScale, minimumScale: minimum)
-        return framingTransform(content, viewport: viewport, scale: scale)
-    }
-
-    /// Project the old translation onto the range that keeps the collection
-    /// visible at unchanged reading scale. A smaller collection that permits a
-    /// larger automatic scale, or capacity loss, uses the ordinary fit instead.
-    public static func preservingReadingPosition(_ transform: NativeOverviewTransform,
-                                                 content: NativeOverviewContentRect,
-                                                 viewport: NativeOverviewViewport) -> NativeOverviewTransform {
-        let region = framingRegion(viewport)
-        let scale = transform.scale
-        let automatic = fit(content, viewport: viewport)
-        // Reading retention must not strand automatic focus at an obsolete
-        // smaller scale after cards shrink. Same-scale edits keep their seat.
-        // A scale derived by division can overshoot the same edge by an ULP
-        // when multiplied back. Do not turn that into a visible recenter.
-        guard scale + 1e-6 >= automatic.scale, scale >= minimumScale(in: viewport),
-              content.width * scale <= region.width + 1e-6, content.height * scale <= region.height + 1e-6 else {
-            return automatic
-        }
-        return .init(scale: scale,
-                     x: max(region.left - content.left * scale,
-                            min(region.left + region.width - (content.left + content.width) * scale, transform.x)),
-                     y: max(region.top - content.top * scale,
-                            min(region.top + region.height - (content.top + content.height) * scale, transform.y)))
+                           scaleCap: Double? = NativeOverviewGeometryPolicy.standard.scaleCap) -> NativeOverviewTransform? {
+        centeredTransform(content: content, usable: framingRegion(viewport), scaleCap: scaleCap)
     }
 
     public static func zoom(_ transform: NativeOverviewTransform, cursor: CGPoint, nextScale: Double,
-                            minimumScale: Double = scaleFloor) -> NativeOverviewTransform {
-        let scale = clampScale(nextScale, minimumScale: minimumScale)
+                            minimumScale: Double = manualScaleFloor,
+                            maximumScale: Double = scaleCap) -> NativeOverviewTransform {
+        let maximum = maximumScale.isFinite ? max(manualScaleFloor, maximumScale) : scaleCap
+        let minimum = minimumScale.isFinite ? min(maximum, max(manualScaleFloor, minimumScale)) : manualScaleFloor
+        let scale = nextScale.isFinite ? min(maximum, max(minimum, nextScale)) : minimum
         guard scale != transform.scale else { return transform }
-        guard transform.scale.isFinite, transform.scale > 0 else {
+        guard transform.scale.isFinite, transform.scale > 0,
+              transform.x.isFinite, transform.y.isFinite else {
             return .init(scale: scale, x: transform.x, y: transform.y)
         }
         let ratio = scale / transform.scale
@@ -238,30 +171,13 @@ public enum NativeOverviewCameraGeometry {
 
     public static func isVisible(_ rect: NativeOverviewContentRect, transform: NativeOverviewTransform,
                                  viewport: NativeOverviewViewport) -> Bool {
+        guard transform.scale.isFinite, transform.scale > 0,
+              transform.x.isFinite, transform.y.isFinite else { return false }
         let left = transform.x + rect.left * transform.scale
         let top = transform.y + rect.top * transform.scale
         let region = framingRegion(viewport)
         return left + rect.width * transform.scale > region.left && top + rect.height * transform.scale > region.top
             && left < region.left + region.width && top < region.top + region.height
-    }
-
-    public static func needsRefit(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
-                                  transform: NativeOverviewTransform, minimumScale: Double = scaleFloor) -> Bool {
-        guard hasGeometry(content, viewport: viewport) else { return false }
-        let ideal = fit(content, viewport: viewport, minimumScale: minimumScale)
-        if abs(ideal.scale - transform.scale) < 1e-6 && abs(ideal.x - transform.x) < 1 && abs(ideal.y - transform.y) < 1 { return false }
-        let region = framingRegion(viewport)
-        let left = transform.x + content.left * transform.scale
-        let top = transform.y + content.top * transform.scale
-        if left < region.left - 1 || top < region.top - 1
-            || left + content.width * transform.scale > region.left + region.width + 1
-            || top + content.height * transform.scale > region.top + region.height + 1 { return true }
-        return ideal.scale - transform.scale > 0.08 || abs(ideal.x - transform.x) > region.width * 0.1
-            || abs(ideal.y - transform.y) > region.height * 0.1
-    }
-
-    public static func hasGeometry(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport) -> Bool {
-        content.width > 0 && content.height > 0 && viewport.width > 0 && viewport.height > 0
     }
 
     public static func approximatelyEqual(_ lhs: NativeOverviewTransform, _ rhs: NativeOverviewTransform) -> Bool {
@@ -270,10 +186,10 @@ public enum NativeOverviewCameraGeometry {
 
     /// Sample quintic easing once, then play linear keyframe segments in the compositor.
     public static func move(from: NativeOverviewTransform, to: NativeOverviewTransform,
-                            duration: TimeInterval, delay: TimeInterval = 0) -> [NativeOverviewCameraFrame] {
+                            duration: TimeInterval = motionDuration, delay: TimeInterval = 0) -> [NativeOverviewCameraFrame] {
         var frames = [NativeOverviewCameraFrame(at: 0, transform: from)]
-        for index in 0...48 {
-            let time = Double(index) / 48
+        for index in 0...motionFrameCount {
+            let time = Double(index) / Double(motionFrameCount)
             let progress = 1 - pow(1 - time, 5)
             frames.append(.init(at: delay + time * duration, transform: interpolate(from, to, progress: progress)))
         }
@@ -292,196 +208,165 @@ public enum NativeOverviewCameraGeometry {
     }
 
     private static func interpolate(_ from: NativeOverviewTransform, _ to: NativeOverviewTransform,
-                                     progress: Double) -> NativeOverviewTransform {
+                                    progress: Double) -> NativeOverviewTransform {
         .init(scale: from.scale + (to.scale - from.scale) * progress,
               x: from.x + (to.x - from.x) * progress, y: from.y + (to.y - from.y) * progress)
     }
 }
 
-/// Single-writer camera with prepared motion and sampled cancellation.
+/// Single-writer camera with latest-wins automatic framing. Automatic targets
+/// come from the same geometry snapshot as the layout; manual transforms are
+/// user-owned and never replaced by background work.
 @MainActor @Observable
 public final class NativeOverviewCamera {
     public private(set) var manual = false
-    public private(set) var returning = false
     public private(set) var isInitialized = false
-
-    /// Target transform. Geometry and gestures must use `liveTransform` during motion.
+    /// Committed target transform. Geometry and gestures use `liveTransform`
+    /// while a track is playing.
     public private(set) var transform = NativeOverviewTransform.identity
+    public private(set) var isAnimating = false
     @ObservationIgnored public private(set) var animationFrames: [NativeOverviewCameraFrame] = []
     @ObservationIgnored public var onSubmission: ((NativeOverviewCameraSubmission) -> Void)?
     @ObservationIgnored public var onFrameSubmission: ((NativeOverviewTransform, NativeOverviewTransform, TimeInterval, TimeInterval) -> Void)?
     @ObservationIgnored public var onChange: (() -> Void)?
-    @ObservationIgnored public var stageCoordinator: NativeOverviewStageCoordinator?
+    public var reduceMotion = false
 
     @ObservationIgnored private var state: NativeOverviewCameraState?
-    public private(set) var isAnimating = false
-    @ObservationIgnored private var track: Track? { didSet { isAnimating = track != nil } }
-    @ObservationIgnored private var animationTask: Task<Void, Never>?
-    @ObservationIgnored private var animationOwner: Owner?
-    public var reduceMotion = false
-    @ObservationIgnored private var readingFit: CameraFit?
-    /// Last settled automatic target and the bounds it framed. Automatic
-    /// clamping can retain a translation that is not the ordinary fit, so the
-    /// target and its provenance matter more than the current bounds alone.
-    @ObservationIgnored private var lastAutomaticFit: CameraFit?
-    @ObservationIgnored private var refitTask: Task<Void, Never>?
-    @ObservationIgnored private var animationGeneration = 0
-    @ObservationIgnored private var returnEpoch = 0
+    @ObservationIgnored private var geometry: Geometry?
     @ObservationIgnored private var visible = true
-    @ObservationIgnored private var lastRefitAt = -Double.infinity
-    @ObservationIgnored private var bounds: (content: NativeOverviewContentRect, viewport: NativeOverviewViewport)?
-    @ObservationIgnored private var framingRevision = 0
-    @ObservationIgnored private var framedRevision = 0
     @ObservationIgnored private var interactionPaused = false
-    @ObservationIgnored private var environmentDeferred = false
-    @ObservationIgnored private var framingRetained = false
     @ObservationIgnored private var pendingAutoFit = false
-    private enum Owner: String {
-        case returning = "restore-auto"
-        case refit = "throttled-refit"
-        case returnAuto = "return-auto"
+    @ObservationIgnored private var animationTask: Task<Void, Never>?
+    @ObservationIgnored private var animationGeneration = 0
+    @ObservationIgnored private var track: Track?
+
+    private struct Geometry: Equatable {
+        var content: NativeOverviewContentRect
+        var viewport: NativeOverviewViewport
+        var automatic: NativeOverviewTransform?
     }
+
     private struct Track {
         var frames: [NativeOverviewCameraFrame]
         var started: TimeInterval
-    }
-    private struct CameraFit {
-        var transform: NativeOverviewTransform
-        var content: NativeOverviewContentRect
-        /// Axes intentionally retained from a reading/filter seat. Automatic
-        /// clamps keep both false even when their translation differs from fit.
-        var retainedX: Bool
-        var retainedY: Bool
     }
 
     public init() {}
 
     public var live: NativeOverviewCameraState? {
         guard var state else { return nil }
-        if let track { state.transform = NativeOverviewCameraGeometry.sample(track.frames, at: ProcessInfo.processInfo.systemUptime - track.started) }
+        if let track { state.transform = NativeOverviewCameraGeometry.sample(track.frames, at: uptime - track.started) }
         return state
     }
 
-    public var animationStartTime: TimeInterval? { track?.started }
-
     public var liveTransform: NativeOverviewTransform { isAnimating ? (live?.transform ?? transform) : transform }
-
-    public var minimumScale: Double {
-        bounds.map { NativeOverviewCameraGeometry.minimumScale(in: $0.viewport) } ?? NativeOverviewCameraGeometry.scaleFloor
-    }
-    public var maximumScale: Double { NativeOverviewCameraGeometry.maximumScale(minimumScale: minimumScale) }
-    public var viewport: NativeOverviewViewport? { bounds?.viewport }
-    /// A track is created only after stage acquisition. Callers waiting for an
-    /// applied camera intent must also observe queued work and deferred fitting.
-    public var hasScheduledMotion: Bool { animationTask != nil || refitTask != nil || returning }
+    public var animationStartTime: TimeInterval? { track?.started }
+    public var viewport: NativeOverviewViewport? { geometry?.viewport }
+    /// Numerical floor for manual transforms. Automatic FitAll is not clamped
+    /// to this value and may be smaller for a very large collection.
+    public var minimumScale: Double { NativeOverviewCameraGeometry.manualScaleFloor }
+    public var maximumScale: Double { NativeOverviewCameraGeometry.scaleCap }
+    public var hasScheduledMotion: Bool { animationTask != nil }
     public var hasPendingAutomaticFit: Bool { pendingAutoFit }
-    public var automaticFitTarget: NativeOverviewTransform? { state == nil ? nil : fit() }
+    /// Explicit-return provenance for diagnostics; automatic framing is pending.
+    public var returning: Bool { pendingAutoFit && !manual }
+    public var automaticFitTarget: NativeOverviewTransform? { state == nil ? nil : geometry?.automatic }
     public var automaticFitBlockReason: String? {
         guard pendingAutoFit else { return nil }
+        if manual { return "manual" }
         if !visible { return "hidden" }
         if interactionPaused { return "interaction" }
-        if environmentDeferred { return "layout" }
-        if framingRetained { return "retained-framing" }
-        if returning { return "restoring" }
+        if geometry?.automatic == nil { return "unavailable" }
         return nil
     }
 
+    /// Apply the geometry that belongs to one layout snapshot. A nonmanual
+    /// camera retargets from the current displayed transform; a manual camera
+    /// keeps its explicit transform.
+    public func applyGeometry(content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
+                              automatic: NativeOverviewTransform?) {
+        geometry = .init(content: content, viewport: viewport, automatic: automatic)
+        guard state != nil else {
+            guard !manual, content.width > 0, content.height > 0, let automatic else { return }
+            pendingAutoFit = false
+            commit(.init(transform: automatic, manual: false))
+            return
+        }
+        guard !manual else {
+            pendingAutoFit = false
+            return
+        }
+        guard content.width > 0, content.height > 0 else {
+            pendingAutoFit = false
+            stopMotion(commitSample: false)
+            commit(nil)
+            return
+        }
+        pendingAutoFit = true
+        updateAuto()
+    }
+
+    /// Derive the target from the complete content rect when the caller does
+    /// not already have a solver camera.
     public func reconcileBounds(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        setBounds(content: content, viewport: viewport)
-        guard NativeOverviewCameraGeometry.hasGeometry(content, viewport: viewport) else { dispose(); return }
-        if state == nil { cutTo(content: content, viewport: viewport) }
-        else { constrainManualState() }
+        applyGeometry(content: content, viewport: viewport,
+                      automatic: NativeOverviewCameraGeometry.fit(content, viewport: viewport))
     }
 
     public func cutTo(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        resetActivity()
-        setBounds(content: content, viewport: viewport)
-        framedRevision = framingRevision
-        guard NativeOverviewCameraGeometry.hasGeometry(content, viewport: viewport) else { commit(nil); return }
-        let target = fit()
-        lastAutomaticFit = .init(transform: target, content: content, retainedX: false, retainedY: false)
-        commit(.init(transform: target, manual: false))
-    }
-
-    /// Keep the sampled screen positions across a compact filter repack. The
-    /// next layout/viewport change or explicit camera action resumes auto policy.
-    ///
-    /// Changed content or viewport bounds are recentered in the framing region
-    /// at the retained scale, clamped to the destination viewport's readable
-    /// range, falling back to ordinary fitting if that scale exceeds actual
-    /// capacity. A manual pan or zoom is explicit user framing and is never moved
-    /// automatically.
-    public func retainFraming(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        guard let view = live else { cutTo(content: content, viewport: viewport); return }
-        let framingChanged = bounds.map { $0.content != content || $0.viewport != viewport } ?? true
+        stopMotion(commitSample: false)
+        let automatic = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
+        geometry = .init(content: content, viewport: viewport, automatic: automatic)
         pendingAutoFit = false
-        cancelReturn()
-        cancelMotion()
-        clearRefit()
-        // Retained filter/search framing is intentional and is not an ordinary
-        // automatic fit, even when it happens to share the same translation.
-        readingFit = nil
-        lastAutomaticFit = nil
-        setBounds(content: content, viewport: viewport)
-        framingRetained = true
-        var retained = view
-        if framingChanged, !view.manual,
-           let recentered = NativeOverviewCameraGeometry.recenter(content: content, viewport: viewport,
-                                                                  scale: view.transform.scale) {
-            retained = .init(transform: recentered, manual: false)
+        guard content.width > 0, content.height > 0, let automatic else {
+            commit(nil)
+            return
         }
-        if !retained.manual {
-            // Retained framing is an intentional baseline, not an automatic
-            // seat. Publish it before commit so onChange never observes a
-            // transient target that differs from the committed live view.
-            readingFit = .init(transform: retained.transform, content: content,
-                               retainedX: true, retainedY: true)
-        } else {
-            readingFit = nil
-        }
-        commit(retained)
+        commit(.init(transform: automatic, manual: false))
     }
 
-    public func restore(view: NativeOverviewCameraState, content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        dispose()
-        setBounds(content: content, viewport: viewport)
-        guard NativeOverviewCameraGeometry.hasGeometry(content, viewport: viewport) else { return }
-        returning = !view.manual
-        commit(.init(transform: constrained(view.transform), manual: view.manual))
-        if !view.manual { scheduleReturn() }
+    /// Cross-scene restores keep the 0.36s retarget animation for a saved
+    /// automatic bookmark. The ordinary same-scene geometry path does not call
+    /// this method and writes the current snapshot directly.
+    public func restore(view: NativeOverviewCameraState, content: NativeOverviewContentRect,
+                        viewport: NativeOverviewViewport) {
+        stopMotion(commitSample: false)
+        geometry = .init(content: content, viewport: viewport,
+                         automatic: NativeOverviewCameraGeometry.fit(content, viewport: viewport))
+        guard content.width > 0, content.height > 0 else { commit(nil); return }
+        if view.manual {
+            pendingAutoFit = false
+            commit(.init(transform: constrained(view.transform), manual: true))
+        } else {
+            commit(.init(transform: view.transform, manual: false))
+            pendingAutoFit = true
+            updateAuto()
+        }
     }
 
     public func setVisible(_ value: Bool) {
         guard visible != value else { return }
         visible = value
-        if !value {
-            let wasReturning = returning
-            cancelReturn()
-            returning = wasReturning
-            clearRefit()
-            cancelMotion()
-        } else if returning { scheduleReturn() }
-        else if let bounds { requestRefit(content: bounds.content, viewport: bounds.viewport) }
-        publish()
+        if value {
+            updateAuto()
+        } else {
+            stopMotion(commitSample: true)
+            publish()
+        }
     }
 
     public func setManualTransform(_ value: NativeOverviewTransform, anchor: CGPoint? = nil) {
-        framingRetained = false
-        pendingAutoFit = false
-        cancelReturn()
-        cancelMotion()
-        clearRefit()
-        readingFit = nil
-        lastAutomaticFit = nil
         guard state != nil else { return }
+        stopMotion(commitSample: false)
+        pendingAutoFit = false
         commit(.init(transform: constrained(value, anchor: anchor), manual: true))
     }
 
     public func zoom(deltaY: Double, cursor: CGPoint) {
         guard let live else { return }
         setManualTransform(NativeOverviewCameraGeometry.zoom(live.transform, cursor: cursor,
-            nextScale: live.transform.scale * exp(-deltaY * NativeOverviewCameraGeometry.wheelZoomIntensity),
-            minimumScale: minimumScale), anchor: cursor)
+            nextScale: live.transform.scale * exp(-deltaY * NativeOverviewCameraGeometry.wheelZoomIntensity)),
+            anchor: cursor)
     }
 
     public func pan(deltaX: Double, deltaY: Double) {
@@ -492,381 +377,136 @@ public final class NativeOverviewCamera {
     }
 
     public func returnToAuto() {
-        guard let bounds else { return }
-        returnToAuto(content: bounds.content, viewport: bounds.viewport)
-    }
-
-    public func returnToAuto(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        readingFit = nil
-        framingRetained = false
-        clearRefit()
-        cancelReturn()
-        cancelMotion()
-        setBounds(content: content, viewport: viewport)
-        guard var state else { return }
-        state.manual = false
+        guard let geometry, state != nil else { return }
+        // Stop the old track at its displayed sample before choosing the new
+        // automatic target. Otherwise an in-flight track could later commit an
+        // obsolete destination after the target already matched this sample.
+        stopMotion(commitSample: true)
+        manual = false
         pendingAutoFit = true
-        commit(state)
-        environmentDeferred = false
+        guard geometry.content.width > 0, geometry.content.height > 0 else {
+            pendingAutoFit = false
+            commit(nil)
+            return
+        }
         updateAuto()
+        publish()
     }
 
     public func setInteractionPaused(_ paused: Bool) {
         guard interactionPaused != paused else { return }
         interactionPaused = paused
         if paused {
-            cancelReturn()
-            clearRefit()
-            cancelMotion()
+            stopMotion(commitSample: true)
+            publish()
+        } else {
+            updateAuto()
         }
-        publish()
-        if !paused { updateAuto() }
-    }
-
-    public func requestRefit(content: NativeOverviewContentRect, viewport: NativeOverviewViewport, layoutChanged: Bool = false,
-                             preserveFraming: Bool = false, preserveReadingPosition: Bool = false) {
-        setBounds(content: content, viewport: viewport)
-        if layoutChanged {
-            framingRetained = false
-            // A following footprint revision must not turn an unfinished insert,
-            // restore or automatic return into a retained intermediate position.
-            // Consecutive reading-preserving revisions keep their intended target,
-            // even when the preceding translation has not finished playing.
-            let priorFit = readingFit
-            let readingPosition = priorFit?.transform ?? (framedRevision == framingRevision ? live?.transform : nil)
-            let current = priorFit?.transform ?? live?.transform
-            let priorRetainedX: Bool
-            let priorRetainedY: Bool
-            if let priorFit {
-                priorRetainedX = priorFit.retainedX
-                priorRetainedY = priorFit.retainedY
-            } else if let live, let lastAutomaticFit,
-                      NativeOverviewCameraGeometry.approximatelyEqual(live.transform, lastAutomaticFit.transform) {
-                priorRetainedX = false
-                priorRetainedY = false
-            } else {
-                // No retained target and no matching automatic target: treat
-                // the live framing as intentional so a local edit keeps it.
-                priorRetainedX = true
-                priorRetainedY = true
-            }
-            let automatic = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
-            let priorContent = priorFit?.content ?? lastAutomaticFit?.content
-            let priorScale = priorFit?.transform.scale ?? lastAutomaticFit?.transform.scale
-            // A pending target keeps its seat until its own revision settles.
-            let settled = framedRevision == framingRevision
-            let atCurrent = live.map { live in
-                current.map { NativeOverviewCameraGeometry.approximatelyEqual(live.transform, $0) } ?? false
-            } ?? false
-            // A settled automatic x follows a same-scale width shrink to the
-            // new ordinary x. A retained x/y seat survives. Any height shrink
-            // creates a persistent vertical seat; ordinary height growth must
-            // not turn its preserved translation into one.
-            let shouldRecenterX: Bool
-            if settled, atCurrent, !priorRetainedX, let current,
-               let priorContent, let priorScale {
-                shouldRecenterX = content.width <= priorContent.width + 1e-6
-                    && abs(automatic.scale - priorScale) < 1e-6
-                    && abs(automatic.x - current.x) > 0.001
-            } else {
-                shouldRecenterX = false
-            }
-            if preserveReadingPosition && live?.manual == false && !returning
-                && !pendingAutoFit, let readingPosition {
-                let preserved = NativeOverviewCameraGeometry.preservingReadingPosition(
-                    readingPosition, content: content, viewport: viewport)
-                let heightShrank = priorContent.map { content.height < $0.height - 1e-6 } ?? false
-                let createsVerticalSeat = heightShrank && abs(preserved.y - automatic.y) > 0.001
-                let retainedY = priorRetainedY || createsVerticalSeat
-                let transform: NativeOverviewTransform
-                if shouldRecenterX {
-                    transform = .init(scale: automatic.scale,
-                                      x: automatic.x,
-                                      y: retainedY ? preserved.y : automatic.y)
-                } else {
-                    transform = preserved
-                }
-                readingFit = .init(transform: transform, content: content,
-                                   retainedX: priorRetainedX, retainedY: retainedY)
-                if priorRetainedX || retainedY { lastAutomaticFit = nil }
-            } else {
-                readingFit = nil
-            }
-        }
-        if preserveFraming {
-            framingRetained = true
-            clearRefit()
-            if animationOwner == .refit {
-                // A playing refit would otherwise commit a target that no
-                // longer matches the retained baseline. Sample the current
-                // view, validate it against the new content, publish it as the
-                // baseline, then commit that same sample.
-                if let sampled = live, !sampled.manual, !returning, !pendingAutoFit {
-                    let retained = NativeOverviewCameraGeometry.preservingReadingPosition(
-                        sampled.transform, content: content, viewport: viewport)
-                    readingFit = .init(transform: retained, content: content,
-                                       retainedX: true, retainedY: true)
-                    cancelMotion(committing: .init(transform: retained, manual: false))
-                } else {
-                    readingFit = nil
-                    cancelMotion()
-                }
-            } else if !isAnimating, let live, !live.manual, !returning, !pendingAutoFit {
-                // Preserve the current view as the new intentional baseline.
-                // The old automatic seat provenance must not survive, but the
-                // visible translation should not jump to the ordinary fit.
-                readingFit = .init(transform: live.transform, content: content,
-                                   retainedX: true, retainedY: true)
-            } else {
-                readingFit = nil
-            }
-            lastAutomaticFit = nil
-        }
-        if layoutChanged { framingRevision += 1 }
-        // A retained filter view is an intentional settled target, so a later
-        // local footprint edit may preserve its reading position too.
-        if preserveFraming { framedRevision = framingRevision }
-        environmentDeferred = false
-        constrainManualState()
-        updateAuto()
-    }
-
-    public func deferRefit() {
-        environmentDeferred = true
-        clearRefit()
-        if animationOwner == .refit { cancelMotion() }
     }
 
     public func dispose() {
-        resetActivity()
+        stopMotion(commitSample: false)
+        geometry = nil
+        pendingAutoFit = false
+        interactionPaused = false
         commit(nil)
     }
 
-    private func resetActivity() {
-        readingFit = nil
-        lastAutomaticFit = nil
-        framingRetained = false
-        pendingAutoFit = false
-        interactionPaused = false
-        environmentDeferred = false
-        cancelReturn()
-        cancelMotion()
-        clearRefit()
-    }
+    private var uptime: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
-    private func setBounds(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        if let bounds, bounds.content != content || bounds.viewport != viewport { framingRetained = false }
-        if let previous = bounds?.viewport, previous != viewport {
-            framingRevision += 1
-            readingFit = nil
-            lastAutomaticFit = nil
-        }
-        bounds = (content, viewport)
-    }
-
-    private func constrained(_ value: NativeOverviewTransform, anchor: CGPoint? = nil) -> NativeOverviewTransform {
-        let region = bounds.map { NativeOverviewCameraGeometry.framingRegion($0.viewport) }
-        let pivot = anchor ?? CGPoint(x: region.map { $0.left + $0.width / 2 } ?? 0,
-                                      y: region.map { $0.top + $0.height / 2 } ?? 0)
-        return NativeOverviewCameraGeometry.zoom(value, cursor: pivot, nextScale: value.scale,
-                                                  minimumScale: minimumScale)
-    }
-
-    private func constrainManualState() {
-        guard var current = live, current.manual else { return }
-        let next = constrained(current.transform)
-        guard next != current.transform else { return }
-        current.transform = next
-        commit(current)
-    }
-
-    private func fit() -> NativeOverviewTransform {
-        guard let bounds else { return .identity }
-        return readingFit?.transform ?? NativeOverviewCameraGeometry.fit(bounds.content, viewport: bounds.viewport)
-    }
-
-    private func automaticFit(target: NativeOverviewTransform) -> CameraFit? {
-        if let readingFit {
-            guard !readingFit.retainedX && !readingFit.retainedY else { return nil }
-            return .init(transform: target, content: readingFit.content,
-                         retainedX: false, retainedY: false)
-        }
-        guard let bounds else { return nil }
-        return .init(transform: target, content: bounds.content,
-                     retainedX: false, retainedY: false)
-    }
-
-    private func scheduleReturn() {
-        guard visible, returning else { return }
-        let epoch = returnEpoch
-        let due = ProcessInfo.processInfo.systemUptime + 0.6
-        // Resolve the latest collection fit after stage acquisition. Waiting
-        // for another owner consumes the absolute hold.
-        animate(to: { self.fit() }, owner: .returning, due: due) { [weak self] completed in
-            guard let self, self.returnEpoch == epoch else { return }
-            self.returning = false
-            self.publish()
-            if completed, let bounds = self.bounds { self.requestRefit(content: bounds.content, viewport: bounds.viewport) }
-        }
-    }
-
-    private func cancelReturn() {
-        returnEpoch += 1
-        returning = false
+    private var hasObservers: Bool {
+        onChange != nil || onSubmission != nil || onFrameSubmission != nil
     }
 
     private func updateAuto() {
-        guard let bounds, let live, !live.manual, !returning, visible, !interactionPaused, !environmentDeferred, !framingRetained else { return }
-        if let owner = animationOwner, owner != .refit { return }
-        if pendingAutoFit {
-            // Explicit return restores the collection's ordinary fit.
-            // Keep the request until completion so temporary pauses can retry it.
-            animate(to: { self.fit() }, owner: .returnAuto) { [weak self] completed in
-                guard let self, completed else { return }
-                self.pendingAutoFit = false
-                self.updateAuto()
-            }
+        guard let geometry, state != nil, !manual else { return }
+        guard geometry.content.width > 0, geometry.content.height > 0 else {
+            pendingAutoFit = false
+            stopMotion(commitSample: false)
+            commit(nil)
             return
         }
-        let framingChanged = framingRevision != framedRevision
-        let target = fit()
-        let atTarget = NativeOverviewCameraGeometry.approximatelyEqual(live.transform, target)
-        if readingFit != nil, atTarget {
-            clearRefit()
-            lastAutomaticFit = automaticFit(target: target)
-            framedRevision = framingRevision
+        guard visible, !interactionPaused else { return }
+        guard let target = geometry.automatic else {
+            pendingAutoFit = true
             return
         }
-        if (!framingChanged || atTarget)
-            && !NativeOverviewCameraGeometry.needsRefit(bounds.content, viewport: bounds.viewport, transform: live.transform) {
-            clearRefit()
-            lastAutomaticFit = atTarget ? automaticFit(target: target) : nil
-            framedRevision = framingRevision
-            if animationOwner == .refit { cancelMotion() }
+        if NativeOverviewCameraGeometry.approximatelyEqual(transform, target) {
+            // A new snapshot that resolves to the same target must not restart
+            // its own in-flight motion.
+            if isAnimating { pendingAutoFit = true; return }
+            pendingAutoFit = false
             return
         }
-        // Bounds revisions can arrive faster than the refit delay. Keep
-        // admitted work on its deadline instead of debouncing it indefinitely.
-        // The queued move resolves the latest bounds after stage acquisition;
-        // a playing move reconciles newer framing revisions on completion.
-        guard refitTask == nil, animationOwner != .refit else { return }
-        let delay = max(0.160, lastRefitAt + 0.600 - ProcessInfo.processInfo.systemUptime)
-        let deadline = ProcessInfo.processInfo.systemUptime + delay
-        refitTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .seconds(max(0, deadline - ProcessInfo.processInfo.systemUptime))) } catch { return }
-            guard !Task.isCancelled, let self else { return }
-            self.refitTask = nil
-            guard self.state != nil, !self.manual, !self.interactionPaused, self.visible, !self.environmentDeferred else { return }
-            self.lastRefitAt = ProcessInfo.processInfo.systemUptime
-            self.animate(to: { self.fit() }, owner: .refit)
-        }
+        pendingAutoFit = true
+        startAnimation(to: target)
     }
 
-    private func animate(to targetForBounds: @escaping @MainActor () -> NativeOverviewTransform,
-                         owner: Owner, due: TimeInterval? = nil,
-                         completion: ((Bool) -> Void)? = nil) {
-        clearRefit()
-        cancelMotion()
-        guard state != nil, !manual, !interactionPaused, visible else { completion?(false); return }
+    private func startAnimation(to target: NativeOverviewTransform) {
+        let from = liveTransform
+        stopMotion(commitSample: false)
         let generation = animationGeneration
-        // Queued owners count too: deferRefit and interactions must cancel a camera
-        // reservation before it is granted, not only an already-playing track.
-        animationOwner = owner
+        if reduceMotion || !hasObservers {
+            finishAnimation(target: target, generation: generation)
+            return
+        }
+        let started = uptime
+        let frames = NativeOverviewCameraGeometry.move(from: from, to: target)
+        track = Track(frames: frames, started: started)
+        isAnimating = true
+        transform = target
+        animationFrames = frames
+        onSubmission?(.init(from: from, to: target, frames: frames,
+                            duration: NativeOverviewCameraGeometry.motionDuration, delay: 0, startedAt: started))
+        onFrameSubmission?(from, target, NativeOverviewCameraGeometry.motionDuration, 0)
+        publish()
         animationTask = Task { @MainActor [weak self] in
-            guard !Task.isCancelled, let self, self.animationGeneration == generation else { return }
-            var stage: NativeOverviewStageLease?
-            var completed = false
-            var revision = self.framingRevision
-            defer {
-                let owned = self.animationGeneration == generation
-                if owned {
-                    if !completed, let sampled = self.live, self.track != nil {
-                        self.track = nil
-                        self.commit(sampled)
-                    }
-                    self.animationTask = nil
-                    self.animationOwner = nil
-                    if completed { self.framedRevision = revision }
-                }
-                // Release before callbacks can schedule a following move or layout.
-                stage?.release()
-                if owned { completion?(completed) }
-                if self.animationGeneration == generation, completed,
-                   self.framedRevision != self.framingRevision { self.updateAuto() }
-            }
             do {
-                if let coordinator = self.stageCoordinator {
-                    stage = try await coordinator.acquire(owner: "camera:\(owner.rawValue)")
-                }
-                try Task.checkCancellation()
-                guard self.animationGeneration == generation, self.state != nil,
-                      !self.manual, !self.interactionPaused, self.visible else { return }
-                let from = self.liveTransform
-                let target = targetForBounds()
-                self.lastAutomaticFit = self.automaticFit(target: target)
-                revision = self.framingRevision
-                if NativeOverviewCameraGeometry.approximatelyEqual(from, target), due == nil {
-                    completed = true
-                    return
-                }
-                if self.reduceMotion {
-                    self.commit(.init(transform: target, manual: false))
-                    completed = true
-                    return
-                }
-                let started = ProcessInfo.processInfo.systemUptime
-                let delay = max(0, (due ?? started) - started)
-                let motionDuration = 0.360
-                let duration = motionDuration + delay
-                let frames = NativeOverviewCameraGeometry.move(from: from, to: target, duration: motionDuration, delay: delay)
-                // An attached SwiftUI canvas observes camera changes directly;
-                // submission callbacks are optional diagnostics.
-                guard self.onChange != nil || self.onSubmission != nil || self.onFrameSubmission != nil else {
-                    self.commit(.init(transform: target, manual: self.manual))
-                    completed = true
-                    return
-                }
-                self.track = Track(frames: frames, started: started)
-                self.transform = target
-                self.animationFrames = frames
-                self.onSubmission?(.init(from: from, to: target, frames: frames, duration: duration, delay: delay, startedAt: started))
-                self.onFrameSubmission?(from, target, motionDuration, delay)
-                try await Task.sleep(for: .seconds(max(0, started + duration - ProcessInfo.processInfo.systemUptime)))
-                try Task.checkCancellation()
-                guard self.animationGeneration == generation else { return }
-                self.track = nil
-                self.commit(.init(transform: target, manual: self.manual))
-                completed = true
+                try await Task.sleep(for: .seconds(NativeOverviewCameraGeometry.motionDuration))
             } catch {
-                // Cancellation releases both an in-flight effect and a queued lease;
-                // the generation guard keeps old completions out of the new owner.
+                return
             }
+            guard let self, !Task.isCancelled, self.animationGeneration == generation else { return }
+            self.finishAnimation(target: target, generation: generation)
         }
     }
 
-    /// Cancel an in-flight track. When `sampled` is supplied, the caller must
-    /// sample and commit it in the same MainActor synchronous interval; this
-    /// method does not detect or protect against an asynchronous stale sample.
-    private func cancelMotion(committing sampled: NativeOverviewCameraState? = nil) {
+    private func finishAnimation(target: NativeOverviewTransform, generation: Int) {
+        guard animationGeneration == generation else { return }
+        animationTask?.cancel()
+        animationTask = nil
+        track = nil
+        isAnimating = false
+        animationFrames = []
+        if !manual, pendingAutoFit, geometry?.automatic == target {
+            pendingAutoFit = false
+        }
+        commit(.init(transform: target, manual: manual))
+    }
+
+    /// Stop the current track. Sampling is synchronous, so callers can start a
+    /// newer target from the actual displayed state in the same interval.
+    private func stopMotion(commitSample: Bool) {
         animationGeneration += 1
         animationTask?.cancel()
         animationTask = nil
-        animationOwner = nil
-        if let sampled {
-            // A queued refit can have no track yet. Commit the sampled
-            // baseline anyway so live and target cannot split.
-            track = nil
-            commit(sampled)
-            return
-        }
-        guard track != nil, let live else { return }
+        let sample = live
         track = nil
-        commit(live)
+        isAnimating = false
+        animationFrames = []
+        if commitSample, let sample {
+            state = sample
+            transform = sample.transform
+            manual = sample.manual
+        }
     }
 
-    private func clearRefit() {
-        refitTask?.cancel()
-        refitTask = nil
+    private func constrained(_ value: NativeOverviewTransform, anchor: CGPoint? = nil) -> NativeOverviewTransform {
+        let region = geometry.map { NativeOverviewCameraGeometry.framingRegion($0.viewport) }
+        let pivot = anchor ?? CGPoint(x: region.map { $0.left + $0.width / 2 } ?? 0,
+                                      y: region.map { $0.top + $0.height / 2 } ?? 0)
+        return NativeOverviewCameraGeometry.zoom(value, cursor: pivot, nextScale: value.scale,
+                                                  minimumScale: minimumScale, maximumScale: maximumScale)
     }
 
     private func commit(_ next: NativeOverviewCameraState?) {
@@ -877,7 +517,7 @@ public final class NativeOverviewCamera {
         isInitialized = next != nil
         animationFrames = []
         onSubmission?(.init(from: previousTransform, to: transform,
-                            frames: [.init(at: 0, transform: transform)], duration: 0, delay: 0, startedAt: ProcessInfo.processInfo.systemUptime))
+                            frames: [.init(at: 0, transform: transform)], duration: 0, delay: 0, startedAt: uptime))
         onFrameSubmission?(previousTransform, transform, 0, 0)
         publish()
     }

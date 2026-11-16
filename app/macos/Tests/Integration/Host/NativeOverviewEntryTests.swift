@@ -80,8 +80,11 @@ struct NativeOverviewEntryTests {
 
     private func verifyEntry(_ fixture: EntryFixture, in window: NSWindow) async throws {
         let content = try #require(window.contentView)
-        let expected = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 220),
-            viewport: .init(width: content.bounds.width, height: content.bounds.height, toolbarBottom: 58))
+        let expected = try #require(NativeOverviewCameraGeometry.fit(
+            .init(left: 0, top: 0, width: NativeOverviewGridMetrics.standard.width(columns: 1),
+                  height: NativeOverviewGridMetrics.standard.height(rows: 1)),
+            viewport: .init(width: content.bounds.width, height: content.bounds.height,
+                            toolbarBottom: NativeOverviewViewportDefaults.toolbarBottom)))
         fixture.items = [.init(id: "first")]
         var samples = 0
         var greatestOffset = 0.0
@@ -110,7 +113,7 @@ struct NativeOverviewEntryTests {
         defer { window.close() }
         try await settle(fixture, ids: ["first"])
         let appearances = fixture.appearances["first"]
-        let transform = NativeOverviewTransform(scale: fixture.state.camera.minimumScale, x: 80, y: 120)
+        let transform = NativeOverviewTransform(scale: 0.9, x: 80, y: 120)
         fixture.state.camera.setManualTransform(transform)
         let snapshots = fixture.state.sceneSnapshotCount
         fixture.sceneKey = "members:first,second"
@@ -182,7 +185,7 @@ struct NativeOverviewEntryTests {
         _ = try #require(window.contentView)
         let frame = try #require(fixture.frames["thread"])
         let scale = fixture.state.camera.liveTransform.scale
-        #expect(abs(frame.width - 360 * scale) < 1)
-        #expect(abs(frame.height - 220 * scale) < 1)
+        #expect(abs(frame.width - NativeOverviewGridMetrics.standard.width(columns: 1) * scale) < 1)
+        #expect(abs(frame.height - NativeOverviewGridMetrics.standard.height(rows: 1) * scale) < 1)
     }
 }

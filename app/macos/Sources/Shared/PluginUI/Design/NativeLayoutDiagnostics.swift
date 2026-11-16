@@ -19,26 +19,17 @@ public struct NativeLayoutRelayoutCard: Encodable, Sendable {
 
 public struct NativeLayoutRelayoutSnapshot: Encodable, Sendable {
     public enum Phase: String, Encodable, Sendable { case began, planned, completed, cancelled, failed }
-    public enum Strategy: String, Encodable, Sendable { case reuse, immediate, filter, ordered, repack }
+    public enum Strategy: String, Encodable, Sendable { case immediate, filter, ordered }
     let phase: Phase
     let cards: [NativeLayoutRelayoutCard]
     let totalCards: Int
     let viewport: [Double]
     let strategy: Strategy?
-    let searchComplete: Bool?
-    let topologyValidated: Bool?
-    let searchSteps: Int?
-    let moveBatches: [[Int]]?
-    let totalMoveBatches: Int?
 
     public init(phase: Phase, cards: [NativeLayoutRelayoutCard], totalCards: Int, viewport: CGSize,
-                strategy: Strategy? = nil, searchComplete: Bool? = nil, topologyValidated: Bool? = nil,
-                searchSteps: Int? = nil, moveBatches: [[Int]]? = nil, totalMoveBatches: Int? = nil) {
+                strategy: Strategy? = nil) {
         self.phase = phase; self.cards = Array(cards.prefix(256)); self.totalCards = totalCards
         self.viewport = [viewport.width, viewport.height]; self.strategy = strategy
-        self.searchComplete = searchComplete; self.topologyValidated = topologyValidated; self.searchSteps = searchSteps
-        self.moveBatches = moveBatches.map { Array($0.prefix(256)).map { Array($0.prefix(256)) } }
-        self.totalMoveBatches = totalMoveBatches
     }
 }
 

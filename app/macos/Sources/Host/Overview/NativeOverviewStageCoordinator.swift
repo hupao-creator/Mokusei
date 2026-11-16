@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// One FIFO for spatial effects. The overview owner shares this instance with Moku;
-/// card revisions and camera moves cannot run over each other's physical geometry.
-/// A layout retains its stage while expanding its adjacent shrink/move/grow beats.
+/// One FIFO for card/layout spatial effects. The overview owner shares this
+/// instance with Moku so physical card geometry does not overlap. Camera targets
+/// are latest-wins and apply independently of this queue.
 @MainActor @Observable
 public final class NativeOverviewStageCoordinator {
     public private(set) var activeOwner: String?

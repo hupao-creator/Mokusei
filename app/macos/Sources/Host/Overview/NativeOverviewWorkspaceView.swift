@@ -144,7 +144,7 @@ public struct NativeOverviewWorkspaceView: View {
         // opening an overlay must not repack the scene underneath the user.
         let dock = NativeMokuCapsuleLayout.idleSurface(in: CGRect(origin: .zero, size: size))
         return .init(width: size.width, height: size.height,
-                     toolbarBottom: size.width <= 620 && hasFilters
+                     toolbarBottom: size.width <= CGFloat(NativeOverviewCameraGeometry.compactViewportWidth) && hasFilters
                         ? OverviewTagMetrics.narrowToolbarClearance : OverviewTagMetrics.wideToolbarClearance,
                      bottomReservedHeight: hasDock ? size.height - dock.minY : 0)
     }

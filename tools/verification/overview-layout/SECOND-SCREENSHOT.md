@@ -1,3 +1,5 @@
+> **Historical:** this replay used the former history-aware planner and its `run.py` driver. It is not runnable against the current pure solver; see [README.md](README.md) for current verification.
+
 # Eight-card screenshot replay
 
 The second screenshot contains eight cards occupying nine grid cells. Its exact
@@ -86,15 +88,12 @@ envelope rather than changing initial packing.
 
 ## Reproduction and scope
 
-```sh
-python3 tools/verification/overview-layout/run.py \
-  --baseline 15f2c181cb3c191569d648eab7acd52ea8c36b96 \
-  --output /private/tmp/overview-layout-second-final
-```
-
-The final command passes all 15 original comparison scenarios and 37 regression
-scenarios, with three deterministic runs per version. Production geometry is
-unchanged from the original PR head; this follow-up adds fixture coverage and
+The original driver was removed with the history-aware planner. This document is
+retained as historical evidence; current geometry verification lives in
+[NativeOverviewGeometryTests](../../../app/macos/Tests/Integration/Host/NativeOverviewGeometryTests.swift).
+The recorded run passed all 15 original comparison scenarios and 37 regression
+scenarios, with three deterministic runs per version. Production geometry was
+unchanged from that PR head; the follow-up added fixture coverage and
 documentation only.
 
 The replay uses the same readable/natural extent calculations as Canvas for

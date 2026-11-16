@@ -2,6 +2,13 @@ import Foundation
 import MokuseiCore
 import SwiftUI
 
+/// Card-composition capacity, not an Overview viewport column count. Plugins
+/// may compose a card up to this many grid columns; the layout solver treats the
+/// resulting footprint as an input and fits it to the actual viewport.
+public enum HarnessOverviewCapacity {
+    public static let maximumColumns = 3
+}
+
 /// The queued overview revision owns both its public envelope and the exact
 /// private projection that produced it. Rendering never projects a second time.
 @MainActor
@@ -56,7 +63,9 @@ private final class HarnessProjectionCache<Plugin: HarnessPlugin> {
     private var recency: [JSONText] = []
     init(_ plugin: Plugin) { self.plugin = plugin }
     func project(_ input: HarnessThreadInput, columns: Int) throws -> HarnessOverviewSnapshot {
-        guard (1...3).contains(columns) else { throw PluginContractError("Overview requires one to three available columns") }
+        guard (1...HarnessOverviewCapacity.maximumColumns).contains(columns) else {
+            throw PluginContractError("Overview requires one to \(HarnessOverviewCapacity.maximumColumns) available columns")
+        }
         guard input.thread.harnessID == plugin.descriptor.id else { throw PluginContractError("Thread belongs to a different Harness") }
         if let snapshot = entries[input.thread.id]?[columns], snapshot.input == input { return snapshot }
         let projection = try plugin.projectOverview(input: input, availableColumns: columns)
