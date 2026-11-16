@@ -207,26 +207,50 @@ struct NativeReportNavigationTests {
                 window.sendEvent(event)
             }
         }
-        func focusEditor(_ id: String) async throws {
+        func focusEditor(_ id: String, in document: WKWebView) async throws {
             try await SwiftUIReplay.wait { app.isActive && window.isKeyWindow }
+            try #require(document.window === window)
             try #require(window.makeFirstResponder(document))
             let state = try await document.callAsyncJavaScript("""
                 window.reportKeyEvents = [];
-                const target = id === 'shadowInput'
+                const started = performance.now();
+                const deadline = started + 3000;
+                const target = id === 'body' ? document.body : id === 'shadowInput'
                   ? document.getElementById('shadowHost').shadowRoot.getElementById('shadowInput')
                   : document.getElementById(id);
                 if (id === 'closedInput') window.focusClosedInput();
+                else if (id === 'body') document.activeElement?.blur();
                 else target.focus();
-                const framed = await new Promise(resolve => {
-                  const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
-                  const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
+                // A rendered frame can overtake AppKit's cross-process focus
+                // delivery. Observe the actual focused frame without reissuing
+                // focus or extending the original three-second deadline.
+                return await new Promise(resolve => {
+                  let frame = 0, frames = 0, finished = false;
+                  const snapshot = () => ({framed:frames > 0, frames,
+                    focused:document.hasFocus(), active:document.activeElement?.id,
+                    ownsFocus:id === 'closedInput' ? window.closedInputHasFocus()
+                      : target.getRootNode().activeElement === target,
+                    waited:performance.now() - started});
+                  const finish = ready => {
+                    if (finished) return;
+                    finished = true;
+                    clearTimeout(timeout);
+                    cancelAnimationFrame(frame);
+                    resolve({...snapshot(), ready});
+                  };
+                  const observe = () => {
+                    frames += 1;
+                    if (performance.now() >= deadline) { finish(false); return; }
+                    const state = snapshot();
+                    if (state.focused && state.ownsFocus) finish(true);
+                    else frame = requestAnimationFrame(observe);
+                  };
+                  const timeout = setTimeout(() => finish(false), Math.max(0, deadline - performance.now()));
+                  frame = requestAnimationFrame(observe);
                 });
-                return {framed, focused:document.hasFocus(), active:document.activeElement?.id,
-                  ownsFocus:id === 'closedInput' ? window.closedInputHasFocus()
-                    : target.getRootNode().activeElement === target};
                 """, arguments: ["id": id], in: nil, contentWorld: .page) as? [String: Any]
             print("REPORT_EDITING_FOCUS id=\(id) state=\(String(describing: state)) key=\(window.isKeyWindow) active=\(app.isActive) responder=\(String(describing: window.firstResponder))")
-            try #require(state?["framed"] as? Bool == true && state?["focused"] as? Bool == true
+            try #require(state?["ready"] as? Bool == true && state?["framed"] as? Bool == true && state?["focused"] as? Bool == true
                          && state?["ownsFocus"] as? Bool == true,
                          "The actual WebKit editor must own focus before native keys are sent")
         }
@@ -273,7 +297,7 @@ struct NativeReportNavigationTests {
         try #require(fixture.backs == 0 && fixture.open,
             "Document scripts cannot synthesize trusted host navigation shortcuts")
         for id in ["ordinary", "editableTrue", "editableEmpty", "editablePlain", "shadowInput"] {
-            try await focusEditor(id)
+            try await focusEditor(id, in: document)
             try key(123, "\u{F702}", modifiers: .option)
             try key(53, "\u{1b}")
             try await requireKeyReceipt(["ArrowLeft", "Escape"], in: document, editor: id)
@@ -281,7 +305,7 @@ struct NativeReportNavigationTests {
             try #require(fixture.backs == 0 && fixture.open,
                 "Report navigation must leave the native editing keys with \(id)")
         }
-        try await focusEditor("closedInput")
+        try await focusEditor("closedInput", in: document)
         #expect(try await document.evaluateJavaScript("document.getElementById('closedShadowHost').shadowRoot === null") as? Bool == true)
         try key(123, "\u{F702}", modifiers: .option)
         try key(7, "X", modifiers: .shift)
@@ -412,11 +436,7 @@ struct NativeReportNavigationTests {
         #expect(document.url?.scheme == "mokusei-html" && fixture.ready)
         #expect(try await document.evaluateJavaScript("document.querySelector('h1').textContent") as? String == "Report")
         #expect(fixture.externalURLs.isEmpty)
-        try #require(window.makeFirstResponder(document))
-        _ = try await document.callAsyncJavaScript("""
-            document.activeElement?.blur();
-            await new Promise(resolve => requestAnimationFrame(() => resolve()));
-            """, arguments: [:], in: nil, contentWorld: .page)
+        try await focusEditor("body", in: document)
         try key(53, "\u{1b}")
         try await SwiftUIReplay.wait { fixture.sidecards.active == nil }
         #expect(fixture.open && fixture.backs == 0, "The first document Escape closes its browser card")
@@ -490,38 +510,22 @@ struct NativeReportNavigationTests {
         try #require(fixture.sidecards.active == nil && fixture.sidecards.pending == nil,
                      "The HTML-only reader must have no sidecard owning Escape")
         try #require(panelDocument.window === window && webView(in: root) === panelDocument)
-        try #require(window.makeFirstResponder(panelDocument))
         // As with the modal above, native WebKit focus crosses processes. The
         // focused document frame must own each key before testing cancellation.
-        let editorFocused = try await panelDocument.callAsyncJavaScript("""
-            window.reportKeyEvents = [];
+        _ = try await panelDocument.evaluateJavaScript("""
             window.panelEscapeEvents = [];
             document.addEventListener('keydown', event => {
               if (event.key === 'Escape') window.panelEscapeEvents.push({
                 trusted:event.isTrusted, target:event.target.tagName, active:document.activeElement?.tagName
               });
             }, true);
-            document.querySelector('input').focus();
-            const framed = await new Promise(resolve => {
-              const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
-              const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
-            });
-            return framed && document.hasFocus() && document.activeElement.id === 'ordinary';
-            """, arguments: [:], in: nil, contentWorld: .page) as? Bool
-        try #require(editorFocused == true)
+            """)
+        try await focusEditor("ordinary", in: panelDocument)
         try key(53, "\u{1b}")
         try await requireKeyReceipt(["Escape"], in: panelDocument, editor: "ordinary")
         try await Task.sleep(for: .milliseconds(100))
         #expect(fixture.open && fixture.backs == 0, "Editing still owns Escape inside the panel")
-        let documentFocused = try await panelDocument.callAsyncJavaScript("""
-            document.activeElement.blur();
-            const framed = await new Promise(resolve => {
-              const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
-              const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
-            });
-            return framed && document.hasFocus() && document.activeElement === document.body;
-            """, arguments: [:], in: nil, contentWorld: .page) as? Bool
-        try #require(documentFocused == true)
+        try await focusEditor("body", in: panelDocument)
         try key(53, "\u{1b}")
         do {
             try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 1 }

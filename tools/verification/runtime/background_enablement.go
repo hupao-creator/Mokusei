@@ -57,7 +57,7 @@ func verifyBackgroundEnablement(ctx context.Context) {
 	for _, independent := range []bool{false, true} {
 		verifyBackgroundEnablementCase(ctx, independent)
 	}
-	fmt.Println("PASS independent Tag/Report switches: defaults, validation, active cancellation, native/write fences, repeated pause refunds, data/receipt retention, disabled startup and durable resume")
+	fmt.Println("PASS independent Tag/Report switches: defaults, validation, terminal-before-steer renewal without duplicate input, active cancellation, native/write fences, repeated pause refunds, data/receipt retention, disabled startup and durable resume")
 }
 
 func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
@@ -153,6 +153,18 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 		}
 	}
 	noSend()
+	owner := func(role string) plugin.BackgroundAgentRef {
+		for _, candidate := range app.BackgroundInstances() {
+			if candidate.PluginID == role && candidate.Binding.Scope == directorytag.Scope(root) {
+				return candidate
+			}
+		}
+		panic("missing enablement owner")
+	}
+	workState := func(role string) string {
+		work, exists, err := db.Snapshot().Work(owner(role).AgentID + ".events")
+		return fmt.Sprintf("workExists=%t attempts=%d retryInMs=%d execution=%q snapshotError=%v", exists, work.Attempts, max(0, work.NextAttemptAt-time.Now().UnixMilli()), work.ExecutionID, err)
+	}
 	await := func(role string) backgroundSettingsSend {
 		select {
 		case sent := <-h.sends:
@@ -161,16 +173,8 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 			}
 			return sent
 		case <-time.After(4 * time.Second):
-			panic("enabled role did not resume: " + role)
+			panic("enabled role did not resume: " + role + "; " + workState(role))
 		}
-	}
-	owner := func(role string) plugin.BackgroundAgentRef {
-		for _, candidate := range app.BackgroundInstances() {
-			if candidate.PluginID == role && candidate.Binding.Scope == directorytag.Scope(root) {
-				return candidate
-			}
-		}
-		panic("missing enablement owner")
 	}
 	settle := func(sent backgroundSettingsSend, role string) {
 		finishReportFixture(ctx, sent.handle, "completed")
@@ -199,7 +203,7 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 				sent = next
 			case <-tick.C:
 			case <-deadline.C:
-				panic("background inbox did not settle: " + role)
+				panic("background inbox did not settle: " + role + "; " + workState(role))
 			}
 		}
 	}
@@ -208,7 +212,33 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 	status := readTagStatus(ctx, tagged.handle)
 	status = mutateTagTool(ctx, tagged.handle, "create_tag", "keep-tag", model.Object{"expectedRevision": status.Revision, "name": "Keep", "emoji": "🏷️"})
 	mutateTagTool(ctx, tagged.handle, "assign_threads", "keep-assignment", model.Object{"expectedRevision": status.Revision, "assignments": []plugin.TagStatusAssignment{{ThreadID: source.ID, TagID: tagStatusID(status, "Keep")}}})
-	settle(tagged, "tag")
+	// Force settlement after Core reserves a steering execution but before the
+	// native fixture retains input. The real admission boundary must renew once
+	// and drain this same durable batch without entering failure backoff.
+	var beforeSteer state
+	must(json.Unmarshal(tagged.handle.open.SessionState.Read(), &beforeSteer))
+	h.gateMu.Lock()
+	h.settleBeforeSteer = true
+	h.gateMu.Unlock()
+	// Fixed fixture metadata never changes title. Tag consumes only this new
+	// task's accepted input, not its creation or terminal execution events.
+	trigger()
+	steered := await("tag")
+	h.gateMu.Lock()
+	settledSteers := h.steerSettlements
+	steerExecutions := append([]string{}, h.steerExecutions...)
+	steerInput := h.steerInput
+	h.steerInput = ""
+	h.gateMu.Unlock()
+	if settledSteers != 1 || len(steerExecutions) != 2 || steerExecutions[0] != tagged.execution || steerExecutions[1] != steered.execution || steered.execution == tagged.execution {
+		panic("completed steering reservation did not renew exactly once")
+	}
+	var afterSteer state
+	must(json.Unmarshal(steered.handle.open.SessionState.Read(), &afterSteer))
+	if len(afterSteer.Messages) != len(beforeSteer.Messages)+1 || afterSteer.Messages[len(beforeSteer.Messages)] != steerInput {
+		panic("renewed steering input was lost or retained more than once")
+	}
+	settle(steered, "tag")
 	save(func(settings *model.Settings) { set(settings, "tag", false); set(settings, "report", true) })
 	reported := await("report")
 	_, err = reportTool(ctx, reported.handle, "create_report", "keep-report", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Kept report", "html": "<p>Kept content</p>", "coverHTML": "<div>Kept report</div>"})

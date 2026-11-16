@@ -176,6 +176,10 @@ settings-save conflicts without batch retry consumption, validation of matching
 idle-session reuse, unchanged admitted steering and next-batch profile adoption.
 It also checks cold Open settlement of an orphan and background work that needs
 Close after Interrupt, including native state flushes during cleanup.
+Enablement replay forces native completion after a steer is reserved but before
+its input is retained, requiring exactly one successor renewal and one retained
+input under the original inbox-drain deadline. Native send errors and durable
+retry state are included in failure diagnostics.
 
 Report tool fixtures supply the current required cover markup and read the full
 scoped document before supplying `expectedRevision` to updates. The Application

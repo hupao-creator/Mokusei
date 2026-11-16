@@ -22,11 +22,15 @@ import (
 
 type backgroundSettingsHarness struct {
 	reportScopeHarness
-	gateMu          sync.Mutex
-	gate            func(context.Context) error
-	sends           chan backgroundSettingsSend
-	settleOnOpen    bool
-	coldSettlements int
+	gateMu            sync.Mutex
+	gate              func(context.Context) error
+	sends             chan backgroundSettingsSend
+	settleOnOpen      bool
+	coldSettlements   int
+	settleBeforeSteer bool
+	steerSettlements  int
+	steerInput        string
+	steerExecutions   []string
 }
 
 type backgroundSettingsSend struct {
@@ -100,7 +104,29 @@ type backgroundSettingsHandle struct {
 }
 
 func (h *backgroundSettingsHandle) Send(ctx context.Context, request plugin.SendRequest) error {
+	if record := h.open.ReadThread(); strings.Contains(record.Cwd, string(filepath.Separator)+"plugins"+string(filepath.Separator)) {
+		h.harness.gateMu.Lock()
+		settle := h.harness.settleBeforeSteer && record.Observation.LatestExecution != nil &&
+			record.Observation.LatestExecution.ExecutionID == request.ExecutionID && !record.Observation.LatestExecution.Terminal()
+		if settle {
+			h.harness.settleBeforeSteer = false
+			h.harness.steerSettlements++
+			h.harness.steerInput = request.Input.Parts[0].Text
+		}
+		if h.harness.steerInput != "" && request.Input.Parts[0].Text == h.harness.steerInput {
+			h.harness.steerExecutions = append(h.harness.steerExecutions, request.ExecutionID)
+		}
+		h.harness.gateMu.Unlock()
+		if settle {
+			// The host reserved a steer while this execution was running. A real
+			// adapter can publish its terminal result before it retains that input.
+			finishReportFixture(ctx, h.handle, "completed")
+		}
+	}
 	if err := h.handle.Send(ctx, request); err != nil {
+		if err != plugin.ErrExecutionEnded {
+			fmt.Printf("background replay native send %s: %v\n", request.ExecutionID, err)
+		}
 		return err
 	}
 	record := h.open.ReadThread()

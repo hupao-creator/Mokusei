@@ -622,8 +622,14 @@ Overview and keeps reading routes and their back actions intact.
 ## Report navigation and native window controls
 
 The editing-key sequence first observes the native key window/responder and the
-intended DOM editor's focused frame, including the closed-shadow editor. Its
-original 80ms host-observation windows, no-navigation assertions and exact
+intended DOM editor's focused frame, including the closed-shadow editor. Focus
+preparation issues one native/DOM focus request, then observes frames until
+both `document.hasFocus()` and the intended editor/body ownership are true within
+the existing three-second deadline. A first animation frame alone cannot
+acknowledge AppKit-to-WebKit focus delivery. The receipt records frames and elapsed
+time; a missing focused frame still fails before any native key is sent. The same
+confirmation owns focus after document replacement and before body Escape.
+The original 80ms host-observation windows, no-navigation assertions and exact
 word-movement result remain. Each stage first requires the actual trusted
 keydown/keyup receipt at that editor before starting that observation interval or
 changing focus. WebKit serializes native keys behind earlier acknowledgements;
