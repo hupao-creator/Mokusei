@@ -76,6 +76,9 @@ func main() {
 	native := filepath.Join(root, "native.db")
 	env := map[string]string{"PATH": os.Getenv("PATH"), "HOME": root, "XDG_DATA_HOME": filepath.Join(root, "data"), "XDG_CACHE_HOME": filepath.Join(root, "cache"), "XDG_CONFIG_HOME": filepath.Join(root, "config"), "OPENCODE_TEST_HOME": root, "OPENCODE_CONFIG_PROJECT_DISABLE": "1", "OPENCODE_DB": native, "FIXTURE_ROOT": root}
 	env["SYNTHETIC_KEY"] = "fixture"
+	// Model OpenCode 2.3's asynchronous plugin activation: the mokusei.harness
+	// RPC stays unavailable during the first 1.2s of every fixture process.
+	env["FIXTURE_PLUGIN_DELAY_MS"] = "1200"
 	env["OPENCODE_CONFIG_CONTENT"] = `{"providers":{"fixture":{"name":"Fixture","settings":{"apiKey":"{env:SYNTHETIC_KEY}"}}},"plugins":["unsafe"],"mcp":{"unsafe":{}},"instructions":["unsafe"]}`
 	{
 		values, cleanup, err := oc.PrepareEnvironment(oc.Options{CWD: root, Environment: env, IsolateConfig: true}, filepath.Join(root, "bridge"))
@@ -131,6 +134,8 @@ func main() {
 	log, err := os.ReadFile(filepath.Join(root, "operations.log"))
 	must(err)
 	check(strings.Count(string(log), "process-start") == 1 && strings.Count(string(log), "process-exit") == 1, "native runtime did not use exactly one server")
+	check(strings.Count(string(log), "GET /api/plugin") >= 1, "startup did not wait for native plugin activation before its first RPC")
+	check(strings.Count(string(log), "POST /api/rpc/mokusei.harness/refresh") >= 1, "native runtime skipped its startup refresh")
 	check(!strings.Contains(string(log), "/api/credential") && !strings.Contains(string(log), "credentialSnapshot") && !strings.Contains(string(log), "credentialRefresh"), "legacy credential transport used")
 	check(!strings.Contains(string(log), "ses_unowned"), "unowned request reached native server")
 	// Advisory consumers must not join a slow cold native catalog flight.

@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { readConsoleAccount } from './credentials.mjs';
 import { createHash } from 'node:crypto';
 const contextHash = value => createHash('sha256').update(JSON.stringify(value, (_, item) =>
@@ -28,14 +30,25 @@ export default {
   id: 'mokusei.harness',
   async setup(ctx) {
     const lifetime = new AbortController();
-    const sourcePath = fileURLToPath(import.meta.url);
+    const sourcePath = realpathSync(fileURLToPath(import.meta.url));
+    // Native inventory may report either our entrypoint or its configured
+    // directory, and symlinked temp paths differ from the URL path.
+    const isOwnSource = path => {
+      if (typeof path !== 'string') return false;
+      try {
+        const resolved = realpathSync(path);
+        return resolved === sourcePath || resolved === dirname(sourcePath);
+      } catch {
+        return false;
+      }
+    };
     let configurations = new Map();
     const assertPlugins = async () => {
       if (!isolated) return;
       const inventory = (await ctx.plugin.list()).data;
       const unsafe = inventory.some(plugin => plugin.state.status === 'active' &&
         plugin.source.type !== 'builtin' && !(plugin.id === 'mokusei.harness' &&
-          plugin.source.type === 'local' && plugin.source.path === sourcePath));
+          plugin.source.type === 'local' && isOwnSource(plugin.source.path)));
       if (unsafe) throw new Error('Mokusei isolated session cannot load external native plugins');
     };
     const invoke = async (path, body, signal) => {
