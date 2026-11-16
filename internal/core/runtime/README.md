@@ -317,8 +317,7 @@ admission. Missing/custom keeps existing manual routing guidance. Selecting a
 preset preserves that guidance for later restoration; the Moku service owns
 general routing priorities and instruction generation.
 
-The composed macOS Runtime owns a replaceable local embedding provider and joins
-its native process before releasing the profile. Thread search owns its derived
-vector database and publication fences; history reset drains search and clears
-vector rows while retaining verified model weights. See [search](../../services/threadsearch/README.md)
-and [embedding](../../services/embedding/README.md) for preparation and fallback.
+Thread search owns its derived keyword text in the authoritative store. History
+reset pauses search, clears derived documents and stamps in the replacement
+transaction, and resumes indexing new threads. See [search](../../services/threadsearch/README.md)
+for projections, ranking and lifecycle fences.

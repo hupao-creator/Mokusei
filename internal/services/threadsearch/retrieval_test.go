@@ -106,7 +106,7 @@ func TestKeywordScopeCacheAndSourceLifecycle(t *testing.T) {
 	f.build(t)
 	for range 2 {
 		result := f.query(t, "离线删除 后台", "a", "b")
-		if result.Mode != "keyword" || len(result.Hits) != 1 || result.Hits[0].Ref.ThreadID != "a" {
+		if len(result.Hits) != 1 || result.Hits[0].Ref.ThreadID != "a" {
 			t.Fatalf("body AND query: %+v", result)
 		}
 	}
@@ -171,7 +171,7 @@ func TestKeywordQueryRequiresEveryTerm(t *testing.T) {
 			for _, query := range []string{"离线删除 后台", "后台 离线删除"} {
 				for range 2 {
 					result := f.query(t, query, "complete", "first-only", "second-only")
-					if result.Mode != "keyword" || len(result.Hits) != 1 || result.Hits[0].Ref.ThreadID != "complete" {
+					if len(result.Hits) != 1 || result.Hits[0].Ref.ThreadID != "complete" {
 						t.Fatalf("AND query %q returned a partial-term match: %+v", query, result)
 					}
 				}
@@ -266,13 +266,16 @@ func TestLegacySearchMigrationPreservesSourceRecords(t *testing.T) {
 		if err := tx.Put("thread:keep", map[string]string{"body": "user content"}); err != nil {
 			return err
 		}
-		if err := tx.Put(configKey, map[string]any{"pipeline": "old-vector-space", "revision": 7, "epoch": 2, "enabled": false, "indexPaused": true}); err != nil {
+		if err := tx.Put(configKey, map[string]any{"pipeline": "retired-pipeline", "revision": 7, "epoch": 2, "enabled": false, "indexPaused": true}); err != nil {
 			return err
 		}
 		if err := tx.Put("search-usage", map[string]int{"requests": 10}); err != nil {
 			return err
 		}
-		return tx.Put(documentPrefix+"old", map[string]any{"vector": []float32{1, 2}})
+		if err := tx.Put(legacyVectorStampPrefix+"legacy", map[string]any{"space": "retired"}); err != nil {
+			return err
+		}
+		return tx.Put(documentPrefix+"old", map[string]any{"content": "derived"})
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -285,7 +288,8 @@ func TestLegacySearchMigrationPreservesSourceRecords(t *testing.T) {
 	defer m.Close()
 	after, _ := db.Snapshot().RecordHash("thread:keep")
 	config, err := readConfig(db.Snapshot())
-	if err != nil || hash != after || config.Revision != 8 || config.Epoch != 3 || config.Pipeline != indexVersion || db.Snapshot().Has("search-usage") || len(db.Snapshot().Keys(documentPrefix)) != 0 {
+	if err != nil || hash != after || config.Revision != 8 || config.Epoch != 3 || config.Pipeline != indexVersion || db.Snapshot().Has("search-usage") ||
+		len(db.Snapshot().Keys(documentPrefix)) != 0 || len(db.Snapshot().Keys(legacyVectorStampPrefix)) != 0 {
 		t.Fatalf("migration changed source or retained retired data: %+v %v", config, err)
 	}
 }

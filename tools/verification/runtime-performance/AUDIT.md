@@ -13,7 +13,7 @@
 | 状态/快照/通知、缓存失效、数据归属 | committed notification 独立复制 opaque bytes；Thread/Application 列表用集合整理顺序；生命周期订阅按准确变化标记跳过无关提交，private observation 仍独立失效 |
 | SQLite 持久性、lifecycle/receipt、I/O | 空事务不复制快照；只验证生命周期改动及受影响引用，event 删除仍全量校验；Work 单键读不复制全库 |
 | Moku context、completion outbox、订阅和释放 | 仅目录 tag 需要解析时读取全部 Thread；durable outbox 路径不再另排入随后丢弃的 terminal record |
-| Harness transport/retry/process、host/plugin、workspaces、attachments、search/embedding、voice | 完成静态覆盖；需其他专项协调或独立设计的发现见交接清单 |
+| Harness transport/retry/process、host/plugin、workspaces、attachments、search、voice | 完成静态覆盖；需其他专项协调或独立设计的发现见交接清单 |
 
 规格来自用户本次明确授权：只修可复现机制，保持协议、状态语义、事件顺序、取消/恢复与持久性。使用现有公开边界和本地 fixture；不做真实模型/付费调用、不删事件、不放宽校验、不以 debounce 降低 durable admission。新增缓存只有 binding 内编译结果和快照内两个 scalar revision，没有全局无限 map。
 

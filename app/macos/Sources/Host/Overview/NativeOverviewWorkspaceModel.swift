@@ -86,13 +86,10 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var isSearching = false
     public private(set) var searchQuery = ""
     public private(set) var searchFocusRequest = 0
-    public private(set) var searchMode = "keyword"
+    /// Runtime keyword-index diagnosis for tests and error recovery. This is
+    /// not a search-mode selector or embedding-preparation state.
     public private(set) var searchReason = "disabled"
     public private(set) var searchIndexing = false
-    public private(set) var searchPreparation: NativeSearchPreparation?
-    @ObservationIgnored private var preparationRequest: Task<Void, Never>?
-    @ObservationIgnored private var preparationGeneration = 0
-    @ObservationIgnored private var preparationRetry: Task<Void, Never>?
     @ObservationIgnored private var contentRequest: Task<Void, Never>?
     @ObservationIgnored private var contentRequestKey: String?
     @ObservationIgnored private var contentContextKey: String?
@@ -209,7 +206,6 @@ public final class NativeOverviewWorkspaceModel {
     public func setPresentationActive(_ value: Bool) {
         guard active, presentationActive != value else { return }
         presentationActive = value
-        schedulePreparationStatus()
         revisions.removeAll()
         if value {
             recoveryEpoch += 1
@@ -478,7 +474,6 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func reconcile(captureMutation: Bool, refreshSelection: Bool = true) {
-        schedulePreparationStatus()
         do {
             if try applyCatalogChanges(captureMutation: captureMutation) { return }
             let previousCatalogIDs = catalogIDs
@@ -733,57 +728,13 @@ public final class NativeOverviewWorkspaceModel {
         }
     }
 
-    private var preparationAvailable: Bool {
-        active && presentationActive && isSearching && facts.overviewVisible && !facts.settingsOpen &&
-            facts.documentVisible && facts.focused && workspace.runtimeAvailable && searchRequest == nil
-    }
-    private func schedulePreparationStatus() {
-        guard preparationAvailable else {
-            preparationRequest?.cancel(); preparationRequest = nil
-            preparationGeneration += 1
-            return
-        }
-        guard preparationRequest == nil else { return }
-        let generation = preparationGeneration
-        preparationRequest = Task { [weak self] in
-            defer {
-                if let self, self.preparationGeneration == generation { self.preparationRequest = nil }
-            }
-            while !Task.isCancelled {
-                guard let self, self.preparationAvailable, self.preparationGeneration == generation else { return }
-                do {
-                    let status = try await self.workspace.client.invoke("search:status", args: [])
-                    try Task.checkCancellation()
-                    guard self.preparationAvailable, self.preparationGeneration == generation else { return }
-                    self.searchPreparation = NativeSearchPreparation(status["semantic"])
-                } catch is CancellationError { return }
-                catch { /* Query errors retain the existing search error presentation. */ }
-                do { try await Task.sleep(for: .seconds(1)) } catch { return }
-            }
-        }
-    }
-    public func retrySearchPreparation() {
-        guard preparationAvailable else { return }
-        preparationRetry?.cancel()
-        let generation = preparationGeneration
-        preparationRetry = Task { [weak self] in
-            guard let self else { return }
-            do {
-                let status = try await self.workspace.client.invoke("search:retry", args: [])
-                try Task.checkCancellation()
-                guard self.preparationAvailable, self.preparationGeneration == generation else { return }
-                self.searchPreparation = NativeSearchPreparation(status["semantic"])
-            } catch { }
-        }
-    }
-
     private var searchAvailable: Bool {
         presentationActive && isSearching && facts.overviewVisible && !facts.settingsOpen && facts.documentVisible && facts.focused &&
             (workspace.runtimeAvailable || searchRequest != nil) && !NativeOverviewSearch(searchQuery).terms.isEmpty
     }
     private func invalidateContentSearch() {
         contentRequest?.cancel(); contentRequest = nil; contentRequestKey = nil; contentContextKey = nil; contentRanks = nil
-        searchMode = "keyword"; searchReason = "disabled"; searchIndexing = false
+        searchReason = "disabled"; searchIndexing = false
     }
     private func scheduleContentSearch(scope: NativeOverviewCollection, keyword: NativeOverviewCollection) {
         guard searchAvailable else { invalidateContentSearch(); return }
@@ -799,7 +750,7 @@ public final class NativeOverviewWorkspaceModel {
         contentRequest?.cancel(); contentRequestKey = key
         if contentContextKey != contextKey {
             contentRanks = nil
-            searchMode = "keyword"; searchReason = "loading"; searchIndexing = false
+            searchReason = "loading"; searchIndexing = false
         }
         contentContextKey = contextKey
         let input = JSONValue.object(["query": .text(searchQuery), "threads": .array(refs.map(\.json)), "keywordMatches": .array(literal)])
@@ -821,21 +772,18 @@ public final class NativeOverviewWorkspaceModel {
                         ranks[id.string] = index
                     }
                     self.contentRanks = ranks
-                    self.searchMode = result["mode"]?.stringValue == "hybrid" ? "hybrid" : "keyword"
-                    self.searchPreparation = NativeSearchPreparation(result["semantic"])
                     self.searchReason = result["reason"]?.stringValue ?? ""
                     self.searchIndexing = result["indexing"]?.boolValue == true
                     self.reconcile(captureMutation: false)
-                    // Preparation and retries can finish without a catalog
-                    // change. Keep the active query fresh even when its first
-                    // response only had metadata matches; body indexing runs independently.
-                    let refresh = min(3000, max(300, result["refreshMs"]?.intValue ?? 3000))
-                    try await Task.sleep(for: .milliseconds(refresh))
+                    // Automatic keyword indexing commits without changing the
+                    // catalog or search revision. Three seconds is the bounded
+                    // refresh cadence: it admits body-only matches without
+                    // restarting the query on every thread update.
+                    try await Task.sleep(for: .seconds(3))
                 }
             } catch is CancellationError { }
             catch {
                 guard let self, !Task.isCancelled, self.contentRequestKey == key else { return }
-                if self.contentRanks == nil { self.searchMode = "keyword" }
                 self.searchReason = "local-unavailable"; self.searchIndexing = false
                 self.reconcile(captureMutation: false)
             }
@@ -1075,8 +1023,6 @@ public final class NativeOverviewWorkspaceModel {
         collectionReadingOwners.removeAll()
         applicationReadDeadline?.cancel(); applicationReadDeadline = nil
         applicationVisit = nil
-        preparationRequest?.cancel(); preparationRequest = nil
-        preparationRetry?.cancel(); preparationRetry = nil
         invalidateContentSearch()
         await publication?.value
         try? await workspace.client.updateOverviewContext(nil)

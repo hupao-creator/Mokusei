@@ -80,6 +80,6 @@ base policy applies.
 active. Runtime validates preset IDs and captures changes at the next Moku
 execution admission, alongside the existing configuration fields.
 
-`search:retry` is a zero-argument write command that wakes local model/index
+`search:retry` is a zero-argument write command that wakes local keyword-index
 recovery. `search:status` and `search:query` remain read channels; their responses
-include bounded semantic preparation state and may report `hybrid` mode.
+report indexed/pending counts and keyword hits.

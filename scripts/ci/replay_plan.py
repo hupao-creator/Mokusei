@@ -39,9 +39,6 @@ def replay_groups(go_executable, output):
             ("git-contract", go + ["./tools/verification/git"]),
         ],
         "interop": [
-            ("embedding-search", go + ["./tools/verification/thread-search", "-native-only",
-                                      "-embedding-helper", "app/macos/.build/debug/MokuseiEmbedding",
-                                      "-model-directory", str(output / "embedding-model")]),
             ("swift-deltas", go + ["./tools/verification/transport", "-swift-deltas"]),
             ("swift-files", go + ["./tools/verification/transport", "-swift-files"]),
             ("swift-settings", go + ["./tools/verification/transport", "-swift-settings-capacity"]),

@@ -15,7 +15,6 @@ type SearchDiagnostic struct {
 	Kind          string  `json:"kind,omitempty"`
 	Outcome       string  `json:"outcome,omitempty"`
 	Reason        string  `json:"reason,omitempty"`
-	Mode          string  `json:"mode,omitempty"`
 	DurationMS    float64 `json:"durationMs"`
 	Cache         string  `json:"cache,omitempty"`
 	Epoch         uint64  `json:"epoch,omitempty"`

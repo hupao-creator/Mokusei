@@ -17,6 +17,10 @@ const indexVersion = "keyword-text-v3"
 const documentPrefix = "search-document:"
 const stampPrefix = "search-document-stamp:"
 const configKey = "search-config"
+
+// Removed retrieval generations left these publication stamps in the
+// authoritative snapshot. They are deleted on the next startup.
+const legacyVectorStampPrefix = "search-vector-stamp:"
 const maxContentRunes = 134550
 
 type Source struct {
@@ -97,7 +101,7 @@ func prepare(source Source) Document {
 // DeleteOwner is called inside the same transaction that deletes its source.
 // Removing derived text atomically prevents reuse of a deleted owner.
 func DeleteOwner(tx *store.Tx, owner string) error {
-	for _, prefix := range []string{documentPrefix, stampPrefix, vectorStampPrefix} {
+	for _, prefix := range []string{documentPrefix, stampPrefix} {
 		for _, key := range tx.Keys(prefix + ownerSuffix(owner)) {
 			if err := tx.Delete(key); err != nil {
 				return err
@@ -110,7 +114,7 @@ func DeleteOwner(tx *store.Tx, owner string) error {
 // ClearHistory participates in runtime's fenced replacement transaction.
 // Derived content is removed atomically; automatic search remains ready for new threads.
 func ClearHistory(tx *store.Tx) error {
-	for _, prefix := range []string{documentPrefix, stampPrefix, vectorStampPrefix} {
+	for _, prefix := range []string{documentPrefix, stampPrefix} {
 		for _, key := range tx.Keys(prefix) {
 			if err := tx.Delete(key); err != nil {
 				return err
