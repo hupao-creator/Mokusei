@@ -67,6 +67,7 @@ func main() {
 	defer cancel()
 	runtime, e := oc.NewRuntime(ctx, oc.Options{CWD: cwd, ExecutablePath: nativeCLI, Environment: env, Config: config, IsolateConfig: true})
 	must(e)
+	version := runtime.Version
 	defer runtime.Close()
 	id := oc.NewSessionID()
 	schema := oc.Object{"type": "object", "properties": oc.Object{"reply": oc.Object{"type": "string"}}, "required": []string{"reply"}, "additionalProperties": false}
@@ -111,7 +112,7 @@ func main() {
 		panic("native bridge fixture verification incomplete")
 	}
 	must(runtime.Close())
-	fmt.Println("PASS: real OpenCode 2.3 lazy plugin activation, isolated native plugin, refresh acknowledgement, session/prompt, local mocked inference, schema transform, SSE and durable export")
+	fmt.Println("PASS: real OpenCode " + version + " isolated native plugin, refresh acknowledgement, session/prompt, local mocked inference, schema transform, SSE and durable export")
 	verifyNativeSettings(parent, nativeCLI, cwd, env, config, func() []map[string]any {
 		mu.Lock()
 		defer mu.Unlock()

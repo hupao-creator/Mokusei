@@ -390,12 +390,20 @@ const rpcPluginID = "mokusei.harness"
 // OpenCode activates configured plugins asynchronously after the first location
 // boots. Calling an RPC before that registration settles is rejected as
 // rpc.unavailable, which reaches the caller as HTTP 400. Wait for this plugin's
-// inventory state instead of racing its activation.
+// inventory state instead of racing its activation. A process exit cancels the
+// runtime lifetime; waiting must end then instead of spending the full budget
+// retrying requests that can no longer succeed.
 func (r *Runtime) waitForPlugin(ctx context.Context, id string) error {
 	wait, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	var lastErr error
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := r.ctx.Err(); err != nil {
+			return r.activationExit()
+		}
 		var inventory []Object
 		lastErr = r.Request(wait, "GET", "/api/plugin", nil, &inventory)
 		if lastErr == nil {
@@ -430,9 +438,21 @@ func (r *Runtime) waitForPlugin(ctx context.Context, id string) error {
 				return fmt.Errorf("OpenCode plugin %s did not activate: %w", id, lastErr)
 			}
 			return fmt.Errorf("OpenCode plugin %s did not activate", id)
+		case <-r.ctx.Done():
+			return r.activationExit()
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
+}
+
+// activationExit reports the process exit that cancelled the runtime lifetime.
+// The process goroutine writes processErr before closing processDone and
+// cancelling the lifetime, so observing r.ctx.Done() orders after that write.
+func (r *Runtime) activationExit() error {
+	if err := r.processErr; err != nil {
+		return fmt.Errorf("OpenCode exited before the plugin activated: %w", err)
+	}
+	return errors.New("OpenCode exited before the plugin activated")
 }
 func (r *Runtime) RPC(ctx context.Context, method string, input, out any) error {
 	var result struct {

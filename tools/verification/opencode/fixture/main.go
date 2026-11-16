@@ -462,6 +462,11 @@ func main() {
 	}
 	server := &http.Server{Handler: http.HandlerFunc(serve)}
 	go func() { io.Copy(io.Discard, os.Stdin); server.Close() }()
+	if ms, e := strconv.Atoi(os.Getenv("FIXTURE_PROCESS_EXIT_MS")); e == nil && ms > 0 {
+		// Model a crash after the address is published: serve briefly, then exit
+		// before configured plugins could possibly have activated.
+		time.AfterFunc(time.Duration(ms)*time.Millisecond, func() { server.Close() })
+	}
 	fmt.Printf("{\"url\":\"http://%s\"}\n", listener.Addr())
 	server.Serve(listener)
 }
