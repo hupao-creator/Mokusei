@@ -95,6 +95,39 @@ struct NativeOverviewTransitionTests {
         try OverviewReplay.verifyFitAll(fixture, in: window)
     }
 
+    @Test(arguments: [false, true])
+    func returningToDisplayedGeometryCancelsAQueuedSnapshot(resizeViewport: Bool) async throws {
+        let items: [NativeOverviewItem] = [.init(id: "first"), .init(id: "second", columns: 2)]
+        let fixture = OverviewReplayFixture(items: items)
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1600, height: 1100)
+        defer { window.close(); fixture.state.camera.dispose() }
+        try await OverviewReplay.settle(fixture, in: window)
+        let originalSize = fixture.size
+        let originalCamera = fixture.state.camera.liveTransform
+        let solves = fixture.state.layoutSolveCount
+        let reuses = fixture.state.geometryReuseCount
+        let lease = try await fixture.state.motionStages.acquire(owner: "test-reversal")
+        defer { lease.release() }
+        if resizeViewport {
+            fixture.size = .init(width: 1460, height: 980)
+        } else {
+            fixture.install([.init(id: "obsolete", columns: 2, rows: 2)])
+        }
+        try await SwiftUIReplay.wait { fixture.state.isLayingOut }
+        if resizeViewport { fixture.size = originalSize } else { fixture.install(items) }
+        try await SwiftUIReplay.wait { fixture.state.geometryReuseCount > reuses }
+        #expect(!fixture.state.isLayingOut)
+        lease.release()
+        // Wait for the released stage to drain: an obsolete worker must not
+        // publish after the latest snapshot has already taken the reuse path.
+        try await SwiftUIReplay.wait { fixture.state.motionStages.activeOwner == nil }
+        try await OverviewReplay.settle(fixture, in: window)
+        #expect(fixture.state.layoutSolveCount == solves)
+        #expect(fixture.state.presentedPlacements.map(\.id) == items.map(\.id))
+        #expect(fixture.state.camera.liveTransform == originalCamera)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+    }
+
     @Test func pauseDuringMotionResumesToThePublishedTarget() async throws {
         let fixture = OverviewReplayFixture(items: (0..<5).map { .init(id: "card-\($0)") })
         let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1400, height: 900)

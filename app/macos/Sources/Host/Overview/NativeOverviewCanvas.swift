@@ -390,8 +390,13 @@ public struct NativeOverviewCanvas<Content: View>: View {
         let items = suppliedItems ?? contentStore.items
         let pendingRevisions = revisions.filter { $0.sceneKey == sceneKey && $0.revision > consumedRevision }
         if canReuseGeometry(items, viewport: viewport) {
+            // Returning to the displayed geometry supersedes a different
+            // snapshot still waiting for the spatial stage. Reuse must revoke
+            // that worker's publication authority just like a new solve does.
+            cancelScheduling(settle: false)
+            state.isLayingOut = false
             // A structural slot refresh with unchanged membership or viewport
-            // does not need another solve. Keep any playing motion untouched.
+            // does not need another solve. Keep any playing camera motion untouched.
             installRendered(items, retainingOutgoing: true)
             retain()
             state.geometryReuseCount += 1

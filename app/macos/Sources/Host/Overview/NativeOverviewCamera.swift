@@ -231,7 +231,6 @@ public final class NativeOverviewCamera {
     @ObservationIgnored public var onChange: (() -> Void)?
     public var reduceMotion = false
 
-    @ObservationIgnored private var state: NativeOverviewCameraState?
     @ObservationIgnored private var geometry: Geometry?
     @ObservationIgnored private var visible = true
     @ObservationIgnored private var interactionPaused = false
@@ -254,9 +253,11 @@ public final class NativeOverviewCamera {
     public init() {}
 
     public var live: NativeOverviewCameraState? {
-        guard var state else { return nil }
-        if let track { state.transform = NativeOverviewCameraGeometry.sample(track.frames, at: uptime - track.started) }
-        return state
+        guard isInitialized else { return nil }
+        let displayed = track.map { NativeOverviewCameraGeometry.sample($0.frames, at: uptime - $0.started) } ?? transform
+        // Motion samples own geometry, never camera ownership. A paused return
+        // must retain the user's latest request for automatic framing.
+        return .init(transform: displayed, manual: manual)
     }
 
     public var liveTransform: NativeOverviewTransform { isAnimating ? (live?.transform ?? transform) : transform }
@@ -270,7 +271,7 @@ public final class NativeOverviewCamera {
     public var hasPendingAutomaticFit: Bool { pendingAutoFit }
     /// Explicit-return provenance for diagnostics; automatic framing is pending.
     public var returning: Bool { pendingAutoFit && !manual }
-    public var automaticFitTarget: NativeOverviewTransform? { state == nil ? nil : geometry?.automatic }
+    public var automaticFitTarget: NativeOverviewTransform? { isInitialized ? geometry?.automatic : nil }
     public var automaticFitBlockReason: String? {
         guard pendingAutoFit else { return nil }
         if manual { return "manual" }
@@ -286,7 +287,7 @@ public final class NativeOverviewCamera {
     public func applyGeometry(content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
                               automatic: NativeOverviewTransform?) {
         geometry = .init(content: content, viewport: viewport, automatic: automatic)
-        guard state != nil else {
+        guard isInitialized else {
             guard !manual, content.width > 0, content.height > 0, let automatic else { return }
             pendingAutoFit = false
             commit(.init(transform: automatic, manual: false))
@@ -356,7 +357,7 @@ public final class NativeOverviewCamera {
     }
 
     public func setManualTransform(_ value: NativeOverviewTransform, anchor: CGPoint? = nil) {
-        guard state != nil else { return }
+        guard isInitialized else { return }
         stopMotion(commitSample: false)
         pendingAutoFit = false
         commit(.init(transform: constrained(value, anchor: anchor), manual: true))
@@ -377,7 +378,7 @@ public final class NativeOverviewCamera {
     }
 
     public func returnToAuto() {
-        guard let geometry, state != nil else { return }
+        guard let geometry, isInitialized else { return }
         // Stop the old track at its displayed sample before choosing the new
         // automatic target. Otherwise an in-flight track could later commit an
         // obsolete destination after the target already matched this sample.
@@ -419,7 +420,7 @@ public final class NativeOverviewCamera {
     }
 
     private func updateAuto() {
-        guard let geometry, state != nil, !manual else { return }
+        guard let geometry, isInitialized, !manual else { return }
         guard geometry.content.width > 0, geometry.content.height > 0 else {
             pendingAutoFit = false
             stopMotion(commitSample: false)
@@ -495,9 +496,7 @@ public final class NativeOverviewCamera {
         isAnimating = false
         animationFrames = []
         if commitSample, let sample {
-            state = sample
             transform = sample.transform
-            manual = sample.manual
         }
     }
 
@@ -511,7 +510,6 @@ public final class NativeOverviewCamera {
 
     private func commit(_ next: NativeOverviewCameraState?) {
         let previousTransform = liveTransform
-        state = next
         transform = next?.transform ?? .identity
         manual = next?.manual ?? false
         isInitialized = next != nil

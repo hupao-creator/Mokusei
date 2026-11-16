@@ -37,7 +37,8 @@ sample, pause state or revision is an input.
 The solver evaluates a bounded deterministic candidate set:
 
 1. a uniform grid for every column count `1...N` using the largest measured span;
-2. horizontal and vertical shelf packs, sampled at no more than 65 target widths;
+2. horizontal and vertical shelf packs, sampled at no more than 65 targets on
+   their respective packing axes (columns and rows);
 3. horizontal product-order shelf packs under the same bound.
 
 Candidates are ranked by unclamped FitAll scale, then world area, width and a
@@ -45,10 +46,16 @@ stable seed. The uniform-grid pass includes the independent regular-grid quality
 baseline for every column count, so a selected result cannot fit worse than that
 baseline. The grid pass is `O(N²)`; shelf passes are `O(65N)` after sorting.
 
+Shelf target ranges include both endpoints. For more than 64 available target
+values, the step is `ceil((count - 1) / 64)`, keeping the enumeration within 65
+targets even when spans make the range much larger than the card count.
+
 The camera is FitAll: `scale = min(cap, min(V.w/B.w, V.h/B.h))` and
 `translation = V.center - scale × B.center`. There is no readable floor, cell
 budget or retained reading seat. Manual pan/zoom is explicit user state and is
-never replaced by background geometry.
+never replaced by background geometry. Live camera bookmarks derive their mode
+from that single owner; pausing a return animation cannot restore stale manual
+ownership, including when the automatic target already matches the current view.
 
 Card composition may use up to three grid columns (`HarnessOverviewCapacity.maximumColumns`).
 This is a card capability: the resulting footprint, including 3×2, is an input to
@@ -59,8 +66,9 @@ persistent tag-bar height, shared with fixtures through `NativeOverviewViewportD
 cancels the in-flight presentation, samples current card poses, and starts one
 transition to the latest target. An older task cannot publish, clear
 `isLayingOut`, or consume a newer revision. Pauses settle the sampled pose and
-retain the pending target; resuming resolves the latest content. `Reduce Motion`
-commits immediately.
+retain the pending target; resuming resolves the latest content. Geometry reuse
+also revokes any obsolete worker waiting for the spatial stage, so an A→B→A
+update cannot publish B after returning to A. `Reduce Motion` commits immediately.
 
 ## Verification
 
@@ -68,8 +76,11 @@ commits immediately.
   reduced-input reporting, identity/size, non-overlap and gaps, exact bounds,
   finite values, FitAll containment/centering, cap, viewport translation,
   determinism and the regular-grid quality floor, plus a 1,500-card 4K/ultrawide
-  case that checks legality, cap and the same regular-grid quality floor.
-- `NativeOverviewCameraTests`: FitAll, manual ownership, pause/hide, latest-wins,
+  case that checks legality, cap and the same regular-grid quality floor. Mixed
+  3×2/2×1 and 3×2/3×1/2×1 cases compare both shelf axes against independent legal
+  packing witnesses.
+- `NativeOverviewCameraTests`: FitAll, manual ownership, pause/hide before and
+  during explicit return, matching-target bookmark ownership, latest-wins,
   invalid geometry and empty collections.
 - `NativeOverviewHeadlessGeometryTests`: bare `NSHostingView` with no window;
   mixed footprints, resize, toolbar/Dock reservations, scene resets and
@@ -77,7 +88,9 @@ commits immediately.
 - `NativeOverviewCenteringTests`, `NativeOverviewCapacityTests`,
   `NativeOverviewTransitionTests`: graphical mounted production Canvas,
   rendered frames, rapid revisions, interruption, zero viewport and
-  invalid-snapshot recovery.
+  invalid-snapshot recovery. Membership and viewport A→B→A replays hold the
+  spatial stage until the final input is admitted, then verify that the obsolete
+  worker cannot replace the reused geometry.
 - `NativeOverviewStatePropertyTests`: randomized event traces against the mounted
   Canvas with a shrinking replay; failures print the complete input and reduced event sequence. A fixed reduced trace is checked in as `reducedInterleavingRegressionConverges`.
 

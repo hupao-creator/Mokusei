@@ -219,8 +219,8 @@ public enum NativeOverviewLayout {
                 if secondaryA != secondaryB { return secondaryA > secondaryB }
                 return lhs.offset < rhs.offset
             }.map(\.element)
-            let total = members.reduce(0) { $0 + (vertical ? $1.columns : $1.rows) }
-            let minimum = members.map { vertical ? $0.columns : $0.rows }.max()!
+            let total = members.reduce(0) { $0 + (vertical ? $1.rows : $1.columns) }
+            let minimum = members.map { vertical ? $0.rows : $0.columns }.max()!
             for target in shelfTargets(minimum: minimum, maximum: total) {
                 consider(makeCandidate(shelf(sorted, target: target, vertical: vertical)))
             }
@@ -269,7 +269,7 @@ public enum NativeOverviewLayout {
     private static func shelfTargets(minimum: Int, maximum: Int) -> [Int] {
         let count = maximum - minimum + 1
         guard count > 64 else { return Array(minimum...maximum) }
-        let step = max(1, count / 63)
+        let step = (count + 62) / 64
         var targets = Array(stride(from: minimum, through: maximum, by: step))
         if targets.last != maximum { targets.append(maximum) }
         return targets

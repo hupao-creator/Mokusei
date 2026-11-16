@@ -342,6 +342,29 @@ struct NativeOverviewGeometryTests {
         }
     }
 
+    @Test func shelfCandidateRangesUseThePackingAxis() throws {
+        let cases: [(members: [NativeOverviewMember], usable: NativeOverviewContentRect,
+                     witnessColumns: Int, witnessRows: Int)] = [
+            // A 3x2 card beside two stacked 2x1 cards is a legal 5x2 witness.
+            ([.init(id: "a", columns: 3, rows: 2), .init(id: "b", columns: 2, rows: 1),
+              .init(id: "c", columns: 2, rows: 1)],
+             .init(left: 0, top: 0, width: 1680, height: 500), 5, 2),
+            // Two 3x2 cards above a 3x1, 3x1, 2x1 row form a legal 8x3 witness.
+            ([.init(id: "a", columns: 3, rows: 2), .init(id: "b", columns: 3, rows: 1),
+              .init(id: "c", columns: 3, rows: 2), .init(id: "d", columns: 3, rows: 1),
+              .init(id: "e", columns: 2, rows: 1)],
+             .init(left: 0, top: 0, width: 2496, height: 624), 8, 3),
+        ]
+        for input in cases {
+            let result = try NativeOverviewLayout.solve(members: input.members, usableViewport: input.usable)
+            let fit = min(input.usable.width / result.bounds.width, input.usable.height / result.bounds.height)
+            let witnessFit = min(input.usable.width / metrics.width(columns: input.witnessColumns),
+                                 input.usable.height / metrics.height(rows: input.witnessRows))
+            #expect(fit + tolerance >= witnessFit)
+            #expect(violations(.init(seed: 0, members: input.members, usable: input.usable, scaleCap: 1.7)).isEmpty)
+        }
+    }
+
     @Test func viewportTranslationMovesOnlyTheScreenResult() throws {
         let members = [NativeOverviewMember(id: "a", columns: 1, rows: 1),
                        .init(id: "b", columns: 2, rows: 1),

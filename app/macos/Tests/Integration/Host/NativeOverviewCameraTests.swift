@@ -71,6 +71,56 @@ struct NativeOverviewCameraTests {
         #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, second))
     }
 
+    @Test(arguments: [false, true], [false, true])
+    func returnToAutoKeepsOwnershipAcrossPauses(hidden: Bool, pauseBeforeReturn: Bool) async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        camera.onChange = {}
+        camera.cutTo(content: content, viewport: viewport)
+        camera.setManualTransform(.init(scale: 1, x: 500, y: 300))
+        if pauseBeforeReturn {
+            if hidden { camera.setVisible(false) } else { camera.setInteractionPaused(true) }
+        }
+        camera.returnToAuto()
+        #expect(!camera.manual)
+        #expect(camera.live?.manual == false)
+        if !pauseBeforeReturn {
+            #expect(camera.isAnimating)
+            if hidden { camera.setVisible(false) } else { camera.setInteractionPaused(true) }
+        }
+        #expect(!camera.manual)
+        #expect(camera.live?.manual == false)
+        #expect(!camera.isAnimating)
+        #expect(camera.hasPendingAutomaticFit)
+        let latest = try #require(NativeOverviewCameraGeometry.fit(large, viewport: viewport))
+        camera.applyGeometry(content: large, viewport: viewport, automatic: latest)
+        if hidden { camera.setVisible(true) } else { camera.setInteractionPaused(false) }
+        try await wait { !camera.manual && !camera.isAnimating && !camera.hasPendingAutomaticFit }
+        #expect(camera.live?.manual == false)
+        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, latest))
+    }
+
+    @Test func returnToAnAlreadyMatchingTargetPublishesAutomaticOwnership() {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        var published: NativeOverviewCameraState?
+        camera.onChange = { [weak camera] in published = camera?.live }
+        camera.cutTo(content: content, viewport: viewport)
+        let target = camera.liveTransform
+        let expected = NativeOverviewCameraState(transform: target, manual: false)
+        camera.setManualTransform(target)
+        camera.returnToAuto()
+        #expect(!camera.manual)
+        #expect(!camera.isAnimating)
+        #expect(!camera.hasPendingAutomaticFit)
+        #expect(camera.live == expected)
+        #expect(published == expected)
+        camera.setVisible(false)
+        camera.setVisible(true)
+        #expect(!camera.manual)
+        #expect(camera.liveTransform == target)
+    }
+
     @Test func latestTargetWinsWithoutQueueingHistoricalRevisions() async throws {
         let camera = NativeOverviewCamera()
         defer { camera.dispose() }
