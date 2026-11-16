@@ -36,7 +36,7 @@
 - **Projection 与长会话**：Runtime publisher 仍全目录整理、解码 private sessions、逐对象 JSON 比较；Moku transcript 更新扫描完整历史。四 Harness 仍整段历史 Encode/Project，Codex 批内逐 delta clone 当前 turn，Claude/Pi/OpenCode 累计文本也有前缀复制。需要固定总输出与变化 chunk/历史规模的剖析，不能仅删校验或终态数据。
 - **Workspaces**：`manager.go:419–462` 全局锁跨多次 Git inspect，普通 checkout 一轮约 14 个 Git 子进程。用现有 Git gate 卡住一个 repo，观察另一个 repo 的请求与取消。拆锁必须保留 owner/HEAD/TOCTOU 验证和注册原子性。
 - **附件 I/O**：Stage/Preview 全局锁覆盖完整 I/O；RetainInput 纯文本也先取同锁。Stage/StageStream 还会重写未改的全 owners JSON。用 CheckFile barrier 与不同 owner 数复现；共享 owner、上传失败回滚和完整性验证不可削弱。
-- **搜索/Embedding**：DeleteOwner 解码全索引和向量；自动 status→build 重复准备 pending 文档。校验失败不缓存，缺 engine 可导致状态轮询重复 hash 309,855,456 字节模型；健康路径仅 Stat。安装取消在已暂存阶段仍等活跃 inference 的 runMu。使用合成资产/held-inference fixture，失败缓存需有文件身份失效，不能永久缓存坏状态。
+- **搜索**：DeleteOwner 解码全索引；自动 status→build 重复准备 pending 文档。使用合成资产与取消 fixture 验证失败缓存和重复准备，不能永久缓存坏状态。
 - **语音历史/目录分页**：每条完成 transcript 整段 JSON 重写与 fsync；每页目录先 ReadDir(-1)+sort 再取 200 项。固定消息/目录规模测量后再定存储/分页设计，不能丢历史或降低持久性。
 
-未发现确定常态泄漏的范围：daemon profile/进程 ownership drain、Runtime command-lock/cancellation-gate 引用回收、Context host 超时/取消/关闭、search scheduler waiter 与 stale-result fence、健康 embedding 校验缓存与 helper poison、voice discussion joined cleanup、附件有界上传及失败清理。此结论来自静态覆盖，不能替代多小时 soak 或真实账号/网络验证。
+未发现确定常态泄漏的范围：daemon profile/进程 ownership drain、Runtime command-lock/cancellation-gate 引用回收、Context host 超时/取消/关闭、search scheduler waiter 与 stale-result fence、voice discussion joined cleanup、附件有界上传及失败清理。此结论来自静态覆盖，不能替代多小时 soak 或真实账号/网络验证。

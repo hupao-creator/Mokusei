@@ -97,7 +97,7 @@ public extension NativeWorkspacePresentation {
             "settingsCloseBlocked": settingsNavigation.closeBlockReason(model: workspace.settingsModel).map(JSONValue.text) ?? .null,
             "settingsSaving": .bool(workspace.settingsModel.draft.status == .saving || workspace.settingsModel.draft.status == .pending),
             "search": .object(["active": .bool(overview.isSearching), "query": .text(overview.searchQuery),
-                "mode": .text(overview.searchMode), "indexing": .bool(overview.searchIndexing)]),
+                "indexing": .bool(overview.searchIndexing)]),
             "selectedFilterId": overview.selectedFilter.map { .text($0.id) } ?? .null,
             "filters": .array(interactionFilters.sorted { $0.id < $1.id }.map {
                 .object(["id": .text($0.id), "label": .text($0.displayTag), "count": .integer($0.count)])

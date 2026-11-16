@@ -106,8 +106,8 @@ trace_exporter = "none"
         for key in list(self.env):
             if key.endswith("API_KEY") or key.startswith("MOKUSEI_"):
                 self.env.pop(key)
-        # Per-child environment isolation is intentional. The caller's shell,
-        # daily native configuration and production embedding mode are untouched.
+        # Per-child environment isolation is intentional. The caller's shell and
+        # daily native configuration are untouched.
         self.env.update({"HOME": str(self.root / "home"), "CODEX_HOME": str(self.root / "native"),
                          "CODEX_SQLITE_HOME": str(self.root / "native"), "TMPDIR": str(self.root / "tmp"),
                          "XDG_CONFIG_HOME": str(self.root / "config"), "FIXTURE_KEY": "fixture-only",

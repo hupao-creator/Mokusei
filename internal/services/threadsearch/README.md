@@ -1,10 +1,9 @@
 # Thread search
 
-This module owns derived keyword text, passage indexing and hybrid thread ranking.
-Harness and Application adapters supply public text; the injected
-[embedding provider](../embedding/README.md) owns model preparation and local
-inference. Search never opens native conversations or discovers credentials.
-The [Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
+This module owns derived keyword text, passage indexing and thread ranking.
+Harness and Application adapters supply public text; search never opens native
+conversations, discovers credentials or loads a local model. The
+[Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
 global eligible thread scope and immediate folded metadata matches, independent
 of its browsing tag. Directory-only documents and tasks covered by reports remain
 included; archive/terminal exclusions remain.
@@ -20,73 +19,26 @@ unrelated collections and derived commits do not re-extract histories. Busy
 owners wait for their next source change. Extraction failures use bounded retry.
 Body and freshness stamp commit atomically behind the owner/hash/epoch fence.
 
-[semantic.go](semantic.go) watches changed body stamps and embeds bounded UTF-8
-passages with overlap. Each passage has a content hash within the exact model
-space, so unchanged passages reuse durable vectors after owner-only updates,
-restarts or interrupted builds. A changed model space or chunking pipeline
-rebuilds its derived generations. The provider owns query/document templates,
-dimensions and normalization; retrieval does not contain Gemma/Qwen prompts.
-
-[vector_store.go](vector_store.go) stores binary float32 vectors in a separate
-profile-local SQLite database, never in the authoritative resident JSON snapshot.
-Queries stream vector rows under a bounded working set with cancellation checks.
-A complete generation commits before its small publication stamp is admitted in
-the authoritative owner transaction. Unpublished, incompatible or stale generations
-cannot produce hits. Revoked generations and unused passage vectors are reclaimed.
-Vector database failures preserve keyword search and expose retryable status.
-
 ## Queries and ranking
 
 [query.go](query.go) preserves whitespace-term substring AND across metadata and
-body; native case/diacritic/width-folded matches independently qualify. Semantic
-passage evidence aggregates to one result per ThreadRef. Exact title substrings
-remain first; reciprocal rank fusion (constant 60) combines keyword and semantic
-rankings. Scores are ranking values, not confidence percentages.
-
-The [default tuning](tuning.go) uses 768-byte passages, 192-byte overlap, a 0.76
-semantic floor and at most 12 semantic candidates. With both body and metadata,
-semantic evidence is `0.8 * max(body, metadata) + 0.2 * metadata`; this reduces a
-long conversation's ability to outrank the dedicated thread merely by quoting it.
-Keyword matches are retained independently of this semantic candidate limit.
-The zero Tuning value selects the defaults; explicit internal tuning supplies the
-complete configuration for evaluation or another model. There is no user selector.
-
-Cold queries return keyword hits immediately while a bounded query-embedding
-cache prepares semantic evidence. The native client polls pending work at a
-bounded shorter interval, then resumes its ordinary three-second refresh.
-The decoded keyword-body cache remains limited to 64 MiB; query result and query
-embedding caches each hold at most eight entries. Every response revalidates the
-live owner and history epoch; model/input incompatibility never reuses old vectors.
+body; native case/diacritic/width-folded matches independently qualify. Exact
+title substrings rank first. Scores are ranking values, not confidence
+percentages. The decoded keyword-body cache is limited to 64 MiB; the query
+result cache holds at most eight entries. Every response revalidates the live
+owner and history epoch.
 
 ## Lifecycle and verification
 
-Model preparation starts in the composed macOS Runtime. The native provider
-verifies the pinned INT4 artifact, runs CPU inference locally, prioritizes queries
-between short background batches and retires its process after 90 idle seconds.
-Model changes do not require UI changes. Verified weights survive history clear;
-no conversation text is sent to the download service.
-
-Archive/deletion revoke derived text and vector publication stamps in the owner
-transaction. Physical row reclamation is separate, not a cross-database atomic
-transaction. History clear cancels and joins publishers, advances the epoch and
-clears persisted vector rows before resuming. `search:status` and `search:query`
+Archive/deletion revoke derived text and stamps in the owner transaction.
+History clear cancels and joins publishers, advances the epoch and removes
+persisted derived text before resuming. `search:status` and `search:query`
 remain cancellable reads; `search:retry` is a zero-argument recovery command.
 Retired configure/model/index controls remain unsupported.
 
 The [Runtime/native replay](../../../tools/verification/thread-search/README.md)
-checks SQLite, cache reuse, model-space replacement, late completion, fallback,
-archive and history clearing. The macOS CI interop lane also runs the genuine
-INT4 model, cross-language retrieval, a network-denied offline restart, observed
-idle exit/reload, corrupt-asset refusal and retry recovery. Controlled vectors
-exercise lifecycle interleavings but never certify semantic quality.
-
-An optional local corpus evaluator uses production public-text adapters against
-a read-only profile snapshot. Corpora, labels and detailed results stay in an
-ignored private directory; they are not CI fixtures. A 16-thread local corpus
-motivated the defaults. Its 21 initial labelled queries and seven subsequent
-queries found 21/22 positive targets first, all 22 within three results, and no
-hits for six unrelated queries. This is bounded local evidence, not a general
-retrieval-accuracy claim; related implementation/merge threads can still tie.
+checks SQLite indexing, cache reuse, source replacement, archive, migration and
+history clearing against production Runtime boundaries.
 
 ## Moku deterministic grep
 

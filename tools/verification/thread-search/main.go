@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -115,35 +114,11 @@ func refs(ids ...string) []model.ThreadRef {
 }
 
 func main() {
-	helper := flag.String("embedding-helper", "", "bundled native embedding executable")
-	models := flag.String("model-directory", "", "verified model cache for native replay")
-	nativeOnly := flag.Bool("native-only", false, "run only the real native model replay")
-	evaluateStore := flag.String("evaluate-store", "", "read-only real profile database for local evaluation")
-	evaluationOutput := flag.String("evaluation-output", "", "private local evaluation output directory")
-	evaluationCorpus := flag.String("evaluation-corpus", "", "previously extracted private corpus")
-	evaluationQueries := flag.String("evaluation-queries", "", "locally labelled queries and held-out split")
-	evaluationVariant := flag.String("evaluation-variant", "baseline", "keyword, baseline, conservative, strict, short, coherent, or final")
-	flag.Parse()
 	ctx := context.Background()
-	if *evaluationCorpus != "" {
-		must(runCorpusEvaluation(ctx, *evaluationCorpus, *evaluationQueries, *evaluationOutput, *evaluationVariant, *helper, *models))
-		return
-	}
-	if *evaluateStore != "" {
-		must(extractEvaluationCorpus(*evaluateStore, *evaluationOutput))
-		return
-	}
-	if *nativeOnly {
-		must(verifyNativeHybrid(ctx, *helper, *models))
-		return
-	}
 	verifyTextAdapters()
 	directory, err := os.MkdirTemp("", "mokusei-keyword-search-")
 	must(err)
 	defer os.RemoveAll(directory)
-	assetPath := filepath.Join(directory, "search-models", "retired-model")
-	must(os.MkdirAll(filepath.Dir(assetPath), 0700))
-	must(os.WriteFile(assetPath, []byte("existing asset"), 0600))
 	path := filepath.Join(directory, "state.sqlite")
 	db, err := store.Open(path)
 	must(err)
@@ -156,13 +131,16 @@ func main() {
 	)
 	sourceHash, _ := db.Snapshot().RecordHash("thread:body")
 	_, err = db.Update(ctx, func(tx *store.Tx) error {
-		if err := tx.Put("search-config", map[string]any{"pipeline": "retired-vector-space", "revision": 7, "epoch": 2, "enabled": false, "indexPaused": true}); err != nil {
+		if err := tx.Put("search-config", map[string]any{"pipeline": "retired-pipeline", "revision": 7, "epoch": 2, "enabled": false, "indexPaused": true}); err != nil {
 			return err
 		}
 		if err := tx.Put("search-usage", map[string]int{"requests": 200}); err != nil {
 			return err
 		}
-		return tx.Put("search-document:old", map[string]any{"vector": []int{1, 2}})
+		if err := tx.Put("search-vector-stamp:legacy", map[string]any{"space": "retired"}); err != nil {
+			return err
+		}
+		return tx.Put("search-document:old", map[string]any{"content": "derived"})
 	})
 	must(err)
 	openRuntime := func() *core.Runtime {
@@ -172,7 +150,7 @@ func main() {
 	}
 	r := openRuntime()
 	migratedHash, _ := db.Snapshot().RecordHash("thread:body")
-	assert(sourceHash == migratedHash && !db.Snapshot().Has("search-usage") && !db.Snapshot().Has("search-document:old"), "migration preserves source and removes only derived records")
+	assert(sourceHash == migratedHash && !db.Snapshot().Has("search-usage") && !db.Snapshot().Has("search-document:old") && !db.Snapshot().Has("search-vector-stamp:legacy"), "migration preserves source and removes only derived records")
 	assert(status(r).Config.Revision == 8, "legacy configuration advances revision")
 	for _, channel := range []string{"search:model", "search:index", "search:configure"} {
 		_, err := r.Invoke(ctx, channel, []json.RawMessage{raw(map[string]any{})})
@@ -180,14 +158,14 @@ func main() {
 	}
 	start(r)
 	result := query(r, "离线删除", refs("body", "literal")...)
-	assert(result.Mode == "keyword" && len(result.Hits) == 1 && result.Hits[0].Ref.ThreadID == "body", "Chinese body substring")
+	assert(len(result.Hits) == 1 && result.Hits[0].Ref.ThreadID == "body", "Chinese body substring")
 	assert(len(query(r, "清空历史", refs("body")...).Hits) == 0, "no paraphrase-only results")
 	assert(len(query(r, "离线删除", refs("literal")...).Hits) == 0, "candidate scope")
 	assert(len(query(r, "离线删除", refs("first-term-only")...).Hits) == 1, "first-term-only body is indexed")
 	assert(len(query(r, "后台", refs("second-term-only")...).Hits) == 1, "second-term-only body is indexed")
 	for _, text := range []string{"离线删除 后台", "后台 离线删除"} {
 		result := query(r, text, refs("body", "first-term-only", "second-term-only", "literal")...)
-		assert(result.Mode == "keyword" && len(result.Hits) == 1 && result.Hits[0].Ref.ThreadID == "body", "body AND terms exclude partial-term matches: "+text)
+		assert(len(result.Hits) == 1 && result.Hits[0].Ref.ThreadID == "body", "body AND terms exclude partial-term matches: "+text)
 	}
 	assert(query(r, "exact-ID-42", refs("body", "literal")...).Hits[0].Ref.ThreadID == "literal", "identifier match")
 	// Retired agent evidence is inert and stays untouched by normal browsing/search.
@@ -222,15 +200,8 @@ func main() {
 	assert(len(query(r, "更新后的", refs("body")...).Hits) == 1, "keyword index survives reopen")
 	must(r.ClearHistory(ctx))
 	assert(len(db.Snapshot().Keys("search-document:")) == 0 && len(query(r, "更新后的", refs("body")...).Hits) == 0, "history clear removes derived text and cached hits")
-	asset, err := os.ReadFile(assetPath)
-	must(err)
-	assert(string(asset) == "existing asset", "existing model files remain untouched")
 	verifyMaintenanceFanout(ctx, directory)
 	verifyApplications(ctx, directory)
 	verifyDiagnostics(ctx, filepath.Join(directory, "diagnostics"))
-	verifyHybridLifecycle(ctx, filepath.Join(directory, "hybrid"))
-	if *helper != "" {
-		must(verifyNativeHybrid(ctx, *helper, *models))
-	}
 	fmt.Println("PASS keyword Runtime/SQLite: legacy migration, source preservation, retired APIs, Chinese body/AND/scope, archive, updates, reopen, history clear and application/Report text")
 }

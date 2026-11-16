@@ -206,7 +206,7 @@ loopback Responses provider. Public `thread:follow-up` starts the fixed set of
 active tasks. The framework records the **actually selected native CLI** path,
 version and digest; it does not spoof a discovery version or claim an environment
 variable pins discovery. Background Tag/Report agents are disabled using public
-settings with the real revision. Production embedding remains enabled.
+settings with the real revision. Production search remains enabled.
 
 The App's explicit `--benchmark-scenario overview` entry requires the isolated
 `--data-dir` and automation socket. It records onboarding completion before the

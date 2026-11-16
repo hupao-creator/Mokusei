@@ -298,9 +298,8 @@ class Driver:
         self.coverage["deferred-auto-fit"] += 1
         self.action({"name": "search.begin"})
         result = self.action({"name": "search.update", "query": "absent-864bddb4-no-match"})
-        if result["search"]["mode"] == "keyword":
-            assert result["overview"]["cards"] == []
-            self.coverage["empty-result"] += 1
+        assert result["overview"]["cards"] == []
+        self.coverage["empty-result"] += 1
         self.action({"name": "search.end"})
         for ref in self.client.snapshot()["threads"]:
             self.action({"name": "thread.open", **ref})

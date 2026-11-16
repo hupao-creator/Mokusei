@@ -29,10 +29,10 @@ func verifyDiagnostics(ctx context.Context, directory string) {
 	start(r)
 	for range 2 {
 		result := query(r, "离线删除", refs("diagnostic-private-id")...)
-		assert(result.Mode == "keyword" && len(result.Hits) == 1, "diagnostic body query")
+		assert(len(result.Hits) == 1, "diagnostic body query")
 	}
 	must(r.Close(ctx))
-	logger.SearchEvent(plugin.SearchDiagnostic{Event: "search.query.completed", Reason: "diagnostic-private-unsafe-error", OperationID: "diagnostic-private-unsafe-id!", Mode: "diagnostic-private-unsafe-mode"})
+	logger.SearchEvent(plugin.SearchDiagnostic{Event: "search.query.completed", Reason: "diagnostic-private-unsafe-error", OperationID: "diagnostic-private-unsafe-id!"})
 	must(logger.Close())
 	data, err := os.ReadFile(filepath.Join(directory, "logs", "service.jsonl"))
 	must(err)
@@ -52,7 +52,7 @@ func verifyDiagnostics(ctx context.Context, directory string) {
 			indexed = true
 		}
 		if event.Event == "search.query.completed" && event.Cache == "hit" {
-			assert(started[event.OperationID] && event.Mode == "keyword" && event.HitCount == 1 && event.DocumentCount == 1, "cached keyword query correlation and counts")
+			assert(started[event.OperationID] && event.HitCount == 1 && event.DocumentCount == 1, "cached keyword query correlation and counts")
 			cacheHit = true
 		}
 	}

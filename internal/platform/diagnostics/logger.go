@@ -390,9 +390,6 @@ func (l *Logger) SearchEvent(event plugin.SearchDiagnostic) {
 	if !settingsIn(event.Outcome, "completed failed fallback") {
 		event.Outcome = ""
 	}
-	if !settingsIn(event.Mode, "keyword") {
-		event.Mode = ""
-	}
 	if !settingsIn(event.Cache, "none hit miss") {
 		event.Cache = ""
 	}
