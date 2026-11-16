@@ -2,6 +2,9 @@
 
 **历史研究，实时入口已退役。** 当前 Overview 的 Agent Thread 与 Report 卡片均使用
 固定平面材质，原 all-on/shell-off/all-off 已没有三个独立的产品条件。
+**几何探针已同步到当前纯 `NativeOverviewLayout.solve` / FitAll 相机；旧的
+`plan`、`minimumScale`、`readableCellBudget`、`wholeSceneFitScale` 和
+`fitsAtReadingScale` 入口已不存在。run.py 仍拒绝构建或启动旧玻璃试验。**
 `run.py` 现在拒绝构建或启动试验；报告、原始证据和 `analyze.py` 保留。
 下面的注入、准备对象及命令属于冻结版本
 `a4e94b3f72f8f16d7adf2911621725b2ae552b7e`，不适用于当前源码。

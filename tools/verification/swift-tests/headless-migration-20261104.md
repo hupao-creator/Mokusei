@@ -1,3 +1,5 @@
+> **Historical routing audit:** the current reviewed windowless suite list lives in `scripts/ci/swift_execution.py`; the FitAll layout refactor replaced the deleted AutoReturn/CameraReadability/Packing suites with `NativeOverviewCameraTests` and `NativeOverviewGeometryTests`.
+
 # Headless migration after obsolete-test cleanup, 2026-11-04
 
 Base/cleanup commit: `4418041b17682c7844e66ba95057691752872ad6`
@@ -93,11 +95,11 @@ Each row below names the existing source, not a replacement test.
 | `NativeMokuExecutionLinkRoutingTests` | 2 | [NativeMokuExecutionLinkTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuExecutionLinkTests.swift) |
 | `NativeMokuOperationTests` | 2 | [NativeMokuOperationTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuOperationTests.swift) |
 | `NativeMokuTalkTests` | 15 | [NativeMokuTalkTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuTalkTests.swift) |
-| `NativeOverviewAutoReturnTests` | 6 | [NativeOverviewAutoReturnTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewAutoReturnTests.swift) |
-| `NativeOverviewCameraReadabilityTests` | 12 | [NativeOverviewCameraReadabilityTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewCameraReadabilityTests.swift) |
 | `NativeOverviewDirectoryTagTests` | 13 | [NativeOverviewDirectoryTagTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewDirectoryTagTests.swift) |
 | `NativeOverviewGestureTests` | 6 | [NativeOverviewGestureTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewGestureTests.swift) |
-| `NativeOverviewPackingTests` | 5 | [NativeOverviewPackingTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewPackingTests.swift) |
+| `NativeOverviewGeometryTests` | 6 | [NativeOverviewGeometryTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewGeometryTests.swift) |
+| `NativeOverviewCameraTests` | 12 | [NativeOverviewCameraTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewCameraTests.swift) |
+| `NativeOverviewHeadlessGeometryTests` | 3 | [NativeOverviewHeadlessGeometryTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewHeadlessGeometryTests.swift) |
 | `NativeOverviewScopeFilterTests` | 7 | [NativeOverviewScopeFilterTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewScopeFilterTests.swift) |
 | `NativePerformanceCacheTests` | 8 | [NativePerformanceCacheTests.swift](../../../app/macos/Tests/Integration/Host/NativePerformanceCacheTests.swift) |
 | `NativePerformanceDeliveryReviewTests` | 2 | [NativePerformanceDeliveryReviewTests.swift](../../../app/macos/Tests/Integration/Host/NativePerformanceDeliveryReviewTests.swift) |

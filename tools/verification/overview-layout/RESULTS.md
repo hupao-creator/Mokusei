@@ -1,3 +1,5 @@
+> **Historical:** these metrics describe the former incremental planner. The current pure FitAll solver is covered by `NativeOverviewGeometryTests`; this file is retained as evidence, not a runnable comparison.
+
 # Local result — 2026-10-26
 
 Baseline: `3ad8be6c1ea113b214bdf27b3ba3c7b8c0693b3c`. Current worktree production source, optimized standalone Swift geometry, three repetitions. Actual toolbar clearance: 60pt wide / 120pt narrow. Raw source, full samples and executables: `/private/tmp/overview-layout-final`. Compact reproducible metrics are committed alongside this report.

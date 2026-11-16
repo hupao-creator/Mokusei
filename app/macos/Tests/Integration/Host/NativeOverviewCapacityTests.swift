@@ -1,583 +1,209 @@
 import AppKit
-import Observation
-import SwiftUI
+import Foundation
 import Testing
 #if SWIFT_PACKAGE
 import MokuseiTestSupport
 #endif
 @testable import MokuseiUI
 
-@MainActor @Observable private final class CapacityFixture {
-    let state = NativeOverviewCanvasState()
-    var scene = "capacity"
-    var reduceMotion = false
-    var revisions: [NativeOverviewLayoutRevision] = []
-    var size = CGSize(width: 1420, height: 900)
-    var items: [NativeOverviewItem] = [
-        .init(id: "large", columns: 2, rows: 2),
-        .init(id: "small-a"), .init(id: "small-b"),
-        .init(id: "wide-a", columns: 2), .init(id: "wide-b", columns: 2)
-    ]
-    @ObservationIgnored var frames: [String: CGRect] = [:]
-    @ObservationIgnored var appearances: [String: Int] = [:]
-    @ObservationIgnored var viewport = CGSize.zero
-}
-
-private struct CapacityCanvas: View {
-    let fixture: CapacityFixture
-    var body: some View {
-        var canvas = NativeOverviewCanvas(items: fixture.items, sceneKey: fixture.scene, state: fixture.state,
-                             selectionID: fixture.scene, toolbarBottom: 58, cloudAnimationsEnabled: false,
-                             revisions: fixture.revisions) { item in
-            Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("capacity")) } action: {
-                    fixture.frames[item.id] = $0
-                }
-                .onAppear { fixture.appearances[item.id, default: 0] += 1 }
-        }
-        canvas.reduceMotionOverride = fixture.reduceMotion
-        return canvas
-        .coordinateSpace(name: "capacity")
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { fixture.viewport = $0 }
-        .frame(width: fixture.size.width, height: fixture.size.height)
-    }
-}
-
-@MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
+@MainActor
+@Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeOverviewCapacityTests {
-    @Test func recordingFootprintsFitWithoutMarginsAndRecoverAfterExtensionGrowth() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 1292, height: 858)
-        fixture.items = [
-            .init(id: "git", columns: 2, rows: 2),
-            .init(id: "note", columns: 2, rows: 2),
-            .init(id: "layout"), .init(id: "done"), .init(id: "report")
-        ]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1400, height: 950)
+    @Test func rapidMembershipAndViewportChangesConvergeToTheLatestSnapshot() async throws {
+        let fixture = OverviewReplayFixture(items: (0..<6).map { .init(id: "card-\($0)") },
+                                            size: .init(width: 860, height: 600))
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window, requireMargins: false)
-        let appearances = fixture.appearances
-        // Extension growth may overflow at readable scale; shrinkage restores
-        // whole-collection framing without remounting the cards.
-        fixture.items[0].rows = 4
-        fixture.items[1].rows = 4
-        try await settle(fixture, in: window)
-        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
-        fixture.items[0].rows = 2
-        fixture.items[1].rows = 2
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window, requireMargins: false)
-        // Leave much of a fitting scene offscreen. Fact refreshes cannot
-        // mistake this user-owned translation for insufficient capacity.
-        fixture.state.camera.pan(deltaX: 500, deltaY: 400)
-        let manual = fixture.state.camera.liveTransform
-        fixture.items[0].needsAttention = true
-        try await settle(fixture, in: window)
-        #expect(fixture.state.camera.manual)
-        #expect(fixture.state.camera.liveTransform == manual)
-        fixture.state.camera.returnToAuto()
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window, requireMargins: false)
-        try await Task.sleep(for: .milliseconds(750))
-        try expectWholeCollection(fixture, in: window, requireMargins: false)
-        #expect(fixture.appearances == appearances)
-    }
-
-    @Test func rapidResizeMembershipAndFilterChangesConvergeToLatestReadableScene() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 860, height: 600)
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
+        try await OverviewReplay.settle(fixture, in: window)
         let all = fixture.items
-        for index in 0..<6 {
+        for index in 0..<8 {
             fixture.size = index.isMultiple(of: 2) ? .init(width: 1500, height: 960) : .init(width: 860, height: 600)
-            fixture.items = index.isMultiple(of: 2) ? Array(all.prefix(3)) : all
+            fixture.install(index.isMultiple(of: 2) ? Array(all.prefix(3)) : all)
             fixture.scene = "filter-\(index)"
-            try await Task.sleep(for: .milliseconds(25))
+            try await Task.sleep(for: .milliseconds(20))
         }
         fixture.size = .init(width: 1420, height: 900)
-        fixture.items = all + [.init(id: "sixth")]
+        fixture.install(all + [.init(id: "seventh", columns: 2)])
         fixture.scene = "final"
-        try await settle(fixture, in: window)
-        #expect(fixture.state.mountedCardIDs == Set(fixture.items.map(\.id)))
-        // Surviving filters intentionally retain their browsing scale. Explicit
-        // automatic framing must use the final capacity, never a queued viewport.
-        fixture.state.camera.returnToAuto()
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-        try await Task.sleep(for: .milliseconds(750))
-        try expectWholeCollection(fixture, in: window)
+        try await OverviewReplay.settle(fixture, in: window)
         #expect(fixture.state.layoutError == nil)
-    }
-
-    @Test func sixCardGrowthAndFollowingUpdatesRecoverWithoutRetryOrRemount() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 860, height: 600)
-        fixture.items = (0..<6).map { .init(id: "card-\($0)") }
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture))
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        let appearances = fixture.appearances
-        for (index, rows) in [(3, 2), (3, 1), (4, 1), (4, 2)] {
-            fixture.items[index].columns = 2
-            fixture.items[index].rows = rows
-            try await settle(fixture, in: window)
-        }
-        #expect(fixture.state.repackCount > 0)
-        #expect(fixture.appearances == appearances)
-        #expect(fixture.state.mountedCardIDs == Set(fixture.items.map(\.id)))
-        fixture.items[4].rows = 1
-        fixture.items.append(.init(id: "new-card"))
-        try await settle(fixture, in: window)
-        #expect(fixture.state.layoutError == nil)
-    }
-
-    @Test func invalidRevisionPreservesLastLayoutAndNextValidRevisionRecovers() async throws {
-        let fixture = CapacityFixture()
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        let placements = fixture.state.presentedPlacements
-        let transform = fixture.state.camera.liveTransform
-        let appearances = fixture.appearances
-        fixture.items[0].columns = 0
-        try await SwiftUIReplay.wait { fixture.state.layoutError != nil && !fixture.state.isLayingOut }
-        #expect(fixture.state.presentedPlacements == placements)
-        #expect(fixture.state.camera.liveTransform == transform)
-        #expect(fixture.appearances == appearances)
-        fixture.items[0].columns = 2
-        try await settle(fixture, in: window)
-        #expect(fixture.state.layoutError == nil)
-        #expect(fixture.state.presentedPlacements == placements)
-        try expectWholeCollection(fixture, in: window)
-    }
-
-    @Test func screenshotCardsFitAndKeepReadableFootprints() async throws {
-        let fixture = CapacityFixture()
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-        let placements = fixture.state.presentedPlacements
-        #expect(placements.map { $0.column + $0.columns }.max() == 4)
-        #expect(placements.map { $0.row + $0.rows }.max() == 3)
-        // Attention changes update the indicator, never the geometry or camera.
-        for index in fixture.items.indices {
-            fixture.items[index].needsAttention = true
-        }
-        try await Task.sleep(for: .milliseconds(300))
-        #expect(fixture.state.presentedPlacements == placements)
-        try expectWholeCollection(fixture, in: window)
-        fixture.items.append(.init(id: "sixth"))
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-        fixture.items.removeLast()
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-    }
-
-    @Test func resizeRecoversFromOverflowAndRetainsAReadableShapeAcrossAspectThreshold() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 860, height: 600)
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
-        let appearances = fixture.appearances
-        fixture.size = .init(width: 1420, height: 900)
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-        let placements = fixture.state.presentedPlacements
-        // A taller viewport now also fits the old square preference. Resizing
-        // must not shuffle readable cards back and forth between both shapes.
-        for size in [CGSize(width: 1500, height: 960), CGSize(width: 1420, height: 900),
-                     CGSize(width: 1392.81, height: 900), CGSize(width: 1392.82, height: 900)] {
-            fixture.size = size
-            try await settle(fixture, in: window)
-            #expect(fixture.state.presentedPlacements == placements)
-            try expectWholeCollection(fixture, in: window)
-        }
-        #expect(fixture.appearances == appearances)
-        fixture.size = .init(width: 1392, height: 900)
-        try await settle(fixture, in: window)
-        // Losing the preferred 64pt margin is not losing actual capacity.
-        try expectWholeCollection(fixture, in: window, requireMargins: false)
-        fixture.size = .init(width: 860, height: 600)
-        try await settle(fixture, in: window)
-        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
-        fixture.size = .init(width: 1420, height: 900)
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-    }
-
-    @Test func threeCardsUseNaturalScaleInTheActualViewport() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 900, height: 750)
-        fixture.items = (0..<3).map { .init(id: "card-\($0)") }
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture))
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        #expect(fixture.state.camera.liveTransform.scale == 1)
-        #expect(Set(fixture.state.presentedPlacements.map(\.column)).count == 2)
-        try expectWholeCollection(fixture, in: window)
-    }
-
-    @Test(arguments: [false, true])
-    func structuralContentReusesGeometryAndDeletionRepairsCenterVacancy(reduceMotion: Bool) async throws {
-        let fixture = CapacityFixture()
-        fixture.reduceMotion = reduceMotion
-        fixture.items = (0..<9).map { .init(id: "card-\($0)") }
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        let placements = fixture.state.presentedPlacements
-        let center = try #require(placements.first { $0.column == 1 && $0.row == 1 })
-        let solves = fixture.state.layoutSolveCount
-        for revision in 0..<10 {
-            fixture.items[0].structureKey = "internal-\(revision)"
-            try await Task.sleep(for: .milliseconds(25))
-        }
-        try await settle(fixture, in: window)
-        #expect(fixture.state.layoutSolveCount == solves)
-        #expect(fixture.state.geometryReuseCount > 0)
-        fixture.items.removeAll { $0.id == center.id }
-        try await settle(fixture, in: window)
-        let repaired = fixture.state.presentedPlacements
-        #expect(Set(repaired.map(\.id)) == Set(fixture.items.map(\.id)))
-        #expect(repaired != placements.filter { $0.id != center.id })
-        #expect(repaired.contains { $0.column == center.column && $0.row == center.row },
-                "Deletion must release the enclosed center vacancy rather than freeze all survivors")
-        fixture.items.append(.init(id: "new"))
-        try await settle(fixture, in: window)
-        #expect(Set(fixture.state.presentedPlacements.map(\.id)) == Set(fixture.items.map(\.id)))
-        #expect(fixture.state.camera.reduceMotion == reduceMotion)
-        try expectWholeCollection(fixture, in: window)
-    }
-
-    @Test func scaledEdgeDeletionPreservesReadingPosition() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 1111, height: 900)
-        fixture.items = (0..<9).map { .init(id: "card-\($0)") }
-        // Avoid introducing a half-pixel outer centering offset around this odd-width canvas.
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: fixture.size.width, height: fixture.size.height)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        let frames = fixture.frames
-        let scale = fixture.state.camera.liveTransform.scale
-        let bottom = try #require(fixture.state.presentedPlacements.map(\.row).max())
-        let removed = Set(fixture.state.presentedPlacements.filter { $0.row == bottom }.map(\.id))
-        #expect(removed.count == 3)
-        fixture.items.removeAll { removed.contains($0.id) }
-        try await settle(fixture, in: window)
-        for item in fixture.items {
-            let before = try #require(frames[item.id])
-            let after = try #require(fixture.frames[item.id])
-            #expect(hypot(before.minX - after.minX, before.minY - after.minY) < 1)
-        }
-        #expect(fixture.state.camera.liveTransform.scale == scale)
-        try expectWholeCollection(fixture, in: window)
-    }
-
-    @Test func aspectChangingFootprintRecentersRenderedCard() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 1341, height: 906)
-        fixture.items = [.init(id: "card", columns: 2)]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1341, height: 906)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        fixture.items[0].columns = 1
-        fixture.items[0].rows = 2
-        try await settle(fixture, in: window)
-        let frame = try #require(fixture.frames["card"])
-        let viewport = try #require(fixture.state.camera.viewport)
-        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
-        let tolerance = 1 / window.backingScaleFactor
-        #expect(abs(frame.midX - (region.left + region.width / 2)) < tolerance)
-        #expect(abs(frame.midY - (region.top + region.height / 2)) < tolerance)
-        #expect(abs(fixture.state.camera.liveTransform.scale - 1) < 1e-9)
-    }
-
-    @Test func persistentVerticalSeatSurvivesRenderedWidthShrink() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 1341, height: 906)
-        fixture.items = [.init(id: "card", columns: 2, rows: 3)]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1341, height: 906)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        let seatY = fixture.state.camera.liveTransform.y
-        let tolerance = 1 / window.backingScaleFactor
-        fixture.items[0].rows = 2
-        try await settle(fixture, in: window)
-        #expect(abs(fixture.state.camera.liveTransform.y - seatY) < tolerance)
-        fixture.items[0].rows = 1
-        try await settle(fixture, in: window)
-        #expect(abs(fixture.state.camera.liveTransform.y - seatY) < tolerance)
-        fixture.items[0].columns = 1
-        try await settle(fixture, in: window)
-        let frame = try #require(fixture.frames["card"])
-        let viewport = try #require(fixture.state.camera.viewport)
-        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
-        #expect(abs(fixture.state.camera.liveTransform.y - seatY) < tolerance)
-        #expect(abs(frame.minY - seatY) < tolerance)
-        #expect(abs(frame.midY - (seatY + frame.height / 2)) < tolerance)
-        #expect(abs(frame.midX - (region.left + region.width / 2)) < tolerance)
-    }
-
-    @Test func inFlightPreserveFramingKeepsRenderedContentVisible() async throws {
-        let fixture = CapacityFixture()
-        fixture.size = .init(width: 1341, height: 906)
-        fixture.items = [.init(id: "card")]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1341, height: 906)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        let viewport = try #require(fixture.state.camera.viewport)
-        let grown = NativeOverviewContentRect(left: 0, top: 0, width: 1112, height: 220)
-        fixture.items[0].columns = 3
-        for _ in 0..<500 {
-            if !fixture.state.isLayingOut, fixture.state.camera.isAnimating { break }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(fixture.state.camera.isAnimating)
-        fixture.state.camera.requestRefit(content: grown, viewport: viewport,
-                                          layoutChanged: true, preserveFraming: true)
-        for _ in 0..<300 {
-            if !fixture.state.camera.isAnimating, !fixture.state.camera.hasScheduledMotion { break }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
-        let allowed = CGRect(x: region.left, y: region.top, width: region.width, height: region.height)
-            .insetBy(dx: -0.5, dy: -0.5)
-        var frame = try #require(fixture.frames["card"])
-        for _ in 0..<100 {
-            frame = try #require(fixture.frames["card"])
-            if allowed.contains(frame) { break }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(abs(frame.width - 1112) < 1)
-        #expect(allowed.contains(frame))
+        #expect(Set(fixture.state.mountedCardIDs) == Set(fixture.items.map(\.id)))
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+        try OverviewReplay.verifyControlsClear(fixture, in: window)
     }
 
     @Test(arguments: [1, 6], [false, true])
-    func insertionFramesTheCompleteCollectionWithoutBackgroundClick(count: Int, reduceMotion: Bool) async throws {
-        let fixture = CapacityFixture()
+    func insertionAndReturnToAutoUseTheLatestCollection(count: Int, reduceMotion: Bool) async throws {
+        let fixture = OverviewReplayFixture(items: (0..<count).map { .init(id: "card-\($0)") })
         fixture.reduceMotion = reduceMotion
-        fixture.items = (0..<count).map { .init(id: "card-\($0)") }
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
-        try await settle(fixture, in: window)
-        fixture.items.append(.init(id: "new"))
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-        #expect(fixture.state.mountedCardIDs == Set(fixture.items.map(\.id)))
+        try await OverviewReplay.settle(fixture, in: window)
+        fixture.install(fixture.items + [.init(id: "new")])
+        try await OverviewReplay.settle(fixture, in: window)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+        #expect(Set(fixture.state.mountedCardIDs) == Set(fixture.items.map(\.id)))
         #expect(fixture.appearances.values.allSatisfy { $0 == 1 })
-        // Assert the rendered collection, not just the camera's target. Keeping
-        // the single-card camera would leave the pair half a cell to the right.
-        let frames = try fixture.items.map { try #require(fixture.frames[$0.id]) }
-        let envelope = frames.reduce(CGRect.null) { $0.union($1) }
-        let viewport = try #require(fixture.state.camera.viewport)
-        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
-        #expect(abs(envelope.midX - (region.left + region.width / 2)) < 1)
-        #expect(abs(envelope.minY - (region.top + (region.height - envelope.height) * 0.5)) < 1)
         let transform = fixture.state.camera.liveTransform
-        try await Task.sleep(for: .milliseconds(750))
-        #expect(fixture.state.camera.liveTransform == transform)
-        // The click path must no longer be needed to repair insertion framing.
         fixture.state.camera.returnToAuto()
-        try await settle(fixture, in: window)
+        try await OverviewReplay.settle(fixture, in: window)
         #expect(fixture.state.camera.liveTransform == transform)
     }
 
-    @Test(arguments: [false, true])
-    func streamingContentDoesNotPostponeInsertionFraming(reduceMotion: Bool) async throws {
-        let fixture = CapacityFixture()
-        fixture.reduceMotion = reduceMotion
-        fixture.items = [.init(id: "original")]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+
+    @Test func freshSceneWithNoVisibleSurvivorReframesAutomatically() async throws {
+        let fixture = OverviewReplayFixture(items: [.init(id: "browse-1"), .init(id: "browse-2")])
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1400, height: 900)
         defer { window.close() }
-        try await settle(fixture, in: window)
-        fixture.items.append(.init(id: "new"))
-        try await SwiftUIReplay.wait {
-            fixture.state.presentedPlacements.count == 2 && !fixture.state.isLayingOut
-        }
+        try await OverviewReplay.settle(fixture, in: window)
+        fixture.state.camera.setManualTransform(.init(scale: 0.9, x: -10_000, y: -10_000))
+        fixture.scene = "search-results"
+        fixture.install([.init(id: "result", columns: 2, rows: 1)])
+        try await OverviewReplay.settle(fixture, in: window)
+        #expect(!fixture.state.camera.manual)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+    }
+
+    @Test func contentOnlyUpdatesDoNotRelayoutOrMoveTheCamera() async throws {
+        let fixture = OverviewReplayFixture(items: (0..<8).map { .init(id: "card-\($0)") })
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture))
+        defer { window.close() }
+        try await OverviewReplay.settle(fixture, in: window)
         let solves = fixture.state.layoutSolveCount
-        // Keep content-only projections arriving
-        // faster than the refit delay, as a running Harness does after insertion.
-        for revision in 0..<40 {
-            fixture.items[1].presentationID = "content-\(revision)"
-            try await Task.sleep(for: .milliseconds(30))
+        let transform = fixture.state.camera.liveTransform
+        let frames = fixture.frames
+        for revision in 0..<20 {
+            var items = fixture.items
+            items[0].presentationID = "content-\(revision)"
+            fixture.install(items)
+            try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(!fixture.state.camera.hasScheduledMotion)
-        let frames = try fixture.items.map { try #require(fixture.frames[$0.id]) }
-        #expect(abs(frames.reduce(CGRect.null) { $0.union($1) }.midX - fixture.size.width / 2) < 1)
+        try await OverviewReplay.settle(fixture, in: window)
         #expect(fixture.state.layoutSolveCount == solves)
+        #expect(fixture.state.camera.liveTransform == transform)
+        #expect(fixture.frames == frames)
     }
 
-    @Test(arguments: [false, true], [false, true])
-    func footprintChangeBeforeInsertionRefitKeepsAutomaticFraming(reduceMotion: Bool, queued: Bool) async throws {
-        let fixture = CapacityFixture()
-        fixture.reduceMotion = reduceMotion
-        fixture.items = [.init(id: "original")]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+
+    @Test func contentOnlyUpdateReusesMixedFootprintGeometryInProductOrder() async throws {
+        let fixture = OverviewReplayFixture(items: [
+            .init(id: "a", columns: 2, rows: 2),
+            .init(id: "b", columns: 1, rows: 2),
+            .init(id: "c", columns: 2, rows: 1),
+            .init(id: "d"),
+            .init(id: "e", columns: 1, rows: 2),
+            .init(id: "f", columns: 2, rows: 1),
+        ])
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1400, height: 900)
         defer { window.close() }
-        try await settle(fixture, in: window)
-        let inserted = fixture.items + [.init(id: "new")]
-        if queued {
-            // Runtime revisions retain both states even when SwiftUI only sees
-            // the final items. Drain the production FIFO without an input event.
-            var grown = inserted
-            grown[1].rows = 2
-            fixture.revisions = [
-                .init(revision: 1, sceneKey: fixture.scene, items: inserted),
-                .init(revision: 2, sceneKey: fixture.scene, items: grown)
-            ]
-            fixture.items = grown
-        } else {
-            fixture.items = inserted
-            try await SwiftUIReplay.wait {
-                fixture.state.presentedPlacements.count == 2 && !fixture.state.isLayingOut
-            }
-            #expect(fixture.state.camera.hasScheduledMotion)
-            // First content may arrive before the insertion's delayed camera
-            // move has acquired the spatial stage.
-            fixture.items[1].rows = 2
-        }
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-        let frames = try fixture.items.map { try #require(fixture.frames[$0.id]) }
-        let envelope = frames.reduce(CGRect.null) { $0.union($1) }
-        let viewport = try #require(fixture.state.camera.viewport)
-        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
-        #expect(abs(envelope.midX - (region.left + region.width / 2)) < 1)
-        #expect(abs(envelope.midY - (region.top + region.height / 2)) < 1)
+        try await OverviewReplay.settle(fixture, in: window)
+        #expect(fixture.state.presentedPlacements.map(\.id) == fixture.items.map(\.id))
+        let solves = fixture.state.layoutSolveCount
         let transform = fixture.state.camera.liveTransform
-        try await Task.sleep(for: .milliseconds(750))
-        #expect(!fixture.state.camera.hasScheduledMotion)
-        #expect(fixture.state.camera.liveTransform == transform)
-        fixture.state.camera.returnToAuto()
-        try await settle(fixture, in: window)
-        #expect(fixture.state.camera.liveTransform == transform)
-    }
-
-    @Test(arguments: [false, true])
-    func consecutiveFootprintChangesKeepPendingReadingTarget(reduceMotion: Bool) async throws {
-        let fixture = CapacityFixture()
-        fixture.reduceMotion = reduceMotion
-        fixture.items = [.init(id: "original")]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        let original = fixture.state.camera.liveTransform
-        fixture.items[0].columns = 3
-        try await SwiftUIReplay.wait {
-            fixture.state.presentedPlacements.first?.columns == 3 && !fixture.state.isLayingOut
+        for revision in 0..<6 {
+            var items = fixture.items
+            items[0].presentationID = "mixed-\(revision)"
+            fixture.install(items)
+            try await Task.sleep(for: .milliseconds(10))
         }
-        let pendingTarget = try #require(fixture.state.camera.automaticFitTarget)
-        #expect(pendingTarget != original)
-        #expect(fixture.state.camera.hasScheduledMotion)
-        // Growth needs a small translation to stay visible. Shrinkage before
-        // that translation must retain its target, not the old sampled camera.
-        fixture.items[0].columns = 2
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
-        #expect(fixture.state.camera.liveTransform == pendingTarget)
-        try await Task.sleep(for: .milliseconds(750))
-        #expect(!fixture.state.camera.hasScheduledMotion)
-        #expect(fixture.state.camera.liveTransform == pendingTarget)
-    }
-
-    @Test(arguments: [false, true])
-    func settledFilterFramingPreservesReadingPositionOnFootprintChange(reduceMotion: Bool) async throws {
-        let fixture = CapacityFixture()
-        fixture.reduceMotion = reduceMotion
-        fixture.items = [.init(id: "original"), .init(id: "other")]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
-        defer { window.close() }
-        try await settle(fixture, in: window)
-        fixture.scene = "filtered"
-        fixture.items.removeLast()
-        try await settle(fixture, in: window)
-        let transform = fixture.state.camera.liveTransform
-        let origin = try #require(fixture.frames["original"]).origin
-        fixture.items[0].rows = 2
-        try await settle(fixture, in: window)
-        try expectWholeCollection(fixture, in: window)
+        try await OverviewReplay.settle(fixture, in: window)
+        #expect(fixture.state.layoutSolveCount == solves)
         #expect(fixture.state.camera.liveTransform == transform)
-        #expect(fixture.frames["original"]?.origin == origin)
+        #expect(fixture.state.presentedPlacements.map(\.id) == fixture.items.map(\.id))
     }
 
-    @Test(arguments: [false, true])
-    func insertionDoesNotResetManualPan(reduceMotion: Bool) async throws {
-        let fixture = CapacityFixture()
-        fixture.reduceMotion = reduceMotion
-        fixture.items = [.init(id: "original")]
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+    @Test func manualCameraSurvivesBackgroundUpdatesAndReturnAutoFitsTheLatestScene() async throws {
+        let fixture = OverviewReplayFixture(items: (0..<5).map { .init(id: "card-\($0)") })
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
-        try await settle(fixture, in: window)
-        fixture.state.camera.pan(deltaX: -130, deltaY: 75)
-        try await settle(fixture, in: window)
-        let manual = fixture.state.camera.liveTransform
-        let original = try #require(fixture.frames["original"])
-        fixture.items.append(.init(id: "new"))
-        fixture.items[1].rows = 2
-        try await settle(fixture, in: window)
-        try await Task.sleep(for: .milliseconds(750))
+        try await OverviewReplay.settle(fixture, in: window)
+        let manual = NativeOverviewTransform(scale: 0.8, x: -400, y: 260)
+        fixture.state.camera.setManualTransform(manual)
+        fixture.install(fixture.items + [.init(id: "added", columns: 2, rows: 2)])
+        try await OverviewReplay.settle(fixture, in: window)
         #expect(fixture.state.camera.manual)
         #expect(fixture.state.camera.liveTransform == manual)
-        #expect(fixture.frames["original"] == original)
-        #expect(fixture.state.mountedCardIDs == ["original", "new"])
+        fixture.state.camera.returnToAuto()
+        try await OverviewReplay.settle(fixture, in: window)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
     }
 
-    private func settle(_ fixture: CapacityFixture, in window: NSWindow) async throws {
-        // SwiftUI aligns rendered frames to device pixels; keep one-pixel precision at 1x and 2x.
-        do {
-            try await SwiftUIReplay.wait(timeout: .seconds(15)) {
-                fixture.viewport == fixture.size && fixture.state.camera.viewport?.width == fixture.size.width &&
-                fixture.state.camera.viewport?.height == fixture.size.height && !fixture.state.isLayingOut &&
-                fixture.state.layoutError == nil &&
-                Set(fixture.state.presentedPlacements.map(\.member)) == Set(fixture.items.map(\.member)) &&
-                !fixture.state.camera.isAnimating && !fixture.state.camera.hasScheduledMotion &&
-                fixture.state.presentedPlacements.allSatisfy { placement in
-                    guard let frame = fixture.frames[placement.id] else { return false }
-                    let transform = fixture.state.camera.liveTransform
-                    let expected = placement.cardFrame
-                    return abs(frame.minX - (transform.x + expected.minX * transform.scale)) < 1 / window.backingScaleFactor &&
-                        abs(frame.minY - (transform.y + expected.minY * transform.scale)) < 1 / window.backingScaleFactor &&
-                        abs(frame.width - expected.width * transform.scale) < 1 / window.backingScaleFactor &&
-                        abs(frame.height - expected.height * transform.scale) < 1 / window.backingScaleFactor
-                }
-            }
-        } catch {
-            let camera = fixture.state.camera
-            print("CAPACITY viewport=\(fixture.viewport) requested=\(fixture.size) camera=\(String(describing: camera.viewport)) layout=\(fixture.state.isLayingOut) error=\(String(describing: fixture.state.layoutError)) animating=\(camera.isAnimating) scheduled=\(camera.hasScheduledMotion) scale=\(window.backingScaleFactor)")
-            for placement in fixture.state.presentedPlacements {
-                let transform = camera.liveTransform
-                let expected = placement.cardFrame
-                let projected = CGRect(x: transform.x + expected.minX * transform.scale,
-                    y: transform.y + expected.minY * transform.scale,
-                    width: expected.width * transform.scale, height: expected.height * transform.scale)
-                print("CAPACITY card=\(placement.id) actual=\(String(describing: fixture.frames[placement.id])) projected=\(projected)")
-            }
-            throw error
-        }
+    @Test func interruptionDuringEntryConvergesWithoutLeavingTransparentCards() async throws {
+        let fixture = OverviewReplayFixture(items: [.init(id: "first"), .init(id: "second")])
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1400, height: 900)
+        defer { window.close() }
+        try await SwiftUIReplay.wait { fixture.state.presentedPlacements.count == 2 }
+        fixture.install([.init(id: "first"), .init(id: "third", columns: 2, rows: 2),
+                         .init(id: "fourth"), .init(id: "fifth")])
+        try await OverviewReplay.settle(fixture, in: window)
+        #expect(fixture.state.presentedPlacements.map(\.id).sorted()
+            == fixture.items.map(\.id).sorted())
+        #expect(Set(fixture.state.mountedCardIDs) == Set(fixture.items.map(\.id)))
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+    }
+
+    @Test func layoutPauseAndHiddenRecoveryApplyTheLatestSnapshot() async throws {
+        let fixture = OverviewReplayFixture(items: [.init(id: "before")])
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture))
+        defer { window.close() }
+        try await OverviewReplay.settle(fixture, in: window)
+        fixture.layoutPaused = true
+        fixture.install([.init(id: "paused-1"), .init(id: "paused-2", columns: 2)])
+        try await SwiftUIReplay.wait { !fixture.state.isLayingOut }
+        fixture.layoutPaused = false
+        try await OverviewReplay.settle(fixture, in: window)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+
+        fixture.visible = false
+        fixture.install([.init(id: "hidden", columns: 1, rows: 2)])
+        try await SwiftUIReplay.wait { fixture.state.presentedPlacements.map(\.id) == ["hidden"] }
+        fixture.visible = true
+        try await OverviewReplay.settle(fixture, in: window)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+    }
+
+
+
+    @Test func zeroViewportDoesNotLatchLaterValidLayout() async throws {
+        let fixture = OverviewReplayFixture(items: [.init(id: "first"), .init(id: "second")])
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1400, height: 900)
+        defer { window.close() }
+        try await OverviewReplay.settle(fixture, in: window)
+        fixture.size = .zero
+        try await SwiftUIReplay.wait { fixture.viewport == .zero }
+        fixture.install([.init(id: "third", columns: 2), .init(id: "fourth")])
+        try await SwiftUIReplay.wait { !fixture.state.isLayingOut }
+        fixture.size = .init(width: 1180, height: 780)
+        try await OverviewReplay.settle(fixture, in: window)
         #expect(fixture.state.layoutError == nil)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
     }
 
-    private func expectWholeCollection(_ fixture: CapacityFixture, in window: NSWindow, requireMargins: Bool = true) throws {
-        let camera = fixture.state.camera
-        #expect(camera.liveTransform.scale >= camera.minimumScale)
-        let viewport = try #require(camera.viewport)
-        let region = requireMargins ? NativeOverviewCameraGeometry.framingRegion(viewport)
-            : NativeOverviewContentRect(left: 0, top: viewport.toolbarBottom, width: viewport.width,
-                                        height: viewport.height - viewport.toolbarBottom)
-        let allowed = CGRect(x: region.left, y: region.top, width: region.width, height: region.height).insetBy(dx: -0.5, dy: -0.5)
-        for item in fixture.items {
-            let frame = try #require(fixture.frames[item.id])
-            #expect(allowed.contains(frame), "\(item.id): \(frame) outside \(allowed)")
-            #expect(frame.width + 1 / window.backingScaleFactor >= Double(item.columns * 376 - 16) * camera.minimumScale)
-            #expect(frame.height + 1 / window.backingScaleFactor >= Double(item.rows * 236 - 16) * camera.minimumScale)
-        }
+    @Test func invalidSnapshotDoesNotBlockLaterValidInput() async throws {
+        let fixture = OverviewReplayFixture(items: [.init(id: "before")])
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture))
+        defer { window.close() }
+        try await OverviewReplay.settle(fixture, in: window)
+        fixture.install([.init(id: "bad", columns: 0, rows: 1)])
+        try await SwiftUIReplay.wait { fixture.state.layoutError != nil }
+        #expect(fixture.state.presentedPlacements.map(\.id) == ["before"])
+        fixture.install([.init(id: "recovered", columns: 2, rows: 1), .init(id: "second")])
+        try await OverviewReplay.settle(fixture, in: window)
+        #expect(fixture.state.layoutError == nil)
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+    }
+
+    @Test func largeCollectionRendersEveryCardAtFitAll() async throws {
+        let fixture = OverviewReplayFixture(items: (0..<100).map { index in
+            .init(id: "large-\(index)", columns: index.isMultiple(of: 7) ? 2 : 1,
+                  rows: index.isMultiple(of: 11) ? 2 : 1)
+        }, size: .init(width: 1920, height: 1080))
+        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1920, height: 1080)
+        defer { window.close() }
+        try await OverviewReplay.settle(fixture, in: window)
+        #expect(fixture.frames.count == 100)
+        #expect(Set(fixture.state.mountedCardIDs) == Set(fixture.items.map(\.id)))
+        try OverviewReplay.verifyFitAll(fixture, in: window)
+        try OverviewReplay.verifyControlsClear(fixture, in: window)
     }
 }

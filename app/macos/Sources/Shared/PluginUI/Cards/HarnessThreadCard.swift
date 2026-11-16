@@ -70,8 +70,10 @@ public struct HarnessThreadCard: View {
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             .clipped()
         }
-        .frame(idealWidth: CGFloat(presentation.size.cols) * 360 + CGFloat(max(0, presentation.size.cols - 1)) * 16,
-               idealHeight: CGFloat(presentation.size.rows) * 200 + CGFloat(max(0, presentation.size.rows - 1)) * 16)
+        .frame(idealWidth: CGFloat(presentation.size.cols) * NativeGeometry.overviewCard.width
+                   + CGFloat(max(0, presentation.size.cols - 1)) * NativeGeometry.overviewCardGap,
+               idealHeight: CGFloat(presentation.size.rows) * NativeGeometry.overviewCard.height
+                   + CGFloat(max(0, presentation.size.rows - 1)) * NativeGeometry.overviewCardGap)
         .background {
             ThreadCardCloud(running: status?.kind == .running)
                 .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled && !(identity.initialResponse != nil && reduceMotion))

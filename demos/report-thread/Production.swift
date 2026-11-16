@@ -75,7 +75,7 @@ import MokuseiHarnessClaude
 struct ProductionReportPreview: View {
     var showsCover = false
     private var cardWidth: CGFloat { NativeOverviewLayout.columnWidth }
-    private var rowHeight: CGFloat { showsCover ? NativeOverviewLayout.rowHeight : 200 }
+    private var rowHeight: CGFloat { NativeOverviewLayout.rowHeight }
     private var cardHeight: CGFloat { showsCover ? rowHeight * 2 + NativeOverviewLayout.gap : rowHeight }
     @State private var fixture: ProductionReportFixture
     init(showsCover: Bool = false) {

@@ -168,7 +168,7 @@ private struct TagGlassReplay: View {
         ZStack(alignment: .top) {
             if includeCanvas {
                 NativeOverviewCanvas(items: [.init(id: "card")], sceneKey: "tag-menu", state: fixture.canvas,
-                    toolbarBottom: toolbarBottom, inputRegions: fixture.regions) { _ in Color.blue.frame(width: 360, height: 220) }
+                    toolbarBottom: toolbarBottom, inputRegions: fixture.regions) { _ in Color.blue.frame(width: NativeGeometry.overviewCard.width, height: NativeGeometry.overviewCard.height) }
             }
             VStack {
                 NativeOverviewChrome(filters: fixture.filters, selectedTag: fixture.selected?.tag ?? "",
@@ -604,7 +604,8 @@ struct NativeOverviewTagGlassTests {
             // physical pointer input. A visible desktop window can receive a
             // genuine hover exit during the 300ms observation and close its menu.
             let window = SwiftUIReplay.window(TagGlassReplay(fixture: fixture, includeCanvas: true,
-                toolbarBottom: width <= 620 ? OverviewTagMetrics.narrowToolbarClearance : OverviewTagMetrics.wideToolbarClearance), width: width, height: 400, offscreen: true)
+                toolbarBottom: width <= NativeOverviewCameraGeometry.compactViewportWidth
+                    ? OverviewTagMetrics.narrowToolbarClearance : OverviewTagMetrics.wideToolbarClearance), width: width, height: 400, offscreen: true)
             #expect(NSScreen.screens.allSatisfy { !window.frame.intersects($0.frame) })
             defer { window.close(); fixture.canvas.camera.dispose() }
             let root = try #require(window.contentView)

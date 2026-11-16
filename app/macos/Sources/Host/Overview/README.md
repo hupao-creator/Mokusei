@@ -112,16 +112,16 @@ changes reach the badge through the semantic wrapper's observed item.
 Slots are keyed by structural identity, including footprint and internal
 structure, rather than thread ID alone. Leaving the current collection or
 changing footprint freezes the old mounted slot at its last compatible content.
-The model retains those slots' current presentation IDs alongside queued
-revision snapshots until exit finishes. A queued revision can adopt newer
-content only for the same structural identity; A→B→A lifecycle history remains
-FIFO. Source replacement cancels the old queued work and refreshes ownership.
+The model retains those slots' current presentation IDs alongside the latest
+structural snapshot until exit finishes. Newer content can adopt an existing
+slot only for the same structural identity; a different incarnation starts its
+own slot. Source replacement retires the old ownership.
 
 Presented placements have an identity index rebuilt only with a new layout.
 Each pan/zoom input checks the current attention identities against that index,
 so finished and unrelated placements do not participate. The empty attention set
 returns immediately. The mounted replay checks the actual callback's visit count
-while preserving mounted identities and solver state.
+while preserving mounted identities and layout state.
 
 Offscreen attention changes notify the mounted coordinator without routing
 ordinary text updates through canvas attachment or moving the camera. Structural,
@@ -169,6 +169,9 @@ for samples, paired observations and validation limits.
 
 ## Layout, motion and input
 
+The FitAll decision, removed history rules and verification limits are recorded in
+[the layout refactor note](../../../../../design/overview-fitall-layout.md).
+
 Presentation pauses (including the expanded Moku composer) gate canvas hit
 testing and accessibility without disabling the card control tree. Native
 Button labels, including Report cards and Git summaries, therefore keep their
@@ -180,47 +183,40 @@ for observed behavior and sprint verification limits.
 
 The 1x grid cell is 360pt wide and 220pt high (10% taller than the former
 200pt baseline), with a 16pt gap. Two-row cards are therefore 456pt high.
-Packing, rendered card bounds, transitions, attention visibility and camera
-readability all use the shared grid pitch; width and gap stay unchanged.
+Packing, rendered card bounds, transitions and attention visibility all use
+the shared grid pitch; width and gap stay unchanged.
 
-[NativeOverviewLayout](NativeOverviewLayout.swift) packs cards without overlap. In the production viewport path it first preserves surviving top-left positions, accepts nonconflicting footprint changes and fills vacancies before extending the envelope for entrants. Preserved geometry must fit at the readable floor, occupy at least 75% of its bounding grid, form one edge-connected component and contain no enclosed grid vacancies. Corner contact does not connect cards; decorative pixel gutters do not count as holes. Isolated cards and deleted center cells now enter compact planning even when no whole row or column can be removed. Healthy history still uses the existing area lower bound and bounded packing proof to detect avoidable rows/columns. Calls without a fitting region retain compact planning.
+[NativeOverviewLayout](NativeOverviewLayout.swift) is a pure function. Its inputs are the latest members in product order, the usable viewport and an explicit geometry policy; its output is placements, bounds and the automatic camera. Previous placements, old cameras, animation progress, pauses and revision history are not inputs.
 
-Topology checks, geometry optimization, move certification and optional batching share the existing search-step budget and cancellation polling. `topologyValidated` records a passed connectivity/hole check. A quality-certified witness is retained before motion certification; if motion cannot be proven, it uses transparent repack. If quality repair itself exhausts the budget, legal readable geometry can still return with `searchComplete = false` and `topologyValidated = false`; this is an explicitly incomplete quality outcome, not a promise that all cavities are repaired. No unbounded retry or extra repair loop runs.
+The solver evaluates a bounded, deterministic candidate set: a uniform grid for every column count `1...N` using the largest measured span as its cell, horizontal and vertical shelf packs, and horizontal product-order shelf packs. Candidates are ranked by unclamped FitAll scale, then world area, width and a stable enumeration ordinal. The uniform-grid pass also supplies the independent quality floor: for any input, the selected arrangement can never fit worse than the best regular grid built from the largest card. Shelf target ranges use the packing axis: columns for horizontal shelves and rows for vertical shelves. Enumeration samples at most 65 targets, including both endpoints, with a step of `ceil((count - 1) / 64)` for larger ranges. The grid pass is `O(N²)` in the visible card count; each shelf pass is `O(65N)` after sorting, with `O(N)` memory. Every valid nonempty input still returns legal geometry when quality enumeration is truncated.
 
-The canvas supplies both the readable fitting extent and the natural-scale extent (framing region divided by `max(1, minimumScale)`). Fresh/ordinary global candidates prefer the greatest attainable natural scale before aspect and survivor travel. A still-readable previous candidate shape remains stable across resize. Execution and attention state do not reduce capacity or enlarge footprints. Explicit filter changes retain the compact planner and historical aspect preference, using visible survivors as placement history. This remains an identity-stable spatial layout, not a strict visual ordering of search rank; selection, grouping and keyword search ordering are unchanged.
+Card sizes remain their measured spans. A card may compose up to
+`HarnessOverviewCapacity.maximumColumns` (three) grid columns; that is a card
+capability, not an Overview viewport column count or a layout mode. A 3×2 card
+is fitted by the same solver and can be smaller than the former readable floor
+in the minimum window. Gaps are world-space; screen gaps are `scale × gap`. The solver never clips, stretches or equalizes cards. Empty input returns empty bounds and no camera; a zero/negative usable viewport returns legal positions without a camera; malformed spans, duplicate IDs and invalid limits throw a typed input error. A later valid input always plans normally.
 
-Same-scene revisions with identical ID/outer-footprint sets refresh semantic snapshots and acknowledge structural history without acquiring a spatial stage or invoking the solver. This also applies to resize while the existing bounds remain readable. Reuse requires an assessment completed by this mounted canvas; a retained layout from an earlier host first visits the solver. The completed outcome, including an incomplete-budget fallback, is cached for exactly those placements to avoid repeatedly retrying the same quality repair. Exact viewport changes that invalidate capacity still plan normally; lifecycle revisions remain FIFO, including A→B→A and exits. `layoutSolveCount` and `geometryReuseCount` expose these distinct paths for native regression tests.
+Same-scene structural slot changes with identical members and viewport reuse geometry. Reuse still cancels any obsolete worker waiting for the spatial stage, so an A→B→A membership or viewport update cannot later publish B over A. Content-only updates do not enqueue layout. A viewport size change re-evaluates candidates because aspect can change the chosen arrangement. `layoutSolveCount` and `geometryReuseCount` expose these paths.
 
-Fresh/filter framing centers the collection horizontally and vertically between persistent controls. In automatic mode, inserting a card refits the complete resulting collection to that anchor after its layout/entry completes; the old single-card camera must not remain the target of a multi-card scene. Ordinary revisions without entrants and with zero survivor world travel preserve the old scale/translation when the complete collection fits and the ordinary fit does not offer a larger scale; otherwise translation is clamped to the nearest completely visible position. An automatic camera at the previous ordinary fit or an automatic clamp instead recenters to the new ordinary fit when a same-scale repack narrows the collection, including an aspect change that grows taller; any height shrink creates a persistent vertical seat that keeps its y (clamped to visibility) while taking the new ordinary x, and a retained filter/reading target still takes precedence. When card shrinkage or deletion permits a larger automatic scale, or the old scale cannot fit, ordinary readable fitting takes precedence. The resulting target survives delayed refits. Resize and explicit return to automatic framing restore the ordinary policy; manual framing remains user-owned, including during insertion and shrinkage. Same-scale local changes keep a retained reader's seat where capacity permits, but do not lock an individual editor through conflicting growth/global repacks.
+The usable viewport uses the persistent tag bar's actual `OverviewTagMetrics`
+clearance; the canvas and fixtures share `NativeOverviewViewportDefaults.toolbarBottom`.
+The camera is FitAll. For `B` = the union of the latest world card frames and `V` = the usable viewport (window minus persistent controls and product margins): `fitScale = min(V.width / B.width, V.height / B.height)`, `scale = min(explicitScaleCap, fitScale)` and `translation = V.center - scale × B.center`. There is no readable floor, cell budget, retained filter seat or persistent reading anchor. The explicit 1.7 cap is shared by automatic framing and manual zoom; without a cap the raw fit scale is used. Manual pan/zoom is user-owned and is never replaced by background layout work. Returning to automatic mode always converges to the latest complete snapshot, including after pause, hiding or a failed/zero-viewport update. An empty collection disposes the camera.
 
-Automatic shrink refits need no background click. They use the existing 160ms
-minimum delay, 600ms refit throttle and shared spatial stage after card layout
-settles. Identical geometry/content refreshes do not restart the move; edits
-arriving during motion reconcile the latest target on completion. Interaction
-and visibility pauses defer motion, and manual pan/zoom cancels automatic work.
-See the [recording, diagnosis and focused repair validation](../../../../../design/overview-click-refit-investigation.md).
+Geometry targets are latest-wins. Each new structural snapshot cancels the in-flight presentation, samples the current card poses and starts a new transition to the latest target; no FIFO of historical revisions is queued. A successful solve publishes placements, bounds and camera from the same input snapshot. An older task cannot publish after a newer token, cannot clear `isLayingOut` for a newer owner and cannot consume a newer revision. Content updates do not restart admitted work. Pausing settles the displayed sample and retains the latest pending target; hiding defers only the camera target. Resuming plans from the latest content rather than replaying omitted revisions. Reduce Motion commits targets immediately while preserving stage ownership.
 
-Filter changes with visible survivors retain the old automatic scale only while
-the new collection fits between persistent controls. If it exceeds that actual
-capacity, the filter prepares the ordinary readable fit before presenting its
-motion; retained framing cannot suppress a needed correction until a background
-click. Preferred margins may yield to retained scale. Manual pan/zoom remains
-user-owned, including when the new collection exceeds capacity. The production
-transition replay covers two-to-eight-card expansion with both motion policies
-and a Dock reservation, unchanged-scale fitting filters, manual overflow, rapid
-filter reversal, automatic-return coordination and empty/nonempty recovery.
+Camera ownership has one mutable source. Live bookmarks combine the sampled
+transform with the current manual/automatic mode; animation samples cannot
+restore an earlier manual mode after an explicit return to automatic framing.
+The same ownership is published when the automatic target already matches the
+current transform and no animation is needed.
 
-Geometry and straight-move optimization have separate outcomes. If the search budget expires after finding legal geometry but before certifying a move plan, the solver returns that geometry with `requiresRepack` rather than requiring a retry. A verified fitting candidate remains the fallback even if aspect enumeration is unfinished. The canvas keeps card identities mounted, fades the old presentation out, relocates while transparent, then reveals the result; new cards stay transparent during retirement. It never treats an uncertified straight path as collision-free. If capacity cannot be decided within the budget and there is no legal witness, the error remains visible and the last valid layout stays in place. Cancelled or replaced owners cannot overwrite the current scene with a stale layout error.
-
-[NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples interruptible SwiftUI card motion. Filter changes animate exit, survivor movement and entry on their shared schedule. Ordinary revisions retain exit, shrink, move, grow and entry barriers. Shrinks run together inside disjoint old frames; grows run together inside disjoint final frames. `moveBatches` partitions the existing certified `moveOrder` into consecutive groups whose swept pixel bounding boxes are pairwise disjoint. This conservative proof holds for all progress pairs and renderer timing differences; overlapping envelopes remain serial even if a more precise timing proof might permit concurrency. Batch certification shares the search budget and falls back to the full singleton order on exhaustion. Each batch shares one start clock and one wait, without independent tasks. An interrupted presentation that differs from the solver's logical origins uses transparent repack before any new ordinary travel. Outgoing content survives until its exit finishes; shell and semantic content share geometry and opacity. Structural revisions are queued before SwiftUI can coalesce updates. Reduce Motion makes new card and camera spatial transitions immediate, while retaining stage ownership and cancellation. Enabling it during travel cancels the animated owner and drains unacknowledged revisions through the immediate recovery path. Retired and transparent semantic cards are explicitly hidden from accessibility. Retargeting samples current presentation, and completion cannot restore an obsolete scene.
+[NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples each mounted card's current pose. An interrupted transition retargets from that sample. Outgoing content remains mounted until its exit completes; entries, moves and exits share one bounded transition and then release retiring snapshots. Shell and semantic planes share geometry and opacity. Retired and transparent semantic cards are hidden from accessibility.
 
 Card motion starts, interruption samples and display samples all use
 `ProcessInfo.systemUptime`. A MainActor clock shares one uptime sample for each
 exact SwiftUI timeline date across the shell and semantic planes. Dates are only
 tick identifiers, so wall-clock drift or adjustments cannot accumulate into the
-motion's elapsed time. The clock retains the 64 most recent distinct ticks in
-insertion order to share interleaved contexts while bounding process-lifetime
-state; an evicted date receives a fresh uptime sample if it appears again.
+motion's elapsed time. The clock retains the 64 most recent distinct ticks.
 
 The spatial frame builds its content when receiving new inputs and reuses that
 view value across animation ticks. Ticks only sample the pose and apply its
@@ -230,15 +226,7 @@ mounted identity, and child state, Observation and environment updates remain
 live. The native resize replay changes presentation and locale during motion and
 checks the retained semantic identity and final geometry.
 
-[NativeOverviewStageCoordinator](NativeOverviewStageCoordinator.swift) serializes spatial motion with camera activity. Explicit return to automatic framing restores the default collection fit. Temporary interaction/visibility pauses defer that reset; fresh manual input cancels it. First nonempty layout prepares its camera before revealing cards.
-
-Overview uses ordinary collection framing at the readable scale. Oversized
-collections remain centered with readable overflow and can be panned or zoomed
-manually. Execution and attention changes never select individual camera targets
-or start periodic movement. The planner prefers its inset framing region and
-retries against the control-free extent if that region would overflow; a wider
-packing may fit even when the preferred shape is too tall. Manual framing stays
-user-owned until an explicit return.
+[NativeOverviewStageCoordinator](NativeOverviewStageCoordinator.swift) serializes card spatial motion with Moku. Camera geometry is latest-wins and does not wait in that card queue. Explicit return to automatic framing restores the latest collection fit. Temporary interaction/visibility pauses defer that reset; fresh manual input cancels it. First nonempty layout prepares its camera before revealing cards.
 
 Camera memory is a runtime bookmark (scene, transform and manual ownership),
 with no persisted mode selector. Existing preferences and user data need no
@@ -249,50 +237,9 @@ used by the renderer (44pt height plus its viewport-dependent bottom seat).
 Transient composer/note expansion stays an interaction overlay and does not
 repack the scene. The reservation consumes the existing vertical padding budget;
 the remaining preferred space is split equally above and below the collection.
-This keeps ordinary wide-window packing/reading scale while balancing the gaps
-to controls. The [balance investigation](../../../../../tools/verification/overview-layout/BALANCE.md)
+This keeps ordinary wide-window packing while balancing the gaps to controls.
+The [balance investigation](../../../../../tools/verification/overview-layout/BALANCE.md)
 records screenshot measurements, the compact fallback and verification limits.
-
-Queued automatic refits read the latest bounds after acquiring the spatial
-stage; a playing refit reconciles newer framing revisions on completion.
-Content updates do not restart admitted work, so continuous Harness output
-cannot postpone insertion framing until output stops or the user clicks the
-background. The mounted capacity replay checks content updates and manual-camera
-retention against the production canvas.
-
-Reading-position preservation starts from an intentional retained filter or
-reading target. Automatic targets, including clamped ones, keep that provenance
-rather than becoming reading seats: a camera at the old ordinary fit or an
-automatic clamp recenters to the new ordinary fit after a same-scale width
-shrink, while a persistent vertical seat created by a height shrink keeps its y
-and takes only the new ordinary x. That seat survives later automatic growth
-until an explicit return, manual framing, viewport change or reset. Retained
-framing resets automatic provenance but keeps the current view as a new
-intentional baseline, so a later local edit preserves that view instead of
-resurrecting the old automatic seat. A distinct retained target still survives
-local edits. A shrink arriving before the grow target settles keeps that pending
-target; a later layout revision or explicit return re-evaluates the automatic
-clamp. This pending retention is the accepted behavior for now; it is not
-re-evaluated merely because the target settles. A footprint revision arriving
-before insertion framing completes keeps the pending collection fit and resolves
-it against the latest bounds. It cannot retain the old or partially animated
-camera as a new reading position. Consecutive reading-preserving revisions carry
-their target forward rather than repeatedly sampling intermediate motion;
-explicit return and restoration take precedence over reading retention.
-
-**Automatic focus UX sign-off.** Any height shrink intentionally creates a
-persistent vertical seat, including ordinary card height reduction rather than
-only row deletion. A retained seat keeps its y until an explicit return, manual
-framing, viewport change or reset; retained framing converts the current view
-into an intentional baseline rather than reverting to ordinary fit. When
-retained framing interrupts an in-flight refit, it may stop at the validated
-sampled intermediate frame rather than either endpoint. A refit still queued for
-the spatial stage commits the same validated baseline, so live and target stay
-equal. The exact intermediate-frame appearance still needs visual confirmation
-in real business windows. A grow target that is still pending when a shrink
-arrives keeps its pending translation until a later layout revision or explicit
-return, so it may remain at an automatic clamp. These are intentional
-trade-offs, not missing refits.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
@@ -300,7 +247,7 @@ The canvas combines SwiftUI's focused-card scope with the window's actual editab
 
 Overview cards, canvas background and directory chips expose no context menus. Background clicks still restore automatic framing; drag, scroll and pinch keep their existing camera behavior. Directory children remain available through hover and accessibility actions. Reading, composer and other scene menus are owned separately.
 
-Geometry reuse applies only after presentation has settled. Recovery that cancels an entry, resize or exit still runs the normal sampled-presentation path, even when final member footprints match, so transparent entrants and retired snapshots are released. The native transition replay interrupts a two-card entry with a recovery epoch and checks the second card’s rendered pixels. Reading-position fit checks tolerate floating-point roundoff at a viewport edge; the capacity replay deletes a bottom row at a scale derived from that edge and verifies unchanged survivor screen positions.
+Geometry reuse applies when the current membership and viewport are unchanged; a structural slot refresh then updates content without invoking the solver. Recovery from an interrupted entry, resize or exit samples the current poses and starts the latest presentation, so transparent entrants and retired snapshots are released. The native transition replay interrupts an entry and checks the final rendered frames; no reading-position edge seat is retained.
 
 Dev-only [transaction diagnostics](../../../build/layout-logging.md#overview-relayout-transactions) pair logical before, planned and completed/cancelled/failed snapshots under one random transaction ID. Per-transaction numeric card aliases allow before/after comparison without model identifiers or content. Snapshots are bounded and explicit about truncation; they do not reconstruct historical cases or certify animation pixels.
 
@@ -377,12 +324,18 @@ shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActiv
 
 Empty or whitespace-only queries hide the canvas cards and their attention indicator while retaining the current tag membership and browsing scene without issuing body searches. The search field stays focused, and the empty-results message appears only for a nonempty query. Clearing or closing search returns to the current browsing tag. The first nonempty query bookmarks the browsing camera. Without an intervening tag selection, clearing or closing search restores that camera into the current browsing scene, even when visible result cards survive the transition. Explicit tag selection retains its existing camera-reset behavior. Explicit bookmark restoration takes precedence over preserving the result scene's framing.
 
-Validation uses existing Overview layout/camera/search/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewCapacityTests` hosts the production canvas for the five-card mixed-footprint screenshot, six-card growth, attention updates, insufficient space, resize recovery and near-threshold stability. `NativeOverviewPackingTests` also exercises the six-card straight-move search exhaustion and truncated fitting-candidate optimization. Native window/input tests require macOS; a standalone design demo is not the production layout authority.
+Validation uses existing Overview layout/camera/search/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewGeometryTests` runs the independent layout contract, including seeded property checks, shrinking and the regular-grid quality floor. `NativeOverviewCameraTests` covers FitAll, manual ownership, pauses, latest-wins and invalid-input recovery. `NativeOverviewHeadlessGeometryTests` mounts the production canvas in a bare
+`NSHostingView` with no window and checks mixed footprints, resize, control
+reservations, scene resets and `displayedFrame` agreement. `NativeOverviewCapacityTests`,
+`NativeOverviewCenteringTests`, `NativeOverviewTransitionTests` and
+`NativeOverviewStatePropertyTests` mount the production canvas with a graphical
+host and assert actual rendered frames, including randomized interleavings. Native window/input tests require macOS; a standalone design demo is not the production layout authority.
 
-The centering and transition fixtures use the current grid dimensions and actual
-packed bounds. Fitting-filter cases establish that the expanded collection fits
-at the readable floor but exceeds the retained scale; resize observations wait
-for growth beyond the old row height before asserting the shrink barrier.
+The centering and transition fixtures read the rendered card frames rather than a
+planner target. They independently compute the usable viewport from the product
+controls, assert every latest card is inside it, assert the rendered union is
+centered, and compare the camera scale with FitAll (including the explicit cap).
+Resize observations wait for the new viewport and the submitted camera motion.
 Membership freshness uses Report's authored introduction and independent cover
 revision, preserving the two-row covered-card footprint without rebuilding membership.
 The subsequent coverage/filter cases retain the ordinary one-row card without a cover.
@@ -398,7 +351,7 @@ navigation; no snippet, model selector or historical-execution jump is added.
 
 The [Overview chaos guide](../../../../../tools/native-interaction/OVERVIEW.md) describes the actions and coverage limits. The [real app runner](../../../../../tools/verification/overview-interaction/README.md) creates actual directories, a symlink and a Git linked worktree, seeds an exclusively owned profile before launch, then drives the signed production Release app. Runtime `state:load` supplies the independent scope/membership oracle; mounted card identities, placement cells and camera bounds supply rendering invariants. No tag CRUD or multi-selection actions are invented: those controls do not exist in the current Overview.
 
-The [layout comparison](../../../../../tools/verification/overview-layout/README.md) compiles baseline/current production geometry and reports screen displacement, visible fill, complete cards and solver work. Native capacity tests additionally assert same-footprint solver avoidance, deletion/refill screen anchors, automatic insertion framing without a background click and manual-pan retention in both motion settings. Insertion checks use actual rendered frames for one-to-two and six-to-seven cards, including footprint growth before the refit and coalesced Runtime revision history, wait through delayed refits, and verify that explicit return to automatic framing has no further correction to make.
+The geometry contract runs headlessly: generated inputs verify identity, latest sizes, non-overlap, gaps, finite values, exact bounds, FitAll containment and centering, viewport-translation covariance, determinism and the independent regular-grid quality floor. A 1,500-card 4K/ultrawide case covers legality, cap and the same floor. The state contract mounts the real canvas and replays randomized insert/remove/footprint/viewport/pause/visibility/manual/content schedules; a failure prints the complete trace, shrinks it by removing events, and the fixed reduced trace is checked in as `reducedInterleavingRegressionConverges`. Native capacity tests assert rendered insertion framing, manual retention, content-only solver avoidance and latest-wins recovery.
 
 ## Agent reading panels
 
@@ -429,8 +382,8 @@ preparation receipt before sampling the current source frame. Removed/archived
 cards cannot supply that destination. Preparation is cancelled with its route;
 replacement, focus loss, disconnect/recovery and direct returns cannot let an old
 waiter close a newer visit. A reversal during opening uses the participating parent
-immediately. Hidden structural history is recovered as one current presentation,
-while foreground revisions retain their FIFO. `NativeOverviewMembershipTests`,
+immediately. Hidden and foreground structural changes both resolve to the latest
+snapshot; omitted intermediate geometry is not replayed. `NativeOverviewMembershipTests`,
 `NativeMokuLandingTests.detailCoalescesHiddenOverviewAndPreparesLatestReturnFrame`
 and the reading presentation preparation cases exercise these production paths.
 

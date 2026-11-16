@@ -132,6 +132,11 @@ func (h *handle) Send(ctx context.Context, request plugin.SendRequest) error {
 	if !model.IsNull(data) {
 		must(json.Unmarshal(data, &s))
 	}
+	if execution := s.Observation.LatestExecution; execution != nil && execution.ExecutionID == request.ExecutionID && execution.Terminal() {
+		// A steer may have been reserved before native completion. Reject the
+		// untouched input so Core can renew it under the admission contract.
+		return plugin.ErrExecutionEnded
+	}
 	s.Messages = append(s.Messages, request.Input.Parts[0].Text)
 	startedAt := time.Now().UnixMilli()
 	if execution := s.Observation.LatestExecution; execution != nil && execution.ExecutionID == request.ExecutionID {

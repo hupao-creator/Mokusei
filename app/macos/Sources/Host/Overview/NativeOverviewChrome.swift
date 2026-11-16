@@ -125,7 +125,7 @@ public struct NativeOverviewChrome: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            let narrow = geometry.size.width <= 620
+            let narrow = geometry.size.width <= CGFloat(NativeOverviewCameraGeometry.compactViewportWidth)
             let inset: CGFloat = narrow ? 14 : 18
             // The bar is centered, so reserve the action envelope on both sides.
             // Narrow windows already place actions on a separate row.

@@ -1,5 +1,10 @@
 # Default Overview vertical balance
 
+> **Historical:** these measurements describe the former retained-camera policy.
+> The current camera is pure FitAll; the control reservation and balance margins
+> remain in `NativeOverviewCameraGeometry.framingRegion`. Current geometry is
+> covered by `NativeOverviewGeometryTests` and the mounted replay suites.
+
 This investigation addresses the supplied 2026-10-27 screenshot.
 
 ## Measurements and cause
@@ -84,8 +89,8 @@ No running user application, Note replay, or other worktree is operated on.
 - `make check ARGS=` passed (clear the caller's inherited `--fresh` argument).
 - The then-current tests passed across `NativeOverviewCenteringTests`,
   `NativeOverviewCapacityTests`,
-  `NativeOverviewCameraReadabilityTests`, `NativeOverviewAutoReturnTests` and
-  `NativeOverviewTransitionTests`, with `--no-parallel`.
+  `NativeOverviewCameraTests`, `NativeOverviewTransitionTests` and
+  `NativeOverviewStatePropertyTests`, with `--no-parallel`.
 - `python3 tools/verification/overview-input/run.py` reported
   `PASS Overview SwiftUI replay completed` in its isolated fixture app.
 - Baseline/current production geometry probes produced the table above; rendered

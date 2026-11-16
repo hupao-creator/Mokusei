@@ -612,7 +612,7 @@ private final class OverviewProbe {
                 "formalStart": observationTiming(planned: beginDeadline, started: startObservationBegan, finished: startObservationEnded),
                 "formalEnd": observationTiming(planned: endDeadline, started: endObservationBegan, finished: endObservationEnded)],
             "meaning": "MainActor observations at their recorded times; not exact CPU-boundary snapshots"] as [String: Any]
-        for name in ["layoutSolveCount", "repackCount", "structureRevision", "recoveryEpoch"] {
+        for name in ["layoutSolveCount", "structureRevision", "recoveryEpoch"] {
             if String(describing: countersBefore[name]!) != String(describing: countersAfter[name]!) {
                 invalid.insert("\(name) changed inside the content-only formal window")
             }

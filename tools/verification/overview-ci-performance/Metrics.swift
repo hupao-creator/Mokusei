@@ -421,7 +421,7 @@ func countersJSON(_ model: NativeOverviewWorkspaceModel) -> [String: Any] {
         "membershipBuildCount": model.membershipBuildCount, "recoveryEpoch": model.recoveryEpoch,
         "bodyEvaluationCount": state.bodyEvaluationCount, "sceneSnapshotCount": state.sceneSnapshotCount,
         "layoutSolveCount": state.layoutSolveCount, "geometryReuseCount": state.geometryReuseCount,
-        "repackCount": state.repackCount, "structureRevision": model.content.structureRevision,
+        "structureRevision": model.content.structureRevision,
         "itemCount": model.items.count, "mountedCount": state.mountedCardIDs.count,
         "placementCount": state.presentedPlacements.count, "isLayingOut": state.isLayingOut,
         "layoutError": state.layoutError.map { $0 as Any } ?? NSNull(), "modelError": model.error.map { $0 as Any } ?? NSNull()]

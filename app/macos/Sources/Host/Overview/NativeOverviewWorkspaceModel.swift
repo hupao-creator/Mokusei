@@ -863,7 +863,7 @@ public final class NativeOverviewWorkspaceModel {
             let input = HarnessThreadInput(thread: thread, git: applicationFactories.gitStatus(thread))
             let projection: HarnessOverviewSnapshot
             if let cached = harnessCache[thread.id], cached.input == input { projection = cached }
-            else { projection = try workspace.harnessHost.overview(input: input, availableColumns: 3); harnessCache[thread.id] = projection }
+            else { projection = try workspace.harnessHost.overview(input: input, availableColumns: HarnessOverviewCapacity.maximumColumns); harnessCache[thread.id] = projection }
             let token = "agent:\(thread.id.string):\(ObjectIdentifier(projection))"
             snapshots[token] = .harness(projection)
             let completed = !thread.pendingInput && thread.observation.backgroundWork == nil && thread.observation.latestExecution?.status == .completed
@@ -880,7 +880,7 @@ public final class NativeOverviewWorkspaceModel {
             let json = catalogApplicationJSON[entry.ref.threadID]!
             if let cached = applicationCache[entry.ref.threadID], cached.0 == json { projection = cached.1 }
             else {
-                projection = try plugin.projectCard(entry: entry, availableColumns: 3,
+                projection = try plugin.projectCard(entry: entry, availableColumns: HarnessOverviewCapacity.maximumColumns,
                     capabilities: applicationFactories.projectionCapabilities(plugin, entry))
                 applicationCache[entry.ref.threadID] = (json, projection)
             }

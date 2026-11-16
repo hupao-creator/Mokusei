@@ -31,8 +31,8 @@ struct NativeOverviewGestureTests {
 
     @Test func invalidPanDoesNotTakeOverAndOverflowDoesNotCorruptCamera() {
         let camera = NativeOverviewCamera()
-        camera.cutTo(content: .init(left: 0, top: 0, width: 360, height: 220),
-                     viewport: .init(width: 1180, height: 780, toolbarBottom: 58))
+        camera.cutTo(content: .init(left: 0, top: 0, width: NativeOverviewLayout.columnWidth, height: NativeOverviewLayout.rowHeight),
+                     viewport: .init(width: 1180, height: 780, toolbarBottom: NativeOverviewViewportDefaults.toolbarBottom))
         defer { camera.dispose() }
         let automatic = camera.liveTransform
         camera.pan(deltaX: .nan, deltaY: 1)
@@ -48,7 +48,7 @@ struct NativeOverviewGestureTests {
         defer { camera.dispose() }
         camera.onChange = {}
         camera.cutTo(content: .init(left: 0, top: 0, width: 4000, height: 3000),
-                     viewport: .init(width: 1180, height: 780, toolbarBottom: 58))
+                     viewport: .init(width: 1180, height: 780, toolbarBottom: NativeOverviewViewportDefaults.toolbarBottom))
         camera.setManualTransform(.init(scale: 1, x: 500, y: 300))
         camera.returnToAuto()
         for _ in 0..<100 {

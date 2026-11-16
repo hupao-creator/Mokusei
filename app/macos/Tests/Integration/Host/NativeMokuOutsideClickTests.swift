@@ -202,7 +202,7 @@ struct NativeMokuOutsideClickTests {
         scene.setWindowVisible(true)
         let camera = scene.overviewState.camera
         camera.cutTo(content: .init(left: 0, top: 0, width: 736, height: 400),
-                     viewport: .init(width: 900, height: 600, toolbarBottom: 58))
+                     viewport: .init(width: 900, height: 600, toolbarBottom: NativeOverviewViewportDefaults.toolbarBottom))
         let manual = NativeOverviewTransform(scale: 1, x: 120, y: 90)
         camera.setManualTransform(manual)
         scene.setInputOpen(true)

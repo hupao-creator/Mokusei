@@ -1,3 +1,5 @@
+> **历史记录：** 本文诊断的是已删除的 retained-camera / reading-fit 行为。当前自动相机是纯 FitAll，不再保留旧缩放或阅读座位；现行契约见 [Overview README](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)。以下记录仅作历史证据。
+
 # 自动取景下点击空白后画布放大
 
 调查日期：2026-11-14。源码基线：`e84816f087703cd199e285729e3c905582b68150`。
@@ -260,7 +262,7 @@ filtered retained target 及 filter 后 local edit；shrink→grow→shrink；
 + width shrink 同事务；非 row-deletion 的卡片高度缩小；连续 height shrink；
 height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 shrink；
 隐藏、交互暂停、Reduce Motion、stage 占用。所有 headless 断言通过。
-关键 camera case 已提交到 `NativeOverviewCameraReadabilityTests`：
+关键 camera case 当时提交到已删除的 `NativeOverviewCameraReadabilityTests`；现行覆盖在 `NativeOverviewCameraTests`：
 `sameScaleAspectChangingShrinkRecentersBothAxes`、
 `filteredEditKeepsRetainedTargetAfterVerticalSeat`、
 `shrinkGrowShrinkRecentersAfterAutomaticClamp`、
@@ -286,14 +288,13 @@ height seat 跨 growth 与极端 tall/wide 可见性；pending grow 后立即 sh
 `resetClearsPersistentVerticalSeat`、
 `persistentSeatSurvivesMixedWidthAndHeightSequence`、
 `pendingGrowKeepsItsSeatUntilANewRevision`。实际卡片 envelope 中心的 GUI
-Canvas case 已提交到 `NativeOverviewCapacityTests`：
+Canvas case 当时提交到 `NativeOverviewCapacityTests`；现行覆盖在 `NativeOverviewCenteringTests` / `NativeOverviewCapacityTests`。
 `aspectChangingFootprintRecentersRenderedCard`、
 `persistentVerticalSeatSurvivesRenderedWidthShrink`、
 `inFlightPreserveFramingKeepsRenderedContentVisible`。
 
 相关 Swift suite 以 `MOKUSEI_TEST_HEADLESS=0`、`--no-parallel` 运行
-`NativeOverviewCapacityTests`、`NativeOverviewTransitionTests`、
-`NativeOverviewCameraReadabilityTests`、`NativeOverviewAutoReturnTests`，
+`NativeOverviewCapacityTests`、`NativeOverviewTransitionTests` 与 `NativeOverviewCameraTests`，
 80 个测试全部通过（约 99 秒）。额外运行 `make check-swift` 全量 Swift
 suite（final working tree），结果不是绿色，不能以 focused 结果替代托管
 `Complete coverage`：headless 213 个测试全部通过；graphical 327 个测试有

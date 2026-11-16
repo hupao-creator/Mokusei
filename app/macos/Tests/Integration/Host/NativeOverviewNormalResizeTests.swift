@@ -57,7 +57,10 @@ struct NativeOverviewNormalResizeTests {
         for mode in [NormalResizeMode.wide, .tall, .compact, .slots, .compact] {
             fixture.mode = mode
             let size = mode.presentation.size
-            let target = CGSize(width: size.cols * 376 - 16, height: size.rows * 236 - 16)
+            let metrics = NativeOverviewGridMetrics.standard
+            let width = Double(size.cols) * metrics.columnPitch - metrics.gap
+            let height = Double(size.rows) * metrics.rowPitch - metrics.gap
+            let target = CGSize(width: width, height: height)
             try await SwiftUIReplay.wait { !fixture.state.isLayingOut && fixture.size == target }
             #expect(fixture.appearances == appearances)
             #expect(fixture.state.allowsActivation(cardID: "thread"))
