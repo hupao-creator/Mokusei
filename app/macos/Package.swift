@@ -44,6 +44,7 @@ let package = Package(
         .executableTarget(name: "Mokusei", dependencies: ["MokuseiComposition", "MokuseiCore", "MokuseiUI", "MokuseiPluginUI"], path: "Sources/App",
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .executableTarget(name: "MokuseiProbe", dependencies: ["MokuseiCore"], path: "Sources/Tools/Probe"),
+        .testTarget(name: "MokuseiProperties", dependencies: ["MokuseiUI", "MokuseiPluginAPI"], path: "Tests/Properties"),
         .plugin(name: "CloudMetalCompiler", capability: .buildTool())
     ],
     swiftLanguageModes: [.v6]

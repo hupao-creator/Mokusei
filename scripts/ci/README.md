@@ -1,12 +1,17 @@
 # Continuous integration
 
-[CI](../../.github/workflows/ci.yml) retains production builds and static checks.
-No first-party test suite, integration assertion replay, test fixture producer,
-native test inventory or test coverage report is configured at this source revision.
+[CI](../../.github/workflows/ci.yml) runs production builds, static checks and the
+routine [property inventory](../../tools/verification/pbt/README.md). There are no
+ordinary example/table unit-test suites. Each property names its module contract,
+input domain and oracle; generated sample counts are not code-coverage percentages.
 
 Linux runs Go formatting, architecture/import and static registration checks,
-`go vet ./...` and `go build ./...`. macOS 26 arm64 builds all Go packages and the
-Swift production products with warnings as errors and the Metal build plugin.
+`go vet ./...`, `go build ./...` and Go PBT (seven Rapid properties, 100 cases each,
+seed 1; Report HTML fuzz, 10s). macOS 26 arm64 builds all Go packages and the
+Swift production products with warnings as errors and the Metal build plugin,
+then runs 480 generated geometry cases with seed 1. Native work is serial on one
+runner. Mounted Canvas and real Codex system properties are opt-in local/CI
+commands; they are not part of this workflow's required coverage.
 CGO/system SQLite and the exact Go toolchain in `go.mod` remain enabled.
 SwiftPM and Go caches reuse compilation; current sources are always built.
 
@@ -17,9 +22,12 @@ with regular-file modes. Module READMEs, `docs/`, `design/`, packaged resources,
 symlinks and unknown/mixed changes run production builds; dispatches do too.
 The fast path validates diff whitespace, not Markdown links or factual accuracy.
 
-The `Complete coverage` aggregate requires scope and Go plus the macOS build
-for changes outside the documentation allowlist.
-It certifies only these build/static checks and makes no test-coverage claim.
+The `Complete coverage` aggregate requires scope and Go plus the macOS job
+for changes outside the documentation allowlist. It certifies declared
+build/static and routine property checks, not interaction, performance or
+opt-in system coverage. Property artifacts retain commands, revision/source
+identity, seeds, budgets, output and failure corpus. A skip, empty filter,
+missing capability or timeout cannot become a property pass.
 Actual remote protection rules still govern remote integration.
 
 PR/main runs cancel obsolete runs only within their own event/ref. Dispatches
@@ -31,5 +39,5 @@ PR boundaries. The optional [Overview performance workflow](../../.github/workfl
 remains a manually dispatched measurement tool with fixed baseline/candidate
 SHAs. It is separate from required build checks.
 
-Locally use `make lint` and `make typecheck`, or their combined `make check`.
+Locally use `make lint`, `make typecheck` and `make pbt`, or their combined `make check`.
 See the [verification policy](verification-policy.md) for limitations.

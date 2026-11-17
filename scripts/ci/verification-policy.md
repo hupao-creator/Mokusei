@@ -1,20 +1,12 @@
 # Verification policy
 
-Behavioral verification has three boundaries: e2e owns interaction, PBT owns
-Moku runtime, and performance benchmarks own user experience. Additional PBT
-needs a specific invariant and a reason for its extra coverage. Ordinary unit
-tests are not a project boundary and are not added or restored.
-
-In this source tree, no first-party correctness suites, Swift test
-targets, property or e2e gates are configured. The [performance tools](../../tools/verification/README.md)
-and [external benchmarks](../../tools/benchmarks/README.md) provide measurements
-with explicit capability limits, not required product regression coverage.
-This implementation limit is separate from verification ownership.
-
-`make check` runs formatting, architecture/import and registration checks, Go
-vet, Go builds and the Swift production build. [CI](README.md) runs Linux and
-macOS builds/static checks under the aggregate name `Complete coverage`.
-Build/static success does not establish runtime, interaction or visual correctness.
+PBT owns generated invariants of the Moku coordination service, Runtime authority
+and their durability/lifecycle boundaries. e2e owns interactions; benchmarks own
+user-experience measurements. Cross-boundary properties require a specific
+mathematical or state-machine invariant, not a renamed example test or timing
+scenario. The [PBT guide](../../tools/verification/pbt/README.md) declares current
+domains, oracles and limited exceptions. Ordinary example/table unit-test suites
+are absent.
 
 Use the [document-driven workflow](../../AGENTS.md#文档驱动) and
 [fact index](../../docs/facts.md): each property, scenario or budget identifies
@@ -23,13 +15,35 @@ The document describes implemented state, configuration and capability limits;
 Git retains change history. An unexplained code result is not permission to
 redefine a bug as correct behavior. Missing evidence is not a zero or a pass.
 
-Choose affected builds/static checks and measurements proportional to the change.
-A local-only documentation delivery needs diff and local-link review plus an
-assessment of the actual [workflow path classification](scope.py). The allowlist
-is narrower than all Markdown; a remote run may still build module-doc changes.
-Before remote integration inspect real branch rules and final-revision status;
-local checks cannot substitute for required hosted checks. Local-only delivery
-does not trigger publication or remote runs.
+
+Routine [CI](README.md) runs formatting, architecture/import and registration
+checks, Go vet/build, runtime PBT and Swift production build/geometry PBT. Locally
+run affected checks and use larger sample counts or `--race` to investigate a
+specific concern. `make check` combines routine checks; do not run an equivalent
+local full suite merely to repeat required hosted validation.
+
+`make pbt-native-state` requires a graphical macOS session and checks mounted
+state convergence. `make pbt-system` additionally requires an installed native
+Codex CLI and loopback/sandbox capability; it checks generated provider faults
+and durable cross-component effects. These are opt-in because their required
+environment is not supplied by routine CI. Missing capability fails, not skips.
+Their unique boundary coverage and limitations are in the property inventory;
+neither is a user-experience latency gate.
+
+Before remote integration, inspect actual branch protection and final-revision
+checks. The aggregate is named `Complete coverage`; local checks cannot replace
+a required hosted check. Local-only artifact delivery does not publish or launch
+remote runs. Skipped checks and historical commits cannot certify current work.
+
+Pure documentation changes require diff and local-link review plus actual
+workflow scope classification. Build/static success does not prove runtime or
+visual correctness. Record execution failures, evidence, the diagnosed reason and
+any rerun; do not weaken assertions or skip samples to obtain a pass.
+
+[External benchmarks](../../tools/benchmarks/README.md) and
+[performance tools](../../tools/verification/README.md) answer independent
+measurement questions. Missing capture, permissions, signing or descendant
+accounting remains an explicit limitation, never a passing measurement.
 
 Record the exact revision, command, workload, environment, artifact identity,
 measurement validity and result. `blocked`, `skipped`, unrun and another

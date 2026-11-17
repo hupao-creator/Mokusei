@@ -78,6 +78,8 @@ Source: [collection](../app/macos/Sources/Plugins/Applications/Report/NativeRepo
 [members](../app/macos/Sources/Plugins/Applications/Report/NativeReportCollectionMembers.swift),
 [playback](../app/macos/Sources/Plugins/Applications/Report/NativeReportCoverPlayback.swift).
 
-No layout/state/cover correctness suite is configured in this source tree. Current [external benchmarks](../tools/benchmarks/README.md) measure
+[Geometry and mounted-state properties](../app/macos/Sources/Host/Overview/README.md#property-boundaries)
+cover bounded generated layouts and latest-state convergence. They do not cover
+Report content, physical gestures or appearance. Current [external benchmarks](../tools/benchmarks/README.md) measure
 fixed-count app workloads; internal CPU probes do not establish visible frame
 pacing, GPU attribution or complete interaction coverage.

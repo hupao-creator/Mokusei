@@ -11,7 +11,8 @@ implicit fallback or passing skip.
 The build platform needs macOS 26 arm64, Python >=3.11, Git, Bash, full Xcode with
 Swift 6.2+, the active Xcode selected and the Metal toolchain. `setup-go` honors the
 exact toolchain in `go.mod`. `macos-runner-preflight.py` validates OS/architecture.
-No native test inventory or correctness replays are configured.
+Routine CI runs generated geometry properties after the Swift build. Mounted
+Overview state and real-native system properties are opt-in, outside this workflow.
 
 The manually dispatched Overview performance experiment still requires an
 unlocked graphical session, functional Metal/capture, existing input permissions,

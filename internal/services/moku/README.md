@@ -11,6 +11,13 @@ The coordinator's serial queue observes cancellation while waiting, so abandoned
 inputs release their claims before a slow owner finishes.
 Cancellation of a waiter does not interrupt the admitted owner.
 
+**PBT-MOKU-QUEUE** exercises the production admission queue with 1–8 generated
+cohorts of 1–12 waiters and cancellation subsets. A held owner provides a barrier:
+cancelled waiters must return before that owner releases, surviving waiters must
+enter exclusively, and the same queue must remain usable for subsequent cohorts.
+The [property](admission_property_test.go) does not assume FIFO scheduling or set
+a user-experience latency budget; its 3s deadline is a deadlock guard.
+
 If an execution ends while preparing its follow-up, Runtime checks saved versus
 applied settings before admitting a successor. The coordinator prepares fresh
 settings, instructions and context once when Core confirms that no input was
@@ -48,22 +55,30 @@ and completion results. These identities do not depend on a private log sink.
 A callback rejected before transcript insertion has no operation row; its error
 returns through the tool bridge. Result-recording failures remain tool faults.
 
+**PBT-MOKU-SCOPE** generates valid execution histories with running, waiting and
+terminal observations, then delivers their commit callbacks in arbitrary order
+with duplicates. Only the highest observed owner revision may control tools;
+superseded contexts are cancelled and stale callbacks cannot revive them.
+Same-owner configuration installation preserves the revision floor, while a new
+owner establishes its own floor. [The property](scope_property_test.go) calls the
+production coordinator transitions, using 1–12 executions and bounded callback
+permutations. It checks cancellation authority, not provider I/O, transcript
+contents, physical UI interaction or timing. Run `make pbt-go`; seed/evidence
+controls are in the [PBT guide](../../../tools/verification/pbt/README.md).
+
+
 Moku guidance defaults to managed `worktree:true` for tasks in a committed Git workspace, even without parallel tasks. It reserves `false` for tasks without an eligible Git workspace, explicit requests for the existing checkout, or tasks requiring its uncommitted changes or live state. Moku creates the managed worktree through `create_thread` rather than delegating worktree creation to the Agent. This is model guidance, not an enforced boolean default.
 
 Every `create_thread` call supplies `worktree` as a boolean. `false` uses an explicit existing directory or allocates a temporary workspace. `true` requires an explicit committed Git workspace. The result distinguishes base `workspace.cwd` from execution `workspace.worktreeCwd`. Optional `worktreeName` is a directory label, never the task title; [workspace rules](../workspaces/README.md) define validation, normalization, collisions and reported adjustments.
 
 Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. All built-in targets expose their native options in the initial creation schema; Moku does not need an on-demand discovery call to compare Harnesses. Cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
 
-[Native catalog evidence and limits](catalog-evidence.md) records the authoritative
-paths investigated and the remaining availability constraint. Moku requires both
-completed enumeration and affirmative **source completeness**; a nonempty list,
-terminated pagination, initialization, waiting or stable fingerprints cannot
-substitute for source evidence. The current built-in adapters do not expose a
-source attestation this implementation can authenticate. Their enumeration
-results remain usable for ordinary explicit-model validation, but cannot seed a
-trusted Moku routing cache. Without a trusted matching snapshot, Moku refuses
-to start and reports every selected target's failure. This is deliberate fail-closed
-behavior, not a claim that full-directory availability has been achieved.
+Moku uses each selected Harness's nonempty native response inventory for routing.
+[Model catalog metadata](../../core/plugin/model_catalog.go) separates completed
+enumeration from source completeness: native caches/fallbacks remain usable;
+unproven remote completeness remains false. Configuration identity fences reuse,
+and actual creation validates native options again. This does not attest remote
+source completeness or current execution availability.
 
 Every new execution crosses Runtime's common `admitMokuExecution` boundary:
 initial Send, renewal after exact unconsumed `ErrExecutionEnded`, and native

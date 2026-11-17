@@ -70,7 +70,15 @@ The service owns its profile independently of the client connection. A disconnec
 
 Use `./scripts/go.sh run ./cmd/mokusei-dev --help` for development and installation commands. Native OpenCode allowance-data maintenance is in `cmd/mokusei-maintain`.
 
-[Performance tools](tools/verification/README.md) measure isolated Runtime and native presentation paths. They do not provide correctness replay coverage. [Plugin contracts](internal/core/plugin/README.md) describe Go extensions. [Runtime module documentation](internal/README.md) and [native module documentation](app/macos/README.md) map the current implementation. [Contributor checks](.agents/linting.md) describe the local validation workflow. [Continuous integration](scripts/ci/README.md) defines Linux/macOS build and static checks, including their documentation scope.
+[Property checks](tools/verification/pbt/README.md) exercise generated runtime
+histories, transactions and bounded native geometry. [Plugin contracts](internal/core/plugin/README.md)
+describe Go extensions. [Runtime module documentation](internal/README.md) and
+[native module documentation](app/macos/README.md) map the current implementation.
+[Contributor checks](.agents/linting.md) and [CI](scripts/ci/README.md) define
+validation commands and their current scope.
+
+[Performance tools](tools/verification/README.md) supply independent measurements;
+they do not establish interaction correctness.
 
 Mermaid fences display as source code. The built-in [Git application](internal/plugins/applications/git/README.md) supplies read-only worktree facts on task cards and on-demand file/diff query APIs. Managed Git worktrees are owned by the [workspace service](internal/services/workspaces/README.md).
 
@@ -90,8 +98,8 @@ Mokusei is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 hupa
 
 Third-party materials retain their existing licenses and attribution notices, including [agent skills](.agents/skills/LICENSE), [fonts and icons](app/macos/Sources/Shared/PluginUI/Resources/), and [Unicode data](internal/services/taglabel/UNICODE-LICENSE.txt).
 
-At this source revision, no first-party automated test suites or Swift test
-targets are configured. Build/static validation is described in the
-[contributor guide](.agents/linting.md). Project behavioral verification uses
-PBT for Moku runtime, e2e for interactions and performance benchmarks for user
-experience; this ownership does not imply those gates are implemented here.
+Automated correctness checks use the declared [PBT inventory](tools/verification/pbt/README.md).
+There are no ordinary example/table unit-test suites. Behavioral verification
+assigns Moku runtime to PBT, interaction to e2e and user experience to benchmarks;
+implemented checks and unverified domains remain explicit in the
+[contributor guide](.agents/linting.md) and [fact index](docs/facts.md).

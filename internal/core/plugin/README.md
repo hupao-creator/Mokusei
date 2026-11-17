@@ -64,7 +64,8 @@ avoiding unrelated record-body reads. They add no database or cross-plugin acces
 - [Native Plugin API](../../../app/macos/Sources/Shared/PluginAPI/README.md): Swift presentation and Sidecard contracts.
 
 The interfaces and generated-metadata policy above are implemented contracts.
-No metadata/Harness correctness replay is configured in this source tree.
+No metadata or complete native-Harness interaction replay is configured here.
+The Codex terminal-state property covers only its declared reducer domain.
 See the [verification index](../../../docs/facts.md).
 
 `MokuDelivery` represents either a wake-producing terminal fact or a lazy internal

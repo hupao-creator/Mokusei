@@ -254,3 +254,22 @@ snapshot returns immediately and failed refreshes preserve it with a failure
 note. First-page/later-page errors and empty initial inventories still reject a
 cold acquisition. No static candidate or failed page prefix is synthesized.
 See the [catalog admission contract](../../../services/moku/catalog-evidence.md).
+
+## Property boundary: PBT-CODEX-TERMINAL
+
+`state.go` admits a new execution only when no retained turn is active;
+`ReduceEvent`, `AppendFollowUp` and `SettleExecution` edit only active turns.
+`RejectFollowUp` can append an audit notice to a terminal turn, but does not change
+its public execution result. `DecodeState` validates the durable state and
+`ResolveExecution` projects the canonical execution facts.
+
+[PBT-CODEX-TERMINAL](../../../../tools/verification/pbt/codex/terminal_property_test.go)
+generates start/event/follow-up/rejection/settle action sequences with up to 100
+retained executions, Unicode text from `a`, `中`, `🙂`, newline (0–32 runes),
+text-delta/text-final/status/done/error events and all three terminal outcomes.
+After every step the durable state must decode; once terminal, the public execution
+must remain deeply equal through later actions. Each rejected follow-up adds
+exactly one notice. The oracle reads production state/projections, not a second
+reducer. This covers reducer ordering and terminal retention, not native RPC,
+authentication, tools, all event kinds or process cleanup. Run `make pbt-go`;
+seed, budget and replay commands are in the [PBT guide](../../../../tools/verification/pbt/README.md).

@@ -227,9 +227,10 @@ a deleted session's gate is reclaimed after its final reference is released. His
 
 History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner.
 
-No Runtime/settings correctness replay is configured in this source tree.
-The [verification index](../../../docs/facts.md) separates source facts from
-measured coverage.
+The [property boundaries](#property-boundaries) define Runtime admission, outbox
+and optional system coverage. No Go-backed Settings interaction replay is
+configured here. The [verification index](../../../docs/facts.md) separates
+implemented contracts, generated domains and actual run evidence.
 
 Automatic installation discovery uses `harness:detect-installation` with one
 Harness ID. Each response is independent and does not refresh the login shell.
@@ -306,3 +307,68 @@ configuration equality, and are captured at execution
 admission. Missing/custom keeps existing manual routing guidance. Selecting a
 preset preserves that guidance for later restoration; the Moku service owns
 general routing priorities and instruction generation.
+
+## Property boundaries
+
+**PBT-MOKU-OUTBOX** drives the production delivery queue and attempt/admission
+transactions against SQLite. Generated lazy/waking deliveries, repeated IDs,
+captures, late arrivals, acknowledgements, confirmed rejections, uncertain
+errors and close/reopen schedules check stable sequence ordering, atomic attempt
+fences, exact-batch removal and restart-only reconciliation. A stale capture
+cannot claim an already attempted delivery. Uncertain outcomes stay fenced;
+only exact pre-consumption rejections release a live attempt. This property
+isolates the durable outbox; it does not establish native admission or scheduler
+wake behavior. See [the property](moku_delivery_property_test.go).
+
+**PBT-RUNTIME-ADMISSION.** The send worker retries only an exact
+`plugin.ErrExecutionEnded` for an unadmitted follow-up. `renewSendAdmission`
+requires the captured execution's durable terminal result before reserving one
+successor. Joined errors, rejection, cancellation, missing terminal evidence and
+post-admission failures do not authorize replay. `Admitted` is the acknowledgement
+boundary; each accepted input emits exactly one `thread.input-accepted` fact.
+A post-admission dispatch error may fail a newly reserved running execution but
+must preserve an existing terminal's identity, outcome and start time.
+
+The [generated admission schedule](../../../tools/verification/pbt/runtime/send_property_test.go)
+drives real Runtime and SQLite with a scripted native peer. Each case has 1–25
+accept/reject/end/end-reject/end-failure/end-cancel/invalid-retry/admitted-failure
+actions and generated completed/failed/interrupted native outcomes. The oracle
+checks acknowledgements, execution identity/status, native attempt count and
+event count after every action; closing the scripted owner joins workers before
+observation. It covers the send-return/terminal/cancellation seam, not real
+native processes, arbitrary concurrent clients or physical input.
+
+**PBT-SYSTEM-COMBINATION.** Composition connects Runtime, authenticated HTTP,
+Moku, Report, Tag and SQLite. The retained native system property exercises
+idempotent command receipts, scoped consumer effects, exact execution references,
+settings CAS, source-preserving reads/forks, interrupt fencing, deletion/clear and
+restart retention through these production boundaries. Archive is display-only:
+reads, follow-up and fork remain available. The scenario checks native history content from an assistant reply,
+not merely a token in user input. A scripted loopback model provider is the
+external peer; it does not implement admission, tool handlers or domain writes.
+
+The [system property](../../../tools/verification/pbt/system/system_property_test.go)
+generates 1–3 scopes, independent no-fault/429/500/truncated-SSE choices for Moku,
+child, Report, Tag and read roles, 0–6 read/archive/unarchive/settings/followup/fork/
+interrupt actions, then optional delete and clear. Its oracle checks terminal
+convergence, empty delivery work, report ownership/exact execution evidence,
+scope/tag isolation, source preservation and unchanged retained facts after
+reopening the profile. These expectations correspond to the lifecycle/settings
+contracts above and the [Report](../../plugins/applications/report/README.md),
+[Tag](../../plugins/applications/tag/README.md) and [Moku](../../services/moku/README.md)
+module contracts. Active-delete/active-clear/recreate actions are outside this
+generator even though its scenario helper supports them. No Context acquisition,
+real model service, all Harness matrix or crash recovery is claimed.
+The model peer reads Report's lifecycle batch separately from its appended
+Statusbar. Tag discovery uses `read_statusbar`; `create_tag`/`assign_threads`
+carry the current revision and stable IDs from actual scoped tool results.
+Foreign-scope probes must be rejected. The fixture does not synthesize tag
+membership or bypass the production CAS/receipt path.
+
+Run `make pbt-go` for admission; `MOKUSEI_SYSTEM_CODEX=/absolute/path/to/codex
+make pbt-system` for the opt-in macOS system property. Missing CLI capability
+fails instead of skipping. The system scenario has a 90s total execution budget,
+30s convergence waits and bounded native discovery/cleanup; runner timeouts also
+bound generation/shrinking. See the [PBT guide](../../../tools/verification/pbt/README.md)
+for budgets, failure evidence and replay. System coverage requires an actual run;
+its source or successful compilation alone is not a pass.

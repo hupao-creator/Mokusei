@@ -1,0 +1,12 @@
+# Minimized against the pre-fix Runtime with -rapid.seed=20261020.
+# schedule: ["reject"]; outcomes: ["completed"].
+# A rejected follow-up must not change the original running execution to failed.
+v0.4.8#20261020
+0x0
+0x0
+0x1
+0x0
+0x0
+0x0
+0x0
+0x0

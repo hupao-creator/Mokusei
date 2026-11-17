@@ -1,6 +1,7 @@
 GO ?= ./scripts/go.sh
 DEV = $(GO) run ./cmd/mokusei-dev
 ARGS ?=
+PBT_ARGS ?=
 
 .PHONY: runtime build dev fast watch-main pack dist smoke install open lint typecheck check install-hooks
 runtime:
@@ -31,5 +32,18 @@ typecheck:
 	$(GO) build ./...
 	xcrun swift build --package-path app/macos
 check: lint typecheck
+	$(MAKE) pbt
+
+.PHONY: pbt pbt-go pbt-native pbt-native-state pbt-system
+.NOTPARALLEL: pbt
+pbt: pbt-go pbt-native
+pbt-go:
+	python3 tools/verification/pbt/run.py --suite go --go "$(GO)" $(PBT_ARGS)
+pbt-native:
+	python3 tools/verification/pbt/run.py --suite native $(PBT_ARGS)
+pbt-native-state:
+	python3 tools/verification/pbt/run.py --suite native-state $(PBT_ARGS)
+pbt-system:
+	python3 tools/verification/pbt/run.py --suite system --go "$(GO)" $(PBT_ARGS)
 install-hooks:
 	$(GO) run ./cmd/mokusei-check install-hooks

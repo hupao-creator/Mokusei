@@ -41,7 +41,7 @@ def main():
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
         summary.write("## Verification scope\n\n" + (
             "Documentation-only diff: whitespace validation; builds are not required for this scope.\n"
-            if docs_only else "Build and static checks required.\n"))
+            if docs_only else "Build, static and routine property checks required.\n"))
         summary.write(f"\nCompared `{base}` to `{head}`; {len(paths)} changed paths.\n")
 
 

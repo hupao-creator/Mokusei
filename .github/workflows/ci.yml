@@ -77,6 +77,18 @@ jobs:
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: go build ./...
 
+      - name: Runtime property checks
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
+        run: python3 tools/verification/pbt/run.py --suite go --go go --artifacts "${{ runner.temp }}/pbt-go"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && needs.scope.outputs.documentation_only != 'true' }}
+        with:
+          name: pbt-go-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pbt-go
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Confirm documentation-only validation
         if: ${{ needs.scope.outputs.documentation_only == 'true' }}
         run: echo 'Documentation-only diff validated; builds are outside this scope.' >> "$GITHUB_STEP_SUMMARY"
@@ -113,6 +125,17 @@ jobs:
       - name: Build current Swift products
         run: python3 scripts/ci/deadline.py xcrun swift build --package-path app/macos -Xswiftc -warnings-as-errors
 
+      - name: Generated geometry properties
+        run: python3 tools/verification/pbt/run.py --suite native --artifacts "${{ runner.temp }}/pbt-native"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: pbt-native-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pbt-native
+          if-no-files-found: error
+          retention-days: 14
+
   verification:
     name: Complete coverage
     if: ${{ always() }}
@@ -139,7 +162,7 @@ jobs:
           path: ${{ runner.temp }}/run-summary.json
           if-no-files-found: error
           retention-days: 14
-      - name: Enforce required build and static checks
+      - name: Enforce required build, static and property checks
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
           DOCUMENTATION_ONLY: ${{ needs.scope.outputs.documentation_only }}
@@ -153,5 +176,8 @@ jobs:
           failures = [name for name in required if results[name]['result'] != 'success']
           if failures:
               raise SystemExit(f'Required checks failed/skipped: {failures}')
-          print('Build and static checks passed; no test suites are configured.')
+          if os.environ['DOCUMENTATION_ONLY'] == 'true':
+              print('Documentation-only validation passed; builds and properties were not run.')
+          else:
+              print('Build, static and declared property checks passed.')
           PYTHON

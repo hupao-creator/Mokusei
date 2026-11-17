@@ -188,7 +188,30 @@ immutable reads, and [lifecycle.go](lifecycle.go) owns events, work and receipts
 [lifecycle_index.go](lifecycle_index.go) owns query indexes and pending readers;
 [lifecycle_subscriptions.go](lifecycle_subscriptions.go) owns routed notifications.
 
-No storage/workspace correctness replay is configured in this source tree.
+**PBT-STORE-SNAPSHOT** checks committed key/value histories. [The property](../../../tools/verification/pbt/store/snapshot_property_test.go)
+uses Rapid to generate 1–80 transactions of 1–8 puts/deletes across overlapping
+ASCII, Unicode and 1,010-byte prefixes, 20 key suffixes and integer values.
+The independent model is a plain map of committed values. For each generated
+transaction, `Keys`/`Count` must match exact prefix selection; `ChangedKeys` in
+both directions must match value additions/removals/changes; `PrefixEqual` must
+agree with an empty diff. A randomly selected retained snapshot must preserve its
+old values despite subsequent writes. These are the immutable read/prefix/diff
+contracts implemented by `snapshot.go` and the persistent index in `index.go`.
+
+**PBT-STORE-LIFECYCLE** generates append, batch, receipt, settlement, rollback and
+close/reopen sequences against real SQLite. An independent event/acknowledgement
+model checks scoped pending selection, incremental readers, history outcomes and
+transactional effect counts. Repeated receipt keys retain their first result;
+failed child effects and failed outer transactions cannot leak writes. Stale
+batch IDs cannot mutate work. Reopening retains pending work, receipts and outcomes.
+The [property](../../../tools/verification/pbt/store/lifecycle_property_test.go)
+uses 1–60 actions, three scopes/consumers, bounded receipt keys and generated
+processed/failed outcomes; timestamp ties exercise deterministic event order.
+
+Run `make pbt-go`. These properties do not cover power-loss/fsync faults,
+multiple writers or allocation/performance bounds. See the [PBT guide](../../../tools/verification/pbt/README.md)
+for seeds, sample budgets and minimized replay files.
+
 The [Runtime benchmark](../../../tools/verification/runtime-performance/README.md)
 measures selected production calls; timing and allocation observations do not
 prove transaction, ownership or cancellation correctness.

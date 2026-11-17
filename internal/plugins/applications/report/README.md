@@ -217,7 +217,8 @@ reader; Back/fold retires it. The `moku:submit.superThreadId` backend contract
 remains available independently, with source context resolved by
 [Moku](../../../services/moku/README.md). The UI does not expose unselected input.
 
-No native focus/animation, binding or Runtime correctness replay is configured
+PBT-SYSTEM-COMBINATION covers bounded generated scope/binding effects; no native
+focus/animation or full binding-interaction correctness replay is configured
 in this source tree; production builds establish compilation only.
 
 ## Archive visibility
@@ -361,3 +362,18 @@ reference order alone do not split a collection. Initial observation establishes
 a baseline rather than an edit. No report record, write receipt or CAS changes.
 See the [desktop reading contract](../../../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
 for close/dwell rules and the limit of reading evidence without a prior fingerprint.
+
+## Property boundary: PBT-REPORT-PREVIEW
+
+`HTMLPreview` projects text through the non-executing parser and bounded-prefix
+recovery described above. Its final Unicode-scalar clipping retains at most
+`MaxPreviewLength` (220) runes, including an ellipsis when clipped.
+
+[PBT-REPORT-PREVIEW](html_property_test.go) uses Go fuzzing over arbitrary HTML strings bounded to 8,192 bytes, including malformed
+UTF-8, deep nesting, templates and foreign content in its seed corpus. Every
+projected preview must have at most 220 runes and projection must not panic.
+This property checks the output bound and parser safety; it does not establish
+semantic text equivalence, CSS visibility, script isolation or full accepted
+report-size coverage. `make pbt-go` actively fuzzes this target with an execution
+budget; merely running its fixed seed corpus is not the PBT gate. Failing corpus
+inputs and exact replay instructions are retained by the [runner](../../../../tools/verification/pbt/README.md).

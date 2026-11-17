@@ -8,8 +8,8 @@
 AsciiDoc、README、文本运行说明/生产 prompt、证据文本及 LICENSE，包含隐藏 `.agents/`
 和 `CLAUDE.md` 符号链接：共 **197** 个范围标识，其中 **190** 项自有/适用文档、
 **7** 项第三方原文/生成数据。范围标识数量不是当前文件数量。
-当前树有 **135** 个文档候选：下表 **128** 项自有/适用入口，另列 **7** 项第三方输入；
-其中 **8** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
+当前树有 **136** 个文档候选：下表 **129** 项自有/适用入口，另列 **7** 项第三方输入；
+其中 **9** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
 逐项映射到当前事实所有者；日志接口类标识明确映射到现有能力边界，不声明日志实现。
 
 第三方依赖源码、SwiftPM/Go 缓存、构建输出、图片/字体二进制、JSON/CSV 原始采样和
@@ -27,7 +27,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | 当前文档 | 已核对范围与证据 | 当前证据界限 |
 | --- | --- | --- |
 | [.agents/issue-tracker.md](../.agents/issue-tracker.md) | 流程/配置静态核对；[AGENTS.md](../AGENTS.md)、[issue-tracker.md](../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
-| [.agents/linting.md](../.agents/linting.md) | 流程/配置静态核对；[Makefile](../Makefile)、[ci.yml](../.github/workflows/ci.yml)、[scope.py](../scripts/ci/scope.py) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
+| [.agents/linting.md](../.agents/linting.md) | 流程/配置静态核对；[Makefile](../Makefile)、[ci.yml](../.github/workflows/ci.yml)、[scope.py](../scripts/ci/scope.py)、[PBT inventory](../tools/verification/pbt/properties.json) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [.agents/skills/commit-message/SKILL.md](../.agents/skills/commit-message/SKILL.md) | 流程/配置静态核对；[AGENTS.md](../AGENTS.md)、[issue-tracker.md](../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [.agents/skills/grilling/SKILL.md](../.agents/skills/grilling/SKILL.md) | 流程/配置静态核对；[AGENTS.md](../AGENTS.md)、[issue-tracker.md](../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [.agents/skills/implement/SKILL.md](../.agents/skills/implement/SKILL.md) | 流程/配置静态核对；[AGENTS.md](../AGENTS.md)、[issue-tracker.md](../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
@@ -110,7 +110,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [internal/services/moku/catalog-evidence.md](../internal/services/moku/catalog-evidence.md) | 主路径/符号/约束静态核对；[cache.go](../internal/platform/discovery/cache.go)、[source.go](../internal/platform/discovery/source.go)、[tool_schema.go](../internal/services/moku/tool_schema.go) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
 | [internal/services/threadsearch/README.md](../internal/services/threadsearch/README.md) | 主路径/符号/约束静态核对；[grep.go](../internal/services/threadsearch/grep.go) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
 | [internal/services/workspaces/README.md](../internal/services/workspaces/README.md) | 主路径/符号/约束静态核对；[manager.go](../internal/services/workspaces/manager.go)、[thread.go](../internal/services/workspaces/thread.go)、[git.go](../internal/services/workspaces/git.go) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
-| [scripts/ci/README.md](../scripts/ci/README.md) | 流程/配置静态核对；[ci.yml](../.github/workflows/ci.yml)、[scope.py](../scripts/ci/scope.py) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
+| [scripts/ci/README.md](../scripts/ci/README.md) | 流程/配置静态核对；[ci.yml](../.github/workflows/ci.yml)、[scope.py](../scripts/ci/scope.py)、[PBT inventory](../tools/verification/pbt/properties.json) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [scripts/ci/self-hosted.md](../scripts/ci/self-hosted.md) | 流程/配置静态核对；[ci.yml](../.github/workflows/ci.yml)、[overview-performance.yml](../.github/workflows/overview-performance.yml)、[macos-runner-preflight.py](../scripts/ci/macos-runner-preflight.py) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [scripts/ci/verification-policy.md](../scripts/ci/verification-policy.md) | 流程/配置静态核对；[AGENTS.md](../AGENTS.md)、[Makefile](../Makefile)、[ci.yml](../.github/workflows/ci.yml) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [tools/benchmarks/README.md](../tools/benchmarks/README.md) | CLI/采集口径静态核对；[adapter.py](../tools/benchmarks/adapter.py)、[badge_comparison.py](../tools/benchmarks/badge_comparison.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
@@ -145,6 +145,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [tools/verification/overview-performance/evidence/round1/summary.md](../tools/verification/overview-performance/evidence/round1/summary.md) | 测量制品/来源/限制核对；[build.json](../tools/verification/overview-performance/evidence/round1/build.json)、[summary.json](../tools/verification/overview-performance/evidence/round1/summary.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [tools/verification/overview-performance/evidence/round2/summary.md](../tools/verification/overview-performance/evidence/round2/summary.md) | 测量制品/来源/限制核对；[build.json](../tools/verification/overview-performance/evidence/round2/build.json)、[summary.json](../tools/verification/overview-performance/evidence/round2/summary.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [tools/verification/overview-performance/evidence/round3/summary.md](../tools/verification/overview-performance/evidence/round3/summary.md) | 测量制品/来源/限制核对；[build.json](../tools/verification/overview-performance/evidence/round3/build.json)、[summary.json](../tools/verification/overview-performance/evidence/round3/summary.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
+| [tools/verification/pbt/README.md](../tools/verification/pbt/README.md) | 属性/入口/域/判据静态核对；[properties.json](../tools/verification/pbt/properties.json)、[run.py](../tools/verification/pbt/run.py)、[Makefile](../Makefile) | 11 个声明属性；常规与可选分开，不把未运行、缺失 capability 或历史结果当通过 |
 | [tools/verification/runtime-performance/AUDIT.md](../tools/verification/runtime-performance/AUDIT.md) | 测量制品/来源/限制核对；[manifest.json](../tools/verification/runtime-performance/results/20261025/manifest.json)、[sources.json](../tools/verification/runtime-performance/results/20261025/sources.json)、[summary.json](../tools/verification/runtime-performance/results/20261025/summary.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [tools/verification/runtime-performance/README.md](../tools/verification/runtime-performance/README.md) | CLI/采集口径静态核对；[application_scenarios.go](../tools/verification/runtime-performance/application_scenarios.go)、[main.go](../tools/verification/runtime-performance/main.go) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/verification/runtime-performance/results/20261025/README.md](../tools/verification/runtime-performance/results/20261025/README.md) | 测量制品/来源/限制核对；[manifest.json](../tools/verification/runtime-performance/results/20261025/manifest.json)、[queue-controls.json](../tools/verification/runtime-performance/results/20261025/queue-controls.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |

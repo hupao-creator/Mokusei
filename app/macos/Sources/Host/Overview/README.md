@@ -249,7 +249,7 @@ The canvas combines SwiftUI's focused-card scope with the window's actual editab
 
 Overview cards, canvas background and directory chips expose no context menus. Background clicks still restore automatic framing; drag, scroll and pinch keep their existing camera behavior. Directory children remain available through hover and accessibility actions. Reading, composer and other scene menus are owned separately.
 
-Geometry reuse applies when the current membership and viewport are unchanged; a structural slot refresh then updates content without invoking the solver. Recovery from an interrupted entry, resize or exit samples the current poses and starts the latest presentation, so transparent entrants and retired snapshots are released. The native transition replay interrupts an entry and checks the final rendered frames; no reading-position edge seat is retained.
+Geometry reuse applies when the current membership and viewport are unchanged; a structural slot refresh then updates content without invoking the solver. Recovery from an interrupted entry, resize or exit samples the current poses and starts the latest presentation, so transparent entrants and retired snapshots are released. No reading-position edge seat is retained.
 
 ## Tags and filter transitions
 
@@ -317,17 +317,24 @@ shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActiv
 
 ## Verification boundary
 
-No geometry property suite, state interleaving suite, native capture replay or
-production chaos runner is configured in this source tree. The pure solver's
-implemented constraints include stable identity/footprints, finite nonoverlapping
-placements, gaps, scene bounds, FitAll containment/centering and scale cap. A
-build/static pass does not establish those properties at runtime.
+The [property boundaries](#property-boundaries) describe the generated geometry
+and mounted convergence checks. Geometry containment applies only when the raw
+fit permits the 1× floor. Mounted state reads rendered frame identities and
+camera projection; it does not certify control-region geometry, Report content,
+reading transitions, physical gestures or captured appearance.
 
-[NativeOverviewInteraction](../Interaction/NativeOverviewInteraction.swift)
-exposes production camera/control callbacks. Runtime `state:load` supplies
-independent public membership facts; automation acceptance is not a rendered
-frame receipt. No tag CRUD or multiselection controls exist. The
-[performance tools](../../../../../tools/verification/overview-performance/README.md)
+## Production interaction controls
+
+[NativeOverviewInteraction](../Interaction/NativeOverviewInteraction.swift) exposes the camera's production methods and registers callbacks owned by the mounted directory controls. Opening a menu calls the same `revealChildren` path as hover/accessibility; selecting a child requires its real glass menu to be mounted, then follows the production selection/exit transaction before the chip title changes. Explicit close uses the accessibility close callback; pointer exit retains its delayed dismissal. Filter-bar scrolling uses the mounted SwiftUI scroll view. A retiring registration cannot remove another view's callbacks.
+
+Runtime `state:load` supplies scope/membership facts independently of mounted card
+identities, placement cells and camera bounds. Overview exposes no tag CRUD or
+multi-selection controls. The PBT target does not exercise the interaction driver.
+
+The generated geometry and mounted-state input domains, assertions and runnable
+commands are defined in [Property boundaries](#property-boundaries).
+
+The [performance tools](../../../../../tools/verification/overview-performance/README.md)
 measure internal CPU paths; the [external benchmark](../../../../../tools/benchmarks/README.md)
 observes fixed-count app rendering with explicit measurement limits.
 
@@ -361,8 +368,8 @@ cards cannot supply that destination. Preparation is cancelled with its route;
 replacement, focus loss, disconnect/recovery and direct returns cannot let an old
 waiter close a newer visit. A reversal during opening uses the participating parent
 immediately. Hidden and foreground structural changes both resolve to the latest
-snapshot; omitted intermediate geometry is not replayed. No mounted hidden-
-Overview/return correctness replay is configured in this source tree.
+snapshot; omitted intermediate geometry is not replayed. These reading-panel
+lifecycle paths are outside the generated Overview property domain.
 
 Opening an Agent Thread captures its displayed card frame from the stable layout
 and live camera transform. The shared reading stack expands that shell into an
@@ -607,3 +614,43 @@ Member controls use the observable panel owner to admit drawing-time and invoked
 actions. The retained panel content must not infer admission from a captured
 card-local `showingMembers` State value: it can still hold the pre-opening value
 and leave archive disabled. Closing, inactive and removed-member guards remain.
+
+## Property boundaries
+
+**PBT-OVERVIEW-GEOMETRY** calls the production pure layout solver with 0–18
+unique product-ordered cards (1–3 columns, 1–2 rows), usable viewport widths
+240–2,600pt, heights 240–1,600pt, origins −400…400/−200…200pt and either no scale
+cap or an explicit cap 1…2.6. The [generated property](../../../Tests/Properties/NativeOverviewGeometryProperties.swift)
+checks exact membership/order/spans, finite positive nonoverlapping card frames
+with world gaps, bounds equal to the card union, bounded FitAll scale with its
+1× floor, centered projection and viewport containment when raw fit permits it.
+It independently enumerates largest-card regular grids to check the documented
+quality floor. Empty membership has no camera. No oracle calls the solver's
+placement/fit helpers. Failures shrink membership/spans/viewport while retaining
+the first violation and print seed plus minimized JSON. The generated positive
+viewport domain does not claim invalid-input, zero-viewport, large-collection,
+all-policy or global-optimality coverage.
+
+**PBT-OVERVIEW-STATE** mounts the production Canvas in a native SwiftUI window.
+[Generated traces](../../../Tests/Properties/NativeOverviewStateProperties.swift)
+have 18 attempts at insert/remove/footprint/resize/pause/visibility/manual/auto/
+content events, up to 1–2 column/row spans, 500–1,500 by 500–1,000pt sizes,
+manual scales 0.6…1.5 (production normalization still applies) and revisions 0–5.
+ID selection sorts the live set before seeded sampling. After releasing pause,
+hiding and manual ownership, the latest snapshot must settle within 3s: presented
+membership and rendered frame identities agree, card/camera projection differs
+by less than one physical pixel, and final scale matches the documented FitAll
+floor/cap formula. Events are submitted 4ms apart; this samples interleavings
+rather than enumerating all scheduler orders. A reduced trace is
+retained as property corpus. Failures print original/reduced event traces and
+only shrink to the same failure category. This checks mounted convergence, not
+physical gestures, captured appearance or frame pacing.
+
+Both properties live in the dedicated `MokuseiProperties` SwiftPM target; ordinary
+Swift tests are absent. `make pbt-native` runs geometry with explicit seed/case
+budgets. `make pbt-native-state` separately runs mounted convergence and requires
+macOS 26 with a WindowServer; missing display fails. Its 3s bound is a hang guard,
+not a user-experience latency threshold. Both write original/reduced JSON for
+failure replay and bound shrinking by elapsed time. These are scoped mathematical
+and state-convergence properties; interaction coverage belongs to e2e and
+experience measurements to benchmarks. See [PBT commands/evidence](../../../../../tools/verification/pbt/README.md).

@@ -246,5 +246,9 @@ See [Overview collection ownership](Sources/Host/Overview/README.md#viewed-appli
 and the [production fixture](../../demos/super-thread-carousel/README.md).
 
 Production targets build with `xcrun swift build --package-path app/macos`.
-The package has no test targets or test-support modules. `make check` retains
-production builds and static checks; it does not run tests.
+The package has one dedicated PBT target, `MokuseiProperties`, containing only
+Overview generated geometry/state properties and their minimal fixture support.
+`make pbt-native` runs geometry; `make pbt-native-state` opts into mounted state
+convergence. Run native checks serially; see the [Overview property contracts](Sources/Host/Overview/README.md#property-boundaries).
+There are no ordinary unit-test targets. `make check` runs static/build checks
+and PBT; see the [PBT guide](../../tools/verification/pbt/README.md).

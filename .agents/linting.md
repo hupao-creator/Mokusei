@@ -2,13 +2,16 @@
 
 `make check` runs Go formatting, architecture/import boundaries, static plugin
 registration, the external Harness JS allowlist, `go vet ./...`, `go build ./...`
-and the macOS Swift production build. `make lint` runs only the static checks;
+and the macOS Swift production build, followed by routine Go/native geometry PBT.
+`make lint` runs only the static checks;
 `make typecheck` runs the Go and Swift builds.
 
-In this source tree, no first-party test suites, native test targets,
-assertion replays or test-only fixture producers are configured. No PBT/e2e
-regression gate is configured. Ordinary unit tests are not a project boundary;
-do not add or restore them. Build success does not establish runtime behavior.
+The [property inventory](../tools/verification/pbt/README.md) declares generated
+checks and their module contracts. There are no ordinary example/table unit-test
+suites. Use `make pbt-go` for runtime properties, `make pbt-native` for geometry;
+mounted state and real-native system properties are explicit opt-ins. Build
+success does not establish runtime behavior, and a property pass certifies only
+its generated input domain. Run affected checks before considering wider budgets.
 
 Follow the [document-driven workflow](../AGENTS.md#文档驱动): read the owning guide,
 check its facts against implementation, document implemented behavior and
