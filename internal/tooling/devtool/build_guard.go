@@ -21,7 +21,7 @@ func needsBuildLease(args []string) bool {
 		return false
 	}
 	switch args[0] {
-	case "runtime", "build", "bundle", "dev", "fast", "install":
+	case "runtime", "build", "bundle", "alpha", "dev", "fast", "install":
 		return true
 	}
 	return false

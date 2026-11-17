@@ -2,7 +2,7 @@ GO ?= ./scripts/go.sh
 DEV = $(GO) run ./cmd/mokusei-dev
 ARGS ?=
 
-.PHONY: runtime build dev fast watch-main pack dist smoke install open lint typecheck check install-hooks
+.PHONY: runtime build dev fast watch-main pack dist alpha smoke install open lint typecheck check install-hooks
 runtime:
 	$(DEV) runtime
 build:
@@ -17,6 +17,8 @@ pack:
 	$(DEV) bundle $(ARGS)
 dist:
 	$(DEV) bundle --zip $(ARGS)
+alpha:
+	$(DEV) alpha $(ARGS)
 smoke:
 	$(DEV) smoke $(ARGS)
 install:

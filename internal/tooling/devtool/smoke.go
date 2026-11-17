@@ -21,12 +21,12 @@ func Smoke(ctx context.Context, repo, application, channel, report string) error
 	if err != nil {
 		return err
 	}
-	signature, err := VerifySignature(ctx, application, product.BundleIdentifier, "")
+	signature, err := verifySignature(ctx, application, product.BundleIdentifier, "", product.Channel == "alpha")
 	if err != nil {
 		return err
 	}
 	binary := filepath.Join(application, "Contents/MacOS/mokusei-runtime")
-	runtimeSignature, err := VerifySignature(ctx, binary, product.BundleIdentifier+".runtime", signature.Team)
+	runtimeSignature, err := verifySignature(ctx, binary, product.BundleIdentifier+".runtime", signature.Team, product.Channel == "alpha")
 	if err != nil {
 		return err
 	}

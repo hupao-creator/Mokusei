@@ -26,6 +26,8 @@ func ProductConfiguration(channel string) (Product, error) {
 		return Product{channel, "com.mokusei.native.dev", "Mokusei Native Dev.app", "Mokusei Native Dev", "Mokusei Native Dev"}, nil
 	case "production":
 		return Product{channel, "com.mokusei.desktop", "Mokusei.app", "Mokusei", "Mokusei"}, nil
+	case "alpha":
+		return Product{channel, "com.mokusei.desktop.alpha", "Mokusei Alpha.app", "Mokusei Alpha", "Mokusei Alpha"}, nil
 	default:
 		return Product{}, fmt.Errorf("unknown application channel %q", channel)
 	}
