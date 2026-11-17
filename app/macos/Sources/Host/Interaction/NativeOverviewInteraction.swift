@@ -145,10 +145,10 @@ extension NativeWorkspacePresentation {
             // the production camera defers fitting until that pause ends.
             if canvas.camera.isInitialized { result.append("overview.auto") }
             if overview.error != nil || canvas.layoutError != nil { result.append("overview.retry") }
-            if !overview.isSearching, !overview.chromeInteractions.mountedDirectoryIDs.isEmpty {
+            if !overview.chromeInteractions.mountedDirectoryIDs.isEmpty {
                 result += ["overview.directory.open", "overview.directory.close", "overview.directory.select"]
             }
-            if !overview.isSearching, overview.chromeInteractions.canScroll { result.append("overview.filters.scroll") }
+            if overview.chromeInteractions.canScroll { result.append("overview.filters.scroll") }
             if canToggleMokuNote { result.append("moku.note.toggle") }
         }
         if scene.dockRouteVisible, !scene.disabled, !scene.dockCovered { result.append("moku.input.toggle") }

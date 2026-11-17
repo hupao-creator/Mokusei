@@ -115,7 +115,6 @@ def main():
              "NativeBrowserViewportTests" if "--browser-viewport" in sys.argv else
              "NativeComposerContrastTests" if "--composer-contrast" in sys.argv else
              "NativeHarnessFormTests" if "--harness-forms" in sys.argv else
-             "NativeOverviewSearchTests" if "--overview-search" in sys.argv else
              "NativeOverviewMountingIntegrationTests" if "--overview-mounting" in sys.argv else
              "NativeReportNavigationTests" if "--report-navigation" in sys.argv or "--report-controls" in sys.argv else
              "NativeSettingsTransitionTests" if "--settings-transition" in sys.argv else
@@ -214,8 +213,6 @@ def main():
         if "--thread-sidebar" in sys.argv:
             environment["MOKUSEI_SIDEBAR_ARTIFACTS"] = str(replay.workspace / "evidence")
             environment["MOKUSEI_CLAUDE_TIMELINE_FIXTURE"] = str(repo / "internal/plugins/harness/claude/testdata/thread-reader.golden.json")
-        if "--overview-search" in sys.argv:
-            environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
         if tag_glass:
             environment.setdefault("MOKUSEI_TAG_SWITCH_ARTIFACTS", str(replay.workspace / "evidence/switch"))
             environment.setdefault("MOKUSEI_TAG_MORPH_ARTIFACTS", str(replay.workspace / "evidence/morph"))
@@ -299,7 +296,6 @@ def main():
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
-             16 if "--overview-search" in sys.argv else
              10 if "--moku-landing" in sys.argv else
              12 if thread_send else
              11 if "--overview-mounting" in sys.argv else

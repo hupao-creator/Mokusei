@@ -19,7 +19,7 @@ requirements are in the [production runner](../verification/overview-interaction
 | `moku.history.toggle` | none | Existing Moku history command |
 | `moku.note.toggle` | none | Existing Moku Note command and its route admission |
 
-`search.begin/update/end`, `thread.open`, `navigation.back` and Settings navigation
+`thread.open`, `navigation.back` and Settings navigation
 remain available through the shared protocol. Missing/stale directory controls
 are rejected; selecting a child before its menu mounts is `unavailable`. Callers
 should first scroll a clipped directory into view, open it, then observe its ID in
@@ -71,26 +71,10 @@ then closes Compose and waits for the fit to apply.
 | Directory tags | Ordinary paths, same basename in different parents, nested independent scopes, Unicode/spaces, symlink canonicalization, real Git linked-worktree folding, temporary-workspace Inbox suppression |
 | Semantic tags | Parent/child membership, same tag name in different scopes, single-member tags, separate tags with equal membership, count and archive exclusion |
 | Directory glass menu | Filter-bar scroll, actual menu mounting/opening, every child callback, selection-driven close/reopen, explicit close, closed-menu and wrong-child rejection |
-| Search | Empty/nonempty/Unicode/no-match queries, global eligible results for nonempty queries, selected-scope browsing for empty queries and clear/exit, manual camera restoration; Runtime keyword mode |
 | Canvas | Pan, zoom/clamping, return to automatic view, deferred fit while Compose is open, finite transforms, declared zoom bounds, actual mounted cards, stable non-overlapping placement cells |
 | Cards/navigation | Open each seeded conversation and return; retained Overview state |
 | Moku Dock | Compose open/close, history open/close, note open/close, route guards |
 | Persistence | Independent public Runtime metadata before/during/after browsing; no unintended durable thread edits |
-
-Current Overview has no tag create/bind/rename/remove controls, card multi-select,
-pin/rename/archive context menu, layout-mode chooser, or manual search-mode
-selector. Directory tags are derived from working directories. Runtime search
-is keyword-only; nonempty queries use the global eligible catalog independently
-of the browsing tag. Settings has no archive-restoration section. These absent
-controls are not reported as tested features.
-
-The `overview_chaos.py` membership oracle and `alpha` smoke sequence now require
-matches from both same-name directories for a nonempty query, in line with
-[Overview](../../app/macos/Sources/Host/Overview/README.md#search-results).
-Empty queries and search exit retain exact selected-scope membership checks.
-The driver's conditional non-keyword branch is retained diagnostic logic;
-current Runtime reports keyword mode. This source review does not certify a
-passing graphical run on the integrated revision.
 
 Task dispatch, interrupting real work, permission responses, credential changes,
 installation, microphone/voice calls, attachment imports, OS directory/file

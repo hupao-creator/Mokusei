@@ -806,9 +806,6 @@ struct NativeMokuLandingTests {
             #expect(!fixture.moku.landing && fixture.overview.globalConversationCount == 2)
             let directory = try #require(fixture.overview.filters.first { $0.isDirectory })
             fixture.overview.selectTag(directory)
-            fixture.overview.beginSearch(); fixture.overview.updateSearch("unmatched-keyword")
-            #expect(fixture.overview.items.isEmpty && fixture.overview.globalConversationCount == 2 && !fixture.moku.landing)
-            fixture.overview.endSearch()
             try await fixture.install([fixture.thread(archived: true), fixture.thread("second", archived: true)],
                 operations: [dispatch(completed: true, ok: true)])
             try await SwiftUIReplay.wait { fixture.moku.landing && fixture.scene.talkPresentation.presented }

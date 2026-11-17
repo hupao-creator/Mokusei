@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestSearchTextPublicCompletedOnly(t *testing.T) {
+func TestSearchPassagesPublicCompletedOnly(t *testing.T) {
 	state := EmptyState(1)
 	state, err := StageExecutionChecked(state, "internal", Map{"presentation": "internal", "parts": []any{Map{"kind": "text", "text": "PRIVATE_INTERNAL"}}}, 2, Map{})
 	if err != nil {
@@ -32,14 +32,18 @@ func TestSearchTextPublicCompletedOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	adapter := sessionStateAdapter{}
-	text, err := adapter.SearchText(raw)
+	passages, err := adapter.SearchPassages(raw)
 	if err != nil {
 		t.Fatal(err)
+	}
+	var text string
+	for _, passage := range passages {
+		text += passage.Text + "\n"
 	}
 	if !strings.Contains(text, "公开内容") || strings.Contains(text, "PRIVATE") {
 		t.Fatalf("search content: %q", text)
 	}
-	if _, err := adapter.SearchText(json.RawMessage(`{`)); err == nil {
+	if _, err := adapter.SearchPassages(json.RawMessage(`{`)); err == nil {
 		t.Fatal("malformed state accepted")
 	}
 }

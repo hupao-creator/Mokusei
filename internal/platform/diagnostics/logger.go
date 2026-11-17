@@ -15,8 +15,6 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
-
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
 const maxFileBytes int64 = 8 * 1024 * 1024
@@ -370,37 +368,4 @@ func settingsIssues(value any) []map[string]any {
 		out = append(out, map[string]any{"code": code, "path": path})
 	}
 	return out
-}
-
-// SearchEvent writes bounded, typed metadata through the existing rotation owner.
-func (l *Logger) SearchEvent(event plugin.SearchDiagnostic) {
-	switch event.Event {
-	case "search.query.started", "search.query.completed",
-		"search.index.started", "search.index.completed":
-	default:
-		return
-	}
-	// Only allow known labels, even if an injected adapter supplies an unsafe error.
-	if !settingsOperation.MatchString(event.OperationID) {
-		event.OperationID = ""
-	}
-	if !settingsIn(event.Kind, "query index") {
-		event.Kind = ""
-	}
-	if !settingsIn(event.Outcome, "completed failed fallback") {
-		event.Outcome = ""
-	}
-	if !settingsIn(event.Cache, "none hit miss") {
-		event.Cache = ""
-	}
-	if event.Reason != "" && !settingsIn(event.Reason, "cancelled timeout internal query-limit paused disabled stale") {
-		event.Reason = "internal"
-	}
-	data, err := json.Marshal(struct {
-		At string `json:"at"`
-		plugin.SearchDiagnostic
-	}{time.Now().UTC().Format(time.RFC3339Nano), event})
-	if err == nil {
-		l.write(data)
-	}
 }

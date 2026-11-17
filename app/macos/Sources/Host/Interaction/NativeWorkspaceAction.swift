@@ -16,7 +16,7 @@ public enum NativeWorkspaceAction: Sendable {
     case settingsControl(id: String, handle: String, operation: String, value: JSONValue)
     case readingControl(id: String, handle: String, operation: String, value: JSONValue)
     case showOverview, back, openThread(ApplicationThreadRef)
-    case beginSearch, updateSearch(String), endSearch, selectFilter(String?)
+    case selectFilter(String?)
     case overviewPan(x: Double, y: Double), overviewZoom(delta: Double, x: Double, y: Double), overviewAuto, overviewRetry
     case overviewDirectoryOpen(String), overviewDirectoryClose(String), overviewDirectorySelect(directory: String, filter: String)
     case overviewScrollFilter(String)
@@ -32,9 +32,6 @@ public enum NativeWorkspaceAction: Sendable {
         case .showOverview: "overview.show"
         case .back: "navigation.back"
         case .openThread: "thread.open"
-        case .beginSearch: "search.begin"
-        case .updateSearch: "search.update"
-        case .endSearch: "search.end"
         case .selectFilter: "filter.select"
         case .overviewPan: "overview.pan"
         case .overviewZoom: "overview.zoom"
@@ -60,15 +57,15 @@ public enum NativeWorkspaceAction: Sendable {
                 throw NativeInteractionError("invalid_request", "Unexpected or missing action fields")
             }
         }
-        func text(_ key: String, maximum: Int = 4096, empty: Bool = false) throws -> JSONText {
+        func text(_ key: String, maximum: Int = 4096) throws -> JSONText {
             guard case .string(let value) = json[key], value.codeUnits.count <= maximum,
-                  empty || !value.codeUnits.isEmpty else {
+                  !value.codeUnits.isEmpty else {
                 throw NativeInteractionError("invalid_request", "Invalid action field: \(key)")
             }
             return value
         }
-        func string(_ key: String, empty: Bool = false) throws -> String {
-            let value = try text(key, empty: empty)
+        func string(_ key: String) throws -> String {
+            let value = try text(key)
             guard JSONText(value.string) == value else {
                 throw NativeInteractionError("invalid_request", "Invalid Unicode in \(key)")
             }
@@ -97,9 +94,6 @@ public enum NativeWorkspaceAction: Sendable {
         case "thread.open":
             try fields(["threadId", "typeId"])
             self = .openThread(try ApplicationThreadRef(threadID: text("threadId"), typeID: text("typeId")))
-        case "search.begin": try fields([]); self = .beginSearch
-        case "search.update": try fields(["query"]); self = .updateSearch(try string("query", empty: true))
-        case "search.end": try fields([]); self = .endSearch
         case "filter.select":
             try fields(["filterId"])
             self = .selectFilter(json["filterId"] == .null ? nil : try string("filterId"))

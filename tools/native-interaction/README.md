@@ -54,9 +54,6 @@ Unknown/missing fields and invalid argument types are rejected.
 | `overview.show` | none | Another page open; closes Settings through its gate |
 | `navigation.back` | none | Current page's back action; respects nested reading |
 | `thread.open` | `threadId`, `typeId` | Target in the current Overview snapshot |
-| `search.begin` | none | Overview with search closed |
-| `search.update` | `query` | Search open; empty query is supported |
-| `search.end` | none | Search open |
 | `filter.select` | `filterId` | Overview; null selects All |
 
 Navigation text arguments are bounded to 4096 UTF-16 units. Settings text controls
@@ -65,14 +62,14 @@ exercised. Send UTF-8 directly rather than expanding every character to a JSON e
 `actions`, `settingsSections`, `filters` and `threads`. Never derive filter IDs
 from labels. Availability can change between observation and dispatch.
 
-Snapshot also includes `page`, `selectedThread`, `settingsSection`, `search`,
+Snapshot also includes `page`, `selectedThread`, `settingsSection`,
 `selectedFilterId`, `mounted`, `transitioning`, `runtimeAvailable`,
 `settingsSaving`, `settingsCloseBlocked` and `errors`. During startup/reload it
 can be null. Settings/thread mounting is observed from the production page.
 An immediate reply describes accepted intent, not a completed frame. Poll the
 desired postcondition over repeated observations with `mounted: true` and
 `transitioning: false`. This does not promise that every decorative animation,
-search worker or settings save has finished; those facts remain separate.
+settings save has finished; those facts remain separate.
 
 ## Chaos and trace replay
 
@@ -104,9 +101,9 @@ therefore leaves the last attempted action. Replay skips confirmed stale
 rejections and submits the remaining recorded actions and expected error codes,
 including an action whose response was lost; it does not retry an uncertain
 action in the original session. Restore the same fixture,
-IDs and initial page/search/filter state before replay. Seeds reproduce choices
+IDs and initial page/filter state before replay. Seeds reproduce choices
 only under the same observed state; traces preserve the actual chosen sequence.
-The navigation runner covers reading, search and filtering. The Settings runner
+The navigation runner covers reading and filtering. The Settings runner
 below exercises actual form controls. Neither runner sends model tasks or tests
 physical pointer/gesture fidelity.
 

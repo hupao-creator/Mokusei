@@ -8,7 +8,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 	"sort"
 )
 
@@ -22,7 +21,6 @@ func (r *Runtime) projectSnapshot(snap store.Snapshot) (model.AppState, error) {
 		return model.AppState{}, err
 	}
 	state := model.AppState{Revision: int64(snap.Revision()), DefaultCwd: r.config.DefaultCwd, Threads: threads, Executions: []model.MokuExecution{}, AgentRuns: []model.AgentRun{}, ApplicationThreads: []model.ApplicationThread{}, TagRedirects: map[string]*string{}, Plugins: append([]model.RuntimePlugin{}, r.config.Plugins...)}
-	state.SearchRevision = threadsearch.Revision(snap)
 	if _, err = snap.Get("settings", &state.Settings); err != nil {
 		return state, err
 	}
@@ -230,7 +228,7 @@ func (r *Runtime) publishActivity(threadID, harnessID string, activity model.Har
 	}
 }
 func emptyMutation(m model.StateMutation) bool {
-	return m.Threads == nil && m.ApplicationThreads == nil && m.DefaultCwd == nil && m.Executions == nil && m.AgentRuns == nil && m.TagRedirects == nil && m.Settings == nil && m.SettingsRevision == nil && m.SearchRevision == nil && m.Plugins == nil && len(m.Activities) == 0
+	return m.Threads == nil && m.ApplicationThreads == nil && m.DefaultCwd == nil && m.Executions == nil && m.AgentRuns == nil && m.TagRedirects == nil && m.Settings == nil && m.SettingsRevision == nil && m.Plugins == nil && len(m.Activities) == 0
 }
 func same(a, b any) bool {
 	left, e := json.Marshal(a)

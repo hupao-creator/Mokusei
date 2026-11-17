@@ -64,7 +64,7 @@ struct NativeOverviewMembershipTests {
         #expect(model.error == nil)
     }
 
-    @Test func streamingKeepsMembershipButAlwaysUsesCurrentCardAndSearchContent() async throws {
+    @Test func streamingKeepsMembershipButAlwaysUsesCurrentCard() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let model = try model(directory), authority = UUID()
@@ -80,9 +80,6 @@ struct NativeOverviewMembershipTests {
         let item = try #require(model.items.first { $0.id == "a" })
         guard case .harness(let snapshot) = model.snapshot(for: item) else { Issue.record("Missing card"); return }
         #expect(snapshot.input.thread.title == "Updated 10" && item.completed)
-        model.beginSearch(); model.updateSearch("Updated 10")
-        #expect(model.items.map(\.id) == ["a"])
-        model.endSearch()
         #expect(model.items.map(\.id) == ["a", "b"])
         #expect(model.membershipBuildCount == builds)
         await model.stop(); await model.workspace.client.close()

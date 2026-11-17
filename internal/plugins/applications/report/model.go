@@ -299,13 +299,7 @@ func summarize(record model.VersionedRecord, value Data) Summary {
 var hiddenTags = map[string]bool{"head": true, "script": true, "style": true, "template": true, "noscript": true, "svg": true}
 
 // HTMLPreview parses static reader text without executing or rewriting the document.
-func HTMLPreview(source, title string) string { return htmlReaderText(source, title, MaxPreviewLength) }
-
-// HTMLSearchText shares the reader-text projection, without the card's
-// excerpt truncation. It never executes script, reads files or loads resources.
-func HTMLSearchText(source string) string { return htmlReaderText(source, "", 0) }
-
-func htmlReaderText(source, title string, limit int) string {
+func HTMLPreview(source, title string) string {
 	var visible strings.Builder
 	// The tree builder owns namespace changes, HTML integration points and
 	// raw-text/RCDATA state. A tokenizer alone treats SVG <style/> as an
@@ -343,8 +337,8 @@ func htmlReaderText(source, title string, limit int) string {
 		}
 	}
 	characters := []rune(text)
-	if limit > 0 && len(characters) > limit {
-		return strings.TrimRightFunc(string(characters[:limit-1]), unicode.IsSpace) + "…"
+	if len(characters) > MaxPreviewLength {
+		return strings.TrimRightFunc(string(characters[:MaxPreviewLength-1]), unicode.IsSpace) + "…"
 	}
 	return text
 }

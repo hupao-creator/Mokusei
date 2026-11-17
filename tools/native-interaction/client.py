@@ -13,8 +13,7 @@ import uuid
 # page action must not accidentally become a parameterless navigation candidate.
 NAVIGATION_ACTIONS = frozenset({
     "settings.open", "settings.close", "settings.select", "overview.show",
-    "navigation.back", "thread.open", "search.begin", "search.update",
-    "search.end", "filter.select",
+    "navigation.back", "thread.open", "filter.select",
 })
 
 
@@ -70,7 +69,7 @@ class Client:
             state = self.snapshot()
             # Require repeated observations across UI updates: an immediate reply
             # may precede SwiftUI installing its animation or page lifecycle.
-            key = (state["page"], state["settingsSection"], state["selectedThread"], state["search"], state["selectedFilterId"])
+            key = (state["page"], state["settingsSection"], state["selectedThread"], state["selectedFilterId"])
             if state["mounted"] and not state["transitioning"] and predicate(state):
                 if key != previous:
                     stable_since = time.monotonic()
@@ -110,12 +109,6 @@ def postcondition(action, before):
     if name == "thread.open":
         ref = {key: action[key] for key in ("typeId", "threadId")}
         return lambda state: state["page"] == "thread" and state["selectedThread"] == ref and "navigation.back" in state["actions"]
-    if name == "search.begin":
-        return lambda state: state["search"]["active"]
-    if name == "search.update":
-        return lambda state: state["search"]["query"] == action["query"]
-    if name == "search.end":
-        return lambda state: not state["search"]["active"] and state["search"]["query"] == ""
     if name == "filter.select":
         return lambda state: state["selectedFilterId"] == action["filterId"]
     return lambda state: True
@@ -199,8 +192,6 @@ def candidates(state):
             result.extend({"name": name, **ref} for ref in state["threads"])
         elif name == "filter.select":
             result.extend({"name": name, "filterId": value} for value in [None] + [f["id"] for f in state["filters"]])
-        elif name == "search.update":
-            result.extend({"name": name, "query": text} for text in ("", "replay", "不存在", "settings", "🙂"))
         else:
             result.append({"name": name})
     return sorted(result, key=lambda action: json.dumps(action, sort_keys=True))

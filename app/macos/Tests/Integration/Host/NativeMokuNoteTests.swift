@@ -303,10 +303,6 @@ struct NativeMokuNoteTests {
         #expect(!state.notePanelOpen)
         state.setMokuOpen(false)
         state.setNotePanelOpen(true)
-        state.setSearchActive(true)
-        #expect(!state.notePanelOpen)
-        state.setSearchActive(false)
-        state.setNotePanelOpen(true)
         state.overviewVisible = false
         #expect(!state.notePanelOpen)
     }

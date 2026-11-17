@@ -11,7 +11,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 )
 
 func (r *Runtime) initializePublication() error {
@@ -179,10 +178,6 @@ func (r *Runtime) projectMutation(snapshot store.Snapshot) (model.AppState, mode
 		if next.SettingsRevision != r.baseline.SettingsRevision {
 			mutation.SettingsRevision = &next.SettingsRevision
 		}
-	}
-	next.SearchRevision = threadsearch.Revision(snapshot)
-	if next.SearchRevision != r.baseline.SearchRevision {
-		mutation.SearchRevision = &next.SearchRevision
 	}
 	if keys := snapshot.ChangedKeys(previous, "tag-redirects:"); len(keys) > 0 {
 		next.TagRedirects = make(map[string]*string, len(r.baseline.TagRedirects))

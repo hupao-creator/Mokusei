@@ -7,11 +7,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-func (a sessionStateAdapter) SearchText(raw json.RawMessage) (string, error) {
-	passages, err := a.SearchPassages(raw)
-	return plugin.JoinSearchPassages(passages), err
-}
-
 func (sessionStateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage, error) {
 	state, err := stDecodeRaw(raw)
 	if err != nil {

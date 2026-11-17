@@ -80,7 +80,6 @@ public final class NativeOverviewCanvasState {
     @ObservationIgnored fileprivate var activationCheck: ((String) -> Bool)?
     fileprivate var preparationRequest: UInt64 = 0
     @ObservationIgnored fileprivate var completedPreparation: UInt64 = 0
-    @ObservationIgnored var pendingSearchCameraRestoration: (sceneKey: String, view: NativeOverviewCameraState)?
 
     public init(memory: NativeOverviewCameraMemory = .init(), motionStages: NativeOverviewStageCoordinator = .init()) {
         self.memory = memory
@@ -617,7 +616,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
         let boxes = Dictionary(geometry.placements.map { ($0.id, $0.cardFrame) },
                                uniquingKeysWith: { first, _ in first })
         // A scene change with no visible survivor is a fresh framing request.
-        // This keeps a new search/filter collection visible even when the old
+        // This keeps a new filter collection visible even when the old
         // scene was manually panned offscreen. Visible survivors keep manual
         // ownership; automatic survivors fit the new collection.
         let sampledCamera = state.camera.liveTransform
@@ -783,16 +782,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
         } else {
             state.camera.applyGeometry(content: contentRect, viewport: viewport, automatic: automatic)
-        }
-        if let restore = state.pendingSearchCameraRestoration, restore.sceneKey == sceneKey {
-            state.pendingSearchCameraRestoration = nil
-            if filterTransition && !restore.view.manual {
-                // Automatic bookmarks converge to this collection's FitAll.
-                // Manual bookmarks keep their exact transform and ownership.
-                state.camera.cutTo(content: contentRect, viewport: viewport)
-            } else {
-                state.camera.restore(view: restore.view, content: contentRect, viewport: viewport)
-            }
         }
     }
 
@@ -972,7 +961,7 @@ private struct OverviewCameraAnimation: CustomAnimation {
     }
 }
 
-/// SwiftUI can restore keyboard focus to the focusable card when search exits.
+/// SwiftUI can restore keyboard focus to the focusable card when a covering surface closes.
 /// That identifies a card, not an editing session. Only its live editable native
 /// responder owns the input pause; a card/button focus must not defer auto-fit.
 private struct OverviewEditingFocusObserver: NSViewRepresentable {

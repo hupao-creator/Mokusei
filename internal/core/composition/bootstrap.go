@@ -42,7 +42,6 @@ type Options struct {
 	Headless      bool
 	Log           func(string, error)
 	SettingsTrace func(string, model.Object)
-	SearchTrace   func(plugin.SearchDiagnostic)
 	ToolTrace     func(plugin.ToolInvocation) error
 	Overview      *transport.OverviewBroker
 }
@@ -174,7 +173,6 @@ func (b *Bootstrap) open(ctx context.Context) error {
 			return err
 		}
 	}
-	removeLegacyEmbeddingArtifacts(stateRoot, b.log)
 	defaultCwd, err := filepath.EvalSymlinks(workspace)
 	if err != nil {
 		return err
@@ -279,7 +277,6 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	runtimeConfig := core.Config{Store: b.store, Harnesses: b.harnesses, DataDir: stateRoot, DefaultCwd: defaultCwd, Attachments: b.attachments, Contexts: b.contexts, Plugins: catalog, Log: b.log, Workspaces: manager, DisabledHarnesses: b.disabled, RefreshEnvironment: b.resolver.Refresh, ExtraCapabilities: map[string]any{plugin.OverviewControlCapabilityKey.ID: overviewControl{broker: b.options.Overview}}}
 	runtimeConfig.TelemetryLedger = b.ledger
 	runtimeConfig.SettingsTrace = b.options.SettingsTrace
-	runtimeConfig.SearchTrace = b.options.SearchTrace
 	runtimeConfig.ToolTrace = b.options.ToolTrace
 	runtimeConfig.ProcessFactory = b.processes.ForCwd
 	runtimeConfig.Diagnostic = b.publishDiagnostic

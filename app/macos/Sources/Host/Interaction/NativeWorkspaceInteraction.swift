@@ -51,7 +51,6 @@ public extension NativeWorkspacePresentation {
         var actions: [String] = canOpenSettings ? ["settings.open"] : []
         if interactionPage == "overview" {
             actions += ["filter.select"]
-            actions += overview.isSearching ? ["search.update", "search.end"] : ["search.begin"]
             if !interactionThreads.isEmpty { actions += ["thread.open"] }
         } else {
             actions += ["overview.show"]
@@ -96,8 +95,6 @@ public extension NativeWorkspacePresentation {
             "settings": settings,
             "settingsCloseBlocked": settingsNavigation.closeBlockReason(model: workspace.settingsModel).map(JSONValue.text) ?? .null,
             "settingsSaving": .bool(workspace.settingsModel.draft.status == .saving || workspace.settingsModel.draft.status == .pending),
-            "search": .object(["active": .bool(overview.isSearching), "query": .text(overview.searchQuery),
-                "indexing": .bool(overview.searchIndexing)]),
             "selectedFilterId": overview.selectedFilter.map { .text($0.id) } ?? .null,
             "filters": .array(interactionFilters.sorted { $0.id < $1.id }.map {
                 .object(["id": .text($0.id), "label": .text($0.displayTag), "count": .integer($0.count)])
@@ -159,9 +156,6 @@ public extension NativeWorkspacePresentation {
                 throw NativeInteractionError("not_found", "Thread is not in the current Overview")
             }
             open(ref)
-        case .beginSearch: overview.beginSearch()
-        case .updateSearch(let query): overview.updateSearch(query)
-        case .endSearch: overview.endSearch()
         case .selectFilter(let id):
             let filter = id.flatMap { id in interactionFilters.first { $0.id == id } }
             guard id == nil || filter != nil else { throw NativeInteractionError("not_found", "Filter is unavailable") }

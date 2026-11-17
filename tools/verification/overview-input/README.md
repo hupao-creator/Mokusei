@@ -46,8 +46,6 @@ The automatic replay verifies:
 
 - Initial framing and empty-scene reentry.
 - Manual camera persistence and stable card identity across membership changes.
-- Search camera bookmark restoration after automatic result framing, including
-  a surviving visible result, empty results and the delayed refit window.
 - Card growth and shrinkage using actual SwiftUI geometry.
 - Historical filter entry scale and 12-point screen-space rise, compact filter
   packing with stable shared visible cards and camera framing, rapid filter
@@ -80,7 +78,7 @@ Select affected integration checks under the [verification policy](../../../scri
 for example:
 
 ```sh
-MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY=1 xcrun swift test --package-path app/macos \
+xcrun swift test --package-path app/macos \
   --no-parallel --filter 'NativeOverview|NativeReadingPageHeadless|NativeReadingRouteLifecycle|NativeMoku|NativeComposer|SwiftUIOverviewInteraction|NativeHTMLGeometry|NativePerformanceCache|NativeWindowControlPlacement'
 ./scripts/go.sh run -race ./tools/verification/runtime-helpers --swift-shutdown
 ```

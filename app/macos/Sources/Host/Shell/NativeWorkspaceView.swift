@@ -880,9 +880,6 @@ public struct NativeWorkspaceView: View {
             if value { presentation.openSettings() }
             else if presentation.scene.settingsOpen { presentation.scene.closeSettings() }
         }
-        .onChange(of: presentation.overview.isSearching) { _, value in
-            presentation.scene.setSearchActive(value)
-        }
         .onChange(of: model.preferences.appearance) { _, value in
             presentation.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
         }
@@ -1199,10 +1196,6 @@ public struct NativeWorkspaceCommands: Commands {
     private var locale: DesktopLocale { presentation?.workspace.preferences.locale ?? .chinese }
     public init() {}
     public var body: some Commands {
-        CommandGroup(after: .textEditing) {
-            Button(locale.text("搜索会话", "Find Conversations")) { presentation?.overview.beginSearch() }
-                .keyboardShortcut("f").disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.selected != nil || presentation?.scene.settingsOpen == true || presentation?.scene.mokuOpen == true)
-        }
         CommandGroup(after: .sidebar) {
             Button(locale.text("会话俯瞰", "Overview")) { presentation?.showOverview(focusFilter: true) }.keyboardShortcut("k")
                 .disabled(presentation?.onboarding.blocksWorkspace == true)

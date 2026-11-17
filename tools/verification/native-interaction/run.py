@@ -95,7 +95,6 @@ def main():
         api.step(client, trace, {"name": "settings.open", "unexpected": True}, expected_error="invalid_request")
         api.step(client, trace, {"name": "settings.open"})
         api.step(client, trace, {"name": "settings.select", "section": "missing"}, expected_error="not_found")
-        api.step(client, trace, {"name": "search.begin"}, expected_error="unavailable")
         assert "archived" not in initial["settingsSections"] and "plugins" not in initial["settingsSections"]
         for removed in ("archived", "plugins"):
             api.step(client, trace, {"name": "settings.select", "section": removed}, expected_error="not_found")
@@ -111,10 +110,6 @@ def main():
             api.step(client, trace, {"name": "navigation.back"})
             client.settle(lambda state: state["page"] == "overview")
         api.step(client, trace, {"name": "thread.open", "threadId": "missing", "typeId": "agent"}, expected_error="not_found")
-        api.step(client, trace, {"name": "search.begin"})
-        api.step(client, trace, {"name": "search.update", "query": "不存在"})
-        assert client.snapshot()["threads"] == []
-        api.step(client, trace, {"name": "search.end"})
         for item in initial["filters"]:
             api.step(client, trace, {"name": "filter.select", "filterId": item["id"]})
         api.step(client, trace, {"name": "filter.select", "filterId": None})

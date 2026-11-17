@@ -60,12 +60,8 @@ func TestReportProjectionParserDepthBoundary(t *testing.T) {
 			if err := json.Unmarshal(projection.View, &view); err != nil {
 				t.Fatal(err)
 			}
-			search, err := registry.thread.SearchText(record)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if view.PreviewText != want || search != want {
-				t.Fatalf("preview=%q search=%q want=%q", view.PreviewText, search, want)
+			if view.PreviewText != want {
+				t.Fatalf("preview=%q want=%q", view.PreviewText, want)
 			}
 		})
 	}
@@ -82,17 +78,14 @@ func TestReportParserRecoveryKeepsHiddenContentHidden(t *testing.T) {
 		if _, err := htmlnode.Parse(strings.NewReader(source)); err == nil {
 			t.Fatal("fixture must exercise parser recovery")
 		}
-		if got := HTMLSearchText(source); got != "可见 α" {
-			t.Fatalf("search = %q", got)
-		}
 		if got := HTMLPreview(source, ""); got != "可见 α" {
 			t.Fatalf("preview = %q", got)
 		}
 	}
 	// No trustworthy visible prefix: leave the projection empty, never expose
 	// raw markup or guess the namespace/hidden state after the rejected region.
-	if got := HTMLSearchText(deep + "SECRET"); got != "" {
-		t.Fatalf("search = %q", got)
+	if got := HTMLPreview(deep+"SECRET", ""); got != "" {
+		t.Fatalf("preview = %q", got)
 	}
 }
 
@@ -102,9 +95,6 @@ func TestReportParserRecoveryPreviewAndInputLimits(t *testing.T) {
 	if got := HTMLPreview(source, ""); got != strings.Repeat("文", MaxPreviewLength-1)+"…" {
 		t.Fatalf("preview = %q", got)
 	}
-	if got := HTMLSearchText(source); got != prefix {
-		t.Fatalf("search length = %d", utf8.RuneCountInString(got))
-	}
 	if got := HTMLPreview(source, prefix); got != "" {
 		t.Fatalf("title stripping = %q", got)
 	}
@@ -113,9 +103,6 @@ func TestReportParserRecoveryPreviewAndInputLimits(t *testing.T) {
 	source = strings.Repeat("x", MaxHTMLCharacters-3000) + strings.Repeat("<div>", 600)
 	if _, err := ParseHTML(source); err != nil {
 		t.Fatal(err)
-	}
-	if got := HTMLSearchText(source); got != strings.Repeat("x", MaxHTMLCharacters-3000) {
-		t.Fatalf("search length = %d", len(got))
 	}
 	if _, err := ParseHTML(source + "x"); err == nil {
 		t.Fatal("accepted oversized source")
@@ -140,12 +127,8 @@ func FuzzReportHTMLProjections(f *testing.F) {
 			t.Skip()
 		}
 		preview := HTMLPreview(source, "")
-		search := HTMLSearchText(source)
 		if utf8.RuneCountInString(preview) > MaxPreviewLength {
 			t.Fatal("oversized preview")
-		}
-		if utf8.RuneCountInString(search) <= MaxPreviewLength && preview != search {
-			t.Fatal("short projections disagree")
 		}
 	})
 }

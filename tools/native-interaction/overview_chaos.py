@@ -1,4 +1,4 @@
-"""Real production Overview controls with scoped browsing, global search and geometry oracles."""
+"""Real production Overview controls with scoped browsing and geometry oracles."""
 import argparse
 from collections import Counter
 import json
@@ -118,13 +118,8 @@ class Driver:
                 assert self.members(child) <= self.members(item), "Child tag escaped directory scope"
         selected = next((item for item in flat if item["id"] == state["selectedFilterId"]), None)
         actual = {card["id"] for card in overview["cards"]}
-        active_query = state["search"]["active"] and bool(state["search"]["query"].strip())
-        # Nonempty queries search all eligible records; the selected filter
-        # still owns browsing membership when the query is cleared or closed.
-        allowed = self.members(None if active_query else selected)
-        assert actual <= allowed, f"Cards escaped {'global search catalog' if active_query else 'current scope'}: {actual - allowed}"
-        if not active_query:
-            assert actual == allowed, f"Missing scoped cards: {allowed - actual}"
+        allowed = self.members(selected)
+        assert actual == allowed, f"Scoped cards differ: {actual ^ allowed}"
         if not overview["layingOut"] and overview["stage"] is None:
             placements = overview["placements"]
             assert {placement["id"] for placement in placements} == actual, "Settled layout membership differs from visible cards"
@@ -140,8 +135,6 @@ class Driver:
         assert all(math.isfinite(camera[field]) for field in ("x", "y", "scale")), "Nonfinite camera transform"
         if camera["initialized"]:
             assert camera["scale"] > 0 and camera["scale"] <= camera["maximumScale"] + 1e-6, "Camera escaped automatic/manual zoom bounds"
-        if state["search"]["active"]:
-            assert not overview["menu"]["mountedMenuIds"], "Directory submenu remained mounted over search"
 
     def settle(self, predicate=lambda state: True, timeout=20):
         def ready(state):
@@ -157,8 +150,7 @@ class Driver:
                                not camera["animating"] and not camera["motionPending"] and fit_ready and
                                {p["id"] for p in overview["placements"]} == {c["id"] for c in overview["cards"]} and
                                {c["id"] for c in overview["cards"]} <= set(overview["mountedCardIds"])))
-            menu_ready = not state["search"]["active"] or not overview["menu"]["mountedMenuIds"]
-            return geometry_ready and menu_ready and not overview["dock"]["inputLeaving"] and predicate(state)
+            return geometry_ready and not overview["dock"]["inputLeaving"] and predicate(state)
         state = self.client.settle(ready, timeout)
         self.check(state)
         return state
@@ -227,8 +219,6 @@ class Driver:
         state = self.client.snapshot()
         if state["page"] != "overview":
             self.action({"name": "overview.show"})
-        if self.client.snapshot()["search"]["active"]:
-            self.action({"name": "search.end"})
         state = self.settle()
         if state["overview"]["dock"]["inputOpen"]:
             self.action({"name": "moku.input.toggle"})
@@ -265,23 +255,6 @@ class Driver:
         self.coverage.update({"same-basename-scopes": 1, "symlink-scope": 1, "linked-worktree-scope": 1,
                               "nested-directory-scope": 1, "unicode-directory": 1, "temporary-inbox": 1,
                               "equal-membership-tags": 1, "archived-exclusion": 1})
-        self.action({"name": "filter.select", "filterId": left["id"]})
-        self.action({"name": "search.begin"})
-        results = self.action({"name": "search.update", "query": "alpha"})
-        assert "overview-leftalpha" in {card["id"] for card in results["overview"]["cards"]}
-        assert "overview-rightalpha" in {card["id"] for card in results["overview"]["cards"]}, "Global search excluded another same-name directory"
-        self.coverage["global-search"] += 1
-        self.action({"name": "search.end"})
-        self.reset()
-        self.action({"name": "overview.pan", "deltaX": 127, "deltaY": -81})
-        baseline = self.action({"name": "overview.zoom", "delta": -90, "x": 0.37, "y": 0.62})["overview"]["camera"]
-        self.action({"name": "search.begin"})
-        result = self.action({"name": "search.update", "query": "needleleftalpha"})
-        assert "overview-leftalpha" in {card["id"] for card in result["overview"]["cards"]}, "Keyword match disappeared"
-        result = self.action({"name": "search.end"})
-        restored = result["overview"]["camera"]
-        assert restored["manual"] and all(abs(restored[k] - baseline[k]) < 0.01 for k in ("x", "y", "scale")), "Search did not restore manual camera"
-        self.coverage["search-camera-restoration"] += 1
         self.action({"name": "overview.zoom", "delta": 1000, "x": 0.5, "y": 0.5})
         self.action({"name": "overview.zoom", "delta": -1000, "x": 0.5, "y": 0.5})
         self.action({"name": "overview.zoom", "delta": 0, "x": -0.1, "y": 0.5}, expected="invalid_request")
@@ -296,11 +269,6 @@ class Driver:
                               predicate=lambda s: not s["overview"]["dock"]["inputOpen"] and self.automatic_fit_applied(s))["overview"]["camera"]
         assert all(abs(resumed[k] - automatic[k]) < 0.01 for k in ("x", "y", "scale")), "Deferred automatic fit did not resume"
         self.coverage["deferred-auto-fit"] += 1
-        self.action({"name": "search.begin"})
-        result = self.action({"name": "search.update", "query": "absent-864bddb4-no-match"})
-        assert result["overview"]["cards"] == []
-        self.coverage["empty-result"] += 1
-        self.action({"name": "search.end"})
         for ref in self.client.snapshot()["threads"]:
             self.action({"name": "thread.open", **ref})
             self.action({"name": "navigation.back"}, predicate=lambda s: s["page"] == "overview")
@@ -321,12 +289,10 @@ class Driver:
                 choices = [{"name": "overview.show"}]
             else:
                 for name in state["actions"]:
-                    if name in ("search.begin", "search.end", "overview.auto", "moku.input.toggle", "moku.note.toggle", "moku.history.toggle"):
+                    if name in ("overview.auto", "moku.input.toggle", "moku.note.toggle", "moku.history.toggle"):
                         choices.append({"name": name})
                     elif name == "filter.select":
                         choices.extend({"name": name, "filterId": target} for target in [None] + [item["id"] for item in state["filters"]])
-                    elif name == "search.update":
-                        choices.extend({"name": name, "query": q} for q in ("", "alpha", "needleleftalpha", "共同标签", "absent-864bddb4-no-match", "🙂"))
                     elif name == "overview.pan":
                         choices.append({"name": name, "deltaX": rng.uniform(-250, 250), "deltaY": rng.uniform(-200, 200)})
                     elif name == "overview.zoom":

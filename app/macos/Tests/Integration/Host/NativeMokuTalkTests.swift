@@ -180,17 +180,6 @@ struct NativeMokuTalkTests {
         #expect(!restoration.shouldRestore)
     }
 
-    @Test func hiddenSceneConsumesPresentedButKeepsUnseenLatest() {
-        let state = NativeMokuSceneState()
-        state.receiveTalk(.init(id: "shown", text: "shown")); state.setTalkPresented(true)
-        state.setSearchActive(true)
-        #expect(state.talkPresentation.message == nil)
-        state.receiveTalk(.init(id: "pending", text: "new while hidden"))
-        state.setWindowVisible(false)
-        #expect(state.talkPresentation.message?.id == "pending")
-        state.setSearchActive(false); state.setWindowVisible(true)
-        #expect(state.talkPresentation.message?.id == "pending")
-    }
 
     @Test(arguments: [false, true])
     func longMessagesFitTheCapsuleAndReserveStopWithoutOpeningAWindow(running: Bool) async throws {

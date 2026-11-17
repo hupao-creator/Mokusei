@@ -52,7 +52,7 @@ func run() error {
 	if _, err := os.Stat("go.mod"); err != nil {
 		return errors.New("run from repository root")
 	}
-	names := []string{"headless", "runtime", "runtime-concurrency", "runtime-helpers", "moku", "transport", "storage-workspaces", "command-boundaries", "applicationhost", "settings-shell", "thread-metadata", "thread-search", "console-oauth", "git", "artificialanalysis", "artificialanalysis/lifecycle", "claude", "codex", "pi", "opencode", "native-codex", "moku-system"}
+	names := []string{"headless", "runtime", "runtime-concurrency", "runtime-helpers", "moku", "transport", "storage-workspaces", "command-boundaries", "applicationhost", "settings-shell", "thread-metadata", "console-oauth", "git", "artificialanalysis", "artificialanalysis/lifecycle", "claude", "codex", "pi", "opencode", "native-codex", "moku-system"}
 	selected := map[string]bool{}
 	if *only != "" {
 		for _, name := range strings.Split(*only, ",") {

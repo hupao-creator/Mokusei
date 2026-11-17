@@ -254,11 +254,6 @@ struct NativeVoiceAnalysisTests {
         scene.readingPanelVisible = true
         scene.setDockInteractionVisible(false, question: false)
         #expect(scene.dockContentVisible)
-        scene.setSearchActive(true)
-        #expect(scene.dockContentVisible)
-        scene.overviewVisible = true
-        #expect(!scene.dockContentVisible)
-        scene.setSearchActive(false)
         scene.setWindowVisible(false)
         #expect(!scene.dockContentVisible)
     }

@@ -13,7 +13,7 @@ MOKUSEI_GIT_CONTRACT_EVIDENCE=/tmp/mokusei-git-contract.json \
   ./scripts/go.sh run -race ./tools/verification/git
 MOKUSEI_GIT_CONTRACT_EVIDENCE=/tmp/mokusei-git-contract.json \
   xcrun swift test --package-path app/macos --no-parallel \
-  --filter 'GitNativeTests|GitThreadExtensionTests|NativeArchivedThreadsTests|NativeOverviewSearchTests'
+  --filter 'GitNativeTests|GitThreadExtensionTests|NativeArchivedThreadsTests'
 ```
 
 The Go replay creates disposable repositories. The Swift suites consume its production metadata fixtures and cover host admission, all four Harness projections, zero-line footprint removal, and known/unknown/failed/stale statistics in Chinese and English. For headless-only work, select the four non-display methods in `GitThreadExtensionTests`; its display/animation methods are separate GUI validation and are not covered by that selection. Set `MOKUSEI_GIT_ARTIFACTS` to retain native card captures.

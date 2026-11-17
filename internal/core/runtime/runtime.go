@@ -21,7 +21,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
 	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
 	"github.com/hupao-creator/Mokusei/internal/services/attachments"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
 )
@@ -60,7 +59,6 @@ type Config struct {
 	Log                func(string, error)
 	Diagnostic         func(string)
 	SettingsTrace      func(string, model.Object)
-	SearchTrace        func(plugin.SearchDiagnostic)
 	ToolTrace          func(plugin.ToolInvocation) error
 	ProcessFactory     func(string) plugin.ApplicationProcessCapability
 	ExtraCapabilities  map[string]any
@@ -84,7 +82,6 @@ type Runtime struct {
 	compute                   *workpool.Pool
 	threadCache               map[string]cachedThread
 	overviewCache             map[string]cachedOverview
-	search                    *threadsearch.Manager
 	voiceOnce                 sync.Once
 	voice                     *threadvoice.Manager
 	config                    Config
@@ -230,20 +227,13 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 			_ = r.compute.Close(context.Background())
 		}
 	}()
-	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Sources: r.searchSources, SourceChanges: r.searchSourceChanges, Trace: config.SearchTrace})
-	if err != nil {
-		cancel()
-		return nil, err
-	}
 	r.publicationSnapshot = config.Store.Snapshot()
 	r.baseline, err = r.projectSnapshot(r.publicationSnapshot)
 	if err != nil {
-		r.search.Close()
 		cancel()
 		return nil, err
 	}
 	if err = r.initializePublication(); err != nil {
-		r.search.Close()
 		cancel()
 		return nil, err
 	}
@@ -291,7 +281,6 @@ func (r *Runtime) SetApplications(applications Applications) {
 	r.config.Applications = applications
 	r.applicationGeneration++
 	r.mu.Unlock()
-	r.search.Invalidate()
 	r.Publish()
 }
 func (r *Runtime) SetMoku(moku Moku) { r.mu.Lock(); r.config.Moku = moku; r.mu.Unlock() }
@@ -484,13 +473,6 @@ func (r *Runtime) Close(ctx context.Context) error {
 		}
 		r.mu.Unlock()
 		var errs []error
-		// Revoking search first joins its publishers before the Runtime can
-		// release its profile lease.
-		if r.search != nil {
-			if err := r.search.Close(); err != nil {
-				errs = append(errs, err)
-			}
-		}
 		if err := r.closeVoice(ctx); err != nil {
 			errs = append(errs, err)
 		}

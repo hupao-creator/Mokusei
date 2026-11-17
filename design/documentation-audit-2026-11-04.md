@@ -1,5 +1,7 @@
 # 文档核查记录 · 2026-11-04
 
+> 历史审计记录：Cmd+F GUI 搜索及其回放现已移除，本文搜索相关结果仅描述当时版本。
+
 本记录是一次静态审计快照，不是持续有效的产品契约或测试通过凭证。
 源码基线：`a77d3a354887eb054516e10d432f825378ca7c8a`（detached HEAD）。
 工作树：`/Users/felixwang/Desktop/.Mokusei-mokusei-worktrees/refresh-project-docs`。
@@ -31,8 +33,8 @@ Sidecards 当前指南；路径/编码和 WebKit 读取范围见维护整合记�
 | --- | --- |
 | 全项目与构建 | [Makefile](../Makefile)、[devtool CLI](../internal/tooling/devtool/cli.go)、[Go bootstrap](../scripts/go.sh)、[Swift package](../app/macos/Package.swift)：入口、默认 Debug/Release、目标/资源、工具链与签名边界。根指南补充现行/历史文档的阅读边界。 |
 | Go Core、插件宿主和模型 | [composition](../internal/core/composition/bootstrap.go)、[plugin contracts](../internal/core/plugin/)、[Runtime](../internal/core/runtime/)、[store](../internal/core/store/)、[hosts](../internal/hosts/)：注册、公开模型、持久化、配置与内容权属。未改领域词汇、协议或 schema。 |
-| 服务与适配器 | [Moku composition](../internal/core/composition/moku.go)、[delivery](../internal/core/runtime/moku_delivery.go)、[search](../internal/services/threadsearch/query.go)、[workspaces](../internal/services/workspaces/manager.go)、[Harnesses](../internal/plugins/harness/)：生产通知持久化、keyword 搜索、detached worktree 与原生会话归属。 |
-| 原生 UI 与生命周期 | [reading stack](../app/macos/Sources/Shared/PluginUI/Conversation/NativeReadingPageStack.swift)、[panel compositor](../app/macos/Sources/Shared/PluginUI/Conversation/NativeReadingPanelTransition.swift)、[Settings sections](../app/macos/Sources/Host/Settings/NativeSettingsNavigation.swift)、[Overview search](../app/macos/Sources/Host/Overview/NativeOverviewSearch.swift)、[Moku capsule](../app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift)：准备/呈现时机、关闭转场、可用页面、搜索范围和材质。 |
+| 服务与适配器 | [Moku composition](../internal/core/composition/moku.go)、[delivery](../internal/core/runtime/moku_delivery.go)、当时的 keyword search（现已移除）、[workspaces](../internal/services/workspaces/manager.go)、[Harnesses](../internal/plugins/harness/)：生产通知持久化、keyword 搜索、detached worktree 与原生会话归属。 |
+| 原生 UI 与生命周期 | [reading stack](../app/macos/Sources/Shared/PluginUI/Conversation/NativeReadingPageStack.swift)、[panel compositor](../app/macos/Sources/Shared/PluginUI/Conversation/NativeReadingPanelTransition.swift)、[Settings sections](../app/macos/Sources/Host/Settings/NativeSettingsNavigation.swift)、当时的 Overview search（现已移除）、[Moku capsule](../app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift)：准备/呈现时机、关闭转场、可用页面、搜索范围和材质。 |
 | 交互与回放指南 | [Overview driver](../tools/native-interaction/overview_chaos.py)、[reading driver](../tools/native-interaction/thread_chaos.py)、[replay launcher](../tools/verification/reading-presentation/run.py)、[CI replay groups](../scripts/ci/replays.py)：对照现存入口/分组/选项，区分 fixture 断言与产品保证。未执行这些 driver。 |
 | 来源与历史 | [fonts](../app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md)、[icons](../app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md)、`design/`、evidence/results 与历史审计：保留版本、结论、数值、来源和原文；补足旧 Electron/npm 路径属于转换环境的说明。 |
 
@@ -153,7 +155,6 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [demos/moku-panel-transition/README.md](../demos/moku-panel-transition/README.md) | 工具 | 入口和生产复用边界；未启动 |
 | [demos/moku-panel-transition/evidence/validation.md](../demos/moku-panel-transition/evidence/validation.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
 | [demos/moku-thinking-orbit/README.md](../demos/moku-thinking-orbit/README.md) | 工具 | 入口和生产复用边界；未启动 |
-| [demos/overview-thread-search/README.md](../demos/overview-thread-search/README.md) | 工具 | 入口和生产复用边界；未启动 |
 | [demos/settings-navigation/README.md](../demos/settings-navigation/README.md) | 工具 | 入口和生产复用边界；未启动 |
 | [demos/settings-tabs/README.md](../demos/settings-tabs/README.md) | 提案 | 历史/独立 fixture 边界与替代入口 |
 | [demos/tag-filter-morph/README.md](../demos/tag-filter-morph/README.md) | 工具 | 入口和生产复用边界；未启动 |
@@ -281,5 +282,4 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [tools/verification/thread-detail-performance/README.md](../tools/verification/thread-detail-performance/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/thread-detail-performance/integration.md](../tools/verification/thread-detail-performance/integration.md) | 混合 | 操作入口与历史基线/测量分开核查 |
 | [tools/verification/thread-interaction/README.md](../tools/verification/thread-interaction/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/thread-search/README.md](../tools/verification/thread-search/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/transport/README.md](../tools/verification/transport/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |

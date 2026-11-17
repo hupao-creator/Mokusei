@@ -74,7 +74,7 @@ struct NativeOverviewTagEmojiTests {
         }
     }
 
-    @Test func wireDecorationDoesNotChangeIdentitySearchOrMembership() throws {
+    @Test func wireDecorationDoesNotChangeIdentityOrMembership() throws {
         let first = try thread(emoji: "👩🏽‍💻")
         let decoded = try HarnessThread(json: first.json)
         #expect(decoded.tagEmojis["Backend"] == "👩🏽‍💻")
@@ -86,7 +86,6 @@ struct NativeOverviewTagEmojiTests {
         #expect(filter.tag == "Backend")
         #expect(filter.displayTag == "👩🏽‍💻 Backend")
         #expect(filter.matches("backend", kind: .semantic, scope: directory.scope))
-        #expect(NativeOverviewSearch("backend").filter(original).threads.count == 1)
         #expect(NativeOverviewSelection.select(threads: original.threads, applications: [], tags: [filter.tag],
             kind: .semantic, scope: directory.scope).threads.count == 1)
 

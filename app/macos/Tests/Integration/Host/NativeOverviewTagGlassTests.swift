@@ -191,7 +191,7 @@ private struct TagGlassBounds: ViewModifier {
     let fixture: TagGlassFixture
     var enabled = true
     func body(content: Content) -> some View {
-        content.overlayPreferenceValue(OverviewSearchTagBounds.self) { anchors in
+        content.overlayPreferenceValue(OverviewTagBounds.self) { anchors in
             GeometryReader { reader in
                 let resolved = anchors.mapValues { reader[$0] }
                 Color.clear

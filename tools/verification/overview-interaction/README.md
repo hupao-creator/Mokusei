@@ -1,11 +1,5 @@
 # Production Overview chaos
 
-The driver checks global eligible search results independently of the selected
-directory, with scoped browsing restored on clear/exit; see the
-[coverage matrix and limits](../../native-interaction/OVERVIEW.md#coverage-matrix).
-Current Runtime search is keyword-only. No graphical run was performed during
-this Spring Mode integration.
-
 Run the current signed production Release application:
 
 ```sh
@@ -33,8 +27,7 @@ connection for independent membership and persistence checks. In particular, a
 directory filter must include every eligible record in its canonical scope,
 even when an alias cwd has a different display label. It also checks every
 semantic child's exact scope, counts, layout cell occupancy, mounted identities,
-camera limits, global nonempty search across selected directory filters,
-scoped browsing on clear/exit, search camera restoration, actual directory menu
+camera limits, scoped browsing and actual directory menu
 callbacks and Moku capsule navigation. See the [full feature matrix and limits](../../native-interaction/OVERVIEW.md).
 
 Evidence is retained under the printed `/private/tmp/oa-overview-*` path:

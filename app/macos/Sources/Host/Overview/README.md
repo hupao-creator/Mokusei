@@ -286,7 +286,7 @@ child stays visible and selected even if it becomes redundant, preserving its
 filtering meaning when later threads arrive; selecting its directory then omits
 the redundant child. Global search and its return-to-browsing behavior are unchanged.
 
-Filter capsules omit visible member counts, including in directory menus and the search transition; counts remain available as accessibility values. Filter tags do not show hover tips; their accessibility labels, values and actions remain available. Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview. Settings has no archive-restoration section; archive data and Runtime commands remain independent of that page. Tag-bar transitions explicitly read Reduce Motion; see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
+Filter capsules omit visible member counts, including in directory menus; counts remain available as accessibility values. Filter tags do not show hover tips; their accessibility labels, values and actions remain available. Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview. Settings has no archive-restoration section; archive data and Runtime commands remain independent of that page. Tag-bar transitions explicitly read Reduce Motion; see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
 
 Menu opening uses a 220ms smooth spring with zero extra bounce, both after initial measurement and when retargeting a mounted menu. Closing retains its existing timing. Menu closure morphs each mounted child capsule back into the measured parent capsule over 320ms. Position and size interpolate continuously; labels retire earlier than the glass, and the surface only disappears as it overlaps the parent. Reopening retargets the same mounted identities from their current presentation. Removed children remain in their old row slots during the return, then surviving children reflow smoothly. A removed directory fades its whole menu envelope because its return destination no longer exists. Retiring controls cannot receive clicks or accessibility actions. After menu exit, title, divider and prefix changes use a 280ms smooth, non-bouncing transition. Reopening still invalidates the earlier close completion. The measured scroll width carries its resize transaction across the layout boundary so the centered bar follows the chips. Initial measurements and Reduce Motion updates are immediate.
 
@@ -309,11 +309,10 @@ chip after its material and the row have already shrunk. Only this source leaf
 clears the geometry animation; the directory group's position, child-menu target
 and independent opening/closing progress keep their existing ownership.
 
-Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar reserves the actual action envelope plus 16pt clearance on both sides; at 620pt and narrower the actions occupy a separate row. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Selected All, directory and semantic chips use the overview accent with 22% tint alpha, or 34% with Increased Contrast; unselected chips have no tint. Selected directory chips replace their folder or child emoji prefix with a check icon. Selected semantic chips replace their emoji prefix with the same check, including in child menus and the search transition; All remains prefix-free. Accessibility labels retain the original tag names and emoji. The search transition starts from the same tint strength and fades it out over the first half. Label font weights remain unchanged; the shared selected check uses a 2-unit Lucide stroke instead of the default 1.5-unit stroke. Names only truncate when their individual viewport cannot hold them. Search’s temporary visual layer reuses the same title, divider and prefix components. Presentation does not change tag identity or membership.
+Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar reserves the actual action envelope plus 16pt clearance on both sides; at 620pt and narrower the actions occupy a separate row. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Selected All, directory and semantic chips use the overview accent with 22% tint alpha, or 34% with Increased Contrast; unselected chips have no tint. Selected directory chips replace their folder or child emoji prefix with a check icon. Selected semantic chips replace their emoji prefix with the same check, including in child menus; All remains prefix-free. Accessibility labels retain the original tag names and emoji. Label font weights remain unchanged; the shared selected check uses a 2-unit Lucide stroke instead of the default 1.5-unit stroke. Names only truncate when their individual viewport cannot hold them. Presentation does not change tag identity or membership.
 
-All, directory and semantic capsules (including child menus and search-transition labels) use the same 1.1× enlargement of the previous tag metrics. Their measured frames, hit areas and canvas clearance follow the larger height; independent action controls retain their size. Semantic labels always lay out the emoji separately from the plain title, in both selection states and the search carrier. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
+All, directory and semantic capsules (including child menus) use the same 1.1× enlargement of the previous tag metrics. Their measured frames, hit areas and canvas clearance follow the larger height; independent action controls retain their size. Semantic labels always lay out the emoji separately from the plain title, in both selection states. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
 
-[NativeOverviewSearchMorph](NativeOverviewSearchMorph.swift) expands the visible selected tag into the search field. If the selected tag is clipped, it falls back to visible All, then the first visible tag. Neighbor tags move outward and fade while keeping their measured size; the carrier label crossfades. Reversal preserves the actual mounted controls, focus and clipping.
 
 ## Tag activity
 
@@ -321,28 +320,23 @@ Directory and semantic tag chips append an 11pt native status ring only when
 their existing browsing membership contains a Thread whose public
 `isExecutionActive` is true (running or waiting for user). Inactive tags omit both
 the ring and its adjacent HStack spacing. Active tags retain the ring's measured
-width while menu/search transitions temporarily hide it, keeping their source
+width while menu transitions temporarily hide it, keeping their source
 geometry consistent. Background work alone does not redefine active. Selection tint, task counts,
-membership, ordering, search scope and Runtime filter context remain independent.
+membership, ordering and Runtime filter context remain independent.
 Archive/visibility and Report-coverage exclusions come from the
 same membership used to browse each tag; a Report does not itself become an active
 Agent Thread. A changed-ID activity cache refreshes these booleans when active
 participation changes, without rebuilding membership or reacting to every streamed
 payload. Membership changes also refresh the markers, including the existing lazy
 All membership for its accessibility value. The All chip has no visible activity
-ring. Submenus and search's transient label plane share the other tags' indicator;
-the covered original chrome suspends its rings during search. Native window
+ring. Submenus share the other tags' indicator. Native window
 visibility and Reduce Motion remain owned by the production spinner. Tooltips and
 accessibility values announce active presence in the selected UI language. The
 shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActivity.swift).
 
-## Search results
+## Validation
 
-[NativeOverviewSearch](NativeOverviewSearch.swift) combines immediate keyword matches with the Runtime's [local keyword thread search](../../../../../internal/services/threadsearch/README.md). Query, scene and search configuration define context; streaming thread revisions do not repeatedly clear rankings. Within one context, periodic refresh and temporary failures retain the last successful body result until a replacement arrives. Active body queries refresh every three seconds because automatic keyword indexing commits without changing the catalog or search revision. `searchReason` and `searchIndexing` remain internal keyword-index diagnostics for error recovery; they are not a search-mode selector. Every nonempty query uses the global eligible catalog for both metadata matching and the Runtime `threads` request, including directory-only documents and tasks otherwise covered by reports. Archived and terminal-ineligible records remain excluded, and removed items disappear immediately. The search scene and request context are independent of the browsing tag: switching directory or semantic tags retains the query, rankings and in-flight request. A new query/configuration context clears old rankings, and cancelled or stale responses cannot replace current results. The search field always shows a localized global placeholder, without a tag scope badge.
-
-Empty or whitespace-only queries hide the canvas cards and their attention indicator while retaining the current tag membership and browsing scene without issuing body searches. The search field stays focused, and the empty-results message appears only for a nonempty query. Clearing or closing search returns to the current browsing tag. The first nonempty query bookmarks the browsing camera. Without an intervening tag selection, clearing or closing search restores that camera into the current browsing scene, even when visible result cards survive the transition. Explicit tag selection retains its existing camera-reset behavior. Explicit bookmark restoration takes precedence over preserving the result scene's framing.
-
-Validation uses existing Overview layout/camera/search/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewGeometryTests` runs the independent layout contract, including seeded property checks, shrinking and the regular-grid quality floor. `NativeOverviewCameraTests` covers FitAll, manual ownership, pauses, latest-wins and invalid-input recovery. `NativeOverviewHeadlessGeometryTests` mounts the production canvas in a bare
+Validation uses existing Overview layout/camera/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewGeometryTests` runs the independent layout contract, including seeded property checks, shrinking and the regular-grid quality floor. `NativeOverviewCameraTests` covers FitAll, manual ownership, pauses, latest-wins and invalid-input recovery. `NativeOverviewHeadlessGeometryTests` mounts the production canvas in a bare
 `NSHostingView` with no window and checks mixed footprints, resize, control
 reservations, scene resets and `displayedFrame` agreement. `NativeOverviewCapacityTests`,
 `NativeOverviewCenteringTests`, `NativeOverviewTransitionTests` and
@@ -357,11 +351,6 @@ Resize observations wait for the new viewport and the submitted camera motion.
 Membership freshness uses Report's authored introduction and independent cover
 revision, preserving the two-row covered-card footprint without rebuilding membership.
 The subsequent coverage/filter cases retain the ordinary one-row card without a cover.
-
-The search chrome keeps the field and close control only. A nonempty query shows
-metadata matches immediately while the background keyword index catches up.
-Runtime rankings are admitted without changing cards, result identity or
-navigation; no snippet, model selector or historical-execution jump is added.
 
 ## Production control chaos
 
@@ -434,14 +423,14 @@ Ordinary failed executions remain hidden by default. Interrupted executions are
 hidden only when their exact latest execution ID matches the Runtime-owned
 `mokuInterruptedExecutionId`. User Stop and missing/unknown historical sources
 remain visible. A successor execution stops matching the old provenance. The
-shared Shell predicate governs Overview, availability, search and ordinary
+shared Shell predicate governs Overview, availability and ordinary
 navigation; membership invalidates when its resulting visibility changes, even
 if status and execution identity stay unchanged. Archive/unarchive choices,
 plugin-owned application visibility and explicit result-reading links keep
 their existing rules. Refresh and restart consume the retained envelope rather
 than guessing from terminal status or local UI actions.
 
-Ordinary browsing and search ignore retired agent-authored visibility markers. Archive, execution eligibility and Report coverage retain their own selection rules. Detail reading no longer sends per-thread visit or foreground-time receipts to Runtime; application collection reading remains independently owned by the desktop.
+Ordinary browsing ignores retired agent-authored visibility markers. Archive, execution eligibility and Report coverage retain their own selection rules. Detail reading no longer sends per-thread visit or foreground-time receipts to Runtime; application collection reading remains independently owned by the desktop.
 
 
 ## Viewed application collections
@@ -450,8 +439,7 @@ Application plugins can opt into `ApplicationOverviewCollectionPolicy`; Super
 Thread opts in with a 300-second last-close interval and a 1×2 footprint. After
 normal scope/tag filtering and report coverage, two or more eligible reports
 become one view-only card. At exactly 300 seconds a report remains individual;
-reports without close evidence and future-dated closes are ineligible. All is its own view. Nonempty
-search queries retain individual results and rank. Canonical filters/counts and
+reports without close evidence and future-dated closes are ineligible. All is its own view. Canonical filters/counts and
 report execution coverage still describe underlying documents.
 
 The collection has a reserved canvas identity per type/filter, never a Runtime
@@ -470,7 +458,7 @@ Every new close restarts the strict five-minute interval unless a short visit
 retains eligibility that was already established at opening.
 
 Reading an associated ordinary Thread uses the same Super Thread reading owner,
-whether opened in the Report sidecard, from search, through an execution link or
+whether opened in the Report sidecard, through an execution link or
 as a restored Agent route. Ownership comes from the full catalog's declared
 execution coverage, independently of filters, collection membership and archive
 visibility. It matches Thread identity even when reading a newer/current or older
@@ -489,7 +477,7 @@ The reverse ownership index updates with application deltas, without a full scan
 for ordinary execution/status events. Ambiguous ownership earns no read credit.
 
 A document eligible at opening retains that eligibility through a short visit,
-independently of tag/search projection or whether a second candidate is present.
+independently of tag projection or whether a second candidate is present.
 Only **more than 120 seconds** of cumulative foreground reading in that visit
 clears it. Exactly 120 seconds retains it. Focus loss, covering by Moku/Settings,
 missing reader admission, inactive window and disconnection pause reading time;
@@ -604,3 +592,7 @@ collections use the page menu instead of an overflowing dot row.
 
 The [production-backed demo](../../../../../demos/super-thread-carousel/README.md)
 provides headless model exports and manual viewing without running a Runtime.
+
+The Cmd+F conversation search, its menu command, interaction actions and Runtime
+keyword index have been removed. Tag filtering and Agent `grep_threads` remain
+independent capabilities; native text editing keeps its own find behavior.

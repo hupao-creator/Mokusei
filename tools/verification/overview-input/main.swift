@@ -123,40 +123,6 @@ import MokuseiPluginUI
         try verifyFitAll()
     }
 
-    func verifySearchCameraRestoration() async throws {
-        let browsingItems = items, browsingScene = scene, browsingSelection = selection
-        for results in [[browsingItems[0]], []] {
-            // Keep every browse card offscreen so a nonempty query has to fit
-            // its result. Otherwise both scenes retain the same manual camera
-            // and a missing bookmark restoration is invisible to this replay.
-            state.camera.setManualTransform(.init(scale: 0.9, x: -10_000, y: -10_000))
-            guard let bookmark = state.camera.live else { throw Failure(message: "Browse camera is missing") }
-            items = results; scene = browsingScene + "\u{0}search:camera-replay"; selection = nil
-            let resultIDs = Set(results.map(\.id))
-            try await wait("search result framing") {
-                !state.isLayingOut && Set(state.presentedPlacements.map(\.id)) == resultIDs
-            }
-            try await settleCameraAndLayout()
-            try check(!state.camera.manual, "Search fixture did not enter automatic result framing")
-            try verifyFitAll()
-            // This is the model-to-canvas restoration contract. The real canvas
-            // must consume it on both a visible-survivor return and empty reentry.
-            state.pendingSearchCameraRestoration = (browsingScene, bookmark)
-            items = browsingItems; scene = browsingScene; selection = browsingSelection
-            try await wait("browse return after search") {
-                !state.isLayingOut && Set(state.presentedPlacements.map(\.id)) == Set(browsingItems.map(\.id))
-            }
-            try check(state.pendingSearchCameraRestoration == nil,
-                      "Search return left the browse camera bookmark unconsumed")
-            try check(state.camera.manual && state.camera.liveTransform == bookmark.transform,
-                      "Search return lost the saved manual browse camera")
-            try await Task.sleep(for: .milliseconds(750))
-            try check(state.camera.manual && state.camera.liveTransform == bookmark.transform,
-                      "Delayed search refit replaced the restored manual camera")
-        }
-        state.camera.setManualTransform(.init(scale: 0.9, x: 80, y: 120))
-        try await wait("manual camera after search replay") { abs((frames["first"]?.minX ?? 0) - 80) < 1 }
-    }
 
     func run() async {
         do {
@@ -198,7 +164,6 @@ import MokuseiPluginUI
             items[0].columns = 1
             try await wait("card shrinks") { abs((frames["first"]?.width ?? 0) - 360 * manualScale) < 1 }
             try await verifyCardTransitions()
-            try await verifySearchCameraRestoration()
             let firstAppearances = appearances["first"]
             try await verifyWindowResize()
             state.camera.returnToAuto()

@@ -5,7 +5,7 @@
 ## 生产行为
 
 - 当前标签内，已关闭且距离最近一次关闭 **超过 300 秒** 的 Super Thread 自动归入一个 collection。至少两篇才成组；无关闭记录、刚关闭和未来关闭时间记录不合格。
-- collection 只是视图投影；成员保留原报告身份，过滤、搜索和关联执行数据不变。非空搜索逐篇展示。关闭时间与短读保留资格由生产客户端保存在当前 profile 的 desktop preferences，collection 本身不持久化。
+- collection 只是视图投影；成员保留原报告身份，过滤和关联执行数据不变。关闭时间与短读保留资格由生产客户端保存在当前 profile 的 desktop preferences，collection 本身不持久化。
 - 点击封面/body 才打开报告并开始独立阅读访问；翻页不计为打开。打开时从 collection 位置展开；单次前台阅读超过 120 秒才清除原资格，短读返回保留；每次关闭重新开始 300 秒等待；只剩一篇时解散集合。
 - 封面按 360:308 逻辑画布比例随卡片宽度适配；当前生产 414×522pt 卡片的封面高 354.2pt，底部 163.8pt body 保持原位，旧内容淡出后新内容淡入。两部分共享选择和 460ms 时钟，4pt 间距和外壳固定。
 - Liquid Glass 轮播控件固定在封面上。封面准备好、入场结束且 WebKit 确认开始播放后，停留 8 秒再自动切换；手动切换重新计时。离屏、阅读页、失焦或封面手势暂停自动轮播及封面播放。Reduce Motion 直接切换并显示静态结束画面。
@@ -40,7 +40,7 @@ open "$(cat .build/super-thread-carousel/app-path.txt)"
 ## Regular glass 的 headless 验证
 
 `--headless` 导出真实生产投影的 `surfaceOwners`：collection 为 true，单篇
-Report 与搜索结果为 false。它在创建 NSApplication 之前退出，不启动 GUI。
+Report 为 false。它在创建 NSApplication 之前退出，不启动 GUI。
 生产 Canvas 根据这个声明省略 collection 的实色底壳，regular 背板由 Report
 renderer 提供。现有手动 App 的集合外壳同样让出底色，其他卡片保留实色。
 
@@ -62,7 +62,7 @@ renderer 提供。现有手动 App 的集合外壳同样让出底色，其他卡
 `--headless` 在创建 `NSApplication` 之前退出；不挂载 WebKit、不产生截图。
 
 - `.build/super-thread-carousel/headless.json`：13 个 fixture 数据场景，资格判断复用 `ApplicationOverviewCollectionPolicy`，包含严格 300 秒边界。
-- `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、短读保留/长读移出/解散、持久化重载、搜索、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留关闭事实。另通过真实 `NativeWorkspacePresentation.open` 方法验证首次 Overview 投影前的打开标记落盘、旧打开数据不冒充关闭事实、返回后保留记录及无效引用拒绝；不创建窗口。
+- `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、短读保留/长读移出/解散、持久化重载、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留关闭事实。另通过真实 `NativeWorkspacePresentation.open` 方法验证首次 Overview 投影前的打开标记落盘、旧打开数据不冒充关闭事实、返回后保留记录及无效引用拒绝；不创建窗口。
 
 生产导出使用独立临时 profile，不连接 Runtime；完成后清理该 profile。这是可审阅的 fixture 数据导出，不是新测试套件，不证明视觉中间帧或物理手势通过。已运行和未运行的检查见 [validation.md](validation.md)。
 

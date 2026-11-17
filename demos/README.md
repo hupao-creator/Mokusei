@@ -10,7 +10,6 @@
 | [Execution 完成交接](execution-handoff/README.md) | 独立原生提案：先收入 sidecard 并让主面板变宽，再向下翻到新结果；支持重复播放、慢速及减弱动态效果，不修改生产交接。 |
 | [Overview / glass world](../tools/verification/overview-input/README.md) | 当前生产 Canvas、Harness/Report 卡片、Chrome 和 Moku Dock；含浅深色 × 材质开关的隔离截图。 |
 | [Tag morph](tag-filter-morph/README.md) | 当前生产 `NativeOverviewChrome` 标签回放。 |
-| [Overview 搜索](overview-thread-search/README.md) | 当前生产搜索、筛选与几何回放。 |
 | [Settings 导航](settings-navigation/README.md) | 当前生产设置与导航组件的隔离回放。 |
 | [Settings 顶部 tab](settings-tabs/README.md) | 已批准提案的设计对照；正式界面与验收使用 Settings 导航回放。 |
 | [Moku thinking 历史对照](moku-thinking-orbit/README.md) | 当前生产胶囊 + Arc 的 fixture 演示；另保留 Electron 圆形阅读与后续胶囊环流作为历史对照。 |

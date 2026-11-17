@@ -218,7 +218,7 @@ Unknown-ID requests do not retain gates. These contracts are exercised by
 
 [service.go](service.go) revokes admission and drains participants and native owners before storage ownership is released. A protocol disconnect alone is not proof that a child process exited. Cleanup errors remain observable and prevent a replacement owner.
 
-History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner. Search workers and media participate in the same cancellation boundary.
+History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner. Media participates in the same cancellation boundary.
 
 Verification from the repository root:
 
@@ -259,8 +259,8 @@ processing or task completion.
 
 Moku's `GrepThreads` reads the current profile's committed ordinary-thread cache,
 including archives and busy owners, excluding Moku/history and deleting owners.
-It supplies Harness-owned public passages to threadsearch independently of the
-Overview index, then fences returned hits by source hash. Directory Scope filters
+It supplies Harness-owned public passages to threadsearch without a derived
+index, then fences returned hits by source hash. Directory Scope filters
 reuse the existing scope resolver. No native history is opened. See the
 [grep contract](../../services/threadsearch/README.md#moku-deterministic-grep).
 
@@ -316,8 +316,3 @@ change diagnostics and configuration equality, and are captured at execution
 admission. Missing/custom keeps existing manual routing guidance. Selecting a
 preset preserves that guidance for later restoration; the Moku service owns
 general routing priorities and instruction generation.
-
-Thread search owns its derived keyword text in the authoritative store. History
-reset pauses search, clears derived documents and stamps in the replacement
-transaction, and resumes indexing new threads. See [search](../../services/threadsearch/README.md)
-for projections, ranking and lifecycle fences.

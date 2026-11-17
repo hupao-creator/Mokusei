@@ -25,11 +25,11 @@ documentation scope are not claimed as executed.
 | --- | --- | --- |
 | External Overview and reading benchmark contracts | Reject frozen/wrong/partial evidence, clock/identity/input mismatches, omitted reader output and unsupported process/hitch claims | Portable Python replays in Linux; no signed GUI claim |
 | Go checks, race tests and generated properties | Architecture boundaries, data races, admission schedules, terminal-state invariants | Linux, plus Darwin-only profile-lease/rotation tests on macOS |
-| Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
+| Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh, cache ownership and actual Pi read-guard tool refusal | Linux `adapters` replay group; scripted external peers, loopback services and Node execution of the bundled guard |
 | Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Serial windowless and graphical ordinary processes plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
 | Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation, Harness-form and Git metadata contracts reach real Swift consumers | Six producers export seven files locally before the complete Swift run |
-| Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage, native profile leases and genuine local INT4 search | Seven interop launchers, three devtool replays and real daemon lifecycle on macOS |
+| Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage, native profile leases | Seven interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
 
 The ordinary Swift run defers only named methods needing a live Go fixture or

@@ -236,9 +236,6 @@ type ThreadProjection struct {
 	View  json.RawMessage
 }
 type ThreadTypeDefinition struct {
-	// SearchText is an optional, pure owner projection of user-facing retrieval
-	// text. The host calls it only after explicit content-indexing consent.
-	SearchText     func(model.ApplicationThreadRecord) (string, error)
 	ID             string
 	OwnerPluginID  string
 	DisplayName    string

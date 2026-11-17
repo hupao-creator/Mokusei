@@ -128,7 +128,7 @@ against the upstream SHA-256 and rejects the removed style/language guidance in
 system instructions, tool descriptions and initial/steering batch messages.
 
 
-Preview and search share a non-executing HTML tree parser. It decodes standard
+Preview uses a non-executing HTML tree parser. It decodes standard
 entities once, joins inline text without invented spaces, separates structural
 blocks, preserves textarea RCDATA, and excludes nested hidden regions including
 templates. The parser handles SVG/MathML namespaces, self-closing foreign
@@ -139,9 +139,9 @@ source text, not computed CSS visibility or live form state.
 
 If the tree parser rejects a document (notably its 512-open-element limit),
 projection reparses bounded UTF-8 prefixes and retains a successfully parsed
-prefix. Both preview and search use that same safe prefix; preview still applies
+prefix. Preview uses that same safe prefix and applies
 title removal and its length limit. Content at or after the rejected region can
-be absent from search/preview, and a document with no visible safe prefix has
+be absent from preview, and a document with no visible safe prefix has
 empty projected text. Recovery never scans an isolated suffix or exposes raw
 markup, since its template/foreign-content context would be unknown. The original
 HTML remains unchanged and available to the Reader; parser failure does not
@@ -305,7 +305,7 @@ for the prompt ambiguity and actual two-version evidence.
 new cover revision without reloading the report HTML; unchanged updates retain the
 revision and existing CAS/receipt semantics. Full report reads expose the cover;
 the catalog exposes only its revision. `report.cover` loads markup on demand for
-mounted native cards. Covers are excluded from search text. Documents without a
+mounted native cards. Documents without a
 cover stay one grid row until authored cover content is supplied; no bulk generation
 or rewrite runs on startup.
 

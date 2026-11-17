@@ -124,7 +124,7 @@ records this repair's source-video evidence, local validation and limits.
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least
 24-point horizontal viewport margins. Moku and its archived history do not count
-as ordinary cards. Membership is measured before tags, search and report coverage,
+as ordinary cards. Membership is measured before tags and report coverage,
 including documents exposed only inside a directory. Loading is not an empty
 workspace. Archiving/deleting the last eligible conversation restores landing;
 filtering to no results does not. Landing eligibility does not depend on the

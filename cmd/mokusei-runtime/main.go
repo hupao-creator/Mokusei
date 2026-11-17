@@ -89,7 +89,6 @@ func run(args []string, input io.Reader, output io.Writer) error {
 			Headless: env["MOKUSEI_HEADLESS"] == "1",
 			Log:      bootstrap.event, Overview: overview,
 			SettingsTrace: bootstrap.settingsEvent,
-			SearchTrace:   bootstrap.searchEvent,
 			ToolTrace:     bootstrap.toolEvent,
 		})
 		err = daemon.Serve(ctx, daemon.ServeOptions{
@@ -237,15 +236,6 @@ func writeStatus(output io.Writer, p profile.Profile, connection *profile.Connec
 		status.DataDir = connection.DataDir
 	}
 	return json.NewEncoder(output).Encode(status)
-}
-
-func (b *loggedBootstrap) searchEvent(event plugin.SearchDiagnostic) {
-	b.mu.Lock()
-	logger := b.logger
-	b.mu.Unlock()
-	if logger != nil {
-		logger.SearchEvent(event)
-	}
 }
 
 func (b *loggedBootstrap) toolEvent(event plugin.ToolInvocation) error {

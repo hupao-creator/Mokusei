@@ -447,12 +447,6 @@ func RegisterDomain(registry plugin.Registry) error {
 		}
 		view, err := json.Marshal(View{CoverRevision: value.CoverRevision, Emoji: value.Emoji, ShortDescription: value.ShortDescription, PreviewText: HTMLPreview(value.HTML, value.Title), ContentRevision: value.ContentRevision, RelatedExecutions: value.RelatedExecutions})
 		return plugin.ThreadProjection{Scope: value.Scope, Title: value.Title, View: view}, err
-	}, SearchText: func(record model.ApplicationThreadRecord) (string, error) {
-		value, err := ParseData(record.Value)
-		if err != nil {
-			return "", err
-		}
-		return HTMLSearchText(value.HTML), nil
 	}, Tags: extensions, Archive: extensions, Overview: extensions})
 }
 

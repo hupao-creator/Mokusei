@@ -9,7 +9,7 @@ packaging command, then launches that unchanged app and its bundled Go runtime.
 It verifies the production bundle identity, code signature and build provenance,
 and records the bundle path/hashes in `application.json`. The production UI,
 plugins, local persistence and normal runtime/environment discovery all execute.
-The driver owns the launched PID and issues only navigation/search/filter actions.
+The driver owns the launched PID and issues only navigation/filter actions.
 
 To exercise an existing instrumented production release instead of rebuilding:
 
@@ -24,7 +24,7 @@ mock transport, ad-hoc test application or altered production binary.
 Coverage includes protocol rejection, split/pipelined requests, frame bounds,
 Overview → Settings → all sections → back, rejection of the removed archive
 and plugin management sections, rejecting Settings from each thread while retaining
-its reading visit and back action, search with empty results, filters,
+its reading visit and back action, filters,
 stale target rejection and full directed smoke trace replay. Failures exit nonzero and retain the app
 log, profile and incremental traces in the printed `/private/tmp/oa-ui-*` directory.
 The driver terminates only its owned app and stops only its isolated runtime.

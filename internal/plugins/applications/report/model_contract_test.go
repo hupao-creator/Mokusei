@@ -43,12 +43,6 @@ func TestReportPersistenceContract(t *testing.T) {
 		})
 	}
 }
-func TestReportSearchExcludesHiddenHTML(t *testing.T) {
-	text := HTMLSearchText(`<html><head><title>SECRET_HEAD</title></head><body><p>可见 &amp; 内容</p><script>SECRET_SCRIPT</script><style>SECRET_STYLE</style><template>SECRET_TEMPLATE</template><p>第二段</p></body></html>`)
-	if strings.Contains(text, "SECRET") || !strings.Contains(text, "可见 & 内容") || !strings.Contains(text, "第二段") {
-		t.Fatalf("search projection: %q", text)
-	}
-}
 
 func TestReaderTextHTMLSemantics(t *testing.T) {
 	cases := []struct{ name, source, want string }{
@@ -66,9 +60,6 @@ func TestReaderTextHTMLSemantics(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := HTMLSearchText(c.source); got != c.want {
-				t.Errorf("search = %q, want %q", got, c.want)
-			}
 			if got := HTMLPreview(c.source, ""); got != c.want {
 				t.Errorf("preview = %q, want %q", got, c.want)
 			}
@@ -96,10 +87,8 @@ func TestReaderTextForeignContent(t *testing.T) {
 			}
 			t.Run(name, func(t *testing.T) {
 				source := "<p>BEFORE</p>" + content + "<p>AFTER</p>"
-				for projection, got := range map[string]string{"preview": HTMLPreview(source, ""), "search": HTMLSearchText(source)} {
-					if got != "BEFORE AFTER" {
-						t.Errorf("%s = %q", projection, got)
-					}
+				if got := HTMLPreview(source, ""); got != "BEFORE AFTER" {
+					t.Errorf("preview = %q", got)
 				}
 			})
 		}

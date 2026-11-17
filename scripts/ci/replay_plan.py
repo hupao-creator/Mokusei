@@ -20,7 +20,7 @@ def replay_groups(go_executable, output):
     return {
         "runtime": [(name, go + ["./tools/verification/" + name]) for name in [
             "transport", "runtime-concurrency", "storage-workspaces", "command-boundaries",
-            "applicationhost", "settings-shell", "thread-metadata", "thread-search", "git", "attachment-lifecycle",
+            "applicationhost", "settings-shell", "thread-metadata", "git", "attachment-lifecycle",
         ]] + [("content-publication", [go_executable, "test", "-race", "./internal/platform/transport",
                                        "-run", "^$", "-bench", "^Benchmark(Unchanged|Changed)Content$",
                                        "-benchtime", "3x"])],

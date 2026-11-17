@@ -60,7 +60,6 @@ public struct NativeOverviewWorkspaceView: View {
         return GeometryReader { geometry in
             let viewport = Self.viewport(in: geometry.size, hasFilters: !model.filters.isEmpty,
                                          hasDock: model.workspace.catalog.hasMoku)
-            let hideSearchCards = model.isSearching && NativeOverviewSearch(model.searchQuery).terms.isEmpty
             ZStack {
                 NativeOverviewCanvas(contentSource: model.content, sceneKey: model.sceneKey, state: model.canvasState,
                     selectionID: selectionID,
@@ -77,10 +76,10 @@ public struct NativeOverviewWorkspaceView: View {
                             .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
                             .environment(\.threadCardNativeDecorationsEnabled, true)
                     }
-                    .opacity(landing || hideSearchCards ? 0 : 1)
-                    .allowsHitTesting(!landing && !hideSearchCards)
-                    .accessibilityHidden(landing || hideSearchCards)
-                if !landing && !hideSearchCards && model.content.isEmpty && model.error == nil {
+                    .opacity(landing ? 0 : 1)
+                    .allowsHitTesting(!landing)
+                    .accessibilityHidden(landing)
+                if !landing && model.content.isEmpty && model.error == nil {
                     NativeOverviewEmptyState(title: emptyTitle, detail: emptyDetail)
                 }
                 if let error = model.error ?? model.canvasState.layoutError {
@@ -99,7 +98,7 @@ public struct NativeOverviewWorkspaceView: View {
                     }
                     .accessibilityLabel(error)
                 }
-                if !hideSearchCards && model.canvasState.overflowAttentionCount > 0 {
+                if model.canvasState.overflowAttentionCount > 0 {
                     VStack {
                         Spacer()
                         NativeOverviewAttentionIndicator(text: locale.text("\(model.canvasState.overflowAttentionCount) 待介入", "\(model.canvasState.overflowAttentionCount) need attention"))
@@ -117,9 +116,6 @@ public struct NativeOverviewWorkspaceView: View {
                     allHasActiveTasks: model.allHasActiveTasks,
                     cameraManual: model.canvasState.camera.manual,
                     focusFilterRequestKey: model.focusFilterRequestKey, strings: chromeStrings,
-                    isSearching: model.isSearching, searchQuery: model.searchQuery,
-                    searchFocusRequest: model.searchFocusRequest, onSearchChange: model.updateSearch,
-                    onSearchExit: model.endSearch,
                     onTagChange: model.selectTag,
                     onReturnToAuto: { model.canvasState.camera.returnToAuto() }, onSettings: callbacks.onSettings,
                     onRestart: callbacks.onRestart, onFocusFilterRequestConsumed: model.consumeFilterFocus,
@@ -150,21 +146,13 @@ public struct NativeOverviewWorkspaceView: View {
     }
 
     private var emptyDetail: String {
-        if model.isSearching && !NativeOverviewSearch(model.searchQuery).terms.isEmpty {
-            return locale.text("试试其他关键词，或清空搜索。",
-                               "Try another keyword, or clear the search.")
-        }
         return locale.text("切换标签筛选以查看其他 Thread。", "Switch tag filters to see other threads.")
     }
     private var emptyTitle: String {
-        if model.isSearching && !NativeOverviewSearch(model.searchQuery).terms.isEmpty {
-            return locale.text("没有匹配的会话", "No matching conversations")
-        }
         if !model.selectedTag.isEmpty { return locale.text("没有 \(model.selectedFilter?.tag ?? model.selectedTag) 会话", "No \(model.selectedFilter?.tag ?? model.selectedTag) conversations") }
         return locale.text("还没有会话", "No conversations yet")
     }
     private var selectionID: String? {
-        if model.isSearching && !NativeOverviewSearch(model.searchQuery).terms.isEmpty { return nil }
         if let filter = model.selectedFilter { return filter.id }
         if model.selectedTag.isEmpty { return "__all__" }
         return "\(model.tagSelection?.kind == .directory ? "directory" : "semantic"):\(model.selectedScope):\(NativeOverviewSelection.key(model.selectedTag))"
@@ -174,7 +162,6 @@ public struct NativeOverviewWorkspaceView: View {
         if locale == .english {
             strings.all = "All"; strings.returnToAuto = "Return to automatic view"
             strings.settings = "Settings"; strings.restart = "Restart development app"; strings.actions = "Overview actions"
-            strings.search = "Search all conversations"; strings.closeSearch = "Close search (Esc)"
             strings.closeFilter = "Close child tag menu"
             strings.filter = "Filter by tag"
             strings.containsActiveTasks = "Contains active tasks"
@@ -228,13 +215,6 @@ private struct NativeOverviewWorkspaceCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .environment(\.locale, locale)
-        .overlay(alignment: .bottomTrailing) {
-            if let rank = model.searchRank(for: item.id) {
-                Text(model.workspace.preferences.locale.text("相关度 #\(rank + 1)", "Match #\(rank + 1)"))
-                    .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
-                    .padding(12).allowsHitTesting(false)
-            }
-        }
         .overlay(alignment: .bottomLeading) {
             if let error { Text(error).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI).padding(12) }
         }

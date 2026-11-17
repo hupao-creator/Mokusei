@@ -17,16 +17,14 @@ error redaction while keeping durable retry and cancellation behavior intact.
 
 The Artificial Analysis tests ensure unavailable, ambiguous, contradictory and
 explicitly suppressed identities cannot acquire another release's evaluations.
-The Harness module contract suites calls the real Codex, Claude, Pi and OpenCode
-search adapters: only completed public content may be extracted; unfinished,
+Codex, Claude, Pi and OpenCode retain their Agent grep adapters: only completed public content may be extracted; unfinished,
 failed, interrupted, unknown-execution, tool and private fields stay excluded.
 Existing native adapter tests cover additional settings, projections, voice and
 cleanup contracts. OpenCode account telemetry tests constrain official endpoint
 authority including scheme, credentials, port, query and encoded path boundaries.
 
 Run one module with `./scripts/go.sh test -race ./internal/plugins/applications/report`
-or one Harness contract with
-`./scripts/go.sh test -race ./internal/plugins/harness/codex -run TestSearchTextPublicCompletedOnly`.
+for a focused check. GUI keyword indexing has been removed.
 These fast module checks complement the [production-boundary replays](../../tools/verification/README.md)
 and [release health runner](../../tools/verification/release-health/README.md).
 They do not replace native protocol, SQLite integration, process lifecycle or

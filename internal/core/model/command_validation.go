@@ -38,7 +38,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 	}()
 	arity := 1
 	switch channel {
-	case "search:status", "search:retry", "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
+	case "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
 		arity = 0
 	case "attachment:preview", "thread:set-archived", "application:archive":
 		arity = 2
@@ -209,8 +209,6 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		}
 		return CommandJSONSize(value, limit)
 	case "app:update-settings":
-		return CommandJSONSize(value, 2_000_000)
-	case "search:query":
 		return CommandJSONSize(value, 2_000_000)
 	case "settings:diagnostics", "moku:voice", "moku:voice-events":
 		return nil // Strict typed validators are owned by these modules.

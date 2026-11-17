@@ -172,7 +172,6 @@ preserved, now with visible reasons.
 | `NativeBrowserDialogTests` | 4 | Isolated AppKit file-panel host; `reading-presentation/run.py --browser-dialogs` |
 | `NativeOverviewTagGlassTests` | 5 | Isolated native glass/capture host; `reading-presentation/run.py --tag-glass` |
 | `NativeApplicationNavigationTests` | 1 (2 parameter cases) | Isolated AppKit host; `reading-presentation/run.py --application-navigation` |
-| `NativeOverviewSearchTests` | 3 | `MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY`; `reading-presentation/run.py --overview-search` |
 | `NativeSettingsUserFlows.dailySettingsFlow` | 1 | `MOKUSEI_SETTINGS_TEST_PROFILE`; Go Settings launcher |
 | `NativeMokuDispatchTests` | 1 | `MOKU_STATUS_NATIVE_FIXTURE`; Go dispatch snapshots |
 | `NativeVoiceInputTranscriptTests` | 2 | `MOKUSEI_VOICE_EVENT_EXPORT`; Go Codex event exports |

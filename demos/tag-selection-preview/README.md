@@ -2,7 +2,7 @@
 
 这是静态浏览器视觉提案，保留原始配色与当时的审查记录，不是当前生产组件或验收截图。
 当前标签及搜索转场请使用 [原生标签回放](../tag-filter-morph/README.md) 与
-[搜索回放](../overview-thread-search/README.md)；以下尺寸与对比度数据仅描述本 HTML。
+[标签回放](../tag-filter-morph/README.md)；以下尺寸与对比度数据仅描述本 HTML。
 
 直接打开 `index.html`。点击标签或使用 Tab、Enter/空格切换，右上角切换浅深主题。
 

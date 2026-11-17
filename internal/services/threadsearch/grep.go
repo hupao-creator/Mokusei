@@ -3,7 +3,9 @@ package threadsearch
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"regexp"
@@ -119,7 +121,8 @@ func Grep(ctx context.Context, raw json.RawMessage, sources []GrepSource, valid 
 	limit := request.Limit
 	request.Limit = 0
 	filterBytes, _ := json.Marshal(request)
-	filter := Hash(filterBytes)
+	filterHash := sha256.Sum256(filterBytes)
+	filter := hex.EncodeToString(filterHash[:])
 	after := ""
 	if cursorText != "" {
 		data, err := base64.RawURLEncoding.DecodeString(cursorText)

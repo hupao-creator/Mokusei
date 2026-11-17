@@ -13,20 +13,9 @@ import MokuseiTestSupport
 @testable import MokuseiPluginUI
 @testable import MokuseiUI
 
-@MainActor @Observable private final class SearchInputFixture {
+@MainActor @Observable private final class CardInputFixture {
     var text = ""
-    var request = 1
-    var exits = 0
 }
-private struct SearchInputReplay: View {
-    let fixture: SearchInputFixture
-    var body: some View {
-        OverviewThreadSearchField(text: fixture.text, placeholder: "搜索会话", focusRequest: fixture.request,
-            onChange: { fixture.text = $0 }, onExit: { fixture.exits += 1 })
-            .padding(20)
-    }
-}
-
 @MainActor @Suite(.serializedNative, .serialized)
 struct SwiftUIOverviewInteractionTests {
     private func field(in view: NSView) -> NSTextField? {
@@ -34,29 +23,9 @@ struct SwiftUIOverviewInteractionTests {
         return view.subviews.lazy.compactMap { field(in: $0) }.first
     }
 
-    @Test(.requiresDisplay) func searchEditsChineseAndRepeatedFocusSelectsCurrentText() async throws {
-        let fixture = SearchInputFixture()
-        let window = SwiftUIReplay.window(SearchInputReplay(fixture: fixture), width: 500, height: 100)
-        defer { window.close() }
-        let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { field(in: root)?.currentEditor() != nil }
-        let inputField = try #require(field(in: root))
-        let editor = try #require(inputField.currentEditor() as? NSTextView)
-        editor.setMarkedText("ni", selectedRange: .init(location: 2, length: 0), replacementRange: .init(location: NSNotFound, length: 0))
-        #expect(editor.hasMarkedText())
-        editor.insertText("你好世界", replacementRange: .init(location: NSNotFound, length: 0))
-        try await SwiftUIReplay.wait { fixture.text == "你好世界" }
-        #expect(!editor.hasMarkedText())
-        fixture.request += 1
-        try await SwiftUIReplay.wait { editor.selectedRange() == NSRange(location: 0, length: 4) }
-        editor.insertText("SwiftUI", replacementRange: .init(location: NSNotFound, length: 0))
-        try await SwiftUIReplay.wait { fixture.text == "SwiftUI" }
-        #expect(fixture.exits == 0)
-    }
-
     @Test(.requiresDisplay) func focusedCardPausesCameraUntilFocusLeaves() async throws {
         let state = NativeOverviewCanvasState()
-        let input = SearchInputFixture()
+        let input = CardInputFixture()
         let items = (0..<20).map { NativeOverviewItem(id: "focus-\($0)") }
         let window = SwiftUIReplay.window(NativeOverviewCanvas(items: items, sceneKey: "focus", state: state) { item in
             if item.id == "focus-0" {

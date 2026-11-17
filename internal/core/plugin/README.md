@@ -105,8 +105,8 @@ native input paths cannot prove that a finishing race will not start more work.
 They still receive queued notices with the next independent input.
 
 `SearchPassageAdapter` optionally exposes exact public completed-execution text
-with execution IDs. It shares the `SearchTextAdapter` disclosure boundary;
-`JoinSearchPassages` supplies index text from the same disclosed passages.
+with execution IDs for the Agent `grep_threads` capability. Only public text
+from completed executions is disclosed; internal inputs and tool payloads are excluded.
 Unavailable passages carry no text and require an explicit retrieval coverage
 issue. Core never interprets opaque Harness state to infer locators. Empty IDs
 remain unavailable.

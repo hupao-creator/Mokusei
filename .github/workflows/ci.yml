@@ -106,7 +106,7 @@ jobs:
       - name: Go unit tests (including directory tags)
         if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
         run: |
-          packages="$(go list ./cmd/... ./internal/... ./tools/verification/thread-search ./tools/verification/applicationhost ./tools/verification/runtime-helpers)"
+          packages="$(go list ./cmd/... ./internal/... ./tools/verification/applicationhost ./tools/verification/runtime-helpers)"
           read -r -a module_patterns <<< "$MOKUSEI_GO_RACE_PATTERNS"
           module_packages="$(go list "${module_patterns[@]}")"
           declare -A race_packages=()

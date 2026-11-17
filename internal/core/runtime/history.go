@@ -10,7 +10,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 )
 
 func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMessage) (string, error) {
@@ -289,11 +288,6 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 	}
 	r.mu.Unlock()
 	var errs []error
-	if r.search != nil {
-		if err := r.search.Pause(); err != nil {
-			errs = append(errs, err)
-		}
-	}
 	if err := r.closeVoice(ctx); err != nil {
 		errs = append(errs, err)
 	}
@@ -363,9 +357,6 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		moku = model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: moku.HarnessID, SessionState: json.RawMessage("null"), Settings: settings, Cwd: cwd, CreatedAt: at, UpdatedAt: at}, Moku: true, Title: "Moku", Tags: []string{}, TagEmojis: map[string]string{}, Transcript: []json.RawMessage{}}
 	}
 	_, err = r.config.Store.Update(ctx, func(tx *store.Tx) error {
-		if err := threadsearch.ClearHistory(tx); err != nil {
-			return err
-		}
 		for _, prefix := range []string{mokuDeliveryPrefix, "directory-scope:", "thread:", "interaction-answer:", "telemetry:", "event:", "lifecycle-work:", "lifecycle-outcome:", "private-session:", "private-session-index:", "application-receipt:", "tag-receipt:", "semantic-tags:", "tag-redirects:", "tag-inventory-initialized:"} {
 			for _, key := range tx.Keys(prefix) {
 				if err := tx.Delete(key); err != nil {
@@ -432,9 +423,6 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 	r.handles = map[string]*threadHandle{}
 	r.resetting = false
 	r.mu.Unlock()
-	if r.search != nil {
-		r.search.Resume()
-	}
 	if r.config.Contexts != nil {
 		if err := r.config.Contexts.Start(generationCtx, plugin.RuntimeStartContext{Reason: "history-reset"}); err != nil {
 			// Moku must never resume before its Context services are ready.

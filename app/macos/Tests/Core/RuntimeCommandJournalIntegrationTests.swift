@@ -84,8 +84,8 @@ final class RuntimeCommandJournalIntegrationTests: XCTestCase {
 
                 // The reader restored its empty snapshot before this write.
                 // Its ephemeral receipt must never remove a shared journal row.
-                let read = Task { try await reader.invoke("search:status", receiptID: id) }
-                let query = try await replay.peer.take("/invoke/search:status", id: id)
+                let read = Task { try await reader.invoke("state:load", receiptID: id) }
+                let query = try await replay.peer.take("/invoke/state:load", id: id)
                 if responseStatus == 200 { try query.reply(.success(.null)) }
                 else {
                     try query.reply(.object(["error": .object(["code": .text("QUERY_REJECTED"), "message": .text("Rejected read")])]), status: responseStatus)

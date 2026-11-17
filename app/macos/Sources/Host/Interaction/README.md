@@ -8,7 +8,7 @@ invalid-field focus, IME and save-on-close gate. This layer owns no Runtime
 commands or independent copy of page state.
 
 `interactionSnapshot()` reports the semantic route, mounted reading/settings
-surface, navigation animation activity, settings save state, search, filter and
+surface, navigation animation activity, settings save state, filter and
 thread identities, available action names and errors. Overview camera observations
 contain ordinary framing, viewport, motion and pause facts; they expose no
 automatic per-card target. `settings.appearance` and
@@ -83,6 +83,6 @@ references. Values contain `lastClosedAt` (Unix milliseconds or null), `retainsE
 `intervalSeconds`, the time-condition `eligible` flag, a `reason`
 (`no-close-record`, `future-close-record`, `within-close-interval`, `eligible`) and
 current `collected` membership. Time eligibility alone does not establish two
-eligible members in the same browsing view; search remains individual. During
+eligible members in the same browsing view. During
 reading travel the retained collection can temporarily differ from live
 eligibility. These observations neither create opens nor migrate unknown history.

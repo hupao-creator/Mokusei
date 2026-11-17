@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSearchTextPublicCompletedOnly(t *testing.T) {
+func TestSearchPassagesPublicCompletedOnly(t *testing.T) {
 	state := NewState()
 	for _, status := range []string{"completed", "failed", "interrupted", "running"} {
 		text := "PRIVATE_" + status
@@ -27,14 +27,18 @@ func TestSearchTextPublicCompletedOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	text, err := (StateAdapter{}).SearchText(raw)
+	passages, err := (StateAdapter{}).SearchPassages(raw)
 	if err != nil {
 		t.Fatal(err)
+	}
+	var text string
+	for _, passage := range passages {
+		text += passage.Text + "\n"
 	}
 	if !strings.Contains(text, "公开内容") || strings.Contains(text, "PRIVATE") {
 		t.Fatalf("search content: %q", text)
 	}
-	if _, err := (StateAdapter{}).SearchText(json.RawMessage(`{`)); err == nil {
+	if _, err := (StateAdapter{}).SearchPassages(json.RawMessage(`{`)); err == nil {
 		t.Fatal("malformed state accepted")
 	}
 }

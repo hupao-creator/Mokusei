@@ -20,7 +20,7 @@ Its former two-snapshot loop toggled one execution between running/completed
 while also changing its title; that is not a normal task lifecycle or a useful
 rendering workload. Catalog admission now repeats one stable completed snapshot
 and is named `unchanged-catalog-admission`. Other remaining cases measure initial
-projection, unchanged delivery, reconciliation, filters, search and the layout
+projection, unchanged delivery, reconciliation, filters and the layout
 solver as separate internal CPU diagnostics, not external rendering scenarios.
 
 `run.py measure` rejects cached binaries built from an obsolete workload source,
@@ -49,7 +49,6 @@ a path when its repeatable benefit no longer justifies complexity.
 | Layout / reordering / resize | 5/6 mixed footprints; 12/30 equal footprints; wide/narrow | Production solver timings plus packing/capacity/camera replay |
 | Appearance / material | Light/dark × glass on/off | Fixed native captures, mounted identity and independent CPU sampling |
 | Empty / small / large | Empty catalog, five readable cards, dense collection | Empty state, mounting, layout failure/recovery; all placements remain mounted |
-| Search / clearing | Keyword hit/miss and return to browse | Public metadata search and camera/body-search regression suite |
 
 Not exposed by the current product: Overview tag CRUD/multiselection, mobile
 orientation sensors and Windows UI. This CPU fixture does not measure provider/

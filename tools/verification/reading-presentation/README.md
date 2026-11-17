@@ -262,21 +262,6 @@ back dispatch, then verifies cleanup and a fresh identity after remounting.
 Missing fixture records exercise the Report's unavailable-content state without
 starting a Runtime, reading a repository or loading WebKit.
 
-## Overview search and return
-
-```sh
-python3 tools/verification/reading-presentation/run.py --overview-search
-```
-
-Runs all 16 tests in `NativeOverviewSearchTests` in the AppKit event loop,
-including the three cases skipped by ordinary SwiftPM: selected-chip search
-morph/reversal at 360/540/1100pt in light/dark appearance, fixture-backed Chinese
-body keyword search, and continuous query edits retaining mounted card identities.
-The suite uses the production model, Chrome and Canvas with synthetic public
-catalog/search responses; it starts no Runtime or model provider. The morph case
-slows its test animation to inspect intermediate geometry, so this is functional
-coverage, not production transition timing or rendered-frame measurement.
-
 ## Reading presentation
 
 Run on macOS with the current Xcode toolchain:

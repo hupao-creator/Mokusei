@@ -12,10 +12,6 @@ public enum RuntimeState {
               let settingsRevision = value["settingsRevision"]?.intValue, (0...RuntimeProtocol.maximumSafeInteger).contains(settingsRevision) else {
             throw RuntimeError("INVALID_SNAPSHOT", "Runtime returned an incomplete state snapshot")
         }
-        if let searchRevision = value["searchRevision"],
-           searchRevision.intValue.map({ (0...RuntimeProtocol.maximumSafeInteger).contains($0) }) != true {
-            throw RuntimeError("INVALID_SNAPSHOT", "Invalid search settings revision")
-        }
     }
 
     public static func validateSnapshot(_ value: JSONValue) throws {
@@ -49,7 +45,7 @@ public enum RuntimeState {
 
     public static func hasStateChanges(_ mutation: JSONValue) -> Bool {
         ["threads", "applicationThreads", "tagRedirects", "defaultCwd", "executions", "agentRuns",
-         "settings", "settingsRevision", "searchRevision", "plugins"].contains { mutation[$0] != nil }
+         "settings", "settingsRevision", "plugins"].contains { mutation[$0] != nil }
     }
 
     public static func applying(_ mutation: JSONValue, to current: JSONValue) throws -> JSONValue {
@@ -67,7 +63,7 @@ public enum RuntimeState {
                     : .applicationThread)
             }
         }
-        for field in ["tagRedirects", "defaultCwd", "executions", "agentRuns", "settings", "settingsRevision", "searchRevision", "plugins"] {
+        for field in ["tagRedirects", "defaultCwd", "executions", "agentRuns", "settings", "settingsRevision", "plugins"] {
             if let value = mutation[field] { next[JSONText(field)] = value }
         }
         next[JSONText("revision")] = .integer(revision)

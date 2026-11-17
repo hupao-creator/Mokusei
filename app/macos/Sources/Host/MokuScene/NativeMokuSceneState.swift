@@ -43,7 +43,6 @@ import MokuseiPluginUI
     private(set) var settingsTransitionRequest = 0
     @ObservationIgnored var settingsSettle: (() -> Void)?
     public private(set) var flightActive = false
-    public private(set) var searchActive = false
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readReplies: Set<JSONText> = []
     public private(set) var notePanelOpen = false
@@ -115,7 +114,7 @@ import MokuseiPluginUI
         }.suffix(256))
         readReplies = Set(replyReadOrder)
     }
-    public var dockCovered: Bool { mokuOpen || cameraActive || settingsOpen || flightActive || (searchActive && overviewVisible) }
+    public var dockCovered: Bool { mokuOpen || cameraActive || settingsOpen || flightActive }
     /// The resident Dock is available in Overview and ordinary Agent reading.
     /// Covering Moku history, camera, Settings and flights own their own surfaces.
     public var dockContentVisible: Bool {
@@ -142,12 +141,6 @@ import MokuseiPluginUI
     public func toggleMoku() {
         if mokuOpen { closeHistory() }
         else { setMokuOpen(true) }
-    }
-    public func setSearchActive(_ active: Bool) {
-        guard searchActive != active else { return }
-        searchActive = active
-        if active { talkPresentation.setPresented(false); closeNotePanel() }
-        command?(.visibility)
     }
     /// Entrance belongs to the scene, so remounting or uncovering the Dock
     /// cannot reopen input over the resident character or a waiting notification.
