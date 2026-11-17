@@ -9,6 +9,9 @@ import SwiftUI
     let projection: NativeReportCardProjection
     let openThread: () -> Void
     var showsCover = true
+    var coverPlayback: NativeReportCoverPlayback = .playing
+    var coverReplayID = 0
+    var coverInitiallyFinished = false
     var usesGlassBadge = false
     var showsArchiveAction = false
     var allowsActions: () -> Bool = { true }
@@ -57,7 +60,8 @@ import SwiftUI
             GeometryReader { geometry in
                 VStack(spacing: 4) {
                     if showsCover && props.entry.view.hasCover {
-                        NativeReportCover(props: props)
+                        NativeReportCover(props: props, playback: coverPlayback, replayID: coverReplayID,
+                                          initiallyFinished: coverInitiallyFinished)
                             .frame(height: NativeReportCoverLayout.height(for: geometry.size.width))
                             .allowsHitTesting(false).accessibilityHidden(true)
                     }

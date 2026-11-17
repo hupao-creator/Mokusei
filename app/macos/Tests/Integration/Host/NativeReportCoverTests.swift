@@ -13,6 +13,8 @@ import MokuseiPluginUI
 
 @MainActor @Observable private final class CoverReplay {
     var playback = NativeReportCoverPlayback.reset
+    var replayID = 0
+    var redraw = false
     var reduced = false
     var active = true
     var dark = false
@@ -65,13 +67,14 @@ private struct CoverReplayView: View {
     var body: some View {
         Group {
             if props.count == 1 {
-                NativeReportCover(props: props[0], playback: model.reduced ? .reduced : model.playback,
+                NativeReportCover(props: props[0], playback: model.reduced ? .reduced : model.playback, replayID: model.replayID,
                     onReady: { model.ready += 1 })
             } else {
                 NativeReportCollection(props: props, active: model.active,
                     onSelection: { model.selections.append($0) }, openThread: { _ in })
             }
         }
+        .opacity(model.redraw ? 0.99 : 1)
         .id(model.identity)
         .environment(\.nativeReportCoverCache, model.cache)
         .environment(\.threadCardAnimationVisibility, model.visibility)
@@ -196,6 +199,28 @@ struct NativeReportCoverTests {
         #expect(try await x(dark) >= 219.9)
         #expect(try await capture(dark, name: "reduced-dark") > 225)
         print("REPORT_COVER_RENDERED_CYCLE_CONFIRMED")
+    }
+
+    @Test func singlePlaybackStaysFinishedAcrossRedrawAndReplaysOnce() async throws {
+        let model = CoverReplay(), props = try CoverReplay.props("once", duration: 0.8)
+        model.playback = .playingOnce
+        let window = SwiftUIReplay.window(CoverReplayView(model: model, props: [props]), width: 360, height: 308)
+        defer { window.contentView = nil; window.close() }
+        try await wait { model.ready == 1 }
+        let root = try #require(window.contentView)
+        let web = try #require(webViews(root).first)
+        try await wait { try await x(web) >= 219.9 }
+        model.redraw.toggle()
+        try await Task.sleep(for: .milliseconds(1100))
+        #expect(try await x(web) >= 219.9, "Redraw must retain the final frame")
+        model.replayID += 1
+        try await wait { try await x(web) < 180 }
+        try await wait { try await x(web) >= 219.9 }
+        try await Task.sleep(for: .milliseconds(5500))
+        #expect(try await x(web) >= 219.9, "A hover replay must not loop")
+        model.replayID += 1
+        try await wait { try await x(web) < 180 }
+        print("REPORT_COVER_SINGLE_PLAY_CONFIRMED")
     }
 
     @Test func oversizedInfiniteAuthorMotionStillCompletesWithinSixSeconds() async throws {
