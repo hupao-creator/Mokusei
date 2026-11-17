@@ -135,6 +135,8 @@ struct NativeReportCollection: View {
                                 .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，第 \(page + 1) 篇，共 \(members.count) 篇", "Show all Super Threads, report \(page + 1) of \(members.count)"))
                                 .disabled(!active || outgoingID != nil)
                                 .glassEffect(.regular.interactive(), in: Capsule())
+                                // Scale the ink and glass together, keeping the outer top/right inset fixed.
+                                .scaleEffect(1.2, anchor: .topTrailing)
                         }
                         Spacer()
                         // Native Liquid Glass can draw outside a transparent SwiftUI
