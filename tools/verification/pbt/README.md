@@ -122,9 +122,8 @@ are never passes. Partial runs list only executed properties and cannot be
 reported as a completed suite.
 
 [Routine CI](../../../scripts/ci/README.md) runs Go/geometry and uploads evidence.
-Source/build success alone does not establish coverage. Actual results and
-external review status belong to the tested checkpoint's delivery record, not
-permanent claims in module documentation.
+Source/build success alone does not establish coverage. Record actual results
+with the tested commit in the delivery record.
 
 `python3 tools/verification/pbt/verify.py --output /tmp/replay-cli-evidence`
 checks the real runner with generated malformed/version/word/exhausted inputs,

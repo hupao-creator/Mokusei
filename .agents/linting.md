@@ -21,9 +21,6 @@ criteria from those facts. Link the guide and actual evidence in the
 explicit. The index is not a second specification or a claim of test coverage.
 e2e owns interactions, PBT owns Moku runtime, and benchmarks own user experience.
 Extra PBT coverage needs a concrete reason and does not replace that ownership.
-Independent adversarial review checks documentation, implementation and evidence
-at a fixed commit, with findings resolved and rechecked. The coordinator arranges
-GLM-5.3 reviews for final checkpoints and combined revisions without adding a user approval step.
 
 Install the repository-local hook with `make install-hooks`; it runs `make lint`
 without modifying files. Review the staged diff when partially staging.

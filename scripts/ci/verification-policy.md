@@ -48,8 +48,7 @@ accounting remains an explicit limitation, never a passing measurement.
 Record the exact revision, command, workload, environment, artifact identity,
 measurement validity and result. `blocked`, `skipped`, unrun and another
 revision's results are not passes. Calibration establishes measurement
-capability, not product correctness. Independent adversarial review checks
-source/doc/evidence consistency, and findings require resolution and recheck.
+capability, not product correctness.
 
 The [product e2e runner](../../tools/e2e/README.md) implements mounted READ and
 SETTINGS journeys plus an explicitly operator-assisted system-input Composer
