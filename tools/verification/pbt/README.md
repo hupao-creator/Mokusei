@@ -91,8 +91,16 @@ python3 tools/verification/pbt/run.py --property PBT-OVERVIEW-STATE --replay /ab
 ./scripts/go.sh test ./internal/plugins/applications/report -run FuzzReportHTMLProjections/CORPUS_HASH -count=1
 ```
 
-Rapid replays package `testdata/rapid` corpus before generated cases; failure
-emits a seed and minimized `.fail`. Swift failures name the seed and input, save
+Rapid replays package `testdata/rapid` corpus before generated cases; ignored or
+invalid corpus inputs make the runner exit 2. Explicit `--failfile` input is
+snapshotted and hashed, decoded using Rapid v1.3.0's v0.4.8 format and executed
+through `rapid.MakeFuzz` in a separate `explicit-replay` subtest. A completed pass
+must be observed before generated checks run; malformed/version-mismatched or
+out-of-domain input exits 2, a reproduced assertion exits 1. The summary records
+the input identity and replay result separately from random counts. The
+[test-only adapter](rapidcheck/check.go) is shared by all Rapid properties; it
+does not enter product binaries. Failure emits a seed and minimized `.fail`.
+Swift failures name the seed and input, save
 `original.json` before shrinking, then `reduced.json`. Swift JSON replay executes
 only that input and labels it as replay. Go fuzz writes failures to
 `testdata/fuzz/FuzzReportHTMLProjections` with the concrete replay command.
@@ -117,3 +125,10 @@ reported as a completed suite.
 Source/build success alone does not establish coverage. Actual results and
 external review status belong to the tested checkpoint's delivery record, not
 permanent claims in module documentation.
+
+`python3 tools/verification/pbt/verify.py --output /tmp/replay-cli-evidence`
+checks the real runner with generated malformed/version/word/exhausted inputs,
+the Runtime admission corpus, and a temporary Go overlay that injects an oracle
+failure after the real property. Removing the overlay proves that same input
+passes the unchanged property. This CLI e2e verifies replay plumbing; it does not
+add a Runtime property or ordinary example tests, nor certify every counterexample.

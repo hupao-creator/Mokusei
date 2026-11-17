@@ -81,11 +81,17 @@ jobs:
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: python3 tools/verification/pbt/run.py --suite go --go go --artifacts "${{ runner.temp }}/pbt-go"
 
+      - name: Explicit replay CLI evidence boundary
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
+        run: python3 tools/verification/pbt/verify.py --go go --output "${{ runner.temp }}/pbt-replay-cli"
+
       - uses: actions/upload-artifact@v4
         if: ${{ always() && needs.scope.outputs.documentation_only != 'true' }}
         with:
           name: pbt-go-attempt-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/pbt-go
+          path: |
+            ${{ runner.temp }}/pbt-go
+            ${{ runner.temp }}/pbt-replay-cli
           if-no-files-found: error
           retention-days: 14
 

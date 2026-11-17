@@ -12,13 +12,14 @@ import (
 	"testing"
 
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
 // PBT-STORE-LIFECYCLE: internal/core/store/README.md. The oracle retains facts,
 // acknowledgements and accepted effects, not the production index algorithm.
 func TestLifecycleProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		root, err := os.MkdirTemp("", "mokusei-lifecycle-pbt-")
 		if err != nil {
 			t.Fatal(err)

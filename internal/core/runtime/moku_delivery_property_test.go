@@ -12,6 +12,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
@@ -19,7 +20,7 @@ import (
 // native process: attempt is immediately-before-I/O and admitted is its durable
 // acknowledgement. This does not simulate the scheduler or claim provider effects.
 func TestMokuOutboxProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		root, err := os.MkdirTemp("", "mokusei-outbox-pbt-")
 		if err != nil {
 			t.Fatal(err)

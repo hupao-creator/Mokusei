@@ -95,6 +95,10 @@ func Check(root string) error {
 			target = strings.TrimPrefix(target, module)
 			edges[from][target] = true
 			if strings.HasPrefix(from, "internal/") {
+				// Property runners are test-only dependencies, never product layers.
+				if strings.HasSuffix(relative, "_test.go") && target == "tools/verification/pbt/rapidcheck" {
+					continue
+				}
 				source := strings.TrimPrefix(from, "internal/")
 				dest := strings.TrimPrefix(target, "internal/")
 				rule, exists := allowed[source]

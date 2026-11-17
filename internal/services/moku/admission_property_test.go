@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
 // PBT-MOKU-QUEUE: README.md. A held owner is a barrier, so cancellation is
 // observed without relying on sleeps or assuming a FIFO goroutine scheduler.
 func TestAdmissionQueueProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		var q admissionQueue
 		var inside atomic.Int32
 		cohorts := rapid.IntRange(1, 8).Draw(t, "cohorts")

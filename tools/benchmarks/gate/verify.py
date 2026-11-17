@@ -7,6 +7,7 @@ performance results and do not duplicate its regression calculation.
 import argparse
 import copy
 import json
+import itertools
 from pathlib import Path
 import random
 import subprocess
@@ -16,6 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from gate.engine import digest, identity, read, reference, write
 
 CLI = Path(__file__).resolve().parents[1] / 'performance.py'
+COMMANDS = None
+COMMAND_NUMBER = itertools.count()
 
 
 def fixture(path, base=1000, candidate=1000, direction='lower'):
@@ -57,15 +60,20 @@ def persist(path, campaign):
 
 def cli(args, expected, report=None):
     result = subprocess.run([sys.executable, str(CLI), *map(str, args)], capture_output=True, text=True, timeout=30)
+    if COMMANDS:
+        write(COMMANDS / f'{next(COMMAND_NUMBER):04d}.json', {'argv': result.args, 'exitCode': result.returncode,
+              'expectedExitCode': expected, 'stdout': result.stdout, 'stderr': result.stderr})
     if result.returncode != expected:
         raise AssertionError(f'{args}: expected {expected}, got {result.returncode}\n{result.stdout}\n{result.stderr}')
     if report:
         value = read(report / 'report.json')
         assert value['exitCode'] == expected, 'process exit and report disagree'
         return value
+    return result
 
 
 def main():
+    global COMMANDS
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--examples', type=int, default=40)
@@ -73,6 +81,9 @@ def main():
     args = parser.parse_args()
     assert args.examples > 0
     args.output.mkdir(parents=True, exist_ok=False)
+    COMMANDS = args.output / 'commands'
+    source = {'head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'status': subprocess.check_output(['git', 'status', '--porcelain'], text=True)}
     rng = random.Random(args.seed)
     checks = []
     try:
@@ -118,7 +129,33 @@ def main():
             invalid_path = path / 'invalid-catalog.json'
             write(invalid_path, invalid)
             cli(['--catalog', invalid_path, 'list'], 2)
-            checks.append('identity/degradation/direction/permutation/scale/catalog-rejection:' + str(index))
+            # The baseline manifest is a separate external input boundary. Use
+            # an unsupported adapter so acceptance cannot start a measurement.
+            manifest_policy = path / 'manifest-catalog.json'
+            write(manifest_policy, {'schemaVersion': 1, 'kind': 'performance-catalog', 'suites': {
+                'manifest-control': {'version': 1, 'documentation': 'gate/README.md', 'calibration': 'synthetic',
+                                     'adapter': 'unsupported', 'reason': 'schema acceptance only', 'scenarios': ['fixture']}}})
+            approval = {'schemaVersion': 1, 'kind': 'performance-baseline', 'suite': 'manifest-control',
+                        'policySHA256': digest(manifest_policy), 'revision': 'b'*40, 'reportSHA256': 'a'*64,
+                        'reviewer': f'generated-{rng.randrange(1000000)}', 'reason': 'synthetic only', 'approvedAt': '2026-11-18T00:00:00+00:00'}
+            manifest = path / 'baseline-input.json'
+            fields = list(approval)
+            for variant in ('shape', 'missing', 'type', 'valid'):
+                value = copy.deepcopy(approval)
+                if variant == 'shape':
+                    value = rng.choice(([], None, True, rng.randrange(100), 'invalid'))
+                elif variant == 'missing':
+                    del value[fields[index % len(fields)]]
+                elif variant == 'type':
+                    value[fields[index % len(fields)]] = rng.choice(([], {}, None, True, rng.randrange(100)))
+                write(manifest, value)
+                output = path / ('baseline-' + variant)
+                cli(['--catalog', manifest_policy, 'run', '--suite', 'manifest-control', '--baseline-manifest', manifest,
+                     '--candidate', 'c'*40, '--output', output], 2)
+                assert output.exists() == (variant == 'valid'), 'invalid manifest reached campaign preparation'
+                if variant == 'valid':
+                    assert read(output/'campaign.json')['subjects']['baseline']['revision'] == approval['revision']
+            checks.append('identity/degradation/direction/permutation/scale/catalog-and-baseline-rejection:' + str(index))
         mutations = {
             'missing-run': lambda c: c['runs'].pop(),
             'missing-metric': lambda c: c['runs'][0]['metrics'].clear(),
@@ -191,24 +228,50 @@ def main():
         checks.append('GPU-ownership-duplicate-translation-properties:12')
         path = args.output / 'promotion'
         fixture(path)
-        cli(['promote', path, '--output', path/'approval.json', '--reviewer', 'CLI-e2e', '--reason', 'synthetic verification only'], 0, path)
+        cli(['judge', path], 0, path)
+        reports = {name: (path/name).read_bytes() for name in ('report.json', 'report.md')}
+        accepted = cli(['promote', path, '--output', path/'approval.json', '--reviewer', 'CLI-e2e', '--reason', 'synthetic verification only'], 0)
+        assert json.loads(accepted.stdout)['status'] == 'approved'
+        approval = read(path/'approval.json')
+        snapshot = path/approval['reportSnapshot']
+        snapshot_bytes = snapshot.read_bytes()
+        assert digest(snapshot) == approval['reportSHA256']
         before = (path / 'approval.json').read_bytes()
-        cli(['promote', path, '--output', path/'approval.json', '--reviewer', 'CLI-e2e', '--reason', 'must not replace'], 2)
+        rejected = cli(['promote', path, '--output', path/'approval.json', '--reviewer', 'CLI-e2e', '--reason', 'must not replace'], 2)
+        result = json.loads(rejected.stdout)
+        assert result['status'] == 'rejected' and result['exitCode'] == 2 and result['performanceExitCode'] == 0
         assert (path / 'approval.json').read_bytes() == before
+        assert all((path/name).read_bytes() == data for name, data in reports.items())
+        assert snapshot.read_bytes() == snapshot_bytes and digest(snapshot) == approval['reportSHA256']
+        # Unwritable destination, followed by successful rejudgment and a second
+        # explicit approval. Neither may invalidate the first approval snapshot.
+        blocker = path / 'not-a-directory'
+        blocker.write_text('output parent is a file')
+        rejected = cli(['promote', path, '--output', blocker/'approval.json', '--reviewer', 'CLI-e2e', '--reason', 'unwritable output'], 2)
+        assert json.loads(rejected.stdout)['status'] == 'rejected'
+        assert all((path/name).read_bytes() == data for name, data in reports.items())
+        cli(['judge', path], 0, path)
+        cli(['promote', path, '--output', path/'second-approval.json', '--reviewer', 'CLI-e2e', '--reason', 'second review'], 0)
+        second = read(path/'second-approval.json')
+        assert digest(path/second['reportSnapshot']) == second['reportSHA256']
         (path / '0-baseline.json').write_text('{}')
-        cli(['promote', path, '--output', path/'bad.json', '--reviewer', 'CLI-e2e', '--reason', 'must revalidate'], 2, path)
+        rejected = cli(['promote', path, '--output', path/'bad.json', '--reviewer', 'CLI-e2e', '--reason', 'must revalidate'], 2)
+        assert json.loads(rejected.stdout)['performanceExitCode'] == 2
         assert not (path / 'bad.json').exists()
-        checks.append('promotion-is-explicit-exclusive-and-revalidated')
+        cli(['judge', path], 2, path)
+        assert (path/'approval.json').read_bytes() == before
+        assert snapshot.read_bytes() == snapshot_bytes and digest(snapshot) == approval['reportSHA256']
+        checks.append('promotion-exclusive-immutable-snapshot-output-failure-and-rejudgment')
         path = args.output / 'unsupported-command'
         cli(['run', '--suite', 'ux-zoom', '--baseline', 'b'*40, '--candidate', 'c'*40, '--output', path], 2, path)
         cli(['run', '--suite', 'ux-zoom', '--baseline', 'b'*40, '--candidate', 'c'*40, '--output', path], 2)
         checks.append('unsupported-command-and-output-exclusivity')
     except BaseException as error:
         write(args.output / 'verification.json', {'kind': 'synthetic-gate-verification', 'passed': False,
-              'seed': args.seed, 'completed': checks, 'error': str(error)})
+              **source, 'seed': args.seed, 'completed': checks, 'error': str(error)})
         raise
     write(args.output / 'verification.json', {'kind': 'synthetic-gate-verification', 'passed': True,
-          'seed': args.seed, 'examples': args.examples, 'checks': checks, 'productPerformanceMeasured': False})
+          **source, 'seed': args.seed, 'examples': args.examples, 'checks': checks, 'productPerformanceMeasured': False})
     print(f'Passed {len(checks)} generated property/e2e groups; evidence: {args.output}')
 
 

@@ -3,6 +3,7 @@
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -68,7 +69,6 @@ def main():
     # A dirty revision is identified by its complete patch and untracked source
     # hashes. Evidence cannot be mistaken for certification of HEAD alone.
     (evidence / "tracked.patch").write_bytes(subprocess.check_output(["git", "diff", "HEAD", "--binary"], cwd=ROOT))
-    import hashlib
     summary["untrackedSHA256"] = {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
         for p in git("ls-files", "--others", "--exclude-standard").splitlines() if (ROOT / p).is_file() and not (ROOT / p).is_relative_to(evidence)}
 
@@ -87,6 +87,13 @@ def main():
         # single old case. All budgets/replay selectors belong to this invocation.
         env.pop("MOKUSEI_PBT_REPLAY", None)
         env.pop("RAPID_FAILFILE", None)
+        env.pop("MOKUSEI_PBT_RAPID_REPLAY", None)
+        if args.failfile:
+            replay = folder / "explicit.fail"
+            replay.write_bytes(args.failfile.read_bytes())
+            item["replay"] = {"requestedPath": str(args.failfile.resolve()), "artifact": str(replay.relative_to(evidence)),
+                              "sha256": hashlib.sha256(replay.read_bytes()).hexdigest(), "status": "pending"}
+            env["MOKUSEI_PBT_RAPID_REPLAY"] = str(replay)
         engine = prop["engine"]
         capability_error = None
         if engine == "swift" or prop["suite"] == "system":
@@ -113,8 +120,6 @@ def main():
                 if args.race:
                     command.append("-race")
                 command += ["-run", "^" + prop["test"] + "$", "-short=false", f"-rapid.checks={item['cases']}", f"-rapid.seed={args.seed}", "-rapid.steps=30", "-rapid.nofailfile=false", f"-rapid.shrinktime={args.shrink_seconds}s"]
-                if args.failfile:
-                    command.append("-rapid.failfile=" + str(args.failfile.resolve()))
             else:
                 command += ["-run=^$", "-fuzz=^" + prop["test"] + "$", f"-fuzztime={args.fuzz_seconds}s", f"-fuzzminimizetime={args.shrink_seconds}s", "-parallel=2"]
                 item["cases"] = None
@@ -149,6 +154,27 @@ def main():
                     log.write(str(exc) + "\n")
         output = (folder / "output.log").read_text(errors="replace")
         item["childExitCode"] = None if capability_error else code
+        events = []
+        if engine != "swift":
+            for line in output.splitlines():
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+        if args.failfile:
+            actions = [e.get("Action") for e in events if e.get("Test") == prop["test"] + "/explicit-replay"]
+            replay_status = ("passed" if "pass" in actions else "failed" if "fail" in actions
+                             else "invalid" if "skip" in actions else "not-executed")
+            item["replay"]["status"] = replay_status
+            if replay_status == "invalid":
+                code = 2
+                item["error"] = "explicit Rapid counterexample did not execute to completion"
+            elif replay_status == "not-executed" and code == 0:
+                code = 1
+                item["error"] = "no explicit Rapid replay execution observed"
+        if engine == "rapid" and ("[rapid] ignoring fail file:" in output or "is no longer valid" in output):
+            code = 2
+            item["error"] = "Rapid corpus input was ignored or is no longer valid"
         if code != 0 and "PBT CAPABILITY: WindowServer/display required" in output:
             item["error"] = "WindowServer/display required"
             code = 2
@@ -161,12 +187,6 @@ def main():
             if engine == "swift":
                 witnessed = f"PBT PASS {prop['id']} " in output
             else:
-                events = []
-                for line in output.splitlines():
-                    try:
-                        events.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        pass
                 witnessed = any(e.get("Action") == "pass" and e.get("Test") == prop["test"] for e in events)
                 if engine == "rapid":
                     counts = re.findall(r"\[rapid\] OK, passed (\d+) tests", output)

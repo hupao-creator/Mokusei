@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
@@ -18,7 +19,7 @@ import (
 // The historical storage-workspaces/fanout.go random model, generalized from
 // PCG(19,23) to Rapid-generated shrinkable traces. No allocation/timing examples.
 func TestSnapshotProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		root, err := os.MkdirTemp("", "mokusei-store-pbt-")
 		if err != nil {
 			t.Fatal(err)

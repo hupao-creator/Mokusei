@@ -13,7 +13,11 @@
 | benchmark | 用户体验：打开/滚动/输入响应、输出时交互、资源开销 | [场景与预算](../tools/benchmarks/gate/UX.md)、配对退化判定和显式 dispatch 已实现；预算未实机校准，缺失采集/归因能力会阻塞，不能推断产品性能通过 |
 | 构建/静态 | 格式、依赖、注册、vet、Go/Swift 编译 | Makefile 与 CI 可执行；`Complete coverage` 聚合构建/静态与常规 PBT，不是代码覆盖率或完整行为认证 |
 
-普通单测不是验证 boundary。额外 PBT 必须说明独有缺陷覆盖与补充理由，不能替代主责。
+普通单测不是验证 boundary。显式 Rapid 反例有独立执行与输入身份见证，
+[CLI e2e](../tools/verification/pbt/verify.py)检查输入拒绝和真实属性执行，
+不增加 Runtime 属性数量。[性能晋升](../tools/benchmarks/gate/README.md)保留按 digest
+定位的批准报告快照，晋升命令结果与性能 verdict 分开；合成机制检查不认证产品性能。
+额外 PBT 必须说明独有缺陷覆盖与补充理由，不能替代主责。
 没有实现或没有证据的覆盖保持明确缺口；`blocked`、`skipped`、未运行和其他提交结果不算通过。
 
 ## 事实所有者

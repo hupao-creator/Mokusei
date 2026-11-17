@@ -1,14 +1,67 @@
 #!/usr/bin/env python3
 """Versioned performance campaigns, regression judgment and explicit baselines."""
 import argparse
+import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 
-from gate.engine import catalog, digest, judge, read, require, save_report, sha, write
+from gate.engine import catalog, digest, judge, read, require, save_report, sha, text, write
 from gate.runner import BENCHMARKS, ROOT, phase, run, utc
+
+
+def baseline_revision(value, suite, policy_digest):
+    require(type(value) is dict, 'baseline manifest must be an object')
+    require(type(value.get('schemaVersion')) is int and value['schemaVersion'] == 1 and
+            value.get('kind') == 'performance-baseline', 'unsupported baseline version/kind')
+    require(value.get('suite') == suite and value.get('policySHA256') == policy_digest,
+            'baseline suite/policy identity differs')
+    for key in ('reviewer', 'reason', 'approvedAt'):
+        require(bool(text(value.get(key), 'baseline ' + key).strip()), 'baseline metadata cannot be blank')
+    sha(value.get('reportSHA256'), 'baseline report digest')
+    sha(value.get('revision'), 'baseline revision', 40)
+    return value['revision']
+
+
+def publish_exclusive(path, data):
+    # Publish complete bytes without replacing an existing approval/snapshot,
+    # including when two commands race. Failed writes leave no partial approval.
+    descriptor, temporary = tempfile.mkstemp(prefix='.promotion-', dir=path.parent)
+    try:
+        with os.fdopen(descriptor, 'wb') as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, path)
+    finally:
+        os.unlink(temporary)
+
+
+def promote_report(bundle, report, output, reviewer, reason):
+    require(report['exitCode'] == 0, 'only a revalidated passing campaign can be promoted')
+    for value, label in ((reviewer, 'reviewer'), (reason, 'reason')):
+        require(bool(text(value, label).strip()), label + ' required')
+    require(not output.exists() and not output.is_symlink(), 'approval output already exists')
+    payload = (json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + '\n').encode()
+    report_digest = hashlib.sha256(payload).hexdigest()
+    snapshots = bundle / 'approved-reports'
+    require(not snapshots.is_symlink(), 'approved reports directory cannot be a symlink')
+    snapshots.mkdir(exist_ok=True)
+    snapshot = snapshots / (report_digest + '.json')
+    try:
+        publish_exclusive(snapshot, payload)
+    except FileExistsError:
+        require(not snapshot.is_symlink() and snapshot.read_bytes() == payload, 'approved snapshot differs')
+    approval = {'schemaVersion': 1, 'kind': 'performance-baseline', 'suite': report['suite'],
+                'revision': report['subjects']['candidate']['revision'], 'policySHA256': report['policySHA256'],
+                'reportSHA256': report_digest, 'reportSnapshot': str(snapshot.relative_to(bundle)),
+                'reviewer': reviewer, 'reason': reason, 'approvedAt': utc()}
+    publish_exclusive(output, (json.dumps(approval, indent=2) + '\n').encode())
+    return approval
 
 
 def main():
@@ -51,6 +104,7 @@ def main():
     promote.add_argument('--reviewer', required=True)
     promote.add_argument('--reason', required=True)
     args = parser.parse_args()
+    report = None
     try:
         if args.command == 'trace-analyze':
             from gate.trace import gpu_observation
@@ -87,14 +141,7 @@ def main():
             require(args.suite in policy['suites'], 'unknown suite')
             baseline = args.baseline
             if args.baseline_manifest:
-                approval = read(args.baseline_manifest)
-                require(approval.get('schemaVersion') == 1 and approval.get('kind') == 'performance-baseline' and
-                        approval.get('suite') == args.suite and approval.get('policySHA256') == digest(args.catalog),
-                        'baseline suite/policy identity differs')
-                for key in ('reviewer', 'reason', 'approvedAt'):
-                    require(type(approval.get(key)) is str and bool(approval[key].strip()), 'baseline approval metadata absent')
-                sha(approval.get('reportSHA256'), 'baseline report digest')
-                baseline = approval['revision']
+                baseline = baseline_revision(read(args.baseline_manifest), args.suite, digest(args.catalog))
             sha(baseline, 'baseline revision', 40)
             sha(args.candidate, 'candidate revision', 40)
             args.output = args.output.resolve()
@@ -107,19 +154,19 @@ def main():
         report = judge(bundle)
         phase(report, 'judge')
         phase(report, 'report')
-        save_report(bundle, report)
         if args.command == 'promote':
-            require(report['exitCode'] == 0, 'only a revalidated passing campaign can be promoted')
-            require(args.reviewer.strip() and args.reason.strip(), 'reviewer and reason required')
-            approval = {'schemaVersion': 1, 'kind': 'performance-baseline', 'suite': report['suite'],
-                        'revision': report['subjects']['candidate']['revision'], 'policySHA256': report['policySHA256'],
-                        'reportSHA256': digest(bundle / 'report.json'), 'reviewer': args.reviewer,
-                        'reason': args.reason, 'approvedAt': utc()}
-            with args.output.open('x') as stream:
-                stream.write(json.dumps(approval, indent=2) + '\n')
+            approval = promote_report(bundle, report, args.output, args.reviewer, args.reason)
+            print(json.dumps({'kind': 'performance-promotion-result', 'status': 'approved', 'exitCode': 0,
+                              'performanceExitCode': report['exitCode'], 'approval': str(args.output),
+                              'reportSHA256': approval['reportSHA256'], 'reportSnapshot': approval['reportSnapshot']}))
+            return 0
+        save_report(bundle, report)
         print(f"{report['suite']}: {report['status']} / {report['decision']} — {bundle / 'report.md'}")
         return report['exitCode']
     except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
+        if args.command == 'promote':
+            print(json.dumps({'kind': 'performance-promotion-result', 'status': 'rejected', 'exitCode': 2,
+                              'performanceExitCode': report['exitCode'] if report else None, 'reason': str(error)}))
         print(str(error), file=sys.stderr)
         return 2
 

@@ -7,7 +7,10 @@ input domain and oracle; generated sample counts are not code-coverage percentag
 
 Linux runs Go formatting, architecture/import and static registration checks,
 `go vet ./...`, `go build ./...` and Go PBT (seven Rapid properties, 100 cases each,
-seed 1; Report HTML fuzz, 10s). macOS 26 arm64 builds all Go packages and the
+seed 1; Report HTML fuzz, 10s), followed by the explicit-replay CLI e2e for
+generated invalid inputs, witnessed corpus execution and injected/fixed oracle
+failure. Replay mechanism checks are separate from the property inventory count.
+macOS 26 arm64 builds all Go packages and the
 Swift production products with warnings as errors and the Metal build plugin,
 then runs 480 generated geometry cases with seed 1. Native work is serial on one
 runner. Mounted Canvas and real Codex system properties are opt-in local/CI

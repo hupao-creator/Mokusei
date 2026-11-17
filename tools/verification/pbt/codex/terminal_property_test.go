@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/codex"
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
 // PBT-CODEX-TERMINAL: internal/plugins/harness/codex/README.md
 func TestCodexTerminalProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		state := codex.EmptyState(1)
 		terminals := map[string]codex.Map{}
 		ids := []string{}

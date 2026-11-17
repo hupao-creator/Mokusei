@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
@@ -13,7 +14,7 @@ import (
 // each owner's durable history remains a valid sequence of execution lifetimes.
 // No native peer or alternate implementation of the coordinator is installed.
 func TestToolScopeProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		c := &Coordinator{ctx: ctx, running: true, scopes: map[string]executionScope{}, observed: map[string]string{}}

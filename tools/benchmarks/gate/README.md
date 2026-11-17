@@ -112,8 +112,21 @@ python3 tools/benchmarks/gate/verify.py --output /tmp/performance-contract-evide
 `--catalog` selects an explicit reviewed policy file; its digest is retained.
 `judge` uses the campaign's snapshotted catalog and rechecks retained evidence.
 Promotion rejudges those inputs, requires passed, records reviewer/reason/report
-hash, and creates a new file exclusively. It never changes a repo ref or overwrites
-a prior baseline. Compare full explicit SHAs to bootstrap an A/A baseline.
+hash, and publishes a complete approval file exclusively. It retains the approved
+JSON report at `approved-reports/<SHA256>.json` within the campaign; the approval's
+`reportSnapshot` is relative to that bundle. Retain this snapshot with the approval
+and raw campaign. Repeated promotion, an unwritable output and later `judge` calls
+cannot overwrite it. Promotion does not rewrite the mutable `report.json`/`.md`;
+`judge` and `run` write those current performance verdicts. The promotion command
+prints a JSON `performance-promotion-result` with its own status/exitCode and the
+separate performanceExitCode (null if no judgment was available). Rejection exits
+2 even when the underlying campaign passed. It never changes a repo ref or
+overwrites a prior baseline. Compare full explicit SHAs to bootstrap an A/A baseline.
+
+`--baseline-manifest` validates an object with integer schemaVersion 1, kind,
+matching suite/policy, full revision/report digests and nonblank bounded string
+reviewer/reason/approvedAt metadata before creating a campaign or collecting.
+Invalid shapes, missing fields and wrong types exit 2, not regression exit 1.
 
 Portable CLI PBT/e2e runs in `performance-contract.yml`. Runtime A/B and Overview
 A/B have explicit dispatch workflows; a nonzero judgment fails their job. These

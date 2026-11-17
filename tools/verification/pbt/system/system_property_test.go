@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
@@ -18,7 +19,7 @@ func TestSystemFaultCombinationProperties(t *testing.T) {
 	if native == "" {
 		t.Fatal("set MOKUSEI_SYSTEM_CODEX to an absolute native Codex path; missing capability is not a pass")
 	}
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		scopes := rapid.IntRange(1, 3).Draw(t, "scopes")
 		plan := []string{}
 		for _, role := range []string{"moku", "child", "report", "tag", "read"} {

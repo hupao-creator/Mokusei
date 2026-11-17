@@ -16,6 +16,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
@@ -88,7 +89,7 @@ func (h *propertyHandle) Send(ctx context.Context, request plugin.SendRequest) e
 
 // PBT-RUNTIME-ADMISSION: internal/core/runtime/README.md
 func TestSendAdmissionProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
+	rapidcheck.Check(t, func(t *rapid.T) {
 		trace := rapid.SliceOfN(rapid.SampledFrom([]string{
 			"accept", "reject", "end", "end-reject", "end-failure", "end-cancel", "invalid-retry", "admitted-failure",
 		}), 1, 25).Draw(t, "schedule")
