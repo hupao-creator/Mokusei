@@ -248,17 +248,8 @@ struct NativeMokuComposerInput: View {
             : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread")
     }
     @ViewBuilder private var actions: some View {
-        if running {
-            Button(action: onCancel) {
-                RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
-                    .frame(width: 32, height: 32).contentShape(Circle())
-            }.buttonStyle(.plain).disabled(unavailable || readOnly)
-                .help(stopLabel)
-                .accessibilityLabel(stopLabel)
-                .accessibilityIdentifier("moku-stop")
-        }
-        // Retain the editor's width when the first/last character
-        // changes, but mount no button or background for an empty draft.
+        if running && threadTitle == nil { stopButton }
+        // Retain the editor's width as the draft and its action change.
         ZStack {
             if hasInput {
                 Button(action: onSend) {
@@ -267,8 +258,19 @@ struct NativeMokuComposerInput: View {
                 }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly || !(sidecardComposer?.ready ?? true))
                     .opacity(!unavailable && draft.canSubmit && (sidecardComposer?.ready ?? true) ? 1 : 0.3)
                     .accessibilityLabel(sidecardComposer == nil ? localize("发送", "Send") : localize("发送批注", "Send annotation")).accessibilityIdentifier("moku-send")
+            } else if running && threadTitle != nil {
+                stopButton
             }
         }.frame(width: 32, height: 32)
+    }
+    private var stopButton: some View {
+        Button(action: onCancel) {
+            RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
+                .frame(width: 32, height: 32).contentShape(Circle())
+        }.buttonStyle(.plain).disabled(unavailable || readOnly)
+            .help(stopLabel)
+            .accessibilityLabel(stopLabel)
+            .accessibilityIdentifier("moku-stop")
     }
     private var attachmentButton: some View {
         Group {

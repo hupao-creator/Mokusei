@@ -176,6 +176,9 @@ An empty or whitespace-only draft without attachments/directories mounts no Send
 button or circular background, including in accessibility. Its empty layout seat
 keeps the editor width stable. Attachment/directory-only input still exposes Send;
 importing, submission and unavailable states retain their ordinary admission rules.
+For an active Thread execution, that same seat shows Stop when the draft has no
+sendable content and Send when it does. Other composer routes retain their existing
+Stop and Send layout.
 Moku editors always use the existing shortened, rounded 2.6-point
 white core with a warm-yellow upper halo, cool-blue lower halo and blurred
 gradient fringe, including on a light system.
@@ -294,7 +297,8 @@ Running messages reserve a 48-point trailing inset even before hover/focus,
 keeping text and dispatch content clear of the 30-point Stop target and its
 7-point edge inset. Revealing the square therefore does not rewrap the message.
 This is cancellation (`moku:cancel`), with no pause/resume action. Composer Stop
-is a separate item in the input HStack. Blink/cloud clock pauses are animation lifecycle state,
+shares the Send seat for an active Thread execution; other composer routes retain
+their separate Stop item. Blink/cloud clock pauses are animation lifecycle state,
 not message-bar controls.
 
 Dispatch notifications (pending, started or failed) expire 10 seconds after their
