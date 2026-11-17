@@ -21,6 +21,8 @@ enum NativeOnboardingStep: Int, CaseIterable {
     private(set) var finished: Bool
     private(set) var step = NativeOnboardingStep.discovery
     private(set) var busy = false
+    private var configurationHarnessIDs = Set<JSONText>()
+    private var retryingHarnessIDs = Set<JSONText>()
     var error: String?
     private(set) var editors = Dictionary(uniqueKeysWithValues: NativeOnboardingStep.allCases.map { ($0, NativeSettingsReadiness()) })
     var editorReady: Bool { editors[step]?.ready == true }
@@ -41,11 +43,33 @@ enum NativeOnboardingStep: Int, CaseIterable {
         }
     }
     var installed: [AnyHarnessPlugin] {
-        harnesses.filter { settings.installations[$0.descriptor.id.string]?.status == .installed }
+        harnesses.filter {
+            guard settings.installations[$0.descriptor.id.string]?.status == .installed else { return false }
+            // Keep the admitted roster stable across configuration saves. The
+            // active editor independently gates readiness of its changed source.
+            return step == .discovery ? discoveryState($0) == .ready : configurationHarnessIDs.contains($0.descriptor.id)
+        }
+    }
+    enum DiscoveryState: Equatable { case checking, loading, ready, missing, failed(String) }
+    func discoveryState(_ harness: AnyHarnessPlugin) -> DiscoveryState {
+        let id = harness.descriptor.id.string
+        if retryingHarnessIDs.contains(harness.descriptor.id) {
+            return settings.installations[id]?.status == .installed ? .loading : .checking
+        }
+        switch settings.installationState(id) {
+        case .checking, .installing: return .checking
+        case .missing: return .missing
+        case .error: return .failed(settings.installations[id]?.message ?? locale.text("检测失败，请重试。", "Detection failed. Please retry."))
+        case .installed:
+            switch workspace.harnessHost.settingsPreparation(harnessID: harness.descriptor.id) {
+            case .loading: return .loading
+            case .ready: return .ready
+            case .failed(let message): return .failed(message)
+            }
+        }
     }
     var detecting: Bool {
-        settings.installationLoadState == .notLoaded || settings.installationLoadState == .loading
-            || harnesses.contains { settings.installations[$0.descriptor.id.string]?.status == .checking }
+        harnesses.contains { discoveryState($0) == .checking || discoveryState($0) == .loading }
     }
     var selectedHost: AnyHarnessPlugin? {
         let id = settings.draft.value["moku"]?["hostHarnessPreference"]?.stringValue
@@ -109,6 +133,7 @@ enum NativeOnboardingStep: Int, CaseIterable {
         defer { busy = false }
         do {
             if step == .discovery {
+                configurationHarnessIDs = Set(installed.map(\.descriptor.id))
                 seedAvailableSelections()
             } else {
                 // Discovery can change while the editor is mounted. Keep only
@@ -137,8 +162,34 @@ enum NativeOnboardingStep: Int, CaseIterable {
         error = nil
         if !admitted { admitIfNeeded() }
         else if settings.draft.error != nil { settings.draft.retry() }
-        else if step == .discovery { Task { await settings.refreshInstallations() } }
+        else if step == .discovery {
+            for harness in harnesses { if case .failed = discoveryState(harness) { retryDiscovery(harness) } }
+        }
         else { Task { await advance() } }
+    }
+
+    func retryDiscovery(_ harness: AnyHarnessPlugin) {
+        let id = harness.descriptor.id
+        guard workspace.runtimeAvailable, !retryingHarnessIDs.contains(id) else { return }
+        retryingHarnessIDs.insert(id)
+        Task {
+            defer { retryingHarnessIDs.remove(id) }
+            if settings.installations[id.string]?.status == .installed {
+                await workspace.harnessHost.retrySettingsPreparation(harnessID: id)
+            } else {
+                await settings.refreshInstallation(id.string, retry: true)
+            }
+        }
+    }
+
+    func scan() {
+        guard workspace.runtimeAvailable, !settings.probing else { return }
+        let ids = Set(harnesses.map(\.descriptor.id))
+        retryingHarnessIDs.formUnion(ids)
+        Task {
+            defer { retryingHarnessIDs.subtract(ids) }
+            await settings.refreshInstallations()
+        }
     }
 
     func finishHandoff() {

@@ -206,10 +206,20 @@ an in-flight read and reuses successful resources across mounts; thread editors 
 Saved source changes reload only the affected resource. Removed scopes/cwds,
 installation changes, disconnect, authority replacement and full reload retire
 the corresponding cache. Draft edits and unrelated streamed revisions do not.
-Background failures retry after 1 and 3 seconds, then retain the error for the
+Background failures, including plugin-reported presentation failures, retry after
+1 and 3 seconds, then retain the error for the
 editor's retry/refresh. Execution-snapshot errors also remain retryable even
 when the native presentation itself loaded. No background retry loop runs
 indefinitely. Closing Settings leaves workspace acquisition running.
+
+Onboarding joins these exact retained surfaces before admitting a Harness. Its
+ready roster constrains Moku and background-role choices for that discovery visit;
+resource errors remain per Harness, and successful resources mount immediately.
+Installation retries join only that Harness's read, independently of an unfinished
+roster scan; periodic replies retain successful resources when facts are unchanged.
+A successful response with an embedded CLI/catalog error or missing saved execution
+snapshot cannot certify configuration readiness. See the
+[onboarding contract](../Onboarding/README.md).
 
 Installation discovery distinguishes not-yet-loaded, initial loading, successful
 (including empty) and failed reads. Moku shows a compact native progress notice

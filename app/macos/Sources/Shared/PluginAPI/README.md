@@ -78,6 +78,12 @@ prefetched before any editor mounts. Editors join the resource's pending read;
 unmounting a global editor keeps its typed presentation cached. Source changes
 invalidate pending results, while disconnect/reload or scope removal releases
 the resource. Thread settings sessions still belong to their mounted editor.
+`settingsPresentationIssue` lets each Harness identify a decoded but unusable
+presentation without mounting an editor: CLI/catalog errors and unfinished model
+availability are distinct from transport completion. The host uses that result
+alongside execution-snapshot readiness for onboarding admission and bounded
+background retries. Empty catalogs remain plugin-specific (Claude permits custom
+identifiers).
 
 [SidecardAttachmentImport.swift](SidecardAttachmentImport.swift) provides lifetime-bound device-local file/byte staging plus the runtime attachment policy. Browser annotations retain the existing URL-only staging capability. Agent detail input uses the Host-owned Moku composer and its attachment service; Conversation is an execution display.
 

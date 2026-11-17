@@ -19,7 +19,28 @@ always dark: the panel scopes `\.colorScheme` to `.dark`, so its own tokens, the
 shared glass shell, hosted AppKit popups/editors and the Tag/Report animations
 stay dark in a light workspace while the window keeps its appearance. Overview
 presentation and native controls remain unchanged outside the panel. Discovery presents
-installed Harness logos or plugin-owned installation guides. Moku reuses the
+Harnesses independently as checking installation, loading configuration, ready,
+or failed with a Harness-specific retry. An executable alone is not discovered:
+readiness joins the workspace's retained defaults, Moku execution and enabled
+background-role resources for that Harness. This includes each plugin's decoded
+model catalog, capabilities/options and nonempty saved execution snapshots.
+Transport/decode failures, CLI failures and embedded catalog errors remain errors;
+background retries are bounded (1 and 3 seconds) and never count as completion.
+Codex/Pi/OpenCode require usable model catalogs; Claude supports custom model
+identifiers and can legitimately have an empty advertised list. OpenCode waits
+for the account phase that can still filter model availability, not usage telemetry.
+
+The title counts only ready Harnesses and keeps discovery progress or partial
+failure explicit. Continue requires at least one ready Moku-capable Harness and
+does not wait for unrelated slow/failed Harnesses. It admits the current ready
+roster into Moku and the role pickers; returning to discovery can admit newly
+ready Harnesses. The admitted roster remains stable across execution-profile
+saves, while each active editor still enforces its own readiness and validation.
+The same cached, source-keyed surfaces supply the subsequent editors immediately;
+page changes do not reload successful resources or reseed selected defaults.
+Disabled roles need no execution resources until enabled; changing a saved source,
+role mode or connection authority retains the ordinary targeted reload boundary.
+Plugin-owned installation guides remain available for missing Harnesses. Moku reuses the
 Settings coordination map and native Harness execution fields. Tag and Report
 reuse application-owned background configuration, including inheritance and
 retained independent profiles. Provider catalogs, pending model choices and

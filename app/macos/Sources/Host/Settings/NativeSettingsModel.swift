@@ -84,6 +84,7 @@ public final class NativeSettingsModel {
     @ObservationIgnored private let installHarness: (String) async throws -> Void
     @ObservationIgnored private var probeIsForced = false
     @ObservationIgnored private var probeTask: Task<Void, Never>?
+    @ObservationIgnored private var installationTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var discoveryTask: Task<Void, Never>?
     @ObservationIgnored private var discoveryGeneration = UUID()
     @ObservationIgnored private var harnessIDs: [String] = []
@@ -135,6 +136,8 @@ public final class NativeSettingsModel {
     public func stopDiscovery() {
         discoveryGeneration = UUID(); discoveryTask?.cancel(); discoveryTask = nil
         probeTask?.cancel(); probeTask = nil; probing = false
+        for task in installationTasks.values { task.cancel() }
+        installationTasks.removeAll()
         if installationLoadState == .loading { installationLoadState = .notLoaded }
         if let focusObserver { NotificationCenter.default.removeObserver(focusObserver) }
         focusObserver = nil
@@ -171,29 +174,9 @@ public final class NativeSettingsModel {
                     self.onDiscoveryChange?()
                 }
             }
-            if !force, let loadInstallation = self.loadInstallation, !self.harnessIDs.isEmpty {
-                for id in self.harnessIDs where self.installations[id] == nil {
-                    self.installations[id] = .init(status: .checking)
-                }
+            if !force, self.loadInstallation != nil, !self.harnessIDs.isEmpty {
                 let loads = self.harnessIDs.map { id in
-                    Task { @MainActor in
-                        let installation: NativeHarnessInstallation
-                        do { installation = .init(json: try await loadInstallation(id)) }
-                        catch is CancellationError { return }
-                        catch { installation = .init(status: .error, message: error.localizedDescription) }
-                        guard !Task.isCancelled, !self.retired, self.discoveryGeneration == generation else { return }
-                        if let previous = self.installations[id], previous.status != .checking, previous.status != installation.status || previous.executablePath != installation.executablePath {
-                            self.detailRefreshSequences[id, default: 0] += 1
-                        }
-                        // Dictionary member writes notify Observation even when
-                        // discovery returned the same installation as last time.
-                        if self.installations[id] != installation { self.installations[id] = installation }
-                        self.installationLoadState = .loaded
-                        if installation.status == .installed, self.installationErrors[id] != nil {
-                            self.installationErrors.removeValue(forKey: id)
-                        }
-                        self.onDiscoveryChange?()
-                    }
+                    Task { @MainActor in await self.refreshInstallation(id) }
                 }
                 await withTaskCancellationHandler {
                     for load in loads { await load.value }
@@ -222,6 +205,41 @@ public final class NativeSettingsModel {
             }
         }
         probeTask = task; await task.value
+    }
+
+    /// Join just this Harness, so retrying it never waits for an unrelated
+    /// installation reply. Successful periodic reads retain the visible roster.
+    public func refreshInstallation(_ id: String, retry: Bool = false) async {
+        guard !retired, runtimeAvailable, !Task.isCancelled else { return }
+        guard let loadInstallation else { await refreshInstallations(force: false); return }
+        if let pending = installationTasks[id] { await pending.value; return }
+        let generation = discoveryGeneration
+        let previous = installations[id]
+        if previous == nil || retry { installations[id] = .init(status: .checking) }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.discoveryGeneration == generation { self.installationTasks[id] = nil }
+            }
+            let installation: NativeHarnessInstallation
+            do { installation = .init(json: try await loadInstallation(id)) }
+            catch is CancellationError { return }
+            catch { installation = .init(status: .error, message: error.localizedDescription) }
+            guard !Task.isCancelled, !self.retired, self.discoveryGeneration == generation else { return }
+            if let previous, previous.status != .checking,
+               previous.status != installation.status || previous.executablePath != installation.executablePath {
+                self.detailRefreshSequences[id, default: 0] += 1
+            }
+            // Equal periodic replies must not invalidate retained resources.
+            if self.installations[id] != installation { self.installations[id] = installation }
+            self.installationLoadState = .loaded
+            if installation.status == .installed, self.installationErrors[id] != nil {
+                self.installationErrors.removeValue(forKey: id)
+            }
+            self.onDiscoveryChange?()
+        }
+        installationTasks[id] = task
+        await task.value
     }
 
     public func install(_ id: String) async {

@@ -151,6 +151,9 @@ public protocol HarnessPlugin {
     var threadSettingsCodec: PluginValueCodec<ThreadSettingsUpdate> { get }
     var harnessSettingsCodec: PluginValueCodec<HarnessSettings> { get }
     var settingsPresentationCodec: PluginValueCodec<SettingsPresentation> { get }
+    /// A decoded response may still contain a failed CLI or an incomplete catalog.
+    /// Keep that interpretation in the owning Harness, independent of mounted UI.
+    func settingsPresentationIssue(_ presentation: SettingsPresentation) -> String?
     func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<Overview>
     func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage?
     func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview?
@@ -168,6 +171,7 @@ public protocol HarnessPlugin {
 }
 
 extension HarnessPlugin {
+    public func settingsPresentationIssue(_ presentation: SettingsPresentation) -> String? { nil }
     public func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope] { [] }
     public var translations: HarnessTranslationCatalog { [:] }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? { nil }
