@@ -12,11 +12,13 @@ geometry, pixel-coverage and cancellation assertions.
 python3 tools/verification/reading-presentation/run.py --report-covers
 ```
 
-Four native-owned integration cases mount the production Report cover and
+Five native-owned integration cases mount the production Report cover and
 carousel in the AppKit event loop. They verify rendered motion, the six-second
 bound, five-second final hold and replay, visibility/activity suspension,
 reduced-playback poster, theme/remounts, preload/entrance/dwell ordering and a
-preloaded cover failing after selection. Logs and PNGs are retained under
+preloaded cover failing after selection. The single-play case checks final-frame
+retention across redraw and one bounded replay per explicit replay generation.
+Logs and PNGs are retained under
 `.scratch/reading-presentation/NativeReportCoverTests`. Ordinary SwiftPM marks
 the WebKit page hidden and cannot advance its CSS timeline; the ownership
 registry assigns these methods exclusively to `native/report-covers` without

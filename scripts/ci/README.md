@@ -170,7 +170,7 @@ methods exactly once; the stable-cell leaf keeps its ordinary graphical executio
 
 Animated Super Thread covers use `native/report-covers`. Its production WebKit
 documents need the running AppKit event loop to become visible and advance CSS
-time. The four owned methods require rendered cycle, duration-bound,
+time. The five owned methods require single-play, rendered cycle, duration-bound,
 carousel-admission and failure-advance markers, including real
 first/middle/final/restarted pixels. Ordinary SwiftPM's hidden document cannot
 replace this native boundary.
