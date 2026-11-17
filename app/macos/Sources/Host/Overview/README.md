@@ -1,12 +1,11 @@
 # Overview
 
-[NativeOverviewWorkspaceModel](NativeOverviewWorkspaceModel.swift) projects public catalog records into visible cards, tags, selection and search scope. [NativeOverviewCanvas](NativeOverviewCanvas.swift) owns structural geometry; the registered plugin supplies each card's semantic content. All placements in the selected layout remain mounted, including outgoing cards through exit. Camera movement alone does not mount/unmount cards or start structural transitions.
+[NativeOverviewWorkspaceModel](NativeOverviewWorkspaceModel.swift) projects public catalog records into visible cards, tags and selection. [NativeOverviewCanvas](NativeOverviewCanvas.swift) owns structural geometry; the registered plugin supplies each card's semantic content. All placements in the selected layout remain mounted, including outgoing cards through exit. Camera movement alone does not mount/unmount cards or start structural transitions.
 
 [Membership facts](NativeOverviewMembership.swift) separate filter membership from
 streaming card content. Admitted catalog deltas carry changed identities into the
 workspace; content-only changes compare those identities' facts and refresh only
-selected changed card slots, without scanning or sorting the selection. This also
-applies to active searches when the changed record's metadata match is unchanged.
+selected changed card slots, without scanning or sorting the selection.
 Activity-only mutations do no catalog/card work. Full snapshots, explicit refresh,
 locale changes and reordered surviving records retain full reconciliation.
 Same-patch removal and upsert of an existing identity, including renderer recovery
@@ -25,15 +24,15 @@ in another. Cached inputs, membership facts, directory labels and results are
 bounded by current catalog identities and exposed filters and are released on stop.
 
 Global conversation availability is updated from changed eligible records before
-filtering, search and report coverage, including directory-only documents. Moku
+tag filtering and report coverage, including directory-only documents. Moku
 uses these facts for its empty-workspace landing; an unloaded catalog remains
 unknown. The All membership is invalidated lazily and resolved when browsing or
 tag activity needs it. Filter chrome and Moku still receive the complete filter
 description
 when membership changes, so producing that public output scales with the output
 size; unrelated scope selections and card projections are reused. Selecting a
-filter, changing search membership/rank or changing card geometry retains the
-ordinary complete selected-layout transaction.
+filter or changing card geometry retains the ordinary complete selected-layout
+transaction.
 
 While the first creation awaits native admission, the canvas and filters stay
 covered by landing so a durable, unadmitted shell cannot replace the primary
@@ -83,7 +82,7 @@ draft callback. The Harness overview renderer receives only an existing-interact
 response callback plus ordinary reading navigation, rather than full thread
 actions. Permission/question responses remain available; those are bound to a
 current pending interaction. There is no per-card message editor, text/file drop
-target or send shortcut. Canvas drag/scroll/pinch, search, Return-to-open and
+target or send shortcut. Canvas drag/scroll/pinch, Return-to-open and
 card activation keep their navigation behavior. The independent Moku composer,
 Thread-detail Moku input, Browser annotation sends and general Runtime APIs
 remain owned by their existing boundaries. Moku tool operations do not decorate
@@ -216,18 +215,18 @@ current transform and no animation is needed.
 
 [NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples each mounted card's current pose. An interrupted transition retargets from that sample. Outgoing content remains mounted until its exit completes; entries, moves and exits share one bounded transition and then release retiring snapshots. Shell and semantic planes share geometry and opacity. Retired and transparent semantic cards are hidden from accessibility.
 
-Tag/search scene changes retain their filter choreography: outgoing cards shrink
+Tag scene changes retain their filter choreography: outgoing cards shrink
 and fade over 140ms, survivors move over 320ms after a 70ms delay, and new cards
 enter over 230ms after a 150ms delay. The new collection first lays out at frozen
 start poses; only that layout's acknowledgement starts the shared clock, so plugin
 construction cannot consume the transition. Automatic framing is prepared at its
-final transform before that layout, including automatic search-bookmark returns;
-the card clock owns screen-space travel rather than starting a second camera
-clock during mounting. Camera cuts reproject sampled old poses to preserve their
-screen positions. Visible survivors retain manual framing, and manual search
-bookmarks restore their saved transform. Rapid selections cancel the old owner
-and retarget those samples. An empty destination retains the camera through the
-exit before disposing it; switching from an empty scene still animates entry.
+final transform before that layout; the card clock owns screen-space travel
+rather than starting a second camera clock during mounting. Camera cuts reproject
+sampled old poses to preserve their
+screen positions. Visible survivors retain manual framing. Rapid selections
+cancel the old owner and retarget those samples. An empty destination retains the
+camera through the exit before disposing it; switching from an empty scene still
+animates entry.
 Reduce Motion continues to commit immediately.
 
 Card motion starts, interruption samples and display samples all use
@@ -261,7 +260,7 @@ records screenshot measurements, the compact fallback and verification limits.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
-The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Search dismissal can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
+The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Closing a covering surface can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
 
 Overview cards, canvas background and directory chips expose no context menus. Background clicks still restore automatic framing; drag, scroll and pinch keep their existing camera behavior. Directory children remain available through hover and accessibility actions. Reading, composer and other scene menus are owned separately.
 
@@ -269,14 +268,14 @@ Geometry reuse applies when the current membership and viewport are unchanged; a
 
 Dev-only [transaction diagnostics](../../../build/layout-logging.md#overview-relayout-transactions) pair logical before, planned and completed/cancelled/failed snapshots under one random transaction ID. Per-transaction numeric card aliases allow before/after comparison without model identifiers or content. Snapshots are bounded and explicit about truncation; they do not reconstruct historical cases or certify animation pixels.
 
-## Tags and search transition
+## Tags and filter transitions
 
 [NativeOverviewChrome](NativeOverviewChrome.swift) owns the tag and action controls. Semantic tag identity remains a plain name with separately validated emoji. Each scope exposes up to five semantic tags, including singly assigned tags and separate names with equal membership. Directory filters use persistent scope identity for membership and exclude managed temporary roots. Labels are presentation only: a symlink alias or linked checkout with another label remains in its canonical directory’s All view, and same-named directories stay separate.
 
 The tag bar omits a directory's sole semantic child when its actual selected
 Agent Thread ID set and application thread reference set both equal the
 directory's sets. This uses eligible catalog membership after the ordinary
-visibility/archive and report-coverage rules, before search; equal member counts
+visibility/archive and report-coverage rules; equal member counts
 alone are insufficient. Untagged members or directory-only documents that change
 those sets keep the child visible. Multiple semantic names (including a name
 equal to the directory label) prevent this omission. Inbox tags are unaffected.
@@ -284,7 +283,7 @@ Catalog membership changes recompute the decision. Canonical filters, navigation
 published context and stored tags remain intact. An already selected semantic
 child stays visible and selected even if it becomes redundant, preserving its
 filtering meaning when later threads arrive; selecting its directory then omits
-the redundant child. Global search and its return-to-browsing behavior are unchanged.
+the redundant child.
 
 Filter capsules omit visible member counts, including in directory menus; counts remain available as accessibility values. Filter tags do not show hover tips; their accessibility labels, values and actions remain available. Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview. Settings has no archive-restoration section; archive data and Runtime commands remain independent of that page. Tag-bar transitions explicitly read Reduce Motion; see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
 
@@ -378,7 +377,7 @@ it never rasterizes Overview or retains even blurred cards. Input, tracking and 
 therefore do not need to traverse the retained cards for foreground reading.
 Catalog installation, membership/filter context, selection validity and Moku
 operation state continue at each runtime transaction. Hidden transactions coalesce
-the display's keyword filtering, sorting, plugin projections and content installs;
+the display's sorting, plugin projections and content installs;
 the mounted canvas also defers layout (including viewport changes). Existing card
 snapshots, native controls, drafts and camera remain retained. Settings, Git
 monitoring, runtime, notifications and Voice keep their existing lifecycles.

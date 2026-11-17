@@ -58,7 +58,7 @@ fill missing historical titles.
 
 This is a native reader policy shared by Codex, Claude, Pi and OpenCode across
 live, loaded historical, inherited/fork and deferred execution content (including
-OpenCode child sessions). Canonical history, transport, Overview, Moku, search
+OpenCode child sessions). Canonical history, transport, Overview, Moku, Agent grep
 and other conversation surfaces retain their data and policies. Adjacent
 execution entries remain grouped across hidden entries. Running/waiting
 executions retain settled assistant replies. Unfinished assistant messages do
@@ -263,7 +263,7 @@ metadata and stationary Liquid Glass navigation. Collections also provide a
 continuous regular-glass backdrop and regular-glass emoji badges at the existing
 metadata seat; the Host omits only their opaque shell. The 4pt internal spacing
 shares the backdrop, preserving the card geometry without a visible seam.
-Reduce Transparency uses opaque palette fills. Single Report cards and search
-results retain their ordinary flat material. Search results remain individual.
+Reduce Transparency uses opaque palette fills. Single Report cards retain their
+ordinary flat material.
 See [Overview collection ownership](Sources/Host/Overview/README.md#viewed-application-collections)
 and the [production fixture](../../demos/super-thread-carousel/README.md).
