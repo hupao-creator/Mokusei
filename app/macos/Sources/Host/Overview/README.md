@@ -615,8 +615,10 @@ The Cmd+F conversation search, its menu command, interaction actions and Runtime
 keyword index have been removed. Tag filtering and Agent `grep_threads` remain
 independent capabilities; native text editing keeps its own find behavior.
 
-Collection member cards expose a labeled Archive Super Thread button beneath the
-open surface, alongside their existing context menu. Both invoke the same atomic
+Collection member cards expose an icon-only Archive Super Thread button over the
+upper-right cover corner (or the equivalent corner without a cover), alongside
+their existing context menu. The button retains its accessible label and help.
+Both invoke the same atomic
 application archive command: hide the report and its persisted associated ordinary
 Threads. UI membership and counts follow the authoritative catalog, not optimistic
 per-card removals. A surviving selection is retained; removal of that selection

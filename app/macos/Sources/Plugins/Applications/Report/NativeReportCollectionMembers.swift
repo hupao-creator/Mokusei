@@ -82,7 +82,7 @@ private struct CollectionMemberCard: View {
             coverReplayID: replayID, coverInitiallyFinished: initiallyFinished,
             onCoverPlaybackCompleted: onPlaybackCompleted,
             showsArchiveAction: true, allowsActions: allowsActions)
-            .frame(height: member.entry.view.hasCover ? NativeReportCoverLayout.height(for: width) + 212 : 208)
+            .frame(height: member.entry.view.hasCover ? NativeReportCoverLayout.height(for: width) + 160 : 208)
             .background(NativePalette.overview.surface.swiftUI, in: RoundedRectangle(cornerRadius: 22))
             .overlay { RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI) }
             .onAppear { visible = true }

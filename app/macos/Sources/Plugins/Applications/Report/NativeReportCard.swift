@@ -24,27 +24,22 @@ import SwiftUI
     @State private var archiveFailure: String?
     private var locale: JSONText { props.context.locale }
     var body: some View {
-        VStack(spacing: 0) {
-            card
-            if showsArchiveAction {
-                HStack {
-                    Spacer(minLength: 0)
+        card
+            .overlay(alignment: .topTrailing) {
+                if showsArchiveAction {
                     Button { Task { await archive() } } label: {
-                        HStack(spacing: 6) {
-                            NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 13)
-                            Text(archivePending ? applicationText(locale, "处理中…", "Working…") : archiveLabel)
-                        }.font(NativeTypography.inter(size: 11, weight: 550))
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .contentShape(Capsule())
+                        NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 13)
+                            .frame(width: 32, height: 32).contentShape(Circle())
                     }.buttonStyle(.plain)
-                        .background(.primary.opacity(0.05), in: Capsule())
+                        .foregroundStyle(NativePalette.overview.ink.swiftUI)
+                        .background(NativePalette.overview.surface.swiftUI, in: Circle())
                         .disabled(archivePending || !allowsActions())
                         .accessibilityLabel(archiveLabel + " · " + props.entry.title.string)
                         .help(applicationText(locale, "隐藏此 Super Thread 及其关联的 Threads；运行中的任务继续执行。",
                                               "Hide this Super Thread and its related threads; running tasks continue."))
-                }.padding(.horizontal, 14).padding(.bottom, 12)
+                        .padding(12)
+                }
             }
-        }
         .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
         .onDisappear { unsubscribe?(); unsubscribe = nil }
         .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; subscribe() }
@@ -67,6 +62,7 @@ import SwiftUI
                             .allowsHitTesting(false).accessibilityHidden(true)
                     }
                     metadata
+                        .padding(.top, showsArchiveAction && !(showsCover && props.entry.view.hasCover) ? 44 : 0)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .contentShape(Rectangle())
