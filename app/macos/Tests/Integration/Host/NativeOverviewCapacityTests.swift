@@ -117,7 +117,7 @@ struct NativeOverviewCapacityTests {
         let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
         try await OverviewReplay.settle(fixture, in: window)
-        let manual = NativeOverviewTransform(scale: 0.8, x: -400, y: 260)
+        let manual = NativeOverviewTransform(scale: 1, x: -400, y: 260)
         fixture.state.camera.setManualTransform(manual)
         fixture.install(fixture.items + [.init(id: "added", columns: 2, rows: 2)])
         try await OverviewReplay.settle(fixture, in: window)

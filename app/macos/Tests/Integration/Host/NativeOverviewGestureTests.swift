@@ -110,7 +110,7 @@ struct NativeOverviewGestureTests {
             let nextRatio = samples.ratio(cumulative)
             let ratio = try #require(nextRatio)
             transform = NativeOverviewCameraGeometry.zoom(transform, cursor: anchor,
-                nextScale: min(1.7, transform.scale * ratio), minimumScale: 0.85)
+                nextScale: min(1.7, transform.scale * ratio), minimumScale: 1, maximumScale: 1.7)
             #expect(abs((anchor.x - transform.x) / transform.scale - world.x) < 1e-6)
             #expect(abs((anchor.y - transform.y) / transform.scale - world.y) < 1e-6)
             if cumulative == 3.9 { #expect(transform.scale < before.scale) }

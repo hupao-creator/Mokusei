@@ -213,8 +213,9 @@ block. It does not merely enqueue a helper immediately before `_exit`.
 Before Runtime teardown, Quit flushes pending valid Settings edits. Invalid or
 failed saves expose an explicit continue-editing or quit-without-saving choice.
 The View menu routes Reload and Zoom through the focused Browser/Report document
-before changing the workspace. App zoom persists levels bounded to 0.25×…5×,
-so the first reverse step at either limit changes the visible scale.
+before changing the workspace. App zoom persists levels bounded to 1×…5×. Saved
+levels below 1× are normalized and rewritten during load. Clamping stored levels
+keeps the first reverse step at either limit responsive.
 
 
 Agent panels now carry source title/emoji ink separately during deferred opening,

@@ -57,7 +57,7 @@ private func generate(seed: UInt64, count: Int? = nil) -> LayoutCase {
     let usable = NativeOverviewContentRect(left: random.double(-400...400),
                                            top: random.double(-200...200),
                                            width: width, height: height)
-    let cap: Double? = random.integer(0...2) == 0 ? nil : random.double(0.25...2.6)
+    let cap: Double? = random.integer(0...2) == 0 ? nil : random.double(1...2.6)
     return LayoutCase(seed: seed, members: members, usable: usable, scaleCap: cap)
 }
 
@@ -133,8 +133,8 @@ private func violations(_ input: LayoutCase) -> [String] {
     if ![camera.scale, camera.x, camera.y].allSatisfy(\.isFinite) { issues.append("non-finite camera") }
     if camera.scale <= 0 { issues.append("non-positive scale") }
     let fit = min(input.usable.width / result.bounds.width, input.usable.height / result.bounds.height)
-    let expectedScale = min(input.scaleCap ?? fit, fit)
-    if abs(camera.scale - expectedScale) > 1e-7 { issues.append("scale is not capped FitAll") }
+    let expectedScale = max(1, min(input.scaleCap ?? fit, fit))
+    if abs(camera.scale - expectedScale) > 1e-7 { issues.append("scale is not bounded framing") }
     var screenUnion = CGRect.null
     for placement in result.placements {
         let cardFrame = frame(of: placement)
@@ -145,7 +145,7 @@ private func violations(_ input: LayoutCase) -> [String] {
         screenUnion = screenUnion.union(screen)
         let allowed = CGRect(x: input.usable.left, y: input.usable.top,
                              width: input.usable.width, height: input.usable.height)
-        if !allowed.insetBy(dx: -1e-6, dy: -1e-6).contains(screen) {
+        if fit >= 1 && !allowed.insetBy(dx: -1e-6, dy: -1e-6).contains(screen) {
             issues.append("card \(placement.id) is outside the usable viewport")
         }
     }
@@ -260,7 +260,7 @@ struct NativeOverviewGeometryTests {
             #expect(result.bounds.width.isFinite && result.bounds.height.isFinite)
             let camera = try #require(result.automaticCamera)
             let raw = min(viewport.width / result.bounds.width, viewport.height / result.bounds.height)
-            #expect(abs(camera.scale - min(NativeOverviewGeometryPolicy.standard.scaleCap ?? raw, raw)) < 1e-7)
+            #expect(abs(camera.scale - max(1, min(NativeOverviewGeometryPolicy.standard.scaleCap ?? raw, raw))) < 1e-7)
             let maxColumns = members.map(\.columns).max()!
             let maxRows = members.map(\.rows).max()!
             let cellWidth = metrics.width(columns: maxColumns)
@@ -279,7 +279,7 @@ struct NativeOverviewGeometryTests {
     }
 
 
-    @Test func maximumCardFootprintFitsTheMinimumWindowWithBothToolbarClearances() throws {
+    @Test func maximumCardFootprintCentersAtLogicalSizeWithBothToolbarClearances() throws {
         let members = [NativeOverviewMember(id: "wide-agent",
                                             columns: HarnessOverviewCapacity.maximumColumns,
                                             rows: 2)]
@@ -299,7 +299,9 @@ struct NativeOverviewGeometryTests {
                                              height: card.height * camera.scale))
             }
             let allowed = CGRect(x: usable.left, y: usable.top, width: usable.width, height: usable.height)
-            #expect(allowed.insetBy(dx: -1e-6, dy: -1e-6).contains(screen))
+            #expect(camera.scale == 1)
+            #expect(abs(screen.midX - allowed.midX) < 1e-6)
+            #expect(abs(screen.midY - allowed.midY) < 1e-6)
         }
     }
 
@@ -327,7 +329,7 @@ struct NativeOverviewGeometryTests {
         let result = try NativeOverviewLayout.solve(members: members, usableViewport: viewport)
         #expect(result.bounds.columns == 1 && result.bounds.rows == 2)
         let camera = try #require(result.automaticCamera)
-        let expected = min(1 / metrics.width(columns: 1), 1 / metrics.height(rows: 2))
+        let expected = 1.0
         #expect(abs(camera.scale - expected) < 1e-12)
     }
 

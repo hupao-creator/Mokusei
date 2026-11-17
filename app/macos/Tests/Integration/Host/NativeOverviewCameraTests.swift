@@ -20,32 +20,41 @@ struct NativeOverviewCameraTests {
         let fitted = try #require(NativeOverviewCameraGeometry.fit(content, viewport: viewport))
         let region = NativeOverviewCameraGeometry.framingRegion(viewport)
         let raw = min(region.width / content.width, region.height / content.height)
-        let expectedScale = min(NativeOverviewCameraGeometry.scaleCap, raw)
+        let expectedScale = max(1, min(NativeOverviewCameraGeometry.scaleCap, raw))
         #expect(abs(fitted.scale - expectedScale) < 1e-9)
         let center = CGPoint(x: region.left + region.width / 2, y: region.top + region.height / 2)
         #expect(abs(fitted.x + content.width * fitted.scale / 2 - center.x) < 1e-6)
         #expect(abs(fitted.y + content.height * fitted.scale / 2 - center.y) < 1e-6)
         let uncapped = try #require(NativeOverviewCameraGeometry.fit(content, viewport: viewport, scaleCap: nil))
-        #expect(abs(uncapped.scale - raw) < 1e-9)
+        #expect(abs(uncapped.scale - max(1, raw)) < 1e-9)
         #expect(uncapped.scale >= fitted.scale)
     }
 
-    @Test func oversizedCollectionStillShowsEveryCard() throws {
+    @Test func oversizedCollectionKeepsLogicalSizeAndCentersForPanning() throws {
         let fitted = try #require(NativeOverviewCameraGeometry.fit(large, viewport: viewport))
         let region = NativeOverviewCameraGeometry.framingRegion(viewport)
-        let expected = min(region.width / large.width, region.height / large.height)
-        #expect(abs(fitted.scale - expected) < 1e-9)
-        #expect(fitted.scale < 1)
-        #expect(large.width * fitted.scale <= region.width + 1e-6)
-        #expect(large.height * fitted.scale <= region.height + 1e-6)
+        #expect(fitted.scale == 1)
+        #expect(abs(fitted.x + large.width / 2 - region.left - region.width / 2) < 1e-6)
+        #expect(abs(fitted.y + large.height / 2 - region.top - region.height / 2) < 1e-6)
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        camera.cutTo(content: large, viewport: viewport)
+        camera.pan(deltaX: 5000, deltaY: -5000)
+        #expect(camera.liveTransform == .init(scale: 1, x: fitted.x + 5000, y: fitted.y - 5000))
     }
 
     @Test func manualTransformIsNeverReplacedByAutomaticGeometry() {
         let camera = NativeOverviewCamera()
         defer { camera.dispose() }
         camera.cutTo(content: content, viewport: viewport)
-        let manual = NativeOverviewTransform(scale: 0.8, x: 120, y: 90)
-        camera.setManualTransform(manual)
+        let saved = NativeOverviewTransform(scale: 0.8, x: 120, y: 90)
+        camera.restore(view: .init(transform: saved, manual: true), content: content, viewport: viewport)
+        let manual = camera.liveTransform
+        #expect(manual.scale == 1)
+        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+        let center = CGPoint(x: region.left + region.width / 2, y: region.top + region.height / 2)
+        #expect(abs((center.x - manual.x) / manual.scale - (center.x - saved.x) / saved.scale) < 1e-6)
+        #expect(abs((center.y - manual.y) / manual.scale - (center.y - saved.y) / saved.scale) < 1e-6)
         let automatic = NativeOverviewCameraGeometry.fit(large, viewport: viewport)
         camera.applyGeometry(content: large, viewport: viewport, automatic: automatic)
         #expect(camera.manual)
@@ -246,6 +255,11 @@ struct NativeOverviewCameraTests {
         camera.reduceMotion = true
         camera.onChange = {}
         camera.cutTo(content: content, viewport: viewport)
+        camera.setInteractionPaused(true)
+        camera.restore(view: .init(transform: .init(scale: 0.2, x: 30, y: 40), manual: false),
+                       content: content, viewport: viewport)
+        #expect(camera.liveTransform.scale == 1)
+        camera.setInteractionPaused(false)
         let next = try #require(NativeOverviewCameraGeometry.fit(large, viewport: viewport))
         camera.applyGeometry(content: large, viewport: viewport, automatic: next)
         #expect(!camera.isAnimating)

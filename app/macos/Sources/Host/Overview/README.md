@@ -186,8 +186,8 @@ dimension from 360×220pt, with the same 16pt gap. Two-row cards are therefore
 semantics, including Agent Threads, individual Reports and Super Thread collections.
 Packing, rendered card bounds, transitions and attention visibility all use
 the shared grid pitch, as do camera bounds and hit regions. Text/icon metrics
-and the manual/automatic camera zoom policy remain unchanged; FitAll can still
-shrink the enlarged logical layout to fit the viewport.
+remain unchanged. Manual and automatic camera framing keep at least 1×, so large
+layouts overflow the viewport and remain reachable by pan.
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) is a pure function. Its inputs are the latest members in product order, the usable viewport and an explicit geometry policy; its output is placements, bounds and the automatic camera. Previous placements, old cameras, animation progress, pauses and revision history are not inputs.
 
@@ -196,14 +196,13 @@ The solver evaluates a bounded, deterministic candidate set: a uniform grid for 
 Card sizes remain their measured spans. A card may compose up to
 `HarnessOverviewCapacity.maximumColumns` (three) grid columns; that is a card
 capability, not an Overview viewport column count or a layout mode. A 3×2 card
-is fitted by the same solver and can be smaller than the former readable floor
-in the minimum window. Gaps are world-space; screen gaps are `scale × gap`. The solver never clips, stretches or equalizes cards. Empty input returns empty bounds and no camera; a zero/negative usable viewport returns legal positions without a camera; malformed spans, duplicate IDs and invalid limits throw a typed input error. A later valid input always plans normally.
+is centered by the same solver at 1× even in the minimum window. Gaps are world-space; screen gaps are `scale × gap`. The solver never clips, stretches or equalizes cards. Empty input returns empty bounds and no camera; a zero/negative usable viewport returns legal positions without a camera; malformed spans, duplicate IDs and invalid limits throw a typed input error. A later valid input always plans normally.
 
 Same-scene structural slot changes with identical members and viewport reuse geometry. Reuse still cancels any obsolete worker waiting for the spatial stage, so an A→B→A membership or viewport update cannot later publish B over A. Content-only updates do not enqueue layout. A viewport size change re-evaluates candidates because aspect can change the chosen arrangement. `layoutSolveCount` and `geometryReuseCount` expose these paths.
 
 The usable viewport uses the persistent tag bar's actual `OverviewTagMetrics`
 clearance; the canvas and fixtures share `NativeOverviewViewportDefaults.toolbarBottom`.
-The camera is FitAll. For `B` = the union of the latest world card frames and `V` = the usable viewport (window minus persistent controls and product margins): `fitScale = min(V.width / B.width, V.height / B.height)`, `scale = min(explicitScaleCap, fitScale)` and `translation = V.center - scale × B.center`. There is no readable floor, cell budget, retained filter seat or persistent reading anchor. The explicit 1.0 cap is shared by automatic framing and manual zoom: cards can shrink to fit but never enlarge beyond their world size. Without a cap the raw fit scale is used. Manual pan/zoom is user-owned and is never replaced by background layout work. Returning to automatic mode always converges to the latest complete snapshot, including after pause, hiding or a failed/zero-viewport update. An empty collection disposes the camera.
+Automatic framing uses the FitAll arrangement with a 1× floor. For `B` = the union of the latest world card frames and `V` = the usable viewport (window minus persistent controls and product margins): `fitScale = min(V.width / B.width, V.height / B.height)`, `scale = max(1, min(explicitScaleCap, fitScale))` and `translation = V.center - scale × B.center`. The 1× floor and explicit 1× cap are shared by automatic framing and manual zoom. Large collections stay centered at their logical size rather than shrinking to show every card; unrestricted pan reaches every member. Without a cap the fit scale still respects the 1× floor. Window zoom independently ranges from 1× to 5×, so the combined rendered card scale never falls below 1×. Manual and automatic camera bookmarks are normalized around the usable viewport center before restoration or animation; profile window zoom is normalized and rewritten at its existing JSON load entry. Manual pan/zoom is user-owned and is never replaced by background layout work. Returning to automatic mode always converges to the latest complete snapshot, including after pause, hiding or a failed/zero-viewport update. An empty collection disposes the camera.
 
 Geometry targets are latest-wins. Each new structural snapshot cancels the in-flight presentation, samples the current card poses and starts a new transition to the latest target; no FIFO of historical revisions is queued. A successful solve publishes placements, bounds and camera from the same input snapshot. An older task cannot publish after a newer token, cannot clear `isLayingOut` for a newer owner and cannot consume a newer revision. Content updates do not restart admitted work. Pausing settles the displayed sample and retains the latest pending target; hiding defers only the camera target. Resuming plans from the latest content rather than replaying omitted revisions. Reduce Motion commits targets immediately while preserving stage ownership.
 

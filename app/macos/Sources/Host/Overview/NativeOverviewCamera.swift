@@ -98,8 +98,8 @@ public enum NativeOverviewCameraGeometry {
     /// Explicit product zoom ceiling. Automatic FitAll respects it; the same
     /// ceiling bounds manual zoom so both paths share one declared limit.
     public static let scaleCap = NativeOverviewGeometryPolicy.standard.scaleCap ?? 1.0
-    /// Numerical guard for manual transforms, not a readability policy.
-    public static let manualScaleFloor = 0.01
+    /// Cards keep at least their logical size in both manual and automatic views.
+    public static let scaleFloor = 1.0
     public static let wheelZoomIntensity = 0.0015
     public static let motionDuration: TimeInterval = 0.36
     public static let motionFrameCount = 48
@@ -124,7 +124,7 @@ public enum NativeOverviewCameraGeometry {
                      height: max(0, content.height - 2 * verticalMargin))
     }
 
-    /// Fit a complete world rect into an explicit usable rect and center it.
+    /// Center the world rect, fitting only as far as the card scale floor allows.
     /// Nil means the caller has no finite, positive geometry to frame.
     public static func centeredTransform(content: NativeOverviewContentRect,
                                          usable: NativeOverviewContentRect,
@@ -137,7 +137,7 @@ public enum NativeOverviewCameraGeometry {
               usable.width.isFinite, usable.height.isFinite else { return nil }
         let fit = min(usable.width / content.width, usable.height / content.height)
         guard fit.isFinite, fit > 0 else { return nil }
-        let scale = min(scaleCap ?? fit, fit)
+        let scale = max(scaleFloor, min(scaleCap ?? fit, fit))
         guard scale.isFinite, scale > 0 else { return nil }
         return .init(scale: scale,
                      x: usable.left + (usable.width - content.width * scale) / 2 - content.left * scale,
@@ -150,10 +150,10 @@ public enum NativeOverviewCameraGeometry {
     }
 
     public static func zoom(_ transform: NativeOverviewTransform, cursor: CGPoint, nextScale: Double,
-                            minimumScale: Double = manualScaleFloor,
+                            minimumScale: Double = scaleFloor,
                             maximumScale: Double = scaleCap) -> NativeOverviewTransform {
-        let maximum = maximumScale.isFinite ? max(manualScaleFloor, maximumScale) : scaleCap
-        let minimum = minimumScale.isFinite ? min(maximum, max(manualScaleFloor, minimumScale)) : manualScaleFloor
+        let maximum = maximumScale.isFinite ? max(scaleFloor, maximumScale) : scaleCap
+        let minimum = minimumScale.isFinite ? min(maximum, max(scaleFloor, minimumScale)) : scaleFloor
         let scale = nextScale.isFinite ? min(maximum, max(minimum, nextScale)) : minimum
         guard scale != transform.scale else { return transform }
         guard transform.scale.isFinite, transform.scale > 0,
@@ -263,9 +263,7 @@ public final class NativeOverviewCamera {
     public var liveTransform: NativeOverviewTransform { isAnimating ? (live?.transform ?? transform) : transform }
     public var animationStartTime: TimeInterval? { track?.started }
     public var viewport: NativeOverviewViewport? { geometry?.viewport }
-    /// Numerical floor for manual transforms. Automatic FitAll is not clamped
-    /// to this value and may be smaller for a very large collection.
-    public var minimumScale: Double { NativeOverviewCameraGeometry.manualScaleFloor }
+    public var minimumScale: Double { NativeOverviewCameraGeometry.scaleFloor }
     public var maximumScale: Double { NativeOverviewCameraGeometry.scaleCap }
     public var hasScheduledMotion: Bool { animationTask != nil }
     public var hasPendingAutomaticFit: Bool { pendingAutoFit }
@@ -339,7 +337,8 @@ public final class NativeOverviewCamera {
             pendingAutoFit = false
             commit(.init(transform: constrained(view.transform), manual: true))
         } else {
-            commit(.init(transform: view.transform, manual: false))
+            // Normalize the bookmark before it becomes an animation source.
+            commit(.init(transform: constrained(view.transform), manual: false))
             pendingAutoFit = true
             updateAuto()
         }

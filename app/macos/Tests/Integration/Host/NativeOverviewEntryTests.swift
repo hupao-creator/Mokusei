@@ -113,7 +113,7 @@ struct NativeOverviewEntryTests {
         defer { window.close() }
         try await settle(fixture, ids: ["first"])
         let appearances = fixture.appearances["first"]
-        let transform = NativeOverviewTransform(scale: 0.9, x: 80, y: 120)
+        let transform = NativeOverviewTransform(scale: 1, x: 80, y: 120)
         fixture.state.camera.setManualTransform(transform)
         let snapshots = fixture.state.sceneSnapshotCount
         fixture.sceneKey = "members:first,second"
@@ -157,7 +157,7 @@ struct NativeOverviewEntryTests {
     }
 
     @Test func nonemptySceneStillRestoresManualFraming() async throws {
-        let remembered = NativeOverviewCameraState(transform: .init(scale: 1.2, x: 120, y: 140), manual: true)
+        let remembered = NativeOverviewCameraState(transform: .init(scale: 1, x: 120, y: 140), manual: true)
         let fixture = EntryFixture(items: [.init(id: "previous")],
             memory: .init(current: (sceneKey: "entry", view: remembered)))
         let window = window(fixture)

@@ -80,7 +80,7 @@ import MokuseiPluginUI
         guard !placements.isEmpty else { return }
         let world = placements.map(\.cardFrame).reduce(CGRect.null) { $0.union($1) }
         let raw = min(usable.width / world.width, usable.height / world.height)
-        let expected = min(NativeOverviewCameraGeometry.scaleCap, raw)
+        let expected = max(1, min(NativeOverviewCameraGeometry.scaleCap, raw))
         let transform = state.camera.liveTransform
         try check(abs(transform.scale - expected) < 1e-6,
                   "Camera is not FitAll: scale=\(transform.scale) expected=\(expected)")
@@ -116,7 +116,7 @@ import MokuseiPluginUI
         try await settleCameraAndLayout()
         try verifyFitAll()
         try check(appearances["second"] == survivorAppearances, "Filter transition replaced survivor content")
-        state.camera.setManualTransform(.init(scale: 0.9, x: 80, y: 120))
+        state.camera.setManualTransform(.init(scale: 1, x: 80, y: 120))
         try await wait("restored manual camera") { abs((frames["first"]?.minX ?? 0) - 80) < 1 }
         state.camera.returnToAuto()
         try await settleCameraAndLayout()
@@ -153,7 +153,7 @@ import MokuseiPluginUI
             }
             try await verifyOverviewGestures(state: state, window: window)
             try await wait("automatic framing after gestures") { !state.camera.manual && !state.camera.isAnimating }
-            let manualScale = 0.9
+            let manualScale = 1.0
             state.camera.setManualTransform(.init(scale: manualScale, x: 80, y: 120))
             try await wait("manual camera") { abs((frames["first"]?.minX ?? 0) - 80) < 1 }
             items.append(.init(id: "second")); scene = "members:first,second"

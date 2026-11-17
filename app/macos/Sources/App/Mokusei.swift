@@ -81,7 +81,7 @@ final class WorkspaceSession {
     private var finishingQuit = false
     private var quitSavingSettings = false
     private var quitDeadline: Task<Void, Never>?
-    private static let zoomRange = (log(0.25) / log(1.2))...(log(5) / log(1.2))
+    private static let zoomRange = 0.0...(log(5) / log(1.2))
     var scale: Double { pow(1.2, zoom) }
 
     init() {

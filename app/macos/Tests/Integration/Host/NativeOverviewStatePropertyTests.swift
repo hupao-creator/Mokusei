@@ -185,7 +185,7 @@ struct NativeOverviewStatePropertyTests {
             let usable = fixture.usable
             let world = fixture.worldBounds
             let raw = min(usable.width / world.width, usable.height / world.height)
-            let expected = min(NativeOverviewCameraGeometry.scaleCap, raw)
+            let expected = max(1, min(NativeOverviewCameraGeometry.scaleCap, raw))
             if abs(fixture.state.camera.liveTransform.scale - expected) > 1e-6 {
                 return "scale does not match FitAll: " + summary(fixture)
             }

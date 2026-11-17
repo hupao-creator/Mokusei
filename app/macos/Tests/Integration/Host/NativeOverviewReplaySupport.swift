@@ -122,7 +122,7 @@ enum OverviewReplay {
         }
         let tolerance = 1 / window.backingScaleFactor
         let raw = min(usable.width / world.width, usable.height / world.height)
-        let expected = min(NativeOverviewCameraGeometry.scaleCap, raw)
+        let expected = max(1, min(NativeOverviewCameraGeometry.scaleCap, raw))
         let transform = fixture.state.camera.liveTransform
         if abs(transform.scale - expected) > 1e-6 {
             Issue.record("scale \(transform.scale) != FitAll \(expected)", sourceLocation: sourceLocation)
@@ -133,7 +133,7 @@ enum OverviewReplay {
         }
         let allowed = CGRect(x: usable.left, y: usable.top, width: usable.width, height: usable.height)
             .insetBy(dx: -tolerance, dy: -tolerance)
-        for (id, frame) in fixture.frames where !allowed.contains(frame) {
+        for (id, frame) in fixture.frames where raw >= 1 && !allowed.contains(frame) {
             Issue.record("card \(id) is outside the usable viewport: \(frame)", sourceLocation: sourceLocation)
         }
         if fixture.projectionError > tolerance {
@@ -146,8 +146,10 @@ enum OverviewReplay {
         let content = NativeOverviewCameraGeometry.contentRegion(fixture.cameraViewport)
         let envelope = fixture.renderedEnvelope
         let tolerance = 1 / window.backingScaleFactor
-        if envelope.minY < content.top - tolerance || envelope.maxY > content.top + content.height + tolerance
-            || envelope.minX < content.left - tolerance || envelope.maxX > content.left + content.width + tolerance {
+        if (envelope.height <= content.height && (envelope.minY < content.top - tolerance
+            || envelope.maxY > content.top + content.height + tolerance))
+            || (envelope.width <= content.width && (envelope.minX < content.left - tolerance
+            || envelope.maxX > content.left + content.width + tolerance)) {
             Issue.record("rendered collection overlaps persistent controls: \(envelope)", sourceLocation: sourceLocation)
         }
     }

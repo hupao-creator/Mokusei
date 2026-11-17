@@ -162,7 +162,7 @@ struct NativeOverviewDecorationCaptureTests {
             let item = try #require(fixture.overview.items.first)
             try #require(item.id == "decoration-card" && item.columns == 2 && item.rows == 1,
                          "The production Codex projection must be a running 2×1 card")
-            let firstCamera = try setCamera(fixture.overview, scale: 0.90)
+            let firstCamera = try setCamera(fixture.overview, scale: 1)
             try await SwiftUIReplay.wait { nativeNodes(root) != nil }
             try await Task.sleep(for: .milliseconds(350))
             let nodes = try #require(nativeNodes(root), "Native Metal/CA decorations unavailable; fallback does not satisfy this test")

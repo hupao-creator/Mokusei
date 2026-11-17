@@ -59,7 +59,7 @@ public struct NativeOverviewGridMetrics: Equatable, Sendable {
 
 /// Explicit inputs shared by automatic placement and fit-all framing.
 /// `scaleCap` is the product's intentional manual/automatic zoom ceiling; nil
-/// means automatic framing uses the raw fit scale.
+/// means automatic framing has no ceiling. All policies retain the 1x floor.
 public struct NativeOverviewGeometryPolicy: Equatable, Sendable {
     public var metrics: NativeOverviewGridMetrics
     public var scaleCap: Double?
@@ -161,7 +161,7 @@ public enum NativeOverviewLayout {
         return NativeOverviewGeometry(placements: placements, bounds: bounds, automaticCamera: camera)
     }
 
-    /// Fit the complete arrangement into the usable viewport and center it.
+    /// Center the complete arrangement, retaining the card scale floor.
     public static func automaticCamera(bounds: NativeOverviewBounds,
                                        usableViewport: NativeOverviewContentRect,
                                        policy: NativeOverviewGeometryPolicy = .standard) -> NativeOverviewTransform? {
@@ -328,8 +328,8 @@ public enum NativeOverviewLayout {
             throw NativeOverviewLayoutError.invalidInput("Overview grid metrics must be finite and positive")
         }
         if let cap = policy.scaleCap {
-            guard cap.isFinite, cap > 0 else {
-                throw NativeOverviewLayoutError.invalidInput("Overview scale cap must be finite and positive")
+            guard cap.isFinite, cap >= NativeOverviewCameraGeometry.scaleFloor else {
+                throw NativeOverviewLayoutError.invalidInput("Overview scale cap must be finite and at least 1x")
             }
         }
         for value in [viewport.left, viewport.top, viewport.width, viewport.height] {

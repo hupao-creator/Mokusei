@@ -117,7 +117,7 @@ struct NativeOverviewCenteringTests {
         let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture))
         defer { window.close() }
         try await OverviewReplay.settle(fixture, in: window)
-        let manual = NativeOverviewTransform(scale: 0.9, x: -260, y: 120)
+        let manual = NativeOverviewTransform(scale: 1, x: -260, y: 120)
         fixture.state.camera.setManualTransform(manual)
         var items = fixture.items
         items[0].columns = 2
