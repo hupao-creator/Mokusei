@@ -677,7 +677,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
             "contract-sized long note wraps and scrolls natively in a narrow window",
             "long-note first screen and middle gap stay unknown; overlapping settled viewports complete coverage",
             "clear shows the empty state; light and dark appearances"],
-        "limits": "Mock Harness and isolated profile; long note is a UI-only fixture within the production 1200-code-point contract; screenshots sample expansion/contraction and settled endpoints; hover reveal and full frame-by-frame continuity are source-reviewed (no physical pointer or video capture); Reduce Motion is source-reviewed (the SwiftUI system environment value is read-only; user preferences were not changed); no live provider, microphone or user runtime started"]
+        "limits": "Mock Harness and isolated profile; long note is a UI-only fixture within the production 1200-code-point contract; screenshots sample expansion/contraction and settled endpoints; hover reveal and full frame-by-frame continuity are source-reviewed (no physical pointer or video capture); no live provider, microphone or user runtime started"]
     try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: evidence.appendingPathComponent("report.json"))
     await fixture.draft.dispose()
 }

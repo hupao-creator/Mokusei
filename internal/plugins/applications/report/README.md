@@ -127,7 +127,6 @@ scoped completed-execution data delivery and the actual Report session's injecte
 against the upstream SHA-256 and rejects the removed style/language guidance in
 system instructions, tool descriptions and initial/steering batch messages.
 
-
 Preview uses a non-executing HTML tree parser. It decodes standard
 entities once, joins inline text without invented spaces, separates structural
 blocks, preserves textarea RCDATA, and excludes nested hidden regions including
@@ -146,7 +145,6 @@ empty projected text. Recovery never scans an isolated suffix or exposes raw
 markup, since its template/foreign-content context would be unknown. The original
 HTML remains unchanged and available to the Reader; parser failure does not
 reject a report accepted by the input size contract.
-
 
 The native Report surface owns load failure and Retry state. Report detail does
 not retain a second error overlay after the surface recovers. Page alert,
@@ -190,7 +188,6 @@ The host obtains exact-execution previews through the native Harness contract.
 Missing timing is explicit and empty excerpts remain empty. Existing one-click
 reader navigation is retained. Explicit report links also retain failed/interrupted
 ordinary Threads that normal Overview browsing hides.
-
 
 ## Identity, ownership and source context
 
@@ -246,7 +243,6 @@ application product build only. No tests, integration replays, CI, PR, push or m
 are part of this change. Native focus/animation, accessibility, real voice,
 concurrent binding and legacy-data interactions require later validation.
 
-
 ## Archive visibility
 
 Archive only hides a Super Thread and all ordinary Agent Threads identified by
@@ -286,7 +282,6 @@ This operation releases one report's binding, not all other owners and not an
 automatic move. Remaining conflicts are still visible; users must unlink remaining
 owners before rebinding. It does not edit or erase claims in the report body. Rebind
 creation/update remains the background report author's existing authority.
-
 
 ## Background edit concurrency
 
@@ -362,7 +357,7 @@ cover grants a new run; hover chrome, focus, redraws and pause/resume do not.
 Leaving selection resets for the next visit; inactivity, hidden viewports and
 cover gestures pause the current motion. Standalone cards retain their existing
 animation/five-second-hold replay cycle and foreground/visibility controls.
-Reduce Motion displays the complete final composition. The bounded cache retains
+The bounded cache retains
 a final-frame poster beneath the live surface to bridge remounts without caching
 browser instances. See the [animation contract and verification](../../../../design/super-thread-animated-covers.md).
 
@@ -373,11 +368,10 @@ hidden. Only pointer hover reveals the whole capsule: retained keyboard/accessib
 focus and native menu tracking never extend its visibility after pointer exit.
 Controls stay mounted for native keyboard/accessibility operation; menu tracking
 pauses automatic page changes until dismissal. Deactivation, viewport exit and
-unmount clear remembered hover. Reduce Motion changes visibility immediately.
+unmount clear remembered hover.
 Page numbers follow the surviving selected member after collection updates; stale
 menu actions for removed members are ignored. Single-member input displays 1/1 (ordinary Overview
 grouping currently requires at least two members). Other card types are unchanged.
-
 
 ## Updated collection members
 

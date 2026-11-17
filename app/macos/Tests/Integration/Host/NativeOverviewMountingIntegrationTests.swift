@@ -489,19 +489,14 @@ extension NativeOverviewMountingIntegrationTests {
         fixture.visibility.isVisible = true
         try await Task.sleep(for: .milliseconds(100))
         let resumed = try pixels()
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            try await Task.sleep(for: .milliseconds(300))
-            #expect(try pixels() == resumed)
-        } else {
-            // Permission attention has a transparent rest within its cycle;
-            // sample through that rest rather than requiring every frame to move.
-            var moved = false
-            for _ in 0..<60 {
-                try await Task.sleep(for: .milliseconds(50))
-                if try pixels() != resumed { moved = true; break }
-            }
-            #expect(moved)
+        // Permission attention has a transparent rest within its cycle;
+        // sample through that rest rather than requiring every frame to move.
+        var moved = false
+        for _ in 0..<60 {
+            try await Task.sleep(for: .milliseconds(50))
+            if try pixels() != resumed { moved = true; break }
         }
+        #expect(moved)
         fixture.animationsEnabled = false
         try await Task.sleep(for: .milliseconds(100))
         let disabled = try pixels()

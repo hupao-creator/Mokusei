@@ -429,14 +429,13 @@ struct NativeOverviewTagGlassTests {
         try await Task.sleep(for: .milliseconds(350))
         let compactWidth = try #require(try await capture("after"))
         #expect(expandedWidth > compactWidth + 40)
-        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            // Settled chips never touch. A merged moving span therefore proves
-            // the glass travelled across the container spacing; a separated
-            // moving frame proves the same through an intermediate width.
-            #expect(shrinkingSawMergedGlass
-                || shrinkingWidths.contains { $0 > compactWidth + 8 && $0 < expandedWidth - 8 },
-                "Capture must include moving glass, not only the two endpoints")
-        }
+        // Settled chips never touch. A merged moving span therefore proves
+        // the glass travelled across the container spacing; a separated
+        // moving frame proves the same through an intermediate width.
+        #expect(shrinkingSawMergedGlass
+            || shrinkingWidths.contains { $0 > compactWidth + 8 && $0 < expandedWidth - 8 },
+            "Capture must include moving glass, not only the two endpoints")
+
         #expect(fixture.selected == design)
         try Self.action("按标签筛选", id: parent.id, in: root)
         try await SwiftUIReplay.wait { Self.element(id: child.id, in: root) != nil }
@@ -544,10 +543,9 @@ struct NativeOverviewTagGlassTests {
             }
             leftPixels = max(leftPixels, left); rightPixels = max(rightPixels, right)
         }
-        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            #expect(leftPixels > 20, "Left capsule end never rendered outside the short child viewport: \(leftPixels)")
-            #expect(rightPixels > 20, "Right capsule end never rendered outside the short child viewport: \(rightPixels)")
-        }
+        #expect(leftPixels > 20, "Left capsule end never rendered outside the short child viewport: \(leftPixels)")
+        #expect(rightPixels > 20, "Right capsule end never rendered outside the short child viewport: \(rightPixels)")
+
         try await SwiftUIReplay.wait { Self.element(id: child.id, in: root) == nil }
         // Optional timing evidence uses the same production AX opening path.
         // Record capture intervals: WindowServer readback is not instantaneous.
@@ -597,7 +595,6 @@ struct NativeOverviewTagGlassTests {
         if app.responds(to: enableAX) {
             _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface")
         }
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         for width in [1000.0, 540.0] {
             let fixture = TagGlassFixture(children: true)
             // This case drives AX actions and direct scroll snapshots, not
@@ -661,12 +658,11 @@ struct NativeOverviewTagGlassTests {
                 try #require(fixture.interactions.mountedMenuIDs.contains(parent.id))
                 let childElement = try #require(Self.element(id: selected.id, in: root))
                 _ = childElement.perform(NSSelectorFromString("accessibilityPerformPress"))
-                if !reduceMotion {
-                    try await Task.sleep(for: .milliseconds(30))
-                    let during = try #require(fixture.bounds[parent.id])
-                    #expect(abs(during.minX - before.minX) < 0.5 && abs(during.width - before.width) < 0.5)
-                    #expect(Self.string("accessibilityValue", on: try #require(Self.element(id: parent.id, in: root))) == oldTitle)
-                }
+                try await Task.sleep(for: .milliseconds(30))
+                let during = try #require(fixture.bounds[parent.id])
+                #expect(abs(during.minX - before.minX) < 0.5 && abs(during.width - before.width) < 0.5)
+                #expect(Self.string("accessibilityValue", on: try #require(Self.element(id: parent.id, in: root))) == oldTitle)
+
                 let title = "\(parent.displayTag) / \(selected.displayTag) · \(parent.count)"
                 try await SwiftUIReplay.wait {
                     guard let element = Self.element(id: parent.id, in: root) else { return false }
@@ -679,24 +675,23 @@ struct NativeOverviewTagGlassTests {
             }
             // Interrupt one exit by reopening, then replace the selection.
             // The retired completion must not resize the newly open source.
-            if !reduceMotion {
-                try Self.action("按标签筛选", id: parent.id, in: root)
-                try await SwiftUIReplay.wait { Self.element(id: parent.children[0].id, in: root) != nil }
-                let title = Self.string("accessibilityValue", on: try #require(Self.element(id: parent.id, in: root)))
-                _ = try #require(Self.element(id: parent.children[0].id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
-                try await SwiftUIReplay.wait { Self.element(id: parent.children[0].id, in: root) == nil }
-                try Self.action("按标签筛选", id: parent.id, in: root)
-                fixture.selected = parent.children[0]
-                try await Task.sleep(for: .milliseconds(350))
-                #expect(Self.element(id: parent.children[1].id, in: root) != nil)
-                #expect(Self.string("accessibilityValue", on: try #require(Self.element(id: parent.id, in: root))) == title)
-                try Self.action("关闭子标签菜单", id: parent.id, in: root)
-                try await SwiftUIReplay.wait {
-                    guard let element = Self.element(id: parent.id, in: root) else { return false }
-                    return Self.element(id: parent.children[1].id, in: root) == nil
-                        && Self.string("accessibilityValue", on: element) == "Alpha / Alpha plan · 3"
-                }
+            try Self.action("按标签筛选", id: parent.id, in: root)
+            try await SwiftUIReplay.wait { Self.element(id: parent.children[0].id, in: root) != nil }
+            let title = Self.string("accessibilityValue", on: try #require(Self.element(id: parent.id, in: root)))
+            _ = try #require(Self.element(id: parent.children[0].id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
+            try await SwiftUIReplay.wait { Self.element(id: parent.children[0].id, in: root) == nil }
+            try Self.action("按标签筛选", id: parent.id, in: root)
+            fixture.selected = parent.children[0]
+            try await Task.sleep(for: .milliseconds(350))
+            #expect(Self.element(id: parent.children[1].id, in: root) != nil)
+            #expect(Self.string("accessibilityValue", on: try #require(Self.element(id: parent.id, in: root))) == title)
+            try Self.action("关闭子标签菜单", id: parent.id, in: root)
+            try await SwiftUIReplay.wait {
+                guard let element = Self.element(id: parent.id, in: root) else { return false }
+                return Self.element(id: parent.children[1].id, in: root) == nil
+                    && Self.string("accessibilityValue", on: element) == "Alpha / Alpha plan · 3"
             }
+
             let ordinary = try #require(fixture.filters.last)
             fixture.selected = ordinary
             try await SwiftUIReplay.wait {

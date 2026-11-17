@@ -286,18 +286,6 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         input.insertText("优化 landing page", replacementRange: .init(location: 0, length: input.string.utf16.count))
         try await wait("Restoring input did not restore Send") { accessible("moku-send", in: self.window.contentView!) }
-        // SwiftUI's system accessibility environment is read-only. Exercise the
-        // production layer's reduced-motion input without changing OS settings.
-        let reduced = NativeComposerCaret()
-        reduced.reduceMotion = true
-        let origin = CGRect(x: 20, y: 10, width: 1, height: 20)
-        reduced.show(at: origin, in: input)
-        reduced.show(at: origin.offsetBy(dx: 30, dy: 0), in: input)
-        try require(reduced.layer.animation(forKey: "typing") == nil && reduced.layer.frame.midX == 50.5,
-                    "Reduce Motion did not position the production caret immediately")
-        try require(reduced.layer.sublayers!.allSatisfy { $0.animation(forKey: "breathing") == nil },
-                    "Reduce Motion retained breathing animations")
-        reduced.remove()
         fixture.outcome = .failure
         pressReturn()
         try await wait("Return did not begin the production send path") { self.fixture.running }

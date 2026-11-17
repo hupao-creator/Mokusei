@@ -18,7 +18,6 @@ import MokuseiSidecardBrowser
     var dragging = false
     var transitioning = false
     var revision = 0
-    var reducedMotion = false
     var sessions: [JSONText: SidecardSession] = [:]
     var measuredFrames: [JSONText: CGRect] = [:]
     @ObservationIgnored private var transitionTask: Task<Void, Never>?
@@ -54,14 +53,14 @@ import MokuseiSidecardBrowser
         transitionTask?.cancel()
         revision += 1
         let visit = revision
-        withAnimation(reducedMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38)) {
+        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.38)) {
             selected = id
             if let id { lastSelected = id }
-            transitioning = !reducedMotion
+            transitioning = true
             update()
         }
         transitionTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .milliseconds(self?.reducedMotion == true ? 0 : 380)) } catch { return }
+            do { try await Task.sleep(for: .milliseconds(380)) } catch { return }
             guard let self, !retired, revision == visit else { return }
             transitioning = false; update()
         }
@@ -142,6 +141,6 @@ import MokuseiSidecardBrowser
                     .accessibilityLabel("调整侧栏卡片宽度")
             }
         }
-        .animation(fixture.reducedMotion || fixture.dragging ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: layout.stacked)
+        .animation(fixture.dragging ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: layout.stacked)
     }
 }

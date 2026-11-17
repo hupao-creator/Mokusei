@@ -107,8 +107,7 @@ See the [manual investigation](../../design/thread-open-animation-investigation.
 for evidence and the limits of the isolated measurements.
 
 Report HTML fades in over 200ms after its first successful WebKit load in a
-reader visit; later content revisions do not repeat the entrance. Reduce Motion
-shows the document immediately. Loading and error controls remain independent.
+reader visit; later content revisions do not repeat the entrance. Loading and error controls remain independent.
 The Super Thread's selected associated execution uses a persistent composer
 without suppressing its document or sidecards; covering surfaces such as Settings
 still suppress them. The default document/list keeps Moku input closed and
@@ -148,8 +147,7 @@ Report visit. Each selected execution waits for its scoped row and Markdown
 parse readiness, then fades its entire native reader in once over 200ms. A visible
 loading indicator covers preparation; hidden reader controls and accessibility
 are excluded. Read errors and unavailable executions also admit readable content.
-Later data updates and retries do not replay the entrance. Reduce Motion shows
-ready content immediately and settles an in-flight fade.
+Later data updates and retries do not replay the entrance.
 Sending from a referenced execution keeps Report open and updates that sidecard
 in place. A successor execution enters through a downward reading scroll: the
 old viewport moves up and the new one enters from below after content readiness.
@@ -245,7 +243,7 @@ each visible cover revision once, retains its final pose across redraws, theme
 changes and lazy remounts, and replays once on each pointer entry. A new cover
 revision receives its own first play. Leaving the grid suspends playback; other
 Report surfaces keep their existing playback policy. Preloaded covers wait at their
-beginning; offscreen/inactive covers pause. Reduce Motion shows the final composition.
+beginning; offscreen/inactive covers pause.
 The carousel begins its eleven-second dwell after entrance and WebKit playback
 admission. See the [animation contract](../../design/super-thread-animated-covers.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)

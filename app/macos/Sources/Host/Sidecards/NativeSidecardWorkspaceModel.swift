@@ -14,7 +14,6 @@ struct NativeSidecardWorkspaceConfiguration: Equatable {
     var executionReveal: SidecardExecutionReveal? = nil
     var mainReadingHistory = false
     var entranceReady = true
-    var reduceMotion = false
 }
 
 struct NativeSidecardExecutionHandoff: Equatable, Identifiable {
@@ -136,10 +135,7 @@ final class NativeSidecardWorkspaceModel {
             handoff = NativeSidecardExecutionHandoff(cardID: card.id, executionID: executionID)
         }
         if !self.configuration.entranceReady, configuration.entranceReady, selected != nil {
-            beginSelectionTransition(reduceMotion: configuration.reduceMotion)
-        } else if configuration.reduceMotion {
-            transitionTask?.cancel(); transitionTask = nil
-            transitioning = false
+            beginSelectionTransition()
         }
         self.configuration = configuration; self.services = services
         self.onBack = onBack; self.onVisibilityChange = onVisibilityChange
@@ -234,16 +230,15 @@ final class NativeSidecardWorkspaceModel {
         if selected != id {
             selected = id
             if let id { lastSelected = id }
-            if configuration.entranceReady { beginSelectionTransition(reduceMotion: configuration.reduceMotion) }
+            if configuration.entranceReady { beginSelectionTransition() }
         }
         needsReconciliation = true
         if !reconciling && dispatchDepth == 0 { reconcile() }
         return selectionRevision
     }
 
-    private func beginSelectionTransition(reduceMotion: Bool) {
+    private func beginSelectionTransition() {
         transitionTask?.cancel()
-        guard !reduceMotion else { transitionTask = nil; transitioning = false; return }
         transitioning = true
         transitionTask = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(NativeSidecardTiming.duration)) } catch { return }

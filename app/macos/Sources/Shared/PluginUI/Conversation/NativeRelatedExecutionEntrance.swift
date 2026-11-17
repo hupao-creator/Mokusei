@@ -10,7 +10,6 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
     private let onReady: () -> Void
     @State private var preparation = NativeReadingContentPreparation()
     @State private var admitted = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingInteractionActive) private var interactionActive
 
     public init(fades: Bool = true, onReady: @escaping () -> Void = {}, @ViewBuilder content: () -> Content) {
@@ -23,7 +22,7 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
                 ProgressView().controlSize(.small)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            RelatedExecutionFade(admitted: admitted, reduceMotion: reduceMotion || !fades) {
+            RelatedExecutionFade(admitted: admitted, fades: fades) {
                 content
                 // A manifest mounts before its row and asynchronous Markdown.
                 // Use the reader's content signal plus the existing parse gate;
@@ -49,16 +48,15 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
 }
 
 /// Core Animation owns only paint; native text gets its destination layout once.
-/// Removing this animation also settles an in-flight Reduce Motion change.
 private struct RelatedExecutionFade<Content: View>: NSViewRepresentable {
     let admitted: Bool
-    let reduceMotion: Bool
+    let fades: Bool
     @ViewBuilder let content: Content
 
     func makeNSView(context: Context) -> RelatedExecutionFadeView { RelatedExecutionFadeView() }
     func updateNSView(_ view: RelatedExecutionFadeView, context: Context) {
         view.update(content: AnyView(content.environment(\.self, context.environment)),
-                    admitted: admitted, reduceMotion: reduceMotion)
+                    admitted: admitted, fades: fades)
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: RelatedExecutionFadeView, context: Context) -> CGSize? {
         guard let width = proposal.width, let height = proposal.height else { return nil }
@@ -82,7 +80,7 @@ private struct RelatedExecutionFade<Content: View>: NSViewRepresentable {
         addSubview(host)
     }
     required init?(coder: NSCoder) { nil }
-    func update(content: AnyView, admitted: Bool, reduceMotion: Bool) {
+    func update(content: AnyView, admitted: Bool, fades: Bool) {
         host.rootView = content
         if admitted && !self.admitted {
             self.admitted = true
@@ -90,7 +88,7 @@ private struct RelatedExecutionFade<Content: View>: NSViewRepresentable {
             host.layoutSubtreeIfNeeded()
             CATransaction.begin(); CATransaction.setDisableActions(true)
             host.alphaValue = 1
-            if !reduceMotion {
+            if fades {
                 let fade = CABasicAnimation(keyPath: "opacity")
                 fade.fromValue = 0; fade.toValue = 1; fade.duration = 0.2
                 fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -98,7 +96,7 @@ private struct RelatedExecutionFade<Content: View>: NSViewRepresentable {
             }
             CATransaction.commit()
         }
-        if reduceMotion { host.layer?.removeAnimation(forKey: "related.execution.entrance") }
+        if !fades { host.layer?.removeAnimation(forKey: "related.execution.entrance") }
     }
     override func layout() { super.layout(); host.frame = bounds }
     override func hitTest(_ point: NSPoint) -> NSView? { admitted ? super.hitTest(point) : nil }

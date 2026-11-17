@@ -1,5 +1,7 @@
 # Detail 后台展示开销优化
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 ## 范围与约束
 
 基于 Astra 对 Thread 66724983-aed2-4d99-bc35-11b7db2f1922 的静态调研，

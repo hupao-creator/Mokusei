@@ -1,5 +1,7 @@
 # Moku Note 收起 · 生产组件视觉预览
 
+> 本文保留的系统 Reduce Motion 分支与验证描述属于历史记录。当前预览及生产组件使用正常动效；局部 transaction 禁动画仅是视觉对照。
+
 直接链接当前工作树 Release 生产模块，挂载 `NativeMokuDock`。只有背景卡片、Note 文本、草稿和状态切换是 fixture；没有复制 Note、玻璃、眼睛或动画实现。它是视觉预览，不包含断言、不运行测试或 Runtime，也不访问用户 profile、剪贴板或麦克风。
 
 预览通过生产 `NativeMokuScene` 驱动可见性生命周期。直接单独挂载 Dock 会保持

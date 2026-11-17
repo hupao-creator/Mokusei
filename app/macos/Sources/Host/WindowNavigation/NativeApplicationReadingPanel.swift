@@ -83,7 +83,6 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
     @Environment(\.nativeReportPanelReturn) private var returning
     @Environment(\.nativeReportExecutionInputChanged) private var inputChanged
     @Environment(\.locale) private var locale
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var expanded: Bool { sidecards.active == .browser }
 
     var body: some View {
@@ -160,8 +159,8 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                     .disabled(suppressed || returning != nil)
                     .opacity(returning == nil ? 1 : 0)
             }
-            .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
-            .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
+            .animation(dragging ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(dragging ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
         }
         .background(alignment: .topLeading) {
             NativeExecutionDockRegion(placement: executionPlacement,

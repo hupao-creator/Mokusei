@@ -29,7 +29,7 @@ inside a light host while an ordinary composer keeps the inherited appearance,
 and identical rendered opaque capsule fills.
 The production caret is exercised under four native appearances: the white
 2.6-point core, rasterized halo, 2.4-second breathing cycle, same-line motion,
-Reduce Motion and removal. This detects accidental reintroduction of a light
+and removal. This detects accidental reintroduction of a light
 caret or a window-wide theme override.
 
 This is focused integration evidence, not screen acceptance. Actual glass

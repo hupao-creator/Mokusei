@@ -11,7 +11,6 @@ public struct NativeReadingPanelCloseButton: View {
     private let overlaysContent: Bool
     @Environment(\.isEnabled) private var enabled
     @FocusState private var focused: Bool
-    @Environment(\.accessibilityReduceMotion) private var reducedMotion
     @Environment(\.nativeReadingPanelClosing) private var closing
     @Environment(\.nativeThreadPreparing) private var preparing
     @State private var appeared = false
@@ -48,9 +47,9 @@ public struct NativeReadingPanelCloseButton: View {
         }
         .help(label).accessibilityLabel(label)
         .opacity(appeared && !closing && !preparing ? 1 : 0)
-        .animation(reducedMotion ? nil : .easeOut(duration: 0.16), value: preparing)
-        .animation(reducedMotion ? nil : .easeOut(duration: closing ? 0.08 : 0.16), value: closing)
-        .onAppear { withAnimation(reducedMotion ? nil : .easeOut(duration: 0.16)) { appeared = true } }
+        .animation(.easeOut(duration: 0.16), value: preparing)
+        .animation(.easeOut(duration: closing ? 0.08 : 0.16), value: closing)
+        .onAppear { withAnimation(.easeOut(duration: 0.16)) { appeared = true } }
     }
 }
 

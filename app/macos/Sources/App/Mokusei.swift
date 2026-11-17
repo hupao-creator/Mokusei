@@ -109,7 +109,6 @@ final class WorkspaceSession {
                 let receipt: [String: Any] = ["version": 1, "scenario": "overview",
                     "pid": ProcessInfo.processInfo.processIdentifier, "agentEmojiBadge": options.benchmarkEmojiBadge,
                     "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
-                    "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
                     "increaseContrast": NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast]
                 try JSONSerialization.data(withJSONObject: receipt, options: [.sortedKeys])
                     .write(to: profile.dataDirectory.appendingPathComponent("benchmark-scenario.json"), options: .atomic)

@@ -16,7 +16,6 @@ import MokuseiPluginUI
     var replayID = 0
     var initiallyFinished = false
     var redraw = false
-    var reduced = false
     var active = true
     var dark = false
     var identity = UUID()
@@ -71,7 +70,7 @@ private struct CoverReplayView: View {
     var body: some View {
         Group {
             if props.count == 1 {
-                NativeReportCover(props: props[0], playback: model.reduced ? .reduced : model.playback, replayID: model.replayID,
+                NativeReportCover(props: props[0], playback: model.playback, replayID: model.replayID,
                     initiallyFinished: model.initiallyFinished, onReady: { model.ready += 1 })
             } else {
                 NativeReportCollection(props: props, active: model.active,
@@ -105,7 +104,7 @@ private struct CoverGridReplayView: View {
         coordinator.updateReplay(0, initiallyFinished: true)
         let oldGeneration = coordinator.replayID
         coordinator.updateReplay(1, initiallyFinished: false)
-        coordinator.admitInitialPose(.reduced, replayID: oldGeneration)
+        coordinator.admitInitialPose(.finished, replayID: oldGeneration)
         #expect(coordinator.ready)
         #expect(coordinator.appliedPlayback == nil)
         #expect(!coordinator.completedOnce)
@@ -171,7 +170,7 @@ struct NativeReportCoverTests {
         return sum / count * 360 / Double(bitmap.pixelsWide)
     }
 
-    @Test func liveCoverHoldsReplaysPausesAndShowsReducedMotionPoster() async throws {
+    @Test func liveCoverHoldsReplaysAndPauses() async throws {
         let model = CoverReplay(), props = try CoverReplay.props("cycle")
         let window = SwiftUIReplay.window(CoverReplayView(model: model, props: [props]), width: 360, height: 308)
         defer { window.contentView = nil; window.close() }
@@ -211,22 +210,6 @@ struct NativeReportCoverTests {
         let inactive = try await x(web)
         try await Task.sleep(for: .milliseconds(300))
         #expect(abs(try await x(web) - inactive) < 0.1)
-        model.reduced = true
-        try await wait { try await x(web) >= 219.9 }
-        model.active = true
-        try await Task.sleep(for: .milliseconds(2300))
-        #expect(try await x(web) >= 219.9)
-        model.identity = UUID()
-        try await wait { model.ready == 2 }
-        let replacement = try #require(webViews(root).first)
-        #expect(replacement !== web)
-        #expect(try await x(replacement) >= 219.9)
-        #expect(try await capture(replacement, name: "reduced-remount") > 225)
-        model.dark = true
-        try await wait { model.ready == 3 }
-        let dark = try #require(webViews(root).first)
-        #expect(try await x(dark) >= 219.9)
-        #expect(try await capture(dark, name: "reduced-dark") > 225)
         print("REPORT_COVER_RENDERED_CYCLE_CONFIRMED")
     }
 

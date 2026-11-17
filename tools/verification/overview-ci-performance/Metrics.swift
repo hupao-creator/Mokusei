@@ -399,7 +399,6 @@ func environmentJSON() -> [String: Any] {
         "physicalMemoryBytes": ProcessInfo.processInfo.physicalMemory,
         "thermalState": ProcessInfo.processInfo.thermalState.rawValue,
         "lowPowerMode": ProcessInfo.processInfo.isLowPowerModeEnabled,
-        "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
         "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
         "screens": NSScreen.screens.map { screenJSON($0) }, "powerSource": powerSource, "powerDetails": power,
         "gpuName": MTLCreateSystemDefaultDevice()?.name ?? "unavailable"]

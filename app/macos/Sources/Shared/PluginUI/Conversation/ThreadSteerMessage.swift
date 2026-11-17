@@ -7,7 +7,6 @@ public struct ThreadSteerMessage: View {
     public let details: AnyView?
     @State private var expanded = false
     @Environment(\.locale) private var locale
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(content: String, createdAt: Double? = nil, details: AnyView? = nil) {
         self.content = content; self.createdAt = createdAt; self.details = details
@@ -52,7 +51,7 @@ public struct ThreadSteerMessage: View {
                 Spacer(minLength: 4)
                 if canExpand {
                     Button(localize(expanded ? "收起全文" : "展开全文")) {
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { expanded.toggle() }
+                        withAnimation(.easeInOut(duration: 0.18)) { expanded.toggle() }
                     }.buttonStyle(.plain).foregroundStyle(NativePalette.thread.accent.swiftUI)
                 }
             }.font(NativeTypography.inter(size: 10)).frame(minHeight: 12)

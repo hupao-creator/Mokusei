@@ -1,5 +1,7 @@
 # 当前调整：先收起，再滚动（2026-11-06）
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 当前生产行为替代下文历史版本的横向收入：先用共享 380ms fold 将 execution
 Sidecard 收回真实 launcher，同时扩宽主面板；fold 的 `.removed` completion
 独立记录完成，目标正文 readiness 独立记录就绪。两者齐备后才启动既有 420ms

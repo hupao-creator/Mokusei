@@ -46,7 +46,7 @@ import MokuseiCore
         try await surfaces()
         try await settingsPage()
         precondition(!(NSApp?.windows.contains(where: \.isVisible) ?? false))
-        print("PASS: windowless Moku Dock/history/interaction; Settings slot and page retain dark in a light host; native editor, dark caret/glow/breathing, appearance changes and Reduce Motion")
+        print("PASS: windowless Moku Dock/history/interaction; Settings slot and page retain dark in a light host; native editor, dark caret/glow/breathing, appearance changes")
     }
 
     @MainActor private static func caret() throws {
@@ -75,13 +75,8 @@ import MokuseiCore
             }
             caret.show(at: rect.offsetBy(dx: 10, dy: 0), in: editor)
             precondition(caret.layer.animation(forKey: "typing")?.duration == 0.12)
-            caret.reduceMotion = true
-            precondition(caret.layer.animationKeys()?.isEmpty ?? true)
-            precondition(core.animationKeys()?.isEmpty ?? true)
-            precondition(glow.animationKeys()?.isEmpty ?? true)
             caret.remove()
             precondition(caret.layer.superlayer == nil)
-            caret.reduceMotion = false
         }
         precondition(editor.window == nil)
     }

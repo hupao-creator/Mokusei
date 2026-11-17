@@ -8,7 +8,7 @@ Go/Swift interop and graphical replays serially in the same session. There are
 no test shards, placement weights or cross-runner build/fixture transfers.
 The `thread-send-feedback` native owner runs five mounted methods for Dock,
 handoff, composer refocus, toggles and folding; their state/identity cases run in the ordinary Swift suite. Handoff
-captures cover wide/stacked layouts and Reduced Motion, with delayed destination
+captures cover wide/stacked layouts, with delayed destination
 content admission. Missing native markers or unexpected skips fail coverage.
 
 CGO and system SQLite remain enabled. Ordinary CI explicitly selects the exact

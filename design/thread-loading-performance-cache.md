@@ -1,5 +1,7 @@
 # Thread / execution 阅读加载与短时实时缓存
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 2026-11-03；基线 detached `bace0f05ce80`。本次按 sprint mode，仅本地实现、
 review、生产构建和人工观察；不运行/新增测试、CI、测试 hooks，不推送、建 PR 或合并。
 不修改另一线程负责的 placeholder 视觉，也不合入其他 worktree 的消息显示规则。

@@ -1,5 +1,7 @@
 # Agent reader: 8 KiB performance investigation
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 The first 2026-11-12 experiment uses the existing single-reply external benchmark.
 Baseline source is local `b8dd7f5`; the retained signed Release application was
 built at `fbec437`, with identical production sources at that baseline. The
@@ -147,7 +149,6 @@ full `make check` were not run; the scoped replays above are the executed checks
 The read-only remote rule snapshot had no required status checks and no PR for
 this branch. No remote mutation or temporary protection exemption was used.
 
-
 ## Follow-up: block-local selection and deferred rendering
 
 The user explicitly accepted removing cross-paragraph selection. Native Select
@@ -186,7 +187,6 @@ the final replay requires both ends to reflow on return. The old all-mounted
 and whole-document-selection expectations were updated for the explicitly
 changed contract, without skipping content, click or navigation checks.
 
-
 ### Follow-up measurement method
 
 This round uses signed Release applications from `b6877d3` (viewport sizing
@@ -206,7 +206,6 @@ values and the SHA-256 of each original report and timebase record.
 
 These measurements compare the combined selection, deferred-block and native-help
 change. They do not separately attribute CPU savings to each of those changes.
-
 
 ### Follow-up external results
 
@@ -237,7 +236,6 @@ helper disappearing after about three formal seconds. Its exit CPU is unavailabl
 that trace therefore retains the explicit missing-root/incomplete accounting
 reason. The application process is present in all 141 samples, so the table is
 restricted to that observed process and makes no aggregate helper/runtime claim.
-
 
 ### Follow-up diagnostic and validation evidence
 
@@ -274,7 +272,6 @@ checkout's `.scratch/reader-8k-lazy-20261112/`. Earlier raw reports remain under
 `.scratch/reader-8k-performance-20261112/` with an explicit CPU-unit correction
 notice and separate derived correction file.
 
-
 ## Rejected follow-up: reading-control observation
 
 A subsequent candidate moved exact scroll geometry out of Observation and
@@ -300,7 +297,6 @@ All eight planned product outcomes passed, including candidate reopening and
 output-scrolling, but these observations do not justify retaining the added
 control mechanism. The rejected patch, full raw observations and logs are
 preserved with this round's Sidecard evidence.
-
 
 ## Execution Sidecard output and divider resizing
 

@@ -90,7 +90,6 @@ private struct NativeCollectionPanelHost: ViewModifier {
     let enabled: Bool
     @State private var presentation = NativeCollectionPanelPresentation()
     @State private var parentVisible = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         NativeReadingPageStack(open: presentation.owner != nil,
@@ -102,7 +101,7 @@ private struct NativeCollectionPanelHost: ViewModifier {
             onClose: { dismiss() }) {
                 content
                     .opacity(parentVisible ? 1 : 0)
-                    .animation(reduceMotion ? nil : NativeReadingPageTiming.openingAnimation, value: parentVisible)
+                    .animation(NativeReadingPageTiming.openingAnimation, value: parentVisible)
             } front: {
                 // The shared compositor reserves a 76pt auxiliary-control lane.
                 // Collections have no sidecards; keep that lane outside the grid.

@@ -14,7 +14,6 @@ let evidence: [String: Any] = ["capturedAt": ISO8601DateFormatter().string(from:
     "screenCaptureAlreadyAuthorized": CGPreflightScreenCaptureAccess(), "accessibilityAlreadyAuthorized": AXIsProcessTrusted(),
     "inputIdleSeconds": CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: UInt32.max)!),
     "thermal": ProcessInfo.processInfo.thermalState.rawValue,
-    "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
     "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
     "foregroundBundle": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
 print(String(data: try JSONSerialization.data(withJSONObject: evidence, options: [.prettyPrinted, .sortedKeys]), encoding: .utf8)!)

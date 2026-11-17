@@ -45,19 +45,6 @@ struct NativeOverviewTransitionTests {
         try OverviewReplay.verifyFitAll(fixture, in: window)
     }
 
-    @Test func reduceMotionRendersTheLatestTargetWithoutASpatialTrack() async throws {
-        let fixture = OverviewReplayFixture(items: (0..<5).map { .init(id: "card-\($0)") })
-        fixture.reduceMotion = true
-        let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1400, height: 900)
-        defer { window.close() }
-        try await OverviewReplay.settle(fixture, in: window)
-        fixture.install((0..<8).map { .init(id: "motion-\($0)", columns: $0.isMultiple(of: 3) ? 2 : 1) })
-        try await OverviewReplay.settle(fixture, in: window)
-        #expect(!fixture.state.camera.isAnimating)
-        #expect(fixture.state.camera.animationFrames.isEmpty)
-        try OverviewReplay.verifyFitAll(fixture, in: window)
-    }
-
     @Test func survivorsKeepIdentityAcrossAnInterruptedEntryAndExit() async throws {
         let fixture = OverviewReplayFixture(items: (0..<4).map { .init(id: "keep-\($0)") })
         let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1400, height: 900)
@@ -74,8 +61,6 @@ struct NativeOverviewTransitionTests {
         #expect(Set(fixture.state.mountedCardIDs) == Set(fixture.items.map(\.id)))
         try OverviewReplay.verifyFitAll(fixture, in: window)
     }
-
-
 
     @Test func queuedOldGeometryCannotOverwriteTheNewerSnapshot() async throws {
         let fixture = OverviewReplayFixture(items: [.init(id: "initial")])

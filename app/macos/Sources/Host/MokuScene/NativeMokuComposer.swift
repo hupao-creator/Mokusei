@@ -111,7 +111,6 @@ struct NativeMokuComposerInput: View {
     let onSend: () -> Void
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var inputHeight: CGFloat = 58
     @State private var editorRowHeight: CGFloat = 58
     @State private var errorHeight: CGFloat = 0
@@ -161,7 +160,7 @@ struct NativeMokuComposerInput: View {
             input
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { inputHeight = $0 }
         }.foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
-            .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: includesCompletion && completionVisible)
+            .animation(.smooth(duration: 0.42, extraBounce: 0), value: includesCompletion && completionVisible)
             .onDisappear { onMentionFrame(nil) }
             .sheet(item: $hostPicker) { mode in NativeComposerHostFilePicker(draft: draft, mode: mode) }
     }

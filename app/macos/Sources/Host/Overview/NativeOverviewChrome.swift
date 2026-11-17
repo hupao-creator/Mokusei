@@ -62,7 +62,6 @@ public struct NativeOverviewChrome: View {
     @FocusState private var focusedTag: String?
     @Namespace private var tagGlass
     @Namespace private var actionGlass
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var presentedFilters: [NativeOverviewFilter]
     @State private var hasPresentedFilters: Bool
     @State private var returnToAutoVisible: Bool
@@ -134,12 +133,12 @@ public struct NativeOverviewChrome: View {
         }
         .frame(height: OverviewTagMetrics.chromeHeight)
         .onChange(of: cameraManual) { _, manual in
-            withAnimation(reduceMotion ? nil : .smooth(duration: 0.32)) { returnToAutoVisible = manual }
+            withAnimation(.smooth(duration: 0.32)) { returnToAutoVisible = manual }
         }
         .onChange(of: selection) { _, value in
             latestSelection = value
             if hoveredScope == nil && !submenuClosing {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) {
+                withAnimation(.easeInOut(duration: 0.28)) {
                     displayedSelection = value
                 }
             }
@@ -220,7 +219,6 @@ public struct NativeOverviewChrome: View {
             // Reserve the conditional slot without covering the tag glass.
             .frame(width: actionWidth, alignment: .trailing)
         }
-        .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }
         .modifier(OverviewToolbarEntry())
         .accessibilityElement(children: .contain)
         .accessibilityLabel(strings.actions)
@@ -247,7 +245,7 @@ public struct NativeOverviewChrome: View {
                                             revealedTagButtons(for: parent, namespace: namespace,
                                                 source: visible, barWidth: reader.size.width, maximumWidth: maximumWidth)
                                         }
-                                        .transition(reduceMotion ? .identity : .opacity)
+                                        .transition(.opacity)
                                         .modifier(NativeOverviewDirectoryRegistration(registry: interactions, root: interactionOwner, filter: parent,
                                             enabled: parent.children.contains { $0.count > 0 },
                                             open: { revealChildren(of: parent) }, close: closeChildren,
@@ -261,7 +259,6 @@ public struct NativeOverviewChrome: View {
                 }
             }
             .modifier(OverviewToolbarEntry())
-            .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(strings.filter)
     }
@@ -306,14 +303,13 @@ public struct NativeOverviewChrome: View {
                                     Color.clear.preference(key: OverviewSubmenuWidths.self, value: [child.id: geometry.size.width])
                                 }
                             }
-                            .modifier(OverviewSubmenuMorph(progress: reduceMotion ? 1 : childProgress,
+                            .modifier(OverviewSubmenuMorph(progress: childProgress,
                                 target: target, width: widths[child.id] ?? 1,
                                 originX: menu.children.filter { $0.count > 0 }.prefix { $0.id != child.id }
                                     .reduce(0) { $0 + (widths[$1.id] ?? 0) + OverviewTagMetrics.submenuSpacing },
                                 // Retire the tint with the displayed title so a
                                 // selection change cannot compete with the return.
                                 active: childSelected, id: child.id, namespace: namespace))
-                            .opacity(reduceMotion && childProgress == 0 ? 0 : 1)
                             .transition(.identity)
                             .allowsHitTesting(active && current)
                             .accessibilityHidden(!active || !current)
@@ -353,9 +349,8 @@ public struct NativeOverviewChrome: View {
 
     private func setHoveredScope(_ scope: String?) {
         guard hoveredScope != scope else { return }
-        var transaction = Transaction(animation: reduceMotion ? nil : scope == nil
+        var transaction = Transaction(animation: scope == nil
             ? .easeInOut(duration: 0.32) : .smooth(duration: 0.22, extraBounce: 0))
-        transaction.disablesAnimations = reduceMotion
         trackSubmenuTransition(to: scope, in: &transaction)
         withTransaction(transaction) {
             retainClosingMenu(to: scope)
@@ -381,14 +376,13 @@ public struct NativeOverviewChrome: View {
         // spring's logical completion. A reopened menu invalidates this callback.
         transaction.addAnimationCompletion(criteria: .removed) {
             guard submenuRevision == revision else { return }
-            var cleanup = Transaction(animation: reduceMotion ? nil : .easeInOut(duration: 0.28))
-            cleanup.disablesAnimations = reduceMotion
+            let cleanup = Transaction(animation: .easeInOut(duration: 0.28))
             withTransaction(cleanup) { retiringMenus = [:] }
             guard hoveredScope == nil else { return }
             submenuClosing = false
             // The menu's removed transaction has ended. Give the title its own
             // transaction so text and chip geometry do not jump on this frame.
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) {
+            withAnimation(.easeInOut(duration: 0.28)) {
                 displayedSelection = latestSelection
             }
         }
@@ -498,7 +492,7 @@ public struct NativeOverviewChrome: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
             // The scroll viewport is sized from this measurement in a later
             // update; carry the resize animation across that layout boundary.
-            withAnimation(reduceMotion || measuredTagsWidth == 0 ? nil : .easeInOut(duration: 0.28)) {
+            withAnimation(measuredTagsWidth == 0 ? nil : .easeInOut(duration: 0.28)) {
                 measuredTagsWidth = width
             }
         }
@@ -521,7 +515,7 @@ public struct NativeOverviewChrome: View {
         .buttonStyle(OverviewChromeIconStyle(active: active, settingsAnchor: settingsAnchor,
                                             onSettingsFrameChange: onSettingsFrameChange))
         .glassEffectID(name, in: actionGlass)
-        .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+        .glassEffectTransition(.matchedGeometry)
         .help(title).accessibilityLabel(title)
         .accessibilityAddTraits(active ? .isSelected : [])
     }
@@ -742,7 +736,6 @@ private struct OverviewDirectoryGlassSurface: View, @preconcurrency Animatable {
     let active: Bool
     let id: String
     let namespace: Namespace.ID
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var animatableData: AnimatablePair<CGSize.AnimatableData, AnimatablePair<CGFloat, CGFloat>> {
         get { .init(size.animatableData, .init(leadingOverflow, trailingOverflow)) }
@@ -759,7 +752,7 @@ private struct OverviewDirectoryGlassSurface: View, @preconcurrency Animatable {
             .modifier(OverviewTagGlassSurface(active: active,
                 shape: OverviewClippedTagShape(leadingOverflow: leadingOverflow, trailingOverflow: trailingOverflow)))
             .glassEffectID(id, in: namespace)
-            .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+            .glassEffectTransition(.matchedGeometry)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             // These are presentation samples. Selection tint keeps the
@@ -824,7 +817,6 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func body(content: Content) -> some View {
         content
             .foregroundStyle(scheme == .dark ? .white : NativePalette.overview.ink.swiftUI)
@@ -837,7 +829,7 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
             }
             .contentShape(shape)
             .glassEffect(.clear.tint(active ? selectionTint : nil).interactive(), in: shape)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: active)
+            .animation(.easeInOut(duration: 0.18), value: active)
     }
 
     private var selectionTint: Color {
@@ -882,7 +874,6 @@ private struct OverviewTagMenuViewport<Content: View>: View {
     let source: CGRect
     let barWidth: CGFloat
     @ViewBuilder var content: (CGFloat, CGRect, [String: CGFloat]) -> Content
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var contentWidth: CGFloat?
     @State private var entered = false
     @State private var widths: [String: CGFloat] = [:]
@@ -907,7 +898,7 @@ private struct OverviewTagMenuViewport<Content: View>: View {
                 content(active && entered ? 1 : 0, target, widths)
                     .fixedSize(horizontal: true, vertical: true)
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-                        withAnimation(reduceMotion || !entered || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
+                        withAnimation(!entered || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
                             contentWidth = width
                         }
                     }
@@ -937,7 +928,7 @@ private struct OverviewTagMenuViewport<Content: View>: View {
         // slots. Admit ink only after the viewport has measured those slots.
         let measuredWidth = widths.values.reduce(0, +) + CGFloat(widths.count - 1) * OverviewTagMetrics.submenuSpacing
         guard abs(contentWidth - measuredWidth) < 0.5 else { return }
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.22, extraBounce: 0)) { entered = true }
+        withAnimation(.smooth(duration: 0.22, extraBounce: 0)) { entered = true }
     }
 }
 

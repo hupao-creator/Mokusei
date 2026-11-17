@@ -127,7 +127,6 @@ struct NativeOverviewStatePropertyTests {
     private func replay(_ trace: StateTrace) async -> String? {
         var items = [NativeOverviewItem]()
         let fixture = OverviewReplayFixture()
-        fixture.reduceMotion = true
         let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1180, height: 780)
         defer {
             window.close()

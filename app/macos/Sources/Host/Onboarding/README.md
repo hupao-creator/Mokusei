@@ -78,7 +78,7 @@ logos and retains its completed composition. Settings uses the same behavior
 without onboarding step admission. Leaving the page cancels playback; entering
 it again creates a new playback visit. Hiding or deactivating the window during
 playback settles to the completed composition without replaying on activation.
-Reduce Motion shows the completed composition without deferred playback. Tag
+Tag
 also rebuilds a static final frame on size, appearance, locale or Harness changes
 after playback starts, and pauses SpriteKit once that frame is rendered. Tag's
 collision boundaries remain invisible. A native `SKView` adapter makes both the
@@ -129,7 +129,6 @@ remains available for appearance and animation review. The production settings
 flow, rather than its fixture controls, certifies Runtime persistence. Startup
 and navigation changes also require the signed production package checks in the
 [verification policy](../../../../../scripts/ci/verification-policy.md).
-
 
 The Report role is displayed as Super Thread Agent through its application
 settings label. Onboarding progress keys and the `report.settings` binding stay

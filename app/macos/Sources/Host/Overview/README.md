@@ -204,7 +204,7 @@ The usable viewport uses the persistent tag bar's actual `OverviewTagMetrics`
 clearance; the canvas and fixtures share `NativeOverviewViewportDefaults.toolbarBottom`.
 Automatic framing uses the FitAll arrangement with a 1× floor. For `B` = the union of the latest world card frames and `V` = the usable viewport (window minus persistent controls and product margins): `fitScale = min(V.width / B.width, V.height / B.height)`, `scale = max(1, min(explicitScaleCap, fitScale))` and `translation = V.center - scale × B.center`. The 1× floor and explicit 1× cap are shared by automatic framing and manual zoom. Large collections stay centered at their logical size rather than shrinking to show every card; unrestricted pan reaches every member. Without a cap the fit scale still respects the 1× floor. Window zoom independently ranges from 1× to 5×, so the combined rendered card scale never falls below 1×. Manual and automatic camera bookmarks are normalized around the usable viewport center before restoration or animation; profile window zoom is normalized and rewritten at its existing JSON load entry. Manual pan/zoom is user-owned and is never replaced by background layout work. Returning to automatic mode always converges to the latest complete snapshot, including after pause, hiding or a failed/zero-viewport update. An empty collection disposes the camera.
 
-Geometry targets are latest-wins. Each new structural snapshot cancels the in-flight presentation, samples the current card poses and starts a new transition to the latest target; no FIFO of historical revisions is queued. A successful solve publishes placements, bounds and camera from the same input snapshot. An older task cannot publish after a newer token, cannot clear `isLayingOut` for a newer owner and cannot consume a newer revision. Content updates do not restart admitted work. Pausing settles the displayed sample and retains the latest pending target; hiding defers only the camera target. Resuming plans from the latest content rather than replaying omitted revisions. Reduce Motion commits targets immediately while preserving stage ownership.
+Geometry targets are latest-wins. Each new structural snapshot cancels the in-flight presentation, samples the current card poses and starts a new transition to the latest target; no FIFO of historical revisions is queued. A successful solve publishes placements, bounds and camera from the same input snapshot. An older task cannot publish after a newer token, cannot clear `isLayingOut` for a newer owner and cannot consume a newer revision. Content updates do not restart admitted work. Pausing settles the displayed sample and retains the latest pending target; hiding defers only the camera target. Resuming plans from the latest content rather than replaying omitted revisions.
 
 Camera ownership has one mutable source. Live bookmarks combine the sampled
 transform with the current manual/automatic mode; animation samples cannot
@@ -226,7 +226,6 @@ screen positions. Visible survivors retain manual framing. Rapid selections
 cancel the old owner and retarget those samples. An empty destination retains the
 camera through the exit before disposing it; switching from an empty scene still
 animates entry.
-Reduce Motion continues to commit immediately.
 
 Card motion starts, interruption samples and display samples all use
 `ProcessInfo.systemUptime`. A MainActor clock shares one uptime sample for each
@@ -284,9 +283,9 @@ child stays visible and selected even if it becomes redundant, preserving its
 filtering meaning when later threads arrive; selecting its directory then omits
 the redundant child.
 
-Filter capsules omit visible member counts, including in directory menus; counts remain available as accessibility values. Filter tags do not show hover tips; their accessibility labels, values and actions remain available. Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview. Settings has no archive-restoration section; archive data and Runtime commands remain independent of that page. Tag-bar transitions explicitly read Reduce Motion; see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
+Filter capsules omit visible member counts, including in directory menus; counts remain available as accessibility values. Filter tags do not show hover tips; their accessibility labels, values and actions remain available. Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview. Settings has no archive-restoration section; archive data and Runtime commands remain independent of that page. For tag-bar transitions, see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
 
-Menu opening uses a 220ms smooth spring with zero extra bounce, both after initial measurement and when retargeting a mounted menu. Closing retains its existing timing. Menu closure morphs each mounted child capsule back into the measured parent capsule over 320ms. Position and size interpolate continuously; labels retire earlier than the glass, and the surface only disappears as it overlaps the parent. Reopening retargets the same mounted identities from their current presentation. Removed children remain in their old row slots during the return, then surviving children reflow smoothly. A removed directory fades its whole menu envelope because its return destination no longer exists. Retiring controls cannot receive clicks or accessibility actions. After menu exit, title, divider and prefix changes use a 280ms smooth, non-bouncing transition. Reopening still invalidates the earlier close completion. The measured scroll width carries its resize transaction across the layout boundary so the centered bar follows the chips. Initial measurements and Reduce Motion updates are immediate.
+Menu opening uses a 220ms smooth spring with zero extra bounce, both after initial measurement and when retargeting a mounted menu. Closing retains its existing timing. Menu closure morphs each mounted child capsule back into the measured parent capsule over 320ms. Position and size interpolate continuously; labels retire earlier than the glass, and the surface only disappears as it overlaps the parent. Reopening retargets the same mounted identities from their current presentation. Removed children remain in their old row slots during the return, then surviving children reflow smoothly. A removed directory fades its whole menu envelope because its return destination no longer exists. Retiring controls cannot receive clicks or accessibility actions. After menu exit, title, divider and prefix changes use a 280ms smooth, non-bouncing transition. Reopening still invalidates the earlier close completion. The measured scroll width carries its resize transaction across the layout boundary so the centered bar follows the chips. Initial measurements are immediate.
 
 The child menu's clip contains both its viewport and the visible parent in viewport coordinates. A single short child can therefore expand from, and return to, a wider selected-directory capsule without cutting off its rounded ends. Scroll offset affects the morph's content-space target but not that clip. Overflowing rows retain horizontal clipping because their viewport already contains the parent. The native tag-glass replay samples WindowServer pixels during this transition.
 
@@ -327,7 +326,7 @@ participation changes, without rebuilding membership or reacting to every stream
 payload. Membership changes also refresh the markers, including the existing lazy
 All membership for its accessibility value. The All chip has no visible activity
 ring. Submenus share the other tags' indicator. Native window
-visibility and Reduce Motion remain owned by the production spinner. Tooltips and
+visibility remains owned by the production spinner. Tooltips and
 accessibility values announce active presence in the selected UI language. The
 shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActivity.swift).
 
@@ -398,13 +397,12 @@ and cards beneath it. The retained Filters and Settings chrome slides upward by
 its full height and fades out over 200ms without scaling its labels or changing
 canvas clearance, including in the narrow two-row layout. Closing reverses the
 same transition; interrupted openings retarget the mounted chrome. Hidden chrome
-remains excluded from hit testing and accessibility. Reduce Motion switches its
-visibility immediately without translation or fading.
+remains excluded from hit testing and accessibility.
 The production conversation content fades in unchanged; title, emoji and author
 have no separate morph. Closing refreshes the source position after viewport
 changes when available. Direct/restored entries without an eligible card use a
-small centered expansion instead. Route identity, cancellation and reduced-motion
-settling remain owned by the shared reading stack.
+small centered expansion instead. Route identity and cancellation
+remain owned by the shared reading stack.
 
 Reports expand from their own card. The shell uses that identity to refresh
 the return frame after layout changes. Git summaries remain read-only card metadata.
@@ -576,8 +574,8 @@ header uses the shared upper-left Close; only the centered member grid scrolls.
 Columns adapt to the logical window viewport (including window zoom), with up to
 360pt cards, 20pt gaps, and a single shrinking column in narrow windows. Cover
 height preserves 360:308, with a separate metadata region. No panel dimension can
-extend beyond the host viewport. Reduce Motion settles through the shared stack;
-the opaque reading surface also works with Reduce Transparency.
+extend beyond the host viewport. The opaque reading surface also works with
+Reduce Transparency.
 The carousel pauses through opening and return; closing starts a fresh dwell.
 Escape, Close and blank-margin clicks reverse the panel into the current card
 frame. The count is behind the expanded surface, not a second floating control.
@@ -597,8 +595,7 @@ selection and hold their final composition until paging; standalone covers hold
 for 5 seconds after animation completion before replaying. Returning to a selected
 page replays from its beginning.
 Standalone application cards receive foreground/presentation activity through
-the shared animation environment too. Reduce Motion switches immediately,
-including during travel, and shows covers' completed static compositions.
+the shared animation environment too.
 Active/visibility loss and membership replacement settle the current selection and cancel its
 motion owner. Only the stateless mask identity is replaced; settled metadata
 subscriptions and in-flight card actions remain mounted. Cover geometry ignores

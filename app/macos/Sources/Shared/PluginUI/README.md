@@ -35,7 +35,7 @@ page reveal does not cut the collection's continuous material surface.
 `nativeCollectionPanelHost` gives a canvas collection a workspace-sized reading
 surface without creating a route or a native child window. Its environment
 presentation owns one UUID-scoped visit, uses native source/viewport anchors to
-convert camera geometry, and delegates travel, reduced motion, resize settling,
+convert camera geometry, and delegates travel, resize settling,
 blank-margin dismissal and Escape arbitration to the existing reading stack.
 Explicit Close refreshes the source frame; member navigation, source removal and
 covering routes retire the visit immediately. Callers refresh the contents when
@@ -188,7 +188,7 @@ their existing mounting gate. The retained reader has one stable native hosting 
 its environment comes from the enclosing SwiftUI surface and its layout width
 stays at the destination width throughout return travel. Reversal samples native
 presentation layers, and generation-fenced completion cannot admit or close a
-replacement route. Resize, cancellation, reduced motion and inactive scenes
+replacement route. Resize, cancellation and inactive scenes
 settle through the reading stack's existing ownership. Vertical history keeps
 its identity animation and completion timer; non-panel navigation samples its
 shared progress on display callbacks. Returning refreshes the retained Overview
@@ -214,7 +214,7 @@ reader visit, so streaming, retries and history changes do not replay the fade.
 The timeline toolbar (including title, emoji and header controls), history rail
 and scroll container stay visible; the title/emoji handoff never fades again.
 The transparent preparation frame excludes hit testing and accessibility.
-The fade changes only opacity and preserves layout and scroll ownership. Reduce Motion and inactive scenes settle the fade
+The fade changes only opacity and preserves layout and scroll ownership. Inactive scenes settle the fade
 immediately while preserving readiness rules. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
@@ -319,7 +319,7 @@ content or rewraps text. The trackless slot and AppKit's empty knob paint nothin
 until scrolling is possible. Accessibility and device preferences take priority
 over automatic hiding. No global appearance, swizzling,
 window-wide traversal, wheel monitor, preference write or replacement scroll-position model
-is involved. Light/dark, Increase Contrast, Reduce Transparency and Reduce Motion
+is involved. Light/dark, Increase Contrast and Reduce Transparency
 stay on the native rendering path; this component adds no animation.
 
 `NativeScrollView` leaves `autohidesScrollers` with SwiftUI, while still installing
@@ -442,11 +442,10 @@ initial placement and follows content/viewport geometry through scoped row loadi
 projection and Markdown layout. Native scrolling or reading scroll controls take
 over from automatic following; later content cannot pull an upward reader back.
 Returning to the running document or choosing “jump to latest” enables following
-again. The explicit jump animates to the bottom unless Reduce Motion is enabled;
+again. The explicit jump animates to the bottom;
 ordinary following and initial positioning remain immediate. Growth during a jump
 is resolved at its end: the animation uses a fixed offset before restoring the
-bottom edge anchor. A new manual scroll takes ownership; hiding the reader or
-enabling Reduce Motion invalidates the old completion. Explicit reading visits retain position ownership while their anchors
+bottom edge anchor. A new manual scroll takes ownership; hiding the reader invalidates the old completion. Explicit reading visits retain position ownership while their anchors
 resolve, including when an inline historical execution stops pausing follow.
 Generic execution changes cannot supersede that visit. This does not change
 reading-stack motion or projection/resource ownership.
@@ -507,7 +506,7 @@ streamed pages. Their running-execution updates display newly completed messages
 
 [Reading/NativeMarkdownView.swift](Reading/NativeMarkdownView.swift) renders message-level streaming content as literal selectable text only when no reading viewport is known. For callers that admit streaming content and supply `nativeReadingPageCapacity`, [Reading/NativeStreamingPage.swift](Reading/NativeStreamingPage.swift) instead holds the open page back until it closes. Streaming revisions do not enter the ordinary Markdown parser; a settled prefix is parsed at top-level block boundaries and published one page at a time. On settlement, rich rendering resumes; obsolete parsing results cannot replace a newer streaming revision. Completed messages remain rich even while another message in the turn is active.
 
-A streaming page is the visible content height of the owning `HarnessMessageTimeline` (viewport minus its fixed top/bottom insets, in points). Only complete top-level blocks are parsed, so a page break can never fall inside a fenced code block, table, list, blockquote or indented code block; an atomic block that alone exceeds a page is revealed whole. The open page stays invisible until the next settled block would not fit (or its measured height already fills the page), and completion flushes the remainder after reparsing the whole source. The reparse resolves reference definitions and footnotes that point at later chunks; pages rebuild only when that whole-document result differs from the already displayed blocks. Flushes reuse `NativeReadingPageTiming.replacementAnimation` for the vertical page entrance and honor Reduce Motion. A message that is one unsplittable block (for example a single long list or an unfinished paragraph) therefore appears when that block closes or at completion; multiple chunks in one state update coalesce into one flush. Because only closed blocks render, a following timeline's content height and follow scroll change at page flushes, not once per streamed token; the follow, pause-on-user-scroll and jump-to-latest contract is unchanged and settles after each flush.
+A streaming page is the visible content height of the owning `HarnessMessageTimeline` (viewport minus its fixed top/bottom insets, in points). Only complete top-level blocks are parsed, so a page break can never fall inside a fenced code block, table, list, blockquote or indented code block; an atomic block that alone exceeds a page is revealed whole. The open page stays invisible until the next settled block would not fit (or its measured height already fills the page), and completion flushes the remainder after reparsing the whole source. The reparse resolves reference definitions and footnotes that point at later chunks; pages rebuild only when that whole-document result differs from the already displayed blocks. Flushes reuse `NativeReadingPageTiming.replacementAnimation` for the vertical page entrance. A message that is one unsplittable block (for example a single long list or an unfinished paragraph) therefore appears when that block closes or at completion; multiple chunks in one state update coalesce into one flush. Because only closed blocks render, a following timeline's content height and follow scroll change at page flushes, not once per streamed token; the follow, pause-on-user-scroll and jump-to-latest contract is unchanged and settles after each flush.
 
 [Reading/NativeMarkdownParser.swift](Reading/NativeMarkdownParser.swift), [NativeMarkdownText.swift](Reading/NativeMarkdownText.swift) and [NativeMarkdownTypography.swift](Reading/NativeMarkdownTypography.swift) own parsing and native text layout. Inline-code URL links retain link actions and selection; tables derive height from laid-out content. Mermaid fences display source. Native selection follows the active text view and the system window/application focus. Local absolute paths and local `file:` URLs render image syntax and add an inline preview below ordinary file links, while retaining native link actions. Local files bypass attachment resolvers and network loading; the composer ImageIO thumbnail loader decodes off the main actor (2048px maximum edge, 64MiB source limit). Text attachments fit the reading width and a 480pt height while preserving aspect ratio. Missing, unreadable and non-image sources retain their link/alternative text. Remote file hosts and executable URL schemes are rejected; relative paths have no inferred filesystem base. Local rasters live only with mounted Markdown blocks and refresh on remount.
 
@@ -588,7 +587,7 @@ does not become width-dependent merely because its document enables capsules.
 See the [Note performance measurements](../../../../../tools/verification/moku-note-performance/README.md)
 for the isolated production-control comparison and its visual limitations.
 
-[Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadExecutionGroups.swift](Conversation/ThreadExecutionGroups.swift) presents adjacent execution rows under a summary with reasoning/tool counts and reported reasoning usage. Only the latest process summary in the latest running Agent execution carries a left-to-right text highlight, and only while it is also the final message-stream group. Harnesses classify the native tail before withholding streaming replies; a later assistant reply stops the sweep immediately, including before its text is mounted. OpenCode checks the last native part because replies, reasoning and tools can share a message. The 64pt band uses opaque strong reading ink with a broad center and soft edges. Only while motion is admitted, its text base uses 55% muted ink so both sides of the band visibly recede; the wrench keeps normal ink. Reduce Motion, inactive scenes and pending entrance restore normal static ink. Colors follow the light/dark palette; earlier groups, history, completed/interrupted/failed executions and waiting-for-user states stay static. Harnesses supply execution-running state separately from reader activity. The decorative leaf uses the shared frame cadence, pauses outside the active scene or before reading admission, and remains static under Reduce Motion; it adds no accessibility content or hit target. The highlight travels at roughly 180pt/s with a short gap between passes, without animating the wrench or changing text layout. In Agent Thread detail, the reading header's execution visibility control shows only this summary: nested Used tools group titles, Hooks, tool calls, commands, reasoning bodies and failed-tool diagnostics are details and never mount. Agent-only background terminal/task sections likewise show static counts/status rather than commands or descriptions, and hide with work; task failure is not a standalone Harness error. Summary-only historical groups do not acquire the scoped loader in [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift). Other conversation surfaces retain full member rows and scoped historical demand while visible. Execution membership takes precedence over attention styling, so a tool failure cannot escape the visibility group. Standalone errors and pending interactions keep their own timeline rows; a visible nonmember splitting a native run receives distinct summary identities. The summary itself has no disclosure arrow, hover treatment, keyboard focus or accessibility/reading action. Individual activity disclosures on other conversation surfaces retain their existing behavior.
+[Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadExecutionGroups.swift](Conversation/ThreadExecutionGroups.swift) presents adjacent execution rows under a summary with reasoning/tool counts and reported reasoning usage. Only the latest process summary in the latest running Agent execution carries a left-to-right text highlight, and only while it is also the final message-stream group. Harnesses classify the native tail before withholding streaming replies; a later assistant reply stops the sweep immediately, including before its text is mounted. OpenCode checks the last native part because replies, reasoning and tools can share a message. The 64pt band uses opaque strong reading ink with a broad center and soft edges. Only while motion is admitted, its text base uses 55% muted ink so both sides of the band visibly recede; the wrench keeps normal ink. Inactive scenes and pending entrance restore normal static ink. Colors follow the light/dark palette; earlier groups, history, completed/interrupted/failed executions and waiting-for-user states stay static. Harnesses supply execution-running state separately from reader activity. The decorative leaf uses the shared frame cadence, pauses outside the active scene or before reading admission; it adds no accessibility content or hit target. The highlight travels at roughly 180pt/s with a short gap between passes, without animating the wrench or changing text layout. In Agent Thread detail, the reading header's execution visibility control shows only this summary: nested Used tools group titles, Hooks, tool calls, commands, reasoning bodies and failed-tool diagnostics are details and never mount. Agent-only background terminal/task sections likewise show static counts/status rather than commands or descriptions, and hide with work; task failure is not a standalone Harness error. Summary-only historical groups do not acquire the scoped loader in [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift). Other conversation surfaces retain full member rows and scoped historical demand while visible. Execution membership takes precedence over attention styling, so a tool failure cannot escape the visibility group. Standalone errors and pending interactions keep their own timeline rows; a visible nonmember splitting a native run receives distinct summary identities. The summary itself has no disclosure arrow, hover treatment, keyboard focus or accessibility/reading action. Individual activity disclosures on other conversation surfaces retain their existing behavior.
 
 Pending connection/status text in an otherwise empty active execution reuses
 the summary's `ThreadLoadingTextStyle`, including its 64pt band, 180pt/s travel,
@@ -661,8 +660,7 @@ advances frame by frame instead of through an implicit animation, so cancellatio
 settles the pages immediately and a replacement begun afterwards starts from the
 settled pose rather than a displaced one. Departing history stays mounted only
 for its transition; cancellation fences obsolete completion. Other page
-stacks retain their default horizontal direction. Reduce Motion settles transitions
-without travel, including a return already in progress. New turns do not replace
+stacks retain their default horizontal direction. New turns do not replace
 an open historical execution;
 removed destinations show the unavailable document and retain return navigation.
 Execution sidecards keep their single-execution presentation. They omit the
@@ -886,8 +884,7 @@ existing placement and eligibility. The local body suppresses the automatic top
 status label without changing the global status contract or card structure key.
 
 Only the submitting dot pulses (opacity only, 2.4 seconds per cycle); viewport,
-window and host animation gates pause it. Reduce Motion disables this pulse and
-the initial card's cloud animation driver, preserving the host's existing pause.
+window and host animation gates pause it.
 A mounted initial body gives way immediately to real content with a single 120ms
 opacity entrance; remounts and later excerpt revisions keep the existing policy.
 Run `python3 tools/verification/reading-presentation/run.py --initial-response`
@@ -974,7 +971,6 @@ presentation; repainting an unchanged rectangle does not restart movement.
 
 Marked text uses the native caret, and line changes bypass interpolation. Selection,
 loss of focus, hidden windows and detachment release the layer and its animations.
-Reduce Motion keeps the mark steady and makes movement immediate.
 Text, scroll clipping, selection and input-method ownership remain native.
 
 Clipboard file/image paste reserves the draft synchronously before any item-provider decoding. The same draft-owned preparation lasts through attachment validation and staging, including oversized batches; Return and toolbar sends remain blocked until that operation resolves. Retired preparation cannot mutate a cleared or disposed draft. Clipboard TIFF preparation precedes attachment admission. Invalid TIFF does not
@@ -1014,7 +1010,7 @@ identity stay stable.
 SwiftUI owns outgoing usage glyph lifetimes, including interrupted updates. The text
 raster tier suppresses animation only when its scale changes; it must not clear
 unrelated glyph-motion transactions. This number path retains the existing
-always-animate policy even with system Reduce Motion enabled.
+always-animate policy.
 
 [Runtime clocks](Cards/ThreadCardClock.swift) use the same SwiftUI numeric cells
 as their glyph source and layout/baseline strut. A bounded immutable bitmap cache
@@ -1032,11 +1028,11 @@ page. `ThreadCardAnimationVisibility` reports their actual viewport/page visibil
 independently of the cloud-animation switch. A running duration suspends its
 one-second task while that visibility is false or the scene is in the background;
 on return it immediately samples wall time. Completed durations stay fixed.
-Reduce Motion and disabled cloud effects do not stop a visible duration. Outside
+Disabled cloud effects do not stop a visible duration. Outside
 the overview, omitting the visibility environment keeps the ordinary visible
 behavior; an inactive but still visible window can continue showing elapsed time.
 Derived-work scans, permission attention and running-tool spinners pause for
-hidden/background cards, disabled host animations or Reduce Motion. Pausing does
+hidden/background cards or disabled host animations. Pausing does
 not unmount the card or replace its controls, and restoring visibility resumes
 the existing presentation.
 
@@ -1071,8 +1067,7 @@ Hiding, backgrounding or detaching cancels that owner and settles the latest tit
 Cancelling an active transition replaces only its stateless animated text leaf,
 so an in-flight fade-in is retired even when its model phase is already settled;
 the transition owner and card keep their identity.
-Reduce Motion makes both text effects immediate while visible excerpt windows
-continue advancing. Disabling cloud effects does not freeze text content. The
+Disabling cloud effects does not freeze text content. The
 mounted `SwiftUIOverviewInteractionTests` replay exercises retained visibility,
 streaming windows, rapid title updates and cancellation without replacing cards.
 The title cancellation method runs once in the mandatory
@@ -1088,13 +1083,12 @@ frame/cancellation timestamps go to the launcher's
 launcher exports it under
 `.scratch/reading-presentation/NativeOverviewTagGlassTests/overview-text-motion`
 for the hosted capture artifact; staged source paths do not determine that root.
-The internal `threadCardTextReduceMotionOverride` environment entry lets these
-native replays change the text policy locally. It is optional and defaults to
-`nil`; titles and excerpts resolve it before the system accessibility value.
-Ordinary application hosts leave it unset and continue following macOS Reduce
-Motion. The override does not change clocks, other effects or system preferences.
-
-There is no global Reduce Motion policy applied to every animation. The current [Moku Dock](../../Host/MokuScene/NativeMokuDock.swift) disables its surface/eye expansion animation when that preference is enabled; [Overview chrome](../../Host/Overview/NativeOverviewChrome.swift) separately handles tag/control transitions. Other animation paths follow their own implementation. Do not infer support or removal from an old blanket statement.
+Application-owned animations use their ordinary motion path regardless of the
+system Reduce Motion preference. The app does not read, observe, propagate or
+adapt to that preference. Native framework defaults and arbitrary external
+Report HTML/CSS remain owned by those renderers; the host does not rewrite them.
+The [removal audit](../../../../../design/remove-reduce-motion.md) records scope
+and verification.
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity.
 
@@ -1148,7 +1142,7 @@ physical presentation or a drawable-to-screenshot correspondence.
 [NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
 Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;
 resolved colors, line width and size retain the original geometry. Background
-scenes, hidden/occluded windows, detachment and Reduce Motion stop rotation.
+scenes, hidden/occluded windows and detachment stop rotation.
 Resume rejoins the existing wall-clock phase. The decoration owns no input or
 accessibility, and its native layer changes never publish a SwiftUI frame value.
 See the [implementation and validation record](../../../../../design/animation-main-thread.md)
@@ -1157,7 +1151,7 @@ for main-thread admission boundaries and remaining performance limits.
 [NativeCardScan](Design/NativeCardScan.swift) moves the existing gradient through
 Core Animation's 3.4-second linear cycle. Pausing retains its displayed position;
 resuming aligns to the current wall-clock phase. It needs no application
-per-frame callback. The existing scene, visibility and Reduce Motion gates stay
+per-frame callback. The existing scene and visibility gates stay
 in the card, while native views exclude themselves from input and accessibility.
 
 Pre-rendered atlas playback was removed after reported stutter. The production
@@ -1313,7 +1307,7 @@ onboarding share native field bindings, catalogs and persistence.
 
 The shared reading stack can present Agent, Report and Moku history routes
 as a bounded panel, using a source card frame where available. It retains the same route identity, explicit progress clock,
-close/cancel lifecycle and reduced-motion settling as page navigation. Panel
+close/cancel lifecycle as page navigation. Panel
 content remains reader-owned; Agent title/emoji can use the window-local identity
 bridge described below while its outer frame expands. The final aperture admits the host's independent toolbar
 outside the panel. The front layout includes a 76pt trailing toolbar seat so
@@ -1489,7 +1483,7 @@ resolves the current native layout before freezing their actual geometry; it doe
 not use a trailing 48ms debounce. The panel's real completion and visible host,
 not an independent duration timer, admit the title handoff. Loaded content only takes ownership at that position; there is no
 post-opening title animation or data-loading timeout. The bridge never retains
-card/reader/plugin instances; replacement, close and reduced motion retire its layers. Direct result
+card/reader/plugin instances; replacement and close retire its layers. Direct result
 navigation and entries without a visible source card retain their ordinary entry.
 See the [recording analysis and sprint verification limits](../../../../../design/emoji-title-transition-handoff.md).
 
@@ -1592,7 +1586,7 @@ every fold tick, even when its proposed size is already fixed. Report retains
 its existing per-frame return-pose memo for closing during a fold. All use
 `NativeSidecardTiming.foldAnimation`:
 380ms, cubic Bézier `(0.22, 1, 0.36, 1)`. The shared duration also supplies the
-Agent native-content interaction gate. Reduced Motion settles immediately.
+Agent native-content interaction gate.
 See the [layout-placement follow-up](../../../../../design/sidecard-fold-performance.md#layout-placement-follow-up-2026-11-17)
 for the recording, measured layout-call comparison and frame-rate limitations.
 Report's linked Browser keeps its historical close fade through `fadesOnClose`;
@@ -1612,8 +1606,8 @@ The production opening-path audit against local main `b20c011` covers:
 
 All four use fixed destination-size native content, the same launcher-to-panel
 aperture/offset and opening opacity ramp, including narrow stacked layouts and
-retained widths. Agent drag and Reduced Motion disable travel; Report Browser
-drag and Reduced Motion do likewise. Report references have no divider.
+retained widths. Agent drag disables travel; Report Browser
+drag does likewise. Report references have no divider.
 `NativeApplicationHTMLSurface` routes both HTML link entry points to the native
 workspace; no application-owned CSS/JavaScript sidecard opener exists.
 `BrowserViewport` keeps WebKit inside its representable, inheriting that shell's
@@ -1632,7 +1626,7 @@ Sprint validation for this audit is a product build, static lint and diff review
 no tests/replays or live intermediate-frame captures are performed. Code review
 can establish shared interpolation and transaction ownership, but cannot certify
 rendered frame pacing, WebKit mask composition or rapid reversal appearance on a
-WindowServer. Wide/stacked openings, switches, first-link/reopen, Reduce Motion,
+WindowServer. Wide/stacked openings, switches, first-link/reopen,
 resize and close/reversal still need visual acceptance when that scope is allowed.
 
 Report commits its initial folded layout through `NativeReadingEntranceStage`
@@ -1709,7 +1703,7 @@ Markdown parsing, then fades one retained native host over 200ms. Only opacity
 animates; reader geometry, resource leases and navigation remain with their
 existing owners. Its preparation indicator stays visible until admission and
 hidden readers are excluded from pointer, keyboard and accessibility interaction.
-Reduce Motion bypasses or removes the compositor animation. Streaming, refresh,
+Streaming, refresh,
 and read-error recovery do not repeat it; selection identity owns a fresh visit.
 
 `NativeReportExecutionScroll` wraps the related-execution capability with that

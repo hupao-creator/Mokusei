@@ -1,5 +1,7 @@
 # Note exposure implementation handoff
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 2026-10-27. Continued the existing uncommitted implementation on detached
 `d42733a4a`; integration into main belongs to the coordinator. No push.
 Design: [note-read-awareness.md](note-read-awareness.md).

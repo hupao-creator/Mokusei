@@ -32,9 +32,8 @@ extension RuntimeClient {
 
 private struct SendFeedbackLayout: View {
     let model: NativeSidecardWorkspaceModel
-    let reduceMotion: Bool
     var body: some View {
-        if let snapshot = model.snapshot { NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot, motionReduced: reduceMotion) }
+        if let snapshot = model.snapshot { NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot) }
     }
 }
 
@@ -54,7 +53,7 @@ private struct SendFeedbackComposerLayout: View {
         let route = presentation.navigationRouteID
         if mount.visible {
             VStack(spacing: 0) {
-                SendFeedbackLayout(model: model, reduceMotion: false)
+                SendFeedbackLayout(model: model)
                     .environment(\.nativeAgentInputTargetChanged, { owner, target in
                         presentation.updateAgentInput(owner: owner, target: target, route: route)
                         print("COMPOSER_TARGET time=\(ProcessInfo.processInfo.systemUptime) owner=\(owner) execution=\(String(describing: target?.executionID?.string)) ready=\(String(describing: target?.ready))")
@@ -80,7 +79,7 @@ private struct FoldProbeLayout: View {
     let state: FoldProbeState
     let width: CGFloat
     var body: some View {
-        SendFeedbackLayout(model: model, reduceMotion: false)
+        SendFeedbackLayout(model: model)
             .frame(width: state.size?.width ?? width, height: state.size?.height ?? 620)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -264,7 +263,7 @@ struct NativeThreadSendFeedbackTests {
         try fixture.observe()
         _ = try CodexState(fixture.contentState)
         fixture.startContentPump()
-        let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model, reduceMotion: false)
+        let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model)
             .environment(\.locale, Locale(identifier: "en-US")), width: 1180, height: 620)
         defer { window.close() }
         let root = try #require(window.contentView)
@@ -469,11 +468,10 @@ struct NativeThreadSendFeedbackTests {
         await fixture.close()
     }
 
-    @Test(.requiresDisplay, arguments: [CGFloat(700), 1180], ["animated", "reduced", "error", "result"])
+    @Test(.requiresDisplay, arguments: [CGFloat(700), 1180], ["animated", "error", "result"])
     func mountedProductionReadersHandOffAfterContentAdmission(width: CGFloat, mode: String) async throws {
         let fixture = try Fixture()
         defer { fixture.pump?.cancel(); fixture.model.release() }
-        let reduceMotion = mode == "reduced"
         if mode == "result" {
             fixture.configuration.input = .init(thread: fixture.configuration.input.thread,
                 readingTarget: .init(executionID: "new", requestID: "active-result", mode: .current, position: .result))
@@ -483,7 +481,7 @@ struct NativeThreadSendFeedbackTests {
         try fixture.observe()
         _ = try CodexState(fixture.contentState)
         fixture.startContentPump()
-        let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model, reduceMotion: reduceMotion)
+        let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model)
             .background(Color(red: 0.2, green: 0.3, blue: 0.4)).environment(\.locale, Locale(identifier: "en-US"))
             .environment(\.scenePhase, .active),
             width: width, height: 620)
@@ -527,27 +525,11 @@ struct NativeThreadSendFeedbackTests {
         let foldObserver = SwiftUIReplay.FrameObserver(view: root) {
             guard reader.subviews.count == 2,
                   let current = fixture.model.snapshot?.handoff else { return false }
-            if reduceMotion && current.travelComplete {
-                // A nil-animation completion can publish before AppKit lays out
-                // the new pose. Settle that pending nonanimated layout before
-                // sampling; animated travel must remain passively observed.
-                root.layoutSubtreeIfNeeded()
-            }
             guard let frame = nativeFrame("sidecard-aperture-conversation-frame", in: root),
                   let main = nativeFrame("agent-reading-panel-frame", in: root) else { return false }
             if foldSamples.count < 120 { foldSamples.append(frame) }
             let fraction = (sourceFrame.width - frame.width) / (sourceFrame.width - launcherFrame.width)
-            // A nil animation completes its state transaction before the
-            // hosting tree necessarily commits the destination geometry.
-            // Reduced Motion must observe that native final pose, while the
-            // animated case still requires an actual intermediate frame.
-            let observed = reduceMotion
-                ? current.travelComplete && abs(main.width - (root.bounds.width - 76)) < 2
-                    && abs(main.height - root.bounds.height) < 2
-                    && abs(frame.width - launcherFrame.width) < 2
-                    && abs(frame.height - launcherFrame.height) < 2
-                : fraction > 0.08 && fraction < 0.92
-            guard observed else { return false }
+            guard fraction > 0.08 && fraction < 0.92 else { return false }
             sampledFold = frame; sampledMain = main; sampledHandoff = current.id
             return true
         }
@@ -566,13 +548,12 @@ struct NativeThreadSendFeedbackTests {
         let travelFrame = try #require(sampledFold)
         let travelMainFrame = try #require(sampledMain)
         #expect(sampledHandoff == handoff.id)
-        if !reduceMotion {
-            let fraction = (sourceFrame.width - travelFrame.width) / (sourceFrame.width - launcherFrame.width)
-            let expectedX = sourceFrame.midX + (launcherFrame.midX - sourceFrame.midX) * fraction
-            let expectedY = sourceFrame.midY + (launcherFrame.midY - sourceFrame.midY) * fraction
-            #expect(abs(travelFrame.midX - expectedX) < 12 && abs(travelFrame.midY - expectedY) < 12)
-            #expect(travelFrame.height < sourceFrame.height && travelFrame.height > launcherFrame.height)
-        }
+        let fraction = (sourceFrame.width - travelFrame.width) / (sourceFrame.width - launcherFrame.width)
+        let expectedX = sourceFrame.midX + (launcherFrame.midX - sourceFrame.midX) * fraction
+        let expectedY = sourceFrame.midY + (launcherFrame.midY - sourceFrame.midY) * fraction
+        #expect(abs(travelFrame.midX - expectedX) < 12 && abs(travelFrame.midY - expectedY) < 12)
+        #expect(travelFrame.height < sourceFrame.height && travelFrame.height > launcherFrame.height)
+
         if width >= 760 {
             #expect(travelMainFrame.width > sourceMainFrame.width)
         } else { #expect(travelMainFrame.height > sourceMainFrame.height) }
@@ -594,25 +575,24 @@ struct NativeThreadSendFeedbackTests {
         #expect(SwiftUIReplay.text(in: outgoing).contains("Previous main execution"))
         try await capture(window, name: prefix + "-waiting-for-main")
         fixture.holdDestination = false
-        if !reduceMotion {
-            var pageFrames: (outgoing: CGRect, incoming: CGRect, oldY: CGFloat, newY: CGFloat)?
-            try await SwiftUIReplay.wait(timeout: .seconds(8), driveLayout: false) {
-                guard let old = outgoing.layer?.presentation(), let new = incoming.layer?.presentation(),
-                      new.transform.m42 > reader.bounds.height * 0.08,
-                      new.transform.m42 < reader.bounds.height * 0.92 else { return false }
-                pageFrames = (old.frame, new.frame, old.transform.m42, new.transform.m42)
-                return true
-            }
-            let pages = try #require(pageFrames)
-            #expect(fixture.model.snapshot?.handoff?.id == handoff.id)
-            #expect(fixture.model.snapshot?.handoff?.travelComplete == true && fixture.model.snapshot?.handoff?.contentReady == true)
-            #expect(pages.oldY < 0 && abs(pages.newY - pages.oldY - reader.bounds.height) < 1)
-            #expect(abs(pages.outgoing.width - outgoingSize.width) < 1 && abs(pages.incoming.width - landedFrame.width) < 1)
-            #expect(outgoing.superview === reader && incoming.superview === reader && incoming.alphaValue == 1)
-            #expect(outgoing.frame.minY == 0 && incoming.frame.minY == 0, "TextKit model viewports stay onscreen during compositor travel")
-            print("THREAD_SEND_PAGE_GEOMETRY width=\(width) mode=\(mode) outgoing=\(pages.outgoing) incoming=\(pages.incoming) translationY=\(pages.oldY),\(pages.newY)")
-            try await capture(window, name: prefix + "-page-travel")
+        var pageFrames: (outgoing: CGRect, incoming: CGRect, oldY: CGFloat, newY: CGFloat)?
+        try await SwiftUIReplay.wait(timeout: .seconds(8), driveLayout: false) {
+            guard let old = outgoing.layer?.presentation(), let new = incoming.layer?.presentation(),
+                  new.transform.m42 > reader.bounds.height * 0.08,
+                  new.transform.m42 < reader.bounds.height * 0.92 else { return false }
+            pageFrames = (old.frame, new.frame, old.transform.m42, new.transform.m42)
+            return true
         }
+        let pages = try #require(pageFrames)
+        #expect(fixture.model.snapshot?.handoff?.id == handoff.id)
+        #expect(fixture.model.snapshot?.handoff?.travelComplete == true && fixture.model.snapshot?.handoff?.contentReady == true)
+        #expect(pages.oldY < 0 && abs(pages.newY - pages.oldY - reader.bounds.height) < 1)
+        #expect(abs(pages.outgoing.width - outgoingSize.width) < 1 && abs(pages.incoming.width - landedFrame.width) < 1)
+        #expect(outgoing.superview === reader && incoming.superview === reader && incoming.alphaValue == 1)
+        #expect(outgoing.frame.minY == 0 && incoming.frame.minY == 0, "TextKit model viewports stay onscreen during compositor travel")
+        print("THREAD_SEND_PAGE_GEOMETRY width=\(width) mode=\(mode) outgoing=\(pages.outgoing) incoming=\(pages.incoming) translationY=\(pages.oldY),\(pages.newY)")
+        try await capture(window, name: prefix + "-page-travel")
+
         try await SwiftUIReplay.wait(timeout: .seconds(8)) { fixture.model.snapshot?.handoff == nil }
         #expect(fixture.model.snapshot?.selected == nil)
         #expect(fixture.model.snapshot?.excludedExecutionIDs.isEmpty == true)
@@ -716,7 +696,7 @@ struct NativeThreadSendFeedbackTests {
         fixture.startContentPump()
         if card == "iab" { try await fixture.model.routes.openExternal?("http://127.0.0.1:9/") }
 
-        let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model, reduceMotion: true), width: 1180, height: 620)
+        let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model), width: 1180, height: 620)
         defer { window.close() }
         let root = try #require(window.contentView)
         let id = JSONText(card)

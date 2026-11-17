@@ -1,5 +1,7 @@
 # Report Close with an expanded Sidecard
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 ## Current implementation
 
 Close retains the Report's current split selection and presented main size from

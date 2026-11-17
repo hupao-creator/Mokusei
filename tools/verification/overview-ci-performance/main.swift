@@ -527,9 +527,8 @@ private final class OverviewProbe {
         guard beforeVisibility["allFull"] as? Bool == true else { throw ProbeFailure(description: "Four running cards are not fully visible in the real window") }
         guard beforeNative["nativePathActive"] as? Bool == true else { throw ProbeFailure(description: "Four active native clouds/scans are unavailable on this runner") }
         try validateCardShapes(model, workspace: workspace)
-        guard NSWorkspace.shared.accessibilityDisplayShouldReduceMotion == false,
-              NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency == false else {
-            throw ProbeFailure(description: "Runner accessibility motion/transparency settings do not match the fixed scenario")
+        guard NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency == false else {
+            throw ProbeFailure(description: "Runner accessibility transparency setting do not match the fixed scenario")
         }
         report["comparisonIdentity"] = try comparisonIdentity(model: model, window: window, expected: ready.expectedCards)
         report["stage"] = "mounted"
@@ -816,7 +815,6 @@ private final class OverviewProbe {
             "camera": ["scale": transform.scale, "x": transform.x, "y": transform.y],
             "activeCards": visibilityJSON(model)["activeCards"]!, "screen": screenJSON(screen),
             "appearance": "dark", "cardMaterials": "production-default", "locale": "zh-CN",
-            "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
             "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]
     }
 

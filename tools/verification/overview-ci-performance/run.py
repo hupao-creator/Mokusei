@@ -261,7 +261,6 @@ def machine_snapshot(full=False):
     if full:
         commands.update(os=["sw_vers"], hardware=["system_profiler", "SPHardwareDataType", "SPDisplaysDataType", "-json"],
                         swift=["xcrun", "swift", "--version"], xcode=["xcodebuild", "-version"], go=["go", "version"],
-                        reduceMotion=["defaults", "read", "com.apple.universalaccess", "reduceMotion"],
                         reduceTransparency=["defaults", "read", "com.apple.universalaccess", "reduceTransparency"])
     return {"at": utc(), "architecture": platform.machine(), "observations": {name: observation(cmd) for name, cmd in commands.items()}}
 

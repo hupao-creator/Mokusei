@@ -32,10 +32,9 @@ struct NativeOverviewCapacityTests {
         try OverviewReplay.verifyControlsClear(fixture, in: window)
     }
 
-    @Test(arguments: [1, 6], [false, true])
-    func insertionAndReturnToAutoUseTheLatestCollection(count: Int, reduceMotion: Bool) async throws {
+    @Test(arguments: [1, 6])
+    func insertionAndReturnToAutoUseTheLatestCollection(count: Int) async throws {
         let fixture = OverviewReplayFixture(items: (0..<count).map { .init(id: "card-\($0)") })
-        fixture.reduceMotion = reduceMotion
         let window = SwiftUIReplay.window(OverviewReplayCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
         try await OverviewReplay.settle(fixture, in: window)
@@ -49,7 +48,6 @@ struct NativeOverviewCapacityTests {
         try await OverviewReplay.settle(fixture, in: window)
         #expect(fixture.state.camera.liveTransform == transform)
     }
-
 
     @Test func freshSceneWithNoVisibleSurvivorReframesAutomatically() async throws {
         let fixture = OverviewReplayFixture(items: [.init(id: "browse-1"), .init(id: "browse-2")])
@@ -83,7 +81,6 @@ struct NativeOverviewCapacityTests {
         #expect(fixture.state.camera.liveTransform == transform)
         #expect(fixture.frames == frames)
     }
-
 
     @Test func contentOnlyUpdateReusesMixedFootprintGeometryInProductOrder() async throws {
         let fixture = OverviewReplayFixture(items: [
@@ -161,8 +158,6 @@ struct NativeOverviewCapacityTests {
         try await OverviewReplay.settle(fixture, in: window)
         try OverviewReplay.verifyFitAll(fixture, in: window)
     }
-
-
 
     @Test func zeroViewportDoesNotLatchLaterValidLayout() async throws {
         let fixture = OverviewReplayFixture(items: [.init(id: "first"), .init(id: "second")])

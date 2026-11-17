@@ -1,5 +1,7 @@
 # Related Thread entrance
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 ## Recording and production path
 
 The supplied 7.367s recording (`录屏2026-11-06 11.49.33.mov`, attachment

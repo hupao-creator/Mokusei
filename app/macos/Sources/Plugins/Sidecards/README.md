@@ -83,8 +83,8 @@ The common opening uses a 380ms cubic Bézier `(0.22, 1, 0.36, 1)` for
 aperture, offset and opacity, with one host selection transaction. The
 [shared opening-path audit](../../Shared/PluginUI/README.md) also covers Report
 references, HTML link/new-window entry, retained Browser reopening and the
-separate native/WebKit content gates. Reduced Motion and divider dragging
-settle geometry without travel.
+separate native/WebKit content gates. Divider dragging
+settles geometry without travel.
 The existing selected/suppressed gates disable folded, retiring and covered
 cards; native document suppression, resizing, sessions and dismissal callbacks
 keep their ownership. Completion handoff still promotes the retained execution
@@ -108,8 +108,7 @@ then starts its 420ms expansion. Without an owning execution Sidecard, input is
 admitted at the layout commit. The card keeps its existing 380ms animation.
 No available card is required for input.
 Plugin selection/execution ownership stays live while presentation waits; retiring
-availability cannot be reopened by the layout completion. Reduced Motion also
-removes the card's transition interaction delay. See the
+availability cannot be reopened by the layout completion. See the
 [shared entrance contract and sprint limits](../../../../../design/reading-entrance-choreography.md).
 
 [Conversation](Conversation/) is an execution display. It owns no composer,
@@ -287,9 +286,8 @@ keeps the same incoming host and scroll state; the folded source stays hidden.
 Animation/readiness callbacks are fenced by handoff and execution identity.
 Folding, card choice, replacement execution, archive, covering routes, release or
 a different reading target cancels the old handoff. Main history navigation
-remains in place rather than being replaced by this animation. Resize, an inactive
-scene and Reduced Motion settle to the latest reader once its content is ready;
-enabling Reduced Motion during travel also settles immediately. The handoff
+remains in place rather than being replaced by this animation. Resize and an inactive
+scene settle to the latest reader once its content is ready. The handoff
 never requests editor/content/launcher focus. Retained widths, stacked layout
 and input ownership keep their existing boundaries. See the
 [production handoff notes](../../../../../design/execution-handoff-production.md)

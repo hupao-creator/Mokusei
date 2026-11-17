@@ -60,7 +60,6 @@ still starts only when a URL exists. Selection therefore drives opening in the
 same transaction as the main pane, without a second state, layout callback or
 completion/reset timer. The Report's HTML-ready 200ms admission delay is
 independent of this motion.
-Reduced Motion disables the workspace's folding and stacking animation.
 Outside a Report panel, new-window HTTP(S) GET links use the external browser.
 Non-GET new-window form requests are rejected with an in-document notice; the
 host never converts a request body into a URL-only GET.
@@ -170,7 +169,7 @@ navigation portal; scrolling never moves the traffic lights. Opening an applicat
 Agent still restores that Agent and its reading target on Close. Overview entry
 remembers the actual source card, and refreshes
 its return frame after resize. These routes share panel margins, source-frame
-animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
+animation, rounded surfaces and the full-circle Close target.
 The shared Close sits at the panel's upper-left. Viewports normally reserve
 48pt below the top edge; the main Agent reader uses symmetric 22pt viewport
 insets and clears Close horizontally through its reserved 48pt history rail.
@@ -286,7 +285,7 @@ Pointer/accessibility and reading controls are gated during replacement; input
 waits for content, landing and existing Dock geometry admission. Route, composer
 and sidecard-selection identities fence late receipts; reader-visit identities
 fence readiness/completion. Folding, Browser selection, covering and return
-revoke pending send navigation. Reduce Motion, inactive/covered scenes and resize
+revoke pending send navigation. Inactive/covered scenes and resize
 settle admitted content without travel. Returning to the list or unmounting retires
 both reader leases. Ordinary Agent sends, Agent history navigation and completion
 promotion retain their own behavior. See the [implementation notes](../../../../../design/execution-route-slide.md).
@@ -308,6 +307,6 @@ execution and linked Browser Sidecards fade in place on the same 420ms timeline.
 The full-workspace native carrier stays stationary for this return and owns only
 generation-fenced completion, avoiding a second crop/travel over the split panes.
 Closing before primary content admission keeps the existing native opening-reversal
-path. Reduce Motion, resize, cancellation and inactive-scene completion retain
+path. Resize, cancellation and inactive-scene completion retain
 the reading stack's policies. See the [return investigation](../../../../../design/report-sidecard-close.md)
 for the retained-layout boundary and Sprint validation limits.

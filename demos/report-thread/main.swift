@@ -20,17 +20,15 @@ enum ReportRoute: Equatable {
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var route: ReportRoute = .card
     var dark = false
-    var reduceMotion = false
     var frames: [String: CGRect] = [:]
     func navigate(_ next: ReportRoute) {
-        withAnimation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.42)) { route = next }
+        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.42)) { route = next }
     }
     func back() { navigate(route.selection == nil ? .card : .report) }
 }
 
 private struct ReportDemo: View {
     @Bindable var state: DemoState
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         NativeMokuScene(state: state.scene) {
             ZStack {
@@ -54,7 +52,6 @@ private struct ReportDemo: View {
         .environment(\.locale, Locale(identifier: "zh-Hans"))
         .preferredColorScheme(state.dark ? .dark : .light)
         .modifier(NativeWorkspaceWindowSurface())
-        .onChange(of: reduceMotion, initial: true) { _, value in state.reduceMotion = value }
         .nativeReadingEscape(perform: state.route.isOpen ? { state.back() } : nil)
         .onExitCommand { state.back() }
     }

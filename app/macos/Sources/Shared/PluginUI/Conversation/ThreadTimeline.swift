@@ -170,7 +170,6 @@ private struct TimelineDiagnosticsAttachment: NSViewRepresentable {
     }
 }
 
-
 /// Bounded history window with explicit following. Documents start at their heading unless the caller opens at the live bottom.
 public struct HarnessMessageTimeline: View {
     public let timelineKey: JSONText
@@ -195,7 +194,6 @@ public struct HarnessMessageTimeline: View {
     public var locatedRequestId: JSONText?
     public var onLocated: ((JSONText) -> Void)?
     @Environment(\.locale) private var locale
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingNavigation) private var readingNavigation
     @Environment(\.nativeThreadBodyEntranceHidden) private var bodyEntranceHidden
     @Environment(\.nativePerformanceOperation) private var performanceOperation
@@ -415,11 +413,6 @@ public struct HarnessMessageTimeline: View {
                     previousReadingNavigation = readingNavigation
                     reportReading()
                 }
-                .onChange(of: reduceMotion) { _, reduced in
-                    guard reduced, latestTransition != nil else { return }
-                    latestTransition = nil
-                    if following && !followPaused && !suspended { alignToLatest() }
-                }
                 .onDisappear {
                     latestTransition = nil
                     previousReadingNavigation?.remove(source: readingSource)
@@ -469,7 +462,7 @@ public struct HarnessMessageTimeline: View {
     private func jumpToLatest() {
         onJumpToLatest?()
         let transition = UUID()
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35), completionCriteria: .removed) {
+        withAnimation(.easeInOut(duration: 0.35), completionCriteria: .removed) {
             following = true; showLatest = false; clampedRequest = nil; userPositioned = true
             latestTransition = transition
             // An edge target follows content growth inside SwiftUI itself.

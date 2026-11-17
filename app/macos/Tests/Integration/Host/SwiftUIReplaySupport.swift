@@ -50,7 +50,7 @@ import Testing
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         if !reportedEnvironment {
-            print("NATIVE ENVIRONMENT systemReduceMotion=\(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion) backingScale=\(window.backingScaleFactor) screens=\(NSScreen.screens.map(\.frame))")
+            print("NATIVE ENVIRONMENT backingScale=\(window.backingScaleFactor) screens=\(NSScreen.screens.map(\.frame))")
             reportedEnvironment = true
         }
         let host = NSHostingView(rootView: content.frame(width: width, height: height).accessibilityElement(children: .contain))

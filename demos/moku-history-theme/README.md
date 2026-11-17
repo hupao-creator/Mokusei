@@ -1,5 +1,7 @@
 # Moku 历史布局与主题
 
+> 本文保留的系统 Reduce Motion 分支与验证描述属于历史记录。当前预览及生产组件使用正常动效；局部 transaction 禁动画仅是视觉对照。
+
 基于 `0a56037`（包含共享 Moku 历史面板 `5affdc8`）。
 核查生产 `NativeAgentThreadWorkspace`：圆角 message 阅读卡片由自己的
 surface/clip/border/Close 包住，底部 Moku Dock 由 workspace 的 scene 独立呈现。

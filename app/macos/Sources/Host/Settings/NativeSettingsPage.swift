@@ -60,7 +60,6 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
     @State private var animationVisits = NativeSettingsAnimationVisits()
     @Namespace private var tabSelection
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, preferences: DesktopPreferences, harnesses: [AnyHarnessPlugin],
                 applicationSections: [NativeApplicationSettingsSection] = [],
@@ -276,7 +275,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                     .settingsTabAccessibilityAnchor(id: id).id(id)
             }
         }.padding(.horizontal, 4)
-            .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: activeSection)
+            .animation(.smooth(duration: 0.22), value: activeSection)
             .settingsTabListAccessibility(title: locale.text("设置分类", "Settings sections"), horizontal: true,
                 tabs: sections.map { id in
                     SettingsAccessibilityTab(id: id, title: sectionLabel(id), selected: activeSection == id, focused: focusedTab == id) {

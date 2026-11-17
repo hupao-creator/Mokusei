@@ -12,7 +12,7 @@ removed test cases or claim their coverage. No new test cases were added.
 The fixture mounts the production Scene/Dock with its warm capsule material;
 the unchanged colored-pixel oracle distinguishes dots from the actual glass.
 It captures a full cycle, requires colored ink beyond all four sides and outside
-the glass, and checks inactive pause, three static Reduce Motion dots, tool/input/
+the glass, and checks inactive pause, tool/input/
 idle/cancel retirement and restart. The scene phase is supplied by the isolated
 AppKit fixture; system preferences and real accounts are never changed.
 

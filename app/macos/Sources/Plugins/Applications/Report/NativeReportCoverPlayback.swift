@@ -8,7 +8,7 @@ enum NativeReportCoverTiming {
 }
 
 enum NativeReportCoverPlayback: String {
-    case reset, playing, playingOnce, paused, reduced
+    case reset, playing, playingOnce, paused, finished
 
     var isPlaying: Bool { self == .playing || self == .playingOnce }
 

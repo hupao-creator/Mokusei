@@ -1,5 +1,7 @@
 # Direct-send feedback and Dock placement
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 ## Recording and diagnosis
 
 The supplied `录屏2026-11-05 19.56.55.mov` lasts 15.715 seconds.

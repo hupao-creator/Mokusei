@@ -274,8 +274,7 @@ misleading failure records. Local diff and documentation links were checked.
 Actual WindowServer-disabled / physically display-less macOS execution is not
 available on this laptop. The forced-headless run validates admission and retained
 model coverage, not the operating system under a logged-out session. UI reproduction
-requires a logged-in macOS graphical session, a display, the selected Xcode
-and (for animation cases that honor it) Reduce Motion off. Do not run a second
+requires a logged-in macOS graphical session, a display, the selected Xcode. Do not run a second
 native replay concurrently or mutate focus/clipboard during the run. Screen-capture
 permission is additionally needed only for the existing WindowServer capture
 replays, not the Settings bitmap test. The eight Go fixture replays above remain

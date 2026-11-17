@@ -1,5 +1,7 @@
 # Animated Super Thread covers
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 The cover is a silent, passive HTML/CSS composition, authored by Super Thread
 Agent from report evidence. Its finite animation includes all delays and
 repetitions and lasts at most six seconds: the carousel's eleven-second dwell

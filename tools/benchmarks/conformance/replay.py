@@ -229,10 +229,10 @@ def badge_comparison_replay(root):
     from badge_comparison import ORDER, summarize, validate_receipt
     from lifecycle import Application
     valid = {'version': 1, 'scenario': 'overview', 'pid': 101, 'agentEmojiBadge': 'liquid-glass',
-        'reduceTransparency': False, 'reduceMotion': False, 'increaseContrast': False}
+        'reduceTransparency': False, 'increaseContrast': False}
     assert validate_receipt(valid, 'liquid-glass', 101) == valid
     for patch in ({'version': True}, {'pid': 102}, {'agentEmojiBadge': 'flat'},
-                  {'reduceTransparency': True}, {'reduceMotion': 0}, {'scenario': 'reading'}):
+                  {'reduceTransparency': True}, {'scenario': 'reading'}):
         try: validate_receipt({**valid, **patch}, 'liquid-glass', 101)
         except ValueError: pass
         else: raise AssertionError('invalid badge receipt admitted: ' + str(patch))

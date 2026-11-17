@@ -247,7 +247,6 @@ jobs:
           # Self-hosted images must already have the required display policy.
           # Never rewrite a persistent account's accessibility preferences.
           if [[ "$RUNNER_ENVIRONMENT" == github-hosted ]]; then
-            defaults write com.apple.universalaccess reduceMotion -bool false
             defaults write com.apple.universalaccess reduceTransparency -bool false
           fi
           app/macos/.build/ci-native-environment

@@ -28,7 +28,6 @@ struct NativeReportCollection: View {
     @State private var motionEpoch = UUID()
     @State private var readyCovers: Set<CoverIdentity> = []
     @State private var playbackStarted: CoverIdentity?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @Environment(\.colorScheme) private var colorScheme
 
@@ -69,7 +68,7 @@ struct NativeReportCollection: View {
         let member = props[page], cover = identity(member)
         return .init(selection: selected, members: members,
             playing: playing && outgoingID == nil && (!member.entry.view.hasCover
-                || (readyCovers.contains(cover) && (reduceMotion || playbackStarted == cover))), cover: cover)
+                || (readyCovers.contains(cover) && (playbackStarted == cover))), cover: cover)
     }
     private var locale: JSONText { props[0].context.locale }
     // Keep at most four WebKit covers alive: visible, retiring, and neighbors.
@@ -89,8 +88,8 @@ struct NativeReportCollection: View {
         // Cover and ink retain the old identity on one shared clock.
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
-            outgoingID = reduceMotion ? nil : selected
-            progress = reduceMotion ? 1 : 0
+            outgoingID = selected
+            progress = 0
             motionEpoch = UUID()
             selection = id
         }
@@ -231,11 +230,6 @@ struct NativeReportCollection: View {
         .onChange(of: active) { _, value in
             if !value { hovered = false; showingMembers = false; settle() }
         }
-        .onChange(of: reduceMotion) { _, reduced in
-            // Leaving the static poster needs a fresh playback acknowledgement.
-            playbackStarted = nil
-            if reduced { settle() }
-        }
         .onChange(of: visibility?.isVisible) { _, visible in
             if visible == false { hovered = false; showingMembers = false; settle() }
         }
@@ -367,7 +361,7 @@ struct NativeReportCollectionBody: View {
 }
 
 /// Keep WebKit identities mounted. A settled pose ignores any remaining
-/// interpolated progress, so Reduce Motion/reset cannot expose a retiring offset
+/// interpolated progress, so reset cannot expose a retiring offset
 /// and does not reload the cover merely to cancel its presentation animation.
 struct NativeReportCollectionCoverOffset: GeometryEffect {
     let direction: Double

@@ -11,7 +11,7 @@ NATIVE_METHOD_OWNERS = {
     "MokuseiSettingsIntegrationTests.NativeReportCoverTests/singlePlaybackStaysFinishedAcrossRedrawAndReplaysOnce()": {
         "group": "native", "check": "report-covers", "marker": "REPORT_COVER_SINGLE_PLAY_CONFIRMED",
     },
-    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/liveCoverHoldsReplaysPausesAndShowsReducedMotionPoster()": {
+    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/liveCoverHoldsReplaysAndPauses()": {
         "group": "native", "check": "report-covers", "marker": "REPORT_COVER_RENDERED_CYCLE_CONFIRMED",
     },
     "MokuseiSettingsIntegrationTests.NativeReportCoverTests/oversizedInfiniteAuthorMotionStillCompletesWithinSixSeconds()": {

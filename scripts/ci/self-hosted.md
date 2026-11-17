@@ -170,7 +170,7 @@ personal account a safe CI host.
 
 A read-only graphical probe inside the sandbox saw no session or Metal device.
 Outside the sandbox it observed an active session, two Retina displays, an
-Apple M1 Pro Metal device and disabled Reduce Motion/Transparency. Screen-capture
+Apple M1 Pro Metal device and disabled Reduce Transparency. Screen-capture
 preflight was false for that inspecting process; no permission prompt was
 requested and this does not establish permission for a future runner identity.
 No actual capture/native suite was certified.

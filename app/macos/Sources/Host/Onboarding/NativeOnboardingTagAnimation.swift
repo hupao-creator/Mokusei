@@ -15,7 +15,6 @@ struct NativeOnboardingTagAnimation: View {
         let harnesses: [String]
     }
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var windowVisible = true
     @State private var viewport = CGSize(width: 560, height: 250)
@@ -29,7 +28,7 @@ struct NativeOnboardingTagAnimation: View {
             else { playbackStarted = newValue }
         }
     }
-    private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
+    private var active: Bool { windowVisible && scenePhase == .active }
 
     var body: some View {
         if !harnesses.isEmpty { animation }
@@ -47,7 +46,7 @@ struct NativeOnboardingTagAnimation: View {
             .task(id: Playback(size: viewport, dark: colorScheme == .dark, active: active, locale: locale, harnesses: harnesses.map { $0.descriptor.id.string })) {
                 staticFrameReady = false
                 scene.prepare(size: viewport, dark: colorScheme == .dark, harnesses: harnesses, locale: locale)
-                guard NativeCapabilityPlayback.shouldPlay(active: active, reduceMotion: reduceMotion,
+                guard NativeCapabilityPlayback.shouldPlay(active: active,
                                                            started: Binding(get: { started }, set: { started = $0 })) else {
                     scene.organize(animated: false)
                     // Let SpriteKit draw updated textures before pausing its renderer,

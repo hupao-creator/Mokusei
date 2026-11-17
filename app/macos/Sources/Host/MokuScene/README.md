@@ -85,7 +85,7 @@ replacement geometry, completion fencing and moving-control hit protection;
 shell sizing and composer expansion remain owned by SwiftUI.
 Rapid replacement retains the current mark during travel; the same Harness
 reuses a settled or in-flight flip. Return keeps the existing collapse path.
-Reduce Motion, an inactive scene or a hidden window settles the mark immediately,
+An inactive scene or a hidden window settles the mark immediately,
 while reading/content readiness still gates input. See the
 [entrance contract](../../../../../design/reading-entrance-choreography.md).
 
@@ -116,8 +116,7 @@ AppKit text to a new row and then translate it back. Native editor internals lay
 out at their destination width while the shell reveals/clips them. Below 260pt
 of capsule width a persistent four-seat Layout gives text/attachment and
 identity/actions separate rows, preserving the same native editor through resize.
-The surface height stays within the available viewport. Reduce Motion disables
-shell and ink animation. The [isolated panel preview](../../../../../demos/moku-panel-transition/README.md)
+The surface height stays within the available viewport. The [isolated panel preview](../../../../../demos/moku-panel-transition/README.md)
 records this repair's source-video evidence, local validation and limits.
 
 An initialized workspace with no globally eligible, unarchived conversation cards
@@ -153,7 +152,7 @@ landing while `create_thread` is pending. A successful public result for an
 eligible Thread returns the same Dock to its bottom seat. Failure without an
 admitted conversation stays centered; an independently admitted conversation
 also ends landing. Existing workspaces hydrate at the bottom. The same surface
-and Reduce Motion policy own the transition.
+owns the transition.
 
 The [native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
 exercises real workspace/catalog/presentation integration; the
@@ -186,8 +185,7 @@ the text line edges. A 2.4-second breathing cycle replaces native on/off
 blinking; white ink uses 20–100% opacity, while its halos fade fully.
 Same-line movement remains 120ms and interruptible. IME composition uses the
 native caret; line changes stay immediate. Selection and focus/visibility loss
-remove the layer and animations. Reduce Motion keeps the caret steady and makes
-movement immediate.
+remove the layer and animations.
 
 Run the [windowless appearance replay](../../../../../tools/verification/moku-appearance/README.md)
 when changing these appearance boundaries. It checks production AppKit/SwiftUI
@@ -211,7 +209,7 @@ depend on a predicted text height. Dispatch status is informational; clicking it
 
 The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The choreography comes from Bart commits `2c3125ac7` and `45578f321`; the eyes retain their seat while the 5-point dots follow the capsule's outer contour, with 3 points of clear space. [NativeMokuRunningGeometry](NativeMokuRunningGeometry.swift) supplies that authored path to the persistent character host. Decorations paint outside the glass clip.
 
-[NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock; Reduce Motion snaps to static open eyes and static running dots. Blink shape uses the continuous timestamp rather than fixed-rate samples. The existing orbit replay retains loading coverage. The removed eye-only regression suites are not restored or claimed as executed by this rollback.
+[NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock. Blink shape uses the continuous timestamp rather than fixed-rate samples. The existing orbit replay retains loading coverage. The removed eye-only regression suites are not restored or claimed as executed by this rollback.
 
 Static character targets are cached until their input changes. The native display
 link sleeps between the existing absolute-time blinks (4.2-second period,
@@ -234,8 +232,7 @@ interaction/overlay ownership.
 ## Thinking feedback
 
 Moku temporarily hides its live reasoning text Arc. Deep thinking uses the same
-three-dot running choreography described above, including Reduce Motion's static
-dots. Live reasoning takes priority over a queued generic tool expression; source
+three-dot running choreography described above. Live reasoning takes priority over a queued generic tool expression; source
 appends do not restart the running clock. Completion, failure,
 interruption, waiting for input and runtime disconnect retire loading through
 the existing execution and surface ownership state.
@@ -341,7 +338,7 @@ viewport height, independently of the document's fitted height. An initially
 empty Markdown layout must not replace the scroll container when parsing
 finishes: replacing it retires the mounted renderer and its armed read session.
 
-Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface expansion explicitly respects Reduce Motion.
+Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available.
 
 Talk and Note take turns owning the same reading surface. Opening first fades
 message ink in place over 100ms, expands the single glass shell with the existing
@@ -351,7 +348,7 @@ viewport remains mounted with its ordinary 48-point control inset, preserving
 wrapping and scroll state while hidden.
 
 A generation fences each animation completion, so a rapid reversal cannot finish
-an older intent. Input, covering routes, inactive/hidden scenes and Reduce Motion
+an older intent. Input, covering routes and inactive/hidden scenes
 settle the current target immediately. Hidden/retiring text and History cannot
 receive pointer or accessibility activation. Note gains interaction and reading
 exposure eligibility only after its entrance completes; a close intent revokes
@@ -372,8 +369,7 @@ superseded by this handoff.
 
 Note uses the same uniform Harness tint and a noninteractive clear glass surface;
 selection, links, scrolling and dismissal retain their existing targets. The
-material stays mounted through opening, closing and reversal. Reduce Motion
-removes inherited geometry/opacity animation; Reduce Transparency retains the
+material stays mounted through opening, closing and reversal. Reduce Transparency retains the
 same opaque tint. The existing Note lifecycle and viewport regressions remain.
 The [Note transition preview](../../../../../demos/moku-note-transition/README.md)
 records the production Dock with synthetic notes, including intermediate frames,
@@ -443,7 +439,7 @@ Ordinary Talk keeps its existing silent, latest-only, 60-second presentation.
 current workspace route with the complete scrollable text,
 a queue count and an always-present **已收到 / Received** button. It does not
 navigate, replace the editor, grab focus or close permission surfaces. Its click region is excluded from composer outside-click dismissal. It has no
-Escape, outside-click, focus-loss or timeout acknowledgment. Nonanimated presentation respects Reduce Motion. Native text/buttons expose the
+Escape, outside-click, focus-loss or timeout acknowledgment. Native text/buttons expose the
 content and action to accessibility; acknowledgment does not require audio.
 Like the other Moku surfaces, the Timer bar uses a local dark environment even
 in a light workspace; it does not override the window appearance.
@@ -525,7 +521,7 @@ column frame, otherwise 420ms. The compositor moves directly from the current
 presentation position to the target, without overshoot or a settling rebound. Vertical
 descent retains its independent, non-bouncing timing. Shell sizing retains the
 Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
-travel, and Reduce Motion disables spatial animation. Stacked layouts share the
+travel. Stacked layouts share the
 panels' full column width and keep the same bottom reading baseline. Composer
 expansion retains its separate entrance timing.
 
@@ -535,7 +531,7 @@ column once, and a compositor translation carries its editor, controls and glass
 together. Main-thread work therefore does not stop an already admitted trip.
 Reversal starts at the current presentation position. Completion is fenced to
 the current native animation, placement revision and composer generation;
-resizing and Reduce Motion settle immediately. Keyboard focus survives travel,
+resizing settles immediately. Keyboard focus survives travel,
 while coordinate-based pointer hits wait for arrival so they cannot activate a
 control at its invisible destination.
 
@@ -566,7 +562,7 @@ The native geometry bridge fences completion to the current destination revision
 and the workspace retains the existing route-visit admission check. A folded,
 ineligible or absent execution Sidecard releases the identity stage at layout commit without
 a travel wait. Once input is admitted, later card choices move the retained editor
-without folding it. Reduce Motion and direct resizing settle without a delay.
+without folding it. Direct resizing settles without a delay.
 Scene-level input admission also gates interaction restoration,
 input controls and focus; navigation cannot bypass it by reconfiguring the draft.
 Automatic focus uses its existing 180ms delay from input expansion, with
@@ -574,8 +570,7 @@ draft/generation checks. That delay does not disable admitted native click/Tab
 focus. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,
 without changing its draft, send generation or suppressed automatic-focus policy;
 accepted Close also suspends input hit testing/focus through the panel's live
-motion state without folding the retained shell. Reduce Motion removes the focus
-delay and spatial animations. The fitted Dock
+motion state without folding the retained shell. The fitted Dock
 bottom moves down by up to 16pt, keeping at least
 12pt below it; Super Thread admits the expanded composer only for a selected
 associated Thread; Git retains its normal input policy in that same lower seat.
@@ -598,8 +593,7 @@ The passive logo occupies a 34×25pt seat only in Agent input and ignores pointe
 and accessibility hit testing. A 420ms horizontal-axis flip retires the old mark
 in its first half and reveals the new mark in its second half. Changing Harness
 flips to the new mark; changing Threads within the same Harness keeps it steady.
-Overview and Report/Git restore Moku's theme without a logo; Settings has no header identity slot. Reduce Motion replaces
-marks without spatial travel. Identity transitions use SwiftUI's retained views,
+Overview and Report/Git restore Moku's theme without a logo; Settings has no header identity slot. Identity transitions use SwiftUI's retained views,
 without delayed callbacks that could restore a stale Harness or acquire focus.
 The logo is separate from placeholder/draft text and never replaces the editor.
 The window owns persisted drafts (text, directory mentions and attachments) per
@@ -724,8 +718,8 @@ markers belong to a route and publish only after auxiliary layout admission;
 retained outgoing Report markers cannot overwrite the destination. The Dock
 travels directly to that committed column with monotone easing, without
 adding an intermediate layout destination. Replacements use
-the currently presented horizontal position; resize, dragging, deactivation and
-Reduce Motion settle travel directly. This preserves the existing draft,
+the currently presented horizontal position; resize, dragging and deactivation
+settle travel directly. This preserves the existing draft,
 receipt, input-readiness and late-callback fences. See the
 [recording diagnosis and Sprint limits](../../../../../design/direct-send-transition.md).
 

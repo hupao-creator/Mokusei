@@ -43,7 +43,6 @@
         "camera": cameraJSON(fixture), "frames": fixture.frames.mapValues { NSStringFromRect($0) },
         "geometricFullyInWindow": fullyInside, "geometricIntersectingWindow": intersecting,
         "framing": "production readable camera; large collections may be partially outside the viewport",
-        "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
         "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
         "comparison": "all-on; shell-off retains inner glass; all-off uses inner Glass.identity; opaque replacements change occlusion/compositing",
         "cloud": "production harness palettes supplied; autonomous animation paused equally in all conditions",

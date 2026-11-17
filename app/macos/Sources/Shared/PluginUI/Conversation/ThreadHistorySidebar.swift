@@ -19,7 +19,6 @@ struct ThreadHistorySidebar: View {
     let select: (JSONText) -> Void
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.locale) private var locale
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovered: JSONText?
     @State private var keyboardPreview = false
@@ -165,8 +164,8 @@ struct ThreadHistorySidebar: View {
             else { dismissHover(row.id) }
         }
         .onDisappear { dismissHover(row.id) }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: emphasized)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: active)
+        .animation(.easeOut(duration: 0.12), value: emphasized)
+        .animation(.easeOut(duration: 0.12), value: active)
         .accessibilityLabel(label)
         .accessibilityValue(row.id == current ? localize("当前轮次") : localize("历史对话"))
         .accessibilityAddTraits(active ? [.isSelected] : [])

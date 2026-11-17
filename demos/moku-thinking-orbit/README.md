@@ -51,7 +51,7 @@ python3 demos/moku-thinking-orbit/build.py --skip-build \
 
 “暂停流入”只停止 fixture 新输入，已有 FIFO 继续消费；“暂停动画”冻结视觉时间和输入。
 “短文本”检查居中；“新段落”用自定义文字检查 reader 重置。“深色”在同一窗口切换。
-系统 Reduce Motion 冻结 demo 的运动；原生窗口隐藏或最小化时停止各自的动画计时器。
+原生窗口隐藏或最小化时停止各自的动画计时器。
 
 ## Git 依据
 

@@ -296,14 +296,13 @@ private struct NativeThreadHeadingInk: View {
 public struct NativeThreadPreparedReader<Content: View>: View {
     @Environment(\.nativeThreadPreparing) private var preparing
     @Environment(\.nativeThreadReaderPreloading) private var preloading
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var contentReady = false
     @State private var revealed = false
     private let content: () -> Content
     public init(@ViewBuilder content: @escaping () -> Content) { self.content = content }
     private var entranceHidden: Bool {
-        contentReady && !preparing && !revealed && !reduceMotion && scenePhase == .active
+        contentReady && !preparing && !revealed && scenePhase == .active
     }
     public var body: some View {
         if preparing && !preloading { NativeThreadOpeningContent() }
@@ -323,13 +322,13 @@ public struct NativeThreadPreparedReader<Content: View>: View {
                     // Reuse the layout-commit gate so the transparent pose is
                     // rendered before admission, including warm reader opens.
                     NativeReadingEntranceStage(enabled: !preparing && contentReady && !revealed) {
-                        withAnimation(reduceMotion || scenePhase != .active ? nil : .easeOut(duration: 0.2)) {
+                        withAnimation(scenePhase != .active ? nil : .easeOut(duration: 0.2)) {
                             revealed = true
                         }
                     }
                 }
                 .transaction { transaction in
-                    if reduceMotion || scenePhase != .active { transaction.disablesAnimations = true }
+                    if scenePhase != .active { transaction.disablesAnimations = true }
                 }
         }
     }

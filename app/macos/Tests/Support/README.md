@@ -19,7 +19,7 @@ skip when unavailable. `MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/ma
 exercises this admission path without changing the desktop. This is a simulated
 absence of display capability, not proof from a physically disconnected machine.
 Hosted CI intentionally does not set that override and rejects display skips.
-Its disposable account enables motion/transparency before launching tests;
+Its disposable account enables transparency before launching tests;
 local tests never change system accessibility preferences. Rendered geometry
 comparisons use one physical pixel from the actual window's backing scale, so
 1x hosted screens and 2x Retina screens enforce equivalent precision. Pure
@@ -80,18 +80,6 @@ entry travel, then read the old mounted set before that callback. The final
 three-second wait now also requires the exact mounted set; the FIFO, movement,
 appearance and membership assertions and their budgets remain unchanged. The
 receipt retains the final mounted IDs, so an actually stranded card still fails.
-
-## Reduced Motion handoff geometry
-
-The handoff replay observes native geometry after the no-animation transaction
-has reached AppKit layout. A nil-animation completion can publish
-`travelComplete` before the new panel/aperture frames are committed. Run
-43408061909 sampled the old 302pt stacked main height at that boundary; its
-subsequent layout and final 620pt geometry passed. The Reduced Motion observer
-now flushes only pending nonanimated layout before sampling. The original
-growth, folded-launcher, final-size, retained-reader and content-admission
-assertions and two-second observation budget remain. Animated travel is still
-observed passively without forcing layout or discarding intermediate poses.
 
 ## Execution-link streaming input
 

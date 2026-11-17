@@ -2,7 +2,7 @@
 
 这是独立 demo，不接入生产交接。采用两段顺序动画：先让 sidecard 收入
 变宽的主面板，再让主 detail 从上一轮向下翻到最新结果。支持反复播放、
-原生滚动与文本选择、慢速、长结果、深浅色和减弱动态效果。
+原生滚动与文本选择、慢速、长结果和深浅色。
 
 ## 启动
 
@@ -40,11 +40,8 @@ app、资源及独立工作目录位于 `/private/tmp/mokusei-native-replay-exec
 | 主面板 Close | 恢复运行中，不关闭独立 demo。 |
 | 慢速 3× | 下一段几何动画使用三倍时长，便于观察裁切和交接。 |
 | 长结果 | 换用可滚动的长 Markdown fixture，并恢复运行中。 |
-| 减弱动态效果 | 跳过收入、变宽、翻页与完成停顿；仍等待正文排版。 |
 | 深色 / 窗口尺寸 | 对比生产配色及 960×680、1240×800 的双栏布局。 |
 
-系统 Reduce Motion 始终优先：开启时无法用 demo 开关覆盖。系统设置变化
-会被监听，运动中启用会停靠到已就绪的新结果。不会修改全局无障碍设置。
 调整运动中的窗口会在正文就绪后直接停靠，旧动画不得继续覆盖新几何。
 demo 最小内容尺寸为 960×620；不模拟生产的更窄堆叠布局。
 
@@ -59,7 +56,7 @@ demo 最小内容尺寸为 960×620；不模拟生产的更窄堆叠布局。
 - `NativeSidecardWorkspaceModel` 检测同一 execution 终止后保留 source reader；
   现有 `handoffProgress` 使用 420ms 的共享 replacement 曲线把 sidecard
   扩展到主面板。旅行完成后才允许主 reader 接入该 execution，再等待内容
-  readiness 后以 160ms 淡出 source。Reduce Motion 保留 readiness gate。
+  readiness 后以 160ms 淡出 source。正文仍由 readiness gate 准入。
 - 这说明现有路径以横向扩展 source 为主，并未把“主阅读页向下翻到下一轮”
   作为这一交接的主要视觉方向；这里只提出另一种编排，不宣称已诊断掉帧原因。
 
@@ -84,7 +81,7 @@ Browser 图标仅用于保持场景，不提供操作能力。
 保持原字号；文本排版宽度在一次交接中保持不变，
 只在用户调整窗口时重新排版。动画 completion、排版回调、取消与重播均由 visit identity 隔离。
 两段动画由第一段的 completion 串联，不以计时器猜测第一段是否结束。
-减弱动态效果移除几何动画，不以固定延时替代内容就绪。
+正文就绪独立于几何动画，不以固定延时替代。
 
 这里的接管、宽度策略、时序、Close 行为均是 demo 提案。生产源码、业务状态机、
 存储及导航未修改；不能把此展示当作真实 Harness/Runtime 交接的集成认证。
@@ -96,7 +93,7 @@ python3 demos/execution-handoff/build.py --skip-build --capture
 ```
 
 这是无断言、无测试运行器的展示序列，只截取自身窗口。覆盖普通/慢速交接、
-取消、窄窗口深色长结果与 demo 减弱动态效果开关。
+取消与窄窗口深色长结果。
 截图、观察时刻 `samples.json`、隔离收据及进程日志位于
 `.build/execution-handoff/evidence/`。截图采集有额外开销，不能用于 FPS 结论。
 共享图形会话锁用于避免与其他原生回放同时启动。

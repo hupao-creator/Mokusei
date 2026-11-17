@@ -36,7 +36,7 @@ Thread 将自己的 draft、标题、运行状态和发送/停止回调交给同
 低于 260pt 的可用胶囊宽度时，编辑器/附件与眼睛/动作分成上下两行。
 自定义 Layout 移动四个持久席位，不在宽度阈值处替换 NSTextView；
 紧凑输入保留可滚动文本区域。外壳高度限制在可用视口中。
-系统 Reduce Motion 继续让几何与淡入淡出动画为 nil，原生光标沿用其已有系统策略。
+几何、淡入淡出和光标使用正常动效路径。
 
 ## 打开预览
 
@@ -53,7 +53,7 @@ app、资源和 workspace 暂存在 `/private/tmp/mokusei-native-replay-panel-*`
 
 主窗口可实际点击、输入、Escape、外部点击和调整大小。独立控制窗口提供
 展开/收起、运行状态、Thread / landing、窗口尺寸和「禁用过渡」。
-这个开关仅禁用该预览的 SwiftUI 事务动画，**不是系统 Reduce Motion 注入**，
+这个开关仅禁用该预览的 SwiftUI 事务动画，
 不会修改全局无障碍偏好。
 
 对该独立 app 使用 `open -W -n <app-path> --args --capture` 可重放纯展示序列。

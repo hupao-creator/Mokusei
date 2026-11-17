@@ -18,7 +18,7 @@ pending submission failure/retry. The Go/Swift mode starts a temporary authentic
 tracker's receipt through `RuntimeClient`, and checks the exact persisted text
 and next fake Harness context. Neither mode opens a user's runtime/profile or
 uses a paid provider/microphone. Exposure is presentation evidence, never proof
-of understanding or approval. Reduce Motion and live media remain source-reviewed.
+of understanding or approval. Live media remains source-reviewed.
 
 [`native_replay.py`](../native_replay.py) stages the fixture, replay source,
 link objects, Swift modules, headers, framework and resource bundles in a unique

@@ -4,7 +4,6 @@ import MokuseiPluginUI
 
 struct SetupSurface: View {
     @Bindable var fixture: SetupFixture
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
@@ -16,7 +15,7 @@ struct SetupSurface: View {
     private var ink: Color { colorScheme == .dark ? Color(white: 0.94) : Color(white: 0.14) }
     private var secondaryInk: Color { colorScheme == .dark ? Color(white: 0.73) : Color(white: 0.38) }
     private var surface: Color { colorScheme == .dark ? Color(white: 0.10) : Color(white: 0.975) }
-    private var motion: Animation? { reduceMotion ? nil : .smooth(duration: 0.32) }
+    private var motion: Animation? { .smooth(duration: 0.32) }
 
     var body: some View {
         GeometryReader { geometry in
@@ -104,14 +103,14 @@ struct SetupSurface: View {
             return
         }
         do {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.14)) { contentVisible = false }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 160))
+            withAnimation(.easeOut(duration: 0.14)) { contentVisible = false }
+            try await Task.sleep(for: .milliseconds(160))
             // The mounted production Dock owns the destination geometry. Retain the
             // panel until its surface has arrived, then reveal that same native editor.
-            withAnimation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.78)) { collapsed = true }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 800))
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { dockRevealed = true }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 200))
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.78)) { collapsed = true }
+            try await Task.sleep(for: .milliseconds(800))
+            withAnimation(.easeInOut(duration: 0.18)) { dockRevealed = true }
+            try await Task.sleep(for: .milliseconds(200))
             panelRetired = true; fixture.handoffComplete = true
         } catch { return } // Reset/navigation cancels the old handoff before it can retire a new panel.
     }
@@ -146,7 +145,7 @@ struct SetupSurface: View {
                             }
                         }
                         .id(panelStep)
-                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 10)))
+                        .transition(.opacity.combined(with: .offset(y: 10)))
                         .frame(maxWidth: panelStep == .discovery ? 680 : 560)
                         .padding(.horizontal, 30).padding(.bottom, 20)
                         .frame(maxWidth: .infinity)
@@ -212,7 +211,7 @@ struct SetupSurface: View {
                             Text(agent.name).font(.system(size: 16, weight: .medium))
                         }
                         .frame(maxWidth: .infinity, minHeight: 168)
-                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 18)).combined(with: .scale(scale: 0.9)))
+                        .transition(.opacity.combined(with: .offset(y: 18)).combined(with: .scale(scale: 0.9)))
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("已发现 \(agent.name)")
                     }

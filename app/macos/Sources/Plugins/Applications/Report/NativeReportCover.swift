@@ -57,12 +57,10 @@ struct NativeReportCover: View {
     @State private var localCache = NativeReportCoverCache()
     @Environment(\.nativeReportCoverCache) private var sharedCache
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @Environment(\.threadCardCloudAnimationsEnabled) private var animationsEnabled
 
     private var effectivePlayback: NativeReportCoverPlayback {
-        if reduceMotion { return .reduced }
         if playback.isPlaying && (!animationsEnabled || visibility?.isVisible == false) { return .paused }
         return playback
     }
@@ -253,7 +251,7 @@ struct ReportCoverHTML: NSViewRepresentable {
             // WebKit can finish an old pose after a newer pointer entry.
             if replayID == initialReplayID {
                 appliedPlayback = initial
-                completedOnce = initial == .reduced
+                completedOnce = initial == .finished
             } else {
                 appliedPlayback = nil; completedOnce = false
             }
@@ -263,13 +261,12 @@ struct ReportCoverHTML: NSViewRepresentable {
             playbackTask?.cancel()
             if let phaseStartedAt { elapsed += ProcessInfo.processInfo.systemUptime - phaseStartedAt }
             phaseStartedAt = nil
-            if playback == .reset || playback == .reduced || appliedPlayback == .reduced {
+            if playback == .reset {
                 holding = false; elapsed = 0
             }
-            // A pause, redraw or Reduce Motion round-trip cannot grant another
+            // A pause or redraw cannot grant another
             // collection play. Only leaving selection resets this admission.
             if playback == .reset { completedOnce = false }
-            if playback == .reduced { completedOnce = true }
             appliedPlayback = playback
             let mode = playback
             // Page timers do not run with author JavaScript disabled. Native
@@ -283,7 +280,7 @@ struct ReportCoverHTML: NSViewRepresentable {
                         let command: String
                         switch mode {
                         case .reset: command = "reset()"
-                        case .reduced: command = "finish()"
+                        case .finished: command = "finish()"
                         case .paused: command = "pause()"
                         case .playing, .playingOnce:
                             command = self.holding || (mode == .playingOnce && self.completedOnce)
@@ -314,7 +311,6 @@ struct ReportCoverHTML: NSViewRepresentable {
         }
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             // Cache a complete poster, independent of the point in a live cycle.
-            // Reduce Motion can use the same underlay without exposing a first frame.
             webView.evaluateJavaScript("globalThis.mokuseiCover.finish(); globalThis.mokuseiCover.duration", in: nil,
                 in: NativeReportCoverPlayback.world) { [weak self, weak webView] result in
                 guard let self, let webView, self.onReady != nil else { return }
@@ -330,8 +326,8 @@ struct ReportCoverHTML: NSViewRepresentable {
                 webView.takeSnapshot(with: nil) { [weak self, weak webView] image, error in
                     guard let self, let webView, self.onReady != nil else { return }
                     guard let image else { self.onFailure?(error?.localizedDescription ?? "Cover snapshot unavailable"); return }
-                    let initial: NativeReportCoverPlayback = self.playback == .reduced || self.initiallyFinished ? .reduced : .reset
-                    let command = initial == .reduced ? "finish()" : "reset()"
+                    let initial: NativeReportCoverPlayback = self.initiallyFinished ? .finished : .reset
+                    let command = initial == .finished ? "finish()" : "reset()"
                     let initialReplayID = self.replayID
                     webView.evaluateJavaScript("globalThis.mokuseiCover.\(command)", in: nil,
                         in: NativeReportCoverPlayback.world) { [weak self, weak webView] result in

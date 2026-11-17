@@ -9,7 +9,6 @@ struct MokuGradientDemo: View {
     @State private var reduceTransparency = false
     @State private var draft = "帮我整理今天的灵感，\n把值得继续的想法留在这里。"
     @State private var backgroundOffset = 0.0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var systemOpaque
 
     private var opaque: Bool { reduceTransparency || systemOpaque }
@@ -173,7 +172,7 @@ struct MokuGradientDemo: View {
     }
 
     private func toggleExpansion() {
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { expanded.toggle() }
+        withAnimation(.smooth(duration: 0.45)) { expanded.toggle() }
     }
 }
 

@@ -14,7 +14,6 @@ struct NativeMokuCharacterInput: Equatable {
     var capsuleSize: CGSize
     var cornerRadius: CGFloat
     var motion: Bool
-    var reduceMotion: Bool
     var dark: Bool
     var immediateOrbit = false
 }
@@ -71,7 +70,7 @@ struct NativeMokuCharacterPose {
     var hasScheduledFrame: Bool { link?.isPaused == false && visible }
     var isRetiringReasoning: Bool { !retiredGlyphs.isEmpty && pose["arcAlpha"] > 0.001 }
     private var visible: Bool {
-        input?.motion == true && input?.reduceMotion == false
+        input?.motion == true
             && (face?.motionVisible == true || decorations?.motionVisible == true)
     }
 
@@ -128,7 +127,7 @@ struct NativeMokuCharacterPose {
         if isThinking { arcSize = next.capsuleSize }
         let track = NativeMokuReasoningArcTrack(body: CGRect(origin: .zero, size: next.capsuleSize))
         reasoningAnimation.configure(next.reasoning, length: track.length,
-                                     animated: isThinking && !next.reduceMotion)
+                                     animated: isThinking)
         let changed = previous.map { old in
             old.expression != next.expression || old.focus != next.focus || old.running != next.running
                 || old.presentsReasoning != next.presentsReasoning || old.capsuleSize != next.capsuleSize
@@ -138,12 +137,8 @@ struct NativeMokuCharacterPose {
             from = previousPose ?? target(at: clock)
             velocity = previousVelocity ?? from.map { _ in 0 }
             transitionAt = clock
-            duration = previous == nil || next.reduceMotion ? 0
+            duration = previous == nil ? 0
                 : (previous?.running != next.running || wasThinking != isThinking ? 550 : 420)
-        }
-        if next.reduceMotion {
-            duration = 0; retiredGlyphs = []; replacementGlyphs = []
-            retirementPending = false
         }
         pose = sample(at: clock)
         face?.needsDisplay = true; decorations?.needsDisplay = true
@@ -251,7 +246,7 @@ struct NativeMokuCharacterPose {
         if !running, let stationaryTarget { return stationaryTarget }
         let thinking = input.presentsReasoning && input.reasoning != nil
         let story = NativeMokuRunningGeometry.sample(milliseconds: runningElapsed + (running ? time - clock : 0),
-            capsuleSize: input.capsuleSize, cornerRadius: input.cornerRadius, still: input.reduceMotion)
+            capsuleSize: input.capsuleSize, cornerRadius: input.cornerRadius)
         let eyes = NativeMokuCapsuleEyes.resolved(expression: running ? .idle : input.expression, focus: running ? 0 : input.focus)
         var result = NativeMokuCharacterPose(values: ["arcAlpha": thinking ? 1 : 0,
                                                        "arcGather": thinking ? 0 : 1, "arcReveal": thinking ? 1 : 0])

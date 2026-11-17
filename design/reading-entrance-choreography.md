@@ -1,5 +1,7 @@
 # Reading entrance choreography
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 ## Contract
 
 Agent detail, Report and Git entry share a primary reading entrance. The retained

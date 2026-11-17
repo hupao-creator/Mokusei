@@ -249,24 +249,6 @@ struct NativeOverviewCameraTests {
         #expect(abs(camera.liveTransform.scale - camera.maximumScale) < 1e-9)
     }
 
-    @Test func reduceMotionAppliesTheTargetImmediately() async throws {
-        let camera = NativeOverviewCamera()
-        defer { camera.dispose() }
-        camera.reduceMotion = true
-        camera.onChange = {}
-        camera.cutTo(content: content, viewport: viewport)
-        camera.setInteractionPaused(true)
-        camera.restore(view: .init(transform: .init(scale: 0.2, x: 30, y: 40), manual: false),
-                       content: content, viewport: viewport)
-        #expect(camera.liveTransform.scale == 1)
-        camera.setInteractionPaused(false)
-        let next = try #require(NativeOverviewCameraGeometry.fit(large, viewport: viewport))
-        camera.applyGeometry(content: large, viewport: viewport, automatic: next)
-        #expect(!camera.isAnimating)
-        #expect(!camera.hasPendingAutomaticFit)
-        #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, next))
-    }
-
     private func wait(_ predicate: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
         let deadline = ContinuousClock.now + .seconds(3)
         while ContinuousClock.now < deadline {

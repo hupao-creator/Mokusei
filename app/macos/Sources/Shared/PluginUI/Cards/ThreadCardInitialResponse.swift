@@ -38,13 +38,12 @@ struct ThreadCardInitialResponseView: View {
     let value: ThreadCardInitialResponse
     @Environment(\.locale) private var locale
     @Environment(\.threadCardProviderColor) private var providerColor
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var startedAt = Date()
 
     private var pulses: Bool {
-        value.phase == .submitting && !reduceMotion && enabled && (visibility?.isVisible ?? true)
+        value.phase == .submitting && enabled && (visibility?.isVisible ?? true)
     }
     private var title: String {
         if locale.language.languageCode?.identifier != "zh" {
@@ -83,7 +82,6 @@ struct ThreadCardInitialResponseView: View {
 /// subsequent text revisions use the excerpt's existing scheduling unchanged.
 struct ThreadCardBody: View {
     let identity: ThreadCardIdentityView
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var awaitingContent = false
@@ -102,7 +100,7 @@ struct ThreadCardBody: View {
             if identity.initialResponse != nil { awaitingContent = true; opacity = 1; return }
             guard awaitingContent else { return }
             awaitingContent = false
-            guard identity.initialResponseContent, !reduceMotion, enabled, visibility?.isVisible != false else { opacity = 1; return }
+            guard identity.initialResponseContent, enabled, visibility?.isVisible != false else { opacity = 1; return }
             opacity = 0
             await Task.yield()
             guard !Task.isCancelled else { return }

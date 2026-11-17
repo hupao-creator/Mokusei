@@ -13,7 +13,6 @@ struct NativeMokuDockIdentity<Face: View>: View {
     let motion: Bool
     let onSettled: () -> Void
     @ViewBuilder var face: Face
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var displayedIdentity: Identity?
     @State private var displayedHarness: AnyHarnessPlugin?
@@ -30,7 +29,7 @@ struct NativeMokuDockIdentity<Face: View>: View {
     }
     private var identity: Identity { showsHarness ? .harness(harness?.descriptor.id) : .moku }
     private var transition: AnyTransition {
-        reduceMotion ? .identity : .asymmetric(
+        .asymmetric(
             insertion: .modifier(active: NativeMokuIdentityFlip(progress: 0, incoming: true),
                 identity: NativeMokuIdentityFlip(progress: 1, incoming: true)),
             removal: .modifier(active: NativeMokuIdentityFlip(progress: 0, incoming: false),
@@ -55,7 +54,7 @@ struct NativeMokuDockIdentity<Face: View>: View {
         }
         .frame(width: NativeMokuFaceLayout.seat.width, height: NativeMokuFaceLayout.seat.height)
         .onChange(of: Request(identity: identity, entranceReady: entranceReady, generation: generation,
-            immediate: reduceMotion || !motion || scenePhase != .active), initial: true) { _, request in
+            immediate: !motion || scenePhase != .active), initial: true) { _, request in
             update(request)
         }
         .onDisappear {
@@ -114,7 +113,6 @@ struct NativeMokuDockIdentity<Face: View>: View {
 private struct NativeMokuIdentityFlip: ViewModifier, @preconcurrency Animatable {
     var progress: CGFloat
     let incoming: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var animatableData: CGFloat {
         get { progress }
         set { progress = newValue }
@@ -124,7 +122,7 @@ private struct NativeMokuIdentityFlip: ViewModifier, @preconcurrency Animatable 
         // downward about the same horizontal axis, with no mirrored back face.
         let visible = min(1, max(0, progress * 2 - 1))
         content
-            .rotation3DEffect(.degrees(reduceMotion ? 0 : Double((incoming ? 90 : -90) * (1 - visible))),
+            .rotation3DEffect(.degrees(Double((incoming ? 90 : -90) * (1 - visible))),
                 axis: (x: 1, y: 0, z: 0), perspective: 0.5)
             .opacity(visible > 0 ? 1 : 0)
     }

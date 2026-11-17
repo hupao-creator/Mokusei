@@ -22,7 +22,6 @@ private struct Preview: View {
     @State private var dark = true
     @State private var replaying = false
     @State private var replay: Task<Void, Never>?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -47,7 +46,7 @@ private struct Preview: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         // A single layout owns the face, input row, glass and centered expansion.
                         // No asynchronously measured eye offset is fed back into a second animation.
-                        .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: mentions.isOpen)
+                        .animation(.smooth(duration: 0.42, extraBounce: 0), value: mentions.isOpen)
                         .coordinateSpace(name: "native-moku-dock")
                         .task { await mentions.load(enabled: true, using: { directories }) }
                 }

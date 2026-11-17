@@ -96,7 +96,6 @@ struct NativeOverviewHeadlessGeometryTests {
                     .init(id: "small-a"), .init(id: "small-b"),
                     .init(id: "wide", columns: 2), .init(id: "tall", rows: 2)],
             size: .init(width: 1292, height: 858))
-        fixture.reduceMotion = true
         fixture.bottomReservedHeight = 80
         let host = HeadlessOverviewReplay.host(fixture)
         try await HeadlessOverviewReplay.settle(fixture, host: host)
@@ -113,7 +112,6 @@ struct NativeOverviewHeadlessGeometryTests {
         let fixture = OverviewReplayFixture(
             items: [.init(id: "one"), .init(id: "two", columns: 2), .init(id: "three", rows: 2)],
             size: .init(width: 500, height: 600))
-        fixture.reduceMotion = true
         fixture.bottomReservedHeight = 100
         let host = HeadlessOverviewReplay.host(fixture)
         try await HeadlessOverviewReplay.settle(fixture, host: host)
@@ -128,7 +126,6 @@ struct NativeOverviewHeadlessGeometryTests {
         let fixture = OverviewReplayFixture(
             items: [.init(id: "browse-a"), .init(id: "browse-b")],
             scene: "browse", selection: "all")
-        fixture.reduceMotion = true
         let host = HeadlessOverviewReplay.host(fixture)
         try await HeadlessOverviewReplay.settle(fixture, host: host)
         try HeadlessOverviewReplay.verify(fixture, host: host)

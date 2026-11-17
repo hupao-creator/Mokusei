@@ -15,7 +15,7 @@ python3 tools/verification/reading-presentation/run.py --report-covers
 Seven native-owned integration cases mount the production Report cover and
 carousel in the AppKit event loop. They verify rendered motion, the six-second
 bound, five-second final hold and replay, visibility/activity suspension,
-reduced-playback poster, theme/remounts, preload/entrance/dwell ordering and a
+cached final-frame poster, theme/remounts, preload/entrance/dwell ordering and a
 preloaded cover failing after selection. The single-play case checks final-frame
 retention across redraw and one bounded replay per explicit replay generation.
 The two appearance/loading regressions verify completed-revision retention across
@@ -68,7 +68,7 @@ the expanded main-panel marker. An intentionally delayed destination row (or
 mounted read error) must keep the incoming host hidden after folding. Only content
 admission releases the downward page turn; native presentation-layer samples
 verify both moving pages before the same incoming host survives landing. The
-final reader must contain the destination content and retire the outgoing host. Wide and stacked layouts, including Reduced Motion policy, retain source,
+final reader must contain the destination content and retire the outgoing host. Wide and stacked layouts, retain source,
 fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
 Motion still waits for content but settles without an intermediate page turn.
 The wide animated case also drives the native Execution Sidecard divider: both
@@ -155,9 +155,7 @@ rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge
 the focused row before activation while retaining 30ms page reversals; they do
 not wait for the page transition to settle. `hover-panel.png` and `hover-dismissed.png`
 record the mounted result. These are native synthetic events with the real cursor
-and component renders, not physical input or WindowServer capture. The system
-Reduce Motion setting is observed by production code; this replay does not mutate
-that setting.
+and component renders, not physical input or WindowServer capture. The replay does not mutate system accessibility settings.
 Existing `--moku-execution-links` separately covers
 deferred bodies and exact-result following through all four real Harness renderers.
 
@@ -377,7 +375,7 @@ complete WindowServer frames during reveal and rewrite, and changes the componen
 local width from 360 to 280pt during a reveal. Measured width and intermediate ink
 observations are required; a completed 280ms task or matching final text is
 insufficient. Reference frames use the same production text renderer. The moving
-cases keep Reduce Motion disabled and do not substitute self-rendered snapshots.
+cases do not substitute self-rendered snapshots.
 
 Rewrite and local-resize inputs wait for two observed partial frames with the
 same minimum 0.06 ink gain and 4pt leftward boundary movement used by the final oracle. The
@@ -546,8 +544,7 @@ parent; the old fixed-width clip paints neither strip. Set
 `MOKUSEI_TAG_MORPH_ARTIFACTS=/tmp/tag-morph-evidence` to override the default
 `morph` evidence directory for PNG samples.
 The same artifact flag also records a fresh opening at target offsets 0/50/100/150/220/320/450ms, with actual WindowServer capture intervals in `opening-times.json`. Compare identical fixtures before and after a motion change; these are sampled keyframes, not an optical latency or FPS measurement.
-This case needs screen-capture access and skips the moving-pixel assertions
-when the system has Reduce Motion enabled. It exercises the real accessibility
+This case needs screen-capture access and requires the moving-pixel assertions. It exercises the real accessibility
 close action, not physical hover or an optical frame-rate benchmark.
 
 The combined Chrome + Canvas case invokes production accessibility actions to
@@ -592,8 +589,7 @@ messages/interventions, reversal, resize, inactivity and explicit settling.
 Screenshots are exported with the suite's evidence. This compositor-dependent
 suite launches through LaunchServices so its first window has foreground
 activation; capture requires a key window and full-size WindowServer geometry,
-rejecting system transition thumbnails. Reduce Motion is observed
-from production's environment without changing system preferences.
+rejecting system transition thumbnails. System preferences remain unchanged.
 The required CI `native` replay group runs all three methods through
 `settings-transition` in this host. SwiftPM explicitly defers them and the coverage
 auditor rejects any missing passing replay outcome. The separate Go Settings launcher retains real persistence, conflict, validation
@@ -775,7 +771,7 @@ are observation samples rather than a physical frame-pacing assertion.
 The runner requires all four suite pass markers. It uses isolated AppKit windows,
 no installed app or paid model. These fixtures do not toggle the user's Reduce
 Motion preference, prove physical display frame pacing or cover real account
-startup. System Reduce Motion and the 120ms visual entrance require separate
+startup. The 120ms visual entrance requires separate
 visual inspection; ordinary SwiftPM skips are not native replay evidence.
 
 `NativeLocalChangeFanoutTests.referencedCardsConsumeLiveCatalogAndRetireSelections`
@@ -898,7 +894,7 @@ waiting for input and completed states for all four Harnesses. Jump to latest
 is absent for completed executions, disappears on completion without scrolling,
 and stays absent when a successor starts. The existing running-link case verifies
 that activating the mounted action resumes following. This method requires the
-real AppKit loop and a visible window with Reduce Motion disabled. A display
+real AppKit loop and a visible window. A display
 callback must observe an intermediate scroll position and deliver the successor
 in that callback. The position must precede both the original and current
 document bottom, including the native clip view's constrained bottom; a shrinking

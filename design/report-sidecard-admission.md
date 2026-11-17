@@ -1,5 +1,7 @@
 # Report reading admission and referenced executions
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 ## Problem and scope
 
 The supplied 2026-11-05 13:44:13 recording shows the related-execution card

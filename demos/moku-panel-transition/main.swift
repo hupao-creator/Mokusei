@@ -11,7 +11,7 @@ import MokuseiPluginUI
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var running = true
     var landing = false
-    var reducedMotion = false
+    var transitionsDisabled = false
     var thread = true
     var status = "普通 Thread · 点击胶囊打开，Escape 或外部点击收起"
     var resize: (CGSize) -> Void = { _ in }
@@ -42,7 +42,7 @@ private struct Surface: View {
                 onCancel: { model.running = false })
         } settings: { EmptyView() }
         .environment(\.locale, Locale(identifier: "zh-Hans"))
-        .transaction { if model.reducedMotion { $0.animation = nil; $0.disablesAnimations = true } }
+        .transaction { if model.transitionsDisabled { $0.animation = nil; $0.disablesAnimations = true } }
     }
 }
 
@@ -54,7 +54,7 @@ private struct Controls: View {
             Toggle("运行中", isOn: Bindable(model).running)
             Toggle("Thread", isOn: Bindable(model).thread)
             Toggle("Landing", isOn: Bindable(model).landing)
-            Toggle("禁用过渡", isOn: Bindable(model).reducedMotion)
+            Toggle("禁用过渡", isOn: Bindable(model).transitionsDisabled)
             Menu("窗口") {
                 Button("1024 × 650") { model.resize(.init(width: 1024, height: 650)) }
                 Button("420 × 300") { model.resize(.init(width: 420, height: 300)) }
@@ -128,8 +128,7 @@ private struct Controls: View {
             }
             let content = window.contentView!
             samples.append(["name": name, "elapsed": String(describing: start.duration(to: .now)),
-                "input": model.scene.inputOpen, "transitionsDisabled": model.reducedMotion,
-                "systemReduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                "input": model.scene.inputOpen, "transitionsDisabled": model.transitionsDisabled,
                 "window": NSStringFromSize(window.contentLayoutRect.size),
                 "decorations": faces(content).filter { $0.seat == .decorations }.map { NSStringFromRect($0.convert($0.bounds, to: nil)) },
                 "editors": editors(content).map { NSStringFromRect($0.convert($0.bounds, to: nil)) },
@@ -171,13 +170,13 @@ private struct Controls: View {
         try await pause(550); try await shot("14-tiny")
         window.setContentSize(.init(width: 1024, height: 650))
         model.scene.setInputOpen(false); model.draft.text = ""
-        model.reducedMotion = true
+        model.transitionsDisabled = true
         try await pause(550)
         model.scene.setInputOpen(true)
         try await shot("15-no-animation-open")
         model.scene.setInputOpen(false)
         try await shot("16-no-animation-close")
-        model.reducedMotion = false; model.thread = false; model.running = false; model.landing = true
+        model.transitionsDisabled = false; model.thread = false; model.running = false; model.landing = true
         model.scene.setInputOpen(true)
         try await pause(550); try await shot("17-landing")
         model.scene.setInputOpen(false)

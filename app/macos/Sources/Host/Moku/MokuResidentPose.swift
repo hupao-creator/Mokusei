@@ -42,7 +42,7 @@ public struct MokuResidentPose {
 
     static func target(role: MokuResidentRole, time: Double, enteredAt: Double) -> Self {
         let elapsed = max(0, time - enteredAt)
-        let running = MokuRunningStory.sample(time: elapsed / MokuRunningStory.beatMS, still: false)
+        let running = MokuRunningStory.sample(time: elapsed / MokuRunningStory.beatMS)
         let tool = role == .tool, reply = role == .reply
         func eye(left: Bool) -> [Double] {
             let original = left ? MokuGeometry.expressions[.idle]!.left : MokuGeometry.expressions[.idle]!.right

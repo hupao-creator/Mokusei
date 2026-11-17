@@ -64,8 +64,7 @@ enum ThinkingStudy: String, CaseIterable {
 
 private struct ThinkingDemoView: View {
     @Bindable var fixture: ThinkingFixture
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var motion: Bool { !fixture.paused && !reduceMotion }
+    private var motion: Bool { !fixture.paused }
     private var background: Color { fixture.dark ? Color(red: 0.075, green: 0.085, blue: 0.075) : Color(red: 0.962, green: 0.958, blue: 0.938) }
 
     var body: some View {

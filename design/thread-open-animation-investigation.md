@@ -1,5 +1,7 @@
 # Agent Thread 打开动画调研与隔离优化
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 日期：2026-11-03。源码基线为本地 main `0a56037e8ac2fed114b7478bbda18bbe959c9f6c`；
 只读 `ls-remote` 确认的远程 main 为 `8ca887b832aae6dd788781bb36df0b080533ba7f`。
 工作树保持 detached；未操作 main 或共享 refs。本文的录屏定位和基线测量针对本地 main，

@@ -89,7 +89,6 @@ private struct NativeThreadWorkspaceBody: View {
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: NativeSidecardWorkspaceModel?
     @State private var auxiliaryStageReady = false
     @State private var inputStageReady = false
@@ -99,7 +98,7 @@ private struct NativeThreadWorkspaceBody: View {
         NativeSidecardWorkspaceConfiguration(input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
             executionDisabled: executionDisabled, suppressed: sidecardsSuppressed, enabledIDs: enabledSidecardIDs,
             locale: locale, executionReveal: executionReveal, mainReadingHistory: hasNestedNavigation,
-            entranceReady: auxiliaryStageReady, reduceMotion: reduceMotion)
+            entranceReady: auxiliaryStageReady)
     }
 
     var body: some View {
@@ -149,12 +148,10 @@ struct NativeSidecardWorkspaceLayout: View {
     let model: NativeSidecardWorkspaceModel
     let snapshot: NativeSidecardWorkspaceSnapshot
     /// Previews/replays can supply the same policy without changing OS settings.
-    var motionReduced: Bool? = nil
     var onContentStatusChange: (NativeReadingContentStatus) -> Void = { _ in }
     var onDockSettled: () -> Void = {}
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @Environment(\.nativeAgentInputTargetChanged) private var inputTargetChanged
     @Environment(\.scenePhase) private var scenePhase
@@ -165,10 +162,9 @@ struct NativeSidecardWorkspaceLayout: View {
     @State private var foldedCardID: JSONText?
     @State private var inputTarget: ThreadConversationInputTarget?
     @State private var inputOwner = UUID()
-    private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
 
     private var animation: Animation? {
-        snapshot.dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation
+        snapshot.dragging ? nil : NativeSidecardTiming.foldAnimation
     }
     private var dividerHitWidth: CGFloat {
         6
@@ -193,7 +189,7 @@ struct NativeSidecardWorkspaceLayout: View {
                         ZStack(alignment: .topLeading) {
                             NativeExecutionHandoffReader(handoff: snapshot.handoff,
                                 destinationSize: snapshot.handoff == nil ? mainSize : panelSize,
-                                workspaceSize: geometry.size, reduceMotion: reduceMotion || handoffResized || scenePhase != .active,
+                                workspaceSize: geometry.size, immediate: handoffResized || scenePhase != .active,
                                 onComplete: model.finishHandoff, onInputTargetChange: { target in
                                     inputTarget = target
                                     inputTargetChanged?(inputOwner, target)
@@ -280,11 +276,7 @@ struct NativeSidecardWorkspaceLayout: View {
             await Task.yield()
             guard !Task.isCancelled, let id = snapshot.handoff?.id,
                   model.snapshot?.handoff?.id == id else { return }
-            foldForHandoff(id, animated: !reduceMotion && !handoffResized && scenePhase == .active)
-        }
-        .onChange(of: reduceMotion) { _, reduced in
-            guard reduced, let handoff = snapshot.handoff else { return }
-            foldForHandoff(handoff.id, animated: false)
+            foldForHandoff(id, animated: !handoffResized && scenePhase == .active)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active, let handoff = snapshot.handoff else { return }

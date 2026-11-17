@@ -788,8 +788,7 @@ struct NativeMokuExecutionLinkTests {
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
     func runningLinkFollowsUntilUserScrollsAndJumpLatestRestoresIt(harness: String) async throws {
         try #require(NSApp?.isRunning == true, "Animated following requires its declared AppKit replay owner")
-        try #require(!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
-                     "The animated-follow replay requires Reduce Motion to be disabled")
+
         let fixture = try ExecutionLinkFixture(harness)
         try fixture.update(status: .running, mixedParts: true)
         fixture.load()

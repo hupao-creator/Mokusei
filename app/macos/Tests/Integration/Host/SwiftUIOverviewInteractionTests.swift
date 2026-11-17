@@ -76,7 +76,6 @@ struct SwiftUIOverviewInteractionTests {
     var message = "Initial excerpt"
     var messageID: JSONText = "message"
     var scenePhase = ScenePhase.active
-    var reduceMotion = false
     var suppliesVisibility = true
     @ObservationIgnored var appearances = 0
     @ObservationIgnored var disappearances = 0
@@ -105,7 +104,6 @@ private struct OverviewTextReplay: View {
         .environment(\.locale, Locale(identifier: "en"))
         .environment(\.colorScheme, .light)
         .environment(\.scenePhase, fixture.scenePhase)
-        .environment(\.threadCardTextReduceMotionOverride, Optional(fixture.reduceMotion))
         .environment(\.threadCardAnimationVisibility, fixture.suppliesVisibility ? fixture.visibility : nil)
         .environment(\.threadCardCloudAnimationsEnabled, false)
         .onAppear { fixture.appearances += 1; fixture.identities.append(identity) }
@@ -334,24 +332,24 @@ extension SwiftUIOverviewInteractionTests {
             let foreground = try textPixels(in: root)
             captures.append(("06-foreground", foreground))
             #expect(foreground == background)
-            let reducedSentAt = ProcessInfo.processInfo.systemUptime
-            fixture.reduceMotion = true
-            fixture.title = "Reduced motion latest"
-            measurements.append(["kind": "event", "stage": "reduced-motion", "sentAt": "\(reducedSentAt)",
+            let hiddenSentAt = ProcessInfo.processInfo.systemUptime
+            fixture.visibility.isVisible = false
+            fixture.title = "Hidden replacement latest"
+            measurements.append(["kind": "event", "stage": "hidden-replacement", "sentAt": "\(hiddenSentAt)",
                 "returnedAt": "\(ProcessInfo.processInfo.systemUptime)"])
-            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Reduced motion latest") }
-            let reduced = try textPixels(in: root)
-            captures.append(("07-reduced-motion", reduced))
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Hidden replacement latest") }
+            let hiddenReplacement = try textPixels(in: root)
+            captures.append(("07-hidden-replacement", hiddenReplacement))
             try await Task.sleep(for: .milliseconds(350))
-            let reducedAfter = try textPixels(in: root)
-            captures.append(("08-reduced-motion-after", reducedAfter))
-            #expect(reducedAfter == reduced)
+            let hiddenReplacementAfter = try textPixels(in: root)
+            captures.append(("08-hidden-replacement-after", hiddenReplacementAfter))
+            #expect(hiddenReplacementAfter == hiddenReplacement)
 
-            let reducedWindow = try await titleWindowFrame(frames, region: region, stage: "reduced-reference",
-                captures: &windowCaptures, measurements: &measurements) { $0.sample.presentationTime > reducedSentAt }
+            let hiddenWindow = try await titleWindowFrame(frames, region: region, stage: "hidden-reference",
+                captures: &windowCaptures, measurements: &measurements) { $0.sample.presentationTime > hiddenSentAt }
             fixture.title = "Title A"
             let titleWindow = try await titleWindowFrame(frames, region: region, stage: "title-reference",
-                captures: &windowCaptures, measurements: &measurements) { $0.pixels.data != reducedWindow.pixels.data }
+                captures: &windowCaptures, measurements: &measurements) { $0.pixels.data != hiddenWindow.pixels.data }
             // NBSP preserves the title line's layout but has no visible ink.
             // A partial nonblank frame can therefore only be incoming motion.
             fixture.title = "\u{00a0}"
@@ -363,14 +361,14 @@ extension SwiftUIOverviewInteractionTests {
             let incomingEnd = try #require(titleWindow.pixels.lastInkColumn(comparedTo: blankWindow.pixels))
             let newTitleStart = incomingEnd + Int(8 * scale)
             let blankSuffixInk = try blankWindow.pixels.histogramInk(after: newTitleStart)
-            let changedTitleInk = try reducedWindow.pixels.histogramInk(after: newTitleStart) - blankSuffixInk
+            let changedTitleInk = try hiddenWindow.pixels.histogramInk(after: newTitleStart) - blankSuffixInk
             try #require(blankSuffixInk == blankWindow.pixels.ink(after: newTitleStart)
-                         && changedTitleInk == reducedWindow.pixels.ink(after: newTitleStart) - blankSuffixInk,
+                         && changedTitleInk == hiddenWindow.pixels.ink(after: newTitleStart) - blankSuffixInk,
                          "Title suffix reference histograms differ from their scalar pixels")
             try #require(changedTitleInk > 0)
             retainTitleSamples(frames.takeSamples(), stage: "before-incoming",
                                captures: &windowCaptures, measurements: &measurements)
-            fixture.reduceMotion = false
+            fixture.visibility.isVisible = true
             fixture.title = "Title A"
             let incoming = try await titleWindowFrame(frames, region: region, stage: "incoming",
                 captures: &windowCaptures, measurements: &measurements) { frame in
@@ -382,8 +380,8 @@ extension SwiftUIOverviewInteractionTests {
                          "Cancellation requires a live incoming frame, not either static endpoint")
             let cancelledAt = ProcessInfo.processInfo.systemUptime
             try #require(cancelledAt - incoming.sample.receivedAt < 0.05, "The observed incoming frame is stale")
-            fixture.reduceMotion = true
-            fixture.title = "Reduced motion latest"
+            fixture.visibility.isVisible = false
+            fixture.title = "Hidden replacement latest"
             measurements.append(["stage": "cancel", "receivedAt": "\(incoming.sample.receivedAt)",
                 "cancelledAt": "\(cancelledAt)", "inkFraction": "\((incoming.ink - blankInk) / fullInk)"])
             // The long replacement has ink beyond Title A's bounds, even after
@@ -391,7 +389,7 @@ extension SwiftUIOverviewInteractionTests {
             // AX wait that could conceal continued interpolation.
             _ = try await titleWindowFrame(frames, region: region, stage: "cancelled",
                 captures: &windowCaptures, measurements: &measurements, firstMatching: true,
-                check: { frame in #expect(frame.pixels.data == reducedWindow.pixels.data) }, suffixColumn: newTitleStart) { frame in
+                check: { frame in #expect(frame.pixels.data == hiddenWindow.pixels.data) }, suffixColumn: newTitleStart) { frame in
                 // Old Title A frames may arrive after the cancellation call.
                 // Require both increasing presentation time and actual ink
                 // unique to the replacement, not just a callback timestamp.
@@ -404,7 +402,7 @@ extension SwiftUIOverviewInteractionTests {
             let remaining = frames.takeSamples()
             retainTitleSamples(remaining, stage: "after-cancel", captures: &windowCaptures, measurements: &measurements)
             for sample in remaining {
-                #expect(try titleWindowPixels(sample.image, region: region).data == reducedWindow.pixels.data)
+                #expect(try titleWindowPixels(sample.image, region: region).data == hiddenWindow.pixels.data)
             }
             try await stream.stopCapture()
             retainTitleSamples(frames.takeSamples(), stage: "capture-stopped",
@@ -494,14 +492,10 @@ extension SwiftUIOverviewInteractionTests {
         fixture.setMessage(first + second)
         var advancedDuringInput = false
         for index in 1...9 {
-            if index == 2 { fixture.reduceMotion = true }
             fixture.setMessage(first + second + String(repeating: "c", count: index))
             try await Task.sleep(for: .milliseconds(100))
             if SwiftUIReplay.text(in: root).contains(second) {
                 advancedDuringInput = true
-                let settled = try textPixels(in: root)
-                try await Task.sleep(for: .milliseconds(60))
-                #expect(try textPixels(in: root) == settled)
                 break
             }
         }
@@ -530,7 +524,6 @@ extension SwiftUIOverviewInteractionTests {
 
     @Test(.requiresDisplay) func retainedExcerptRestartsAfterHostingViewReattachmentWithoutInputChange() async throws {
         let fixture = OverviewTextFixture()
-        fixture.reduceMotion = true
         let window = SwiftUIReplay.window(OverviewTextReplay(fixture: fixture), width: 360, height: 200)
         defer { window.close() }
         let root = try #require(window.contentView)
@@ -540,7 +533,7 @@ extension SwiftUIOverviewInteractionTests {
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains(first) }
 
         // Retain this exact NSHostingView and its SwiftUI state. No source,
-        // visibility or motion-policy property changes across the lifecycle edge.
+        // visibility or visibility property changes across the lifecycle edge.
         window.contentView = nil
         try await SwiftUIReplay.wait { fixture.disappearances == 1 }
         window.contentView = root
@@ -558,8 +551,7 @@ extension SwiftUIOverviewInteractionTests {
     /// Observe the production mask in WindowServer frames. Static production
     /// excerpts supply glyph references; no test changes the animation policy.
     @Test(.requiresDisplay) func excerptRevealKeepsMovingThroughRewriteAndWidthChanges() async throws {
-        try #require(!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
-                     "Excerpt motion observation requires the native runner's ordinary motion-enabled environment")
+
         for scenario in ExcerptInkScenario.allCases {
             try await captureExcerptInk(scenario)
         }

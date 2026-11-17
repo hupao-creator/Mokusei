@@ -27,7 +27,6 @@ private struct DemoControls: View {
             Toggle("深色外观", isOn: Binding(get: { fixture.setup.landing.dark }, set: { fixture.setup.landing.dark = $0 }))
             Toggle("高对比背景", isOn: Binding(get: { fixture.setup.contrastBackdrop }, set: { fixture.setup.contrastBackdrop = $0 }))
             Toggle("面板实色回退", isOn: $fixture.opaque)
-            Toggle("关闭界面过渡", isOn: $fixture.reduceMotion)
             HStack {
                 Button("宽窗口") { resize(.init(width: 1080, height: 840)) }
                 Button("窄窗口") { resize(.init(width: 620, height: 760)) }
@@ -202,8 +201,6 @@ private struct DemoControls: View {
             isARepeat: false, keyCode: 124)!
         window.sendEvent(key)
         try await wait("Right arrow did not select next header tab") { self.fixture.tab == .report }
-        fixture.reduceMotion = true
-        try await capture("06b-report-compact-reduce-motion")
         fixture.setup.coordination.draft.composing = true
         try await press("settings-close")
         try require(fixture.open, "Close ignored composition gate")

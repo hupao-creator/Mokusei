@@ -1,5 +1,7 @@
 > **历史记录：** 本文诊断的是已删除的 retained-camera / reading-fit 行为。当前自动相机是纯 FitAll，不再保留旧缩放或阅读座位；现行契约见 [Overview README](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)。以下记录仅作历史证据。
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 # 自动取景下点击空白后画布放大
 
 调查日期：2026-11-14。源码基线：`e84816f087703cd199e285729e3c905582b68150`。

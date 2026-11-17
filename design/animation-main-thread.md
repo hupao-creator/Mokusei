@@ -1,5 +1,7 @@
 # Animation independence, 2026-11-05
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 The supplied temporary audits were recommendations. Current sources confirm that
 Overview's asynchronous Metal encoder received frames only from a main-run-loop
 display link, while Codex's production status ring used a TimelineView.

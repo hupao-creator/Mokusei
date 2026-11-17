@@ -19,7 +19,6 @@ final class OverviewReplayFixture {
     var size: CGSize
     var visible = true
     var layoutPaused = false
-    var reduceMotion = false
     var toolbarBottom: Double
     var hasFilters: Bool
     var bottomReservedHeight: Double = 0
@@ -69,7 +68,7 @@ final class OverviewReplayFixture {
 struct OverviewReplayCanvas: View {
     let fixture: OverviewReplayFixture
     var body: some View {
-        var canvas = NativeOverviewCanvas(
+        let canvas = NativeOverviewCanvas(
             contentSource: fixture.content, sceneKey: fixture.scene, state: fixture.state,
             selectionID: fixture.selection, toolbarBottom: fixture.toolbarBottom,
             bottomReservedHeight: fixture.bottomReservedHeight,
@@ -83,7 +82,6 @@ struct OverviewReplayCanvas: View {
                 .onAppear { fixture.appearances[item.id, default: 0] += 1 }
                 .onDisappear { fixture.frames.removeValue(forKey: item.id) }
         }
-        canvas.reduceMotionOverride = fixture.reduceMotion
         return canvas
             .coordinateSpace(name: "overview-replay")
             .onGeometryChange(for: CGSize.self) { $0.size } action: { fixture.viewport = $0 }

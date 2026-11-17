@@ -201,12 +201,11 @@ private extension ThreadReasoningUsage {
 /// Share the summary's text treatment and motion gates with pending connection labels.
 struct ThreadLoadingTextStyle: ViewModifier {
     let loading: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
 
     private var motionEnabled: Bool {
-        loading && entranceReady && !reduceMotion && scenePhase == .active
+        loading && entranceReady && scenePhase == .active
     }
 
     func body(content: Content) -> some View {

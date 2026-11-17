@@ -11,7 +11,7 @@ struct NativeMokuHorizontalDestination: Equatable {
     let revision: Int
     let viewport: CGSize
     let dragging: Bool
-    let reduced: Bool
+    let inactive: Bool
     let composer: UUID
     let reading: Bool
 }
@@ -101,7 +101,7 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
         let visible = layer.presentation()?.transform ?? CATransform3DIdentity
         guard previous != next else { return }
 
-        let immediate = previous == nil || next.reduced || next.dragging || previous?.viewport != next.viewport
+        let immediate = previous == nil || next.inactive || next.dragging || previous?.viewport != next.viewport
         if !immediate, previous?.offset == next.offset,
            previous?.verticalOffset == next.verticalOffset, travelling { return }
         generation += 1

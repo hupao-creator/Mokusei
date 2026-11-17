@@ -213,7 +213,7 @@ private struct ModelSelectorRepresentation: NSViewRepresentable {
         }
         let controller = NSViewController(); controller.view = content
         popover.contentViewController = controller; popover.contentSize = content.frame.size
-        popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        popover.animates = true
         popover.show(relativeTo: bounds, of: self, preferredEdge: .maxY)
         guard self.popover === popover, popover.isShown else { dismiss(); return }
         content.window?.makeFirstResponder(content)

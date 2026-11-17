@@ -229,7 +229,6 @@ public final class NativeOverviewCamera {
     @ObservationIgnored public var onSubmission: ((NativeOverviewCameraSubmission) -> Void)?
     @ObservationIgnored public var onFrameSubmission: ((NativeOverviewTransform, NativeOverviewTransform, TimeInterval, TimeInterval) -> Void)?
     @ObservationIgnored public var onChange: (() -> Void)?
-    public var reduceMotion = false
 
     @ObservationIgnored private var geometry: Geometry?
     @ObservationIgnored private var visible = true
@@ -446,7 +445,7 @@ public final class NativeOverviewCamera {
         let from = liveTransform
         stopMotion(commitSample: false)
         let generation = animationGeneration
-        if reduceMotion || !hasObservers {
+        if !hasObservers {
             finishAnimation(target: target, generation: generation)
             return
         }

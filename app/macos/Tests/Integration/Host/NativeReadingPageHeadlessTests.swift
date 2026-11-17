@@ -197,12 +197,6 @@ struct NativeReadingPageHeadlessTests {
             try await Task.sleep(for: .milliseconds(10))
             host.layoutSubtreeIfNeeded()
             #expect(host.window == nil)
-            if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-                #expect(!fixture.motion.active)
-                fixture.motion.close()
-                #expect(!fixture.open)
-                continue
-            }
             #expect(fixture.motion.active)
             #expect(retainedScroll.hasVerticalScroller)
             #expect(scroll(in: host) === retainedScroll)
@@ -241,13 +235,11 @@ struct NativeReadingPageHeadlessTests {
         host.frame = CGRect(x: 0, y: 0, width: 900, height: 700)
         for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
         #expect(!fixture.parentEnabled && !fixture.motion.active)
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         fixture.identity = "replacement"
         // The replacement timer starts in the identity change itself. Observe it
         // instead of assuming eight layout passes finish inside its duration;
         // a slow runner would otherwise read the already-settled state.
-        if reduceMotion { #expect(!fixture.motion.active) }
-        else { try await SwiftUIReplay.wait { fixture.motion.active } }
+        try await SwiftUIReplay.wait { fixture.motion.active }
         for _ in 0..<8 {
             host.layoutSubtreeIfNeeded()
             try await Task.sleep(for: .milliseconds(10))
@@ -260,7 +252,7 @@ struct NativeReadingPageHeadlessTests {
         host.layoutSubtreeIfNeeded()
         #expect(!fixture.motion.active && !fixture.parentEnabled)
         fixture.identity = "interrupted-replacement"
-        if !reduceMotion { try await SwiftUIReplay.wait { fixture.motion.active } }
+        try await SwiftUIReplay.wait { fixture.motion.active }
         for _ in 0..<4 {
             host.layoutSubtreeIfNeeded()
             try await Task.sleep(for: .milliseconds(10))
@@ -283,11 +275,6 @@ struct NativeReadingPageHeadlessTests {
         fixture.open = true
         for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
         fixture.motion.cancel()
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            fixture.motion.close()
-            #expect(!fixture.open && !fixture.motion.active && host.window == nil)
-            return
-        }
         fixture.motion.close()
         #expect(fixture.open && fixture.motion.active)
         fixture.motion.cancel()

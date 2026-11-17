@@ -107,7 +107,6 @@ struct NativeReportDetail: View {
     @Environment(\.nativeReadingAuxiliarySuppressed) private var suppressed
     @Environment(\.nativeReportPanelReturn) private var returning
     @Environment(\.nativeReadingAuxiliaryLauncherPosition) private var launcherPosition
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var locale: JSONText { props.context.locale }
     private var sidecards: NativeReportSidecardPresentation { sharedSidecards ?? localSidecards }
     private var selected: ApplicationExecutionRef? { sidecards.selectedExecution }
@@ -153,7 +152,7 @@ struct NativeReportDetail: View {
                             }
                     } else {
                         referencesContent
-                            .opacity(reduceMotion || referencesRevealed ? 1 : 0)
+                            .opacity(referencesRevealed ? 1 : 0)
                     }
                 }
                 .environment(\.nativeReadingNavigation, nil)
@@ -174,9 +173,9 @@ struct NativeReportDetail: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(applicationText(locale, "关联执行", "Related executions"))
             }
-            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
-            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: selected)
-            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
+            .animation(NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(NativeSidecardTiming.foldAnimation, value: selected)
+            .animation(NativeSidecardTiming.foldAnimation, value: layout.stacked)
             .background {
                 NativeReadingEntranceStage(enabled: entranceReady && !suppressed && !entranceAdmitted) {
                     entranceAdmitted = true
@@ -194,7 +193,7 @@ struct NativeReportDetail: View {
         .onChange(of: expanded) { _, open in
             if open { refresh() }
             if open && !referencesRevealed {
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { referencesRevealed = true }
+                withAnimation(.easeOut(duration: 0.2)) { referencesRevealed = true }
             }
         }
         .onChange(of: [entranceReady && entranceAdmitted && !suppressed, returning != nil]) { _, _ in
@@ -284,7 +283,7 @@ struct NativeReportDetail: View {
                             try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).logo(id, 12)
                         },
                             relation: relations?.revision == props.entry.revision ? relations?.items.first(where: { $0.reference == item.reference }) : nil,
-                            visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
+                            visible: expanded && !suppressed && (referencesRevealed)) {
                             guard !sidecards.retainingForReturn else { return }
                             failure = nil
                             openingReference = item.reference

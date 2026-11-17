@@ -44,16 +44,15 @@ struct DemoThread: Identifiable {
     var sidecards: DemoSidecards?
     var frames: [String: CGRect] = [:]
     var returnPanel = CGRect.zero
-    var closeDuration: Double { reduceMotion ? 0 : slow ? 1.2 : 0.42 }
+    var closeDuration: Double { slow ? 1.2 : 0.42 }
     var resolveDuration: Double { closeDuration * 0.35 }
     var source = CGRect.zero
     var viewport = CGSize.zero
     var filter = ""
-    var reduceMotion = false
     var panelFrame = CGRect.zero
     var status = ""
     private var transitionID = UUID()
-    var duration: Double { reduceMotion ? 0 : slow ? 1.8 : 0.62 }
+    var duration: Double { slow ? 1.8 : 0.62 }
     var visibleThreads: [DemoThread] { filter == "设计" ? Array(threads.prefix(2)) : threads }
 
     func open(_ thread: DemoThread) {
@@ -66,7 +65,6 @@ struct DemoThread: Identifiable {
         if productionMode { identityVisit = identityRegistry.capture(thread.id) }
         selected = thread
         sidecards = DemoSidecards(thread: thread, onBack: { [weak self] in self?.close() })
-        sidecards?.reducedMotion = reduceMotion
         // The proposal opens at full width so its toolbar can demonstrate
         // each card from a folded workspace, even with an active fixture.
         if !productionMode { sidecards?.choose(nil) }
@@ -79,7 +77,7 @@ struct DemoThread: Identifiable {
             withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: seconds)) { expanded = true }
             try? await Task.sleep(for: .seconds(seconds))
             guard visit == transitionID, selected != nil else { return }
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) { chromeVisible = true }
+            withAnimation(.easeOut(duration: 0.16)) { chromeVisible = true }
             try? await Task.sleep(for: .seconds(0.6))
             guard visit == transitionID, selected != nil else { return }
             loaded = true
@@ -94,9 +92,9 @@ struct DemoThread: Identifiable {
         // The shell keeps its spatial return; content only crossfades. Keep
         // the detail at fixed layout width so shrinking never reflows its text.
         closing = true
-        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { chromeVisible = false }
+        withAnimation(.easeOut(duration: 0.12)) { chromeVisible = false }
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 16))
+            try? await Task.sleep(for: .milliseconds(16))
             guard visit == transitionID else { return }
             let travel = closeDuration
             withAnimation(.timingCurve(0.3, 0, 0.2, 1, duration: travel)) {
@@ -128,7 +126,6 @@ struct DemoThread: Identifiable {
 private struct PanelDemo: View {
     @Namespace private var identity
     @Bindable var state: DemoState
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         NativeMokuScene(state: state.scene) {
             GeometryReader { geometry in
@@ -180,7 +177,6 @@ private struct PanelDemo: View {
         .environment(\.nativeThreadIdentityRegistry, state.productionMode ? state.identityRegistry : nil)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
         .preferredColorScheme(state.dark ? .dark : .light)
-        .onChange(of: reduceMotion, initial: true) { _, value in state.reduceMotion = value; state.sidecards?.reducedMotion = value }
         .onExitCommand { if state.sidecards?.selected != nil { state.sidecards?.choose(nil) } else { state.close() } }
     }
     private var overview: some View {
@@ -594,13 +590,6 @@ private struct PanelDemo: View {
             try await Task.sleep(for: .seconds(4))
             state.close()
             try await Task.sleep(for: .seconds(2.5))
-            state.reduceMotion = true
-            state.open(state.threads[0])
-            try await Task.sleep(for: .seconds(1))
-            try await verifyBody(window)
-            state.close()
-            try await Task.sleep(for: .milliseconds(100))
-            guard state.selected == nil else { throw DemoFailure(message: "Reduced motion did not close") }
             finish(true, "PASS: symmetric margins, three native sidecards, separated split frames, per-card resize retention, rapid switching, stacked narrow layout, close and interrupted opening")
         } catch { finish(false, String(describing: error)) }
     }

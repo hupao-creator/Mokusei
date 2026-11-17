@@ -180,12 +180,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     /// item values are unchanged.
     public var cardContentIdentity: ObjectIdentifier?
     private var card: (NativeOverviewItem) -> Content
-    // Native accessibility is read-only in EnvironmentValues. An explicit
-    // override lets isolated hosts exercise both policies without OS changes.
-    var reduceMotionOverride: Bool?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var inheritedCloudAnimationsEnabled
-    private var spatialMotionReduced: Bool { reduceMotionOverride ?? reduceMotion }
     @Environment(\.nativeWindowContentScale) private var windowContentScale
     @Environment(\.locale) private var locale
     @FocusedValue(\.overviewFocusedCard) private var focusedCard
@@ -321,15 +316,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
             .onChange(of: ObjectIdentifier(contentStore)) { _, _ in attach(viewport) }
             .onChange(of: visible) { _, value in state.visible = value; state.camera.setVisible(value) }
-            .onChange(of: spatialMotionReduced) { _, value in
-                state.camera.reduceMotion = value
-                if value, state.hostOwner == ownership {
-                    // Retire the animated owner and resolve the latest snapshot
-                    // through the immediate path under a new token.
-                    cancelScheduling(settle: true)
-                    enqueue(viewport)
-                }
-            }
             .onChange(of: viewport) { _, _ in attach(viewport) }
              .onChange(of: interactionPaused) { _, value in
                 state.externalInteractionPaused = value
@@ -487,7 +473,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
             state.activeIDs = source.activeIDs
             state.camera.onChange?()
         }
-        state.camera.reduceMotion = spatialMotionReduced
         state.hostOwner = ownership
         state.visible = visible
         state.externalInteractionPaused = interactionPaused
@@ -606,7 +591,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
         try Task.checkCancellation()
         guard layoutToken == token, state.hostOwner == ownership else { throw CancellationError() }
         let initial = mountedScene == nil || (!replaceScene && displayed.isEmpty && outgoingPlacements.isEmpty)
-        let animated = state.visible && !initial && !spatialMotionReduced
+        let animated = state.visible && !initial
         let now = ProcessInfo.processInfo.systemUptime
         let oldPlacements = displayed + outgoingPlacements
         let oldRecords = rendered.map(\.item)

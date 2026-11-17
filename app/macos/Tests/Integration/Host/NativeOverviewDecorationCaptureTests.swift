@@ -115,9 +115,8 @@ private struct DecorationCaptureBackdrop: View {
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeOverviewDecorationCaptureTests {
     @Test func nativeCloudAndScanMoveInComposedOverview() async throws {
-        try #require(!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-                     && !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
-                     "Observation incomplete: native decorations require the ordinary motion/transparency environment")
+        try #require(!NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
+                     "Observation incomplete: native decorations require the ordinary transparency environment")
         let fixture = try DecorationCaptureFixture()
         let window = SwiftUIReplay.window(
             NativeOverviewWorkspaceView(model: fixture.overview,

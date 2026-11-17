@@ -1,5 +1,7 @@
 # History author and title ownership during vertical navigation
 
+> 动效策略已更新：本文有关系统 Reduce Motion 的行为与验证描述仅记录历史。当前应用不再感知该偏好；见[移除清单与验证](remove-reduce-motion.md)。
+
 Investigated on 2026-11-17 from the supplied `录屏2026-11-17 14.46.21.mov`,
 on detached baseline `fb6edadc70c0ffc15dfeeafedc0fefebef5e9b46` with a clean
 managed worktree. The recording was read only. No live application, user

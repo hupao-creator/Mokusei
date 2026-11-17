@@ -78,7 +78,6 @@ public struct NativeMokuDock: View {
     @Environment(\.nativeMokuSettingsContent) private var settingsContent
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @State private var hovered = false
@@ -194,7 +193,7 @@ public struct NativeMokuDock: View {
     private var expanded: Bool { state.settingsExpanded || noteExpanded || rowExpanded }
     private var capsuleFraction: CGFloat { expanded ? 1 : 0 }
     private var surfaceAnimation: Animation? {
-        reduceMotion ? nil : state.readingPanelVisible
+        state.readingPanelVisible
             ? NativeReadingPageTiming.openingAnimation : .smooth(duration: 0.42, extraBounce: 0)
     }
     /// Centre of the resident face seat in shell-local points. The composer row
@@ -252,7 +251,7 @@ public struct NativeMokuDock: View {
                 // while the glass is still moving. Talk keeps this viewport and
                 // its scroll state while Note temporarily owns the reading seat.
                 .geometryGroup()
-                .transition(.opacity.animation(reduceMotion ? nil : .easeInOut(duration: 0.22)))
+                .transition(.opacity.animation(.easeInOut(duration: 0.22)))
         }
     }
     /// Note swipes belong to the original control row, outside selectable prose.
@@ -395,7 +394,7 @@ public struct NativeMokuDock: View {
             let destination = NativeMokuHorizontalDestination(offset: placement.surface.midX - geometry.size.width / 2,
                 verticalOffset: readingOffset,
                 frame: executionFrame, revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
-                dragging: executionPlacement?.dragging == true, reduced: reduceMotion || scenePhase != .active,
+                dragging: executionPlacement?.dragging == true, inactive: scenePhase != .active,
                 composer: state.composerGeneration, reading: state.readingPanelVisible)
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
@@ -410,7 +409,7 @@ public struct NativeMokuDock: View {
                     .scaleEffect(placement.scale, anchor: .bottom)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
                     .offset(y: placement.surface.maxY - geometry.size.height - readingOffset)
-                    .animation(reduceMotion || executionPlacement?.dragging == true ? nil
+                    .animation(executionPlacement?.dragging == true ? nil
                         : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
                     // Keep the small reading-seat descent out of SwiftUI layout
@@ -537,7 +536,7 @@ public struct NativeMokuDock: View {
             } else {
                 let hadInk = reasoningReady
                 reasoningReady = false
-                if !hadInk || reduceMotion {
+                if !hadInk {
                     withAnimation(surfaceAnimation) { reasoningSeatReserved = false }
                 }
             }
@@ -555,7 +554,7 @@ public struct NativeMokuDock: View {
             if !value.noteCovering { state.setTalkPresented(value.id != nil) }
         }
         .onChange(of: NoteDestination(open: state.notePanelOpen,
-            immediate: reduceMotion || scenePhase != .active || !state.windowVisible || !state.dockRouteVisible
+            immediate: scenePhase != .active || !state.windowVisible || !state.dockRouteVisible
                 || state.dockCovered || state.inputOpen || interaction != nil), initial: true) { _, destination in
             transitionNote(to: destination)
         }
@@ -575,12 +574,10 @@ public struct NativeMokuDock: View {
             state.dockMentionHitRect = nil
             hoverTask?.cancel(); hoverTask = nil
         }
-        .task(id: "\(state.composerGeneration):\(state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered):\(reduceMotion)") {
+        .task(id: "\(state.composerGeneration):\(state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered)") {
             guard state.inputInteractionReady, state.dockRouteVisible, state.inputOpen, !state.dockCovered else { focusGeneration = nil; return }
             let generation = state.composerGeneration
-            if !reduceMotion {
-                do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
-            }
+            do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
             guard !Task.isCancelled, state.composerGeneration == generation, state.ownsComposer(draft),
                   state.inputInteractionReady, state.dockRouteVisible, state.inputOpen, !state.dockCovered else { return }
             focusGeneration = generation; focusRequest += 1
@@ -755,7 +752,7 @@ public struct NativeMokuDock: View {
             // Settings covers the Dock but keeps the face on screen in the page's
             // header, so its blink and expression keep their clock.
             motion: scenePhase == .active && state.windowVisible && (!state.dockCovered || state.settingsOpen),
-            reduceMotion: reduceMotion, dark: true, immediateOrbit: threadID != nil)
+            dark: true, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
         .nativeLayoutLog("moku.capsule")
@@ -773,7 +770,7 @@ public struct NativeMokuDock: View {
                     // Let the eyes clear the text seat on expansion; fade prose
                     // quickly before they cross it again during collapse. Scope
                     // this curve to ink so it cannot retime native row placement.
-                    .animation(reduceMotion ? nil : (composerVisible
+                    .animation((composerVisible
                         ? (state.readingPanelVisible ? NativeReadingPageTiming.openingAnimation : .easeIn(duration: 0.42))
                         : .easeOut(duration: 0.12))) { content in
                         content.opacity(composerVisible ? 1 : 0)
@@ -846,7 +843,7 @@ public struct NativeMokuDock: View {
                     .transaction(value: state.settingsExpanded) { $0.animation = nil }
                     .compositingGroup()
                     .opacity(state.settingsExpanded ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeOut(duration: state.settingsClosing ? 0.12 : 0.22), value: state.settingsExpanded)
+                    .animation(.easeOut(duration: state.settingsClosing ? 0.12 : 0.22), value: state.settingsExpanded)
                     // Resolve placement with the shell's animation, outside both
                     // the faster ink fade and the page's discrete layout. Without
                     // this boundary the page jumps to the collapsed Dock's origin.
@@ -904,7 +901,7 @@ public struct NativeMokuDock: View {
                         RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
                             .frame(width: 30, height: 30).contentShape(Circle())
                             .opacity(stopVisible ? 1 : 0)
-                            .animation(reduceMotion ? nil : .easeInOut(duration: 0.12), value: stopVisible)
+                            .animation(.easeInOut(duration: 0.12), value: stopVisible)
                     }.buttonStyle(.plain).disabled(disabled)
                         .focused($stopFocused)
                         .accessibilityFocused($stopAccessibilityFocused)

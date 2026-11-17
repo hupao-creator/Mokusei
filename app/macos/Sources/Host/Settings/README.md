@@ -48,8 +48,7 @@ its retained choices.
 Each Settings opening gives Tag and Report independent animation visits. Once
 playback starts, switching tabs and returning shows the completed composition;
 closing and reopening Settings permits both animations to play again. An
-interrupted playback settles to its final frame, and Reduce Motion consumes the
-visit without playing. Onboarding retains its own step lifetime.
+interrupted playback settles to its final frame. Onboarding retains its own step lifetime.
 
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
@@ -135,10 +134,9 @@ pending intervention takes its ordinary priority over a retained Note/composer.
 
 `NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
 page lays out at its final size; closing fades its ink before panel contraction.
-Reversals fence obsolete completions. Resize, inactivity, Reduce Motion and
+Reversals fence obsolete completions. Resize, inactivity and
 explicit settling retire the current animation without leaving the modal gate
 stuck. Opening and return both report transitioning to semantic callers.
-Reduce Motion settles the shell directly.
 `python3 tools/verification/reading-presentation/run.py --settings-transition`
 mounts the production Dock and Settings page for viewport/zoom/landing, backdrop
 blur and click-through, restoration, interruption and lifecycle regression checks.
@@ -354,8 +352,7 @@ while the background editor keeps its three mode choices and contextual
 explanation. Tag and Report keep their production animations while configuration stays immediately available. Each tab
 visit plays once and retains its completed composition. Leaving the tab unmounts
 and cancels its animation; inactive/hidden windows settle an interrupted playback
-to the final frame without replaying on activation. Reduce Motion shows the
-completed composition without deferred playback. Tag pauses SpriteKit after
+to the final frame without replaying on activation. Tag pauses SpriteKit after
 rendering its final frame. Settings has no onboarding progress
 or admission steps. Onboarding alone omits model selection preferences. `draft.flush()`
 awaits accepted writes and rejects incomplete/composing/failed edits before a
@@ -372,7 +369,6 @@ expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
-
 The former Report Agent section is named **Super Thread Agent**. Its existing
 `report.settings` identity, inherited/independent choices and enabled state are
 unchanged; reopening Settings requires no preference migration.
@@ -381,7 +377,6 @@ All Harness advanced-options headers retain the native disclosure, with a
 full-width label and 32-point minimum hit height. Title, chevron and trailing space toggle the same
 disclosure; native keyboard activation, localized expanded state, disabled gates
 and the semantic interaction binding remain available. Collapsing retains values.
-
 
 `DesktopPreferences` retains profile-local `applicationCollectionReading` close
 facts, retained eligibility and optional plugin content fingerprints for application collections. Unix-second close

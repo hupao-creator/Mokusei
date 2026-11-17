@@ -7,7 +7,6 @@ struct NativeOnboardingSurface: View {
     @Bindable var state: NativeOnboardingState
     let scene: NativeMokuSceneState
     let applicationSections: [NativeApplicationSettingsSection]
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var mapMotion = NativeMokuSettingsAnimationState()
@@ -19,7 +18,7 @@ struct NativeOnboardingSurface: View {
     // stay dark even when the workspace window follows a light appearance.
     private var ink: Color { Color(white: 0.94) }
     private var secondary: Color { Color(white: 0.73) }
-    private var motion: Animation? { reduceMotion ? nil : .smooth(duration: 0.32) }
+    private var motion: Animation? { .smooth(duration: 0.32) }
     private var locale: DesktopLocale { state.locale }
 
     var body: some View {
@@ -115,7 +114,7 @@ struct NativeOnboardingSurface: View {
                             }
                         }
                     }
-                    .id(panelStep).transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 10)))
+                    .id(panelStep).transition(.opacity.combined(with: .offset(y: 10)))
                     .frame(maxWidth: 560).padding(.horizontal, 30).padding(.bottom, 20).frame(maxWidth: .infinity)
                 }
             }.scrollIndicators(.never)
@@ -247,21 +246,21 @@ struct NativeOnboardingSurface: View {
     @MainActor private func transition() async {
         guard state.step == .landing else { withAnimation(motion) { panelStep = state.step }; return }
         do {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.14)) { contentVisible = false }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 160))
+            withAnimation(.easeOut(duration: 0.14)) { contentVisible = false }
+            try await Task.sleep(for: .milliseconds(160))
             scene.disabled = !state.workspace.runtimeAvailable
             state.mountDock = true
             scene.setInputOpen(true)
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 50))
-            withAnimation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.78)) { collapsed = true }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 800))
+            try await Task.sleep(for: .milliseconds(50))
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.78)) { collapsed = true }
+            try await Task.sleep(for: .milliseconds(800))
             // Reveal the Dock behind the still-opaque panel first. Animating the
             // panel and the Dock against each other leaves both translucent over
             // the light workspace for a frame, which reads as a second flash.
             state.dockVisible = true
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 30))
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { panelVisible = false }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 200))
+            try await Task.sleep(for: .milliseconds(30))
+            withAnimation(.easeInOut(duration: 0.18)) { panelVisible = false }
+            try await Task.sleep(for: .milliseconds(200))
             state.finishHandoff()
         } catch { return }
     }

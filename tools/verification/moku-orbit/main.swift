@@ -11,12 +11,10 @@ private struct Failure: Error, CustomStringConvertible { var description: String
     let state = NativeMokuSceneState()
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var running = false
-    var reduceMotion = false
     var tool = false
     var talk: String?
     var mounted = true
     var phase: ScenePhase = .active
-    let reducedCharacter = NativeMokuCharacterMotion()
 }
 private struct Scene: View {
     let fixture: Fixture
@@ -24,26 +22,11 @@ private struct Scene: View {
         NativeMokuScene(state: fixture.state) { Color.white } thread: { Color.white } dock: {
             if fixture.mounted {
                 NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/tmp",
-                    mode: fixture.tool ? .tool : fixture.running && !fixture.reduceMotion ? .running : .idle, running: fixture.running,
+                    mode: fixture.tool ? .tool : fixture.running ? .running : .idle, running: fixture.running,
                     talk: fixture.talk, reply: .init(id: "unread", readKey: "unread", excerpt: "Unread reply", executionID: "fixture"), onSend: { _ in }, onCancel: {})
                     .environment(\.scenePhase, fixture.phase)
             }
         } settings: { Color.white }
-        .overlay {
-            // Reduce Motion is a read-only system environment value. Exercise
-            // the same production component's input without altering OS prefs.
-            if fixture.reduceMotion {
-                NativeMokuCharacterSurface(controller: fixture.reducedCharacter,
-                    input: .init(expression: .idle, focus: 0, running: true, reasoning: nil,
-                        presentsReasoning: false, executionKey: "reduced-orbit",
-                        capsuleSize: fixture.state.capsuleFrame.size,
-                        cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
-                        motion: true, reduceMotion: true, dark: false), seat: .decorations)
-                    .frame(width: fixture.state.capsuleFrame.width + 24,
-                           height: fixture.state.capsuleFrame.height + 24)
-                    .position(x: fixture.state.capsuleFrame.midX, y: fixture.state.capsuleFrame.midY)
-            }
-        }
         .environment(\.colorScheme, .light)
     }
 }
@@ -188,24 +171,6 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         }
         fixture.phase = .active
         fixture.running = false
-        // Let the ordinary Dock finish its real exit before mounting a separate
-        // reduced-motion input. Otherwise its retiring dots contaminate the
-        // supposedly static reference during the first half-second.
-        try await Task.sleep(for: .milliseconds(50))
-        try await waitForRetirement()
-        fixture.reduceMotion = true
-        try await Task.sleep(for: .milliseconds(200))
-        let still = try await coloredPixels("orbit-reduced")
-        try await Task.sleep(for: .milliseconds(500))
-        guard !still.isEmpty, still == (try await coloredPixels("orbit-reduced-later")) else {
-            throw Failure(description: "Reduce Motion did not retain static dots")
-        }
-        let columns = Set(still.map { $0 % pixelWidth }).sorted()
-        let groups = zip(columns, columns.dropFirst()).filter { $1 - $0 > 1 }.count + 1
-        guard groups == 3, still.count >= 150 else {
-            throw Failure(description: "Static feedback must contain three clearly visible, unclipped 5pt dots")
-        }
-        fixture.reduceMotion = false
         for state in ["tool", "input", "idle", "cancelled"] {
             fixture.tool = state == "tool"
             fixture.running = state != "idle" && state != "cancelled"
@@ -222,7 +187,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
             throw Failure(description: "Running dots did not restart")
         }
         await fixture.draft.dispose()
-        print("PASS capsule contour orbit, pause, Reduce Motion, tool/input/idle/cancel exits and restart")
+        print("PASS capsule contour orbit, pause, tool/input/idle/cancel exits and restart")
         return
     }
 }

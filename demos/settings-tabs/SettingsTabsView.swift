@@ -38,7 +38,6 @@ enum SettingsDemoTab: String, CaseIterable {
     var tab = SettingsDemoTab.moku
     var open = true
     var opaque = false
-    var reduceMotion = false
     var glassWorld = true
     var panelFrame = CGRect.zero
 
@@ -51,13 +50,12 @@ struct SettingsTabsSurface: View {
     @Bindable var fixture: SettingsTabsFixture
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceTransparency) private var systemOpaque
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @FocusState private var focusedTab: SettingsDemoTab?
     @State private var hoveredTab: SettingsDemoTab?
     @State private var keyboardNavigation = false
     @Namespace private var selection
     private var motion: Animation? {
-        systemReduceMotion || fixture.reduceMotion ? nil : .smooth(duration: 0.22)
+        .smooth(duration: 0.22)
     }
 
     var body: some View {
