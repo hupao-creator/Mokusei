@@ -335,6 +335,16 @@ Reduce Motion displays the complete final composition. The bounded cache retains
 a final-frame poster beneath the live surface to bridge remounts without caching
 browser instances. See the [animation contract and verification](../../../../design/super-thread-animated-covers.md).
 
+Collection cards show the current report/total in their upper-right badge. Their
+bottom carousel capsule fades in over 160ms while the whole card is hovered and
+fades out on exit, without changing layout or intercepting pointer input while
+hidden. Keyboard and accessibility focus also reveal the retained native controls;
+native menu tracking keeps the capsule visible and pauses automatic page changes
+until dismissal. Reduce Motion changes visibility immediately. Page numbers follow
+the surviving selected member after collection updates; stale menu actions for
+removed members are ignored. Single-member input displays 1/1 (ordinary Overview
+grouping currently requires at least two members). Other card types are unchanged.
+
 
 ## Updated collection members
 

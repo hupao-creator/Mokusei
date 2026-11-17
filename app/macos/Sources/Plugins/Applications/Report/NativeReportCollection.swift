@@ -1,3 +1,4 @@
+import AppKit
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
@@ -10,8 +11,13 @@ struct NativeReportCollection: View {
     let onSelection: (ApplicationThreadRef) -> Void
     let openThread: (ApplicationThreadRef) -> Void
     @State private var selection: ApplicationThreadRef
+    @State private var currentMembers: Set<ApplicationThreadRef>
     @State private var direction = 1
     @State private var interacting = false
+    @State private var hovered = false
+    @State private var trackingMenus: Set<ObjectIdentifier> = []
+    @FocusState private var focusedControl: Control?
+    @AccessibilityFocusState private var accessibilityFocusedControl: Control?
     @State private var outgoingID: ApplicationThreadRef?
     @State private var progress = 1.0
     @State private var motionEpoch = UUID()
@@ -27,11 +33,18 @@ struct NativeReportCollection: View {
         self.props = props; self.active = active; self.slow = slow
         self.onSelection = onSelection; self.openThread = openThread
         _selection = State(initialValue: initialSelection.flatMap { ref in props.contains { $0.entry.ref == ref } ? ref : nil } ?? props[0].entry.ref)
+        _currentMembers = State(initialValue: Set(props.map { $0.entry.ref }))
     }
     private var members: [ApplicationThreadRef] { props.map { $0.entry.ref } }
     private var selected: ApplicationThreadRef { members.contains(selection) ? selection : members[0] }
     private var page: Int { members.firstIndex(of: selected) ?? 0 }
-    private var playing: Bool { active && visibility?.isVisible != false && !interacting }
+    private var playing: Bool { active && visibility?.isVisible != false && !interacting && trackingMenus.isEmpty }
+    private enum Control: Hashable {
+        case previous, member(ApplicationThreadRef), menu, next
+    }
+    private var controlsVisible: Bool {
+        active && (hovered || focusedControl != nil || accessibilityFocusedControl != nil || !trackingMenus.isEmpty)
+    }
     private struct CoverIdentity: Hashable {
         let reference: ApplicationThreadRef
         let revision: JSONText
@@ -64,7 +77,9 @@ struct NativeReportCollection: View {
         select(members[(page + value + members.count) % members.count], direction: value)
     }
     private func select(_ id: ApplicationThreadRef, direction: Int) {
-        guard active, outgoingID == nil, id != selected else { return }
+        // Native menus can retain old View/action values across a collection update;
+        // read membership through State so those actions see the latest admission.
+        guard active, outgoingID == nil, currentMembers.contains(id), id != selected else { return }
         self.direction = direction
         // Cover and ink retain the old identity on one shared clock.
         var transaction = Transaction(); transaction.disablesAnimations = true
@@ -103,7 +118,8 @@ struct NativeReportCollection: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Text(applicationText(locale, "\(members.count) 篇", "\(members.count) reports")).font(.system(size: 11, weight: .medium))
+                            Text("\(page + 1)/\(members.count)").font(.system(size: 11, weight: .medium)).monospacedDigit()
+                                .accessibilityLabel(applicationText(locale, "第 \(page + 1) 篇，共 \(members.count) 篇", "Report \(page + 1) of \(members.count)"))
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .glassEffect(.regular, in: Capsule())
                         }
@@ -112,6 +128,8 @@ struct NativeReportCollection: View {
                             Button { step(-1) } label: {
                                 Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle())
                             }.accessibilityLabel(applicationText(locale, "上一个 Super Thread", "Previous Super Thread"))
+                                .focused($focusedControl, equals: .previous)
+                                .accessibilityFocused($accessibilityFocusedControl, equals: .previous)
                             if props.count <= 7 {
                                 HStack(spacing: 7) {
                                     ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
@@ -122,6 +140,8 @@ struct NativeReportCollection: View {
                                                 .frame(minWidth: 16, minHeight: 28).contentShape(Rectangle())
                                         }.accessibilityLabel(member.entry.title.string)
                                             .accessibilityAddTraits(member.entry.ref == selected ? .isSelected : [])
+                                            .focused($focusedControl, equals: .member(member.entry.ref))
+                                            .accessibilityFocused($accessibilityFocusedControl, equals: .member(member.entry.ref))
                                     }
                                 }
                             }
@@ -138,10 +158,19 @@ struct NativeReportCollection: View {
                                 }.padding(.leading, 3).padding(.trailing, 2)
                             }.menuStyle(.button).fixedSize()
                                 .accessibilityLabel(applicationText(locale, "选择 Super Thread", "Select Super Thread"))
+                                .focused($focusedControl, equals: .menu)
+                                .accessibilityFocused($accessibilityFocusedControl, equals: .menu)
                             Button { step(1) } label: {
                                 Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle())
                             }.accessibilityLabel(applicationText(locale, "下一个 Super Thread", "Next Super Thread"))
+                                .focused($focusedControl, equals: .next)
+                                .accessibilityFocused($accessibilityFocusedControl, equals: .next)
                         }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
+                            // Mask only the pixels: mounted controls retain keyboard/AX
+                            // discovery, without a transparent pointer target or reflow.
+                            .mask { Rectangle().opacity(controlsVisible ? 1 : 0) }
+                            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: controlsVisible)
+                            .allowsHitTesting(controlsVisible)
                     }.foregroundStyle(.primary).padding(14).frame(height: 308)
                 }.zIndex(4)
             }
@@ -152,12 +181,26 @@ struct NativeReportCollection: View {
                     opaque: NativePalette.overview.surface.swiftUI)
             }
         }
+        .contentShape(RoundedRectangle(cornerRadius: 22))
+        .onHover { hovered = $0 }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { notification in
+            // Native menu tracking can move the pointer outside the card. Retain
+            // its anchor and suspend auto-advance until tracking actually ends.
+            guard controlsVisible, let menu = notification.object as? NSMenu else { return }
+            trackingMenus.insert(ObjectIdentifier(menu))
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { notification in
+            guard let menu = notification.object as? NSMenu else { return }
+            trackingMenus.remove(ObjectIdentifier(menu))
+        }
+        .onDisappear { hovered = false; trackingMenus.removeAll() }
         .onAppear { onSelection(selected) }
         .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
         .onChange(of: playing) { _, value in
             if !value { playbackStarted = nil }
         }
         .onChange(of: members) { _, next in
+            currentMembers = Set(next)
             settle()
             if !next.contains(selection) { selection = next[0] }
             onSelection(selected)
