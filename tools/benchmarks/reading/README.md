@@ -8,7 +8,6 @@ session edits are used. Copy the entire `tools/benchmarks` directory to run it
 outside the source checkout.
 
 ```sh
-python3 tools/benchmarks/reading_benchmark.py conformance
 python3 tools/benchmarks/reading_benchmark.py build --tools /private/tmp/reading-tools
 python3 tools/benchmarks/reading_benchmark.py calibrate \
   --tools /private/tmp/reading-tools --output /private/tmp/reading-controls
@@ -140,17 +139,13 @@ of typical user latency; repeat separate runs before comparing versions.
 
 ## Verification
 
-Portable conformance sends real HTTP/SSE requests to the production benchmark
-provider and invokes the shared offline scorer. Controls include frozen pixels,
-wrong scroll direction, a different execution, missing business text/input,
-altered content hashes, malformed gesture phases and changed input volume.
-These establish framework behavior; they do not establish macOS rendering.
+Portable conformance tests have been removed.
 
 Live calibration builds an independent AppKit scroll window with normal, frozen,
 reversed, delayed and real main-thread-stall behaviors. It uses the same system
 input, capture and analysis path as the product. Keep failed controls and product
 trials; inspect the raw frames before changing an oracle. The signed production
-experiment is a distinct verification step from portable CI conformance.
+experiment remains an independent measurement, outside required build CI.
 
 The native control also retains the pixel deltas actually received by AppKit
 and its own settled document offset. Calibration requires these input totals to

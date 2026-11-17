@@ -189,9 +189,7 @@ immutable reads, and [lifecycle.go](lifecycle.go) owns events, work and receipts
 [lifecycle_subscriptions.go](lifecycle_subscriptions.go) owns routed notifications.
 
 Run `./scripts/go.sh run -race ./tools/verification/storage-workspaces` from the
-repository root. The production replay checks retained/staged snapshot isolation,
-compressed-branch insertion/deletion and exact diffs, scoped notification routing,
-acknowledgements, event-local outcomes, pagination and reopen. Allocation probes
+repository root. Allocation probes
 compare one-key transaction snapshots, warm pending reads and exact-ID history
 with 64 versus 4,096 unrelated or acknowledged facts; they assert bounded memory
 growth rather than machine-dependent timing. Runtime domain validation is also

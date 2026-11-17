@@ -226,10 +226,7 @@ history and cannot substitute for successful-execution evidence.
 Command locks count both holders and waiters. Only the final lease release
 removes a lock, so deleting a thread cannot split concurrent callers across two
 mutexes. Cancellation gates retain live-session identity and pending send claims;
-a deleted session's gate is reclaimed after its final reference is released.
-History reset prunes unreferenced gates after removing durable session records.
-Unknown-ID requests do not retain gates. These contracts are exercised by
-`make check-modules`, including concurrent waiters and repeated deletion/reset.
+a deleted session's gate is reclaimed after its final reference is released. History reset prunes unreferenced gates after removing durable session records. Unknown-ID requests do not retain gates.
 
 ## Shutdown and history reset
 
@@ -239,12 +236,6 @@ History clearing stops participants, restores sessions that require cleanup, dra
 
 Verification from the repository root:
 
-```sh
-./scripts/go.sh run -race ./tools/verification/runtime
-./scripts/go.sh run -race ./tools/verification/runtime-concurrency
-./scripts/go.sh run -race ./tools/verification/settings-shell
-./scripts/go.sh test -race ./internal/core/runtime
-```
 
 The [native settings launcher](../../../tools/verification/README.md) additionally exercises the Swift draft/save path against a real daemon.
 

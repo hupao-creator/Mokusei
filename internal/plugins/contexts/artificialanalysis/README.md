@@ -59,5 +59,3 @@ reasons and bounded generation counts through [diagnostics.go](diagnostics.go).
 Refresh duration starts when a queued generation begins; detail and catalog
 durations cover their own acquisition. Upstream errors, response bodies, model
 names, URLs and filesystem paths are excluded from service diagnostics.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/artificialanalysis` covers v5 version/metric parsing, cache isolation, detailed/compact output, independent catalog expiry, failure backoff, invalidation, interleaved acquisition, cancellation of a 100-detail generation, real-failure cache retention and diagnostic redaction; `./scripts/go.sh run -race ./tools/verification/artificialanalysis/lifecycle` covers registration, shared leases, callback cancellation cleanup and classification, joined closure and context bounds. The [AA replay guide](../../../../tools/verification/artificialanalysis/README.md) also describes opt-in verification against the live public website.

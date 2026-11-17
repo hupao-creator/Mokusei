@@ -8,18 +8,5 @@ The native host retains the Git monitor, metadata polling, strict snapshot decod
 
 Verification from the repository root:
 
-```sh
-MOKUSEI_GIT_CONTRACT_EVIDENCE=/tmp/mokusei-git-contract.json \
-  ./scripts/go.sh run -race ./tools/verification/git
-MOKUSEI_GIT_CONTRACT_EVIDENCE=/tmp/mokusei-git-contract.json \
-  xcrun swift test --package-path app/macos --no-parallel \
-  --filter 'GitNativeTests|GitThreadExtensionTests|NativeArchivedThreadsTests'
-```
 
-The Go replay creates disposable repositories. The Swift suites consume its production metadata fixtures and cover host admission, all four Harness projections, zero-line footprint removal, and known/unknown/failed/stale statistics in Chinese and English. For headless-only work, select the four non-display methods in `GitThreadExtensionTests`; its display/animation methods are separate GUI validation and are not covered by that selection. Set `MOKUSEI_GIT_ARTIFACTS` to retain native card captures.
-
-Default CI generates the Git contract with the other Go fixtures before the
-windowless Swift run. Missing evidence fails `GitNativeTests` explicitly. For a
-local `make check-swift`, generate the evidence with the command above and export
-`MOKUSEI_GIT_CONTRACT_EVIDENCE` into that invocation as well. Passing without
-reading the Go output is not contract coverage.
+The Go replay creates disposable repositories. For headless-only work, select the four non-display methods in `GitThreadExtensionTests`; its display/animation methods are separate GUI validation and are not covered by that selection. Set `MOKUSEI_GIT_ARTIFACTS` to retain native card captures.

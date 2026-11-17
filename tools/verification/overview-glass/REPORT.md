@@ -74,7 +74,7 @@
 
 12/30 卡仍全部有布局 placement；相机维持可读比例，边缘/屏外自然溢出。“完整落在窗口内”也不等于未受 Chrome/Dock 遮挡的像素可见数。
 
-[历史性能记录](../overview-performance/SUMMARY.md)与 [后续接续记录](../overview-input/evidence/glass-completion/README.md)里的旧实验仅切换外壳，且有失焦、主机忙、区段不完整等问题。即使局部 CPU 读数存在，也不能回答“全部卡片 Liquid Glass”的收益。
+[历史性能记录](../overview-performance/SUMMARY.md)与 后续接续记录 (historical; removed)里的旧实验仅切换外壳，且有失焦、主机忙、区段不完整等问题。即使局部 CPU 读数存在，也不能回答“全部卡片 Liquid Glass”的收益。
 
 ## 判断与下一步
 

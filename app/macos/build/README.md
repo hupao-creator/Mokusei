@@ -19,7 +19,7 @@ make watch-main   # rebuild each clean local main commit
 make build        # build Go runtime and release Swift application
 make pack         # sign app/macos/dist/Mokusei.app
 make dist         # also publish Mokusei.app.zip
-make smoke        # validate the packaged production app with an isolated profile
+make smoke        # statically validate the packaged production app
 make install      # install to ~/Applications/Mokusei.app
 make open         # open the installed application
 ```
@@ -188,17 +188,11 @@ publisher. Archives are created from the verified private staging tree.
 ## Validation
 
 Packaging verifies signatures and resources.
-`smoke` additionally verifies final product metadata, portable binary linkage,
-absence of old Node artifacts, and isolated runtime
-start/status/stop identity. Its temporary profile and derived workspace are
-removed only after a successful smoke and confirmed shutdown; failures retain
-the profile for diagnosis and report its location. Smoke never opens a GUI.
+`smoke` additionally verifies final product metadata, portable binary linkage
+and absence of old Node artifacts. Its isolated runtime lifecycle test has been
+removed; the command does not launch the application or runtime.
 
-`make check` runs Go formatting/static checks, Go/Swift builds and the required
-functional regression checks.
-The [devtool replay](../../../tools/verification/devtools/README.md) additionally
-checks profile rotation, active compiler cancellation and nested watcher cleanup
-with isolated process fixtures.
+`make check` runs Go formatting/static checks and Go/Swift production builds.
 
 This is a locally signed direct-distribution build. Notarization, public release,
 automatic updates and App Store submission require a separate release workflow.

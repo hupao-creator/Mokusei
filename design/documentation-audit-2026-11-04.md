@@ -35,7 +35,7 @@ Sidecards 当前指南；路径/编码和 WebKit 读取范围见维护整合记�
 | Go Core、插件宿主和模型 | [composition](../internal/core/composition/bootstrap.go)、[plugin contracts](../internal/core/plugin/)、[Runtime](../internal/core/runtime/)、[store](../internal/core/store/)、[hosts](../internal/hosts/)：注册、公开模型、持久化、配置与内容权属。未改领域词汇、协议或 schema。 |
 | 服务与适配器 | [Moku composition](../internal/core/composition/moku.go)、[delivery](../internal/core/runtime/moku_delivery.go)、当时的 keyword search（现已移除）、[workspaces](../internal/services/workspaces/manager.go)、[Harnesses](../internal/plugins/harness/)：生产通知持久化、keyword 搜索、detached worktree 与原生会话归属。 |
 | 原生 UI 与生命周期 | [reading stack](../app/macos/Sources/Shared/PluginUI/Conversation/NativeReadingPageStack.swift)、[panel compositor](../app/macos/Sources/Shared/PluginUI/Conversation/NativeReadingPanelTransition.swift)、[Settings sections](../app/macos/Sources/Host/Settings/NativeSettingsNavigation.swift)、当时的 Overview search（现已移除）、[Moku capsule](../app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift)：准备/呈现时机、关闭转场、可用页面、搜索范围和材质。 |
-| 交互与回放指南 | [Overview driver](../tools/native-interaction/overview_chaos.py)、[reading driver](../tools/native-interaction/thread_chaos.py)、[replay launcher](../tools/verification/reading-presentation/run.py)、[CI replay groups](../scripts/ci/replays.py)：对照现存入口/分组/选项，区分 fixture 断言与产品保证。未执行这些 driver。 |
+| 交互与回放指南 | Overview driver (historical; removed)、reading driver (historical; removed)、replay launcher (historical; removed)、CI replay groups (historical; removed)：对照现存入口/分组/选项，区分 fixture 断言与产品保证。未执行这些 driver。 |
 | 来源与历史 | [fonts](../app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md)、[icons](../app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md)、`design/`、evidence/results 与历史审计：保留版本、结论、数值、来源和原文；补足旧 Electron/npm 路径属于转换环境的说明。 |
 
 ## 有依据的修正
@@ -44,13 +44,13 @@ Sidecards 当前指南；路径/编码和 WebKit 读取范围见维护整合记�
 | --- | --- |
 | [macOS 总览](../app/macos/README.md)、[WindowNavigation](../app/macos/Sources/Host/WindowNavigation/README.md) | 旧 65% 关闭交接已过时。`NativeReadingPanelTransition.startIfReady` 使用正文 keyTimes `[0, 0.8, 1]`、travel/scale `0.86` 和外壳 `[0, 0.86, 1]`；文档统一到 420ms 内 80%/86%/末 14%。 |
 | WindowNavigation | 原文称 reader 必须等到到达才挂载。`preloadPanelReader` 与 `readerPreloading` 已允许普通 Agent 卡片在 native start 后隐藏准备；数据 prefetch 与 view preload 分别描述，呈现/输入仍受到达门控。 |
-| [Overview](../app/macos/Sources/Host/Overview/README.md)、[交互矩阵](../tools/native-interaction/OVERVIEW.md) | Settings 已无归档恢复页面；`NativeSettingsNavigation.sections` 仅提供 General、Moku 与可用 Application sections。移除误导性的恢复指路，不推测新 UI。 |
-| 交互矩阵、[Overview chaos](../tools/verification/overview-interaction/README.md) | 生产 `NativeOverviewSearch` 使用全局 eligible catalog，Runtime `Query` 返回 `keyword`。移除当前 scoped/hybrid 的产品描述，明确保留 driver 的旧断言仍待处理；同步无 context-menu 入口和目录/子标签分隔符说明。 |
-| [reading controls](../tools/native-interaction/README.md)、[reading replay](../tools/verification/thread-interaction/README.md) | `thread_chaos.expand` 仅遍历实际挂载控件；Agent detail 的生产 reader 是 summary-only。fixture 内存在 reasoning/tool 数据不等于 UI 挂载了 disclosure 或获取了 execution detail。 |
-| [材质 demo](../demos/moku-gradient-material/README.md)、[demo 目录](../demos/README.md)、[Overview fixture](../tools/verification/overview-input/README.md) | `NativeMokuCapsuleGlass` 强制 dark；demo 两列调用相同 clear 分支，旧浅色标签不是独立生产材质。Overview emoji badge 已是 opaque palette；修正“clear glass circle”验收指引。保留原提案目的与出处。 |
+| [Overview](../app/macos/Sources/Host/Overview/README.md)、交互矩阵 (historical; removed) | Settings 已无归档恢复页面；`NativeSettingsNavigation.sections` 仅提供 General、Moku 与可用 Application sections。移除误导性的恢复指路，不推测新 UI。 |
+| 交互矩阵、Overview chaos (historical; removed) | 生产 `NativeOverviewSearch` 使用全局 eligible catalog，Runtime `Query` 返回 `keyword`。移除当前 scoped/hybrid 的产品描述，明确保留 driver 的旧断言仍待处理；同步无 context-menu 入口和目录/子标签分隔符说明。 |
+| [reading controls](../tools/native-interaction/README.md)、reading replay (historical; removed) | `thread_chaos.expand` 仅遍历实际挂载控件；Agent detail 的生产 reader 是 summary-only。fixture 内存在 reasoning/tool 数据不等于 UI 挂载了 disclosure 或获取了 execution detail。 |
+| [材质 demo](../demos/moku-gradient-material/README.md)、[demo 目录](../demos/README.md)、Overview fixture (historical; removed) | `NativeMokuCapsuleGlass` 强制 dark；demo 两列调用相同 clear 分支，旧浅色标签不是独立生产材质。Overview emoji badge 已是 opaque palette；修正“clear glass circle”验收指引。保留原提案目的与出处。 |
 | [Overview 性能研究](../tools/verification/overview-performance/README.md) | 原场景矩阵含已退休的 glass on/off 条件。补充历史边界和当前入口，保留矩阵、历史数值与原结论。 |
-| [Moku replay](../tools/verification/moku/README.md) | 原说明把生产通知写成无 durable retry 的内存队列。生产 `composition/moku.go` 注入 `PendingDeliveries`/`SendDelivery`，`coordinator.go` 仅在缺少 durable ports 时订阅 fallback；据此分开 lazy outbox 与 `user_thread_input.go` 的即时内存 fixture。 |
-| [Moku recovery link](../tools/verification/release-health/README.md) 与 Moku replay | 修正两处失效锚点 `durable-completion-notifications`，指向实际 `durable-system-notifications`。 |
+| Moku replay (historical; removed) | 原说明把生产通知写成无 durable retry 的内存队列。生产 `composition/moku.go` 注入 `PendingDeliveries`/`SendDelivery`，`coordinator.go` 仅在缺少 durable ports 时订阅 fallback；据此分开 lazy outbox 与 `user_thread_input.go` 的即时内存 fixture。 |
+| Moku recovery link (historical; removed) 与 Moku replay | 修正两处失效锚点 `durable-completion-notifications`，指向实际 `durable-system-notifications`。 |
 | [Store](../internal/core/store/README.md) | `platform/sqlite` 使用 `#cgo LDFLAGS: -lsqlite3`，Linux CI 也提供系统 SQLite；修正限定为 macOS system library 的表述。 |
 | [Workspaces](../internal/services/workspaces/README.md) | `manager.go` 用 `git worktree add --detach`，并把 base cwd 的 subdirectory 拼入 execution cwd；补充不建 branch 和子目录保留语义。 |
 | [CI](../scripts/ci/README.md)、[回放总览](../tools/verification/README.md) | 当前 `replays.py` 是 10 个 interop、12 个 native check（包括 runtime-build）。`make check-swift` 是 ordinary selection 后执行 native owners；旧审计的 8 个 XCTest skips 不是现行 inventory。正式 Overview 比较运行在 Actions runner。 |
@@ -139,8 +139,8 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [app/macos/Sources/Shared/PluginUI/README.md](../app/macos/Sources/Shared/PluginUI/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md](../app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md) | 来源 | 资源/来源路径；历史转换与现行构建区分 |
 | [app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md](../app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md) | 来源 | 资源/来源路径；历史转换与现行构建区分 |
-| [app/macos/Tests/NativeInputSupport/README.md](../app/macos/Tests/NativeInputSupport/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [app/macos/Tests/Support/README.md](../app/macos/Tests/Support/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| app/macos/Tests/NativeInputSupport/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| app/macos/Tests/Support/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [app/macos/build/README.md](../app/macos/build/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [app/macos/build/SOURCES.md](../app/macos/build/SOURCES.md) | 来源 | 资源/来源路径；历史转换与现行构建区分 |
 | [app/macos/build/layout-logging.md](../app/macos/build/layout-logging.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
@@ -212,45 +212,45 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [internal/services/threadsearch/README.md](../internal/services/threadsearch/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [internal/services/workspaces/README.md](../internal/services/workspaces/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [scripts/ci/README.md](../scripts/ci/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [scripts/ci/flaky-review.md](../scripts/ci/flaky-review.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [scripts/ci/headless.md](../scripts/ci/headless.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| scripts/ci/flaky-review.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| scripts/ci/headless.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [scripts/ci/self-hosted.md](../scripts/ci/self-hosted.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [scripts/ci/verification-policy.md](../scripts/ci/verification-policy.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/native-interaction/OVERVIEW.md](../tools/native-interaction/OVERVIEW.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/native-interaction/OVERVIEW.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/native-interaction/README.md](../tools/native-interaction/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/README.md](../tools/verification/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/artificialanalysis/README.md](../tools/verification/artificialanalysis/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/claude/README.md](../tools/verification/claude/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/cloud-motion/README.md](../tools/verification/cloud-motion/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/codex/README.md](../tools/verification/codex/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/devtools/README.md](../tools/verification/devtools/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-appearance/README.md](../tools/verification/moku-appearance/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-orbit/README.md](../tools/verification/moku-orbit/README.md)（原 blink 中仍有效的 orbit 回放） | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/artificialanalysis/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/claude/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/cloud-motion/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/codex/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/devtools/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku-appearance/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku-orbit/README.md (historical; removed)（原 blink 中仍有效的 orbit 回放） | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/moku-note-performance/README.md](../tools/verification/moku-note-performance/README.md) | 混合 | 操作入口与历史基线/测量分开核查 |
-| [tools/verification/moku-note/README.md](../tools/verification/moku-note/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-reasoning/README.md](../tools/verification/moku-reasoning/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-system/README.md](../tools/verification/moku-system/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-talk-dismiss/README.md](../tools/verification/moku-talk-dismiss/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-transitions/README.md](../tools/verification/moku-transitions/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku/README.md](../tools/verification/moku/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/native-interaction/README.md](../tools/verification/native-interaction/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/opencode/README.md](../tools/verification/opencode/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku-note/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku-reasoning/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku-system/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku-talk-dismiss/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku-transitions/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/moku/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/native-interaction/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/opencode/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/overview-ci-performance/README.md](../tools/verification/overview-ci-performance/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/overview-ci-performance/runtime/README.md](../tools/verification/overview-ci-performance/runtime/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/overview-glass/README.md](../tools/verification/overview-glass/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/overview-glass/REPORT.md](../tools/verification/overview-glass/REPORT.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-input/PERFORMANCE.md](../tools/verification/overview-input/PERFORMANCE.md) | 混合 | 操作入口与历史基线/测量分开核查 |
-| [tools/verification/overview-input/README.md](../tools/verification/overview-input/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/overview-input/evidence/glass-completion/README.md](../tools/verification/overview-input/evidence/glass-completion/README.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-input/evidence/glass-completion/run-3/summary.md](../tools/verification/overview-input/evidence/glass-completion/run-3/summary.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-input/evidence/glass-completion/run-4/summary.md](../tools/verification/overview-input/evidence/glass-completion/run-4/summary.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-input/evidence/glass-completion/run-5/summary.md](../tools/verification/overview-input/evidence/glass-completion/run-5/summary.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-input/evidence/moku-dock-refresh/README.md](../tools/verification/overview-input/evidence/moku-dock-refresh/README.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-interaction/README.md](../tools/verification/overview-interaction/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/overview-layout/BALANCE.md](../tools/verification/overview-layout/BALANCE.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-layout/README.md](../tools/verification/overview-layout/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/overview-layout/RESULTS.md](../tools/verification/overview-layout/RESULTS.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-layout/SECOND-SCREENSHOT.md](../tools/verification/overview-layout/SECOND-SCREENSHOT.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-input/PERFORMANCE.md (historical; removed) | 混合 | 操作入口与历史基线/测量分开核查 |
+| tools/verification/overview-input/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/overview-input/evidence/glass-completion/README.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-input/evidence/glass-completion/run-3/summary.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-input/evidence/glass-completion/run-4/summary.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-input/evidence/glass-completion/run-5/summary.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-input/evidence/moku-dock-refresh/README.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-interaction/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/overview-layout/BALANCE.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-layout/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/overview-layout/RESULTS.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/overview-layout/SECOND-SCREENSHOT.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
 | [tools/verification/overview-performance/README.md](../tools/verification/overview-performance/README.md) | 混合 | 操作入口与历史基线/测量分开核查 |
 | [tools/verification/overview-performance/RESULTS.md](../tools/verification/overview-performance/RESULTS.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
 | [tools/verification/overview-performance/SUMMARY.md](../tools/verification/overview-performance/SUMMARY.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
@@ -259,24 +259,24 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [tools/verification/overview-performance/evidence/round1/summary.md](../tools/verification/overview-performance/evidence/round1/summary.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
 | [tools/verification/overview-performance/evidence/round2/summary.md](../tools/verification/overview-performance/evidence/round2/summary.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
 | [tools/verification/overview-performance/evidence/round3/summary.md](../tools/verification/overview-performance/evidence/round3/summary.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/overview-text/README.md](../tools/verification/overview-text/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/pi/README.md](../tools/verification/pi/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/plugin-audit/README.md](../tools/verification/plugin-audit/README.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/reading-presentation/README.md](../tools/verification/reading-presentation/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/reading-presentation/evidence/subtag-ax-isolation.md](../tools/verification/reading-presentation/evidence/subtag-ax-isolation.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/reading-presentation/evidence/subtag-transition-speed.md](../tools/verification/reading-presentation/evidence/subtag-transition-speed.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/reading-presentation/evidence/switch-clipping.md](../tools/verification/reading-presentation/evidence/switch-clipping.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/reading-presentation/evidence/vertical-transition.md](../tools/verification/reading-presentation/evidence/vertical-transition.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/release-health/README.md](../tools/verification/release-health/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/overview-text/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/pi/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/plugin-audit/README.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/reading-presentation/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/reading-presentation/evidence/subtag-ax-isolation.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/reading-presentation/evidence/subtag-transition-speed.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/reading-presentation/evidence/switch-clipping.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/reading-presentation/evidence/vertical-transition.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/release-health/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/runtime-performance/AUDIT.md](../tools/verification/runtime-performance/AUDIT.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
 | [tools/verification/runtime-performance/HANDOFF.md](../tools/verification/runtime-performance/HANDOFF.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
 | [tools/verification/runtime-performance/README.md](../tools/verification/runtime-performance/README.md) | 混合 | 操作入口与历史基线/测量分开核查 |
 | [tools/verification/runtime-performance/results/20261025/README.md](../tools/verification/runtime-performance/results/20261025/README.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/scrollbars/README.md](../tools/verification/scrollbars/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/settings-performance/README.md](../tools/verification/settings-performance/README.md) | 混合 | 操作入口与历史基线/测量分开核查 |
-| [tools/verification/swift-tests/README.md](../tools/verification/swift-tests/README.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
-| [tools/verification/swiftfixture/README.md](../tools/verification/swiftfixture/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/thread-detail-performance/README.md](../tools/verification/thread-detail-performance/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/thread-detail-performance/integration.md](../tools/verification/thread-detail-performance/integration.md) | 混合 | 操作入口与历史基线/测量分开核查 |
-| [tools/verification/thread-interaction/README.md](../tools/verification/thread-interaction/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/transport/README.md](../tools/verification/transport/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/scrollbars/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/settings-performance/README.md (historical; removed) | 混合 | 操作入口与历史基线/测量分开核查 |
+| tools/verification/swift-tests/README.md (historical; removed) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
+| tools/verification/swiftfixture/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/thread-detail-performance/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/thread-detail-performance/integration.md (historical; removed) | 混合 | 操作入口与历史基线/测量分开核查 |
+| tools/verification/thread-interaction/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| tools/verification/transport/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |

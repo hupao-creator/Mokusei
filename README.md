@@ -19,9 +19,6 @@ app/
       Shared/          Plugin API and shared plugin UI
       Plugins/         Harnesses, Applications and Sidecards
       Tools/           Protocol and host service probes
-    Tests/
-      Core/            Runtime client and protocol tests
-      Integration/     Host and thread presentation tests
     Plugins/           Swift build plugins
     build/             Signing and packaging assets
 cmd/                 Go executable entry points
@@ -32,8 +29,7 @@ internal/
   services/          Moku, attachments, search, tags and workspaces
   platform/          Daemon, transport, processes, SQLite and diagnostics
   tooling/           Development, architecture and maintenance
-tools/verification/  Functional integration replays
-testdata/            Shared test fixtures
+tools/verification/  Independent performance measurements and native packaging
 demos/               Native interaction prototypes
 ```
 
@@ -53,7 +49,7 @@ make runtime                  # .build/go/mokusei-runtime
 make build                    # Go service and Swift application
 make dev                      # signed development application
 make dev ARGS=--fresh         # launch with a clean development data directory
-make check                    # static checks, builds, Swift suite and Go race/property tests
+make check                    # static checks and Go/Swift production builds
 make install-hooks            # repository-local pre-commit hook
 make pack                     # signed production bundle
 make dist                     # signed production bundle and zip
@@ -94,3 +90,10 @@ The public source history starts from a single release snapshot. Older revisions
 Mokusei is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 hupao-creator.
 
 Third-party materials retain their existing licenses and attribution notices, including [agent skills](.agents/skills/LICENSE), [fonts and icons](app/macos/Sources/Shared/PluginUI/Resources/), and [Unicode data](internal/services/taglabel/UNICODE-LICENSE.txt).
+
+The first-party automated test suites and test-only fixtures have been removed.
+See [contributor checks](.agents/linting.md) and the [CI guide](scripts/ci/README.md)
+for the retained build and static validation.
+
+[Runtime modules](internal/README.md), [native modules](app/macos/README.md) and
+[plugin contracts](internal/core/plugin/README.md) map the production implementation.

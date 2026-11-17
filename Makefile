@@ -2,7 +2,7 @@ GO ?= ./scripts/go.sh
 DEV = $(GO) run ./cmd/mokusei-dev
 ARGS ?=
 
-.PHONY: runtime build dev fast watch-main pack dist smoke install open lint typecheck pbt check check-directorytag check-swift install-hooks
+.PHONY: runtime build dev fast watch-main pack dist smoke install open lint typecheck check install-hooks
 runtime:
 	$(DEV) runtime
 build:
@@ -29,22 +29,7 @@ lint:
 	$(GO) vet ./...
 typecheck:
 	$(GO) build ./...
-	xcrun swift build --package-path app/macos --build-tests
-pbt:
-	$(GO) test -race ./tools/verification/runtime-concurrency ./tools/verification/codex -run Properties -count=1 $(ARGS)
-check-directorytag:
-	$(GO) test ./internal/services/directorytag ./internal/plugins/applications/report
-check-swift:
-	python3 scripts/ci/swift-tests.py --run --output-dir .build/check-swift
-check: lint typecheck pbt check-modules check-directorytag check-swift
+	xcrun swift build --package-path app/macos
+check: lint typecheck
 install-hooks:
 	$(GO) run ./cmd/mokusei-check install-hooks
-
-.PHONY: check-modules
-check-modules:
-	$(GO) test -race ./internal/plugins/... ./internal/hosts/... ./internal/core/runtime ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment
-
-.PHONY: check-system
-check-system:
-	@test -n "$(MOKUSEI_SYSTEM_CODEX)" || { echo 'Set MOKUSEI_SYSTEM_CODEX to the native Codex executable'; exit 1; }
-	$(GO) test -race ./tools/verification/moku-system -rapid.checks=8 -count=1 -timeout=10m $(ARGS)

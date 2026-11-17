@@ -158,8 +158,6 @@ do not acknowledge additional events or silently deliver a metadata-only row.
 - [Tag](../../plugins/applications/tag/README.md) maintains a separate tag pool in each scope.
 - [Git](../../plugins/applications/git/README.md) stores observations for ordinary thread card extensions. It declares no Git thread type and is excluded from user enablement controls.
 
-Verification from the repository root: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh test -race ./internal/hosts/applicationhost`, and `./scripts/go.sh run -race ./tools/verification/runtime`.
-
 ## Isolated Swift query fixture
 
 The application-host runner uses actual Report schemas, Plan/Reduce, queries and SQLite with a controlled background participant. The runtime runner additionally exercises the production scoped Report runner. To retain a Report for an actual Swift client query:

@@ -171,7 +171,7 @@
 ## Sol 的最小实施顺序
 
 1. **模型与 Runtime**：扩展 ThreadNote/public Swift DTO；新增严格命令 DTO、注册和 transaction；增加 note CAS 更新能力并注入 Coordinator。保留生命周期所有权，确保 read-only 分类为写，duplicate/stale 真 no-op。模型变更不需要 generic store schema/迁移层。
-2. **Moku 协议**：更新 schema、parseNoteText 入口、tools、prompt、context；更新所有依赖 `{ok:true}` 精确等值或 text-only schema 的生产 fixture。包括 [note_contract.go](../tools/verification/moku/note_contract.go)、[note_native.go](../tools/verification/moku/note_native.go) 与 [moku-system/provider.go](../tools/verification/moku-system/provider.go) 的 mock LLM 工具参数。
+2. **Moku 协议**：更新 schema、parseNoteText 入口、tools、prompt、context；更新所有依赖 `{ok:true}` 精确等值或 text-only schema 的生产 fixture。包括 note_contract.go (historical; removed)、note_native.go (historical; removed) 与 moku-system/provider.go (historical; removed) 的 mock LLM 工具参数。
 3. **UI**：用生产 Markdown 可选 token/资格回调 + Note viewport tracker 取代 syncNoteSeen；在 [NativeWorkspaceView.swift](../app/macos/Sources/Host/Shell/NativeWorkspaceView.swift) 连接 scene 回执与 `workspace.invoke`，视图不直接操作 profile/storage。删除旧 noteSeen authority，保留独立 replyRead 功能。
 4. **协议版本与文档**：严格 Swift DTO 有 breaking change，Go [protocol.go](../internal/platform/transport/protocol.go) 与 Swift [RuntimeProtocol.swift](../app/macos/Sources/Core/RuntimeProtocol.swift) 同步提升版本（基线为 10；集成时检查最新值）。更新 Moku、MokuScene、PluginUI、model/runtime README 的协议、证据边界及验证入口；不改 Liquid Glass 外观/性能研究文档。
 5. **回放与评审**：按下节验证再交付提交。代码实施由后续 Sol 完成；本设计提交只进行文档 diff/链接核对。当前工作环境要求保持 detached HEAD，集成 main 由调用方负责，不 push。
@@ -191,7 +191,7 @@
 | 多窗口/失败 | 两窗口重复完整回执只增加一次；不合并部分覆盖；提交失败 UI 不提前标记；重连同版可重试；新 incarnation/profile 丢弃旧 pending；observer/timer/in-flight 生命周期有界 |
 | 整理语义 | 固定输入/返回快照准确保留原文；review prompt/example 确认有效决定、待办、待审阅、未曝光新阻塞不会仅因曝光删除。固定 mock LLM 只能证明数据链路，不能证明真实模型始终正确压缩 |
 
-已有落点：后端 [note_contract.go](../tools/verification/moku/note_contract.go) 的 schema/orchestrator/runtime 场景；UI [moku-note/main.swift](../tools/verification/moku-note/main.swift) 的 337–363 行旧“打开/更新即已读”断言需反转，613–654 行长 note 场景可扩展；[NativeMokuNoteTests.swift](../app/macos/Tests/Integration/Host/NativeMokuNoteTests.swift) 的旧文件存储断言改为新权威契约；[moku-talk-dismiss/main.swift](../tools/verification/moku-talk-dismiss/main.swift) 保留 Talk timeout 与 note 独立性，但不能再要求打开即已读。
+已有落点：后端 note_contract.go (historical; removed) 的 schema/orchestrator/runtime 场景；UI moku-note/main.swift (historical; removed) 的 337–363 行旧“打开/更新即已读”断言需反转，613–654 行长 note 场景可扩展；NativeMokuNoteTests.swift (historical; removed) 的旧文件存储断言改为新权威契约；moku-talk-dismiss/main.swift (historical; removed) 保留 Talk timeout 与 note 独立性，但不能再要求打开即已读。
 
 实施后最低命令（在仓库根目录，Swift build/replay 串行执行）：
 

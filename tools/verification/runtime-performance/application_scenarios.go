@@ -12,10 +12,10 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 	"github.com/hupao-creator/Mokusei/internal/hosts/applicationhost"
-	"github.com/hupao-creator/Mokusei/tools/verification/applicationhost/listfixture"
+	"github.com/hupao-creator/Mokusei/tools/verification/runtime-performance/listfixture"
 )
 
-// The replay and measured query use the same public application fixture. Setup
+// The measured query uses this public application fixture. Setup
 // is excluded from measurement, including SQLite seeding and host registration.
 func prepareApplicationScenario(ctx context.Context, name string, records int) (operation func(context.Context) error, close func() error, err error) {
 	if name != "application-list" || records < 1 {

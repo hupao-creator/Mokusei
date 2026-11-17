@@ -41,26 +41,15 @@ Report 页先横向展示六份长文档：页头使用生产 Harness logo，页
 正文、说明和进度文字使用明确的浅深色颜色值，不依赖透明度降低文字层级。
 系统提高对比度或减少透明度时底色完全不透明；最终 landing 继续使用现有组件。
 
-## 运行与验证
+## 运行
 
 ```sh
-python3 demos/landing-setup/build.py --verify --open
+python3 demos/landing-setup/build.py --open
 ```
 
-已构建当前 Swift 模块时可追加 `--skip-build`。产物路径位于 `.build/landing-setup/app-path.txt`，
-窗口截图与回放报告在 `.build/landing-setup/evidence/`。按 Command-D 打开演示控制窗口。
-Command-5 切换高对比背景检查：在同一窗口内放置黑、蓝、红、白底色，再经过实际内容底色合成；
-这样窗口级截图也能捕获背景对比度压力。仍需在真实桌面壁纸下查看交互窗口，因为单窗口录屏可能不保留窗口背后的桌面材质。
-
-回放操作挂载后的原生按钮，并通过生产 Settings 控件注册执行 map 的原有交互，验证空检测阻断、重检、单 Host / 多 Target、独立配置与继承切换、返回保留选择、
-最终生产编辑器真实输入和派发。截图覆盖每步、无 Agent、深色与紧凑窗口；`04-report.png` 与 `04a-report-diagram.png` 分别捕获长文档和图示阶段。`03c-tag-organized` / `03d-tag-retained` 和 `04a-report-diagram` / `04aa-report-retained` 对照完成画面与原循环周期之后的保留画面。捕获仅限 demo 自己的窗口。
-回放还检查面板四周保留背景、设置时没有隐藏编辑器，以及最终与真实 Dock 几何一致；`panel-to-moku.json` 保存布局观测，`04d-panel-contracting.png` 捕获收拢中的实际窗口。SwiftUI 布局观测可能只给出起止值，不能单独证明中间动画。
-原生点击后连续检查过渡期间没有可见的 NSScroller。
-代码合并前使用当前提交完整 CI 或等价的 `make check`，并运行本 demo 与共享 landing fixture 的原有回放。
-不声称覆盖真实安装、登录、模型可达性、Runtime 保存和产品首次启动接入。
-
-`LandingFixture.swift` 与原 landing demo 共用，品牌图标、Moku 眼睛与玻璃、窗口材质、最终工作区均来自生产模块。
-独立 app 保留于临时目录，不替换已安装应用。
+已有当前生产 Swift build 时可加 `--skip-build`。按 Command-D 打开演示控制窗口。
+内存 fixture 供交互预览；自动断言、截图验收和验证报告入口已删除。
+独立 app 位于临时目录，路径记录在 `.build/landing-setup/app-path.txt`。
 
 ## 生产接入
 

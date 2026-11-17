@@ -92,10 +92,7 @@ reader into the main panel.
 See the [fold performance investigation](../../../../../design/sidecard-fold-performance.md)
 for the original-recording evidence and this repair's sprint validation limits.
 
-The `--thread-send-feedback-native` replay samples mounted native aperture
-frames in the production layout for all three launcher positions, opening and
-closing in wide/stacked layouts, quick reversals and switching, button availability
-changes, resize during opening and retained width. Existing production
+Existing production
 Conversation/Browser toggle, Dock and handoff cases run beside it.
 
 ## Conversation
@@ -242,28 +239,16 @@ use the current host translation.
 
 Page-owned file pickers and JavaScript dialogs close with a negative result when the browser is suppressed, its document navigates, or its session is released. Their WebKit callbacks complete once, including when AppKit delivers a delayed sheet completion. Cancellation retains dialog ownership across synchronous reentrant navigation; normal completion releases ownership before the page can open its next dialog. `NativeBrowserDialogTests` obtains WebKit parameters from a local HTML fixture and exercises these native sheets without external pages.
 
-Run `python3 tools/verification/reading-presentation/run.py --browser-dialogs` in a graphical macOS session. The isolated AppKit runner owns the application event loop and checks the complete four-test summary and all 19 cases. Ordinary SwiftPM skips this suite: without that event loop, `NSOpenPanel` can end the test process before the suite finishes, even with a zero exit status.
-
 ## Verification
 
 `NativeBrowserViewportTests` loads real loopback HTTP pages in WKWebView to
 verify that iframe attachment and unsupported-MIME responses preserve the
-main page. A rejected main-frame download likewise retains a displayable source document; an initial download without a source remains an explicit error. The same fixture covers new-window downloads, cancellation before document commit, native word navigation in DOM/shadow editors and dialogs, and annotation capture after target mutation/removal. Its annotation replay
+main page. A rejected main-frame download likewise retains a displayable source document; an initial download without a source remains an explicit error. Its annotation replay
 compares DOM geometry and the production document portal after zoom commands
-pass both WebKit limits, while asserting the removed annotation editor portal stays absent.
-Navigation fixtures explicitly admit the WebKit session with `setSuppressed(false)`,
-as the Browser presentation does; mounting a visible viewport alone does not admit annotation.
-Submission fixtures wait for the expected stage/send callback and the completed
-`sending` state, so idle before the queued task starts cannot certify completion.
-Run `xcrun swift test --package-path app/macos --no-parallel
---filter 'NativeBrowserViewportTests|NativeBrowserAnnotationTests'` in a graphical
-macOS session. `python3 tools/verification/reading-presentation/run.py --browser-viewport`
-runs all nine viewport cases and the HTTP media freshness case in an isolated AppKit event loop, including focused
-document Reload/Zoom through the real responder chain without changing host zoom.
-Plain SwiftPM retains the portal geometry, document layers, cookie isolation and
-navigation/cancellation cases. The annotation mouse-input and focused responder-
-chain cases explicitly require this native replay capability; a display alone
-cannot establish AppKit event-loop/key-window ownership.
+pass both WebKit limits, while asserting the removed annotation editor portal stays absent. Navigation fixtures explicitly admit the WebKit session with `setSuppressed(false)`,
+as the Browser presentation does; mounting a visible viewport alone does not admit annotation. Submission fixtures wait for the expected stage/send callback and the completed
+`sending` state, so idle before the queued task starts cannot certify completion. Plain SwiftPM retains the portal geometry, document layers, cookie isolation and
+navigation/cancellation cases.
 
 The detail Moku bar owns text and attachment persistence per profile and Thread.
 Browser annotation imports and send receipts retain their existing independent

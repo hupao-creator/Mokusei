@@ -11,9 +11,6 @@ Tag / Report 保留原有能力动画，配置同时可用；只移除 onboardin
 
 ## 运行
 
-```sh
-python3 demos/settings-tabs/build.py --verify --open
-```
 
 已构建当前 Swift 模块时可加 `--skip-build`。独立 app 路径写入
 `.build/settings-tabs/app-path.txt`，截图、点击记录与结果写入
@@ -35,17 +32,11 @@ python3 demos/settings-tabs/build.py --verify --open
   其中实色与过渡开关仅覆盖本提案外壳；系统无障碍设置仍由共用控件独立遵守。
   `⌘4` 切换外观，`⌘5` 切换高对比背景。
 
-## 验证边界
+## 运行
 
-原生回放通过 AppKit 实际点击顶部 tab 和继承/独立配置控件，通过生产交互注册操作 Moku map，
-检查 Report 直接访问、选择保留、至少一个 Target、键盘导航和关闭时的输入法保护。
-截图覆盖 Moku / Tag / Report 浅深色、General、窄窗口、对比背景与减少透明度。
-`02-tag-light` / `02a-tag-organized` 与 `03-report-light` / `03a-report-diagram`
-分别记录 Tag 下落到归类、Report 长文档到图示的动画阶段；
-`02aa-tag-retained` 与 `03aa-report-retained` 在原循环周期之后检查完成画面仍然保留。
-共用配置抽取后另运行原 onboarding demo 回放，检查原五步流程保持可用。
+```sh
+python3 demos/settings-tabs/build.py --open
+```
 
-所有模型、推理和安装状态均为确定性 fixture；不扫描 CLI、不调用模型、不启动 Runtime，
-不写入真实用户设置。此回放不认证真实账户 catalog、Runtime 保存或生产 Settings 生命周期。
-本目录保留提案的导航外壳；正式 Settings 使用其真实草稿、原生目录和保存机制。能力动画直接复用生产组件，未新增播放模式。
-不以本次 demo 的结果宣称生产集成或完整 CI 已通过。
+保留内存 fixture 和交互预览，自动断言与截图验收已删除。
+不扫描 CLI、不调用模型、不启动 Runtime，不写入真实用户设置。

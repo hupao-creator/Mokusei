@@ -159,21 +159,7 @@ and shell share one interpolated size. Responsive content reflows during travel
 instead of jumping to the destination width before the shell moves. See the
 [recording diagnosis and validation limits](../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
 
-New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).
-
-`make check` runs the complete `swift test` suite as well as building it. Native
-integration suites share the [test environment](Tests/Support/README.md) to isolate
-AppKit and main-actor timing across test targets. Tests requiring a WindowServer
-session and display visibly skip when those capabilities are absent; fixture-gated
-Go/native replays also print their required launcher. A green headless run does
-not certify those skipped UI or cross-language flows. The [Swift test audit](../../tools/verification/swift-tests/README.md)
-records the failure/skip inventory and reproduction commands.
-Hosted macOS CI now runs graphical tests and the Go/AppKit fixture launchers,
-rejecting unexpected skips. Its current-revision results replace equivalent
-local runs under the [verification policy](../../scripts/ci/verification-policy.md).
-[Windowless execution](../../scripts/ci/headless.md) runs reviewed whole suites
-before the graphical remainder in ordinary CI/local checks. Its independent
-developer command uses the same registry without replacing hosted native coverage.
+New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands.
 
 Workspace startup and Dock presence are narrow observable facts. `hasSnapshot`
 changes only when the workspace snapshot becomes present/absent, and the catalog
@@ -188,18 +174,10 @@ before retaining any profile-local state. Fresh rotation uses the same
 cross-process admission and lifetime locks; offline preferences and drafts
 therefore remain protected independently of the runtime service's ownership.
 
-Quit remains available during Reload and never requires successful runtime cleanup. It gives local cleanup up to three seconds before requesting process exit; a second Quit skips pending application/drain waits while admitting the Runtime cleanup helper. Errors go to profile diagnostics, and the existing epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data.
-Quit revokes the pending Reload's publication identity before cancelling it.
-The retiring presentation's resource cleanup remains tracked until it drains;
-its late completion cannot publish a replacement or clear a successor operation.
-If Settings rejects Quit, a new operation joins that same retirement and restores
-the workspace without discarding the unsaved Settings draft. The
-[workspace lifecycle replay](../../tools/verification/reading-presentation/README.md#workspace-reload-and-rejected-quit)
-exercises the production App owner and scoped resources through these interleavings.
-Once exit is accepted, diagnostic writers drain asynchronously under a separate
-750ms background deadline; a slow writer cannot hold process exit indefinitely.
-Timeout can lose the diagnostic tail and is reported through unified logging.
-A second Quit enters ordinary exit so atexit waits for the actual helper launch;
+Quit remains available during Reload and never requires successful runtime cleanup. It gives local cleanup up to three seconds before requesting process exit; a second Quit skips pending application/drain waits while admitting the Runtime cleanup helper. Errors go to profile diagnostics, and the existing epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data. Quit revokes the pending Reload's publication identity before cancelling it. The retiring presentation's resource cleanup remains tracked until it drains;
+its late completion cannot publish a replacement or clear a successor operation. If Settings rejects Quit, a new operation joins that same retirement and restores
+the workspace without discarding the unsaved Settings draft. Once exit is accepted, diagnostic writers drain asynchronously under a separate
+750ms background deadline; a slow writer cannot hold process exit indefinitely. Timeout can lose the diagnostic tail and is reported through unified logging. A second Quit enters ordinary exit so atexit waits for the actual helper launch;
 the independent deadline still forces exit if launch, logs or exit handlers
 block. It does not merely enqueue a helper immediately before `_exit`.
 
@@ -263,3 +241,7 @@ Reduce Transparency uses opaque palette fills. Single Report cards retain their
 ordinary flat material.
 See [Overview collection ownership](Sources/Host/Overview/README.md#viewed-application-collections)
 and the [production fixture](../../demos/super-thread-carousel/README.md).
+
+Production targets build with `xcrun swift build --package-path app/macos`.
+The package has no test targets or test-support modules. `make check` retains
+production builds and static checks; it does not run tests.

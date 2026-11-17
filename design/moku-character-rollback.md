@@ -56,9 +56,9 @@ Dock 球形化的直接父提交是 `3dd5e5a`，其中 Settings 地图已经球�
 | `app/macos/Sources/Shared/PluginUI/Resources/moku-map/moku-map-codex.png` | 删除该 Harness 的球体 PNG；不改应用图标。 |
 | `app/macos/Sources/Shared/PluginUI/Resources/moku-map/moku-map-opencode.png` | 删除该 Harness 的球体 PNG；不改应用图标。 |
 | `app/macos/Sources/Shared/PluginUI/Resources/moku-map/moku-map-pi.png` | 删除该 Harness 的球体 PNG；不改应用图标。 |
-| [app/macos/Tests/Integration/Host/NativeMokuNoteTests.swift](../app/macos/Tests/Integration/Host/NativeMokuNoteTests.swift) | 恢复现有调用的 eyesOnly: false 参数；断言和覆盖范围不变。 |
-| [app/macos/Tests/Integration/Host/NativeMokuTalkTests.swift](../app/macos/Tests/Integration/Host/NativeMokuTalkTests.swift) | 恢复现有历史按钮右侧布局的宽度边界预期；没有新增用例。 |
-| [app/macos/Tests/Integration/Host/NativeSettingsTransitionTests.swift](../app/macos/Tests/Integration/Host/NativeSettingsTransitionTests.swift) | 恢复现有深色玻璃面板的亮度预期；没有新增用例。 |
+| app/macos/Tests/Integration/Host/NativeMokuNoteTests.swift (historical; removed) | 恢复现有调用的 eyesOnly: false 参数；断言和覆盖范围不变。 |
+| app/macos/Tests/Integration/Host/NativeMokuTalkTests.swift (historical; removed) | 恢复现有历史按钮右侧布局的宽度边界预期；没有新增用例。 |
+| app/macos/Tests/Integration/Host/NativeSettingsTransitionTests.swift (historical; removed) | 恢复现有深色玻璃面板的亮度预期；没有新增用例。 |
 | [demos/README.md](../demos/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
 | [demos/landing-setup/README.md](../demos/landing-setup/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
 | [demos/moku-gradient-material/README.md](../demos/moku-gradient-material/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
@@ -69,12 +69,12 @@ Dock 球形化的直接父提交是 `3dd5e5a`，其中 Settings 地图已经球�
 | `demos/moku-orb-rebrand/validation.md` | 删除仅用于球形方案的预览文件，避免引用已删除的主题 API。 |
 | [demos/settings-navigation/README.md](../demos/settings-navigation/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
 | [tools/verification/README.md](../tools/verification/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
-| [tools/verification/moku-appearance/README.md](../tools/verification/moku-appearance/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
-| [tools/verification/moku-appearance/main.swift](../tools/verification/moku-appearance/main.swift) | 恢复现有 headless 外观回放的深色 Settings 预期；未执行回放。 |
-| [tools/verification/moku-orbit/README.md](../tools/verification/moku-orbit/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
-| [tools/verification/moku-orbit/main.swift](../tools/verification/moku-orbit/main.swift) | 仅移除已删除的球形主题环境注入；环绕/推理断言与算法不变。 |
-| [tools/verification/moku-reasoning/README.md](../tools/verification/moku-reasoning/README.md) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
-| [tools/verification/moku-reasoning/main.swift](../tools/verification/moku-reasoning/main.swift) | 仅移除已删除的球形主题环境注入；环绕/推理断言与算法不变。 |
+| tools/verification/moku-appearance/README.md (historical; removed) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
+| tools/verification/moku-appearance/main.swift (historical; removed) | 恢复现有 headless 外观回放的深色 Settings 预期；未执行回放。 |
+| tools/verification/moku-orbit/README.md (historical; removed) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
+| tools/verification/moku-orbit/main.swift (historical; removed) | 仅移除已删除的球形主题环境注入；环绕/推理断言与算法不变。 |
+| tools/verification/moku-reasoning/README.md (historical; removed) | 同步当前外观、入口或验证范围文档，清除球形预览的失效链接。 |
+| tools/verification/moku-reasoning/main.swift (historical; removed) | 仅移除已删除的球形主题环境注入；环绕/推理断言与算法不变。 |
 
 ## 清理清单与保留边界
 

@@ -36,8 +36,7 @@ Installation owns npm's process group, its lifecycle-script descendants and both
 output readers. Cancellation and leader exit drain them with bounded TERM/KILL
 cleanup before returning; uncertain cleanup remains an error. Combined captured
 output is limited to 8 MiB, and cancellation, output-limit and nonzero-exit failures
-remain observable. The [installer replay](../../../../tools/verification/harness-install/README.md)
-checks the production installation path with a local npm executable fixture.
+remain observable.
 
 Go owns process startup/shutdown, authenticated HTTP, reconnecting SSE, durable log
 reconciliation, session identity reservation, state projections, execution admission,
@@ -66,8 +65,7 @@ Canonical persisted state is version 2; the renderer projection is a separate,
 transient contract that remains version 1. Version 1 canonical state duplicated
 assistant text/reasoning as aggregates and tool text beside structured data, so it
 is rejected with an explicit rebuild/clear error rather than silently dropping
-thinking-only replies; there is no in-place migration before release.
-If a projection would exceed the content transport boundary, the adapter sends a
+thinking-only replies; there is no in-place migration before release. If a projection would exceed the content transport boundary, the adapter sends a
 bounded fallback instead of failing the whole surface: raw tool payloads are
 removed, producer-rendered tool displays and scalar fields are truncated,
 assistant parts stay the sole body (no empty aggregate is injected), deferred
@@ -86,22 +84,12 @@ execution outcome. Authors are capped at Swift's 4,096-byte field limit;
 reasoning foregrounds are capped at Swift's 32,768-code-point head guard. A final
 whole-envelope check falls back to a minimal legal projection, preserving
 execution outcomes, if a non-interaction field still escapes the budget. The adapter may encode the envelope at most six times:
-one initial check, four degraded stages, and one fixed-size minimal fallback.
-The renderer source indexes only the message fields used by the one-body
+one initial check, four degraded stages, and one fixed-size minimal fallback. The renderer source indexes only the message fields used by the one-body
 projection (identity, tool display inputs and presence flags) and releases the
 duplicate encoded collections before projecting, so peak memory stays close to
-canonical state instead of retaining a second full conversation.
-The projection carries `contentTruncated` so the native reader can explain the
-omission/truncation; the authoritative session state is never rewritten. The
-targeted adapter tests cover light/heavy/skeleton/final stages, the 24 MiB
-boundary, the deferred presence budget with valid reasoning-part markers, dedupe,
-retained reasoning presence, long-ID rejection, pending interaction
-correspondence, latest-execution retention, parts normalization, helper contracts
-and the size estimator; Swift tests decode the minimal projection and a
-conditional native form, and verify one truncation notice per presentation. A
-transport test covers the 32 MiB accept/reject boundary.
-An HTTP prompt receipt admits input; terminal native execution facts settle it.
-New executions retain their input before dispatch. Follow-up message retention
+canonical state instead of retaining a second full conversation. The projection carries `contentTruncated` so the native reader can explain the
+omission/truncation; the authoritative session state is never rewritten. A
+transport test covers the 32 MiB accept/reject boundary. An HTTP prompt receipt admits input; terminal native execution facts settle it. New executions retain their input before dispatch. Follow-up message retention
 requires a native prompt receipt or matching native inbox/history evidence;
 the command's `Admitted` callback still requires its successful HTTP prompt
 receipt. Lost HTTP acknowledgement is not automatically retried or converted
@@ -190,19 +178,6 @@ clean up the temporary session before closing its independently owned runtime.
 Text, file/skill references, PNG/JPEG/WebP/GIF images and PDFs are supported. Audio and
 nonautomatic image detail remain explicit errors, matching the previous adapter.
 
-Verification is provided by the deterministic integration runner at
-[`tools/verification/opencode`](../../../../tools/verification/opencode/README.md).
-The runner covers process and credential failure
-boundaries with a local fake executable, and optionally exercises the installed
-native CLI with a scripted loopback model endpoint and isolated temporary profiles.
-The native replay also proves synthetic OAuth refresh and durable rotation in an
-isolated profile. It resolves and saves native default execution settings without
-`default_agent`, then sends through the production Thread adapter before and after
-a cross-provider model/variant change. The loopback model request must use the new
-wire model and thinking encoding while retaining conversation history, native
-session identity and each execution's original model attribution.
-Live native account inference requires separate verification.
-
 ## Permission and account boundaries
 
 `permissionMode` accepts `auto` or `default`. An omitted creation option inherits configured Harness mode, falling back to `auto`. Automatic mode replies once only after native deny policy allows the request; forms still need typed responses. Reconnect skips already answered or stopped interactions, and no wildcard persistent allow rule is installed.
@@ -216,10 +191,7 @@ paths use the native process environment's `HOME`, with the existing
 reports failed session deletion or runtime/workspace cleanup; a runtime cleanup
 failure retains the owned workspace.
 
-`./scripts/go.sh test -race ./internal/plugins/harness/opencode` covers bridge
-revision atomicity and callback draining, environment ownership, version-probe
-descendants, SSE shutdown, completion cleanup and Thread admission/cancellation
-with local HTTP and filesystem fixtures. The installed-native `thread` replay
+The installed-native `thread` replay
 also verifies that reserved JavaScript property names remain callable tool aliases.
 
 ## Initial response cards
@@ -229,10 +201,6 @@ execution index and fork/history provenance before compaction. This fixed-size
 fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
 retains its existing precedence. Other scopes omit the field.
-
-The adapter replay also checks this boundary with shared production-renderer
-fixtures in `tools/verification/firstresponse`. The native cross-language replay
-is `python3 tools/verification/reading-presentation/run.py --initial-response`.
 
 Settings presentation publishes an immutable native model/agent/default catalog
 before optional Console account/remote billing checks finish. The response marks
@@ -251,7 +219,7 @@ an already published native projection. Refresh replaces only the matching
 cwd/configuration-cwd/executable/environment/file-generation flight; obsolete
 results cannot publish. No disk snapshot or credentials enter UI/cache persistence.
 
-Form string defaults use the same model validator as public answers. External URLs use no-base WHATWG parsing, including nonfatal percent-encoding errors. An empty native form title displays “OpenCode request”; form/session identities remain required. `interactions_contract_test.go` exercises reducer admission, default preflight and typed answers with native contract regression values.
+Form string defaults use the same model validator as public answers. External URLs use no-base WHATWG parsing, including nonfatal percent-encoding errors. An empty native form title displays “OpenCode request”; form/session identities remain required.
 
 This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
 input protocol has no proven atomic active-only condition. Lazy Moku notices

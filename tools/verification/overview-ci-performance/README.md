@@ -294,4 +294,4 @@ when B is cheaper. Both opposite orders must be inspected; these two pairs are
 an initial screen, not a confidence interval. Do not pair percentages from
 different CI machines or combine these values with historical local M1 results.
 Regressions remain visible in the report instead of being hidden behind a pass
-threshold. Ordinary CI still owns functional and true WindowServer-pixel checks.
+threshold. Ordinary CI now retains only production builds and static checks; it provides no functional or pixel test coverage.

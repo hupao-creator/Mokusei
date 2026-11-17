@@ -118,11 +118,6 @@ flow joins the earlier discovery-seeded target save through the production flush
 After onboarding, it checks the exact Settings section order for the full
 production application composition with the built-in role sections:
 
-```sh
-make runtime
-./scripts/go.sh run -race ./tools/verification/settings -runtime "$PWD/.build/go/mokusei-runtime"
-python3 tools/verification/reading-presentation/run.py --moku-landing
-```
 
 The deterministic [visual demo](../../../../../demos/landing-setup/README.md)
 remains available for appearance and animation review. The production settings

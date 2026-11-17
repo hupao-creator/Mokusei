@@ -19,5 +19,3 @@ whitespace and backslashes in macOS filenames remain part of their identity;
 the filesystem root is a directory scope, distinct from Inbox.
 
 Removal and recovery validate recorded ownership and filesystem/Git identity before cleanup. Closing a client does not release task workspaces. History/reset cleanup participates in Runtime's drained generation and preserves failure rather than deleting unknown external state.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/storage-workspaces` and `./scripts/go.sh test -race ./internal/services/workspaces ./internal/services/directorytag`.

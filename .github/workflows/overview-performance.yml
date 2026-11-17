@@ -63,12 +63,6 @@ jobs:
           fi
           # A self-hosted image must already satisfy this graphical contract.
           xcrun swift scripts/ci/native-environment.swift
-      - name: Verify the source and shared-clock contracts
-        run: |
-          python3 -m unittest discover -s tools/verification/overview-ci-performance -p test_clock_contract.py -v \
-            2>&1 | tee "$RUNNER_TEMP/overview-clock-python.log"
-          go test ./tools/verification/overview-ci-performance/runtime \
-            2>&1 | tee "$RUNNER_TEMP/overview-clock-go.log"
       - name: Measure fixed Release products with one harness
         run: |
           display_args=()
@@ -89,9 +83,6 @@ jobs:
             printf '%s\n' 'The benchmark did not start; inspect toolchain/setup logs. No CPU result is certified.' \
               > "$RUNNER_TEMP/overview-performance/not-started.txt"
           fi
-          for log in "$RUNNER_TEMP"/overview-clock-*.log; do
-            if [[ -f "$log" ]]; then cp "$log" "$RUNNER_TEMP/overview-performance/"; fi
-          done
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:

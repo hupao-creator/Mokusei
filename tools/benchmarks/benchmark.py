@@ -36,33 +36,21 @@ def main():
     run.add_argument('--mode',choices=('observed','minimal'),default='observed')
     run.add_argument('--agent-emoji-badge',choices=('flat','liquid-glass'),
         help='explicit badge experiment; requires a supporting artifact and its configuration receipt')
-    compare.set_defaults(native_hitches=False)
-    for command in (build,calibrate,run):
-        command.add_argument('--native-hitches',action='store_true',
-            help='explicit XCTest diagnostic; requires pre-authorized Developer Tools access; never part of the default run')
     analyze=commands.add_parser('analyze',help='offline reanalysis; does not reseal or change evidence')
     analyze.add_argument('directory',type=Path)
-    commands.add_parser('conformance',help='portable adverse protocol/scorer replays')
     args=parser.parse_args()
-    if args.command=='conformance':
-        from conformance.replay import main as replay
-        return replay()
     if args.command=='analyze':
         from analysis.report import write_report
         result=write_report(args.directory)
         print(json.dumps(result,indent=2))
         return 0 if result['measurement']=='valid' and result['product']=='passed' else 2
-    if sys.platform!='darwin':parser.error('live collection requires macOS; conformance/analyze are portable')
+    if sys.platform!='darwin':parser.error('live collection requires macOS; analyze is portable')
     from build import build as build_tools
-    if args.native_hitches:
-        from hitches import preflight
-        try:preflight()
-        except RuntimeError as error:parser.error(str(error))
-    tools=build_tools(args.tools.resolve(),native_hitches=args.native_hitches)
+    tools=build_tools(args.tools.resolve())
     if args.command=='build': print(tools);return 0
     from runner import calibrate as calibrate_controls, run_suite
     if args.command=='calibrate':
-        result=calibrate_controls(tools,args.output.resolve(),native_hitches=args.native_hitches)
+        result=calibrate_controls(tools,args.output.resolve())
         print(json.dumps(result,indent=2));return 0 if result['passed'] and result['pixelsPassed'] else 2
     if not 4<=args.seconds<=120:parser.error('--seconds must be 4..120')
     if not .05<=args.warmup_seconds<=120:parser.error('--warmup-seconds must be .05..120')
@@ -84,7 +72,7 @@ def main():
         return 2  # Descriptive observations never certify the incomplete full benchmark.
     results=run_suite(tools,args.app.resolve(),args.output.resolve(),args.count,args.scenario,args.mode,args.seconds,
                       args.capabilities.resolve() if args.capabilities else None,args.pacing,args.chunk_bytes,args.message_bytes,
-                      native_hitches=args.native_hitches,emoji_badge=args.agent_emoji_badge,
+                      emoji_badge=args.agent_emoji_badge,
                       warmup_seconds=args.warmup_seconds,window_bounds=bounds)
     print(json.dumps([{k:r.get(k) for k in ('path','measurement','product','comparison','reasons')} for r in results],indent=2))
     # Exit 2 means an incomplete/unsupported experiment, never a performance gate.

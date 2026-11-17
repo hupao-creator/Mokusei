@@ -67,7 +67,7 @@ GraphHost.flushTransactions → PlatformViewChild.updateValue
 原生 hide 合并到下一次主队列执行。恢复与卸载会使旧 hide 失效，恢复时仍使用
 原来的 host 和最新环境、内容、尺寸。没有延迟正文更新或返回准备。
 
-[现有 Moku landing 回放](../app/macos/Tests/Integration/Host/NativeMokuLandingTests.swift)
+现有 Moku landing 回放 (historical; removed)
 的 `realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer` 加入该真实生产
 组件的焦点场景：三次冻结/恢复、检查本场景新增 stderr 无循环、输入控件身份与
 内容保留、即时 pointer/AX 门禁，以及返回/卸载取消旧 hide。它沿用已有原生

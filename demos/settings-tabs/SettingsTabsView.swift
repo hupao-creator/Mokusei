@@ -61,7 +61,7 @@ struct SettingsTabsSurface: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                LandingSurface(fixture: fixture.setup.landing, showsDock: !fixture.open, glassWorld: fixture.glassWorld)
+                LandingSurface(fixture: fixture.setup.landing, showsDock: !fixture.open)
                     .blur(radius: fixture.open ? 10 : 0)
                     .allowsHitTesting(!fixture.open).accessibilityHidden(fixture.open)
                 if fixture.setup.contrastBackdrop && fixture.open {

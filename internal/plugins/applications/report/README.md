@@ -115,17 +115,9 @@ runner for session lifecycle; Report no longer reads its output locale.
 
 A settings save that races configuration discovery causes re-resolution within
 the same batch attempt, without failure backoff. Existing idle-session reuse
-passes the same saved-version check. The Runtime replay covers these boundaries
-through the production Tag/Report participants, active steering, next-batch
-adoption and independent profiles that remain unaffected by Moku edits.
+passes the same saved-version check.
 
 The Swift [Report application](../../../../app/macos/Sources/Plugins/Applications/Report/) supplies cards and a native HTML reading route using the shared navigation stack. Report documents have no ordinary task execution lifecycle. Their tags decorate the document and do not independently create Overview filter membership.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh run -race ./tools/verification/runtime` and `./scripts/go.sh test -race ./internal/plugins/applications/report` from the repository root.
-The headless Runtime replay checks the exact four-tool exclusive binding set,
-scoped completed-execution data delivery and the actual Report session's injected skill
-against the upstream SHA-256 and rejects the removed style/language guidance in
-system instructions, tool descriptions and initial/steering batch messages.
 
 Preview uses a non-executing HTML tree parser. It decodes standard
 entities once, joins inline text without invented spaces, separates structural
@@ -239,8 +231,7 @@ ordinary Agent send/fork/receipt route; folding or returning to the list restore
 Moku (see [Moku](../../../services/moku/README.md)).
 
 Sprint validation: Go formatting, architecture lint, vet and builds, and the Swift
-application product build only. No tests, integration replays, CI, PR, push or merge
-are part of this change. Native focus/animation, accessibility, real voice,
+application product build only. Native focus/animation, accessibility, real voice,
 concurrent binding and legacy-data interactions require later validation.
 
 ## Archive visibility

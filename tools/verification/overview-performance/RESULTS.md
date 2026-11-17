@@ -164,5 +164,5 @@ Core Animation FPS 和 Frame Lifetimes，故“没有模板”不适用于本轮
 
 后续已接续用户授权，切到已集成生产 `e7afacc21`，完成工具隔离修正与 run-4/run-5 验证。
 run-5 在没有输入／失焦的情况下于第 6 段遇到主机负载超限，保存数据后停止；完整对照仍未完成。
-新的构建、各段有效性、后台依赖和可复核归档见[接续记录](../overview-input/evidence/glass-completion/README.md)，
+新的构建、各段有效性、后台依赖和可复核归档见接续记录 (historical; removed)，
 不与本节旧构建样本混用，也不从局部样本推断材质优劣。

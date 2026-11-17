@@ -132,25 +132,15 @@ request IDs, native call IDs, and returned JSON. The resource applies the
 system-prompt string chosen by Go at Pi's native hook boundary.
 
 Bridge shutdown stops new calls and cancels existing callbacks; Close waits for
-their cleanup before returning. Tool implementations must observe cancellation.
-A callback panic becomes a tool error without exposing its panic payload or
-terminating the runtime. Local package fixtures cover cleanup barriers, panic
-recovery and cancellation before native command dispatch.
+their cleanup before returning. Tool implementations must observe cancellation. A callback panic becomes a tool error without exposing its panic payload or
+terminating the runtime.
 
-Local shutdown tests use real child processes for EOF, SIGTERM/SIGKILL escalation,
-owner cancellation, concurrent Close results and final native JSONL publication.
 A blocked protocol reader exercises the incomplete-cleanup path; callback-driven
-Close cases ensure the application dispatcher is never asked to join itself.
-The adapter scenario crosses Open, Send, Close and the committed session-state
-projection. Existing deterministic runtime and native replays cover the wider
-storage and external-CLI boundaries.
+Close cases ensure the application dispatcher is never asked to join itself. The adapter scenario crosses Open, Send, Close and the committed session-state
+projection.
 
-`resources/read-guard.mjs` blocks all native tool calls during a history read.
-Its command registration lets Go verify the exact guard file loaded. Both
-resources are embedded by `go:embed`; neither requires Node or npm to build.
-The default Linux adapter replay imports the actual guard resource with Node
-and invokes its registered callback for native and custom tool calls, requiring
-`block: true` independently of the command marker. The installed-Pi replay
+`resources/read-guard.mjs` blocks all native tool calls during a history read. Its command registration lets Go verify the exact guard file loaded. Both
+resources are embedded by `go:embed`; neither requires Node or npm to build. The installed-Pi replay
 retains responsibility for proving the native loader and tool boundary.
 
 ## Preserved native limits
@@ -171,10 +161,6 @@ fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
 retains its existing precedence. Other scopes omit the field.
 
-The adapter replay also checks this boundary with shared production-renderer
-fixtures in `tools/verification/firstresponse`. The native cross-language replay
-is `python3 tools/verification/reading-presentation/run.py --initial-response`.
-
 Settings state and full-catalog readers share a native observation flight. The
 observation process uses `--offline`: discovery reads Pi's local configuration and
 cached model catalog without starting a background network catalog refresh. Such
@@ -192,21 +178,12 @@ environment, executable and config/auth/model file metadata. Successful full
 observations retain five-minute freshness; incomplete observations keep the
 existing short retry interval. Native execution confirmation remains unchanged.
 
-The deterministic replay includes mixed state/catalog sharing. Add
-`-settings-performance` for isolated cold/warm measurements; see the
-[measurement scope](../../../../tools/verification/settings-performance/README.md).
-Closing the adapter cancels and joins all discovery flights, including those
-superseded by refresh. A failed native process cleanup remains observable and
-fences replacement discovery until a new adapter is constructed.
-
-Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding. The deterministic Pi replay covers child-process editor requests through default adoption and native reply.
+Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding.
 
 Interaction lifecycle fixtures run the production adapter and Session dispatcher
 against a child-process peer. A controlled pipe write pauses after the complete
 answer reaches native input, exposing immediate settlement and already fired
-expiry callbacks before local consumption. Separate partial-write cases require
-Interrupt and Close to unblock the pipe; the adapter replay covers a cancelled
-pre-write answer followed by a successful retry of the same interaction.
+expiry callbacks before local consumption.
 
 This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
 input protocol has no proven atomic active-only condition. Lazy Moku notices

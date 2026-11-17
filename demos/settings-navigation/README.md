@@ -9,20 +9,9 @@
 swift build --package-path app/macos
 python3 demos/settings-navigation/build.py
 .build/settings-navigation/SettingsNavigationDemo.app/Contents/MacOS/SettingsNavigationDemo
-# 保持可交互时追加 --interactive
 ```
 
-结果写入 `.build/settings-navigation/result.txt`，截图写入其 `screenshots/`。
-覆盖浅色、深色、紧凑、窄窗口英文及多级缩放；验证关闭目标留在视口内、
-IME 阻止关闭、分类键盘导航，以及无效分类回退 General。
-设置面板恒定深色，因此浅色窗口截图同时验证“浅色工作区中的深色设置页”。
-截图使用 ScreenCaptureKit，仅捕获 fixture 窗口。
-完整面板生命周期和背景点击验收见
-[Settings 回放](../../tools/verification/reading-presentation/README.md#settings-capsule-and-return)。
-另存四个 Harness 的 Moku 页浅色、深色及单目标截图，验证透明图标座位、
-派发短横线和虚线路径，以及生产协调/派发绑定和最后目标保护。
-“模型选择偏好”四个独立胶囊按钮复用 Agent 运行方式样式，选中项带勾，窄窗口自动换行。分别操作经济、平衡、性能、自定义，检查绑定并保存紧凑中英文截图；说明只使用“高性价比模型／前沿模型”，实际路由策略不变。
-截图覆盖浅色、深色工作区；面板固定深色，始终使用系统不透明背景，无降低透明度分支。回放不修改用户的系统辅助功能偏好。
+预览保持交互，自动断言和截图验收已删除。
 
 数据和保存使用内存 fixture；偏好写入 demo 私有 profile。
 不启动 Runtime、模型服务或麦克风。Harness 子表单为空，不代表其功能已验证。

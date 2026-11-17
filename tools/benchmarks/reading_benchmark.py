@@ -12,7 +12,6 @@ from reading.plan import SCENARIOS
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("conformance", help="portable reading protocol and scorer replays")
     build_command = commands.add_parser("build", help="build shared collectors and independent reading control")
     build_command.add_argument("--tools", type=Path, required=True)
     calibrate = commands.add_parser("calibrate", help="native normal/frozen/wrong/delayed/stalled scroll controls")
@@ -29,9 +28,6 @@ def main():
     analyze = commands.add_parser("analyze", help="shared offline evidence analysis")
     analyze.add_argument("directory", type=Path)
     args = parser.parse_args()
-    if args.command == "conformance":
-        from reading.conformance import main as replay
-        return replay()
     if args.command == "analyze":
         from analysis.report import write_report
         print(json.dumps(write_report(args.directory), indent=2))

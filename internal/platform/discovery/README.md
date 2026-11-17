@@ -18,9 +18,6 @@ Adapters own the list of native configuration paths. File metadata cannot observ
 keychain/remote account changes or every transitive native configuration include;
 TTL, explicit refresh and live native execution checks remain necessary.
 
-`make check` includes the cancellation, close/drain, refresh publication, failure
-retention and profile/file identity tests with the race detector.
-
 Adapters wrap cleanup errors with `Cleanup`. The cache retains this ownership
 failure even after the reader leaves, fences replacement acquisition and reports
 it from Close. Ordinary native read failures do not poison other keys.

@@ -22,7 +22,7 @@
 后续已衔接生产 `e7afacc21`，修复启动／污染停止／严格分析流程。新 run-5 的前 5 段有效，
 第 6 段因全机 busy 41.29% 自动停止；当时无用户输入或失焦，但 CodexBar、日常 Mokusei／Runtime 有后台负载。
 剩余依赖是约 15 分钟持续低后台负载、无编译／GUI 干扰的窗口，不能只要求鼠标静止。
-[接续报告、图表与原始归档](../overview-input/evidence/glass-completion/README.md)。
+接续报告、图表与原始归档 (historical; removed)。
 GPU／真实呈现指标仍缺少有效可归因轨迹；本机有相应仪器模板，但一次无窗口探测未产生可用 trace。
 没有更改系统 Developer mode。
 

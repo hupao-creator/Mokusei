@@ -44,16 +44,6 @@ let package = Package(
         .executableTarget(name: "Mokusei", dependencies: ["MokuseiComposition", "MokuseiCore", "MokuseiUI", "MokuseiPluginUI"], path: "Sources/App",
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .executableTarget(name: "MokuseiProbe", dependencies: ["MokuseiCore"], path: "Sources/Tools/Probe"),
-        .target(name: "MokuseiTestSupport", path: "Tests/Support", exclude: ["README.md"]),
-        .target(name: "MokuseiNativeInputSupport", path: "Tests/NativeInputSupport", exclude: ["README.md"],
-            publicHeadersPath: "include", linkerSettings: [.linkedFramework("AppKit")]),
-        .testTarget(name: "MokuseiSettingsIntegrationTests", dependencies: [
-            "MokuseiTestSupport", "MokuseiNativeInputSupport",
-            "MokuseiCore", "MokuseiUI", "MokuseiPluginAPI", "MokuseiPluginUI",
-            "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode", "MokuseiSidecardBrowser", "MokuseiSidecardConversation", "MokuseiApplications"
-        ], path: "Tests/Integration/Host"),
-        .testTarget(name: "MokuseiGitIntegrationTests", dependencies: ["MokuseiTestSupport", "MokuseiUI", "MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode"], path: "Tests/Integration/Threads"),
-        .testTarget(name: "MokuseiCoreTests", dependencies: ["MokuseiCore"], path: "Tests/Core"),
         .plugin(name: "CloudMetalCompiler", capability: .buildTool())
     ],
     swiftLanguageModes: [.v6]

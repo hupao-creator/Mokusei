@@ -1,12 +1,9 @@
 # External Overview rendering benchmark
 
 This Python CLI runs against a **built, signed production Release `.app`**. It
-builds only its independent macOS collectors and control app. An XCTest UI
-target is built only for an explicitly requested native-hitch diagnostic.
-It never imports product modules, reads Overview types or writes product
+builds only its independent macOS collectors and control app. It never imports product modules, reads Overview types or writes product
 persistence. Copy this directory outside the repository to run it independently.
-Python 3.10+, macOS 26 and Xcode 26 are required for live collection; conformance
-and offline analysis use the Python standard library on Linux or macOS.
+Python 3.10+, macOS 26 and Xcode 26 are required for live collection; offline analysis use the Python standard library on Linux or macOS.
 
 The [Agent Thread reading extension](reading/README.md) shares these collectors,
 public fixture/lifecycle boundaries and evidence contracts. It separately measures
@@ -23,7 +20,6 @@ scenarios, not exclusive CPU attribution to a rendering module.
 ## Run
 
 ```sh
-python3 tools/benchmarks/benchmark.py conformance
 python3 tools/benchmarks/benchmark.py build --tools /private/tmp/overview-tools
 python3 tools/benchmarks/benchmark.py calibrate \
   --tools /private/tmp/overview-tools --output /private/tmp/overview-controls
@@ -46,12 +42,8 @@ The default build/calibration/run path does not launch XCTest, Instruments,
 `sudo`, or an authorization dialog. Read-only permission probes fail before
 fixture launch if the invoking context lacks an existing desktop permission.
 The CLI never changes Developer Tools authorization or system security settings.
-`--native-hitches` explicitly opts into the separate XCTest diagnostic for
-`build`, `calibrate` and `run`. It requires Developer Tools authorization already
-enabled and fails preflight otherwise; no interactive authorization is requested
-by the CLI. This extension is not needed to collect the default resource/pixel
-baseline. Default reports retain native hitches as unavailable, never zero or
-passed; optical progress/stall estimates are not native frame-hitch metrics.
+Native XCTest hitch collection has been removed. Reports retain native hitches
+as unavailable; optical progress/stall estimates are not native frame-hitch metrics.
 The collector records foreground loss, missed input deadlines and capture gaps.
 Response/stasis estimates retain sampling bounds. A bound that straddles the
 declared progress deadline is incomplete evidence; only a lower bound beyond
@@ -308,12 +300,9 @@ approaches are now historical; the prototype and failed preparation are archived
 
 ## Verification boundary
 
-`conformance` exercises the real parsers, source schedules and offline scorer
-with synthetic adversarial evidence; it cannot certify a macOS collector. Hosted
-Linux CI runs it. `calibrate` uses separate normal/frozen/wrong/delayed-motion,
-main-thread-stall, SwiftUI drag and short-lived-child controls with the same collectors.
-Its default wrong-owner control rejects a mismatched birth identity before any
-input/capture; it is separate from the opt-in native hitch ownership control.
+`calibrate` retains independent normal/frozen/wrong/delayed-motion, main-thread-stall,
+SwiftUI drag and short-lived-child controls to establish collector capability.
+Portable conformance tests and the optional XCTest diagnostic have been removed.
 Signed production GUI experiments remain local because CI has no production
 signing credentials. See [verification policy](../../scripts/ci/verification-policy.md).
 

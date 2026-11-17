@@ -3,8 +3,9 @@
 推荐使用生产路径：
 
 ```sh
-python3 demos/thread-panel-transition/build.py --production --verify --open
+python3 demos/thread-panel-transition/build.py --production --open
 ```
+
 
 已有当前 Swift build 时可加 `--skip-build`。`--production` 使用正式
 `NativeReadingPageStack` / compositor、真实卡片身份锚点和生产 Markdown 阅读器；
@@ -18,18 +19,5 @@ python3 demos/thread-panel-transition/build.py --production --verify --open
 - Moku 和三个真实 Sidecard 插件仍在；fixture 不执行任务、不打开麦克风。
 - 原生菜单提供打开首个任务、关闭、深浅色。慢速开关仅作用于旧提案；生产路径使用正式时序。
 
-`--production --verify` 检查实际来源锚点、加载中和已有正文时的一次到位（真实标题交接偏差小于 1pt）、正文完整显示、正常关闭和打开中途关闭。已有正文案例要求真实文本在面板仍运动时已经挂载，由原生面板宿主保持隐藏。原生 presentation layer 断言检查外壳到位前保持不透明、缩放完成后才交接卡片。
-另覆盖录屏中的宽窗口、无侧栏场景：标题与正文列必须保持居中，加载前后标题坐标一致。
-`production-05-wide-loading.png` 和 `production-06-wide-ready.png` 保存这两个阶段。
-`production-*.png` 与 `production-identity.json` 保存在
-`.build/thread-panel-transition/evidence/`；独立 app 路径写入同目录上级的 `app-path.txt`。
-失败记录保存在 `.build/thread-panel-transition/failures/`。
 
-生产工作区、嵌套历史和异步回收还需结合：
-
-```sh
-MOKUSEI_SWIFT_SKIP_BUILD=1 python3 tools/verification/reading-presentation/run.py
-MOKUSEI_SWIFT_SKIP_BUILD=1 python3 tools/verification/reading-presentation/run.py --moku-landing
-```
-
-这些回放串行持有图形会话锁；不可与其他原生/CUA 回放同时运行。
+自动断言、截图验收和验证报告入口已删除，保留交互预览与内存 fixture。

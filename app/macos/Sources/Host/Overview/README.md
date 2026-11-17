@@ -37,9 +37,7 @@ transaction.
 While the first creation awaits native admission, the canvas and filters stay
 covered by landing so a durable, unadmitted shell cannot replace the primary
 input. Ordinary eligibility rules, including archive and terminal visibility,
-are shared with Overview rather than reimplemented by the Dock. The
-[native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
-checks this distinction against real catalog transactions. Each scope selection
+are shared with Overview rather than reimplemented by the Dock. Each scope selection
 normalizes its distinct labels once. The
 [CPU benchmark and scenario matrix](../../../../../tools/verification/overview-performance/README.md)
 distinguishes model work from GUI and GPU work.
@@ -116,11 +114,9 @@ structural snapshot until exit finishes. Newer content can adopt an existing
 slot only for the same structural identity; a different incarnation starts its
 own slot. Source replacement retires the old ownership.
 
-Presented placements have an identity index rebuilt only with a new layout.
-Each pan/zoom input checks the current attention identities against that index,
+Presented placements have an identity index rebuilt only with a new layout. Each pan/zoom input checks the current attention identities against that index,
 so finished and unrelated placements do not participate. The empty attention set
-returns immediately. The mounted replay checks the actual callback's visit count
-while preserving mounted identities and layout state.
+returns immediately.
 
 Offscreen attention changes notify the mounted coordinator without routing
 ordinary text updates through canvas attachment or moving the camera. Structural,
@@ -136,11 +132,7 @@ workspace-owned reference whose current receivers are refreshed when the
 workspace view is rebuilt, so mounted actions reach the latest receiver without
 remounting.
 
-The existing mounting, transition and membership integration suites exercise
-single-card text delivery with unchanged canvas-body/solver counts, retained
-native identities, queued incompatible footprints and reversals, current-scene
-camera memory, and the last visible snapshot surviving model pruning during
-exit. The body counter is an observation-boundary diagnostic, not a CPU/FPS
+The body counter is an observation-boundary diagnostic, not a CPU/FPS
 measurement.
 
 The production card closure alone enables `threadCardNativeDecorationsEnabled`.
@@ -238,8 +230,7 @@ view value across animation ticks. Ticks only sample the pose and apply its
 geometry, opacity and accessibility state; they do not rerun the shell/semantic
 content builder. New card inputs still replace the value without changing its
 mounted identity, and child state, Observation and environment updates remain
-live. The native resize replay changes presentation and locale during motion and
-checks the retained semantic identity and final geometry.
+live.
 
 [NativeOverviewStageCoordinator](NativeOverviewStageCoordinator.swift) serializes card spatial motion with Moku. Camera geometry is latest-wins and does not wait in that card queue. Explicit return to automatic framing restores the latest collection fit. Temporary interaction/visibility pauses defer that reset; fresh manual input cancels it. First nonempty layout prepares its camera before revealing cards.
 
@@ -248,13 +239,9 @@ with no persisted mode selector. Existing preferences and user data need no
 migration or cleanup.
 
 The workspace supplies the Dock reservation from the same idle capsule geometry
-used by the renderer (44pt height plus its viewport-dependent bottom seat).
-Transient composer/note expansion stays an interaction overlay and does not
+used by the renderer (44pt height plus its viewport-dependent bottom seat). Transient composer/note expansion stays an interaction overlay and does not
 repack the scene. The reservation consumes the existing vertical padding budget;
-the remaining preferred space is split equally above and below the collection.
-This keeps ordinary wide-window packing while balancing the gaps to controls.
-The [balance investigation](../../../../../tools/verification/overview-layout/BALANCE.md)
-records screenshot measurements, the compact fallback and verification limits.
+the remaining preferred space is split equally above and below the collection. This keeps ordinary wide-window packing while balancing the gaps to controls.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
@@ -287,7 +274,7 @@ Filter capsules omit visible member counts, including in directory menus; counts
 
 Menu opening uses a 220ms smooth spring with zero extra bounce, both after initial measurement and when retargeting a mounted menu. Closing retains its existing timing. Menu closure morphs each mounted child capsule back into the measured parent capsule over 320ms. Position and size interpolate continuously; labels retire earlier than the glass, and the surface only disappears as it overlaps the parent. Reopening retargets the same mounted identities from their current presentation. Removed children remain in their old row slots during the return, then surviving children reflow smoothly. A removed directory fades its whole menu envelope because its return destination no longer exists. Retiring controls cannot receive clicks or accessibility actions. After menu exit, title, divider and prefix changes use a 280ms smooth, non-bouncing transition. Reopening still invalidates the earlier close completion. The measured scroll width carries its resize transaction across the layout boundary so the centered bar follows the chips. Initial measurements are immediate.
 
-The child menu's clip contains both its viewport and the visible parent in viewport coordinates. A single short child can therefore expand from, and return to, a wider selected-directory capsule without cutting off its rounded ends. Scroll offset affects the morph's content-space target but not that clip. Overflowing rows retain horizontal clipping because their viewport already contains the parent. The native tag-glass replay samples WindowServer pixels during this transition.
+The child menu's clip contains both its viewport and the visible parent in viewport coordinates. A single short child can therefore expand from, and return to, a wider selected-directory capsule without cutting off its rounded ends. Scroll offset affects the morph's content-space target but not that clip. Overflowing rows retain horizontal clipping because their viewport already contains the parent.
 
 Child-menu motion samples one retained progress for label scale/opacity and the
 surface's actual frame/offset. Natural child widths still own row measurement.
@@ -297,7 +284,7 @@ to captured glass lets its compositor geometry drift from the view-layer materia
 creating offset capsule rims during opening and closing. Stable child glass IDs,
 selection tint, viewport clipping and interrupted-return ownership are retained.
 
-The directory's own glass capsule uses its current animated frame plus only the leading/trailing overflow outside the scroll viewport. Using an absolute measured source width here can slice off its right rounded end while switching from a selected child to another top-level tag. The native replay samples both capsule edges during that shrink and the return to the child; the source still clips at the real viewport when scrolled partly offscreen.
+The directory's own glass capsule uses its current animated frame plus only the leading/trailing overflow outside the scroll viewport. Using an absolute measured source width here can slice off its right rounded end while switching from a selected child to another top-level tag.
 
 Its source-surface leaf samples size and offscreen overflow together before
 passing the actual frame to material and clear glass. The glass compositor must
@@ -308,7 +295,7 @@ and independent opening/closing progress keep their existing ownership.
 
 Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar reserves the actual action envelope plus 16pt clearance on both sides; at 620pt and narrower the actions occupy a separate row. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Selected All, directory and semantic chips use the overview accent with 22% tint alpha, or 34% with Increased Contrast; unselected chips have no tint. Selected directory chips replace their folder or child emoji prefix with a check icon. Selected semantic chips replace their emoji prefix with the same check, including in child menus; All remains prefix-free. Accessibility labels retain the original tag names and emoji. Label font weights remain unchanged; the shared selected check uses a 2-unit Lucide stroke instead of the default 1.5-unit stroke. Names only truncate when their individual viewport cannot hold them. Presentation does not change tag identity or membership.
 
-All, directory and semantic capsules (including child menus) retain the 1.1× enlarged label and prefix metrics. Their height shares `NativeWindowNavigationGeometry.height` (42pt) with the traffic-light capsule and right-side circular actions. Measured frames, hit areas and canvas clearance follow that shared height. Semantic labels always lay out the emoji separately from the plain title, in both selection states. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
+All, directory and semantic capsules (including child menus) retain the 1.1× enlarged label and prefix metrics. Their height shares `NativeWindowNavigationGeometry.height` (42pt) with the traffic-light capsule and right-side circular actions. Measured frames, hit areas and canvas clearance follow that shared height. Semantic labels always lay out the emoji separately from the plain title, in both selection states. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets.
 
 ## Tag activity
 
@@ -332,13 +319,6 @@ shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActiv
 
 ## Validation
 
-Validation uses existing Overview layout/camera/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewGeometryTests` runs the independent layout contract, including seeded property checks, shrinking and the regular-grid quality floor. `NativeOverviewCameraTests` covers FitAll, manual ownership, pauses, latest-wins and invalid-input recovery. `NativeOverviewHeadlessGeometryTests` mounts the production canvas in a bare
-`NSHostingView` with no window and checks mixed footprints, resize, control
-reservations, scene resets and `displayedFrame` agreement. `NativeOverviewCapacityTests`,
-`NativeOverviewCenteringTests`, `NativeOverviewTransitionTests` and
-`NativeOverviewStatePropertyTests` mount the production canvas with a graphical
-host and assert actual rendered frames, including randomized interleavings. Native window/input tests require macOS; a standalone design demo is not the production layout authority.
-
 The centering and transition fixtures read the rendered card frames rather than a
 planner target. They independently compute the usable viewport from the product
 controls, assert every latest card is inside it, assert the rendered union is
@@ -352,9 +332,9 @@ The subsequent coverage/filter cases retain the ordinary one-row card without a 
 
 [NativeOverviewInteraction](../Interaction/NativeOverviewInteraction.swift) exposes the camera's production methods and registers callbacks owned by the mounted directory controls. Opening a menu calls the same `revealChildren` path as hover/accessibility; selecting a child requires its real glass menu to be mounted, then follows the production selection/exit transaction before the chip title changes. Explicit close uses the accessibility close callback; pointer exit retains its delayed dismissal. Filter-bar scrolling uses the mounted SwiftUI scroll view. A retiring registration cannot remove another view's callbacks.
 
-The [Overview chaos guide](../../../../../tools/native-interaction/OVERVIEW.md) describes the actions and coverage limits. The [real app runner](../../../../../tools/verification/overview-interaction/README.md) creates actual directories, a symlink and a Git linked worktree, seeds an exclusively owned profile before launch, then drives the signed production Release app. Runtime `state:load` supplies the independent scope/membership oracle; mounted card identities, placement cells and camera bounds supply rendering invariants. No tag CRUD or multi-selection actions are invented: those controls do not exist in the current Overview.
+The Overview chaos guide (historical; removed) describes the actions and coverage limits. Runtime `state:load` supplies the independent scope/membership oracle; mounted card identities, placement cells and camera bounds supply rendering invariants. No tag CRUD or multi-selection actions are invented: those controls do not exist in the current Overview.
 
-The geometry contract runs headlessly: generated inputs verify identity, latest sizes, non-overlap, gaps, finite values, exact bounds, FitAll containment and centering, viewport-translation covariance, determinism and the independent regular-grid quality floor. A 1,500-card 4K/ultrawide case covers legality, cap and the same floor. The state contract mounts the real canvas and replays randomized insert/remove/footprint/viewport/pause/visibility/manual/content schedules; a failure prints the complete trace, shrinks it by removing events, and the fixed reduced trace is checked in as `reducedInterleavingRegressionConverges`. Native capacity tests assert rendered insertion framing, manual retention, content-only solver avoidance and latest-wins recovery.
+The geometry contract runs headlessly: generated inputs verify identity, latest sizes, non-overlap, gaps, finite values, exact bounds, FitAll containment and centering, viewport-translation covariance, determinism and the independent regular-grid quality floor. A 1,500-card 4K/ultrawide case covers legality, cap and the same floor. The state contract mounts the real canvas and replays randomized insert/remove/footprint/viewport/pause/visibility/manual/content schedules; a failure prints the complete trace, shrinks it by removing events, and the fixed reduced trace is checked in as `reducedInterleavingRegressionConverges`.
 
 ## Agent reading panels
 

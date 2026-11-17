@@ -38,8 +38,7 @@ let state = presentation.interactionSnapshot()
 
 The macOS App's opt-in Unix socket validates external request envelopes and action
 arguments before dispatch. The macOS App owns transport outside the presentation
-module. See the [script/protocol guide](../../../../../tools/native-interaction/README.md)
-and [real app replay](../../../../../tools/verification/native-interaction/README.md).
+module.
 
 `settings.control` addresses a mounted control ID and observed handle, then
 invokes the registration owned by that control. `settings.controls` includes
@@ -59,8 +58,7 @@ components; the Host does not decode a Harness timeline or mutate its data.
 A Settings return retains the page only for capsule animation. While `settingsClosing`
 is true, section selection and mounted-control mutations are unavailable, so a
 rapid caller cannot receive a success for a page that is already retiring. Close,
-Back and Overview remain available. The production navigation replay exercises
-this rejection immediately after initiating Back without waiting for animation.
+Back and Overview remain available.
 
 First-run setup reports `page: "onboarding"` and an `onboarding` object containing
 step (0–4), admission, editor readiness, continuation availability, save/error

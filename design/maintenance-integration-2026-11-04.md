@@ -53,7 +53,7 @@ Go 初次检查因沙箱不允许写编译缓存而停止，获准使用正常�
 
 ## 此前失败与未验证范围
 
-[失效测试清理记录](../tools/verification/swift-tests/obsolete-tests-20261104.md)
+失效测试清理记录 (historical; removed)
 记载 Spring Mode 之前：全 Go race run 的旧 `TestMokuDeliveryAdmissionFence`
 错误期待失败，修正后 Runtime 的 16 个方法通过；最初 Swift 测试构建因已删除的
 Conversation API 失败，移除旧用例后测试构建通过，但其后 Talk 清理未执行测试。

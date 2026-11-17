@@ -16,12 +16,10 @@ source must satisfy the existing idle/native-work gates. See
 
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
-Installation owns the shell pipeline's process group and both output readers.
-Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
+Installation owns the shell pipeline's process group and both output readers. Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
 before returning; uncertain cleanup remains an error. Combined captured output
 is limited to 8 MiB, and cancellation, output-limit and nonzero-exit failures
-remain observable. The [installer replay](../../../../tools/verification/harness-install/README.md)
-checks the production installation path with local executable fixtures.
+remain observable.
 
 Moku rejects empty initial model catalogs and reports partial creation capabilities
 when thinking controls are unknown. Target discovery reads the catalog independently of the default
@@ -59,15 +57,10 @@ startup, so isolated configuration does not outlive a rejected launch.
 
 Thread Read uses a separate ephemeral native fork when source history is
 available. Missing history or a failed fork read uses a snapshot fallback in an
-isolated read-only session and temporary workspace.
-Each temporary session is registered with the Handle and releases its own exact
-registration on return, even when a fallback replaces the current session.
-Handle Close cancels and joins in-flight reads before returning. Read answers
+isolated read-only session and temporary workspace. Each temporary session is registered with the Handle and releases its own exact
+registration on return, even when a fallback replaces the current session. Handle Close cancels and joins in-flight reads before returning. Read answers
 are not projected into the source session; their native processes, temporary
-workspace and one-shot configuration homes are drained on successful cleanup.
-[adapter_read_test.go](adapter_read_test.go) exercises the real Open/Read/Close
-path against external JSONL peers, including repeated reads, fork/fallback
-success, launch/turn failure, cancellation and concurrent/repeated Close. It
+workspace and one-shot configuration homes are drained on successful cleanup. It
 checks ownership release, process exit, temporary-file cleanup and source-state
 preservation without an installed Codex or model account.
 
@@ -149,10 +142,6 @@ fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
 retains its existing precedence. Other scopes omit the field.
 
-The adapter replay also checks this boundary with shared production-renderer
-fixtures in `tools/verification/firstresponse`. The native cross-language replay
-is `python3 tools/verification/reading-presentation/run.py --initial-response`.
-
 Settings directory, execution-default capture and auto-review capability reads
 share one bounded catalog acquisition. Configuration, model list, Computer Use
 and version facts are read concurrently from the same native process; default
@@ -182,13 +171,12 @@ partial observation can describe its own failure but earns no successful TTL.
 No credential snapshot is written to disk.
 
 `./scripts/go.sh run ./tools/verification/codex -settings-performance` measures
-mixed catalog/defaults reads. See [measurement scope](../../../../tools/verification/settings-performance/README.md).
+mixed catalog/defaults reads.
 
 Turn-scoped reader projections omit plan steps, explanations and timeline markers
 before encoding and copying them to native clients. Canonical, overview, context
 and full/execution projections retain those facts. Empty required plan arrays
-preserve native decoding, and surviving timeline identities/order remain intact.
-Deferred turn projections retain failed activity labels and details so errors
+preserve native decoding, and surviving timeline identities/order remain intact. Deferred turn projections retain failed activity labels and details so errors
 remain readable without loading or showing ordinary execution work. Failed tools
 retain bounded completion diagnostics as well as command output. Diagnostics
 take priority over large partial results within the retained bound. Completion
@@ -198,8 +186,6 @@ frame carries enough activity identity to survive recovery without a start frame
 and a repeated start cannot erase a completed diagnostic. Existing stored
 diagnostics already discarded by earlier versions cannot be reconstructed by the
 reader; no history rewrite is performed.
-The [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
-checks active, terminal and inherited turns without a native CLI or model call.
 
 Lightweight deferred execution projections record meaningful activity `detail` by
 native activity ID before stripping its body. The native Agent reader uses that

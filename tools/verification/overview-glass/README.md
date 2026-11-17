@@ -8,7 +8,7 @@
 `run.py` 现在拒绝构建或启动试验；报告、原始证据和 `analyze.py` 保留。
 下面的注入、准备对象及命令属于冻结版本
 `a4e94b3f72f8f16d7adf2911621725b2ae552b7e`，不适用于当前源码。
-当前外观验证使用 [card-materials](../overview-input/README.md#flat-card-materials-and-native-lifetime)，
+当前外观验证使用 card-materials (historical; removed)，
 产品版本性能对照使用独立的 [Overview CI runner](../overview-ci-performance/README.md)。
 
 本工具只在 `.build/overview-glass` 复制的 Swift package 中注入研究开关，

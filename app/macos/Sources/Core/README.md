@@ -75,9 +75,7 @@ Token updates and draft persistence take the shared gate, while collection takes
 it exclusively. Normal disposal and send completion release their tokens;
 failed final persistence conservatively retains its token until process exit.
 
-[RuntimeOfflineStoreTests](../../Tests/Core/RuntimeOfflineStoreTests.swift) writes
-thread, turn and execution payloads, then reopens the disk cache and checks each
-scope independently. Equal keys in different scope kinds and different keys in
+Equal keys in different scope kinds and different keys in
 the same kind remain distinct; a missing scope stays absent.
 
 [RuntimeCommandJournal](RuntimeCommandJournal.swift) serializes command identity
@@ -152,12 +150,6 @@ Directory-list entries use their own host, target and entry name for UI identity
 so distinct symlinks to the same target retain stable labels after redraws.
 
 Client appearance and language preferences live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
-
-Verification: Core Swift tests, `./scripts/go.sh run -race ./tools/verification/transport -swift-deltas`,
-`transport -swift-files`, `runtime-helpers --swift-shutdown`
-from the repository root on macOS. The file interop replay uses the real Swift
-client without GUI: regular and symlink uploads, prompt FIFO rejection, and
-`.partial` downloads retain their validated bytes and basename.
 
 `RuntimeCommandJournalIntegrationTests` uses real clients and loopback HTTP to
 interleave shared-profile admission, completion, acknowledgement and recovery.

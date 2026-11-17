@@ -25,7 +25,7 @@ def run(command, *, timeout=1800, termination_grace=5, cancel_event=None, **kwar
     except subprocess.TimeoutExpired as error:
         raise TimeoutError(
             f"CI command exhausted its {timeout:.1f}s execution allowance. "
-            "This is incomplete execution, not a test assertion failure.") from error
+            "This is incomplete execution, not a compiler result.") from error
     finally:
         if process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)

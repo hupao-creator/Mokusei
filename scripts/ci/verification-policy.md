@@ -1,236 +1,26 @@
-# Verification value and execution policy
+# Verification policy
 
-A check earns a merge requirement by naming a defect it detects at a production
-boundary. Prefer the existing assertion on a hosted runner. A model assertion is
-not an equivalent replacement for a mounted control, real transport, native CLI
-or rendered pixel assertion. Missing hardware, fixtures or permission is an
-execution limitation, never a passing result.
+The project has removed all first-party automated test cases and test-only
+helpers/fixtures. `make check` now runs formatting, architecture/import and static
+registration checks, Go vet, all Go package builds and the Swift production build.
+There are no unit, race/property, Swift test or correctness replay gates.
+Do not interpret a build/static pass as runtime or visual correctness coverage.
 
-Current-revision successful CI can replace an equivalent local run. Local tools
-remain useful for iteration and diagnosis; their existence does not make every
-tool mandatory for every change. Historical logs and checks from a different
-revision cannot certify the new revision.
+[CI](README.md) retains these checks on Linux and macOS and keeps the aggregate
+name `Complete coverage` for branch-rule compatibility. Before remote integration,
+inspect the actual required checks and the final revision's status. A local run
+cannot substitute for a hosted check required by branch protection. Local-only
+artifact delivery does not trigger publication or remote runs.
 
-Plan focused local checks first, then require the final revision's successful
-hosted `Complete coverage` check and the actual remote branch rules. Do not add a full local `make check` merely
-before or after equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
-coordination. Documentation-only diffs proven by the workflow's conservative
-path/mode classifier use an explicit diff-validation scope; unknown/mixed changes
-and manual dispatches run all checks below. Native tests outside a proven
-documentation scope are not claimed as executed.
+For a change, prefer proportional non-test validation: source/manifest parsing,
+formatting, affected production builds and static checks. Record actual results
+and platform/toolchain limits; skipped or historical checks are not passes.
+Pure documentation changes require diff and local-link review.
 
-## Default hosted checks
-
-| Gate | Independent value | Execution |
-| --- | --- | --- |
-| External Overview and reading benchmark contracts | Reject frozen/wrong/partial evidence, clock/identity/input mismatches, omitted reader output and unsupported process/hitch claims | Portable Python replays in Linux; no signed GUI claim |
-| Go checks, race tests and generated properties | Architecture boundaries, data races, admission schedules, terminal-state invariants | Linux, plus Darwin-only profile-lease/rotation tests on macOS |
-| Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees and cross-client cancellation | Linux `runtime` replay group |
-| Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh, cache ownership and actual Pi read-guard tool refusal | Linux `adapters` replay group; scripted external peers, loopback services and Node execution of the bundled guard |
-| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Serial windowless and graphical ordinary processes plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
-| Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, conversation, Harness-form and Git metadata contracts reach real Swift consumers | Five producers export six files locally before the complete Swift run |
-| Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage, native profile leases | Six interop launchers, three devtool replays and real daemon lifecycle on macOS |
-| Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
-
-The ordinary Swift run defers only named methods needing a live Go fixture or
-the isolated AppKit launcher. Their replay steps are mandatory, reject skipped
-tests and retain reports/logs. New or display-related skips fail the job. Do not
-turn a regression into an allowlist entry.
-
-Methods needing an exclusive native owner are recorded in `swift_ownership.py`
-and the verified build manifest before ordinary execution. The title
-cancellation and excerpt-mask replays belong to the existing
-`native/tag-glass-captures` check so their intermediate-frame assertions run
-with AppKit's event loop and real WindowServer delivery. The excerpt case
-requires observed ink movement through rewrite and an actual component-width
-change, and emits `EXCERPT_INK_MOTION_CONFIRMED`; timer completion and final text
-do not replace its moving-pixel evidence. The native cloud/scan composition
-and Tag Settings first-frame cases share this owner
-with their own required markers. Tag entry and retained return must supply
-complete intermediate WindowServer frames before their unchanged pixel oracle
-can pass; the real AppKit event loop owns that capture.
-All full method identities remain in discovery and are excluded from ordinary
-execution without a test-level skip or environment bypass.
-The shared ordinary plan runs reviewed whole windowless suites under an anchored
-`--filter` with `MOKUSEI_TEST_HEADLESS=1`. The graphical remainder has no positive
-filter and excludes those suites. Both commands pass the shared native `--skip`
-for the full method ID and its runtime source-location suffix. The receipt and
-audit require the exact disjoint inventories, per-process summaries and zero
-headless skips. This command selection does not add a framework skip outcome; the method
-must still execute at its declared native owner.
-Coverage requires exactly one successful owner receipt, one passing terminal
-outcome and the required execution marker at that declared check; missing frames fail the native assertion, while
-missing, skipped, failed, repeated or misrouted outcomes fail aggregation.
-Local `make check-swift` uses the same ordinary exclusion, then runs the existing
-producer for the declared check and validates its actual native evidence.
-Producer reports limited with `--check` are local evidence and cannot substitute
-for a complete mandatory CI group.
-Controlled CLI fixtures verify argument and evidence contracts; only the actual
-current-head Swift/native run validates Swift Testing's runtime selection semantics.
-
-## Runner allocation and execution limits
-
-GitHub Actions remains the check/evidence service. Execution may use GitHub
-runners or the explicitly enabled isolated self-hosted macOS platform in the
-[deployment contract](self-hosted.md). GitHub runners remain the default and the
-fork-PR route. Linux jobs retain their existing GitHub-hosted `ubuntu-latest`;
-macOS 26 arm64 still requires actual Metal and graphical execution. No local
-preflight, runner label or prepared configuration certifies a completed CI run.
-
-The default workflow uses one macOS job for build, fixtures, the complete ordinary
-Swift suite and all interop/native replays. GUI work remains serial within that
-session. One current-build manifest and the observed method IDs establish complete
-execution; no weights, cross-runner build transport or artifact-slot aggregation
-are involved. Compiler caches never replace the current-source build or tests.
-
-New PR/main revisions cancel older work only in the same event/ref group; explicit
-dispatches have independent run-specific groups. Obsolete work retains GitHub's
-cancelled status instead of becoming a green required check. Remote strict branch
-rules control freshness; scope only determines the conservative documentation path.
-
-There is no fifteen-minute whole-run acceptance gate or shared 840-second deadline.
-Queue, attempt and total retry elapsed times are diagnostic. The single native job
-has a sixty-minute guard; Linux/extended jobs and owned commands retain thirty-minute
-guards, with narrower existing CLI/test limits. Timeout is incomplete verification.
-
-Preserve each attempt's complete native artifact. A failed native job must rerun
-its full local build/test/replay/audit path; successful independent Linux jobs may
-be carried forward. Diagnose before retrying. A same-commit passing retry does not
-establish that the first failure was harmless. The required aggregate only passes
-when every applicable job and complete observed native coverage succeeds.
-
-## Extended hosted checks
-
-### Foreground Overview performance
-
-The separate `Overview performance` workflow owns the continuing foreground
-Overview performance baseline. Dispatch it explicitly with full `baseline` and
-`candidate` commit SHAs; PRs and pushes do not start this experiment.
-Its production-linked Release probe measures N40
-with four fully visible running cards for idle animation, short message rewrite
-and cumulative message append. A separate Core process supplies events through
-the production store, publisher, HTTP/NDJSON transport and Swift workspace.
-Both fixed revisions use identical harness sources and run serial A/B and B/A
-pairs on the same hosted Mac after both builds finish. The runner retains exact
-source/build identities, environment and visibility observations, actual CPU/wall
-intervals, source/publication counts, raw JSON and a complete Markdown report.
-
-Formal CPU runs exclude capture, sampling profilers and temporary product probes.
-Missing foreground/display capability, source delivery or final convergence is
-an invalid measurement, not a passing comparison. Keep invalid and failed raw
-runs and explain any subsequent replacement. Native animation correctness stays
-in its separate WindowServer capture owner; CPU and display-link callbacks do
-not establish optical FPS, GPU time or energy. CI percentages form their own
-baseline and are not pooled with historical target-Mac percentages. No local
-measurement agent is required to advance this Overview optimization work.
-
-### Native CLI and system matrices
-
-Dispatch the separate [Native CLI workflow](../../.github/workflows/native-cli.yml)
-on the intended ref for pinned native Codex, Pi and OpenCode against loopback
-providers and the Moku system matrices.
-No paid-model account or microphone is involved. The configured macOS route
-provides the same isolated pinned-CLI execution on either runner deployment.
-Each dispatch runs all four native-CLI/system lanes and requires their success
-in `Extended native CLI coverage`. This workflow has no PR/push trigger; ordinary
-CI neither schedules these optional jobs nor claims they ran.
-
-Run these checks for native CLI/adapter compatibility, process ownership and system
-coordination changes. Its independent value is detecting actual CLI loader/protocol
-changes and cross-role faults that scripted peers do not establish. Pinning a CLI
-gives reproducible coverage of that version, not proof of future upstream compatibility. The long-running stability gate has been removed; these checks
-do not claim continuous resource qualification.
-
-## Checks with concrete device-dependent value
-
-These are change-triggered acceptance checks, not universal local merge gates.
-
-| Check and trigger | Defect that equivalent software injection cannot establish | Required evidence |
-| --- | --- | --- |
-| Physical Force Touch and trackpad scroll/pinch; when pressure configuration, hit regions, monitors or recognizer routing changes | Correct controller state but real OS events never reach it, or recognizers steal physical input | Physical input on the affected path. State-machine, synthetic event, focus and geometry checks remain CI-covered |
-| A specified performance regression on a target Mac; only when a change makes a concrete device-performance claim | Target chip/display/thermal conditions produce a regression that a hosted VM's timing does not represent | Repeatable target-machine comparison with fixed workload and declared metric. CPU/timer samples are not display FPS, GPU or energy evidence |
-
-If a hosted runner cannot execute a newly affected graphical check, first name
-the missing capability and assess independent value. For example, WindowServer
-pixels during a glass morph catch intermediate rectangular clipping that final
-geometry misses. Such a specific visual regression can justify a related-change
-acceptance check; it does not justify rerunning all UI tools locally for unrelated
-changes. A capability failure must remain visible until coverage or the explicitly
-scoped acceptance requirement is resolved.
-
-## Signed production package exception
-
-The production-app navigation and reading replays have independent value beyond
-the ad-hoc AppKit fixtures: they run the actual Release bundle and its bundled
-Runtime, catching missing resources, development-only library paths, mismatched
-team signatures, broken startup/discovery, production navigation registration,
-and scoped reader loading/release or load-earlier wiring.
-The navigation acceptance runner uses explicit protocol/navigation assertions
-and their recorded replay; arbitrary random-action totals are not an acceptance
-requirement or performance evidence.
-
-Require these only when signing/entitlements, bundled resources/dependencies,
-application or bundled-Runtime startup/discovery, or production navigation/reader
-wiring changes. They can run on hosted macOS with Apple Development signing
-credentials. This workflow does not configure those credentials; preserve this
-specific signed-package acceptance until they are configured. An ad-hoc fixture
-does not replace the existing same-team/hardened signing contract. Ordinary
-component changes use their default CI coverage instead.
-
-Build once, then reuse the same production artifact serially:
-
-```sh
-./scripts/go.sh run ./cmd/mokusei-dev bundle \
-  --channel production --configuration release --output /absolute/evidence/bundle
-python3 tools/verification/native-interaction/run.py \
-  --app /absolute/evidence/bundle/Mokusei.app
-python3 tools/verification/thread-interaction/run.py \
-  --app /absolute/evidence/bundle/Mokusei.app
-```
-
-These use isolated profiles and do not send Harness model tasks or require an
-account. Normal production discovery/search still runs; this is not a promise
-of zero network access. Preserve the printed per-run evidence
-directories. No developer signing private key is exported by this CI migration.
-
-## Obligations replaced or removed
-
-| Former local activity | Decision and reason |
-| --- | --- |
-| Repeat all of `make check` after equivalent CI passes | Replaced by successful checks for the current revision; retain `make check` as a local development command |
-| Repeat DirectoryTag separately from the full Swift suite | Removed from CI; identical cases already run in the full suite |
-| Skip all native UI because CI is called headless | Replaced by actual hosted native execution, with required coverage reporting |
-| Three tag-glass cases requiring an isolated capture launcher despite not needing capture | Run their unchanged glyph, semantic input and layout assertions in ordinary graphical Swift tests |
-| Hand-inspect every screenshot or record a complete video for routine correctness | Use existing intermediate-frame pixel, geometry and interaction assertions; keep recording for a named visual defect or presentation review |
-| Run historical glass/CPU research tools for every change | Removed as a general requirement: they have no general correctness threshold and do not measure FPS/GPU/energy |
-| Use a real paid account to prove normal regression correctness | Use isolated protocol and pinned native-CLI loopback verification. Real-account smoke remains an explicit provider/authentication diagnostic, not an equivalent deterministic merge gate |
-
-Standalone visual/research drivers remain available to reproduce specific issues.
-Before requiring an additional local run, identify the uncovered production
-boundary and why the default or extended hosted checks do not cover it. If no
-such difference exists, use the existing CI evidence instead.
-
-Windowless developer feedback is documented in [headless.md](headless.md). It
-cannot replace hosted Complete coverage or full native verification. Fixture
-producers may run two at a time because they own separate temporary profiles and
-exports; graphical and interop replays remain serial. Removed embedded-selector
-and Talk scroll-view fixture contracts are documented in the CI/replay READMEs;
-their historical assertions do not count as current production coverage.
-
-## External rendering measurements
-
-The [artifact-only Overview benchmark](../../tools/benchmarks/README.md) and its
-[Agent reading extension](../../tools/benchmarks/reading/README.md) have their
-portable contract/adversarial replays in ordinary Linux CI. Changes to native
-collectors, input dispatch, fixture delivery or scenario entry trigger local
-collector controls and signed production experiments: these uniquely cover
-WindowServer pixels, real input, native CLI discovery and XCTHitchMetric target
-ownership. Current hosted CI has no production signing credentials, so this
-GUI experiment is not a hosted performance or regression gate. Do not export
-signing keys. Missing positive hitch controls or complete descendant accounting
-remain unavailable/incomplete; they do not become passing metrics.
-Reading scroll controls additionally establish normal bidirectional pixel-wheel
-motion and detection of frozen, reversed, delayed and main-thread-stalled output.
-Reading cases vary a single reply's size: 8 / 32 KiB by default, with 128 KiB
-available as an explicitly selected stress workload. Full reply hashes
-come from public scoped content, independently of sampled visible checkpoints.
+The retained [external benchmarks](../../tools/benchmarks/README.md) and
+[performance tools](../../tools/verification/README.md) measure independent
+performance questions. Calibration controls establish measurement capability;
+they do not constitute product regression coverage or required merge gates.
+Native XCTest hitch collection and portable conformance suites were removed.
+Missing capture, permissions, signing or descendant accounting remains an explicit
+measurement limitation. Historical evidence cannot certify the current revision.

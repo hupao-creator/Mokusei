@@ -8,7 +8,7 @@ worktree; the caller reviews and integrates the independent commits.
 The matrix and retained results below describe that study. Its glass on/off
 condition predates the removal of the production card-material switch; it is no
 longer an independent product comparison. Current appearance checks use
-[`overview-input --card-materials`](../overview-input/README.md#flat-card-materials-and-native-lifetime),
+`overview-input --card-materials` (historical; removed),
 and continuing foreground measurements use the
 [Actions Release comparison](../overview-ci-performance/README.md). The historical
 numbers are not reinterpreted as current measurements.

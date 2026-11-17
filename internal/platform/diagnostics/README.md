@@ -205,11 +205,9 @@ Synthetic abbreviated finish structure (bodies intentionally omitted):
 
 ## Spring Mode verification and integration
 
-No tests are added; no regression/replay, PR, push or hosted CI is performed.
 Permitted checks are production Go build, formatting, architecture, vet, Python
 syntax and diff/link review. Crash/restart, retention load, concurrent cancellation,
-real bridge delivery and redaction edge cases remain dynamically unverified.
-Local integration retains the existing main changes and uses these permitted
+real bridge delivery and redaction edge cases remain dynamically unverified. Local integration retains the existing main changes and uses these permitted
 checks; static review/builds do not certify the dynamically unverified boundaries.
 
 Moku `grep_threads` and its visibility/caller-error fixes remain integrated.

@@ -3,20 +3,16 @@
 这是 Moku thinking 的独立 native demo，默认复用正式“胶囊 + Arc”实现，另保留两个历史版本对照。
 正式 Dock 接收当前公开 Harness reasoning；本 demo 的文字全部来自内存 fixture。
 
-```sh
-python3 demos/moku-thinking-orbit/build.py
-open .build/moku-thinking-orbit/MokuThinkingDemo.app
-# 验证并截图后退出；检查 evidence/result.json 的 ok，而非 open 的退出码。
-open -W -n .build/moku-thinking-orbit/MokuThinkingDemo.app --args --verify
-# 保留已打开的预览时，构建独立副本，不覆盖正在运行的 app：
-python3 demos/moku-thinking-orbit/build.py --skip-build \
-  --output .build/moku-thinking-orbit-check/MokuThinkingDemo.app
-```
 
 需要 macOS 26 / Xcode 26。构建脚本复用 native replay 的模块、对象和资源打包，
 链接当前生产 `MokuseiUI`，产物位于 `.build/moku-thinking-orbit/`。
 已完成当前源码的 Swift build 后可加 `--skip-build`。源码不依赖历史仓库仍在磁盘上。
 构建和回放串行运行。demo 不安装生产应用、不启动 Runtime、不打开真实用户 profile 或模型账户。
+
+```sh
+python3 demos/moku-thinking-orbit/build.py
+open .build/moku-thinking-orbit/MokuThinkingDemo.app
+```
 
 ## 胶囊 + Arc 提案
 
@@ -80,13 +76,7 @@ python3 demos/moku-thinking-orbit/build.py --skip-build \
 `History/ThinkingCapsuleReasoning.swift` 仅保留旧 contour 比较，圆形角色的历史 FIFO 也只供该参考页使用。
 原生显示生命周期由 demo 外壳管理。历史代码独立保留，便于后续评审后选择接入方式。
 
-## 验证边界
+## 预览边界
 
-`--verify` 挂载真实 native 组件、使用自己的 WindowServer 窗口截图：
-检查可见文字和自然变化的像素、流式追加时钟连续性、暂停/恢复、输入与工具让位、结束清理、
-隐藏/恢复，并保存三种版本的浅深色截图；Arc 还检查短文本停止推进及追加时钟连续性。
-程序最小化只有在 AppKit 确实执行时才计入，通过不了该动作时明确记为 skip，再验证真实 hide/show。
-它不手工调用 draw 或快进动画时钟。
-验证结果与 PNG 位于 app 同级 `evidence/`。公开 reasoning 链路另由
-[生产回放](../../tools/verification/moku-reasoning/README.md) 验证。
-合并 demo 源码前还需运行 `make check`；完整结果以本次运行日志为准。
+保留三种视觉方案的交互对照；自动断言、截图验收及验证报告入口已删除。
+演示使用内存 fixture，不代表 Runtime 或真实账户验证。

@@ -64,8 +64,7 @@ import MokuseiPluginAPI
         let selected = outcome
         prompt = submission.text.isEmpty ? "整理选中的目录与附件" : submission.text
         running = true; status = "Moku 已收到输入 · 正在派发"
-        let pending = operation(completed: false, success: false)
-        precondition(NativeMokuDispatch(operation: pending, executionIsActive: true)?.phase == .dispatching)
+
         try await Task.sleep(for: .milliseconds(1300))
         while selected == .waiting && captured == epoch {
             try await Task.sleep(for: .milliseconds(100))

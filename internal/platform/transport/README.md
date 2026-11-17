@@ -40,9 +40,6 @@ selection protocol remain available independently of background classification.
 
 Verification from the repository root:
 
-```sh
-./scripts/go.sh run -race ./tools/verification/transport
-```
 
 `transport -swift-deltas` additionally uses the actual Swift codecs and client.
 
@@ -81,5 +78,3 @@ snapshot is authoritative on the same resource; the next patch uses that
 snapshot's revision as its base. Frame selection does not weaken queue
 backpressure: a representation that fits the frame can still fail with
 `CONTENT_BACKPRESSURE` for its client's bounded queue.
-The [reader projection replay and publication benchmark](../../../tools/verification/thread-detail-performance/README.md)
-measure this boundary independently of Harness projection and native rendering.

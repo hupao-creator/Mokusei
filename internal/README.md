@@ -24,4 +24,4 @@ The four Harnesses use externally installed native engines. Their account, model
 
 `internal/tooling/architecture/check.go` enforces the Go import graph across all source files and build tags, static registration and the allowed external JS resources. The generic store has no application-model dependency. Plugins do not import Runtime or construct their own Core authority. The Swift client consumes public projections over authenticated HTTP/NDJSON; it does not open the host database.
 
-See [verification commands](../tools/verification/README.md) and [local checks](../.agents/linting.md). Module READMEs describe the implementation and its invariants; change history belongs in Git.
+See [performance tools](../tools/verification/README.md) and [local checks](../.agents/linting.md). Module READMEs describe the implementation and its invariants; change history belongs in Git.

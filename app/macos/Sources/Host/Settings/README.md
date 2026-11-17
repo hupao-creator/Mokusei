@@ -133,14 +133,9 @@ Incoming messages and interventions cannot replace Settings. On release, a
 pending intervention takes its ordinary priority over a retained Note/composer.
 
 `NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
-page lays out at its final size; closing fades its ink before panel contraction.
-Reversals fence obsolete completions. Resize, inactivity and
+page lays out at its final size; closing fades its ink before panel contraction. Reversals fence obsolete completions. Resize, inactivity and
 explicit settling retire the current animation without leaving the modal gate
-stuck. Opening and return both report transitioning to semantic callers.
-`python3 tools/verification/reading-presentation/run.py --settings-transition`
-mounts the production Dock and Settings page for viewport/zoom/landing, backdrop
-blur and click-through, restoration, interruption and lifecycle regression checks.
-The runner captures representative panel screenshots with its evidence.
+stuck. Opening and return both report transitioning to semantic callers. The runner captures representative panel screenshots with its evidence.
 
 The application menu and Cmd+, are enabled only for a loaded Overview. Direct
 presentation and semantic requests enforce the same boundary; reading, Moku
@@ -248,13 +243,8 @@ changes, and successful replies remove an error only when one exists. Real path,
 status, message and plugin changes still propagate; discovery readiness, retries,
 detail refresh sequences and cancellation retain their existing lifecycle.
 
-The shared Harness editor also shows native progress during initial acquisition.
-Read failures take precedence over an allocated surface and expose retry;
-execution-snapshot failures do not also claim that the profile is merely unpinned.
-Harness-owned refresh/status controls remain responsible for their catalog states.
-The native settings replay mounts these production controls across loading,
-failure/retry, empty, ready and invalid-provider states, and recovers a mounted
-Harness editor after a real HTTP read failure.
+The shared Harness editor also shows native progress during initial acquisition. Read failures take precedence over an allocated surface and expose retry;
+execution-snapshot failures do not also claim that the profile is merely unpinned. Harness-owned refresh/status controls remain responsible for their catalog states.
 
 The page's shared text-editing scope aggregates composition by editor owner.
 Both Moku and contributed application textareas report native marked-text
@@ -315,18 +305,6 @@ The launcher leaves execution profiles uninitialized until native workspace
 acquisition. `transport -swift-settings-capacity` additionally replays the full
 four-Harness cold burst through the real Swift client and Go HTTP admission,
 including slow discovery, ordinary command headroom and cancellation.
-
-`NativeSettingsNavigation` owns the opt-in interaction registry and Settings visit
-identity. The page supplies its current section and render refresh to mounted
-controls. Controls register their real bindings/native editor callbacks through
-[NativeSettingsInteractions](../../Shared/PluginUI/Forms/NativeSettingsInteractions.swift).
-Handles expire when their owner, descriptor, visit, section or refresh changes;
-detached controls unregister by owner. This preserves model/provider dependency
-logic, IME, validation and autosave for script-driven chaos testing. Notices and
-save metadata are observable, with Runtime public state as the persistence oracle.
-Run `python3 tools/verification/native-interaction/settings.py` from the repository
-root to exercise the production app's internal Settings controls across fresh
-seeded profiles and app/Runtime restarts.
 
 Automatic installation checks request each Harness independently. A completed
 row becomes usable while slower rows remain checking; an available Moku host's

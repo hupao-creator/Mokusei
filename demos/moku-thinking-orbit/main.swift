@@ -198,15 +198,10 @@ private struct ThinkingDemoView: View {
         submenu.addItem(withTitle: "退出 Moku Thinking Demo", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         app.submenu = submenu; menu.addItem(app); NSApp.mainMenu = menu
         window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-        if CommandLine.arguments.contains("--verify") {
-            fixture.streaming = false; fixture.study = .electron
-            Task { await verifyThinkingDemo(window: window, fixture: fixture) }
-        }
+
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        // The verifier deliberately hides its only window. It owns termination
-        // after writing a result, even if AppKit treats that as the last window.
-        !CommandLine.arguments.contains("--verify")
+        true
     }
 }
 

@@ -14,7 +14,7 @@ func Usage() {
 build       Build the Go runtime and native Swift product (--configuration debug|release)
 runtime     Build .build/go/mokusei-runtime
 bundle      Create and verify a signed bundle (--channel production|development, --zip)
-smoke       Verify a signed bundle and its isolated runtime lifecycle (--app PATH)
+smoke       Verify signed bundle metadata, linkage and resources (--app PATH)
 dev         Build, package and launch the isolated development channel (--fresh)
 fast        Incremental Go/Swift build into an immutable development bundle (--no-open)
 watch-main  Rebuild each clean local main commit (--no-open)

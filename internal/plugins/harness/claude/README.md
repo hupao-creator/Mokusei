@@ -11,9 +11,7 @@ completed replies derive from that single representation. Plans and usage remain
 current turn fields rather than timeline snapshots; diffs are not retained in
 this reader state. This is a breaking state/wire change: version 1 and inline
 timeline snapshots are rejected rather than migrated. Fork history resolves the
-referenced entities into its separate read-only inline shape. See
-[timeline_test.go](timeline_test.go) and the cross-language
-`testdata/timeline-reader.golden.json` fixture consumed by the native reader.
+referenced entities into its separate read-only inline shape.
 
 Native message IDs and thinking-block indexes delimit reasoning paragraphs.
 Only the first nonempty chunk of a new block inserts a blank line, respecting
@@ -35,7 +33,7 @@ entity revisions. An activity or interaction that began before the selected
 checkpoint but finished later therefore appears in its final state; running and
 pending entities still become cancelled. `review` and `error` are canonical
 latest-only markers: replacing either after the selected prefix means the fork
-does not inherit the earlier revision. Fork tests cover these boundaries.
+does not inherit the earlier revision.
 
 Shared [private tool diagnostics](../../../platform/diagnostics/README.md) identify
 `CallID` as an MCP request ID, not a Claude tool-use ID, and expose the bridge's
@@ -43,12 +41,10 @@ existing 256-byte identifier truncation without changing receipt identities.
 
 [harness.go](harness.go), [session.go](session.go) and [transport.go](transport.go) adapt the installed Claude CLI's stream-json protocol. Claude owns native account/model configuration and conversation history. Mokusei supplies admitted inputs, public observations and scoped tool injection.
 
-Installation owns the shell pipeline's process group and both output readers.
-Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
+Installation owns the shell pipeline's process group and both output readers. Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
 before returning; uncertain cleanup remains an error. Combined captured output
 is limited to 8 MiB, and cancellation, output-limit and nonzero-exit failures
-remain observable. The [installer replay](../../../../tools/verification/harness-install/README.md)
-checks the production installation path with local executable fixtures.
+remain observable.
 
 [settings.go](settings.go) owns model, thinking/effort and permission-mode validation. An explicit thread effort takes precedence over inherited environment configuration; unsupported choices are rejected rather than silently omitted or replaced. Empty profiles are accepted for initialization, while execution still requires a resolved valid configuration.
 
@@ -65,10 +61,6 @@ Cancellation racing with a fully written frame preserves the pipe for later
 commands; native pipes use write deadlines to distinguish those outcomes.
 
 The shared [generated metadata policy](../../../core/plugin/README.md#generated-metadata) supplies durable title/emoji updates independently of execution state.
-
-Verification: [Claude runner](../../../../tools/verification/claude/README.md) and `./scripts/go.sh test -race ./internal/plugins/harness/claude`. The runner uses an external stream-json fixture and real Go MCP subprocess, including conditional tool-schema acceptance/rejection checks.
-Package fixtures also exercise escaped MCP identifiers, concurrent bridge close
-and delayed tool cancellation cleanup without launching an installed CLI.
 
 Moku target schemas use the configured executable and native catalog independently
 of the selected default model. Without a matching complete cache, catalog failures and empty catalogs block preparation;
@@ -100,15 +92,6 @@ applied efforts, native mismatches and catalog acquisition failures reject the
 capture. The editor's unknown-capability notice remains visible. Ordinary Thread
 creation continues to require advertised thinking controls.
 
-Run `xcrun swift test --package-path app/macos --filter ClaudeSettingsControlReplayTests`
-in a graphical macOS session for the mounted production settings controls with a
-fixture catalog. It covers catalog/custom selection, invalid input, incomplete
-snapshots, fixed effort, all permission modes, unavailable saved models and native
-default clearing without launching a CLI. Set
-`MOKUSEI_CLAUDE_SETTINGS_ARTIFACTS=/private/tmp/claude-settings-artifacts` to retain
-wide dark and compact light captures. The protocol replay above covers the Go
-adapter; neither fixture establishes compatibility with an installed CLI release.
-
 ## Initial response cards
 
 The overview renderer supplies `initialResponseScope`, computed from the full
@@ -116,10 +99,6 @@ execution index and fork/history provenance before compaction. This fixed-size
 fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
 retains its existing precedence. Other scopes omit the field.
-
-The adapter replay also checks this boundary with shared production-renderer
-fixtures in `tools/verification/firstresponse`. The native cross-language replay
-is `python3 tools/verification/reading-presentation/run.py --initial-response`.
 
 Settings catalog reads share a bounded 45-second native initialization per
 executable/cwd/environment/configuration generation. Successful catalogs retain
@@ -132,16 +111,13 @@ confirm effective settings through its own native session.
 
 `./scripts/go.sh run ./tools/verification/claude -settings-performance` measures
 cold and warm concurrent production reads with an isolated stream-json fixture.
-See [measurement scope](../../../../tools/verification/settings-performance/README.md).
 
 Turn-scoped reader projections omit plan steps, explanations and timeline markers,
 including inherited history, before native transport encoding. Canonical state,
 overview, context and full/execution projections retain those facts. Required
 empty plan arrays keep the native state contract valid. The
 deferred turn projection retains failed activity labels and details, including
-inherited history, so error visibility does not require loading ordinary work. The
-[reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
-checks this boundary for active and terminal turns and inherited history.
+inherited history, so error visibility does not require loading ordinary work.
 
 Lightweight deferred execution projections record nonempty activity `detail` by
 native activity ID before stripping its body. The native Agent reader uses that

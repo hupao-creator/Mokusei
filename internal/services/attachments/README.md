@@ -8,8 +8,6 @@ extension: `.env` becomes `env`, `.gitignore` becomes `gitignore`, and
 
 Thread ownership retains admitted files independently of temporary composer
 chips. Preview and cleanup validate that ownership and the immutable content.
-The real import, retention, preview and cleanup boundaries are exercised by
-`./scripts/go.sh run -race ./tools/verification/runtime-helpers`.
 
 `NewWithClientStorage` binds the production repository to the same local profile
 as the native client. A staged file records the importing process's private

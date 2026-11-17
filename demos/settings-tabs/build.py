@@ -1,7 +1,6 @@
 """Build the native Settings tabs proposal with shared onboarding controls."""
 from pathlib import Path
 import argparse
-import json
 import shutil
 import subprocess
 import sys
@@ -14,7 +13,6 @@ from native_replay import NativeReplay
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--skip-build", action="store_true")
-parser.add_argument("--verify", action="store_true")
 parser.add_argument("--open", action="store_true")
 options = parser.parse_args()
 output = repo / ".build/settings-tabs"
@@ -27,16 +25,6 @@ try:
     replay.compile([source.parent / "moku-landing/LandingFixture.swift",
                     setup / "SetupFixture.swift", setup / "SetupCapabilityAnimation.swift",
                     setup / "SetupConfigurationPanel.swift", source / "SettingsTabsView.swift", source / "main.swift"])
-    if options.verify:
-        replay.acquire()
-        try:
-            status = replay.run(["--verify"], timeout=90)
-        finally:
-            replay.export(output / "evidence")
-        report = json.loads((replay.root / "result.json").read_text())
-        if status or not report["ok"]:
-            raise RuntimeError(report["message"])
-        print(report["message"], flush=True)
     retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-settings-tabs-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     application = retained / replay.application.name

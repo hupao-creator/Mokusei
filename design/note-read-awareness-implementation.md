@@ -37,7 +37,7 @@ The app checks its input/output/cwd/resource paths before mounting UI and record
 its PID. Launches are locked, logs and paths are retained, and timeout/cancellation
 retires only the matching staged executable. The Go launcher uses cooperative
 interrupt before its wait deadline. Talk dismissal and reading-presentation use
-the same isolation boundary. See [replay instructions](../tools/verification/moku-note/README.md).
+the same isolation boundary. See replay instructions (historical; removed).
 
 ## Verification and limits
 

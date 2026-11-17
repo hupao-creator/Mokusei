@@ -114,15 +114,11 @@ are explicitly described as potentially outdated, not current availability.
 These limitations do not turn
 an unknown/empty directory into a complete one.
 
-A successful matching cache hit does not wait for a native catalog fetch.
-A miss discovers the native inventory rather than rejecting unknown provenance.
-Host
+A successful matching cache hit does not wait for a native catalog fetch. A miss discovers the native inventory rather than rejecting unknown provenance. Host
 execution-profile preparation and local launch/dependency resolution remain
 separate costs. Native enumeration still has its existing bounds (OpenCode:
-30-second native timer and 55-second full probe, plus joined cleanup).
-Resolving local binaries and checking dependency fingerprints is separate work;
+30-second native timer and 55-second full probe, plus joined cleanup). Resolving local binaries and checking dependency fingerprints is separate work;
 unchanged Codex binary-version facts no longer expire merely with catalog TTL.
-No timing measurement or native replay was performed for this Sprint.
 
 Both creation/follow-up prompt schemas carry target-routing guidance: explicit
 user choices take precedence over general routing guidance and belong under the single Harness key in `create_thread.target`. Moku addresses the receiving Agent
@@ -248,8 +244,6 @@ Moku collects registered [Context contributions](../../hosts/contexthost/README.
 Outgoing workspace context reads the Thread catalog only when a directory tag
 needs resolving. Explicit directory mentions and inputs without a directory tag
 do not load unrelated Thread histories.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/moku` and `./scripts/go.sh test -race ./internal/services/moku` from the repository root. The runner also exports production-shaped Talk/dispatch/note records for native UI replays.
 
 ## Durable system notifications
 
@@ -394,5 +388,3 @@ Native creation schemas and admission still own available model choices.
 settings. The coordinator appends nonempty guidance after the base prompt with the
 `Model routing guidance:` prefix. Explicit user Harness/model/thinking choices
 still take precedence through the creation/follow-up tool contracts.
-`tools/verification/moku` exercises real SQLite
-save/restart, retained custom text and production coordinator instruction injection.
