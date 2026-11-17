@@ -569,8 +569,10 @@ The count expands from the collection card into the workspace's centered reading
 panel, using `NativeCollectionPanelPresentation`, the same `NativeReadingPageStack`
 compositor, window-relative margins and emphasized 420ms opening as Agent/Report
 readers. Overview and Dock fade out and reject input/accessibility while the panel
-is open; this is not a screen-sized popover or a zoomed canvas child. The fixed
-header uses the shared upper-left Close; only the centered member grid scrolls.
+is open; this is not a screen-sized popover or a zoomed canvas child. The panel
+has no gallery heading or total count. The grid reserves only 48pt above its
+scroll viewport for the floating shared upper-left Close; only the centered
+member grid scrolls.
 Columns adapt to the logical window viewport (including window zoom), with up to
 360pt cards, 20pt gaps, and a single shrinking column in narrow windows. Cover
 height preserves 360:308, with a separate metadata region. No panel dimension can

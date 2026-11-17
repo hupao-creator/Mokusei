@@ -3,7 +3,7 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 import SwiftUI
 
-/// A fixed reading header and one scroll owner, independent of canvas scale.
+/// A floating close control and one scroll owner, independent of canvas scale.
 struct NativeReportCollectionMembers: View {
     let props: [ApplicationThreadProps<NativeReportView>]
     let locale: JSONText
@@ -19,36 +19,29 @@ struct NativeReportCollectionMembers: View {
             let available = max(1, min(1160, geometry.size.width - 2 * inset))
             let columns = max(1, Int((available + 20) / 300))
             let width = min(360, (available - CGFloat(columns - 1) * 20) / CGFloat(columns))
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    NativeReadingPanelCloseButton(label: applicationText(locale, "关闭", "Close"), onClose: close)
-                        .keyboardShortcut(.cancelAction)
-                    Spacer(minLength: 0)
-                    Text(applicationText(locale, "全部 Super Thread", "All Super Threads"))
-                        .font(NativeTypography.inter(size: 16, weight: 620)).lineLimit(1)
-                    Text("\(props.count)").font(.system(size: 12, weight: .medium)).monospacedDigit()
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                    Color.clear.frame(width: 32, height: 32)
-                }.padding(14)
-                NativeScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: 20, alignment: .top), count: columns),
-                              alignment: .center, spacing: 20) {
-                        ForEach(props, id: \.entry.ref) { member in
-                            let identity = CoverIdentity(reference: member.entry.ref, revision: member.entry.view.coverRevision)
-                            let replayID = replayIDs[identity, default: 0]
-                            CollectionMemberCard(member: member, width: width,
-                                replayID: replayID, initiallyFinished: completed[identity] == replayID,
-                                replay: { replayIDs[identity, default: 0] += 1 },
-                                onPlaybackCompleted: { reference, revision, generation in
-                                    completed[CoverIdentity(reference: reference, revision: revision)] = generation
-                                },
-                                allowsActions: { allowsActions(member.entry.ref) },
-                                openThread: { openThread(member.entry.ref) })
-                        }
-                    }.frame(maxWidth: .infinity)
-                        .padding(.horizontal, inset).padding(.top, 12).padding(.bottom, 28)
-                }
+            NativeScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: 20, alignment: .top), count: columns),
+                          alignment: .center, spacing: 20) {
+                    ForEach(props, id: \.entry.ref) { member in
+                        let identity = CoverIdentity(reference: member.entry.ref, revision: member.entry.view.coverRevision)
+                        let replayID = replayIDs[identity, default: 0]
+                        CollectionMemberCard(member: member, width: width,
+                            replayID: replayID, initiallyFinished: completed[identity] == replayID,
+                            replay: { replayIDs[identity, default: 0] += 1 },
+                            onPlaybackCompleted: { reference, revision, generation in
+                                completed[CoverIdentity(reference: reference, revision: revision)] = generation
+                            },
+                            allowsActions: { allowsActions(member.entry.ref) },
+                            openThread: { openThread(member.entry.ref) })
+                    }
+                }.frame(maxWidth: .infinity)
+                    .padding(.horizontal, inset).padding(.bottom, 28)
+            }
+            .padding(.top, 48)
+            .overlay(alignment: .topLeading) {
+                NativeReadingPanelCloseButton(label: applicationText(locale, "关闭", "Close"), onClose: close)
+                    .keyboardShortcut(.cancelAction)
+                    .padding(14)
             }
         }
         .background(NativePalette.thread.canvas.swiftUI)
