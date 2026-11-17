@@ -4,7 +4,7 @@ This verification runner measures two fixed product commits on **one macOS arm64
 runner**, with one shared harness and two opposite-order pairs per condition. It
 does not need a developer Mac or a local measurement agent. The
 [Overview performance workflow](../../../.github/workflows/overview-performance.yml)
-is independent of ordinary build/test/WindowServer-capture CI; it never cancels or
+is independent of ordinary build/static-check CI; it never cancels or
 replaces that verification. Its [runner deployment contract](../../../scripts/ci/self-hosted.md)
 keeps macOS 26 arm64, Metal and foreground requirements on either GitHub or
 self-hosted execution. Self-hosted images must supply the display policy and
@@ -149,12 +149,11 @@ experiments retain their original validity; this protocol must not retroactively
 validate or pool them. A new pair must use one common current harness.
 
 The Go clock bridge uses the OS API through Cgo, fails closed on read failure,
-and never falls back to realtime. Linux correctness tests have a distinct
-`linux.CLOCK_MONOTONIC_RAW.ns` identity; they cannot certify a macOS performance
-run. The Python contract tests deliberately perturb UTC while keeping raw events
-fixed, and separately reject epoch, origin, unit, handshake, deadline and CPU
-denominator errors. CI runs the Go and Python contract checks before the matrix;
-their logs remain with the measurement artifact.
+and never falls back to realtime. The standalone Go and Python clock/contract
+tests and their workflow step have been removed. After toolchain and graphical
+preflight, the workflow runs the actual Release matrix directly. The experiment
+retains the runtime clock observations and measurement-validity checks described
+in this guide.
 
 ### CPU intervals
 
