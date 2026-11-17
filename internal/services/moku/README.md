@@ -32,7 +32,7 @@ contract even when native tool-schema conversion drops composition details.
 Moku retains the same named-target schema and authoritative validation; Pi,
 OpenCode and Claude continue receiving their existing definitions.
 
-[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
+[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `ask_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and queries retain bounded, explicit public access. `ask_thread` makes a model request against an ordinary Agent Thread history fork or captured snapshot; it does not return raw history, send a message to the source, or change source state. The snapshot can be stale and is not a live status query. Terminal events arrive automatically; do not poll for progress or readiness.
 
 Tool scopes follow the current Moku Thread's monotonic record revision, not the
 arrival order of commit callbacks. A delayed note or metadata notification cannot
@@ -351,7 +351,7 @@ their separate capabilities and never supply tool provenance. Batch attempts and
 ordered per-thread success/error results retain their existing semantics.
 
 `grep_threads` is an admitted, audited deterministic read, distinct from the
-model-based `read_thread`. Runtime limits it to current-profile ordinary Agent
+model-based `ask_thread`. Runtime limits it to current-profile ordinary Agent
 Threads, including archived threads by default. It supports literal/RE2 searches,
 body/title selection and intersecting thread-ID/Directory-Scope filters. Follow
 `nextCursor` even when a page has no hits; missing coverage is explicit and must

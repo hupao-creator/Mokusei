@@ -71,7 +71,7 @@ for a tool, admission, domain write or native history fork.
   scoped fixtures use private new directories under the real home and remove them
   on success. Failures print their retained path.
 - Child completion fans out to the durable Moku queue, scoped Report runner and
-  scoped Tag runner. Moku uses its own `read_thread` after a real terminal
+  scoped Tag runner. Moku uses its own `ask_thread` after a real terminal
   notification, verifies the native history answer, and then updates its note.
   Each completed child must have that read receipt before initial convergence.
   Report lists scoped tasks, takes the original `PublicExecution` from batch

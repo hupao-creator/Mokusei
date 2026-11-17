@@ -145,7 +145,7 @@ func runCreationContractReplay() error {
 	longParsed, parseErr := moku.ParseCreateRequest(mokuReplayRaw(longRequest))
 	mokuReplayMust(parseErr)
 	mokuReplayCheck(longParsed.Prompt == longPrompt, "parser truncated or altered a long prompt")
-	freeText := map[string]string{"create_thread": "prompt", "send_to_thread": "prompt", "read_thread": "question", "talk": "text"}
+	freeText := map[string]string{"create_thread": "prompt", "send_to_thread": "prompt", "ask_thread": "question", "talk": "text"}
 	for _, binding := range moku.ToolSchemas(description) {
 		field, ok := freeText[binding.Name]
 		if !ok {

@@ -177,7 +177,7 @@ func replayStopDrainsMokuSettlement() {
 func addTerminalQueueAudit(w *orchestratorWorld, owner, execution string) {
 	mokuReplayMust(w.update(mokuReplayContext(), owner, func(record *model.ThreadRecord) error {
 		record.Transcript = append(record.Transcript,
-			mokuReplayRaw(map[string]any{"type": "tool-operation", "id": "queue-pending-tool", "executionId": execution, "callId": "queue-call", "name": "read_thread", "arguments": map[string]any{"threadId": "queued-child", "question": "review result"}, "createdAt": time.Now().UnixMilli()}),
+			mokuReplayRaw(map[string]any{"type": "tool-operation", "id": "queue-pending-tool", "executionId": execution, "callId": "queue-call", "name": "ask_thread", "arguments": map[string]any{"threadId": "queued-child", "question": "review result"}, "createdAt": time.Now().UnixMilli()}),
 			mokuReplayRaw(map[string]any{"type": "message", "id": "queue-streaming-assistant", "executionId": execution, "role": "assistant", "status": "streaming", "content": "Pending final response", "createdAt": time.Now().UnixMilli()}))
 		return nil
 	}))

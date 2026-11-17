@@ -74,7 +74,7 @@ type Configuration struct {
 	SubscribeDiagnostics      func(func(string)) func()
 	CreateThread              func(context.Context, CreateThreadRequest) (CreatedThread, error)
 	SendThread                func(context.Context, string, model.AgentInput) (SendResult, error)
-	ReadThread                func(context.Context, string, string) (string, error)
+	AskThread                 func(context.Context, string, string) (string, error)
 	InterruptThread           func(context.Context, string) error
 	InterruptThreadTarget     func(context.Context, string, string) (model.CancellationResult, error)
 	ClaimThreadInput          func(context.Context, string) (context.Context, context.CancelFunc, error)

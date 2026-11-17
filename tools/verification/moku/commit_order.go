@@ -122,7 +122,7 @@ func replayDelayedMokuCommit(terminalObserved bool) {
 	w.mu.Unlock()
 	readDone := make(chan error, 1)
 	go func() {
-		_, err := w.call("read_thread", fmt.Sprintf(`{"threadId":%q,"question":"keep this successor read alive"}`, child.ThreadID))
+		_, err := w.call("ask_thread", fmt.Sprintf(`{"threadId":%q,"question":"keep this successor read alive"}`, child.ThreadID))
 		readDone <- err
 	}()
 	mokuReplayAwait("successor tool started before old notification", readEntered)

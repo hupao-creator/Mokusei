@@ -200,7 +200,7 @@ func mokuReadPlan(input any) (tool, call string, args object, err error) {
 			}
 			readID := mokuReadCallID(executionID)
 			if !hasResult(input, readID) {
-				return "read_thread", readID, object{"threadId": id, "question": "What is the exact SYSTEM_CHAIN_CHILD result?"}, nil
+				return "ask_thread", readID, object{"threadId": id, "question": "What is the exact SYSTEM_CHAIN_CHILD result?"}, nil
 			}
 			value, err := resultJSON(input, readID)
 			if err != nil {

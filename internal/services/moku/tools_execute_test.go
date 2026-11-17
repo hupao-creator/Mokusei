@@ -259,3 +259,31 @@ func TestExecuteRejectsInvalidTargetString(t *testing.T) {
 		t.Fatalf("invalid target was rewritten in audit: %#v", got)
 	}
 }
+
+func TestAskThreadBindingAndRoute(t *testing.T) {
+	fixture := newExecuteToolFixture(t)
+	fixture.coordinator.config.Thread = func(id string) (model.ThreadRecord, error) {
+		if id == fixture.record.ID {
+			return *fixture.record, nil
+		}
+		return model.ThreadRecord{ID: id}, nil
+	}
+	var asked bool
+	fixture.coordinator.config.AskThread = func(_ context.Context, id, question string) (string, error) {
+		asked = id == "target" && question == "What changed?"
+		return "answer", nil
+	}
+	for _, binding := range fixture.coordinator.tools(fixture.record.ID, ThreadCreationDescription{}) {
+		if binding.Name == "read_thread" {
+			t.Fatal("old tool name is exposed")
+		}
+	}
+	binding := fixture.binding(t, ThreadCreationDescription{}, "ask_thread")
+	result, err := binding.Execute(context.Background(), plugin.ToolCall{CallID: "ask", Arguments: json.RawMessage(`{"threadId":"target","question":"What changed?"}`)})
+	if err != nil || !asked || !strings.Contains(string(result), `"answer":"answer"`) {
+		t.Fatalf("ask_thread result = %s, asked = %v, error = %v", result, asked, err)
+	}
+	if _, err := fixture.coordinator.executeTool(context.Background(), fixture.record.ID, "read_thread", json.RawMessage(`{"threadId":"target","question":"What changed?"}`), ThreadCreationDescription{}); err == nil {
+		t.Fatal("old tool route was accepted")
+	}
+}

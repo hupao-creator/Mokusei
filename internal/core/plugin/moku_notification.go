@@ -29,5 +29,5 @@ func MokuUserThreadInputNotification(event LifecycleEvent, thread any) model.Age
 		"Respect the user's direct instructions in that Thread when coordinating, including constraints on follow-ups or integration. " +
 		"Do not resend this input or override those instructions. This is a coordination notification, not a new user request addressed to Moku. " +
 		"Attachment metadata and browser annotations describe content sent to the child; they do not imply Moku has inspected the files. " +
-		"If truncated, use read_thread only when the omitted content is needed for coordination."}}}
+		"If truncated, use ask_thread only when the omitted content is needed for coordination."}}}
 }

@@ -320,7 +320,7 @@ func (w *orchestratorWorld) config() moku.Configuration {
 			}
 			return plugin.SessionSendResult{ExecutionID: r.Observation.LatestExecution.ExecutionID}, nil
 		},
-		ReadThread: func(ctx context.Context, id, question string) (string, error) {
+		AskThread: func(ctx context.Context, id, question string) (string, error) {
 			w.mu.Lock()
 			w.reads++
 			read := w.threadRead
@@ -496,7 +496,7 @@ func replayOrchestratorBasics() {
 	w.mu.Lock()
 	mokuReplayCheck(len(w.resolvedCwds) > 0 && w.resolvedCwds[len(w.resolvedCwds)-1] == "/tmp/mokusei-child", "target settings resolved against Moku workspace")
 	w.mu.Unlock()
-	for _, item := range [][2]string{{"send_to_thread", fmt.Sprintf(`{"threadId":%q,"prompt":"continue"}`, created.ThreadID)}, {"get_thread_status", fmt.Sprintf(`{"threadId":%q}`, created.ThreadID)}, {"read_thread", fmt.Sprintf(`{"threadId":%q,"question":"what changed?"}`, created.ThreadID)}, {"talk", `{"text":"Delegated work."}`}, {"list_threads", `{"limit":1}`}} {
+	for _, item := range [][2]string{{"send_to_thread", fmt.Sprintf(`{"threadId":%q,"prompt":"continue"}`, created.ThreadID)}, {"get_thread_status", fmt.Sprintf(`{"threadId":%q}`, created.ThreadID)}, {"ask_thread", fmt.Sprintf(`{"threadId":%q,"question":"what changed?"}`, created.ThreadID)}, {"talk", `{"text":"Delegated work."}`}, {"list_threads", `{"limit":1}`}} {
 		result, callErr := w.call(item[0], item[1])
 		mokuReplayMust(callErr)
 		if item[0] == "send_to_thread" {
@@ -808,7 +808,7 @@ func replayOrchestratorToolCancellation() {
 	w.mu.Unlock()
 	done := make(chan error, 1)
 	go func() {
-		_, e := w.call("read_thread", fmt.Sprintf(`{"threadId":%q,"question":"blocked"}`, created.ThreadID))
+		_, e := w.call("ask_thread", fmt.Sprintf(`{"threadId":%q,"question":"blocked"}`, created.ThreadID))
 		done <- e
 	}()
 	mokuReplayAwait("entered", entered)
@@ -876,7 +876,7 @@ func replayOrchestratorStaleScope() {
 	gate.Unlock()
 	done := make(chan error, 1)
 	go func() {
-		_, e := w.call("read_thread", fmt.Sprintf(`{"threadId":%q,"question":"must not execute after terminal"}`, created.ThreadID))
+		_, e := w.call("ask_thread", fmt.Sprintf(`{"threadId":%q,"question":"must not execute after terminal"}`, created.ThreadID))
 		done <- e
 	}()
 	mokuReplayAwait("entered", entered)
