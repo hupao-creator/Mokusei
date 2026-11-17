@@ -70,3 +70,28 @@ func TestReduceNativeTextRemovesNULBeforePersistence(t *testing.T) {
 		})
 	}
 }
+
+func TestReasoningAggregateSeparatesWorkBoundariesAndExecutions(t *testing.T) {
+	state := StageExecution(EmptyState(1), "execution", Map{"parts": []any{Map{"kind": "text", "text": "prompt"}}}, 2, nil)
+	for _, event := range []Map{
+		{"type": "reasoning-delta", "delta": "First", "newSegment": true, "at": 3},
+		{"type": "reasoning-delta", "delta": " paragraph", "at": 4},
+		{"type": "activity-start", "activity": Map{"id": "tool", "kind": "command", "label": "command"}, "at": 5},
+		{"type": "reasoning-delta", "delta": "Second paragraph", "newSegment": true, "at": 6},
+	} {
+		state = ReduceEvent(state, "execution", event)
+	}
+	turn := LatestTurn(state)
+	if turn["reasoning"] != "First paragraph\n\nSecond paragraph" || obj(turn["foreground"])["text"] != "Second paragraph" {
+		t.Fatalf("work boundary lost or foreground borrowed earlier work: %#v", turn)
+	}
+	state = ReduceEvent(state, "execution", Map{"type": "done", "outcome": "completed", "at": 7})
+	state = StageExecution(state, "successor", Map{"parts": []any{Map{"kind": "text", "text": "next"}}}, 8, nil)
+	state = ReduceEvent(state, "successor", Map{"type": "reasoning-delta", "delta": "New execution", "newSegment": true, "at": 9})
+	if LatestTurn(state)["reasoning"] != "New execution" {
+		t.Fatalf("reasoning crossed an execution boundary: %#v", LatestTurn(state))
+	}
+	if _, err := DecodeState(state); err != nil {
+		t.Fatal(err)
+	}
+}

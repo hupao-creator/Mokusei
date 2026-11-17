@@ -25,36 +25,41 @@ type nativePending struct {
 	params, interaction Map
 	timer               *time.Timer
 }
+type nativeReasoningPart struct {
+	itemID, kind string
+	index        int64
+}
 type NativeSession struct {
-	mu                         sync.Mutex
-	notificationMu             sync.Mutex
-	server                     *AppServer
-	id, turnID, executionID    string
-	settings                   Map
-	reasoning, finals, outputs map[string]string
-	finalOrder                 []string
-	seenUsage                  map[string]bool
-	pending                    map[string]*nativePending
-	emit                       func(Map)
-	activity                   func(Map)
-	terminal                   bool
-	bridge                     *ToolBridge
-	completed                  chan struct{}
-	failure                    string
-	closed                     bool
-	closeOnce                  sync.Once
-	closeErr                   error
-	background                 map[string]Map
-	tombstones                 map[string]bool
-	refreshMu                  sync.Mutex
-	toolContext                context.Context
-	toolCancel                 context.CancelFunc
-	toolCalls                  map[string]bool
-	toolWorkers                *sync.WaitGroup
-	retiredTurns               map[string]bool
-	retryTimer                 *time.Timer
-	retryCount                 int
-	retryGeneration            uint64
+	mu                      sync.Mutex
+	notificationMu          sync.Mutex
+	server                  *AppServer
+	id, turnID, executionID string
+	settings                Map
+	reasoning               map[nativeReasoningPart]string
+	finals, outputs         map[string]string
+	finalOrder              []string
+	seenUsage               map[string]bool
+	pending                 map[string]*nativePending
+	emit                    func(Map)
+	activity                func(Map)
+	terminal                bool
+	bridge                  *ToolBridge
+	completed               chan struct{}
+	failure                 string
+	closed                  bool
+	closeOnce               sync.Once
+	closeErr                error
+	background              map[string]Map
+	tombstones              map[string]bool
+	refreshMu               sync.Mutex
+	toolContext             context.Context
+	toolCancel              context.CancelFunc
+	toolCalls               map[string]bool
+	toolWorkers             *sync.WaitGroup
+	retiredTurns            map[string]bool
+	retryTimer              *time.Timer
+	retryCount              int
+	retryGeneration         uint64
 }
 
 func NewNativeSession(s *AppServer) *NativeSession {
@@ -280,7 +285,7 @@ func (n *NativeSession) Start(ctx context.Context, o NativeOptions, executionID 
 	n.turnID = ""
 	n.terminal = false
 	n.failure = ""
-	n.reasoning = map[string]string{}
+	n.reasoning = map[nativeReasoningPart]string{}
 	n.finals = map[string]string{}
 	n.finalOrder = nil
 	n.outputs = map[string]string{}
@@ -593,10 +598,12 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		delta := str(p["delta"])
 		n.publish(Map{"type": "text-delta", "itemId": item, "delta": delta})
 	case "item/reasoning/summaryTextDelta", "item/reasoning/textDelta":
-		n.mu.Lock()
-		n.reasoning[str(p["itemId"])] += str(p["delta"])
-		n.mu.Unlock()
-		n.publish(Map{"type": "reasoning-delta", "delta": str(p["delta"])})
+		kind, indexKey := "summary", "summaryIndex"
+		if method == "item/reasoning/textDelta" {
+			kind, indexKey = "content", "contentIndex"
+		}
+		part := nativeReasoningPart{str(p["itemId"]), kind, int64(num(p[indexKey]))}
+		n.reasoningDelta(part, str(p["delta"]))
 		n.publish(Map{"type": "status", "label": "正在分析"})
 	case "item/started":
 		i := obj(p["item"])
@@ -675,25 +682,19 @@ func (n *NativeSession) completedItem(i Map) {
 		n.mu.Unlock()
 		n.publish(Map{"type": "text-final", "itemId": id, "text": text})
 	case "reasoning":
-		parts := []string{}
-		for _, v := range arr(i["summary"]) {
-			if s, ok := v.(string); ok {
-				parts = append(parts, s)
-			}
-		}
+		kind, parts := "summary", arr(i["summary"])
 		if len(parts) == 0 {
-			for _, v := range arr(i["content"]) {
-				if s, ok := v.(string); ok {
-					parts = append(parts, s)
-				}
-			}
+			kind, parts = "content", arr(i["content"])
 		}
-		text := strings.Join(parts, "\n")
-		n.mu.Lock()
-		streamed := n.reasoning[id]
-		n.mu.Unlock()
-		if strings.HasPrefix(text, streamed) && len(text) > len(streamed) {
-			n.publish(Map{"type": "reasoning-delta", "delta": text[len(streamed):]})
+		for index, value := range parts {
+			part := nativeReasoningPart{id, kind, int64(index)}
+			text := strings.ReplaceAll(str(value), "\x00", "")
+			n.mu.Lock()
+			streamed := n.reasoning[part]
+			n.mu.Unlock()
+			if strings.HasPrefix(text, streamed) && len(text) > len(streamed) {
+				n.reasoningDelta(part, text[len(streamed):])
+			}
 		}
 	case "contextCompaction":
 		n.publish(Map{"type": "context-compacted"})
@@ -706,6 +707,20 @@ func (n *NativeSession) completedItem(i Map) {
 		}
 	}
 }
+
+func (n *NativeSession) reasoningDelta(part nativeReasoningPart, delta string) {
+	// Empty parts must not consume their boundary before the first visible delta.
+	delta = strings.ReplaceAll(delta, "\x00", "")
+	if delta == "" {
+		return
+	}
+	n.mu.Lock()
+	previous := n.reasoning[part]
+	n.reasoning[part] = previous + delta
+	n.mu.Unlock()
+	n.publish(Map{"type": "reasoning-delta", "delta": delta, "newSegment": previous == ""})
+}
+
 func (n *NativeSession) finish(turn Map) {
 	n.mu.Lock()
 	if n.terminal {

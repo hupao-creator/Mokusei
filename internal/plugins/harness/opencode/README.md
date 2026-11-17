@@ -58,6 +58,10 @@ tools) so collapse state survives without leaking private work. Error and failed
 available for independent diagnostics; retained tool failures do not bypass Agent
 summaries. Canonical history and full/execution projections retain their
 user-visible content and diagnostics under this one-body schema.
+Distinct reasoning ordinals remain separate parts through streaming, completion
+and history reconciliation. Go and Swift computed reasoning text join those
+parts with blank lines; chunks within one part append without separators.
+
 Canonical persisted state is version 2; the renderer projection is a separate,
 transient contract that remains version 1. Version 1 canonical state duplicated
 assistant text/reasoning as aggregates and tool text beside structured data, so it

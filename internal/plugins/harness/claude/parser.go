@@ -22,6 +22,7 @@ type frameParser struct {
 	reasoningMessages   map[string]bool
 	textBoundaries      map[string]bool
 	reasoningBoundaries map[string]bool
+	lastReasoningPart   string
 	usage               map[string]map[string]any
 	costs               map[string]float64
 	taskMutations       map[string]*nativeTool
@@ -119,7 +120,7 @@ func (p *frameParser) apply(s *State, t *Turn, f map[string]any, canonical func(
 		if parent == "" {
 			p.messageStart(t, id, str(message["model"]))
 		}
-		for _, v := range arr(message["content"]) {
+		for index, v := range arr(message["content"]) {
 			b := obj(v)
 			switch str(b["type"]) {
 			case "text":
@@ -129,7 +130,7 @@ func (p *frameParser) apply(s *State, t *Turn, f map[string]any, canonical func(
 				}
 			case "thinking":
 				if parent == "" && !p.reasoningMessages[id] {
-					t.reasoning(str(b["thinking"]))
+					p.reasoning(t, str(b["thinking"]), fmt.Sprintf("%s:%v", id, index))
 					p.reasoningBoundaries[boundary] = true
 				}
 			case "tool_use":
@@ -294,7 +295,7 @@ func (p *frameParser) stream(t *Turn, e map[string]any, parent, boundary string,
 			if parent == "" {
 				p.reasoningBoundaries[boundary] = true
 				p.reasoningMessages[p.messages[stream].ID] = true
-				t.reasoning(str(d["thinking"]))
+				p.reasoning(t, str(d["thinking"]), fmt.Sprintf("%s:%v", p.messages[stream].ID, e["index"]))
 			}
 		case "input_json_delta":
 			if tool := p.tools[fmt.Sprintf("%s:%v", stream, e["index"])]; tool != nil {
@@ -341,6 +342,25 @@ func (p *frameParser) stream(t *Turn, e map[string]any, parent, boundary string,
 		delete(p.messages, stream)
 	}
 }
+func (p *frameParser) reasoning(t *Turn, delta, part string) {
+	delta = strings.ReplaceAll(delta, "\x00", "")
+	if delta == "" {
+		return
+	}
+	// Native messages and thinking blocks are paragraphs, not stream chunks.
+	// Keep this boundary in the timeline shared by live and historical readers.
+	if part != p.lastReasoningPart && len(t.Timeline) > 0 {
+		last := t.Timeline[len(t.Timeline)-1]
+		if previous := str(last["content"]); last["kind"] == "reasoning" && previous != "" {
+			trailing := len(previous) - len(strings.TrimRight(previous, "\n"))
+			leading := len(delta) - len(strings.TrimLeft(delta, "\n"))
+			delta = strings.Repeat("\n", max(0, 2-trailing-leading)) + delta
+		}
+	}
+	p.lastReasoningPart = part
+	t.reasoning(delta)
+}
+
 func (p *frameParser) messageStart(t *Turn, id, model string) {
 	if model != "" {
 		if t.Author == nil {

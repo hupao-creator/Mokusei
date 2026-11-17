@@ -162,7 +162,7 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
         guard role == "assistant" else { return "" }
         return parts.compactMap { part in
             part["type"] == .text("reasoning") ? part["text"]?.stringValue : nil
-        }.joined()
+        }.joined(separator: "\n\n")
     }
     var id: JSONText { raw.ocID("id") }
     var executionID: JSONText { raw.ocID("executionId") }

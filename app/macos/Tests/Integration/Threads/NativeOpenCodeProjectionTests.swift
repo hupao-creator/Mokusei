@@ -6,6 +6,19 @@ import Testing
 /// The native decoder consumes the producer's single-authority projection:
 /// assistant bodies come from ordered parts and tool payloads are display-only.
 struct NativeOpenCodeProjectionTests {
+    @Test func keepsReasoningPartBoundariesInComputedText() throws {
+        let state = try state(.object([
+            "id": .text("assistant"), "executionId": .text("execution"), "role": .text("assistant"),
+            "parts": .array([
+                .object(["type": .text("reasoning"), "ordinal": .number(0), "text": .text("**Confirming process termination**")]),
+                .object(["type": .text("reasoning"), "ordinal": .number(1), "text": .text("**Analyzing image tag details**")]),
+            ]),
+        ]))
+        let assistant = try #require(state.messages.first)
+        #expect(assistant.thinking == "**Confirming process termination**\n\n**Analyzing image tag details**")
+        #expect(assistant.parts.count == 2)
+    }
+
     @Test func readsAssistantPartsAndToolDisplaysWithoutRawCopies() throws {
         let state = try OpenCodeState(.object([
             "version": .number(1),

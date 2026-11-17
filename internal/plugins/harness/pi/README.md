@@ -38,6 +38,11 @@ deferred. Failed-tool payload retention does not authorize showing it in an
 Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
 
+Thinking content blocks join with newlines in the shared native message decoder.
+Delta-only updates accumulate by content index before using that same decoder,
+so chunk boundaries add no separators and completed/history snapshots retain
+the same text. Independent assistant messages remain separate rows.
+
 Failed or empty initial Pi catalogs block Moku task preparation. Unknown thinking
 capabilities restrict creation branches without omitting model identities. Discovery
 does not require the configured default model to be usable. Native admission

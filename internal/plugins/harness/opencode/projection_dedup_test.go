@@ -207,6 +207,37 @@ func TestProjectionKeepsPartOrderAndDistinctToolCalls(t *testing.T) {
 	}
 }
 
+func TestReasoningPartsRetainBoundariesAcrossStreamAndRestore(t *testing.T) {
+	state := dedupState(t)
+	for ordinal, text := range []string{"**Confirming process termination**", "**Analyzing image tag details**"} {
+		for _, delta := range []string{text[:3], text[3:]} {
+			dedupEvent(t, state, "session.reasoning.delta", Object{"assistantMessageID": "assistant", "sessionID": "ses", "ordinal": ordinal, "delta": delta})
+		}
+		for range 2 {
+			dedupEvent(t, state, "session.reasoning.ended", Object{"assistantMessageID": "assistant", "sessionID": "ses", "ordinal": ordinal, "text": text})
+		}
+	}
+	const want = "**Confirming process termination**\n\n**Analyzing image tag details**"
+	for _, restored := range []bool{false, true} {
+		if restored {
+			var err error
+			state, err = DecodeState(state.Encode())
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		assistant := state.message("assistant", "assistant", "ses")
+		if assistant == nil || messageThinking(assistant) != want {
+			t.Fatalf("restored=%v thinking=%#v", restored, assistant)
+		}
+		projected := dedupMessage(dedupMessages(t, dedupProject(t, state)), "assistant")
+		parts, _ := projected["parts"].([]any)
+		if len(parts) != 2 || parts[0].(map[string]any)["text"] != "**Confirming process termination**" || parts[1].(map[string]any)["text"] != "**Analyzing image tag details**" {
+			t.Fatalf("restored=%v parts=%#v", restored, parts)
+		}
+	}
+}
+
 func TestProjectionTransfersOneCopyOfEachLargeToolBody(t *testing.T) {
 	state := dedupState(t)
 	dedupEvent(t, state, "session.text.ended", Object{"assistantMessageID": "assistant", "sessionID": "ses", "ordinal": 0, "text": "answer"})

@@ -22,6 +22,7 @@ import (
 
 const streamFragment = "0123456789abcdef0123456789abcdef"
 const streamAnswer = "Stream fixture complete"
+const segmentedReasoning = "**Confirming process termination**\n\n**Analyzing image tag details**\n\nSecond paragraph completed\n\nCompletion-only paragraph\n\nRaw reasoning"
 
 type streamStore struct {
 	mu                                   sync.Mutex
@@ -125,7 +126,7 @@ func runStreamPerformance(ctx context.Context, root, binary string, chunks, repe
 }
 
 func verifyStreaming(ctx context.Context, root, binary string) error {
-	for _, kind := range []string{"reasoning", "text"} {
+	for _, kind := range []string{"reasoning", "text", "reasoning-segments"} {
 		for _, interrupted := range []bool{false, true} {
 			name := fmt.Sprintf("%s-interrupted-%t", kind, interrupted)
 			sample, err := runStreamSample(ctx, filepath.Join(root, name), binary, kind, 64, interrupted, true, false)
@@ -143,7 +144,7 @@ func verifyStreaming(ctx context.Context, root, binary string) error {
 	if _, err := runStreamSample(ctx, filepath.Join(root, "failed-flush"), binary, "reasoning", 64, true, false, true); err != nil {
 		return err
 	}
-	fmt.Println("PASS native JSONL stream batching / analysis status transitions / terminal and interrupt content / failed flush close error")
+	fmt.Println("PASS native JSONL stream batching / reasoning item and part boundaries / restored history / analysis status transitions / terminal and interrupt content / failed flush close error")
 	return nil
 }
 
@@ -195,6 +196,9 @@ func runStreamSample(ctx context.Context, root, binary, kind string, chunks int,
 		return sample, err
 	}
 	first := codex.LatestTurn(decoded(store.Read()))
+	if kind == "reasoning-segments" && (first["reasoning"] != "**Confirming process " || first["status"] != "running") {
+		return sample, fmt.Errorf("first reasoning segment was not published before the protocol barrier")
+	}
 	if kind == "reasoning" && (first["reasoning"] != streamFragment || first["statusLabel"] != "正在分析" || first["status"] != "running") {
 		return sample, fmt.Errorf("first native reasoning chunk did not publish running analysis before its protocol barrier")
 	}
@@ -249,6 +253,20 @@ func runStreamSample(ctx context.Context, root, binary, kind string, chunks int,
 		store.mu.Lock()
 		streamStatusCommits = store.statusOnly - beforeStatus
 		store.mu.Unlock()
+		if kind == "reasoning-segments" {
+			// Wait for the normal batch timer while the native peer is held before
+			// terminal publication; completion must not hide a broken live card.
+			for text(codex.LatestTurn(decoded(store.Read()))["reasoning"]) != segmentedReasoning {
+				select {
+				case <-ctx.Done():
+					return sample, fmt.Errorf("live reasoning boundaries differ: %s", store.Read())
+				case <-time.After(time.Millisecond):
+				}
+			}
+			if err = checkReasoningSegments(decoded(store.Read()), true); err != nil {
+				return sample, err
+			}
+		}
 	}
 	if interrupted {
 		if err = handle.Interrupt(ctx); err != nil {
@@ -276,14 +294,31 @@ func runStreamSample(ctx context.Context, root, binary, kind string, chunks int,
 		wantStatus = "interrupted"
 	}
 	wantText, wantReasoning := strings.Repeat(streamFragment, chunks), ""
-	if kind == "reasoning" {
+	if strings.HasPrefix(kind, "reasoning") {
 		wantText, wantReasoning = streamAnswer, wantText
+		if kind == "reasoning-segments" {
+			wantReasoning = segmentedReasoning
+		}
 		if interrupted {
 			wantText = ""
 		}
 	}
 	if turn["status"] != wantStatus || text(turn["answer"]) != wantText || text(turn["reasoning"]) != wantReasoning {
 		return sample, fmt.Errorf("native %s stream final state differs: status=%v text=%d reasoning=%d", kind, turn["status"], len(text(turn["answer"])), len(text(turn["reasoning"])))
+	}
+	if kind == "reasoning-segments" {
+		if err = handle.Close(); err != nil {
+			return sample, err
+		}
+		thread.SessionState = store.Read()
+		reopened, openErr := adapter.Open(ctx, plugin.OpenContext{ThreadID: thread.ID, ReadThread: func() model.SessionRecord { return thread }, SessionState: store})
+		if openErr != nil {
+			return sample, openErr
+		}
+		defer reopened.Close()
+		if err = checkReasoningSegments(decoded(store.Read()), false); err != nil {
+			return sample, err
+		}
 	}
 	normalizeStreamState(final)
 	sum := sha256.Sum256(encoded(final))
@@ -310,6 +345,36 @@ func onlyStreamFailure(err, expected error) bool {
 		return true
 	}
 	return false
+}
+
+func checkReasoningSegments(state object, live bool) error {
+	turn := codex.LatestTurn(state)
+	if turn["reasoning"] != segmentedReasoning {
+		return fmt.Errorf("reasoning aggregate lost native boundaries: %q", turn["reasoning"])
+	}
+	for _, scope := range []object{{"kind": "execution", "key": "turn:stream-execution"}, {"kind": "overview"}} {
+		if !live && scope["kind"] == "overview" {
+			continue // Terminal card selection follows its existing reply/status policy.
+		}
+		projected := codex.ProjectRenderer(state, scope)
+		found := false
+		for _, value := range list(codex.LatestTurn(projected)["timeline"]) {
+			item := record(value)
+			if item["kind"] == "reasoning" {
+				found = true
+				if item["content"] != segmentedReasoning {
+					return fmt.Errorf("%s reasoning text differs: %q", scope["kind"], item["content"])
+				}
+			}
+		}
+		if !found {
+			return fmt.Errorf("%s lost reasoning timeline", scope["kind"])
+		}
+	}
+	if live && record(turn["foreground"])["text"] != segmentedReasoning {
+		return fmt.Errorf("live reasoning foreground differs: %#v", turn["foreground"])
+	}
+	return nil
 }
 
 func normalizeStreamState(value any) {
@@ -379,6 +444,12 @@ func (p *peer) streamFixture(method string, params object, id any) (bool, error)
 		if err := awaitStreamFile(ctx, filepath.Join(root, "stream-release")); err != nil {
 			return true, err
 		}
+		if kind == "reasoning-segments" {
+			if err := p.streamReasoningSegments(); err != nil {
+				return true, err
+			}
+			return true, p.send(object{"id": "stream-emitted", "method": "currentTime/read", "params": object{}})
+		}
 		for i := 1; i < chunks; i++ {
 			if kind == "reasoning" && i == chunks/2 && os.Getenv("MOKUSEI_CODEX_REPLAY_STREAM_INSPECT") == "true" {
 				if err := p.event("item/plan/delta", object{"threadId": p.session, "turnId": p.turn}); err != nil {
@@ -412,6 +483,9 @@ func (p *peer) streamFixture(method string, params object, id any) (bool, error)
 }
 
 func (p *peer) streamComplete(kind string, chunks int) error {
+	if kind == "reasoning-segments" {
+		return p.completed(streamAnswer)
+	}
 	answer := strings.Repeat(streamFragment, chunks)
 	if kind == "reasoning" {
 		if err := p.event("item/completed", object{"threadId": p.session, "turnId": p.turn, "item": object{"id": "reasoning", "type": "reasoning", "summary": []any{answer}}}); err != nil {
@@ -423,9 +497,44 @@ func (p *peer) streamComplete(kind string, chunks int) error {
 }
 
 func (p *peer) streamDelta(kind string) error {
+	if kind == "reasoning-segments" {
+		return p.event("item/reasoning/summaryTextDelta", object{"threadId": p.session, "turnId": p.turn, "itemId": "reasoning-1", "summaryIndex": 0, "delta": "**Confirming process "})
+	}
 	method, itemID := "item/agentMessage/delta", "answer-"+p.turn
 	if kind == "reasoning" {
 		method, itemID = "item/reasoning/summaryTextDelta", "reasoning"
 	}
 	return p.event(method, object{"threadId": p.session, "turnId": p.turn, "itemId": itemID, "delta": streamFragment})
+}
+
+func (p *peer) streamReasoningSegments() error {
+	// The first delta has already crossed the live publication barrier. Use
+	// split chunks, existing newlines, empty parts and repeated completions to
+	// distinguish semantic boundaries from arbitrary JSONL chunk boundaries.
+	frames := []struct {
+		method string
+		params object
+	}{
+		{"item/reasoning/summaryTextDelta", object{"itemId": "reasoning-1", "summaryIndex": 0, "delta": "termination**"}},
+		{"item/completed", object{"item": object{"id": "reasoning-1", "type": "reasoning", "summary": []any{"**Confirming process termination**"}}}},
+		{"item/reasoning/summaryTextDelta", object{"itemId": "reasoning-2", "summaryIndex": 0, "delta": "\x00"}},
+		{"item/reasoning/summaryTextDelta", object{"itemId": "reasoning-2", "summaryIndex": 0, "delta": "**Analyzing image "}},
+		{"item/reasoning/summaryTextDelta", object{"itemId": "reasoning-2", "summaryIndex": 0, "delta": "tag details**"}},
+		{"item/reasoning/summaryPartAdded", object{"itemId": "reasoning-2", "summaryIndex": 1}},
+		{"item/reasoning/summaryTextDelta", object{"itemId": "reasoning-2", "summaryIndex": 1, "delta": ""}},
+		{"item/reasoning/summaryTextDelta", object{"itemId": "reasoning-2", "summaryIndex": 1, "delta": "Second "}},
+		{"item/reasoning/summaryTextDelta", object{"itemId": "reasoning-2", "summaryIndex": 1, "delta": "paragraph"}},
+		{"item/completed", object{"item": object{"id": "reasoning-2", "type": "reasoning", "summary": []any{"**Analyzing image tag details**", "Second paragraph completed", "Completion-only paragraph"}}}},
+		{"item/completed", object{"item": object{"id": "reasoning-2", "type": "reasoning", "summary": []any{"**Analyzing image tag details**", "Second paragraph completed", "Completion-only paragraph"}}}},
+		{"item/reasoning/textDelta", object{"itemId": "reasoning-3", "contentIndex": 0, "delta": "\n\nRaw "}},
+		{"item/reasoning/textDelta", object{"itemId": "reasoning-3", "contentIndex": 0, "delta": "reasoning"}},
+		{"item/completed", object{"item": object{"id": "reasoning-3", "type": "reasoning", "summary": []any{}, "content": []any{"\n\nRaw reasoning"}}}},
+	}
+	for _, frame := range frames {
+		frame.params["threadId"], frame.params["turnId"] = p.session, p.turn
+		if err := p.event(frame.method, frame.params); err != nil {
+			return err
+		}
+	}
+	return nil
 }

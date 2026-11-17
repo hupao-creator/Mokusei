@@ -79,18 +79,24 @@ func partContent(parts []Part, kind string) string {
 		}
 		// Reuse the first part's string instead of copying a single large body
 		// every time a compact projection asks for it.
-		size := len(parts[first].Text) + len(parts[index].Text)
+		separator := ""
+		if kind == "reasoning" {
+			separator = "\n\n"
+		}
+		size := len(parts[first].Text) + len(separator) + len(parts[index].Text)
 		for _, part := range parts[index+1:] {
 			if part.Type == kind {
-				size += len(part.Text)
+				size += len(separator) + len(part.Text)
 			}
 		}
 		var text strings.Builder
 		text.Grow(size)
 		text.WriteString(parts[first].Text)
+		text.WriteString(separator)
 		text.WriteString(parts[index].Text)
 		for _, part := range parts[index+1:] {
 			if part.Type == kind {
+				text.WriteString(separator)
 				text.WriteString(part.Text)
 			}
 		}

@@ -15,6 +15,13 @@ referenced entities into its separate read-only inline shape. See
 [timeline_test.go](timeline_test.go) and the cross-language
 `testdata/timeline-reader.golden.json` fixture consumed by the native reader.
 
+Native message IDs and thinking-block indexes delimit reasoning paragraphs.
+Only the first nonempty chunk of a new block inserts a blank line, respecting
+existing newlines. Streamed and completed-message-only input share this rule;
+duplicate completed messages do not repeat text. The resulting timeline feeds
+both live foreground/Overview and persisted history. Previously discarded
+boundaries cannot be recovered from already concatenated retained text.
+
 Exact execution forks accept `{executionId}` beside the existing checkpoint
 selector (mutually exclusive). The adapter retains the public prefix and
 resolves the final assistant's API message ID to its native transcript UUID in

@@ -128,6 +128,14 @@ The native adapter retains reasoning prefixes for completion reconciliation;
 assistant text comes from streamed deltas and authoritative completed items
 without a second unused accumulated copy.
 
+Reasoning prefixes are tracked per native item, source (summary/content) and
+part index. A part's first nonempty delta carries its paragraph boundary;
+subsequent chunks append without separators. Timeline, execution aggregate and
+live foreground insert a blank line at boundaries, preserving existing newlines.
+Completed items reconcile each part independently and repeated completions add
+nothing. The same retained text feeds Overview and restored/execution history;
+boundaries already lost in older retained text cannot be reconstructed.
+
 File-change activities retain their unique native paths through completion and
 renderer projection. The native execution summary counts distinct paths across
 activities, so one patch touching several files reports its actual file scope.

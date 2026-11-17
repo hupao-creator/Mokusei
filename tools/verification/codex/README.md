@@ -138,6 +138,12 @@ requests before the separate recovery fault phase.
 The full replay has a bounded five-minute lifetime to include the production
 60-second retry window and the concurrent healthy 63-second tool scenario.
 
+`-stream-only` also checks the screenshot's adjacent Markdown reasoning titles,
+multiple summary indexes, raw-content fallback, empty/NUL deltas, existing
+newlines, completion-only parts and repeated completions. It compares live
+Overview/execution/foreground text before terminal publication and reopens the
+production Handle to verify retained history after completion and interruption.
+
 `-stream-only` runs the focused native JSONL streaming replay. A protocol barrier
 after the first reasoning chunk checks that the running analysis status is
 already durable. Subsequent chunks must not repeat status-only commits. Both
