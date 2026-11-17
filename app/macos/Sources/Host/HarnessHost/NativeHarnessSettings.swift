@@ -49,9 +49,13 @@ public struct NativeHarnessSettingsConfiguration: Hashable, Sendable {
     }
     public static func background(harnessID: JSONText, cwd: JSONText, settingID: JSONText,
                                   inherited: Bool, source: JSONValue) -> Self {
-        // Inherit/override can select a different runtime workspace even when
-        // the concrete Harness profile is identical.
-        .init(harnessID: harnessID, cwd: cwd,
+        // Inheritance uses Moku's exact execution workspace and saved profile.
+        // Canonicalize before cache admission so role readers join that flight.
+        if inherited {
+            return .init(harnessID: harnessID, cwd: cwd, source: source, scope: .global(executionOwner: .moku))
+        }
+        // Independent roles retain their own workspace, even for equal profiles.
+        return .init(harnessID: harnessID, cwd: cwd,
               source: .object(["inherited": .bool(inherited), "settings": source]),
               scope: .global(applicationSettings: settingID))
     }
@@ -59,6 +63,10 @@ public struct NativeHarnessSettingsConfiguration: Hashable, Sendable {
     /// Only changing its workspace or owner replaces the editor's state.
     var editorIdentity: Self {
         .init(harnessID: harnessID, cwd: cwd, source: .null, scope: scope)
+    }
+    var isExecutionConfiguration: Bool {
+        guard case .global(let application, let owner) = scope else { return false }
+        return application != nil || owner != nil
     }
     func request(refresh: Bool) -> JSONValue {
         var object: [JSONText: JSONValue]
@@ -372,7 +380,8 @@ public struct NativeHarnessSettingsView: View {
                                      leading: AnyView(ProgressView().controlSize(.small)))
             }
         }
-        .task(id: SettingsLoadIdentity(configuration: configuration, generation: host.settingsLifetime.generation)) {
+        .task(id: SettingsLoadIdentity(configuration: configuration, generation: host.settingsLifetime.generation,
+                                      resourceID: host.cachedSettingsSurface(configuration: configuration)?.id)) {
             if host.settingsLifetime.available { await open() }
         }
         .onChange(of: refreshSequence) { _, _ in refresh() }
@@ -425,4 +434,7 @@ public struct NativeHarnessSettingsView: View {
 private struct SettingsLoadIdentity: Equatable {
     let configuration: NativeHarnessSettingsConfiguration
     let generation: UUID
+    // A page can mount before installation admits its global resource. Join
+    // the workspace's eventual handle even when the saved source is unchanged.
+    let resourceID: UUID?
 }

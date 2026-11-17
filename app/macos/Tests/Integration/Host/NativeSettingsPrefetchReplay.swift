@@ -44,7 +44,7 @@ enum NativeSettingsPrefetchReplay {
         try await eventually("all settings scopes acquire before page mount, including retry") {
             let value = try await counts()
             return value["codex:global"]?.intValue == 2 && value["codex:moku"]?.intValue == 2
-                && value["codex:report.settings"]?.intValue == 1 && value["codex:tag.settings"]?.intValue == 1
+                && value["codex:report.settings"] == nil && value["codex:tag.settings"] == nil
                 && workspace.settingsModel.installationState("codex") == .installed
         }
         let configurations = [defaults(), execution(), execution("report.settings"), execution("tag.settings")]
@@ -52,7 +52,7 @@ enum NativeSettingsPrefetchReplay {
         try await eventually("all prefetched resources become ready") {
             surfaces.allSatisfy { $0.isReady && $0.executionSnapshotError == nil }
         }
-        #expect(Set(surfaces.map(\.id)).count == 4)
+        #expect(Set(surfaces.map(\.id)).count == 2)
         #expect(surfaces.allSatisfy { $0.executionSnapshotError == nil })
         let before = try await counts()
         async let first: Void = host.prefetchSettings(configurations: configurations)
@@ -126,8 +126,8 @@ enum NativeSettingsPrefetchReplay {
         #expect(try await counts() == .object([:]))
         #expect(throws: CancellationError.self) { try host.makeSettingsSurface(configuration: defaults()) }
         workspace.resetSettingsForReload()
-        try await eventually("full reload reacquires all scopes") {
-            try await counts()["codex:tag.settings"] == .integer(1)
+        try await eventually("full reload reacquires the shared inherited resource") {
+            try await counts()["codex:moku"] == .integer(1)
         }
         try await eventually("new settings model completes installation discovery") {
             workspace.settingsModel.installationState("codex") == .installed && !workspace.settingsModel.probing
@@ -153,7 +153,8 @@ enum NativeSettingsPrefetchReplay {
         #expect(old.allSatisfy { $0.isReleased })
         try await eventually("installation change reloads every scope") {
             let value = try await counts()
-            return ["global", "moku", "report.settings", "tag.settings"].allSatisfy { value["codex:" + $0] == .integer(1) }
+            return ["global", "moku"].allSatisfy { value["codex:" + $0] == .integer(1) }
+                && value["codex:report.settings"] == nil && value["codex:tag.settings"] == nil
         }
 
         // Break the real client's stream, then recover through its production

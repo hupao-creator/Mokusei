@@ -214,7 +214,7 @@ public final class NativeHarnessHost {
 
     func settingsPreparation(harnessID: JSONText) -> NativeHarnessSettingsLoadState {
         guard settingsLifetime.available else { return .loading }
-        let required = settingsLifetime.configurations.filter { $0.harnessID == harnessID }
+        let required = onboardingConfigurations(harnessID: harnessID)
         guard !required.isEmpty else { return .loading }
         let states = required.map { cachedSettingsSurface(configuration: $0)?.loadState ?? .loading }
         // Show terminal errors even while another scope is still loading.
@@ -222,9 +222,16 @@ public final class NativeHarnessHost {
         return states.allSatisfy { $0 == .ready } ? .ready : .loading
     }
 
+    private func onboardingConfigurations(harnessID: JSONText) -> [NativeHarnessSettingsConfiguration] {
+        let configurations = settingsLifetime.configurations.filter { $0.harnessID == harnessID }
+        let execution = configurations.filter(\.isExecutionConfiguration)
+        // Onboarding mounts execution editors, never ordinary Thread defaults.
+        // A Harness without execution-host capability still needs its defaults.
+        return execution.isEmpty ? configurations : execution
+    }
+
     func retrySettingsPreparation(harnessID: JSONText) async {
-        let failed = settingsLifetime.configurations.filter {
-            guard $0.harnessID == harnessID else { return false }
+        let failed = onboardingConfigurations(harnessID: harnessID).filter {
             if case .failed? = cachedSettingsSurface(configuration: $0)?.loadState { return true }
             return false
         }

@@ -177,3 +177,73 @@ Deliver the detached commit to the integration thread. Before applying it, that
 thread must inspect the base checkout's current uncommitted work and merge with
 any intervening changes. This task leaves base refs/checkouts untouched and keeps
 `a4e7db866883bada3b94ba771c93ba574188ecf7` as an ancestor.
+
+## macOS onboarding follow-up (2026-11-17)
+
+The existing Native Dev log's startup burst at 10:56 had 28 client presentation
+requests (22 completed and six failed/cancelled outcomes), including source
+replacement rereads. From its first configuration command, the last response
+arrived after 3.01s for Pi, 4.89s for Codex, 4.96s for OpenCode and 5.29s for
+Claude. Eight subsequent complete 16-request refresh bursts between 11:02 and
+11:38 had a 7.78s whole-burst median (7.12–11.50s), dominated by OpenCode.
+These are historical client response timings, including queueing, not semantic
+readiness or certified cold-start measurements. The running binary's revision
+is unavailable in those records. No real CLI/network benchmark was rerun.
+
+The macOS prefetch previously requested a defaults, Moku, Report and Tag surface
+for every enabled Harness even when both roles inherited Moku. The inherited
+production editor already used the Moku surface. Inheritance now canonicalizes
+its configuration to Moku before cache admission, and workspace prefetch omits
+those duplicate scopes. With four installed Harnesses and both roles inherited,
+a stable acquisition/refresh has eight distinct presentation requests instead
+of sixteen. Independent modes retain all sixteen: their native workspaces can
+resolve different configuration even when saved profiles are equal. The current
+Native Dev cached settings have both roles independent, so the periodic median
+above must not be described as halved by this change.
+
+Installation now precedes each Harness's configuration prefetch. Missing or
+failed installations no longer start three rounds of speculative presentation
+reads, and a fast installation reply starts its own configuration without
+waiting for a slower Harness. Execution resources now precede ordinary Thread
+defaults independently within each Harness. Failed execution preparation leaves
+the queue available for recovery; explicitly opened default editors can still
+demand their own reads. Onboarding's next pages mount only Moku and independent role
+execution editors, so those exact resources determine readiness and retry;
+ordinary Thread defaults continue warming for Settings without holding discovery
+open. A Harness without execution-host capability still requires its ordinary
+resource. This removes unrelated defaults from the startup critical path while
+retaining every model/capability/snapshot dependency of the next pages. The
+four-read/one-per-Harness admission, five-minute TTL and source fences remain
+unchanged; no partial response establishes execution readiness.
+
+Reviewed upstream production code at fixed revisions, limited to the local
+macOS desktop path (Windows/WSL, mobile and cloud paths were not adopted):
+
+- [Orca catalog service at 225baa2](https://github.com/stablyai/orca/blob/225baa2477a9d6c4bb5f92933874fb965acf2ee2/src/main/native-chat/agent-model-catalog/agent-model-catalog-service.ts)
+  owns shared refreshes and source-bound listings; its
+  [bounded prewarm](https://github.com/stablyai/orca/blob/225baa2477a9d6c4bb5f92933874fb965acf2ee2/src/main/native-chat/agent-model-catalog/agent-model-catalog-prewarm.ts)
+  avoids speculative probes for unused agents. Adopted scope reuse and avoiding
+  unnecessary probes, without copying saved/partial listings into readiness.
+- [Orca login-shell capture](https://github.com/stablyai/orca/blob/225baa2477a9d6c4bb5f92933874fb965acf2ee2/src/main/startup/shell-environment/login-shell-environment.ts)
+  shares pending capture and fences older completions. Mokusei already has an
+  environment cache; no second shell/cache layer was added.
+- [T3 Code managed provider at f390ae7](https://github.com/pingdotgg/t3code/blob/f390ae7f1507872e0799685d3806fc309dad0d75/packages/provider-core/src/server/managedProvider.ts)
+  waits for server readiness before its initial CLI probe, serializes refreshes
+  and retains settings ownership. Used this as a scheduling reference, while
+  preserving Mokusei's stronger requirement to load configuration before marking
+  onboarding discovery complete.
+
+The existing Settings prefetch replay's request-count and handle-identity
+expectations now require inherited-role sharing; no test case was added. The
+scope-count reduction is a structural result, not a measured real-account
+wall-clock speedup. Headless checks do not certify the graphical Settings replay.
+
+Follow-up validation: the Swift package and existing test bundle compiled;
+`MOKUSEI_TEST_HEADLESS=1 swift test --filter NativeSettingsDiscoveryTests`
+passed its existing independent-reply/retirement case. The existing
+`transport -swift-settings-capacity` replay passed its real Go/Swift queue,
+responsive-command, active/queued cancellation and teardown checks (20 slow
+reads, maximum four globally and one per Harness). No test case was added.
+The graphical prefetch replay was compiled but not run, and no running App was
+restarted. A Swift region-isolation compiler failure in the task-group form was
+resolved by using the project's existing cancellable-task ownership pattern.

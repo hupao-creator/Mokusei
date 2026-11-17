@@ -197,10 +197,21 @@ models require an effort choice before submitting the draft. Known unsupported
 choices, disabled models and native applied-value mismatches still reject saves.
 
 The connected workspace starts installation discovery and prefetches the real
-typed settings resources before Settings opens. Enabled Harness defaults, Moku
-execution profiles and registered background-configuration application scopes
-load through the Core client's bounded discovery admission (four active reads,
-one per Harness). Slow native discovery does not occupy every Runtime command
+typed settings resources before Settings opens. Each Harness starts configuration
+acquisition after its independent installation reply confirms it is installed;
+missing or failed installations do not enqueue speculative CLI/catalog reads.
+Enabled Harness defaults, Moku execution profiles and enabled independent
+background-configuration application scopes load through the Core client's bounded discovery admission (four active reads,
+one per Harness). Inherited roles use Moku's exact saved resource, including
+while an independent-mode draft is waiting to save its source change. They do
+not introduce separate application presentation reads or retry loops. Independent
+roles still own distinct resources/workspaces even when their profile JSON is
+equal. Execution resources acquire first within each Harness, followed by
+ordinary Thread defaults; each Harness advances independently. Onboarding joins
+only the execution resources it actually mounts (or the ordinary resource for a
+Harness without execution-host capability). Defaults remain prefetched for Settings
+and explicitly opened editors can still demand their resources immediately.
+Slow native discovery does not occupy every Runtime command
 slot or prevent unrelated Harnesses from loading. Page/Harness selection shares
 an in-flight read and reuses successful resources across mounts; thread editors retain their own lifetime.
 Saved source changes reload only the affected resource. Removed scopes/cwds,
@@ -212,7 +223,8 @@ editor's retry/refresh. Execution-snapshot errors also remain retryable even
 when the native presentation itself loaded. No background retry loop runs
 indefinitely. Closing Settings leaves workspace acquisition running.
 
-Onboarding joins these exact retained surfaces before admitting a Harness. Its
+Onboarding joins the retained execution surfaces its next pages consume before
+admitting a Harness. Its
 ready roster constrains Moku and background-role choices for that discovery visit;
 resource errors remain per Harness, and successful resources mount immediately.
 Installation retries join only that Harness's read, independently of an unfinished

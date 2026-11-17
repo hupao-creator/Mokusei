@@ -21,8 +21,15 @@ stay dark in a light workspace while the window keeps its appearance. Overview
 presentation and native controls remain unchanged outside the panel. Discovery presents
 Harnesses independently as checking installation, loading configuration, ready,
 or failed with a Harness-specific retry. An executable alone is not discovered:
-readiness joins the workspace's retained defaults, Moku execution and enabled
-background-role resources for that Harness. This includes each plugin's decoded
+readiness joins the workspace's retained Moku execution and enabled independent
+background-role resources for that Harness. Inherited roles join
+Moku's exact resource, so readiness does not wait for unused application scopes.
+Configuration prefetch begins after that Harness is confirmed installed, leaving
+the shared queue available for other installation replies. Each Harness prepares
+its execution resources before ordinary Thread defaults. Those defaults are not
+read by any subsequent onboarding page and do not gate discovery or its retry;
+they continue warming separately for Settings. Harnesses without execution-host
+capability still require their ordinary resource. This includes each plugin's decoded
 model catalog, capabilities/options and nonempty saved execution snapshots.
 Transport/decode failures, CLI failures and embedded catalog errors remain errors;
 background retries are bounded (1 and 3 seconds) and never count as completion.

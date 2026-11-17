@@ -21,7 +21,12 @@ final class NativeWorkspaceSettingsPrefetch {
         let settings = model.savedSettings
         let cwd = JSONText(model.defaultCwd)
         let enabled = Set(model.plugins.filter { $0.enabled && $0.unavailableReason == nil }.map(\.key))
-        let harnesses = workspace.plugins.harnesses.modules.filter { enabled.contains("harness:" + $0.descriptor.id.string) }
+        // Installation reads use the same bounded queue. Resolve availability
+        // first instead of putting speculative CLI probes ahead of detection.
+        let harnesses = workspace.plugins.harnesses.modules.filter {
+            enabled.contains("harness:" + $0.descriptor.id.string)
+                && model.installations[$0.descriptor.id.string]?.status == .installed
+        }
         let backgroundSettings = workspace.plugins.applications.modules
             .filter { enabled.contains("extension:" + $0.manifest.id.string) }
             .flatMap(\.settings)
@@ -36,14 +41,11 @@ final class NativeWorkspaceSettingsPrefetch {
             for definition in backgroundSettings {
                 guard let entry = settings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .string(definition.id) }),
                       let value = entry["value"], let saved = try? ApplicationBackgroundExecutionSettings(json: value), saved.enabled else { continue }
-                let source: JSONValue
-                let inherited: Bool
-                switch saved.mode {
-                case .inherit: source = execution; inherited = true
-                case .override(let overrides): source = overrides.harnesses[id] ?? .null; inherited = false
-                }
+                // Inherited editors already consume the Moku surface above.
+                // Only independent modes introduce another native workspace.
+                guard case .override(let overrides) = saved.mode else { continue }
                 next.append(.background(harnessID: id, cwd: cwd, settingID: definition.id,
-                                        inherited: inherited, source: source))
+                                        inherited: false, source: overrides.harnesses[id] ?? .null))
             }
         }
         let sequences = model.detailRefreshSequences
@@ -55,14 +57,40 @@ final class NativeWorkspaceSettingsPrefetch {
         configurations = next; refreshSequences = sequences; authority = workspace.snapshotAuthority
         host.retainGlobalSettings(configurations: next)
         task = Task { [host] in
-            await host.prefetchSettings(configurations: next)
+            await Self.prefetch(next, host: host)
             // Model capabilities change independently of installation paths.
             // Revalidate at the native catalog TTL without clearing visible
             // editors or forcing unrelated Harness caches to expire.
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(300)) } catch { return }
-                await host.prefetchSettings(configurations: next, reload: true)
+                await Self.prefetch(next, host: host, reload: true)
             }
+        }
+    }
+
+    private static func prefetch(_ configurations: [NativeHarnessSettingsConfiguration], host: NativeHarnessHost,
+                                 reload: Bool = false) async {
+        guard !Task.isCancelled else { return }
+        let loads = Dictionary(grouping: configurations, by: \.harnessID).values.map { configurations in
+            Task { @MainActor [host] in
+                let execution = configurations.filter(\.isExecutionConfiguration)
+                let defaults = configurations.filter { !$0.isExecutionConfiguration }
+                // Each Harness advances independently. Ordinary defaults
+                // cannot queue ahead of the profiles onboarding will mount.
+                guard !Task.isCancelled else { return }
+                await host.prefetchSettings(configurations: execution, reload: reload)
+                // Leave the queue free for execution recovery after failure;
+                // an explicitly opened defaults editor can still demand a read.
+                guard !Task.isCancelled, execution.allSatisfy({
+                    host.cachedSettingsSurface(configuration: $0)?.loadState == .ready
+                }) else { return }
+                await host.prefetchSettings(configurations: defaults, reload: reload)
+            }
+        }
+        await withTaskCancellationHandler {
+            for load in loads { await load.value }
+        } onCancel: {
+            for load in loads { load.cancel() }
         }
     }
 
