@@ -424,26 +424,21 @@ struct MarkdownInlineView: View {
 struct MarkdownCodeBlock: View {
     let source: String
     private let sourceBytes: Data
+    @State private var scrollerStyle = NSScroller.preferredScrollerStyle
 
     init(source: String) {
         self.source = source; self.sourceBytes = Data(source.utf8)
     }
     var body: some View {
-        NativeScrollView(.horizontal) {
-            MarkdownSelectableText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],
-                                   fontSize: NativeMarkdownTypography.fenceSize, lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true, openLink: { _ in })
-                .frame(width: max(1, codeWidth), alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(16)
-        }
+        MarkdownCodeViewport(source: source, scrollerStyle: scrollerStyle)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(NativePlatformPalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 5))
+        .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
+            scrollerStyle = NSScroller.preferredScrollerStyle
+        }
         .contextMenu {
             Button("复制代码") { MarkdownPlatformActions.copy(source) }
         }
-    }
-    private var codeWidth: CGFloat {
-        NativeMarkdownCodeMetrics.width(of: source)
     }
 }
 

@@ -497,6 +497,19 @@ the gutter from the visible height and clips the last row. Overlay scrollbars
 reserve no space; preference changes update this reservation. Row wrapping,
 app zoom and adjacent block spacing continue to use intrinsic content layout.
 
+Fenced and indented code retain their source lines without soft wrapping.
+[`NativeMarkdownCodeViewport`](Reading/NativeMarkdownCodeViewport.swift) owns
+the TextKit document's natural width and its AppKit horizontal viewport together,
+so long lines remain reachable without widening the reading column, including
+inside lists. It uses the shared native trackless scroller and reserves the
+persistent mini gutter in its measured height; overlay scrollers consume no
+space. Vertical wheel input continues to the reader, while horizontal and
+Shift-wheel input belong to the code viewport. Selection retains source
+characters and the block's Copy Code action retains the complete original
+source, including its terminal newline. Inline code keeps its existing wrapping
+and padding policy. See the [clipping investigation](../../../../../design/markdown-code-block-clipping.md)
+for headless evidence and verification limits.
+
 Absolute local HTML destinations and local `file:` HTML URLs retain the same
 native link action throughout paragraphs, headings, lists, quotes, table cells,
 reference links and footnotes. Inline code containing one such destination is
