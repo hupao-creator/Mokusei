@@ -268,7 +268,7 @@ struct NativeReportCollection: View {
         // Incoming and preloaded documents stay on their first frame until the
         // shared native entrance settles; outgoing pages keep their last pose.
         guard reference == selected, outgoingID == nil else { return .reset }
-        return playing ? .playing : .paused
+        return playing ? .playingOnce : .paused
     }
 
 }

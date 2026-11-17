@@ -3,9 +3,11 @@
 The cover is a silent, passive HTML/CSS composition, authored by Super Thread
 Agent from report evidence. Its finite animation includes all delays and
 repetitions and lasts at most six seconds: the carousel's eight-second dwell
-minus a two-second final-frame hold. After that hold the host replays the cover.
-Single cards repeat too. A short animation may start another cycle before the
-carousel advances; only that later cycle may be cut short by ordinary paging.
+minus at least a two-second final-frame hold. Collection covers play the complete
+admitted timeline once per selection, then hold their final composition until
+paging. Short covers do not replay during that dwell. Returning to the same cover
+after another selection starts a new run. Standalone cards retain their repeating
+animation/two-second-hold cycle.
 
 ## Ownership and timing
 
@@ -26,13 +28,24 @@ the carousel waits for WebKit's playback acknowledgement before starting its
 eight-second dwell. Failed covers still admit navigation and automatic advance.
 Visibility/activity/gesture pauses preserve elapsed motion or hold time; resume
 does not count hidden wall-clock time. The carousel starts a fresh dwell on
-resume. Reselection resets the cover for a fresh first run.
+resume. Reselection resets the cover for a fresh first run. Collection completion
+survives hover chrome changes, focus, ordinary redraws and pause/resume; a completed
+or reduced-motion presentation cannot restart before reset. New cover revisions,
+appearance-specific documents and a newly mounted collection have new document
+lifetimes and therefore new playback admission.
 
 Reduce Motion shows the completed composition without a playback timer. The
 cache captures a final-frame poster before live admission and leaves it under
 the WebKit surface through native layer commits. Only source/revision/appearance
 matched images are reused; browsers do not survive card lifetimes. The existing
 16-entry cache and four-cover collection mounting bound remain unchanged.
+
+Only the effects captured by `document.getAnimations()` at document-end admission
+participate in this playback policy, including their finite delays/repetitions.
+CSS transitions remain suppressed. Author JavaScript/WAAPI, SVG/SMIL, media and
+external resource animations are unavailable under the existing admission/CSP;
+this change does not add control for effects created after admission. No cover
+prompt, markup, report data or machine accessibility setting is rewritten.
 
 The Agent instructions and both report write tools describe purposeful motion,
 finite CSS keyframes, a recognizable title/key visual from time zero, complete
@@ -55,6 +68,13 @@ Ordinary SwiftPM leaves WebKit's document hidden and its animation timeline
 pending, so its process is not a valid playback host. The ownership registry
 excludes these methods from ordinary execution and requires their exact passing
 outcomes and markers in the native replay; no test-level skip is added.
+
+The collection one-shot change was locally checked with headless compilation and
+a temporary diagnostic executing the actual native playback controller against
+an in-memory script-command sink. It covers completion, redraw deduplication,
+pause/resume, reset/reselection, cancellation, Reduce Motion and unchanged
+standalone repetition. This does not validate WebKit rendering, native IPC timing
+or continuous display frames; the graphical owner above was not run in that sprint.
 
 The existing Runtime report-scope replay checks the actual injected create and
 update tool contracts. The standalone carousel demo continues to use the same

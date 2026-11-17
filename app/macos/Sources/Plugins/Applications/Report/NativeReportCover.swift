@@ -53,7 +53,7 @@ struct NativeReportCover: View {
 
     private var effectivePlayback: NativeReportCoverPlayback {
         if reduceMotion { return .reduced }
-        if playback == .playing && (!animationsEnabled || visibility?.isVisible == false) { return .paused }
+        if playback.isPlaying && (!animationsEnabled || visibility?.isVisible == false) { return .paused }
         return playback
     }
 
@@ -130,11 +130,11 @@ private struct ReportCoverSession: View {
             // presentation, not the playback value captured by its fetch task.
             if value != nil {
                 onReady()
-                if playback == .playing { onPlaybackStarted() }
+                if playback.isPlaying { onPlaybackStarted() }
             }
         }
         .onChange(of: playback) { _, value in
-            if failure != nil && value == .playing { onPlaybackStarted() }
+            if failure != nil && value.isPlaying { onPlaybackStarted() }
         }
     }
 }
@@ -195,6 +195,7 @@ private struct ReportCoverHTML: NSViewRepresentable {
         var playbackTask: Task<Void, Never>?
         var duration = 0.0
         var holding = false
+        var completedOnce = false
         var elapsed = 0.0
         var phaseStartedAt: TimeInterval?
         func applyPlayback(to webView: WKWebView) {
@@ -205,6 +206,10 @@ private struct ReportCoverHTML: NSViewRepresentable {
             if playback == .reset || playback == .reduced || appliedPlayback == .reduced {
                 holding = false; elapsed = 0
             }
+            // A pause, redraw or Reduce Motion round-trip cannot grant another
+            // collection play. Only leaving selection resets this admission.
+            if playback == .reset { completedOnce = false }
+            if playback == .reduced { completedOnce = true }
             appliedPlayback = playback
             let mode = playback
             // Page timers do not run with author JavaScript disabled. Native
@@ -220,13 +225,19 @@ private struct ReportCoverHTML: NSViewRepresentable {
                         case .reset: command = "reset()"
                         case .reduced: command = "finish()"
                         case .paused: command = "pause()"
-                        case .playing: command = self.holding ? "finish()" : "play(\(self.elapsed))"
+                        case .playing, .playingOnce:
+                            command = self.holding || (mode == .playingOnce && self.completedOnce)
+                                ? "finish()" : "play(\(self.elapsed))"
                         }
                         _ = try await webView.callAsyncJavaScript("return globalThis.mokuseiCover.\(command)",
                             arguments: [:], in: nil, contentWorld: NativeReportCoverPlayback.world)
                         try Task.checkCancellation()
-                        guard mode == .playing else { return }
+                        guard mode.isPlaying else { return }
                         if first { self.onPlaybackStarted?(); first = false }
+                        if mode == .playingOnce && (self.holding || self.completedOnce || self.duration == 0) {
+                            self.completedOnce = true
+                            return
+                        }
                         guard self.duration > 0 else { return }
                         self.phaseStartedAt = ProcessInfo.processInfo.systemUptime
                         let remaining = max(0, (self.holding ? NativeReportCoverTiming.hold : self.duration) - self.elapsed)
@@ -264,6 +275,7 @@ private struct ReportCoverHTML: NSViewRepresentable {
                         guard let self, let webView, let onReady = self.onReady else { return }
                         if case .failure(let error) = result { self.onFailure?(error.localizedDescription); return }
                         self.ready = true; self.appliedPlayback = initial
+                        self.completedOnce = initial == .reduced
                         onReady(image)
                         webView.alphaValue = 1
                         self.applyPlayback(to: webView)

@@ -7,7 +7,9 @@ enum NativeReportCoverTiming {
 }
 
 enum NativeReportCoverPlayback: String {
-    case reset, playing, paused, reduced
+    case reset, playing, playingOnce, paused, reduced
+
+    var isPlaying: Bool { self == .playing || self == .playingOnce }
 
     @MainActor static let world = WKContentWorld.world(name: "Mokusei.Report.Cover")
 

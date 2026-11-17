@@ -239,9 +239,10 @@ layer commits. Revision/theme changes use a fresh entry. See the
 The generation tool describes the cover's dimensions and standalone HTML/CSS
 environment: the author supplies layout styles and spacing; the host injects
 playback-only CSS, without Report-reader safe-area handling. An isolated host
-controller bounds each animation to six seconds, holds its final frame for two
-seconds, and replays while active. Preloaded covers wait at their beginning;
-offscreen/inactive covers pause. Reduce Motion shows the final composition.
+controller bounds each animation to six seconds. Standalone cards hold their final
+frame for two seconds and replay while active; collection cards play once per
+selection and retain the final frame until paging. Preloaded covers wait at their
+beginning; offscreen/inactive covers pause. Reduce Motion shows the final composition.
 The carousel begins its eight-second dwell after entrance and WebKit playback
 admission. See the [animation contract](../../design/super-thread-animated-covers.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)

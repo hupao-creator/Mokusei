@@ -326,11 +326,12 @@ This does not enable document scripts or add an application API.
 
 Preloaded neighbors remain at their beginning. A selected cover starts after
 its native entrance; its eight-second carousel dwell waits for actual WebKit
-playback acknowledgement. Each cycle ends with a two-second hold before replay.
-Short covers may begin another cycle before the eight-second page change, which
-can interrupt that later cycle. Leaving selection resets for the next visit;
-inactivity, hidden viewports and cover gestures pause the current motion/hold.
-Standalone cards share the same playback and foreground/visibility controls.
+playback acknowledgement. Collection covers play their complete admitted CSS
+timeline once, then hold its final frame until selection changes. Reselecting a
+cover grants a new run; hover chrome, focus, redraws and pause/resume do not.
+Leaving selection resets for the next visit; inactivity, hidden viewports and
+cover gestures pause the current motion. Standalone cards retain their existing
+animation/two-second-hold replay cycle and foreground/visibility controls.
 Reduce Motion displays the complete final composition. The bounded cache retains
 a final-frame poster beneath the live surface to bridge remounts without caching
 browser instances. See the [animation contract and verification](../../../../design/super-thread-animated-covers.md).
