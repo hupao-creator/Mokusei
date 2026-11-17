@@ -76,7 +76,7 @@ struct NativeOnboardingSurface: View {
         let height: CGFloat
         switch panelStep {
         case .discovery: height = 430
-        case .moku: height = 590
+        case .moku: height = 650
         case .tag, .report: height = state.settings.draft.value["pluginSettings"]?.arrayValue?
             .first(where: { $0["id"] == panelStep.settingID.map(JSONValue.text) })?["value"]?["mode"] == .text("override") ? 740 : 640
         case .landing: height = 640
