@@ -146,7 +146,8 @@ reject the save without changing settings. Actual cross-Harness replacement
 checks again and reserves the native admission boundary through old-owner
 cleanup and durable replacement. Its triggering queued Moku input may proceed
 on the new owner afterward. Private Report/Tag executions do not themselves
-block switching; an in-flight native admission still does. Unrelated settings
+block switching; every in-flight native service admission still does. The
+replacement gate has no per-command admission exemption. Unrelated settings
 retain their existing save behavior.
 
 Every new Moku execution crosses the same `admitMokuExecution` guard in

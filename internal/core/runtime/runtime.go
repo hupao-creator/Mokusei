@@ -73,7 +73,6 @@ type Runtime struct {
 	serviceMu                 sync.Mutex
 	serviceDraining           bool
 	serviceAdmissions         int
-	configurationAdmissions   map[*serviceAdmissionToken]struct{}
 	mokuHarnessChanging       bool
 	threadCacheMu             sync.Mutex
 	threadCacheRevision       uint64
@@ -145,7 +144,6 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 	lifetime, cancel := context.WithCancel(ctx)
 	r := &Runtime{config: config, ctx: lifetime, cancel: cancel, handles: map[string]*threadHandle{}, locks: map[string]*threadCommandLock{}, listeners: map[uint64]func(json.RawMessage){}, publisherDone: make(chan struct{})}
 	r.configurationGate = make(chan struct{}, 1)
-	r.configurationAdmissions = map[*serviceAdmissionToken]struct{}{}
 	r.lifecycle = &lifecycleCapability{runtime: r, consumers: map[string]*lifecycleConsumer{}}
 	r.threadListeners = map[uint64]func(model.ThreadRecord){}
 	r.deleting = map[string]bool{}
