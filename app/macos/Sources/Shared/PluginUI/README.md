@@ -905,6 +905,12 @@ non-previewable until staging supplies the original. Removing the selected
 image, consuming the strip or unmounting it clears the preview selection. Preview
 never stages, sends, discards or takes ownership of attachment files.
 
+The shared attachment strip updates its content and horizontal viewport height
+together. Removing the last 56pt image beside 28pt directory/file chips must not
+animate the content stack independently of the shorter scroll clip; that briefly
+cuts off the surviving chips. Attachment status/type changes use the same atomic
+layout update. The surrounding Dock retains its own shell transitions.
+
 Moku opts into `NativeComposerDraft.submit(optimisticallyClear:)`. Its
 `inputText`, `inputAttachments` and `inputDirectories` project an empty editor
 immediately while the original draft, captured send payload and attachment leases

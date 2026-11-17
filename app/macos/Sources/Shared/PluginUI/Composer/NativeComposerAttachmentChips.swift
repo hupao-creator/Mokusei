@@ -73,6 +73,9 @@ public struct NativeComposerAttachmentChips: View {
 
     public var body: some View {
         if !attachments.isEmpty || !directories.isEmpty {
+            // Keep content and scroll viewport heights in the same layout
+            // update. Animating only the stack leaves surviving chips at
+            // their old vertical centers inside an already shorter clip.
             NativeScrollView(.horizontal) {
                 HStack(spacing: NativeComposerChipMetrics.spacing) {
                     ForEach(directories) { directory in
@@ -85,10 +88,6 @@ public struct NativeComposerAttachmentChips: View {
                     }
                 }
                 .fixedSize(horizontal: true, vertical: true)
-                // A pending chip can change its status (and therefore its
-                // 28pt → 56pt height) once staging resolves; animate the
-                // swap instead of hard-jumping when a type was guessed late.
-                .animation(.easeInOut(duration: 0.18), value: attachments.map(\.status))
             }
             // A horizontal indicator sits directly under the chips and reads as
             // part of the composer. Clipped content already signals scrolling.
