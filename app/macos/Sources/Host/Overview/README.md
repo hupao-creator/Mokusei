@@ -565,6 +565,18 @@ A native cover input region retains pointer drag and trackpad input instead of
 moving the canvas; its scroll/pinch region is intentionally reserved for the
 collection cover.
 
+The upper-right page count opens a scrollable, adaptive grid of the exact ordered
+collection members, using the ordinary Super Thread cards and their open actions.
+The panel preserves the filtered collection order (creation time, stable ties),
+including members outside the carousel's four-cover preload window. Its cards keep
+the ordinary opaque surfaces, archive actions and native trackless scrolling.
+The carousel pauses while the popover is open; closing it starts a fresh dwell.
+Escape, the close button and a second count activation dismiss it; opening a
+member dismisses before invoking the existing navigation callback. Inactive,
+offscreen and removed collections dismiss the panel. Dismissed card actions cannot
+open a second member. The existing lower page menu and navigation controls
+continue to select carousel pages.
+
 The selected ID is shared by cover, metadata, opening and semantic navigation.
 Automatic advance follows an 8-second dwell while foreground, visible and not in
 a cover gesture. The dwell starts after the incoming page finishes travel and

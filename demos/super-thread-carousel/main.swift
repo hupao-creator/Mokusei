@@ -23,6 +23,7 @@ private struct DemoView: View {
     @State private var dark = false
     @State private var active = true
     @State private var slow = false
+    @State private var keepActive = false
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -45,6 +46,8 @@ private struct DemoView: View {
             HStack(spacing: 16) {
                 Text("封面横向轮播 · 正文淡出 / 淡入").font(.system(size: 12)).foregroundStyle(.secondary)
                 Spacer()
+                Toggle("9 篇成员", isOn: $model.manyMembers).toggleStyle(.checkbox).font(.system(size: 11))
+                Toggle("保持预览活跃", isOn: $keepActive).toggleStyle(.checkbox).font(.system(size: 11))
                 Toggle("慢速 ×3", isOn: $slow).toggleStyle(.checkbox).font(.system(size: 11))
             }
             ScrollView {
@@ -53,7 +56,7 @@ private struct DemoView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             CardShell(providesCardSurface: true) {
                                 NativeReportCollection(props: model.projection.members.map { fixtures[$0.id]!.props },
-                                    active: active && model.reading == nil, slow: slow, onSelection: { _ in },
+                                    active: (active || keepActive) && model.reading == nil, slow: slow, onSelection: { _ in },
                                     openThread: { reference in
                                         if let report = model.reports.first(where: { $0.id == reference.threadID.string }) { model.open(report) }
                                     })
@@ -139,7 +142,7 @@ private struct DemoView: View {
     @MainActor static func main() async throws {
         try prepareIsolatedNativeReplay()
         let now = Date()
-        let fixtures = try Dictionary(uniqueKeysWithValues: ReportSample.samples.map { ($0.id, try ReportFixture($0, now: now)) })
+        let fixtures = try Dictionary(uniqueKeysWithValues: (ReportSample.samples + ReportSample.panelSamples).map { ($0.id, try ReportFixture($0, now: now)) })
         if CommandLine.arguments.contains("--headless") {
             try DemoModel.describe()
             try await exportProductionProjection(fixtures: fixtures)

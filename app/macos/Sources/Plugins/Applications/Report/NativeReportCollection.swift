@@ -15,6 +15,7 @@ struct NativeReportCollection: View {
     @State private var direction = 1
     @State private var interacting = false
     @State private var hovered = false
+    @State private var showingMembers = false
     @State private var trackingMenus: Set<ObjectIdentifier> = []
     @FocusState private var focusedControl: Control?
     @AccessibilityFocusState private var accessibilityFocusedControl: Control?
@@ -38,9 +39,9 @@ struct NativeReportCollection: View {
     private var members: [ApplicationThreadRef] { props.map { $0.entry.ref } }
     private var selected: ApplicationThreadRef { members.contains(selection) ? selection : members[0] }
     private var page: Int { members.firstIndex(of: selected) ?? 0 }
-    private var playing: Bool { active && visibility?.isVisible != false && !interacting && trackingMenus.isEmpty }
+    private var playing: Bool { active && visibility?.isVisible != false && !interacting && !showingMembers && trackingMenus.isEmpty }
     private enum Control: Hashable {
-        case previous, member(ApplicationThreadRef), menu, next
+        case allMembers, previous, member(ApplicationThreadRef), menu, next
     }
     private var controlsVisible: Bool {
         active && hovered
@@ -118,10 +119,20 @@ struct NativeReportCollection: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Text("\(page + 1)/\(members.count)").font(.system(size: 11, weight: .medium)).monospacedDigit()
-                                .accessibilityLabel(applicationText(locale, "第 \(page + 1) 篇，共 \(members.count) 篇", "Report \(page + 1) of \(members.count)"))
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .glassEffect(.regular, in: Capsule())
+                            Button { showingMembers.toggle() } label: {
+                                Text("\(page + 1)/\(members.count)").font(.system(size: 11, weight: .medium)).monospacedDigit()
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .contentShape(Capsule())
+                            }.buttonStyle(NativeReportCarouselButtonStyle())
+                                .focused($focusedControl, equals: .allMembers)
+                                .accessibilityFocused($accessibilityFocusedControl, equals: .allMembers)
+                                .accessibilityValue(applicationText(locale, showingMembers ? "已展开" : "已收起", showingMembers ? "Expanded" : "Collapsed"))
+                                .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，第 \(page + 1) 篇，共 \(members.count) 篇", "Show all Super Threads, report \(page + 1) of \(members.count)"))
+                                .disabled(!active || outgoingID != nil)
+                                .glassEffect(.regular.interactive(), in: Capsule())
+                                .popover(isPresented: $showingMembers, arrowEdge: .top) {
+                                    memberPanel
+                                }
                         }
                         Spacer()
                         HStack(spacing: 12) {
@@ -194,7 +205,7 @@ struct NativeReportCollection: View {
             guard let menu = notification.object as? NSMenu else { return }
             trackingMenus.remove(ObjectIdentifier(menu))
         }
-        .onDisappear { hovered = false; trackingMenus.removeAll() }
+        .onDisappear { hovered = false; showingMembers = false; trackingMenus.removeAll() }
         .onAppear { onSelection(selected) }
         .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
         .onChange(of: playing) { _, value in
@@ -207,7 +218,7 @@ struct NativeReportCollection: View {
             onSelection(selected)
         }
         .onChange(of: active) { _, value in
-            if !value { hovered = false; settle() }
+            if !value { hovered = false; showingMembers = false; settle() }
         }
         .onChange(of: reduceMotion) { _, reduced in
             // Leaving the static poster needs a fresh playback acknowledgement.
@@ -215,7 +226,7 @@ struct NativeReportCollection: View {
             if reduced { settle() }
         }
         .onChange(of: visibility?.isVisible) { _, visible in
-            if visible == false { hovered = false; settle() }
+            if visible == false { hovered = false; showingMembers = false; settle() }
         }
         .task(id: motionEpoch) {
             guard outgoingID != nil else { return }
@@ -238,6 +249,43 @@ struct NativeReportCollection: View {
             } catch { /* Leaving the view or manual input cancels this page's dwell. */ }
         }
     }
+    private var memberPanel: some View {
+        // Popovers size to the available screen rather than the zoomed canvas card.
+        let screen = NSScreen.main?.visibleFrame.size ?? NSSize(width: 800, height: 700)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(applicationText(locale, "全部 Super Thread", "All Super Threads"))
+                    .font(.headline)
+                Spacer()
+                Button { showingMembers = false } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(applicationText(locale, "关闭", "Close"))
+                    .keyboardShortcut(.cancelAction)
+            }
+            NativeScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280, maximum: 360), spacing: 12)], spacing: 12) {
+                    ForEach(props, id: \.entry.ref) { member in
+                        NativeReportCard(props: member,
+                            projection: .init(previewText: member.entry.view.shortDescription,
+                                              relatedThreadCount: member.entry.view.relatedExecutions.count),
+                            openThread: {
+                                guard showingMembers, active, currentMembers.contains(member.entry.ref) else { return }
+                                showingMembers = false
+                                openThread(member.entry.ref)
+                            }, allowsActions: { showingMembers && active && currentMembers.contains(member.entry.ref) })
+                            .frame(height: member.entry.view.hasCover ? 456 : 144)
+                            .background(NativePalette.overview.surface.swiftUI, in: RoundedRectangle(cornerRadius: 22))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI)
+                            }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: max(300, min(760, screen.width - 40)), height: max(250, min(650, screen.height - 40)))
+    }
+
     private func settle() {
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {

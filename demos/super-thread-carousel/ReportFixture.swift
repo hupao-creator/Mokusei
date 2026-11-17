@@ -34,7 +34,7 @@ import SwiftUI
                     }, execution: { _ in throw PluginContractError("Demo has no live execution") }))
             ])
         let view = try NativeReportView(json: .object([
-            "coverRevision": .text("cover-\(sample.id)"), "contentRevision": .text("demo-v1"),
+            "coverRevision": .text(sample.hasCover ? "cover-\(sample.id)" : ""), "contentRevision": .text("demo-v1"),
             "emoji": .text(sample.emoji), "shortDescription": .text(sample.summary), "previewText": .text(sample.summary),
             "relatedExecutions": .array(refs.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })
         ]))

@@ -65,3 +65,17 @@ renderer 提供。现有手动 App 的集合外壳同样让出底色，其他卡
 - `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、短读保留/长读移出/解散、持久化重载、搜索、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留关闭事实。另通过真实 `NativeWorkspacePresentation.open` 方法验证首次 Overview 投影前的打开标记落盘、旧打开数据不冒充关闭事实、返回后保留记录及无效引用拒绝；不创建窗口。
 
 生产导出使用独立临时 profile，不连接 Runtime；完成后清理该 profile。这是可审阅的 fixture 数据导出，不是新测试套件，不证明视觉中间帧或物理手势通过。已运行和未运行的检查见 [validation.md](validation.md)。
+
+## Collection 成员面板
+
+点击右上角 x/x 展开真实生产成员面板，按 collection 顺序平铺普通报告卡片。
+可滚动到末尾，点击成员打开原有示意阅读页；Escape、关闭按钮或再次点击 x/x 收起。
+展开期间暂停底层轮播，关闭后重新开始停留计时。
+
+勾选「9 篇成员」增加六篇已符合归组资格的 fixture，最后一篇没有封面。
+默认仍为原有三篇集合；随着原有「最近关闭」fixture 到期，总数可继续增加。
+「保持预览活跃」只用于自动化工具不能持续保持 App 前台时检查组件，默认关闭，
+不改变生产失活判断，也不能用它证明系统前台生命周期。缩小窗口后继续滚动，
+检查末尾卡片与关闭控件；面板由屏幕可用区域定尺寸，可以越过父窗口边缘。
+
+本次实际观察、构建记录与未验证项见 [collection-panel-validation.md](collection-panel-validation.md)。
