@@ -286,8 +286,3 @@ func intContains(a []int, v int) bool {
 	}
 	return false
 }
-
-func fullAssistantReply(turn *Turn) string {
-	_, text := turn.lastAssistantMessage()
-	return text
-}

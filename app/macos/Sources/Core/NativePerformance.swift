@@ -39,7 +39,6 @@ public enum NativePerformance {
     }
     public static var mode: Mode { registry.withLock { $0.recorder?.mode ?? .off } }
     public static var recordingID: UUID? { registry.withLock { $0.recorder?.recordingID } }
-    public static var outputURL: URL? { registry.withLock { $0.recorder?.currentURL } }
 
     /// Call once at application/probe startup. An explicit mode overrides the environment.
     @discardableResult
@@ -101,7 +100,6 @@ public enum NativePerformance {
 public final class NativePerformanceSpan: @unchecked Sendable {
     public let id: UInt64
     public var recordingID: UUID { recorder.recordingID }
-    public var hasEnded: Bool { ended.withLock { $0 } }
     private let recorder: NativePerformanceRecorder
     private let metric: NativePerformance.Metric
     private let context: UInt64?

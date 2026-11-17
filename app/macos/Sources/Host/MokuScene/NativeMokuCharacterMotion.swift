@@ -68,7 +68,6 @@ struct NativeMokuCharacterPose {
     var runningMilliseconds: Double { runningElapsed }
     var isTransitioning: Bool { clock < transitionAt + duration }
     var hasScheduledFrame: Bool { link?.isPaused == false && visible }
-    var isRetiringReasoning: Bool { !retiredGlyphs.isEmpty && pose["arcAlpha"] > 0.001 }
     private var visible: Bool {
         input?.motion == true
             && (face?.motionVisible == true || decorations?.motionVisible == true)

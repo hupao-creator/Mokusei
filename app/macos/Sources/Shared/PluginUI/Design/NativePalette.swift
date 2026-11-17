@@ -79,6 +79,4 @@ public enum NativeGeometry {
     public static let overviewCardGap: CGFloat = 16
     public static let overviewCardRadius: CGFloat = 22
     public static let readingWidth: CGFloat = 744
-    public static let settingsSidebarWidth: CGFloat = 220
-    public static let settingsHeaderHeight: CGFloat = 110
 }

@@ -897,20 +897,6 @@ func (n *NativeSession) request(method string, p Map, id any) {
 	n.publish(Map{"type": "interaction-opened", "interaction": interaction})
 }
 
-// Either owner retirement or an earlier transport failure forbids automatic
-// reuse. These facts are monotonic, although process/bridge drain may follow.
-func (n *NativeSession) retiring() bool {
-	n.mu.Lock()
-	closed := n.closed
-	n.mu.Unlock()
-	if closed {
-		return true
-	}
-	n.server.mu.Lock()
-	defer n.server.mu.Unlock()
-	return n.server.closed
-}
-
 func (n *NativeSession) Close() error {
 	_, err := n.close()
 	return err

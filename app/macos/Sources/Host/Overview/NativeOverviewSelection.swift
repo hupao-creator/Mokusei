@@ -491,5 +491,4 @@ enum NativeOverviewSelection {
         }
     }
     static func compare(_ a: String, _ b: String) -> ComparisonResult { a.compare(b, locale: .current) }
-    static func jsonString(_ value: JSONValue) -> String { (try? String(decoding: value.encodedData(), as: UTF8.self)) ?? "" }
 }

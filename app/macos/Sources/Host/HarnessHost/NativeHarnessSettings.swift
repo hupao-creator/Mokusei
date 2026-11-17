@@ -122,11 +122,6 @@ public final class NativeHarnessSettingsSurface {
         // not admit an execution editor with an empty binding during that gap.
         return snapshot == .null || snapshot == .object([:]) ? "Execution settings are not available yet. Retry loading configuration." : nil
     }
-    public var hasThreadSettingsConflict: Bool {
-        guard let baselineThreadSettings, let latestThreadSettings else { return false }
-        return baselineThreadSettings.revision != latestThreadSettings.revision
-    }
-    public var canRetryThreadSettings: Bool { pendingThreadChange != nil }
 
     init(host: NativeHarnessHost, plugin: AnyHarnessPlugin, configuration: NativeHarnessSettingsConfiguration) {
         self.host = host; self.configuration = configuration

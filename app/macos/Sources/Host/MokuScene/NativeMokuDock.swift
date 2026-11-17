@@ -26,7 +26,6 @@ import SwiftUI
         let requiredLeading = hasMessage ? NativeMokuTalkTypography.leading + (isDispatch ? 240 : 200) : 64
         return width < requiredLeading + max(48, sharedActions + 8) ? 40 : 0
     }
-    var messageTrailing: CGFloat { band > 0 ? 48 : max(48, sharedActions + 8) }
     var edgeInset: CGFloat { stacked && width < controlWidth + trailing ? 0 : trailing }
 }
 

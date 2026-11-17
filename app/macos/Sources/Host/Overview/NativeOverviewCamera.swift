@@ -304,13 +304,6 @@ public final class NativeOverviewCamera {
         updateAuto()
     }
 
-    /// Derive the target from the complete content rect when the caller does
-    /// not already have a solver camera.
-    public func reconcileBounds(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        applyGeometry(content: content, viewport: viewport,
-                      automatic: NativeOverviewCameraGeometry.fit(content, viewport: viewport))
-    }
-
     public func cutTo(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
         stopMotion(commitSample: false)
         let automatic = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
