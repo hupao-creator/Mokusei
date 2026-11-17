@@ -296,8 +296,8 @@ inserted reader geometry. The related capability owns one 200ms native opacity
 entrance per selected visit, after scoped-row and Markdown readiness; manifest
 mounting cannot consume it. Loading remains visible while preparing, and hidden
 reader controls/accessibility cannot act. Errors admit normally, refresh/retry
-keeps the same entrance, and a new selection retires pending preparation. Reduce
-Motion skips or settles the fade without replacing the reader. See the
+keeps the same entrance, and a new selection retires pending preparation. The
+ordinary entrance does not consult system motion preferences. See the
 [related-execution fade investigation](../../../../../design/related-thread-fade.md) and the [recording investigation and Sprint limits](../../../../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
 
 Closing a settled Report retains its current split layout from return preparation

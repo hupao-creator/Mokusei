@@ -1,5 +1,9 @@
 # Note opening performance and Regular glass
 
+> This investigation preserves historical measurements and the former Reduce
+> Motion policy. Current application-owned animations use ordinary motion without
+> consulting that preference; see the [removal audit](../../../design/remove-reduce-motion.md).
+
 This investigation starts at `61e424b` and uses the user-supplied 10.29-second
 screen recording from 2026-11-03. Frames were decoded with AVFoundation at exact
 100 ms requests (default keyframe tolerance is unsuitable for animation review).

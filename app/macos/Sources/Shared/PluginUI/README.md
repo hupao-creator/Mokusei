@@ -600,9 +600,10 @@ ordinary follow-ups in Agent detail as one line of literal text and one line of
 recorded message time. It has no author/sequence heading, receipt state or status
 icon. Missing time is not replaced by the execution timestamp. Text that does not
 fit the actual reading width can expand; attachment/annotation detail reuses the
-Harness's existing user-message renderer only after expansion. System Reduce
-Motion removes the explicit expansion animation. `.steer` rows render only while
-their execution is running and become invisible once it is no longer running
+Harness's existing user-message renderer only after expansion. Expansion uses
+the ordinary explicit animation without consulting system motion preferences.
+`.steer` rows render only while their execution is running and become invisible
+once it is no longer running
 (completed, failed, interrupted or waiting for input), even though the model, wire
 fields and retained input remain. Read-only inherited transcripts that reuse this
 row style without an owning execution retain their input. They stay independent of

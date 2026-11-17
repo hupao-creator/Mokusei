@@ -709,8 +709,8 @@ authority, consume a draft or navigate before a confirmed receipt. Failure or
 an unresolved receipt retires submission feedback and leaves the existing draft
 and error/recovery path intact. Accepted continuation keeps its pending feedback
 while waiting for a new Thread's catalog event. Confirmed execution activity can continue the
-same orbit clock; unrelated Moku execution updates cannot restart it. Reduce
-Motion retains static dots.
+same orbit clock; unrelated Moku execution updates cannot restart it. The feedback
+retains its ordinary orbit animation without consulting system motion preferences.
 
 An accepted exact-execution continuation retains the previous Dock column,
 expanded shell and Harness logo seat while its new reading visit prepares. Native column

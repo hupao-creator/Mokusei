@@ -68,9 +68,10 @@ the expanded main-panel marker. An intentionally delayed destination row (or
 mounted read error) must keep the incoming host hidden after folding. Only content
 admission releases the downward page turn; native presentation-layer samples
 verify both moving pages before the same incoming host survives landing. The
-final reader must contain the destination content and retire the outgoing host. Wide and stacked layouts, retain source,
-fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
-Motion still waits for content but settles without an intermediate page turn.
+final reader must contain the destination content and retire the outgoing host.
+Wide and stacked layouts cover source retention, fold travel, waiting, page travel
+and final AppKit-rendered snapshots. These paths use ordinary motion without
+consulting the system motion preference.
 The wide animated case also drives the native Execution Sidecard divider: both
 documents must reflow at each intermediate width without replacing their native
 text views. A new settled reply must appear while the execution is still running
@@ -520,9 +521,9 @@ search uses the same production prefix.
 The directory-selection case reproduces the recorded `OpenAgent / 功能改进`
 → `界面设计` switch and selects the child again through the real accessibility
 actions. WindowServer pixel spans require both directory capsule ends to stay
-rounded throughout the resize, with intermediate widths required when Reduce
-Motion is off. This catches the transient straight right edge that settled
-geometry checks miss. It uses real glass on a black background in dark appearance;
+rounded throughout the resize, with intermediate widths required. This catches
+the transient straight right edge that settled geometry checks miss. It uses real
+glass on a black background in dark appearance;
 it also scrolls the mounted filter bar to clip each side of the directory and
 checks pixels immediately inside/outside the viewport. It does not measure
 optical frame pacing or drive the physical pointer.
@@ -769,9 +770,9 @@ handoff retains approximately 60ms/180ms production-component captures; those
 are observation samples rather than a physical frame-pacing assertion.
 
 The runner requires all four suite pass markers. It uses isolated AppKit windows,
-no installed app or paid model. These fixtures do not toggle the user's Reduce
-Motion preference, prove physical display frame pacing or cover real account
-startup. The 120ms visual entrance requires separate
+no installed app or paid model. These fixtures do not consult or change system
+motion preferences. They do not prove physical display frame pacing or cover
+real account startup. The 120ms visual entrance requires separate
 visual inspection; ordinary SwiftPM skips are not native replay evidence.
 
 `NativeLocalChangeFanoutTests.referencedCardsConsumeLiveCatalogAndRetireSelections`
