@@ -277,6 +277,7 @@ struct NativeReportCoverTests {
         let newWeb = try #require(webViews(root).first { $0.alphaValue == 1 })
         try await wait { let position = try await x(newWeb); return position > 25 && position < 200 }
         try await wait { try await x(newWeb) >= 219.9 }
+        print("REPORT_COVER_REVISION_RETENTION_CONFIRMED")
     }
 
     @Test func replayRequestedDuringCoverLoadIsAdmitted() async throws {
@@ -294,6 +295,7 @@ struct NativeReportCoverTests {
         let web = try #require(webViews(root).first)
         try await wait { let position = try await x(web); return position > 25 && position < 200 }
         try await wait { try await x(web) >= 219.9 }
+        print("REPORT_COVER_LOADING_REPLAY_CONFIRMED")
     }
 
     @Test func oversizedInfiniteAuthorMotionStillCompletesWithinSixSeconds() async throws {

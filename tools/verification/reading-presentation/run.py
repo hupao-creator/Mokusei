@@ -285,7 +285,7 @@ def main():
     count = (
              len(native_methods) if native_methods is not None else
              1 if decorations else
-             5 if "--report-covers" in sys.argv else
+             7 if "--report-covers" in sys.argv else
              1 if composer_refocus else
              5 if thread_send_native else
              9 if isolated_input else
@@ -335,7 +335,8 @@ def main():
         raise SystemExit("FAIL: local images did not confirm their native attachment click path")
     if "--report-covers" in sys.argv and any(marker not in result.stdout for marker in (
             "REPORT_COVER_SINGLE_PLAY_CONFIRMED", "REPORT_COVER_RENDERED_CYCLE_CONFIRMED", "REPORT_COVER_BOUND_CONFIRMED",
-            "REPORT_COVER_CAROUSEL_ADMISSION_CONFIRMED", "REPORT_COVER_FAILURE_ADVANCE_CONFIRMED")):
+            "REPORT_COVER_CAROUSEL_ADMISSION_CONFIRMED", "REPORT_COVER_FAILURE_ADVANCE_CONFIRMED",
+            "REPORT_COVER_REVISION_RETENTION_CONFIRMED", "REPORT_COVER_LOADING_REPLAY_CONFIRMED")):
         raise SystemExit("FAIL: animated covers did not confirm all rendered playback boundaries")
     if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: token animation did not confirm its original three-frame assertions")

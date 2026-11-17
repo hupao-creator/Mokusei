@@ -2,6 +2,12 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/gridRetainsCompletedRevisionAcrossThemeAndPlaysNewRevision()": {
+        "group": "native", "check": "report-covers", "marker": "REPORT_COVER_REVISION_RETENTION_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/replayRequestedDuringCoverLoadIsAdmitted()": {
+        "group": "native", "check": "report-covers", "marker": "REPORT_COVER_LOADING_REPLAY_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeReportCoverTests/singlePlaybackStaysFinishedAcrossRedrawAndReplaysOnce()": {
         "group": "native", "check": "report-covers", "marker": "REPORT_COVER_SINGLE_PLAY_CONFIRMED",
     },
