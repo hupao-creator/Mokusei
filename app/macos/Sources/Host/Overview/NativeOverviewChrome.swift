@@ -675,16 +675,16 @@ enum OverviewTagMetrics {
     // Match both the row gap and child gap to the native morph distance. Each
     // directory has its own container, so unrelated parents never fuse at rest.
     static let submenuSpacing: CGFloat = 10
-    /// Enlarge the existing tag presentation without changing action controls.
+    /// Enlarge tag ink while keeping all top-level chrome at the same height.
     static let enlargement: CGFloat = 1.1
     static let chipScale: CGFloat = 1.125 * enlargement
     static let chipFont = 10.5 * chipScale
     static let folderIcon = 11 * chipScale
     static let chipContentSpacing = 6 * chipScale
     static let chipLabelInset = labelInset * chipScale
-    static let chipHeight: CGFloat = 42 * enlargement
-    /// Keep the independent action buttons circular and at their existing size.
-    static let actionDiameter: CGFloat = 42
+    static let chipHeight = NativeWindowNavigationGeometry.height
+    /// Tag filters, traffic-light capsules and circular actions share one height.
+    static let actionDiameter = NativeWindowNavigationGeometry.height
     static let barHeight = chipHeight
     /// Always reserve a caption band below the narrow action row, including
     /// when no child is selected. Its appearance cannot move the filter bar.
