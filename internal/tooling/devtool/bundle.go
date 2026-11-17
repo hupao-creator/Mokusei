@@ -7,23 +7,42 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
 type BundleOptions struct {
-	Channel, Configuration, Output string
-	SkipBuild, SkipRuntime, Zip    bool
+	Channel, Configuration, Output, BuildNumber string
+	SkipBuild, SkipRuntime, Zip                 bool
+}
+
+type bundleProvenance struct {
+	Channel               string `json:"channel"`
+	Configuration         string `json:"configuration"`
+	Version               string `json:"version"`
+	BuildVersion          string `json:"buildVersion"`
+	ReleaseVersion        string `json:"releaseVersion"`
+	Signing               string `json:"signing"`
+	SourceCommit          string `json:"sourceCommit,omitempty"`
+	SourceDirty           bool   `json:"sourceDirty"`
+	ExecutableInputSHA256 string `json:"executableInputSHA256"`
+	RuntimeInputSHA256    string `json:"runtimeInputSHA256"`
 }
 
 func sha256File(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	hash := sha256.Sum256(data)
-	return hex.EncodeToString(hash[:]), nil
+	defer file.Close()
+	hash := sha256.New()
+	if _, err = io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 func copyStable(src, dst string) (string, error) {
 	before, err := sha256File(src)
@@ -88,7 +107,7 @@ func xmlText(value string) string {
 	_ = xml.EscapeText(&output, []byte(value))
 	return output.String()
 }
-func infoPlist(version string, p Product) string {
+func infoPlist(version, buildVersion, releaseVersion string, p Product) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -101,13 +120,14 @@ func infoPlist(version string, p Product) string {
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>%s</string>
 <key>CFBundleVersion</key><string>%s</string>
+<key>MokuseiReleaseVersion</key><string>%s</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/><key>NSAllowsArbitraryLoadsInWebContent</key><true/></dict>
 </dict></plist>
-`, xmlText(p.BundleIdentifier), xmlText(p.DisplayName), xmlText(p.DisplayName), xmlText(p.DataDirectoryName), xmlText(version), xmlText(version))
+`, xmlText(p.BundleIdentifier), xmlText(p.DisplayName), xmlText(p.DisplayName), xmlText(p.DataDirectoryName), xmlText(version), xmlText(buildVersion), xmlText(releaseVersion))
 }
 
 func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error) {
@@ -131,9 +151,41 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if err != nil {
 		return "", err
 	}
-	identity, err := developmentIdentity(ctx)
+	versionData, err := os.ReadFile(filepath.Join(repo, "VERSION"))
 	if err != nil {
 		return "", err
+	}
+	version := strings.TrimSpace(string(versionData))
+	provenance := bundleProvenance{Channel: opts.Channel, Configuration: opts.Configuration, Version: version,
+		BuildVersion: version, ReleaseVersion: version, Signing: "apple-development"}
+	identity := signingIdentity{Hash: "-", Name: "ad-hoc"}
+	if product.Channel == "alpha" {
+		if opts.BuildNumber == "" {
+			opts.BuildNumber = "1"
+		}
+		if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`).MatchString(version) || !regexp.MustCompile(`^[1-9][0-9]{0,3}$`).MatchString(opts.BuildNumber) {
+			return "", fmt.Errorf("alpha requires a numeric x.y.z VERSION and --build-number from 1 to 9999")
+		}
+		provenance.BuildVersion = opts.BuildNumber
+		provenance.ReleaseVersion = version + "-alpha." + opts.BuildNumber
+		provenance.Signing = "ad-hoc"
+		commit, err := run(ctx, repo, nil, "/usr/bin/git", "rev-parse", "HEAD")
+		if err != nil {
+			return "", err
+		}
+		status, err := run(ctx, repo, nil, "/usr/bin/git", "status", "--porcelain")
+		if err != nil {
+			return "", err
+		}
+		provenance.SourceCommit, provenance.SourceDirty = strings.TrimSpace(commit), strings.TrimSpace(status) != ""
+	} else {
+		if opts.BuildNumber != "" {
+			return "", fmt.Errorf("--build-number requires the alpha channel")
+		}
+		identity, err = developmentIdentity(ctx)
+		if err != nil {
+			return "", err
+		}
 	}
 	var directory string
 	if opts.SkipBuild {
@@ -173,8 +225,9 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if err != nil {
 		return "", err
 	}
-	provenance, _ := json.MarshalIndent(map[string]any{"channel": opts.Channel, "configuration": opts.Configuration, "executableInputSHA256": nativeHash, "runtimeInputSHA256": runtimeHash}, "", "  ")
-	if err = os.WriteFile(filepath.Join(resources, "build-provenance.json"), append(provenance, '\n'), 0644); err != nil {
+	provenance.ExecutableInputSHA256, provenance.RuntimeInputSHA256 = nativeHash, runtimeHash
+	provenanceJSON, _ := json.MarshalIndent(provenance, "", "  ")
+	if err = os.WriteFile(filepath.Join(resources, "build-provenance.json"), append(provenanceJSON, '\n'), 0644); err != nil {
 		return "", err
 	}
 	goroot, err := run(ctx, repo, nil, goExecutable(), "env", "GOROOT")
@@ -216,11 +269,7 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if _, err = run(ctx, repo, nil, "/usr/bin/ditto", filepath.Join(directory, uiResourceBundle), filepath.Join(resources, uiResourceBundle)); err != nil {
 		return "", err
 	}
-	version, err := os.ReadFile(filepath.Join(repo, "VERSION"))
-	if err != nil {
-		return "", err
-	}
-	if err = os.WriteFile(filepath.Join(app, "Contents/Info.plist"), []byte(infoPlist(strings.TrimSpace(string(version)), product)), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(app, "Contents/Info.plist"), []byte(infoPlist(version, provenance.BuildVersion, provenance.ReleaseVersion, product)), 0644); err != nil {
 		return "", err
 	}
 	if err = os.WriteFile(filepath.Join(app, "Contents/PkgInfo"), []byte("APPL????"), 0644); err != nil {
@@ -243,16 +292,16 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if err = sign(ctx, app, identity, "", ""); err != nil {
 		return "", err
 	}
-	if _, err = VerifySignature(ctx, app, product.BundleIdentifier, identity.Team); err != nil {
+	if _, err = verifySignature(ctx, app, product.BundleIdentifier, identity.Team, product.Channel == "alpha"); err != nil {
 		return "", err
 	}
 
-	if _, err = VerifySignature(ctx, filepath.Join(executables, "mokusei-runtime"), product.BundleIdentifier+".runtime", identity.Team); err != nil {
+	if _, err = verifySignature(ctx, filepath.Join(executables, "mokusei-runtime"), product.BundleIdentifier+".runtime", identity.Team, product.Channel == "alpha"); err != nil {
 		return "", err
 	}
 
-	publisher := filepath.Join(staging, "publish-bundle")
-	if _, err = run(ctx, repo, nil, "/usr/bin/xcrun", "clang", "-arch", "arm64", "-Os", "-Wall", "-Wextra", "-Werror", filepath.Join(repo, "app/macos/build/publish-bundle.c"), "-o", publisher); err != nil {
+	publisher, err := buildBundlePublisher(ctx, repo, staging)
+	if err != nil {
 		return "", err
 	}
 	archive := "-"
@@ -268,4 +317,10 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	}
 	fmt.Println("Verified native bundle:", destination)
 	return destination, nil
+}
+
+func buildBundlePublisher(ctx context.Context, repo, directory string) (string, error) {
+	publisher := filepath.Join(directory, "publish-bundle")
+	_, err := run(ctx, repo, nil, "/usr/bin/xcrun", "clang", "-arch", "arm64", "-Os", "-Wall", "-Wextra", "-Werror", filepath.Join(repo, "app/macos/build/publish-bundle.c"), "-o", publisher)
+	return publisher, err
 }

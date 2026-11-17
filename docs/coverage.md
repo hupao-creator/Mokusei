@@ -8,8 +8,8 @@
 AsciiDoc、README、文本运行说明/生产 prompt、证据文本及 LICENSE，包含隐藏 `.agents/`
 和 `CLAUDE.md` 符号链接：共 **197** 个范围标识，其中 **190** 项自有/适用文档、
 **7** 项第三方原文/生成数据。范围标识数量不是当前文件数量。
-当前树有 **141** 个文档候选：下表 **134** 项自有/适用入口，另列 **7** 项第三方输入；
-其中 **14** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
+当前树有 **142** 个文档候选：下表 **135** 项自有/适用入口，另列 **7** 项第三方输入；
+其中 **15** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
 逐项映射到当前事实所有者；日志接口类标识明确映射到现有能力边界，不声明日志实现。
 
 第三方依赖源码、SwiftPM/Go 缓存、构建输出、图片/字体二进制、JSON/CSV 原始采样和
@@ -53,7 +53,8 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [app/macos/Sources/Shared/PluginUI/Resources/NOTICE.txt](../app/macos/Sources/Shared/PluginUI/Resources/NOTICE.txt) | 资源/归属核对；[SOURCES.md](../app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md) | 限本地资源、metadata 与归属；未重建/逐像素验证 |
 | [app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md](../app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md) | 资源/归属核对；[jetbrains-subsets.json](../app/macos/Sources/Shared/PluginUI/Resources/fonts/jetbrains-subsets.json) | 限本地资源、metadata 与归属；未重建/逐像素验证 |
 | [app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md](../app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md) | 资源/归属核对；[lucide-paths.json](../app/macos/Sources/Shared/PluginUI/Resources/icons/lucide-paths.json) | 限本地资源、metadata 与归属；未重建/逐像素验证 |
-| [app/macos/build/README.md](../app/macos/build/README.md) | 主路径/符号/约束静态核对；[bundle.go](../internal/tooling/devtool/bundle.go) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
+| [app/macos/build/README.md](../app/macos/build/README.md) | 打包/签名/显式 alpha 发布与日志后启动边界静态核对；[bundle.go](../internal/tooling/devtool/bundle.go)、[alpha.go](../internal/tooling/devtool/alpha.go)、[launch.go](../internal/tooling/devtool/launch.go) | 限源码与引用；不认证 DMG 分发、Gatekeeper、权限保持或首次启动 |
+| [app/macos/build/alpha-installation.txt](../app/macos/build/alpha-installation.txt) | alpha 安装说明与隔离渠道核对；[alpha.go](../internal/tooling/devtool/alpha.go)、[common.go](../internal/tooling/devtool/common.go) | 安装/更新操作说明，不代表已在接收者 Mac 验收或系统权限已授予 |
 | [app/macos/build/SOURCES.md](../app/macos/build/SOURCES.md) | 主路径/符号/约束静态核对；[generate-app-icon.swift](../app/macos/build/generate-app-icon.swift) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
 | [demos/README.md](../demos/README.md) | 构建输入/参数/组件归属核对；[build.py](../demos/thread-card-cloud/build.py)、[build.py](../demos/tag-cloud-loading/build.py)、[build.py](../demos/thread-card-glass-timeline/build.py) | 未重建/启动；独立 fixture 无 Runtime/e2e 验收证明 |
 | [demos/execution-handoff/README.md](../demos/execution-handoff/README.md) | 构建输入/参数/组件归属核对；[build.py](../demos/execution-handoff/build.py)、[main.swift](../demos/execution-handoff/main.swift) | 未重建/启动；独立 fixture 无 Runtime/e2e 验收证明 |
