@@ -58,6 +58,11 @@ Moku's eye character is drawn by the Host's vector renderer. The sphere-specific
 Moku Map PNG resources, loader and Harness gradient palette have been removed;
 application icon resources remain independent.
 
+Adaptive color assets in `Resources/Palette.xcassets` match the normalized
+production `pair(light, dark)` requests. `CloudMetalCompiler` checks literal
+requests before compiling the palette with actool; `NativePalette.pair` is the
+asset-name constructor. Direct native RGB colors do not require palette assets.
+
 `NativeReportExecutionInputKey` carries the expanded Report execution's exact
 reference, content/landing readiness and destination frame to its Host shell. It is absent in list, folded,
 Browser and suppressed states. The Host converts that geometry through the same
