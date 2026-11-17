@@ -18,11 +18,8 @@ public enum NativePerformance {
         case textReplace = "text.replace", textLayout = "text.layout", textCache = "text.cache"
         case readingPrepare = "reading.prepare", readingTransition = "reading.transition"
         case scrollGesture = "scroll.gesture", scrollGeometry = "scroll.geometry"
-        case metalSurface = "metal.surface", metalActive = "metal.active", metalCallback = "metal.callback", metalCapture = "metal.capture"
-        case metalUpload = "metal.upload", metalSubmit = "metal.submit", metalGPU = "metal.gpu"
-        case metalPresented = "metal.presented", metalSkipped = "metal.skipped"
-        case windowFlush = "window.flush", mainDelay = "main.delay", display = "display"
-        case windowPresented = "window.presented"
+        case metalGPU = "metal.gpu", metalPresented = "metal.presented"
+        case display = "display"
         case scenario = "scenario"
     }
 

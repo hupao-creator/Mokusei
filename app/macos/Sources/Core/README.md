@@ -178,4 +178,7 @@ Summary `count` remains the number of queries, with hit/miss totals alongside it
 Pending counters are limited to 256 contexts and overflow increments the existing
 dropped counter. Reconfiguration and normal finish drain the owning recorder;
 counts never cross recording sessions. JSON encoding and file IO stay off the
-main actor. Other metrics retain their existing event/span semantics.
+main actor. Other metrics retain their existing event/span semantics. Metal
+diagnostics use the producer-backed `metal.gpu` and `metal.presented` spans;
+`display` carries native timeline diagnostics, including phase and scroll
+observations, rather than proving physical presentation.
