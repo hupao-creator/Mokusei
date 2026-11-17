@@ -831,6 +831,11 @@ renderer policy is not a preference and does not identify plugins by name.
 Completion drawing and plan geometry remain unchanged. Loading-cloud
 palette is supplied by the Harness rather than selected by identity inside the renderer.
 
+The Git extension is omitted before composition when both known line totals are
+zero, regardless of changed files or HEAD. It contributes no placement, footprint
+or structural key, so the remaining extensions determine the complete card size.
+Either positive total retains the extension. Unknown/failed totals keep their
+existing changed-file/error presentation.
 The Git extension renders signed numeric line counts only when both totals are
 known. A single neutral label explains unknown, limit, timeout or unavailable
 statistics; a separate stale label identifies retained observations. These states

@@ -36,6 +36,10 @@ public struct HarnessGitStatus: Hashable, Sendable {
         self.error = error; self.observedAt = observedAt
     }
     /// `changed` counts unique paths across all file scopes, including conflicts.
-    /// File-only changes remain visible even when net line counts are zero or unavailable.
-    public var isActive: Bool { changed > 0 || (additions ?? 0) > 0 || (deletions ?? 0) > 0 }
+    /// Known zero line totals omit the extension before card sizing, even for file-only changes.
+    /// Unknown statistics retain the existing file-count/error presentation.
+    public var isActive: Bool {
+        if let additions, let deletions { return additions > 0 || deletions > 0 }
+        return changed > 0
+    }
 }

@@ -34,7 +34,7 @@ struct GitThreadExtensionTests {
     private func status(changed: Int = 1, ahead: Int? = nil, behind: Int? = nil, additions: Int? = 0, deletions: Int? = 0,
                         staged: Int = 0, untracked: Int = 0, conflicts: Int = 0, lineStatsError: HarnessGitReadError? = nil,
                         error: String? = nil) -> HarnessGitStatus {
-        .init(id: "worktree", root: "/workspace/repo", branch: "main", head: nil, upstream: nil,
+        .init(id: "worktree", root: "/workspace/repo", branch: "main", head: "c030a4b4", upstream: nil,
               ahead: ahead, behind: behind, changed: changed, staged: staged, unstaged: changed - staged - untracked - conflicts,
               untracked: untracked, conflicts: conflicts, additions: additions, deletions: deletions,
               lineStatsError: lineStatsError, error: error)
@@ -68,9 +68,9 @@ struct GitThreadExtensionTests {
             try .init(id: id, harnessID: "codex", revision: 0, sessionState: .null, observation: .init(),
                 cwd: "/project", settings: .object([:]), createdAt: 1, updatedAt: 1, title: "Agent", tags: [], worktree: worktree)
         }
-        let main = try repository("main-observation", cwd: "/project", branch: "main", changed: 82)
-        let first = try repository("first-observation", cwd: "/worktrees/first", branch: "first", changed: 2)
-        let second = try repository("second-observation", cwd: "/worktrees/second", branch: "second", changed: 1)
+        let main = try repository("main-observation", cwd: "/project", branch: "main", changed: 82, additions: 1)
+        let first = try repository("first-observation", cwd: "/worktrees/first", branch: "first", changed: 2, additions: 1)
+        let second = try repository("second-observation", cwd: "/worktrees/second", branch: "second", changed: 1, additions: 1)
         host.git.install([main, first, second])
         let projectThread = try input("ordinary")
         let firstThread = try input("first", worktree: .object(["cwd": .text("/worktrees/first")]))
@@ -94,9 +94,10 @@ struct GitThreadExtensionTests {
                                             ahead: ahead, behind: behind)])
             #expect(lookup(projectThread) == nil)
         }
-        // File-only changes (binary/rename/empty files or unavailable statistics)
-        // and positive line counts both survive the production host's filter.
-        for (changed, added, deleted): (Int, Int?, Int?) in [(1, 0, 0), (1, nil, nil), (0, 1, 0), (0, 0, 1)] {
+        // Known zeroes hide file-only changes; unavailable totals remain unknown.
+        host.git.install([try repository("main-observation", cwd: "/project", branch: "main", changed: 1)])
+        #expect(lookup(projectThread) == nil)
+        for (changed, added, deleted): (Int, Int?, Int?) in [(1, nil, nil), (0, 1, 0), (0, 0, 1)] {
             host.git.install([try repository("main-observation", cwd: "/project", branch: "main", changed: changed,
                                             additions: added, deletions: deleted)])
             #expect(lookup(projectThread)?.id == "main-observation")
@@ -122,22 +123,24 @@ struct GitThreadExtensionTests {
         for harness in harnesses {
             let thread = try thread(harness: harness.descriptor.id)
             let clean = try harness.projectOverview(input: .init(thread: thread), availableColumns: 3)
-            let active = try harness.projectOverview(input: .init(thread: thread, git: status()), availableColumns: 3)
+            let active = try harness.projectOverview(input: .init(thread: thread, git: status(additions: 1)), availableColumns: 3)
             #expect(clean.envelope.footprint.columns * clean.envelope.footprint.rows == 1)
             #expect(active.envelope.footprint.columns * active.envelope.footprint.rows == 2)
             #expect(active.envelope.structureKey.string.contains("git"))
             #expect(active.input.thread.id == clean.input.thread.id)
-            let stale = try harness.projectOverview(input: .init(thread: thread, git: status(error: "timeout")), availableColumns: 3)
+            let stale = try harness.projectOverview(input: .init(thread: thread, git: status(additions: 1, error: "timeout")), availableColumns: 3)
             #expect(stale.envelope.structureKey == active.envelope.structureKey)
             #expect(stale !== active)
-            for hidden in [status(changed: 0, ahead: 1), status(changed: 0, behind: 1),
+            for hidden in [status(), status(staged: 1), status(untracked: 1), status(conflicts: 1),
+                           status(error: "timeout"), status(changed: 0, ahead: 1), status(changed: 0, behind: 1),
                            status(changed: 0, ahead: 2, behind: 3, additions: nil, deletions: nil)] {
                 let projected = try harness.projectOverview(input: .init(thread: thread, git: hidden), availableColumns: 3)
                 #expect(projected.envelope.structureKey == clean.envelope.structureKey)
                 #expect(projected.envelope.footprint == clean.envelope.footprint)
             }
             for visible in [status(changed: 0, additions: 1), status(changed: 0, deletions: 1),
-                            status(staged: 1), status(untracked: 1), status(conflicts: 1),
+                            status(additions: 1, deletions: 1),
+                            status(additions: 1, staged: 1), status(additions: 1, untracked: 1), status(additions: 1, conflicts: 1),
                             status(additions: nil, deletions: nil)] {
                 let projected = try harness.projectOverview(input: .init(thread: thread, git: visible), availableColumns: 3)
                 #expect(projected.envelope.structureKey == active.envelope.structureKey)
@@ -156,7 +159,10 @@ struct GitThreadExtensionTests {
             .derived(rows: [.init(id: "child", label: "Child", status: .running, kind: .agent)]),
             .intervention(.init(id: "ask", title: "Permission", actions: [.init(id: "yes", label: "Yes")]))])
         for columns in 1...3 {
-            let presentation = try composeThreadCard(base, git: status(), layoutContext: .init(availableCols: columns))
+            let withoutGit = try composeThreadCard(base, layoutContext: .init(availableCols: columns))
+            let zeroLines = try composeThreadCard(base, git: status(), layoutContext: .init(availableCols: columns))
+            #expect(zeroLines == withoutGit)
+            let presentation = try composeThreadCard(base, git: status(additions: 1), layoutContext: .init(availableCols: columns))
             guard case .standard(_, _, let placements, _) = presentation.composition else { Issue.record("Expected standard card"); return }
             #expect(Set(placements.map(\.kind)) == [.todo, .derived, .intervention, .git])
             #expect(presentation.size.cols <= columns)
@@ -180,17 +186,17 @@ struct GitThreadExtensionTests {
         let builds = overview.membershipBuildCount, filters = overview.filters
         #expect(overview.items.count == 2)
         #expect(overview.items.allSatisfy { $0.columns * $0.rows == 1 })
-        current = status()
+        current = status(additions: 1)
         overview.refreshCardExtensions()
         #expect(overview.items.count == 2)
         #expect(overview.items.allSatisfy { $0.columns * $0.rows == 2 })
         #expect(overview.revisions.count == 1)
         let previousIDs = overview.items.map(\.presentationID)
-        current = status(changed: 2)
+        current = status(changed: 2, additions: 1)
         overview.refreshCardExtensions()
         #expect(overview.items.map(\.presentationID) != previousIDs)
         #expect(overview.revisions.count == 1)
-        current = nil
+        current = status(changed: 2)
         overview.refreshCardExtensions()
         #expect(overview.items.allSatisfy { $0.columns * $0.rows == 1 })
         #expect(overview.revisions.count == 2)
@@ -271,7 +277,7 @@ struct GitThreadExtensionTests {
     @Test(.requiresDisplay, arguments: ["known", "unknown", "too-large", "timeout", "unavailable", "inaccessible", "stale"], ["en-US", "zh-CN"])
     func extensionShowsStatisticsState(state: String, locale: String) async throws {
         let known = state == "known" || state == "stale"
-        let git = status(changed: 3163, additions: known ? 0 : nil, deletions: known ? 0 : nil,
+        let git = status(changed: 3163, additions: known ? 1 : nil, deletions: known ? 0 : nil,
                          lineStatsError: HarnessGitReadError(rawValue: state), error: state == "stale" ? "timeout" : nil)
         let presentation = try composeThreadCard(.standard(extensions: []), git: git, layoutContext: .init(availableCols: 3))
         let app = NSApplication.shared
@@ -295,7 +301,7 @@ struct GitThreadExtensionTests {
         #expect(!text.contains("+—") && !text.contains("−—"))
         let chinese = locale == "zh-CN"
         switch state {
-        case "known": #expect(text.contains("+0, −0"))
+        case "known": #expect(text.contains("+1, −0"))
         case "unknown": #expect(text.contains(chinese ? "行数未知" : "Line counts unknown"))
         case "too-large": #expect(text.contains(chinese ? "行数超出统计上限" : "Line count limit exceeded"))
         case "timeout": #expect(text.contains(chinese ? "行数统计超时" : "Line count timed out"))

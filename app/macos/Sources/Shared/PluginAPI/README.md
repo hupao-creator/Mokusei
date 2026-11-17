@@ -40,7 +40,10 @@ execution references capability, preserving the Harness's appearance-specific co
 [SemanticTagLabel.swift](SemanticTagLabel.swift) validates names and emoji maps using the generated pinned table. [HarnessGitStatus.swift](HarnessGitStatus.swift) supplies typed worktree facts to standard card extensions without turning Git into a Harness-specific feature.
 Its `lineStatsError` describes a failed statistics attempt independently of a
 stale whole-worktree read. Unknown totals have no numeric value; known zeroes
-remain ordinary counts. The host validates paired totals and errors at the wire
+remain ordinary counts. `isActive` excludes known zero added/deleted totals before
+Host projection and card sizing, regardless of changed-file count or HEAD. Either
+positive total admits the extension; unknown/failed totals keep the existing
+changed-file/error presentation. The host validates paired totals and errors at the wire
 boundary before supplying these facts to Harnesses.
 
 Presentation implementations use [PluginUI](../PluginUI/README.md). New plugins implement these boundaries and are composed explicitly rather than adding hidden global discovery.
