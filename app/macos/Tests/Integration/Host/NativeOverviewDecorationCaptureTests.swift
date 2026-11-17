@@ -246,20 +246,24 @@ struct NativeOverviewDecorationCaptureTests {
             try #require(witness.passed,
                          "No frame of this Cloud was sampled, submitted and successfully completed by the GPU inside the main hold")
 
-            // One geometry change, on the same mounted card and native layers.
+            // The camera stays at 1x; pan must still move the same mounted layers.
             // Its actual PNGs and coordinate map are retained for alignment,
             // clear background and rounded-corner inspection, without goldens.
-            let zoomCamera = try setCamera(fixture.overview, scale: 1.0)
+            fixture.overview.canvasState.camera.pan(deltaX: 36, deltaY: 24)
+            let pannedCamera = fixture.overview.canvasState.camera.liveTransform
+            try #require(pannedCamera.scale == firstCamera.scale
+                         && pannedCamera.x == firstCamera.x + 36 && pannedCamera.y == firstCamera.y + 24,
+                         "The geometry probe must move the production camera at its 1x scale")
             try await Task.sleep(for: .milliseconds(300))
             let after = try #require(nativeNodes(root), "Native decoration disappeared after the camera change")
             try #require(after.cloud === nodes.cloud && after.metal === nodes.metal
                          && after.scan === nodes.scan && after.gradient === nodes.gradient,
-                         "Camera zoom remounted a native decoration and changed its animation identity")
-            try #require(fixture.overview.canvasState.camera.liveTransform == zoomCamera)
-            report["zoomGeometry"] = try geometry(window, nodes: after, overview: fixture.overview).json
-            let zoom = try await capture(window, seconds: 0.55)
-            evidence.append(("zoom", zoom))
-            try requireFullFrames(zoom, size: CGSize(width: window.frame.width * window.backingScaleFactor,
+                         "Camera pan remounted a native decoration and changed its animation identity")
+            try #require(fixture.overview.canvasState.camera.liveTransform == pannedCamera)
+            report["panGeometry"] = try geometry(window, nodes: after, overview: fixture.overview).json
+            let panned = try await capture(window, seconds: 0.55)
+            evidence.append(("pan", panned))
+            try requireFullFrames(panned, size: CGSize(width: window.frame.width * window.backingScaleFactor,
                                                    height: window.frame.height * window.backingScaleFactor))
             try requireForeground(window)
             try #require(measurements.cloudMoved,

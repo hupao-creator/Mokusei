@@ -448,9 +448,10 @@ corners. This covers a random cloud concentrated in either cell. The former
 right-cell crop remains diagnostic, since a locally dark region cannot establish
 that the cloud stopped. The 3.9-second capture, two predetermined intervals,
 static control and movement thresholds are unchanged. Narrow-row contrast must show the scan moving through the
-composed image. A legal 0.90→1.0 camera change must preserve the native objects.
-Complete fixed/zoom PNGs, pixel measurements, geometry and provenance are retained
-under `native-decoration/`. Transparency, glass colors, rounded corners and zoom
+composed image. A 36×24-point camera pan at 1× must preserve the native objects;
+the probe requires the actual transform to change by that delta.
+Complete fixed/pan PNGs, pixel measurements, geometry and provenance are retained
+under `native-decoration/`. Transparency, glass colors, rounded corners and pan
 alignment require review of those real images; neither callbacks nor these
 capture samples certify optical FPS or GPU time. The required success marker is
 `NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED`.
