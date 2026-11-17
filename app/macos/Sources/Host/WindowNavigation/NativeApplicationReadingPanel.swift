@@ -18,14 +18,6 @@ struct NativeApplicationReadingPanel: ViewModifier {
     let onClose: () -> Void
     @Environment(\.locale) private var locale
 
-    private var layoutRole: StaticString {
-        switch identifier {
-        case "moku-reading-panel": "moku.history.panel"
-        case "report-reading-panel": "report.reading.panel"
-        default: "application.reading.panel"
-        }
-    }
-
     func body(content: Content) -> some View {
         if enabled {
             if identifier == "report-reading-panel" {
@@ -51,7 +43,6 @@ struct NativeApplicationReadingPanel: ViewModifier {
             .nativeReadingPanelClose(label: locale.language.languageCode?.identifier == "zh" ? "关闭面板" : "Close panel",
                 overlaysContent: identifier == "report-reading-panel", onClose: onClose)
             .accessibilityIdentifier(identifier)
-            .nativeLayoutLog(layoutRole)
             .nativeReadingEscape(perform: suppressed || !escapeEnabled || identifier == "report-reading-panel" ? nil : onClose)
     }
 

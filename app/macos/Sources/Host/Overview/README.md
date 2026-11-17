@@ -251,8 +251,6 @@ Overview cards, canvas background and directory chips expose no context menus. B
 
 Geometry reuse applies when the current membership and viewport are unchanged; a structural slot refresh then updates content without invoking the solver. Recovery from an interrupted entry, resize or exit samples the current poses and starts the latest presentation, so transparent entrants and retired snapshots are released. The native transition replay interrupts an entry and checks the final rendered frames; no reading-position edge seat is retained.
 
-Dev-only [transaction diagnostics](../../../build/layout-logging.md#overview-relayout-transactions) pair logical before, planned and completed/cancelled/failed snapshots under one random transaction ID. Per-transaction numeric card aliases allow before/after comparison without model identifiers or content. Snapshots are bounded and explicit about truncation; they do not reconstruct historical cases or certify animation pixels.
-
 ## Tags and filter transitions
 
 [NativeOverviewChrome](NativeOverviewChrome.swift) owns the tag and action controls. Semantic tag identity remains a plain name with separately validated emoji. Each scope exposes up to five semantic tags, including singly assigned tags and separate names with equal membership. Directory filters use persistent scope identity for membership and exclude managed temporary roots. Labels are presentation only: a symlink alias or linked checkout with another label remains in its canonical directory’s All view, and same-named directories stay separate.

@@ -39,8 +39,7 @@ final class NativeRuntimeExitCleanup: Sendable {
             process.standardInput = FileHandle.nullDevice
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
-            do { try process.run() }
-            catch { Self.record(error, directory: profile.dataDirectory) }
+            try? process.run()
         }
     }
     // Capture before asynchronous cleanup: discovery may already belong to a
@@ -50,15 +49,12 @@ final class NativeRuntimeExitCleanup: Sendable {
         quittingEpoch.withLock { $0 = epoch }
     }
     func disarm() { completed.withLock { $0 = true } }
-    func record(_ error: Error) { Self.record(error, directory: profile.dataDirectory) }
 
     static func finish(directory: URL, epoch: String) async {
         let lease: RuntimeProfileClientLease
         do { lease = try await acquireCleanupLease(directory) }
         catch {
-            // Admission failed before any profile-local access. In particular,
-            // do not recreate a retired profile just to record this failure.
-            FileHandle.standardError.write(Data("Runtime cleanup admission failed: \(error.localizedDescription)\n".utf8))
+            // Admission failed before any profile-local access.
             return
         }
         defer { withExtendedLifetime(lease) {} }
@@ -66,12 +62,11 @@ final class NativeRuntimeExitCleanup: Sendable {
             let profile = lease.profile
             // Never stop a replacement owner started after the old application exited.
             try await RuntimeProcessManager(profile: profile).stop(expectedEpoch: epoch)
-        } catch { record(error, directory: lease.profile.dataDirectory) }
+        } catch {}
     }
 
     private static func acquireCleanupLease(_ directory: URL) async throws -> RuntimeProfileClientLease {
         let deadline = ContinuousClock.now.advanced(by: .seconds(30))
-        var reportedWait = false
         while true {
             try Task.checkCancellation()
             do { return try RuntimeProfileClientLease(dataDirectory: directory) }
@@ -79,17 +74,8 @@ final class NativeRuntimeExitCleanup: Sendable {
                 // Another profile's short admission or fresh operation must not
                 // make the exit helper abandon its owned runtime immediately.
                 // Failed acquisition has released every descriptor before wait.
-                if !reportedWait {
-                    FileHandle.standardError.write(Data("[native-exit] waiting for profile admission\n".utf8))
-                    reportedWait = true
-                }
                 try await Task.sleep(for: .milliseconds(50))
             }
         }
-    }
-    private static func record(_ error: Error, directory: URL) {
-        let folder = directory.appendingPathComponent("diagnostics", isDirectory: true)
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try? Data(error.localizedDescription.utf8).write(to: folder.appendingPathComponent("runtime-shutdown-error.log"), options: .atomic)
     }
 }

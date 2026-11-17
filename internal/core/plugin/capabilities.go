@@ -170,7 +170,6 @@ type BackgroundEnvironmentCapability interface {
 	Owner() BackgroundAgentRef
 	Cwd() string
 	OutputLocale(context.Context) (string, error)
-	Log(level, event string, fields model.Object)
 }
 
 type OrdinaryTaskSnapshot struct {

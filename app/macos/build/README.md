@@ -50,10 +50,6 @@ and the `Mokusei Native Dev` profile. Production uses `com.mokusei.desktop`,
 binary is built at `.build/go/mokusei-runtime`. A raw Swift executable can use
 `--runtime /absolute/path/to/mokusei-runtime --data-dir /isolated/profile`.
 
-Dev applications automatically write bounded layout-change JSONL under their
-profile's `diagnostics/layout/`. See [layout logging](layout-logging.md) for
-enablement, file discovery, coordinate semantics, coverage and costs.
-
 Build and package do not install applications. `install` refuses to replace a
 running installed app, verifies a private staged copy, and restores the previous
 installation if publication fails. Specify `--destination` only when intending
@@ -96,8 +92,8 @@ never removed or replaced when profiles move.
 A runtime guard rejection identifies the blocked canonical profile and ownership
 port and prints a cooperative stop command for that profile, including when the
 previous backup is owned. Quit native clients first. If stop reports
-`SHUTDOWN_FAILED`, inspect the selected profile's `runtime/process.log`; the
-daemon records the error and exits after cleanup, allowing the next launch. The development tool does not force termination or discard profile data.
+`SHUTDOWN_FAILED`, inspect the returned error; the daemon exits after cleanup,
+allowing the next launch. The development tool does not force termination or discard profile data.
 Swift targets explicitly exclude their module READMEs from build inputs.
 
 Rotation retains a native process scan as an additional guard. The scan follows
@@ -127,8 +123,8 @@ Cancellation waits for the invoked tool to finish its own compiler cleanup and
 release its build lease before the watcher returns.
 
 Development launches use LaunchServices and wait for native window readiness
-plus a three-second survival period. Startup times out after 30 seconds. Logs
-are private files under `~/Library/Logs/Mokusei Native Dev/launch-*`, outside
+plus a three-second survival period. Startup times out after 30 seconds. The
+one-shot PID receipt lives in a private temporary directory outside
 TCC-protected checkout locations such as Desktop. Stopping the temporary
 LaunchServices observer leaves the application running. Runtime connection
 continues asynchronously; these readiness checks do not prove harness behavior.
@@ -196,3 +192,6 @@ removed; the command does not launch the application or runtime.
 
 This is a locally signed direct-distribution build. Notarization, public release,
 automatic updates and App Store submission require a separate release workflow.
+Development launch uses a one-shot `--launch-receipt /absolute/path` JSON receipt
+with the ready process PID. The launcher removes its temporary receipt after
+confirming the process remains alive; application stdout/stderr are not collected.

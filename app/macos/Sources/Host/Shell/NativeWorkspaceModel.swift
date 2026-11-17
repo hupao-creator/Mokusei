@@ -10,7 +10,6 @@ public final class NativeWorkspaceModel {
     public let plugins: NativePluginComposition
     public let timer: NativeMokuTimerController
     public let catalog = NativeWorkspaceCatalog()
-    @ObservationIgnored public let startupPerformance: NativeStartupPerformance?
     public var hasInitialContent: Bool { hasSnapshot && catalog.hasMoku }
     private var hasSnapshot = false
     public private(set) var connection: RuntimeConnectionStatus = .connecting
@@ -23,9 +22,7 @@ public final class NativeWorkspaceModel {
             if hasSnapshot != loaded { hasSnapshot = loaded }
         }
     }
-    public private(set) var connectionError: String? {
-        didSet { if connectionError != nil && !hasInitialContent { startupPerformance?.fail() } }
-    }
+    public private(set) var connectionError: String?
     @ObservationIgnored private var catalogError: String?
     public private(set) var reconnecting = false
     public private(set) var synchronizing = true
@@ -82,14 +79,11 @@ public final class NativeWorkspaceModel {
     )
 
     public init(client: RuntimeClient, preferences: DesktopPreferences, plugins: NativePluginComposition,
-                startupPerformance: NativeStartupPerformance? = nil,
                 timer: NativeMokuTimerController? = nil) {
         self.client = client
         self.preferences = preferences
         self.plugins = plugins
         self.timer = timer ?? NativeMokuTimerController()
-        self.startupPerformance = startupPerformance
-        preferences.diagnostics = SettingsDiagnostics(client: client)
     }
 
     private func makeSettingsModel() -> NativeSettingsModel {
@@ -117,7 +111,6 @@ public final class NativeWorkspaceModel {
             }, loadInstallation: { [weak self] id in
                 guard let self else { throw CancellationError() }; return try await self.invoke("harness:detect-installation", args: [.text(id)])
             })
-        model.draft.diagnostics = SettingsDiagnostics(client: client)
         model.onDiscoveryChange = { [weak self] in self?.refreshSettingsPrefetch() }
         model.draft.onClosedSaveError = { [weak self] message in
             self?.operationError = message
@@ -201,7 +194,6 @@ public final class NativeWorkspaceModel {
             }
             state = snapshot
             timer.receive(catalog.moku)
-            if hasInitialContent { startupPerformance?.dataReady() }
             catalogError = nil
             if connection == .connected { connectionError = nil }
             settingsModel.receive(snapshot: snapshot, runtimeAvailable: runtimeAvailable)

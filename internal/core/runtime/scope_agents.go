@@ -20,9 +20,7 @@ func (r *Runtime) refreshScopeAgents(ctx context.Context) {
 	if host, ok := r.config.Applications.(interface {
 		RefreshScopeAgents(context.Context) error
 	}); ok {
-		if err := host.RefreshScopeAgents(ctx); err != nil {
-			r.log("background.scope.refresh", err)
-		}
+		_ = host.RefreshScopeAgents(ctx)
 	}
 }
 

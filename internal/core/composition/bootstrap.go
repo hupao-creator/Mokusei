@@ -6,7 +6,6 @@ package composition
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -37,13 +36,10 @@ import (
 )
 
 type Options struct {
-	Profile       profile.Profile
-	Environment   map[string]string
-	Headless      bool
-	Log           func(string, error)
-	SettingsTrace func(string, model.Object)
-	ToolTrace     func(plugin.ToolInvocation) error
-	Overview      *transport.OverviewBroker
+	Profile     profile.Profile
+	Environment map[string]string
+	Headless    bool
+	Overview    *transport.OverviewBroker
 }
 type Bootstrap struct {
 	options           Options
@@ -117,14 +113,9 @@ func (b *Bootstrap) running(ctx context.Context) error {
 	}
 	return nil
 }
-func (b *Bootstrap) log(kind string, err error) {
-	if err != nil && b.options.Log != nil {
-		b.options.Log(kind, err)
-	}
-}
 
-// Only semantic recovery notices enter Moku's transcript. Diagnostic logging
-// itself never publishes, so reporting a failed listener cannot feed it again.
+// Semantic recovery notices enter Moku's transcript; a failed listener must not
+// prevent delivery to other subscribers.
 func (b *Bootstrap) publishDiagnostic(message string) {
 	b.mu.Lock()
 	listeners := make([]func(string), 0, len(b.diagnostics))
@@ -134,11 +125,7 @@ func (b *Bootstrap) publishDiagnostic(message string) {
 	b.mu.Unlock()
 	for _, listener := range listeners {
 		func() {
-			defer func() {
-				if recovered := recover(); recovered != nil {
-					b.log("diagnostic.listener", fmt.Errorf("listener failed: %v", recovered))
-				}
-			}()
+			defer func() { _ = recover() }()
 			listener(message)
 		}()
 	}
@@ -188,11 +175,7 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	for key, value := range persisted.PluginEnabled {
 		b.enabled[key] = value
 	}
-	aaOptions := artificialanalysis.Options{Log: func(event string, fields map[string]any) {
-		if b.options.Log != nil {
-			b.options.Log("artificial-analysis."+event, artificialanalysis.DiagnosticSummary(fields))
-		}
-	}}
+	aaOptions := artificialanalysis.Options{}
 	if b.options.Headless {
 		aaOptions.CacheRoot = filepath.Join(stateRoot, "model-evaluation")
 	}
@@ -221,7 +204,7 @@ func (b *Bootstrap) open(ctx context.Context) error {
 		}
 	}
 	for _, id := range ids {
-		ledger, err := moku.OpenTelemetryLedger(filepath.Join(stateRoot, "moku-telemetry-ledgers", id+".json"), moku.LedgerOptions{OnBackgroundPersistenceError: func(err error) { b.log("telemetry."+id, err) }})
+		ledger, err := moku.OpenTelemetryLedger(filepath.Join(stateRoot, "moku-telemetry-ledgers", id+".json"), moku.LedgerOptions{})
 		if err != nil {
 			return err
 		}
@@ -273,10 +256,8 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	sort.Slice(catalog, func(i, j int) bool { return catalog[i].Key < catalog[j].Key })
 	b.attachments = attachments.NewWithClientStorage(filepath.Join(stateRoot, "attachments"), data)
 	manager := workspaces.New(workspaces.Paths{MokuCwd: mokuCwd, TemporaryRoot: temporary, RegistryPath: filepath.Join(stateRoot, "managed-worktrees.json")})
-	runtimeConfig := core.Config{Store: b.store, Harnesses: b.harnesses, DataDir: stateRoot, DefaultCwd: defaultCwd, Attachments: b.attachments, Contexts: b.contexts, Plugins: catalog, Log: b.log, Workspaces: manager, DisabledHarnesses: b.disabled, RefreshEnvironment: b.resolver.Refresh, ExtraCapabilities: map[string]any{plugin.OverviewControlCapabilityKey.ID: overviewControl{broker: b.options.Overview}}}
+	runtimeConfig := core.Config{Store: b.store, Harnesses: b.harnesses, DataDir: stateRoot, DefaultCwd: defaultCwd, Attachments: b.attachments, Contexts: b.contexts, Plugins: catalog, Workspaces: manager, DisabledHarnesses: b.disabled, RefreshEnvironment: b.resolver.Refresh, ExtraCapabilities: map[string]any{plugin.OverviewControlCapabilityKey.ID: overviewControl{broker: b.options.Overview}}}
 	runtimeConfig.TelemetryLedger = b.ledger
-	runtimeConfig.SettingsTrace = b.options.SettingsTrace
-	runtimeConfig.ToolTrace = b.options.ToolTrace
 	runtimeConfig.ProcessFactory = b.processes.ForCwd
 	runtimeConfig.Diagnostic = b.publishDiagnostic
 	runtimeConfig.OutputLocale = func(ctx context.Context) (string, error) { return readOutputLocale(ctx, b.options.Profile) }

@@ -333,7 +333,7 @@ final class NativeSidecardWorkspaceModel {
                 guard self?.isReleased == false else {
                     if !staged.isEmpty {
                         do { try await discardAttachments(staged.map(\.id)) }
-                        catch { NSLog("Sidecard attachment cleanup failed after workspace release: %@", error.localizedDescription) }
+                        catch {  }
                     }
                     throw CancellationError()
                 }

@@ -32,7 +32,6 @@ public struct NativeMarkdownView: View {
     @State private var hasStreamed = false
     @State private var preparationID = UUID()
     @Environment(\.nativeReadingContentPreparation) private var handoffPreparation
-    @Environment(\.nativePerformanceOperation) private var performanceOperation
 
     public init(text: String, streaming: Bool = false, fontSize: CGFloat = 16,
                 muted: Bool = false, openExternal: ((URL) -> Void)? = nil,
@@ -103,7 +102,7 @@ public struct NativeMarkdownView: View {
             handoffPreparation?.require(preparationID, ready: streaming || model.hasParsedContent)
         }
         .task(id: MarkdownRevision(text: text, streaming: streaming, token: documentToken)) {
-            model.submit(text: text, streaming: streaming, token: documentToken, context: performanceOperation)
+            model.submit(text: text, streaming: streaming, token: documentToken)
         }
         .onChange(of: model.applied, initial: true) { _, applied in
             onDocumentApplied?(applied)
@@ -142,7 +141,7 @@ private final class MarkdownViewModel: ObservableObject {
     private var worker: Task<Void, Never>?
     private var workerGeneration = UUID()
 
-    func submit(text: String, streaming: Bool, token: String?, context: UInt64?) {
+    func submit(text: String, streaming: Bool, token: String?) {
         if streaming {
             cancel()
             if !blocks.isEmpty { blocks = [] }
@@ -157,14 +156,10 @@ private final class MarkdownViewModel: ObservableObject {
             guard let self else { return }
             defer { if workerGeneration == generation { worker = nil } }
             while pending != nil, !Task.isCancelled {
-                let measurement = NativePerformance.begin(.markdownDelivery, context: context)
-                defer { measurement?.end(.cancelled) }
                 do {
                     guard let next = pending else { break }
                     pending = nil
-                    let document = try await NativePerformance.$context.withValue(measurement?.id ?? context) {
-                        try await NativeMarkdownParser.shared.parse(next.text)
-                    }
+                    let document = try await NativeMarkdownParser.shared.parse(next.text)
                     try Task.checkCancellation()
                     // A parser result cannot replace a newer pending revision.
                     if pending == nil {
@@ -174,8 +169,6 @@ private final class MarkdownViewModel: ObservableObject {
                         applied = next.token.map { NativeMarkdownAppliedDocument(token: $0,
                             coverageEligible: document.coverageEligible) }
                     }
-                    measurement?.end(pending == nil ? .completed : .cancelled,
-                        values: ["streaming": next.streaming ? 1 : 0, "blocks": Double(document.blocks.count)])
                 } catch { break }
             }
         }

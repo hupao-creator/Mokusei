@@ -84,33 +84,11 @@ private struct TimelineInteractionRegistration: View {
     let firstIndex: Int
     let visibleRowIds: [JSONText]
     let showOlderRows: Bool
-    // Read profiled scroll state here so diagnostics cannot subscribe the
-    // document's construction to each position update.
-    @Binding var position: ScrollPosition
-    @Binding var latestTransition: UUID?
-    @Binding var userScrolling: Bool
-    @Binding var userPositioned: Bool
-    let followOutput: Bool
-    let followPaused: Bool
-    let suspended: Bool
     let perform: (String, JSONValue) throws -> Void
 
-    private var diagnostics: JSONValue? {
-        guard TimelineConstructionProfile.enabled else { return nil }
-        return .object([
-            "edge": position.edge.map { JSONValue.text(String(describing: $0)) } ?? .null,
-            "point": position.point.map { JSONValue.object(["x": .number(Double($0.x)), "y": .number(Double($0.y))]) } ?? .null,
-            "y": position.y.map { JSONValue.number(Double($0)) } ?? .null,
-            "isPositionedByUser": .bool(position.isPositionedByUser),
-            "latestTransition": .bool(latestTransition != nil),
-            "followOutput": .bool(followOutput), "followPaused": .bool(followPaused),
-            "userScrolling": .bool(userScrolling), "userPositioned": .bool(userPositioned),
-            "suspended": .bool(suspended)
-        ])
-    }
     private var value: JSONValue {
         let geometry = viewport.geometry
-        var value: [JSONText: JSONValue] = [
+        let value: [JSONText: JSONValue] = [
             "top": .number(Double(geometry.top)), "height": .number(Double(geometry.height)),
             "contentOffset": .number(Double(geometry.contentOffset)), "insetTop": .number(Double(geometry.insetTop)),
             "viewport": .number(Double(geometry.viewport)), "following": .bool(following),
@@ -118,7 +96,6 @@ private struct TimelineInteractionRegistration: View {
             "rowCount": .integer(rowCount), "firstIndex": .integer(firstIndex), "visibleCount": .integer(visibleRowIds.count),
             "visibleRowIds": .array(visibleRowIds.map(JSONValue.string)), "showOlderRows": .bool(showOlderRows)
         ]
-        if let diagnostics { value["diagnostics"] = diagnostics }
         return .object(value)
     }
     var body: some View {
@@ -131,42 +108,29 @@ private struct TimelineInteractionRegistration: View {
 }
 private enum TimelineEdge: Hashable { case top, bottom }
 
-private enum TimelineConstructionProfile {
-    static let enabled = ProcessInfo.processInfo.environment["MOKUSEI_TIMELINE_PROFILE"] == "1"
-    // Count construction separately from geometry delivery; neither is a
-    // rendered frame. Keep observation and scroll state entirely unchanged.
-    static func record(_ phase: Int, context: @autoclosure () -> UInt64?) {
-        guard enabled, NativePerformance.mode == .detailed else { return }
-        NativePerformance.event(.display, context: context(), values: ["timelinePhase": Double(phase)])
-    }
-}
-
-/// Diagnostics attach only to the timeline; shared styling belongs to NativeScrollView.
-private struct TimelineDiagnosticsAttachment: NSViewRepresentable {
+/// Cursor handling attaches only to the timeline; shared styling belongs to NativeScrollView.
+private struct TimelineCursorAttachment: NSViewRepresentable {
     var active: Bool
-    var operation: UInt64?
-    func makeNSView(context: Context) -> TimelineDiagnosticsAttachmentView {
-        TimelineDiagnosticsAttachmentView()
+    func makeNSView(context: Context) -> TimelineCursorAttachmentView {
+        TimelineCursorAttachmentView()
     }
-    func updateNSView(_ view: TimelineDiagnosticsAttachmentView, context: Context) {
+    func updateNSView(_ view: TimelineCursorAttachmentView, context: Context) {
         view.active = active
-        view.operation = operation
         view.configure()
     }
-    static func dismantleNSView(_ view: TimelineDiagnosticsAttachmentView, coordinator: ()) { view.diagnostics.detach() }
+    static func dismantleNSView(_ view: TimelineCursorAttachmentView, coordinator: ()) { view.cursorDeferral.detach() }
 }
 
-@MainActor private final class TimelineDiagnosticsAttachmentView: NSView {
-    let diagnostics = TimelineScrollDiagnostics()
+@MainActor private final class TimelineCursorAttachmentView: NSView {
+    let cursorDeferral = TimelineCursorDeferral()
     var active = true
-    var operation: UInt64?
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); configure() }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); configure() }
 
     func configure() {
         let scroll = window == nil ? nil : enclosingScrollView
-        diagnostics.attach(to: scroll, enabled: active, context: operation)
+        cursorDeferral.attach(to: scroll, enabled: active)
     }
 }
 
@@ -196,7 +160,6 @@ public struct HarnessMessageTimeline: View {
     @Environment(\.locale) private var locale
     @Environment(\.nativeReadingNavigation) private var readingNavigation
     @Environment(\.nativeThreadBodyEntranceHidden) private var bodyEntranceHidden
-    @Environment(\.nativePerformanceOperation) private var performanceOperation
     @State private var previousReadingNavigation: NativeReadingNavigationState?
     @State private var readingSource = UUID()
     @State private var visibleCount = 120
@@ -247,14 +210,10 @@ public struct HarnessMessageTimeline: View {
     }
     private var geometry: TimelineGeometry { viewport.geometry }
     public var body: some View {
-        let _ = TimelineConstructionProfile.record(1, context: performanceOperation)
         let visible = visibleRows
         ScrollViewReader { proxy in
-            let _ = TimelineConstructionProfile.record(2, context: performanceOperation)
             GeometryReader { bounds in
-                let _ = TimelineConstructionProfile.record(3, context: performanceOperation)
                 NativeScrollView(.vertical) {
-                    let _ = TimelineConstructionProfile.record(4, context: performanceOperation)
                     VStack(alignment: .leading, spacing: 0) {
                         Color.clear.frame(height: 0).id(TimelineEdge.top)
                         if showOlderRows && firstIndex > 0 {
@@ -287,13 +246,11 @@ public struct HarnessMessageTimeline: View {
                         Color.clear.frame(height: 0).id(TimelineEdge.bottom)
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
-                    .nativeLayoutLog("timeline.reading.column")
                     .padding(.horizontal, bounds.size.width <= 540 ? 18 : 32)
                     .padding(.vertical, readingVerticalInset(bounds.size.width)).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
-                    .nativeLayoutLog("timeline.document")
                     .environment(\.nativeReadingPageCapacity, readingPageCapacity(bounds.size))
-                    .background(TimelineDiagnosticsAttachment(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
+                    .background(TimelineCursorAttachment(active: !suspended).allowsHitTesting(false))
                 }
                 .scrollIndicators(.automatic)
                 .scrollPosition($position)
@@ -311,7 +268,6 @@ public struct HarnessMessageTimeline: View {
                     TimelineGeometry(contentOffset: $0.contentOffset.y, insetTop: $0.contentInsets.top,
                         height: $0.contentSize.height, viewport: $0.containerSize.height)
                 } action: { old, new in
-                    TimelineConstructionProfile.record(5, context: performanceOperation)
                     viewport.geometry = new
                     reportReading()
                     guard !suspended else { return }
@@ -437,9 +393,7 @@ public struct HarnessMessageTimeline: View {
     private func interactionRegistration(visible: [ThreadTimelineRow]) -> some View {
         TimelineInteractionRegistration(viewport: viewport, label: localize("消息时间线"), enabled: !suspended,
             following: following, locatedRequest: locatedRequest, showLatest: showLatest,
-            rowCount: rows.count, firstIndex: firstIndex, visibleRowIds: visible.map(\.id), showOlderRows: showOlderRows,
-            position: $position, latestTransition: $latestTransition, userScrolling: $userScrolling, userPositioned: $userPositioned,
-            followOutput: followOutput, followPaused: followPaused, suspended: suspended) { operation, value in
+            rowCount: rows.count, firstIndex: firstIndex, visibleRowIds: visible.map(\.id), showOlderRows: showOlderRows) { operation, value in
             guard let amount = value.numberValue, amount.isFinite, abs(amount) <= 10_000_000 else {
                 throw NativeReadingControlError("invalid_request", "Scroll offset must be a finite number within 10000000 points")
             }

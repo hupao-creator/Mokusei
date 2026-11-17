@@ -80,9 +80,9 @@ sources, changed binaries, missing controls and visible/active probe windows.
 `--skip-build` only links production objects that the caller has just built from
 current sources. Build/link and measurement failures keep their evidence.
 
-For separate production counters (excluded from timing), run a preserved binary
-with `OUTPUT.json --detail`. A system `sample` of that owned process can explain
-CPU stacks; sampling runs must not be included in the timing comparison.
+This independent probe writes CPU, geometry and timing outputs. A system
+`sample` of its owned process can explain CPU stacks; sampling runs must not be
+included in the timing comparison.
 
 `unchanged-execution-layout` performs 30 identical native refreshes per case;
 `alternate-width-proposals` performs ten actual/actual+16/actual sizing cycles.

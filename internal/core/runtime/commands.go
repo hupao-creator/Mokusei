@@ -39,10 +39,6 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 	if len(args) != arity {
 		return nil, fmt.Errorf("%s expects %d arguments", channel, arity)
 	}
-	if channel == "app:update-settings" || channel == "harness:settings-presentation" || channel == "harness:detect-installations" {
-		finish := r.traceCommand(ctx, channel)
-		defer func() { finish(err) }()
-	}
 	if err := model.ValidateCommandArguments(channel, args); err != nil {
 		return nil, err
 	}
@@ -66,8 +62,6 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		return nil, r.ResolveMokuDelivery(ctx, request.ID, request.Decision)
 	case "state:load":
 		return r.Snapshot()
-	case "settings:diagnostics":
-		return nil, r.recordClientDiagnostics(ctx, args[0])
 	case "attachment:preview":
 		if r.config.Attachments == nil {
 			return nil, errors.New("attachment repository unavailable")

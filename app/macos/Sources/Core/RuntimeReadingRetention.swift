@@ -3,8 +3,7 @@ import Foundation
 extension RuntimeClient {
     /// Read ahead without mounting a reader. Cancellation releases only this
     /// speculative handle; a foreground reader always owns a separate handle.
-    public func prefetchThreadContent(threadId: JSONText, scope: RuntimeContentScope,
-                                      performanceContext: UInt64? = nil) async {
+    public func prefetchThreadContent(threadId: JSONText, scope: RuntimeContentScope) async {
         guard !Task.isCancelled, status == .connected else { return }
         if contentResources.values.contains(where: { $0.threadID == threadId && $0.scope == scope }) { return }
         let id = UUID().uuidString.lowercased()
@@ -12,8 +11,7 @@ extension RuntimeClient {
             let stream = events()
             do {
                 try Task.checkCancellation()
-                try await subscribeThreadContent(threadId: threadId, scope: scope, subscriptionId: id,
-                    performanceContext: performanceContext)
+                try await subscribeThreadContent(threadId: threadId, scope: scope, subscriptionId: id)
                 for await event in stream {
                     try Task.checkCancellation()
                     if case .threadContent(let received, let state) = event, received == id {
@@ -33,7 +31,7 @@ extension RuntimeClient {
         // Removal precedes the wire await. A late acknowledgement sees the
         // missing owner and releases its accepted add through beginContent.
         guard let resource = takeIdleContent(id) ?? contentResources.removeValue(forKey: id) else { return }
-        resource.timer?.cancel(); resource.measurement?.end(.cancelled)
+        resource.timer?.cancel();
         if let wire = resource.wireID { await releaseWireContent(wire) }
     }
 

@@ -1,7 +1,6 @@
 import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
-import os
 
 /// What the thread surface renders when its native state cannot be projected.
 /// The primary message is always the most actionable failure: a Harness, CLI
@@ -30,7 +29,7 @@ func claudeHarnessFailure(_ observation: ThreadPublicObservation) -> String? {
     return message.isEmpty ? nil : message
 }
 
-/// Remove credential-shaped material before text reaches a view or a log.
+/// Remove credential-shaped material before text reaches a view.
 /// Upstream messages remain otherwise verbatim, including status codes and
 /// request IDs.
 func claudeRedacted(_ source: String) -> String {
@@ -50,8 +49,4 @@ func claudeRedacted(_ source: String) -> String {
 
 private func claudeTrimmed(_ source: String) -> String {
     source.trimmingCharacters(in: .whitespacesAndNewlines)
-}
-
-enum ClaudeStateLog {
-    static let decode = Logger(subsystem: "com.mokusei.desktop", category: "claude-state")
 }

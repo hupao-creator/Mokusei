@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"regexp"
 	"sort"
 	"strings"
@@ -465,10 +464,6 @@ func (h *generatedMetadataHandle) stopped(epoch uint64) bool {
 	return h.stoppedLocked() || h.epoch != epoch
 }
 
-func (h *generatedMetadataHandle) report(err error) {
-	slog.Debug("harness.metadata.failed", "threadId", h.open.ThreadID, "error", err)
-}
-
 func (h *generatedMetadataHandle) start() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -497,11 +492,7 @@ func (h *generatedMetadataHandle) start() {
 			if h.open.Metadata.Read().Revision == lastRevision {
 				continue
 			}
-			var err error
-			lastRevision, err = h.refresh(epoch)
-			if err != nil && !h.stopped(epoch) {
-				h.report(err)
-			}
+			lastRevision, _ = h.refresh(epoch)
 		}
 	}()
 }
@@ -609,7 +600,6 @@ func (h *generatedMetadataHandle) refresh(epoch uint64) (processed int64, err er
 				continue
 			}
 		}
-		h.report(err)
 		latest := h.open.Metadata.Read()
 		if latest.Revision != covered.Revision {
 			continue
@@ -665,7 +655,6 @@ func (h *generatedMetadataHandle) acceptInputLocked(request SendRequest, epoch u
 		return
 	}
 	if err := h.retainAcceptedInput(request); err != nil {
-		h.report(err)
 		return
 	}
 	if !h.stopped(epoch) {

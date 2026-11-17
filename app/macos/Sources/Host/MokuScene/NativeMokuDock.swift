@@ -424,7 +424,6 @@ public struct NativeMokuDock: View {
                 if let interaction, !state.settingsOpen {
                     interaction.padding(18)
                         .frame(width: panel.width, height: panel.height, alignment: .topLeading)
-                        .nativeLayoutLog("moku.interaction.panel")
                         .nativeCanvasNavigationRegion()
                         .background { NativeMokuCapsuleGlass(interactive: false) }
                         .environment(\.colorScheme, .dark)
@@ -442,7 +441,6 @@ public struct NativeMokuDock: View {
                     })
                     .allowsHitTesting(false)
             }
-            .nativeLayoutLog("moku.dock.viewport")
             .onPreferenceChange(NativeSettingsPreferredHeightKey.self) { height in
                 settingsPreferredHeight = max(900, ceil(height))
             }
@@ -754,11 +752,9 @@ public struct NativeMokuDock: View {
             dark: true, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
-        .nativeLayoutLog("moku.capsule")
         .overlay(alignment: .bottomLeading) {
             if composerMounted {
                 composer(room: room, compact: width < 260)
-                .nativeLayoutLog("moku.composer")
                     // Reflow native text once at the destination width. Resolve
                     // the shell's movement outside that discrete layout so its
                     // editor cannot jump to the final scene-space position.
@@ -836,7 +832,6 @@ public struct NativeMokuDock: View {
             if state.settingsOpen {
                 settingsContent
                     .frame(width: settingsSize.width, height: settingsSize.height)
-                    .nativeLayoutLog("moku.settings.seat")
                     // Settle the page layout during the capsule morph without
                     // suppressing animations initiated later by its children.
                     .transaction(value: state.settingsExpanded) { $0.animation = nil }

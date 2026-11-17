@@ -98,7 +98,6 @@ public final class NativeHarnessSettingsSurface {
     @ObservationIgnored private var session: HarnessSettingsSession!
     @ObservationIgnored private var sequence = 0
     @ObservationIgnored private var needsReload = true
-    @ObservationIgnored private let diagnostics: SettingsDiagnostics
     var prefetchID: UUID?
     private var loadingSequence: Int?
 
@@ -128,7 +127,6 @@ public final class NativeHarnessSettingsSurface {
         let initialThreadSettings = ThreadSettingsSnapshot(configuration)
         baselineThreadSettings = initialThreadSettings
         latestThreadSettings = initialThreadSettings
-        diagnostics = SettingsDiagnostics(client: host.client)
         session = plugin.makeSettingsSession(load: { [weak self] refresh in
             guard let self else { throw CancellationError() }; return try await load(refresh: refresh)
         }, onError: { [weak host] error in host?.callbacks.onError(error) })
@@ -186,22 +184,6 @@ public final class NativeHarnessSettingsSurface {
     }
 
     private func load(refresh: Bool) async throws -> JSONValue {
-        let started = Date()
-        diagnostics.record(.presentation, .started)
-        do {
-            let result = try await SettingsDiagnosticContext.$flowID.withValue(diagnostics.flowID) {
-                try await loadPresentation(refresh: refresh)
-            }
-            diagnostics.record(.presentation, executionSnapshotError == nil ? .completed : .failed,
-                               durationMs: Date().timeIntervalSince(started) * 1000)
-            return result
-        } catch {
-            diagnostics.record(.presentation, .failed, durationMs: Date().timeIntervalSince(started) * 1000)
-            throw error
-        }
-    }
-
-    private func loadPresentation(refresh: Bool) async throws -> JSONValue {
         try checkAuthority()
         sequence += 1
         let requestSequence = sequence

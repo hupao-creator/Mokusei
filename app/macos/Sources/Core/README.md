@@ -54,7 +54,7 @@ old state rather than waiting while holding another authority.
 
 App startup retains this lease through process exit, including asynchronous
 work and atexit cleanup. The exit helper and Probe acquire their own leases;
-failed helper admission writes only stderr, never profile diagnostics. All
+failed helper admission returns without profile-local writes. All
 retained paths come from the lease's canonical profile. Multiple clients may
 share a profile normally. Kernel descriptor locks release on abnormal exit;
 the lock files themselves are never removed or replaced during cleanup.
@@ -161,16 +161,3 @@ an explicit replacement preserves it until the accepted draft is consumed.
 Handoff and replacement publish their exact attachment references before HTTP,
 and replacing a rejected predecessor retains the successor's files with the
 original fork lineage.
-
-`NativePerformance.recordTextCache` accumulates hit/miss integers per surface in
-its current recorder, rather than allocating an event for every size proposal.
-At each existing 250ms writer drain, `text.cache` records carry `queries`, `hits`
-and `misses`; their timestamp is the drain time, not an individual probe time.
-Summary `count` remains the number of queries, with hit/miss totals alongside it.
-Pending counters are limited to 256 contexts and overflow increments the existing
-dropped counter. Reconfiguration and normal finish drain the owning recorder;
-counts never cross recording sessions. JSON encoding and file IO stay off the
-main actor. Other metrics retain their existing event/span semantics. Metal
-diagnostics use the producer-backed `metal.gpu` and `metal.presented` spans;
-`display` carries native timeline diagnostics, including phase and scroll
-observations, rather than proving physical presentation.

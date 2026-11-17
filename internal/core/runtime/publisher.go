@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
@@ -99,7 +98,6 @@ func (r *Runtime) Publish() {
 	next, mutation, appGeneration, err := r.projectMutation(snapshot)
 	if err != nil {
 		r.projectionMu.Unlock()
-		r.log("state.publish", err)
 		return
 	}
 	r.publishMu.Lock()
@@ -118,7 +116,6 @@ func (r *Runtime) Publish() {
 	if err != nil {
 		r.publishMu.Unlock()
 		r.projectionMu.Unlock()
-		r.log("state.encode", err)
 		return
 	}
 	r.baseline = next
@@ -154,16 +151,12 @@ func (r *Runtime) deliverPublications() {
 		}
 		r.mu.Unlock()
 		for _, listener := range listeners {
-			callListener(listener, bytes.Clone(raw), r.log)
+			callListener(listener, bytes.Clone(raw))
 		}
 	}
 }
-func callListener(listener func(json.RawMessage), raw json.RawMessage, log func(string, error)) {
-	defer func() {
-		if reason := recover(); reason != nil {
-			log("state.subscriber", fmt.Errorf("subscriber panic: %v", reason))
-		}
-	}()
+func callListener(listener func(json.RawMessage), raw json.RawMessage) {
+	defer func() { _ = recover() }()
 	listener(raw)
 }
 func (r *Runtime) Snapshot() (model.AppState, error) {

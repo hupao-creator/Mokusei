@@ -91,15 +91,7 @@ Host.Start 在全部定义冻结后创建一代 participants。Stop 先撤销工
 
 新批次遇到不属于自己的遗留执行时，先通过原有配置完成清理。冷启动原生 Open 自行结算了旧执行，也不代表新批次已经选好配置；清理后仍重新解析。Interrupt 后仍有后台工作时，必须等待 Close 排空后才能开始新批次。关闭时持久化原生状态产生的 session revision 变化同样只触发重新解析，不消耗业务重试。
 
-共享 runner 的批次错误诊断包含阶段、已记录的尝试次数和本次处理耗时。
-原生终态只记录失败/中断/等待交互状态及是否存在原生错误，不输出错误原文、
-工具参数、会话内容或工作目录。关闭导致的批次取消使用 `cancelled` 信息事件，
-不再先记 `failed`；独立超时和真实失败仍按原有次数上限与退避重试。
-取消不吞掉原生 Handle 的清理失败，也不额外结算或增加关闭中的批次尝试。
-
-The runner snapshots consumer/batch/attempt facts at each injected callback entry
-for the [private tool journal](../../platform/diagnostics/README.md). These facts
-are diagnostic context; batch fences and receipts retain write/dedup authority.
+批次取消仍保留原生 Handle 的清理、回执与执行身份；真实失败仍按原有次数上限与退避重试。
 
 后台批次与工具读取 lifecycle 历史时，每一页开始前检查调用取消。已进入的单页读取仍由无 context 的 snapshot 能力完成；取消后不再继续读取后续页。
 
@@ -129,7 +121,7 @@ live input subscription and durable notification outbox. Their model inputs,
 filters and confirmation behavior do not change. Report still subscribes only to
 application-authored successful completion facts for ordinary Agent Threads in
 its own scope, excluding Moku histories and private agent conversations.
-Complete event content grants no additional source/history or private journal
+Complete event content grants no additional source/history
 access, but it does put the already-authorized raw summary into Report's native
 conversation/model context on every delivery; it receives no additional redaction.
 

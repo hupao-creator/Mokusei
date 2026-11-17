@@ -179,26 +179,10 @@ func Ensure(ctx context.Context, p profile.Profile, options LaunchOptions) (*pro
 	defer launchWrite.Close()
 	command.ExtraFiles = []*os.File{launchRead}
 	command.Env = append(command.Env, "MOKUSEI_LAUNCH_FD=3")
-	// Startup errors are persisted independently by the service. Keep only a
-	// bounded launcher diagnostic file, not a pipe that ties it to the launcher.
-	logPath := filepath.Join(filepath.Dir(p.DiscoveryPath), "process.log")
-	if info, err := os.Stat(logPath); err == nil && info.Size() > 8*1024*1024 {
-		if err = os.Rename(logPath, logPath+".previous"); err != nil {
-			return nil, err
-		}
-	}
-	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, err
-	}
-	command.Stdout = log
-	command.Stderr = log
 	if err = command.Start(); err != nil {
-		log.Close()
 		return nil, model.NewError("LAUNCH_FAILED", err.Error())
 	}
 	_ = launchRead.Close()
-	_ = log.Close()
 	exited := make(chan error, 1)
 	go func() { exited <- command.Wait() }()
 	// A timed-out launcher must leave evidence of its still-live child. Stop

@@ -27,7 +27,7 @@ internal/
   hosts/             Application and Context plugin hosts
   plugins/           Harnesses, applications and contexts
   services/          Moku, attachments, search, tags and workspaces
-  platform/          Daemon, transport, processes, SQLite and diagnostics
+  platform/          Daemon, transport, processes and SQLite
   tooling/           Development, architecture and maintenance
 tools/verification/  Independent performance measurements and native packaging
 demos/               Native interaction prototypes

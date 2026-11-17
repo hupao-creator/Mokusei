@@ -110,7 +110,7 @@ public struct RuntimeProcessManager: RuntimeConnectionSource {
             if let connection = try await status() { return connection }
             // Another launcher may have won ownership while our helper exits.
             if !process.isRunning, try !profile.hasLiveOwner() {
-                throw RuntimeError("LAUNCH_FAILED", "Runtime exited before becoming ready; inspect runtime/startup-error.json and runtime debug logs")
+                throw RuntimeError("LAUNCH_FAILED", "Runtime exited before becoming ready; inspect runtime/startup-error.json")
             }
             try await Task.sleep(for: .milliseconds(200))
         }

@@ -118,7 +118,7 @@ public final class NativeHarnessHost {
 
     /// Preparation owns no views or actions and never projects a conversation
     /// on the main actor. The selected route's SwiftUI task owns cancellation.
-    public func prefetchReading(input: HarnessThreadInput, performanceContext: UInt64?) async {
+    public func prefetchReading(input: HarnessThreadInput) async {
         guard !Task.isCancelled,
               (try? authoritativeThread(threadID: input.thread.id, harnessID: input.thread.harnessID)) != nil,
               let plugin = try? registry.require(input.thread.harnessID) else { return }
@@ -133,8 +133,7 @@ public final class NativeHarnessHost {
                 case .execution(let key): runtimeScope = .execution(key: key)
                 }
                 group.addTask {
-                    await client.prefetchThreadContent(threadId: input.thread.id, scope: runtimeScope,
-                        performanceContext: performanceContext)
+                    await client.prefetchThreadContent(threadId: input.thread.id, scope: runtimeScope)
                 }
             }
         }

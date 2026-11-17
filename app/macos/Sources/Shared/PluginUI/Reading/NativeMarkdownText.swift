@@ -23,24 +23,19 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     var executionLinkHarnesses: [JSONText: AnyHarnessPlugin]? = nil
     var openLink: (URL) -> Void
     @Environment(\.locale) private var locale
-    @Environment(\.nativePerformanceOperation) private var performanceOperation
 
     func makeNSView(context: Context) -> MarkdownTextView {
-        let view = makeTextView(context: performanceOperation)
+        let view = makeTextView()
         view.delegate = context.coordinator
         return view
     }
 
-
-    func makeTextView(context: UInt64? = nil) -> MarkdownTextView {
-        let measurement = NativePerformance.begin(.textCreate, context: context)
-        defer { measurement?.end() }
+    func makeTextView() -> MarkdownTextView {
         let storage = NSTextStorage()
         let layout = MarkdownCodeLayoutManager()
         let container = NSTextContainer()
         storage.addLayoutManager(layout); layout.addTextContainer(container)
         let view = MarkdownTextView(frame: .zero, textContainer: container)
-        view.performanceOperation = context
         view.ownedTextStorage = storage
         view.isEditable = false
         // Read-only transcript storage must not initialize the rewriting
@@ -68,11 +63,9 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(openLink: openLink) }
 
     func updateNSView(_ view: MarkdownTextView, context: Context) {
-        view.performanceOperation = performanceOperation
         context.coordinator.openLink = openLink
         updateTextView(view)
     }
-
 
     func updateTextView(_ view: MarkdownTextView) {
         view.executionLocale = locale
@@ -101,8 +94,6 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     }
 
     private func attributedString(width: CGFloat) -> NSAttributedString {
-        let measurement = NativePerformance.begin(.textAttributed, context: performanceOperation)
-        defer { measurement?.end() }
         let output = NSMutableAttributedString(string: "")
         let paragraph = NSMutableParagraphStyle()
         paragraph.minimumLineHeight = lineHeight ?? fontSize * (code ? 1.7 : 1.8)
@@ -276,7 +267,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
         return "<MarkdownTextView: 0x\(String(address, radix: 16))>"
     }
 
-    var performanceOperation: UInt64?
     var ownedTextStorage: NSTextStorage?
     var executionSurfaces: [Int: MarkdownExecutionHost] = [:]
     var executionLocale = Locale.current {
@@ -306,7 +296,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
         }
         super.keyDown(with: event)
     }
-
 
     override func copy(_ sender: Any?) {
         if !copyMarkdownSelection() { super.copy(sender) }
@@ -340,7 +329,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     }
 
     func setContent(_ next: MarkdownTextInput, build: @escaping (CGFloat) -> NSAttributedString) {
-        NativePerformance.event(.textUpdate, context: performanceOperation, values: ["changed": input != next ? 1 : 0])
         guard input != next else { return }
         input = next
         buildText = build
@@ -365,9 +353,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
 
     private func replaceContent(_ next: NSAttributedString) {
         if !next.isEqual(to: content) {
-            let measurement = NativePerformance.begin(.textReplace, context: performanceOperation,
-                values: ["characters": Double(next.length)])
-            defer { measurement?.end() }
             let selections = selectedRanges
             content = next
             markdownStorage?.setAttributedString(next)
@@ -388,10 +373,8 @@ final class MarkdownTextView: MarkdownPlatformTextView {
         let width = max(1, floor(width * scale) / scale)
         let height: CGFloat
         if let cached = measurements.first(where: { $0.width == width && $0.scale == scale }) {
-            NativePerformance.recordTextCache(hit: true, context: performanceOperation)
             height = cached.height
         } else {
-            NativePerformance.recordTextCache(hit: false, context: performanceOperation)
             applyText(width: width)
             height = layoutHeight(width: width, scale: scale)
         }
@@ -409,9 +392,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     private func layoutHeight(width: CGFloat, scale: CGFloat) -> CGFloat {
         if measuredWidth == width, measuredScale == scale { return measuredSize }
         guard let textContainer = markdownTextContainer, let layoutManager = markdownLayoutManager else { return 0 }
-        let measurement = NativePerformance.begin(.textLayout, context: performanceOperation,
-            values: ["width": Double(width), "characters": Double(markdownStorage?.length ?? 0)])
-        defer { measurement?.end() }
         textContainer.containerSize = CGSize(width: width, height: .greatestFiniteMagnitude)
         layoutManager.ensureLayout(for: textContainer)
         measuredSize = ceil(layoutManager.usedRect(for: textContainer).height * scale) / scale

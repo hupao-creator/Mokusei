@@ -77,12 +77,6 @@ func (c backgroundCapability) OutputLocale(ctx context.Context) (string, error) 
 	}
 	return "zh-CN", nil
 }
-func (c backgroundCapability) Log(level, event string, fields model.Object) {
-	raw, err := json.Marshal(fields)
-	if err == nil {
-		c.runtime.log(c.owner.AgentID+"."+event, fmt.Errorf("%s: %s", level, raw))
-	}
-}
 func (c backgroundCapability) Resolve(ctx context.Context, sessionKey string) (plugin.ResolvedBackgroundConfiguration, error) {
 	if err := c.runtime.begin(); err != nil {
 		return plugin.ResolvedBackgroundConfiguration{}, err

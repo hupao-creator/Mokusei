@@ -252,7 +252,6 @@ private func decodeClaudeReadingState(_ raw: JSONValue) throws -> ClaudeState {
         return try ClaudeState(raw)
     }
     catch {
-        ClaudeStateLog.decode.error("Claude state decode failed: \(claudeRedacted(error.localizedDescription), privacy: .public)")
         throw error
     }
 }

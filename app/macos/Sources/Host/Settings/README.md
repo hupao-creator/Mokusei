@@ -297,8 +297,6 @@ path while Moku or any ordinary Agent Thread is busy, including pending input
 and waiting interactions. Other settings remain editable. The selected Harness
 inherits the existing note when the idle replacement is applied.
 
-[SettingsDiagnostics](../../Core/SettingsDiagnostics.swift) records bounded operational fields and correlates client flow with command identity. Diagnostics do not contain submitted setting values and their failure does not fail a save.
-
 Verification: `./scripts/go.sh run -race ./tools/verification/settings-shell` for Go boundaries; on macOS build a runtime with `make runtime`, then run `./scripts/go.sh run -race ./tools/verification/settings -runtime "$PWD/.build/go/mokusei-runtime"`. The launcher drives real Swift settings flows against an isolated daemon, including acquisition before page mount, cache reuse, concurrent readers and failed-read recovery. The same native flow mounts the production General page offline to verify appearance/language controls, snapshot and JSON persistence, new-profile defaults, selection/onboarding preservation, and visible write failures with recovery.
 
 The launcher leaves execution profiles uninitialized until native workspace

@@ -252,3 +252,6 @@ a fabricated 500 ms drain estimate.
 This harness supplies a repeatable hosted-runner comparison. Its absolute CPU,
 display cadence, and graphics behavior are not interchangeable with a local
 M1 Pro or a 120 Hz physical display.
+
+The source observes public state and command failures directly; independent
+measurement outputs supply its performance evidence.

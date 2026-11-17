@@ -37,10 +37,8 @@ private func noteText(links: Int) -> String {
 @main struct NotePerformanceMain {
     @MainActor static func main() async throws {
         let output = URL(fileURLWithPath: CommandLine.arguments[1])
-        let detail = CommandLine.arguments.contains("--detail")
         _ = NSApplication.shared
         NSApp.setActivationPolicy(.prohibited)
-        if detail { NativePerformance.configure(directory: output.deletingLastPathComponent(), mode: .detailed) }
         var records: [[String: Any]] = []
         // The window is never ordered or activated. No Runtime/profile, provider,
         // pasteboard or global preferences are used by these production controls.
@@ -126,7 +124,6 @@ private func noteText(links: Int) -> String {
         }
         window.contentView = nil
         window.close()
-        if detail { NativePerformance.finish() }
         let result: [String: Any] = ["records": records,
             "os": ProcessInfo.processInfo.operatingSystemVersionString,
             "thermalState": ProcessInfo.processInfo.thermalState.rawValue,

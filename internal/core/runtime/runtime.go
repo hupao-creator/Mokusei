@@ -55,10 +55,7 @@ type Config struct {
 	Contexts           plugin.RuntimeParticipant
 	Moku               Moku
 	Plugins            []model.RuntimePlugin
-	Log                func(string, error)
 	Diagnostic         func(string)
-	SettingsTrace      func(string, model.Object)
-	ToolTrace          func(plugin.ToolInvocation) error
 	ProcessFactory     func(string) plugin.ApplicationProcessCapability
 	ExtraCapabilities  map[string]any
 	Workspaces         *workspaces.Manager
@@ -201,7 +198,7 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 		}
 		// Cleanup has no authority to discard unreadable client drafts. Keep
 		// startup available so the native owner can recover its saved input.
-		r.log("attachments.collect", config.Attachments.CollectOrphans(ctx, 0))
+		_ = config.Attachments.CollectOrphans(ctx, 0)
 	}
 	if config.Workspaces != nil {
 		threads, e := r.Threads()
@@ -209,10 +206,7 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 			cancel()
 			return nil, e
 		}
-		failures := config.Workspaces.RehydratePersistedOwners(ctx, threads)
-		for _, failure := range failures {
-			r.log("workspace.recovery", failure.Err)
-		}
+		config.Workspaces.RehydratePersistedOwners(ctx, threads)
 	}
 	r.compute = workpool.New(lifetime, min(4, goruntime.GOMAXPROCS(0)), 8, 64*1024*1024)
 	initialized := false
@@ -316,11 +310,6 @@ func (r *Runtime) begin() error {
 	}
 	r.operations.Add(1)
 	return nil
-}
-func (r *Runtime) log(kind string, err error) {
-	if err != nil && r.config.Log != nil {
-		r.config.Log(kind, err)
-	}
 }
 func (r *Runtime) Settings() (model.Settings, int64, error) {
 	var s model.Settings

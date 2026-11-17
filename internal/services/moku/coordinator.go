@@ -214,12 +214,7 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 			// Startup recovery has no user input to admit. Let discovery run
 			// outside the admission gate; Runtime fences the resulting settings
 			// before configuring a session. A concurrent edit wins that race.
-			if _, err := c.ensurePrepared(ctx); err != nil {
-				var conflict *model.Error
-				if ctx.Err() == nil && !(errors.As(err, &conflict) && conflict.Code == "REVISION_CONFLICT") {
-					c.report("moku-recovery", err)
-				}
-			}
+			_, _ = c.ensurePrepared(ctx)
 		})
 	}
 	return nil
@@ -891,12 +886,6 @@ func newID() string {
 		panic(err)
 	}
 	return hex.EncodeToString(value[:])
-}
-func (c *Coordinator) report(kind string, err error) {
-	defer func() { _ = recover() }()
-	if err != nil && c.config.ReportFailure != nil {
-		c.config.ReportFailure(kind, err)
-	}
 }
 func textInput(value string) model.AgentInput {
 	return model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: strings.TrimSpace(value)}}}

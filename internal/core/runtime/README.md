@@ -37,15 +37,8 @@ attachment references after the database commit; startup and history reset first
 reconcile surviving Thread/private-session owners and then collect. The attachment
 service protects native drafts and live import processes independently, so failed
 admission does not consume a draft. Unreadable client ownership stops collection
-and is logged without preventing startup. See the
+without preventing startup. See the
 [attachment ownership contract](../../services/attachments/README.md).
-
-[tool_audit.go](tool_audit.go) wraps production Moku/Tag/Report injections at the
-shared native Open boundary, capturing execution/owner identity at callback entry.
-Logging, retry-metadata and diagnostic-classification failures preserve callback
-results and original callback panics. Composition supplies the separate
-[private journal sink](../../platform/diagnostics/README.md); coverage, redaction,
-retention and query limits are defined there.
 
 Ordinary Threads retain `executionTitles`, keyed by exact execution ID. A
 successful metadata completion commits its title and ownership atomically with
@@ -309,8 +302,8 @@ Archived Threads retain frozen decoration and do not consume active membership;
 restoration clears assignment before emitting `thread.restored`. Actual title
 changes emit `thread.title-changed`, independently of execution terminal facts.
 
-Moku model routing presets are validated settings fields, participate in settings
-change diagnostics and configuration equality, and are captured at execution
+Moku model routing presets are validated settings fields, participate in
+configuration equality, and are captured at execution
 admission. Missing/custom keeps existing manual routing guidance. Selecting a
 preset preserves that guidance for later restoration; the Moku service owns
 general routing priorities and instruction generation.

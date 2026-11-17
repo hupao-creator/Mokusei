@@ -35,10 +35,6 @@ pending entities still become cancelled. `review` and `error` are canonical
 latest-only markers: replacing either after the selected prefix means the fork
 does not inherit the earlier revision.
 
-Shared [private tool diagnostics](../../../platform/diagnostics/README.md) identify
-`CallID` as an MCP request ID, not a Claude tool-use ID, and expose the bridge's
-existing 256-byte identifier truncation without changing receipt identities.
-
 [harness.go](harness.go), [session.go](session.go) and [transport.go](transport.go) adapt the installed Claude CLI's stream-json protocol. Claude owns native account/model configuration and conversation history. Mokusei supplies admitted inputs, public observations and scoped tool injection.
 
 Installation owns the shell pipeline's process group and both output readers. Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup

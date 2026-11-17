@@ -267,7 +267,6 @@ func (r *Runtime) projectChangedThread(snapshot store.Snapshot, id string) (mode
 		if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
 			entry.record.SessionState, err = harness.SessionState().ProjectRenderer(model.CloneRaw(thread.SessionState), model.RendererScope{Kind: "overview"})
 			if err != nil {
-				r.log("catalog.projection", err)
 				entry.record.SessionState = json.RawMessage("null")
 				entry.hash = ""
 				if r.publicationRetries == nil {

@@ -52,7 +52,6 @@ struct NativeOnboardingSurface: View {
                 .allowsHitTesting(state.step != .landing)
                 .accessibilityHidden(state.step == .landing)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("onboarding")) } action: { state.panelFrame = $0 }
-                .nativeLayoutLog("onboarding.panel")
                 .animation(motion, value: panelSize)
         }
         .coordinateSpace(name: "onboarding")

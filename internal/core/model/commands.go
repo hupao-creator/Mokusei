@@ -8,7 +8,7 @@ var commandReadOnly = map[string]bool{
 	"moku:record-note-exposure": false,
 	"history:clear":             false, "thread:follow-up": false, "thread:interrupt": false,
 	"thread:interaction-respond": false, "thread:read": true, "thread:fork": false,
-	"thread:update-settings": false, "app:update-settings": false, "settings:diagnostics": true,
+	"thread:update-settings": false, "app:update-settings": false,
 	"harness:detect-installations": false, "harness:detect-installation": true, "workspace:list-known-directories": true,
 	"harness:install": false, "harness:settings-presentation": true, "harness:extension": false,
 	"thread:set-archived": false, "application:archive": false, "application:initialize-conversation": false,

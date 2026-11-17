@@ -32,7 +32,6 @@ type Options struct {
 	HTTPClient  HTTPClient
 	Now         func() time.Time
 	OnPublished func(Snapshot)
-	Log         func(string, map[string]any)
 }
 type refreshCall struct {
 	done chan struct{}
@@ -111,11 +110,6 @@ func NewSource(options Options) (*Source, error) {
 		}
 	}
 	return s, nil
-}
-func (s *Source) log(event string, fields map[string]any) {
-	if s.options.Log != nil {
-		s.options.Log(event, fields)
-	}
 }
 func (s *Source) Snapshot() Snapshot { s.mu.Lock(); defer s.mu.Unlock(); return snapshot(s.current) }
 func normalizeIdentities(values []AcquisitionIdentity) ([]AcquisitionIdentity, error) {
@@ -236,22 +230,11 @@ func (s *Source) refreshLocked(identities []AcquisitionIdentity, key string) *re
 	s.refreshAfter[key] = s.options.Now().Add(10 * time.Minute)
 	go func() {
 		<-previous
-		started := time.Now()
 		generationError := s.ctx.Err()
 		if generationError == nil {
 			generationError = s.refreshGeneration(identities)
 		}
 		published := generationError == nil
-		if generationError != nil {
-			event := "aa.facts.refresh.failed"
-			if s.ctx.Err() != nil {
-				event = "aa.facts.refresh.cancelled"
-			}
-			s.mu.Lock()
-			retained := s.current != nil
-			s.mu.Unlock()
-			s.log(event, map[string]any{"class": failureClass(generationError), "durationMs": time.Since(started).Milliseconds(), "retained": retained})
-		}
 		s.mu.Lock()
 		delay := 10 * time.Minute
 		if published {
@@ -339,7 +322,6 @@ func (s *Source) refreshGeneration(identities []AcquisitionIdentity) error {
 			targets = append(targets, entry)
 		}
 	}
-	s.log("aa.facts.refresh.targets", map[string]any{"identities": len(identities), "indexConfigurations": len(index), "matchedReleases": len(matched), "targets": len(targets)})
 	results := make([]*persistedConfiguration, len(targets))
 	failures := make([]error, len(targets))
 	jobs := make(chan int)
@@ -432,7 +414,6 @@ dispatch:
 	return nil
 }
 func (s *Source) refreshConfiguration(target target, previous *persistedConfiguration, version string) (*persistedConfiguration, error) {
-	started := time.Now()
 	observed := isoNow(s.options.Now())
 	fallback := func() *persistedConfiguration {
 		if previous != nil {
@@ -450,7 +431,6 @@ func (s *Source) refreshConfiguration(target target, previous *persistedConfigur
 		etag = previous.ETag
 	}
 	response, err := s.fetch(indexURL+url.PathEscape(target.Slug), etag)
-	class := failureClass(err)
 	if err == nil {
 		switch response.status {
 		case "gone":
@@ -471,18 +451,12 @@ func (s *Source) refreshConfiguration(target target, previous *persistedConfigur
 		if parseErr != nil {
 			err = fmt.Errorf("%w: %v", invalidDocument, parseErr)
 		}
-		class = "invalid-document"
 		if err == nil && (identity.Slug != target.Slug || identity.ReleaseSlug != target.ReleaseSlug) {
 			err = errors.New("AA detail page does not match requested configuration")
-			class = "identity-mismatch"
 		}
 		if err == nil {
 			return &persistedConfiguration{Slug: identity.Slug, ReleaseSlug: identity.ReleaseSlug, ReleaseName: identity.ReleaseName, Configuration: *identity.Configuration, ObservedAt: observed, ETag: response.etag, Facts: &facts}, nil
 		}
-	}
-	// Source shutdown is reported once per generation, not once per queued model.
-	if s.ctx.Err() == nil {
-		s.log("aa.facts.configuration.failed", map[string]any{"class": class, "durationMs": time.Since(started).Milliseconds(), "retained": previous != nil})
 	}
 	return fallback(), err
 }

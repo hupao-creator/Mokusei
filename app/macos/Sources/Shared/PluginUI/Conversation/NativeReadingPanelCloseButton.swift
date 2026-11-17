@@ -31,7 +31,6 @@ public struct NativeReadingPanelCloseButton: View {
                 Circle().fill(NativePalette.thread.canvas.swiftUI).allowsHitTesting(false)
             }
         }
-        .nativeLayoutLog("reading.close.target")
         // Clicking Close must not acquire editing focus and flash the keyboard ring.
         .focusable(interactions: .activate)
         .focused($focused)

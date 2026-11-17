@@ -143,7 +143,7 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | app/macos/Tests/Support/README.md (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [app/macos/build/README.md](../app/macos/build/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [app/macos/build/SOURCES.md](../app/macos/build/SOURCES.md) | 来源 | 资源/来源路径；历史转换与现行构建区分 |
-| [app/macos/build/layout-logging.md](../app/macos/build/layout-logging.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
+| `app/macos/build/layout-logging.md` (historical; removed) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [demos/README.md](../demos/README.md) | 工具 | 入口和生产复用边界；未启动 |
 | [demos/landing-setup/README.md](../demos/landing-setup/README.md) | 提案 | 历史/独立 fixture 边界与替代入口 |
 | [demos/moku-gradient-material/README.md](../demos/moku-gradient-material/README.md) | 工具 | 入口和生产复用边界；未启动 |

@@ -119,20 +119,6 @@ The focusable history sidebar uses this route too: foldable resident input gets
 first refusal; otherwise Escape returns to the current document directly.
 Its Arrow/Return navigation and document-owned cancellation remain independent.
 
-Dev-only [layout logging](../../../build/layout-logging.md) combines window-wide
-AppKit frame/bounds observation and coalesced, budgeted discovery with semantic
-SwiftUI geometry hooks in shared
-readers, timeline columns/documents, composers and scroll containers. It does not
-sample animation presentation frames or read content/accessibility values.
-Overview also records bounded, anonymous logical relayout transactions (before, plan and terminal outcome), separate from geometry callbacks. Per-transaction card indices never contain model IDs or hashes. Individual timeline rows have no global geometry hook. IO failure stops collection
-and restores native observation flags without remounting focused product controls.
-The same session retains AttributeGraph warnings in a separate bounded incident
-journal, with stderr byte offsets and observation clocks. Reading-parent host
-operations supply caller stacks and byte enclosures only when stderr grows;
-these identify candidate application boundaries, not framework cycle stacks.
-`scripts/query-attributegraph.py` joins that evidence without contacting the app.
-See the layout logging guide for capture availability, retention and loss markers.
-
 Thread, Report and Moku history panels share
 [`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
 `nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's
@@ -1084,15 +1070,6 @@ fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
 the last image and cancels sampling; detach/removal retires the generation.
 The timer is not a display-link or a physical-FPS guarantee. Main-thread blockage
 still delays newly requested state, layout, visibility and interaction changes.
-When local performance recording is active, `metal.gpu` spans join each sample
-to successful command-buffer completion using host-clock timestamps, frame ID
-and the native layer's process-local context. Separate `metal.presented` spans
-retain raw presentation timestamps, including zero, as diagnostics for that
-frame. Recording-off rendering adds no presented handler. The native capture
-gate requires fresh GPU work and separate WindowServer cloud movement inside a
-main-thread hold, without predetermined half-interval cadence or a claim of
-physical presentation or a drawable-to-screenshot correspondence.
-
 [NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
 Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;
 resolved colors, line width and size retain the original geometry. Background

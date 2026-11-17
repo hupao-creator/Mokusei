@@ -289,7 +289,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
             .environment(\.nativeCanvasInputRegions, navigationInput.regions)
             .coordinateSpace(name: ownership)
-            .nativeLayoutLog("overview.canvas")
             // Mount the new collection at frozen start poses before its clock
             // runs. Plugin construction must not consume the filter transition.
             .onGeometryChange(for: UUID.self) { [presentationToken] _ in presentationToken } action: {
@@ -556,30 +555,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
         let instantEntryIDs = revisions.reduce(into: Set<String>()) { $0.formUnion($1.instantEntryIDs) }
         let displayed = state.presentedPlacements
         let members = next.map(\.member)
-        let diagnostic = NativeLayoutDiagnostics.beginRelayout()
-        var diagnosticIndices = [String: Int]()
-        var diagnosticAfter = displayed
-        var diagnosticOutcome = NativeLayoutRelayoutSnapshot.Phase.failed
-        var diagnosticStrategy: NativeLayoutRelayoutSnapshot.Strategy?
-        func record(_ phase: NativeLayoutRelayoutSnapshot.Phase, placements: [NativeOverviewPlacement]) {
-            guard let diagnostic else { return }
-            let cards = placements.prefix(256).map { placement in
-                let index = diagnosticIndices[placement.id] ?? diagnosticIndices.count
-                diagnosticIndices[placement.id] = index
-                return NativeLayoutRelayoutCard(index: index, column: placement.column, row: placement.row,
-                                                columns: placement.columns, rows: placement.rows)
-            }
-            NativeLayoutDiagnostics.recordRelayout(diagnostic, snapshot: .init(phase: phase, cards: cards,
-                totalCards: placements.count, viewport: CGSize(width: viewport.width, height: viewport.height),
-                strategy: diagnosticStrategy))
-        }
-        record(.began, placements: displayed)
-        defer {
-            // A cancelled owner must never log a newer owner's scene.
-            let outcome: NativeLayoutRelayoutSnapshot.Phase = Task.isCancelled || state.hostOwner != ownership
-                ? .cancelled : diagnosticOutcome
-            record(outcome, placements: diagnosticAfter)
-        }
         let stage = try await state.motionStages.acquire(owner: "overview-layout:\(sceneKey)")
         defer { stage.release() }
         try Task.checkCancellation()
@@ -612,8 +587,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 .init(left: frame.minX, top: frame.minY, width: frame.width, height: frame.height),
                 transform: sampledCamera, viewport: viewport)
         }
-        diagnosticStrategy = !animated ? .immediate : replaceScene ? .filter : .ordered
-        record(.planned, placements: geometry.placements)
         contentRect = geometry.bounds.contentRect
         plannedViewport = viewport
         mountedScene = sceneKey
@@ -625,7 +598,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
         cardMotions.removeAll()
         cardPoses = oldPoses
         state.presentedPlacements = geometry.placements
-        diagnosticAfter = geometry.placements
         // Empty targets keep the old camera until the last outgoing card has
         // retired; disposing it here would jump those cards before their exit.
         if !animated || !next.isEmpty {
@@ -641,7 +613,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
             retiringPresentationIDs.removeAll()
             installRendered(next.map(currentContentItem))
             finishPresentation(next: next, revisions: revisions)
-            diagnosticOutcome = .completed
             return
         }
 
@@ -732,7 +703,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
         }
         installRendered(next.map(currentContentItem))
         finishPresentation(next: next, revisions: revisions)
-        diagnosticOutcome = .completed
     }
 
     private func finishPresentation(next: [NativeOverviewItem], revisions: [NativeOverviewLayoutRevision]) {
@@ -920,7 +890,6 @@ private struct OverviewSwiftUICard<Content: View>: View, Equatable {
     var body: some View {
         let coordinateSpace = coordinateSpace, viewport = viewport
         content(item).environment(\.threadCardAnimationVisibility, animationVisibility)
-            .nativeLayoutLog("overview.card")
             .onGeometryChange(for: Bool.self) { proxy in
                 proxy.frame(in: .named(coordinateSpace)).intersects(CGRect(origin: .zero, size: viewport))
             } action: { value in inViewport = value; animationVisibility.isVisible = visible && value }

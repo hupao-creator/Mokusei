@@ -95,12 +95,3 @@ func CreateCommandID() (string, error) {
 	}
 	return fmt.Sprintf("%d_%s", time.Now().UnixMilli(), token), nil
 }
-
-// CommandID carries the durable HTTP request identity into host diagnostics.
-// The unexported key prevents unrelated context values from forging a trace.
-type commandIdentityKey struct{}
-
-func CommandID(ctx context.Context) string {
-	value, _ := ctx.Value(commandIdentityKey{}).(string)
-	return value
-}

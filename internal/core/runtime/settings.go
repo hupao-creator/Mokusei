@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -25,15 +24,6 @@ type SettingsResult struct {
 }
 
 func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings model.Settings) (result SettingsResult, err error) {
-	queuedAt := time.Now()
-	stage := "queue"
-	finishSave := r.settingsSpan(ctx, "save", model.Object{"expectedRevision": expected})
-	defer func() {
-		if err != nil {
-			r.settingsTrace(ctx, "save.failed", model.Object{"stage": stage, "outcome": "failed"})
-		}
-		finishSave(err)
-	}()
 	if err := r.begin(); err != nil {
 		return SettingsResult{}, err
 	}
@@ -47,12 +37,9 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 	if err != nil {
 		return SettingsResult{}, err
 	}
-	r.settingsTrace(ctx, "save.admitted", model.Object{"queueMs": float64(time.Since(queuedAt)) / float64(time.Millisecond), "revision": revision})
 	if expected != revision {
-		r.settingsTrace(ctx, "save.conflict", model.Object{"revision": revision, "expectedRevision": expected})
 		return SettingsResult{Status: "conflict", Settings: previous, SettingsRevision: revision}, nil
 	}
-	stage = "normalize"
 	settings, err = normalizeSettingsShell(settings)
 	if err != nil {
 		return SettingsResult{}, err
@@ -61,14 +48,6 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 	if err != nil {
 		return SettingsResult{}, err
 	}
-	stage = "plugins"
-	finishPlugins := r.settingsSpan(ctx, "validate.plugins", model.Object{})
-	pluginsFinished := false
-	defer func() {
-		if !pluginsFinished {
-			finishPlugins(err)
-		}
-	}()
 	knownPlugins := map[string]bool{}
 	for _, p := range r.config.Plugins {
 		knownPlugins[p.Key] = true
@@ -126,17 +105,10 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 		}
 		settings = validated
 	}
-	r.settingsTrace(ctx, "save.changed", model.Object{"fields": changedSettingsFields(previous, settings)})
-	finishPlugins(nil)
-	pluginsFinished = true
-	stage = "profiles"
-	finishProfiles := r.settingsSpan(ctx, "validate.profiles", model.Object{})
 	settings, err = r.validateChangedProfiles(ctx, settings, previous)
-	finishProfiles(err)
 	if err != nil {
 		return SettingsResult{}, err
 	}
-	stage = "persist"
 	if previous.Moku.HostHarnessPreference != settings.Moku.HostHarnessPreference {
 		release, changeErr := r.beginMokuHarnessChange(false)
 		if changeErr != nil {
@@ -144,7 +116,6 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 		}
 		defer release()
 	}
-	finishPersist := r.settingsSpan(ctx, "persist", model.Object{"expectedRevision": expected})
 	result = SettingsResult{}
 	_, err = r.config.Store.Update(ctx, func(tx *store.Tx) error {
 		var current model.Settings
@@ -195,17 +166,12 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 		}
 		return r.appendEvent(tx, "settings.changed", store.Subject{Kind: "settings", ID: "mokusei", TypeID: "settings"}, "user", map[string]any{"settingsRevision": revision}, nil)
 	})
-	finishPersist(err)
 	if err == nil {
 		if result.Status == "saved" {
 			if host, ok := r.config.Applications.(interface{ RefreshBackgroundSettings() }); ok {
 				host.RefreshBackgroundSettings()
 			}
 			r.Publish()
-			r.settingsTrace(ctx, "published", model.Object{"revision": result.SettingsRevision})
-			r.settingsTrace(ctx, "save.saved", model.Object{"revision": result.SettingsRevision, "changed": result.SettingsRevision != revision})
-		} else {
-			r.settingsTrace(ctx, "save.conflict", model.Object{"revision": result.SettingsRevision, "expectedRevision": expected})
 		}
 	}
 	return result, err
@@ -299,20 +265,9 @@ func (r *Runtime) SettingsPresentation(ctx context.Context, raw json.RawMessage)
 	if err := model.Unmarshal(raw, &request); err != nil {
 		return nil, err
 	}
-	owner := request.ApplicationSettings
-	if owner == "" {
-		owner = request.ExecutionOwner
-	}
-	if owner == "" {
-		owner = "global"
-	}
-	finish := r.settingsSpan(ctx, "presentation", model.Object{"scope": request.Scope, "harnessId": request.HarnessID, "refresh": request.Refresh, "owner": owner})
-	defer func() { finish(err) }()
 	snapshotError := ""
 	if request.Scope == "global" && (request.ExecutionOwner == "moku" || request.ApplicationSettings != "") {
-		finishSnapshot := r.settingsSpan(ctx, "presentation.snapshot", model.Object{"harnessId": request.HarnessID, "owner": owner})
 		_, snapshotErr := r.EnsureExecutionSettings(ctx, request.HarnessID, request.ApplicationSettings)
-		finishSnapshot(snapshotErr)
 		if err := snapshotErr; err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -412,9 +367,7 @@ func (r *Runtime) SettingsPresentation(ctx context.Context, raw json.RawMessage)
 	if err != nil {
 		return nil, err
 	}
-	finishNative := r.settingsSpan(ctx, "presentation.native", model.Object{"harnessId": request.HarnessID, "owner": owner})
 	value, err := h.Settings().Presentation(ctx, plugin.SettingsPresentationRequest{Settings: harnessSettings, Cwd: cwd, ThreadSettings: threadSettings, Refresh: request.Refresh})
-	finishNative(err)
 	if err != nil {
 		return nil, err
 	}
@@ -462,8 +415,6 @@ func (r *Runtime) DetectInstallation(ctx context.Context, id string) (result plu
 	if h == nil {
 		return result, fmt.Errorf("unknown harness: %s", id)
 	}
-	finish := r.settingsSpan(ctx, "installation", model.Object{"harnessId": id})
-	defer func() { finish(err) }()
 	return h.Detect(ctx, r.config.DefaultCwd)
 }
 
@@ -506,9 +457,7 @@ func (r *Runtime) KnownDirectories(ctx context.Context) ([]model.KnownDirectory,
 	for _, h := range r.config.Harnesses {
 		if d, ok := h.(plugin.WorkspaceDiscoverer); ok {
 			found, e := d.DiscoverWorkspaceDirectories(ctx)
-			if e != nil {
-				r.log("workspace.discover", e)
-			} else {
+			if e == nil {
 				paths = append(paths, found...)
 			}
 		}

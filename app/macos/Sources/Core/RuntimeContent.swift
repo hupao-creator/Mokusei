@@ -13,8 +13,6 @@ struct ContentResource {
     var recoveries = 0
     var isRecovering = false
     var timer: Task<Void, Never>?
-    var performanceContext: UInt64?
-    var measurement: NativePerformanceSpan?
 }
 
 extension RuntimeClient {
@@ -22,8 +20,7 @@ extension RuntimeClient {
     /// stay live briefly for another reader; no view/navigation state is retained.
     @discardableResult
     public func subscribeThreadContent(threadId: JSONText, scope: RuntimeContentScope,
-                                       subscriptionId: String = UUID().uuidString.lowercased(),
-                                       performanceContext: UInt64? = nil) async throws -> String {
+                                       subscriptionId: String = UUID().uuidString.lowercased()) async throws -> String {
         try assertOpen(); try Task.checkCancellation()
         try validateIdentity(threadId); try validateIdentity(JSONText(subscriptionId))
         switch scope {
@@ -32,7 +29,6 @@ extension RuntimeClient {
         }
         let previous = takeIdleContent(subscriptionId) ?? contentResources.removeValue(forKey: subscriptionId)
         previous?.timer?.cancel()
-        previous?.measurement?.end(.cancelled)
         // Reuse only a continuously subscribed snapshot from this stream. Never
         // treat persisted reading bytes as a fresh connected response.
         if let id = idleContent.last(where: {
@@ -41,7 +37,6 @@ extension RuntimeClient {
                 cached.revision != nil && cached.acknowledged && cached.wireID != nil && !cached.isRecovering
         }), var cached = takeIdleContent(id) {
             cached.retentionID = nil
-            cached.performanceContext = performanceContext
             contentResources[subscriptionId] = cached
             emit(.threadContent(subscriptionId: subscriptionId, state: cached.value.map(RuntimeContentState.ready) ?? .loading))
             if let wire = previous?.wireID { await releaseWireContent(wire) }
@@ -53,9 +48,6 @@ extension RuntimeClient {
         guard contentResources.count < 32 else { throw RuntimeError("CONTENT_CAPACITY", "Too many open content subscriptions") }
         var resource = ContentResource(threadID: threadId, scope: scope)
         if clientID == nil { resource.value = offlineStore.content(thread: threadId, scope: scope) }
-        resource.performanceContext = performanceContext
-        resource.measurement = NativePerformance.begin(.contentReady, context: performanceContext,
-            values: ["row": { if case .thread = scope { return 0.0 }; return 1.0 }()])
         contentResources[subscriptionId] = resource
         emit(.threadContent(subscriptionId: subscriptionId, state: resource.value.map(RuntimeContentState.ready) ?? .loading))
         if let wire = previous?.wireID { await releaseWireContent(wire) }
@@ -101,7 +93,6 @@ extension RuntimeClient {
         }
         contentResources.removeValue(forKey: subscriptionId)
         resource.timer?.cancel()
-        resource.measurement?.end(.cancelled)
         if let wireID = resource.wireID { await releaseWireContent(wireID) }
     }
 
@@ -117,11 +108,6 @@ extension RuntimeClient {
         guard var resource = contentResources[id], clientID != nil else { return }
         resource.timer?.cancel()
         let oldWire = resource.wireID
-        if oldWire != nil || resource.measurement == nil {
-            resource.measurement?.end(.cancelled)
-            resource.measurement = NativePerformance.begin(.contentReady, context: resource.performanceContext,
-                values: ["row": { if case .thread = resource.scope { return 0.0 }; return 1.0 }()])
-        }
         let wire = UUID().uuidString.lowercased()
         // A new stream/retry must deliver a fresh snapshot before connected
         // reading resumes; retained bytes are only an offline fallback.
@@ -140,18 +126,14 @@ extension RuntimeClient {
         emit(.threadContent(subscriptionId: id, state: resource.value.map(RuntimeContentState.ready) ?? .loading))
         if let oldWire { await releaseWireContent(oldWire) }
         guard contentResources[id]?.wireID == wire else { return }
-        let acknowledgement = NativePerformance.begin(.contentAck, context: resource.measurement?.id)
         do {
             _ = try await sessionPost("/thread-content/subscription", fields: [
                 "subscriptionId": .text(wire), "target": runtimeObject(["threadId": .string(resource.threadID), "scope": resource.scope.json])
             ])
-            acknowledgement?.end()
             if contentResources[id]?.wireID == wire { contentResources[id]?.acknowledged = true }
             // A close/replacement can beat acknowledgement; revoke the accepted add again.
             if contentResources[id]?.wireID != wire { await releaseWireContent(wire) }
         } catch {
-            acknowledgement?.end(error is CancellationError ? .cancelled : .failed)
-            if error is CancellationError { resource.measurement?.end(.cancelled) }
             if contentResources[id]?.wireID == wire { await failContent(id, message: error.localizedDescription) }
             throw error
         }
@@ -185,7 +167,6 @@ extension RuntimeClient {
                 await recoverContent(id); return
             }
             resource.timer?.cancel(); resource.timer = nil
-            resource.measurement?.end(); resource.measurement = nil
             resource.value = value; resource.revision = revision; resource.failure = nil
             resource.recoveries = 0; resource.isRecovering = false
             contentResources[id] = resource
@@ -200,10 +181,7 @@ extension RuntimeClient {
                   let revision = event["revision"]?.intValue, event["baseRevision"]?.intValue == current,
                   revision > current, revision <= RuntimeProtocol.maximumSafeInteger, let patch = event["patch"] else { await recoverContent(id); return }
             do {
-                let measurement = NativePerformance.begin(.contentPatch, context: resource.performanceContext)
-                defer { measurement?.end(.failed) }
                 let result = try JSONDelta.apply(patch, to: value)
-                measurement?.end()
                 resource.value = result; resource.revision = revision; resource.recoveries = 0; resource.failure = nil
                 contentResources[id] = resource
                 readingContentDirty.insert(id); scheduleReadingCache()
@@ -234,7 +212,6 @@ extension RuntimeClient {
     private func failContent(_ id: String, message: String) async {
         if idleContentCosts[id] != nil { await evictIdleContent(id); return }
         guard var resource = contentResources[id] else { return }
-        resource.measurement?.end(.failed); resource.measurement = nil
         let wire = resource.wireID
         resource.timer?.cancel(); resource.timer = nil; resource.wireID = nil
         resource.value = nil; resource.revision = nil; resource.failure = message

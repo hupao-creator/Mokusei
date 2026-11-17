@@ -25,21 +25,9 @@ and write receipts are settled. An HTTP client disconnect cancels only its reads
 
 ## Failed shutdown
 
-Application cleanup failures are recorded as `runtime.shutdown.failed` before diagnostics close and in the detached process log. The stop caller receives the cleanup error, but the daemon still retires discovery, closes management connections, releases ownership and exits. A completed error never leaves a permanent stopping owner.
+The stop caller receives application cleanup errors, but the daemon still retires discovery, closes management connections, releases ownership and exits. A completed error never leaves a permanent stopping owner.
 
 While cleanup is pending, authenticated `/health` reports `status: stopping`; ordinary commands are rejected and exclusive ownership remains held. Start/reopen waits up to two minutes for this owner to retire before starting a replacement. Existing profile data is retained. A late native exit helper carries the old epoch and cannot stop the replacement.
-
-Logs live under the selected profile at `runtime/debug-logs/service.jsonl` and `runtime/process.log`.
-
-Moku/Tag/Report bodies use a separate private
-[`runtime/tool-calls` journal](../diagnostics/README.md), opened under the same
-profile lease and closed after application draining. Service diagnostics do not
-receive its bodies. The journal has independent retention and explicit
-redaction/completeness metadata.
-Journal initialization or close failure is reported without preventing startup
-or changing successful application cleanup; journal initialization retries on the
-next Runtime start. This best-effort policy does not change the existing service
-logger's startup/close contract.
 
 If an `Ensure` child loses the ownership guard before a competing child publishes
 its owner record, it waits for the competitor's existing private launch receipt. Pending launches are read before the owner record to cover that handoff; errors

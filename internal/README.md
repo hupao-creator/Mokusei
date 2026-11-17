@@ -17,7 +17,7 @@ The executable [mokusei-runtime](../cmd/mokusei-runtime/main.go) acquires a prof
 | plugins/applications | [Report](plugins/applications/report/README.md), [Tag](plugins/applications/tag/README.md), built-in [Git](plugins/applications/git/README.md) |
 | plugins/contexts | [Artificial Analysis](plugins/contexts/artificialanalysis/README.md) |
 | services | [Moku](services/moku/README.md), [workspaces](services/workspaces/README.md), [search](services/threadsearch/README.md), [attachments](services/attachments/README.md) and tag normalization |
-| platform | [Daemon/profile ownership](platform/daemon/README.md), [transport](platform/transport/README.md), process groups, environment, diagnostics and SQLite binding |
+| platform | [Daemon/profile ownership](platform/daemon/README.md), [transport](platform/transport/README.md), process groups, environment and SQLite binding |
 | tooling | Development/packaging, architecture checks and allowance-data maintenance |
 
 The four Harnesses use externally installed native engines. Their account, model and credential configuration belongs to those engines. Pi and OpenCode embed small resources loaded by the external engine; the Mokusei application has no Node build or renderer process.

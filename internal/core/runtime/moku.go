@@ -63,7 +63,7 @@ func (r *Runtime) notifyThread(thread model.ThreadRecord) {
 				copy.Transcript[index] = model.CloneRaw(item)
 			}
 		}
-		safeLifecycleCallback(func() { listener(copy) }, r.log)
+		safeLifecycleCallback(func() { listener(copy) })
 	}
 }
 func (r *Runtime) EnsureMokuThread(ctx context.Context, harnessID string, settings json.RawMessage, cwd string) (model.ThreadRecord, error) {
@@ -248,7 +248,7 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 	})
 	if err == nil && r.config.Attachments != nil {
 		for _, retiredID := range retiredOwners {
-			r.log("moku.attachments.release", r.config.Attachments.ReleaseOwner(ctx, retiredID))
+			_ = r.config.Attachments.ReleaseOwner(ctx, retiredID)
 		}
 	}
 	return thread, err

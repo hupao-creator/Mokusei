@@ -41,12 +41,6 @@ configuration for the same Thread preserves that revision floor; replacement
 and restart initialize it from the adopted Thread. Older terminal facts still
 settle their own audit rows independently of scope authority.
 
-Production tools also use the shared [private invocation journal](../../platform/diagnostics/README.md).
-Transcript operations keep host `callId`/`id` meanings and additionally carry
-`invocationId` and `harnessCallId` for correlation. Callback-entry failures before
-transcript insertion are journaled, with explicit coverage and payload limits.
-Journal retention/redaction is independent of conversation history.
-
 Moku guidance defaults to managed `worktree:true` for tasks in a committed Git workspace, even without parallel tasks. It reserves `false` for tasks without an eligible Git workspace, explicit requests for the existing checkout, or tasks requiring its uncommitted changes or live state. Moku creates the managed worktree through `create_thread` rather than delegating worktree creation to the Agent. This is model guidance, not an enforced boolean default.
 
 Every `create_thread` call supplies `worktree` as a boolean. `false` uses an explicit existing directory or allocates a temporary workspace. `true` requires an explicit committed Git workspace. The result distinguishes base `workspace.cwd` from execution `workspace.worktreeCwd`. Optional `worktreeName` is a directory label, never the task title; [workspace rules](../workspaces/README.md) define validation, normalization, collisions and reported adjustments.
@@ -291,8 +285,7 @@ uncertain attempt for the selected batch. A transport
 failure or crash in this interval cannot prove whether the provider consumed the
 notification, so these entries are retained and never automatically replayed.
 A later run failure does not replay an already admitted
-notification. Admission proves retention, not that the model read or acted on it. Moku
-reports `moku-delivery-uncertain` with the recovery command. Use authenticated
+notification. Admission proves retention, not that the model read or acted on it. Use authenticated
 `moku:deliveries` with no arguments to inspect pending facts. Restart the runtime
 to fence the old native workers, inspect the native conversation, then invoke
 `moku:resolve-delivery` with one object containing `id` and `decision`:
@@ -301,9 +294,7 @@ to fence the old native workers, inspect the native conversation, then invoke
 the current runtime cannot reconcile its own uncertain attempts. Exactly-once
 provider effects cannot be guaranteed without provider idempotency support.
 
-Uncertainty is currently operator-visible through the Runtime diagnostic log
-(`moku-delivery-uncertain` under the profile's `runtime/debug-logs`) and the
-authenticated Runtime command API. It is not published as Talk, a client error
+Uncertainty is operator-visible through the authenticated Runtime command API. It is not published as Talk, a client error
 banner or a recovery button, and these commands are not Moku tools. Invoke
 `moku:deliveries` with `args: []` to inspect retained entries. After restarting
 the Runtime and checking the native conversation, invoke `moku:resolve-delivery`

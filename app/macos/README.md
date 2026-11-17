@@ -174,12 +174,15 @@ before retaining any profile-local state. Fresh rotation uses the same
 cross-process admission and lifetime locks; offline preferences and drafts
 therefore remain protected independently of the runtime service's ownership.
 
-Quit remains available during Reload and never requires successful runtime cleanup. It gives local cleanup up to three seconds before requesting process exit; a second Quit skips pending application/drain waits while admitting the Runtime cleanup helper. Errors go to profile diagnostics, and the existing epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data. Quit revokes the pending Reload's publication identity before cancelling it. The retiring presentation's resource cleanup remains tracked until it drains;
-its late completion cannot publish a replacement or clear a successor operation. If Settings rejects Quit, a new operation joins that same retirement and restores
-the workspace without discarding the unsaved Settings draft. Once exit is accepted, diagnostic writers drain asynchronously under a separate
-750ms background deadline; a slow writer cannot hold process exit indefinitely. Timeout can lose the diagnostic tail and is reported through unified logging. A second Quit enters ordinary exit so atexit waits for the actual helper launch;
-the independent deadline still forces exit if launch, logs or exit handlers
-block. It does not merely enqueue a helper immediately before `_exit`.
+Quit remains available during Reload and never requires successful runtime cleanup. It gives local cleanup up to three seconds before requesting process exit; a second Quit skips pending application/drain waits while admitting the Runtime cleanup helper. The epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data.
+Quit revokes the pending Reload's publication identity before cancelling it.
+The retiring presentation's resource cleanup remains tracked until it drains;
+its late completion cannot publish a replacement or clear a successor operation.
+If Settings rejects Quit, a new operation joins that same retirement and restores
+the workspace without discarding the unsaved Settings draft.
+Once exit is accepted, ordinary exit admits the Runtime helper through atexit.
+A separate 750ms background deadline forces exit if helper launch or exit handlers
+block. A second Quit uses the same bounded exit path.
 
 Before Runtime teardown, Quit flushes pending valid Settings edits. Invalid or
 failed saves expose an explicit continue-editing or quit-without-saving choice.

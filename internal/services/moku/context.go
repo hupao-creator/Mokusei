@@ -227,14 +227,12 @@ func (c *Coordinator) collectNativeContext(ctx context.Context, entryID string, 
 			return nil, ctx.Err()
 		}
 		if value.err != nil {
-			c.report("context:"+sources[index].id+":"+entryID, value.err)
 			continue
 		}
 		if value.text == "" {
 			continue
 		}
 		if len(value.text) > 32*1024 {
-			c.report("context", fmt.Errorf("%s %s contribution exceeds32KiB", sources[index].id, entryID))
 			continue
 		}
 		block := "### " + sources[index].label + "\n" + value.text
@@ -243,7 +241,6 @@ func (c *Coordinator) collectNativeContext(ctx context.Context, entryID string, 
 			separator = 2
 		}
 		if size+len(block)+separator > 128*1024 {
-			c.report("context", fmt.Errorf("%s entry exceeds128KiB", entryID))
 			continue
 		}
 		blocks = append(blocks, block)
@@ -297,9 +294,6 @@ func (c *Coordinator) refreshLoop(ctx context.Context) {
 		c.mu.Unlock()
 		if applied != nil {
 			entries, err := c.collectNativeContext(ctx, "telemetry", applied.AppliedSettings)
-			if err != nil && ctx.Err() == nil {
-				c.report("context-refresh", err)
-			}
 			c.mu.Lock()
 			if c.running && generation == c.generation && err == nil {
 				c.runContext = append([]plugin.ContextEntry{}, entries...)

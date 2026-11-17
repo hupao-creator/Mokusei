@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 import MokuseiCore
 import MokuseiPluginAPI
 
@@ -106,8 +105,6 @@ final class NativeMokuSubmission {
             // The accepted revision is already gone. Keep the operation and
             // receipt until cleanup succeeds, without turning success into a
             // send error or letting another draft replace the protected input.
-            Logger(subsystem: "Mokusei", category: "MokuSubmission")
-                .error("Accepted Moku receipt cleanup deferred: \(error.localizedDescription, privacy: .public)")
             return
         }
         if operation === current { operation = nil }

@@ -1,10 +1,5 @@
 # Scoped semantic tags
 
-Production injected callbacks use the shared
-[private invocation journal](../../../platform/diagnostics/README.md), capturing
-this instance's bound scope and the runner's batch/attempt at entry. This is
-separate from native history and mutation receipts and does not infer model retries.
-
 [plugin.go](plugin.go) registers a per-directory Tag Agent, including Inbox. Each
 pool has at most **five** semantic tags. Every wake reviews all unarchived ordinary
 Threads in that pool; archived Threads, Moku, private sessions and other scopes

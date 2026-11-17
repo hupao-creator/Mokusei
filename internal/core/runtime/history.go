@@ -155,7 +155,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 		return r.appendEvent(tx, "thread.inventory", store.Subject{Kind: "thread", TypeID: "agent", ID: id}, "application", map[string]any{}, nil)
 	})
 	if err != nil && r.config.Attachments != nil {
-		r.log("fork.attachment.rollback", r.config.Attachments.ReleaseOwner(context.WithoutCancel(ctx), id))
+		_ = r.config.Attachments.ReleaseOwner(context.WithoutCancel(ctx), id)
 	}
 	return id, err
 }
@@ -393,16 +393,12 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		if moku.ID != "" {
 			owners = append(owners, moku.ID)
 		}
-		if err = r.config.Attachments.RetainOwners(ctx, owners); err != nil {
-			r.log("history.attachments", err)
-		} else {
-			r.log("history.attachments.collect", r.config.Attachments.CollectOrphans(ctx, 0))
+		if err = r.config.Attachments.RetainOwners(ctx, owners); err == nil {
+			_ = r.config.Attachments.CollectOrphans(ctx, 0)
 		}
 	}
 	if r.config.Workspaces != nil {
-		if err := r.config.Workspaces.ClearOwned(ctx); err != nil {
-			r.log("history.workspaces", err)
-		}
+		_ = r.config.Workspaces.ClearOwned(ctx)
 	}
 	r.lifecycle.mu.Lock()
 	r.lifecycle.consumers = map[string]*lifecycleConsumer{}

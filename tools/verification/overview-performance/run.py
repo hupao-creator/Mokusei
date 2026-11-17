@@ -78,7 +78,7 @@ def measure(labels, destination, repetitions):
             start = time.time()
             activity = []
             process = subprocess.Popen([str(OUTPUT / label / "probe"), str(filename)], cwd=REPO,
-                                       env={**os.environ, "MOKUSEI_PERFORMANCE": "off"})
+                                       env=os.environ.copy())
             try:
                 while True:
                     activity.append({"at": time.time(), "processes": subprocess.check_output(

@@ -84,7 +84,6 @@ type Configuration struct {
 	CollectContext            func(context.Context, string, model.Settings) ([]plugin.ContextEntry, error)
 	SuperThreadContext        func(context.Context, string) (json.RawMessage, error)
 	Ledger                    func(string) plugin.TelemetryLedger
-	ReportFailure             func(string, error)
 	// Tool interruption carries provenance; user cancellation and teardown do not.
 	InterruptThreadFromMokuTool func(context.Context, string) error
 }

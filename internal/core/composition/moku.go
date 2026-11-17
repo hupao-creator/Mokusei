@@ -77,7 +77,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 			}
 			return b.contexts.CollectMokuContexts(ctx, phase, catalogs)
 		},
-		Ledger: b.ledger, ReportFailure: b.log,
+		Ledger: b.ledger,
 	}
 	return config
 }

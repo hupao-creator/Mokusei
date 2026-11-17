@@ -43,8 +43,6 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored private var superThreadDrafts: [JSONText: NativeComposerDraft] = [:]
     public private(set) var selected: ApplicationThreadRef?
     public fileprivate(set) var mountedReadingThread: ApplicationThreadRef?
-    public private(set) var performanceOperation: UInt64?
-    @ObservationIgnored private var performanceVisit: NativePerformanceSpan?
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readingPanelSource: CGRect?
     private var readingPanelSourceCardID: String?
@@ -189,7 +187,6 @@ public final class NativeWorkspacePresentation {
                     guard !thread.isHiddenFromUser else { persistSelection(nil); return }
                     selected = ApplicationThreadRef(threadID: key, typeID: "agent")
                     readingPanelSourceCardID = key.string
-                    beginPerformanceVisit(ApplicationThreadRef(threadID: key, typeID: "agent"))
                 }
             }
         }
@@ -220,11 +217,6 @@ public final class NativeWorkspacePresentation {
             if thread.moku == true { scene.setMokuOpen(true, readingTarget: target); return }
             guard !thread.isHiddenFromUser || target?.position == .result else { return }
         } else if !applicationHost.canOpen(ref.typeID) { return }
-        if selected != ref || performanceVisit?.recordingID != NativePerformance.recordingID {
-            beginPerformanceVisit(ref)
-        } else if ref.typeID == "agent" {
-            NativePerformance.event(.threadNavigate, context: performanceOperation)
-        }
         threadExecutionReveal = nil
         NativeReadingPageMotion.cancelAll(); scene.settle(); scene.setInputOpen(false)
         if scene.mokuOpen { scene.setMokuOpen(false); scene.settle() }
@@ -317,7 +309,6 @@ public final class NativeWorkspacePresentation {
     }
 
     public func finishBack() {
-        performanceVisit?.end(); performanceVisit = nil; performanceOperation = nil
         overview.recordApplicationClose()
         selected = nil; readingTarget = nil; threadIdentityVisit = nil; resetNavigation(); followUpVisible = false
         nativeApplicationNavigation = false
@@ -333,7 +324,6 @@ public final class NativeWorkspacePresentation {
         }
         NativeReadingPageMotion.cancelAll()
         selected = applicationReturn?.thread; readingTarget = applicationReturn?.target
-        if let selected { beginPerformanceVisit(selected) }
         applicationReturn = nil; resetNavigation(); nativeApplicationNavigation = false
         followUpVisible = false
         publishPresence()
@@ -344,13 +334,6 @@ public final class NativeWorkspacePresentation {
             if let id, JSONText(id.string) != id { throw PluginContractError("Thread identity cannot be stored as a native preference") }
             try workspace.preferences.selectThread(id?.string)
         } catch { workspace.report(error) }
-    }
-
-    private func beginPerformanceVisit(_ ref: ApplicationThreadRef) {
-        performanceVisit?.end(.cancelled)
-        performanceVisit = ref.typeID == "agent" ? NativePerformance.begin(.threadVisit) : nil
-        performanceOperation = performanceVisit?.id
-        if ref.typeID == "agent" { NativePerformance.event(.threadOpen, context: performanceOperation) }
     }
 
     private func resetNavigation() {
@@ -744,7 +727,6 @@ public final class NativeWorkspacePresentation {
     }
 
     public func release(runtimeStopped: Bool = false) async {
-        performanceVisit?.end(.cancelled); performanceVisit = nil; performanceOperation = nil
         if let releaseTask { await releaseTask.value; return }
         guard started else { return }
         overview.recordApplicationClose()
@@ -817,7 +799,6 @@ public struct NativeWorkspaceView: View {
         .environment(\.nativeOfflineDraftEditing, model.hasInitialContent && !model.runtimeAvailable && !model.stopping)
         .environment(\.nativeCanvasInputRegions, canvasInputRegions)
         .coordinateSpace(name: "workspace")
-        .nativeLayoutLog("workspace.surface")
         .preferredColorScheme(model.preferences.appearance == .system ? nil : model.preferences.appearance == .dark ? .dark : .light)
         .onChange(of: scenePhase, initial: true) { _, phase in presentation.setScenePhase(phase) }
         .onChange(of: controlActiveState, initial: true) { _, state in presentation.setReadingWindowActive(state == .key) }
@@ -1018,11 +999,9 @@ public struct NativeWorkspaceView: View {
             .task(id: [readingIdentity, presentation.readingTarget?.executionID ?? ""]) {
                 guard let selected = presentation.selected, selected.typeID == "agent",
                       let thread = model.catalog.thread(selected.threadID) else { return }
-                await model.harnessHost.prefetchReading(input: HarnessThreadInput(thread: thread, readingTarget: presentation.readingTarget),
-                    performanceContext: presentation.performanceOperation)
+                await model.harnessHost.prefetchReading(input: HarnessThreadInput(thread: thread, readingTarget: presentation.readingTarget))
             }
             .environment(\.nativeThreadIdentityRegistry, presentation.threadIdentityRegistry)
-            .environment(\.nativePerformanceOperation, presentation.performanceOperation)
             .environment(\.nativeReadingInteractions, presentation.readingInteractions)
             .environment(\.nativeReadingInteractionVisit, routeID)
             .environment(\.nativeReadingInteractionRefresh, presentation.readingInteractions.refresh)

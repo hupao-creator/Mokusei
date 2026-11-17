@@ -51,8 +51,6 @@ private struct WorkspaceApp: App {
                 Button("Actual Size") { session.performWebCommand("mokuseiResetFocusedWebContentZoom:") { session.setZoom(0) } }.keyboardShortcut("0")
                 Button("Zoom In") { session.performWebCommand("mokuseiZoomInFocusedWebContent:") { session.setZoom(session.zoom + 0.5) } }.keyboardShortcut("+")
                 Button("Zoom Out") { session.performWebCommand("mokuseiZoomOutFocusedWebContent:") { session.setZoom(session.zoom - 0.5) } }.keyboardShortcut("-")
-                Toggle("Collect Detailed Performance", isOn: Binding(get: { NativePerformance.mode == .detailed },
-                    set: { session.setPerformance($0) }))
             }
         }
     }
@@ -69,11 +67,10 @@ final class WorkspaceSession {
     var busy = false
     var zoom: Double = 0
     var generation = UUID()
-    private let startup = NativeStartupPerformance()
     private var exitCleanup: NativeRuntimeExitCleanup?
     private var interactionServer: NativeInteractionServer?
     private var zoomURL: URL?
-    private var performanceDirectory: URL?
+    private var launchReceipt: URL?
     private var task: Task<Void, Never>?
     private(set) var reloadTask: Task<Void, Never>?
     private var operationID: UUID?
@@ -87,16 +84,12 @@ final class WorkspaceSession {
     init() {
         do {
             let options = try LaunchOptions()
+            launchReceipt = options.launchReceipt
             benchmarkOverview = options.benchmarkOverview
             benchmarkEmojiGlass = options.benchmarkEmojiBadge == "liquid-glass"
             let lease = try RuntimeProfileClientLease(dataDirectory: options.dataDirectory)
             lease.retainForProcess()
             let profile = lease.profile
-            NativeLayoutDiagnostics.start(directory: profile.dataDirectory.appendingPathComponent("diagnostics/layout", isDirectory: true),
-                explicitDataDirectory: options.explicitDataDirectory)
-            performanceDirectory = profile.dataDirectory.appendingPathComponent("diagnostics/performance", isDirectory: true)
-            if let performanceDirectory { NativePerformance.configure(directory: performanceDirectory) }
-            startup.attachToRecording()
             zoomURL = profile.dataDirectory.appendingPathComponent("native-window-zoom.json")
             if let zoomURL, let data = try? Data(contentsOf: zoomURL),
                let saved = try? JSONDecoder().decode(SavedZoom.self, from: data), saved.level.isFinite { setZoom(saved.level) }
@@ -115,7 +108,7 @@ final class WorkspaceSession {
             }
             let client = RuntimeClient(profile: profile, launch: options.launch)
             let composition = try NativePlugins.make()
-            let model = NativeWorkspaceModel(client: client, preferences: preferences, plugins: composition, startupPerformance: startup)
+            let model = NativeWorkspaceModel(client: client, preferences: preferences, plugins: composition)
             if let path = options.automationSocket {
                 interactionServer = try NativeInteractionServer(path: path) { [weak self] in
                     guard let self, !self.busy else { return nil }
@@ -124,7 +117,7 @@ final class WorkspaceSession {
             }
             self.model = model; presentation = NativeWorkspacePresentation(workspace: model)
             if let executable = Bundle.main.executableURL { exitCleanup = NativeRuntimeExitCleanup(profile: profile, executable: executable) }
-        } catch { startup.fail(); self.error = error.localizedDescription }
+        } catch {  self.error = error.localizedDescription }
     }
     #if MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY
     init(model: NativeWorkspaceModel) {
@@ -134,8 +127,14 @@ final class WorkspaceSession {
     #endif
     func start() {
         guard let model else { return }
-        startup.shellReady(); model.start()
-        FileHandle.standardOutput.write(Data("[native-launch] ready pid=\(ProcessInfo.processInfo.processIdentifier)\n".utf8))
+        model.start()
+        if let launchReceipt {
+            do {
+                let data = try JSONSerialization.data(withJSONObject: ["pid": ProcessInfo.processInfo.processIdentifier])
+                try data.write(to: launchReceipt, options: .atomic)
+            } catch { self.error = error.localizedDescription }
+            self.launchReceipt = nil
+        }
     }
     func setZoom(_ value: Double) {
         guard value.isFinite else { return }
@@ -144,10 +143,6 @@ final class WorkspaceSession {
     }
     func performWebCommand(_ selector: String, fallback: () -> Void) {
         if !NSApp.sendAction(NSSelectorFromString(selector), to: nil, from: nil) { fallback() }
-    }
-    func setPerformance(_ enabled: Bool) {
-        guard let performanceDirectory else { return }
-        NativePerformance.configure(directory: performanceDirectory, mode: enabled ? .detailed : .off)
     }
     func reload() {
         guard !busy, !quitting, let model else { return }
@@ -180,7 +175,7 @@ final class WorkspaceSession {
     }
     func quit(discardSettings: Bool = false) {
         guard !quitting else {
-            NativeDiagnosticExit.forceExit { exitCleanup?.prepareForExit() }
+            NativeProcessExit.forceExit { exitCleanup?.prepareForExit() }
         }
         quitting = true; busy = true
         let operationID = UUID()
@@ -197,7 +192,6 @@ final class WorkspaceSession {
                 rejectQuitForSettings(RuntimeError("SETTINGS_UNSAVED", "Saving settings timed out."))
                 return
             }
-            exitCleanup?.record(RuntimeError("QUIT_TIMEOUT", "Application exited while runtime cleanup continued"))
             finishQuit()
         }
         task = Task {
@@ -214,7 +208,7 @@ final class WorkspaceSession {
             do {
                 try await model?.stop()
                 exitCleanup?.disarm()
-            } catch { exitCleanup?.record(error) }
+            } catch {}
             finishQuit()
         }
     }
@@ -233,21 +227,13 @@ final class WorkspaceSession {
         }
     }
     private func finishQuit() {
-        // A late runtime-cleanup completion must not cut short a drain already
-        // requested by the runtime deadline. Only an explicit second Quit forces.
+        // A late cleanup completion cannot start a second process-exit sequence.
         guard !finishingQuit else { return }
         finishingQuit = true
         quitDeadline?.cancel()
-        // Arm a separate background deadline before either diagnostics path.
-        // A second Quit bypasses drains, but still admits the Runtime helper.
-        let exitGate = NativeDiagnosticExit { NativeDiagnosticExit.terminateProcess(timedOut: $0) }
-        exitCleanup?.prepareForExit()
-        interactionServer?.stop()
-        startup.cancel()
-        NativeLayoutDiagnostics.finish { exitGate.completedDrain() }
-        DispatchQueue.global(qos: .utility).async {
-            NativePerformance.finish()
-            exitGate.completedDrain()
+        NativeProcessExit.forceExit {
+            exitCleanup?.prepareForExit()
+            interactionServer?.stop()
         }
     }
     private struct SavedZoom: Codable { let level: Double }
@@ -269,7 +255,6 @@ private struct WorkspaceWindow: View {
             .disabled(session.busy)
         }
         .modifier(NativeWorkspaceWindowSurface())
-        .nativeLayoutLog("workspace.window")
         .onAppear { session.start() }
         .onDisappear { session.quit() }
         .alert("Mokusei", isPresented: Binding(get: { session.error != nil && session.model != nil }, set: { if !$0 { session.error = nil } })) {
@@ -289,6 +274,7 @@ private struct LaunchOptions {
     let dataDirectory: URL
     let launch: RuntimeLaunchConfiguration?
     let automationSocket: String?
+    let launchReceipt: URL?
     let explicitDataDirectory: Bool
     let benchmarkOverview: Bool
     let benchmarkEmojiBadge: String
@@ -302,7 +288,7 @@ private struct LaunchOptions {
             if flag.hasPrefix("-psn_") { index += 1; continue }
             let allowedValues: [String: [String]] = ["--benchmark-scenario": ["overview"],
                 "--benchmark-agent-emoji-badge": ["flat", "liquid-glass"]]
-            guard (allowedValues[flag] != nil || ["--data-dir", "--runtime", "--automation-socket"].contains(flag)),
+            guard (allowedValues[flag] != nil || ["--data-dir", "--runtime", "--automation-socket", "--launch-receipt"].contains(flag)),
                   index + 1 < arguments.count, options[flag] == nil,
                   allowedValues[flag].map({ $0.contains(arguments[index + 1]) }) ?? arguments[index + 1].hasPrefix("/") else {
                 throw NSError(domain: "MokuseiLaunch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unknown launch argument: \(flag)"])
@@ -311,6 +297,7 @@ private struct LaunchOptions {
             index += 2
         }
         automationSocket = options["--automation-socket"]
+        launchReceipt = options["--launch-receipt"].map { URL(fileURLWithPath: $0) }
         explicitDataDirectory = options["--data-dir"] != nil
         benchmarkOverview = options["--benchmark-scenario"] == "overview"
         benchmarkEmojiBadge = options["--benchmark-agent-emoji-badge"] ?? "flat"

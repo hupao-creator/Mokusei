@@ -210,8 +210,6 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		return CommandJSONSize(value, limit)
 	case "app:update-settings":
 		return CommandJSONSize(value, 2_000_000)
-	case "settings:diagnostics":
-		return nil // Strict typed validators are owned by these modules.
 	}
 	var allowed, required []string
 	switch channel {

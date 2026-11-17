@@ -246,17 +246,14 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 			if err != nil || current.ID != event.record.ID {
 				continue
 			}
-			c.report("moku-tool-settlement", c.settleExecution(context.WithoutCancel(ctx), *event.record))
+			_ = c.settleExecution(context.WithoutCancel(ctx), *event.record)
 			continue
 		}
 
 		if event.diagnostic != "" {
 			current, err := c.current()
 			if err == nil {
-				err = c.appendTranscript(ctx, current.ID, map[string]any{"type": "message", "id": newID(), "role": "assistant", "content": event.diagnostic, "status": "complete", "systemEvent": true, "createdAt": time.Now().UnixMilli()})
-			}
-			if err != nil && ctx.Err() == nil {
-				c.report("diagnostic-event", err)
+				_ = c.appendTranscript(ctx, current.ID, map[string]any{"type": "message", "id": newID(), "role": "assistant", "content": event.diagnostic, "status": "complete", "systemEvent": true, "createdAt": time.Now().UnixMilli()})
 			}
 			continue
 		}
@@ -265,7 +262,7 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 			// drain even though this outbound notification can no longer enter.
 			continue
 		}
-		err := c.admitSettings(ctx, func(ctx context.Context) error {
+		_ = c.admitSettings(ctx, func(ctx context.Context) error {
 			return retryConfigurationAdmission(func() error {
 				if err := ctx.Err(); err != nil {
 					return err
@@ -310,13 +307,6 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 			})
 		})
 		c.queue.Unlock()
-		if err != nil && ctx.Err() == nil {
-			kind := "terminal-event"
-			if event.userInput != nil {
-				kind = "user-thread-input-event"
-			}
-			c.report(kind, err)
-		}
 	}
 }
 

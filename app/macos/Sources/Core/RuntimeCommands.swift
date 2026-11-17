@@ -12,7 +12,7 @@ extension RuntimeClient {
         let encodedArgs = try JSONValue.array(args).encodedData()
         var fingerprintInput = Data(channel.utf8); fingerprintInput.append(0); fingerprintInput.append(encodedArgs)
         let fingerprint = SHA256.hash(data: fingerprintInput).map { String(format: "%02x", $0) }.joined()
-        let readOnly = Set(["attachment:preview", "thread:read", "workspace:list-known-directories", "harness:settings-presentation", "harness:detect-installation", "state:load", "application:query", "settings:diagnostics"]).contains(channel)
+        let readOnly = Set(["attachment:preview", "thread:read", "workspace:list-known-directories", "harness:settings-presentation", "harness:detect-installation", "state:load", "application:query"]).contains(channel)
         if !readOnly {
             guard status == .connected, hydration == nil else {
                 throw RuntimeError("OFFLINE_COMMAND_DISABLED", "Connect and synchronize with the host before submitting this action; the draft is saved on this device")
@@ -67,20 +67,12 @@ extension RuntimeClient {
         let submittedRecord = commandRecords[id]
         // Receipt settlement is part of the shared operation, so no coalesced
         // waiter can return (and issue another command) before it is complete.
-        let observed = channel == "app:update-settings" || channel == "harness:settings-presentation" || channel == "harness:detect-installations"
-        let flowID = SettingsDiagnosticContext.flowID ?? UUID().uuidString
-        let started = Date()
-        if observed { reportSettingsDiagnostic(SettingsDiagnostic(.command, .started, flowID: flowID, operationID: id,
-            revision: args.first?["expectedSettingsRevision"]?.intValue)) }
         let task = Task { () throws -> JSONValue in
             do {
                 let value: JSONValue
                 if readOnly { value = try await self.deliverRead(channel: channel, args: args, body: body, receiptID: id) }
                 else { value = try await self.deliverWrite(channel: channel, body: body, receiptID: id,
                     alreadySubmitted: alreadySubmitted, explicitRetry: receiptID != nil) }
-                if observed { self.reportSettingsDiagnostic(SettingsDiagnostic(.command,
-                    value["status"]?.stringValue == "conflict" ? .conflict : .completed, flowID: flowID, operationID: id,
-                    revision: value["settingsRevision"]?.intValue, durationMs: Date().timeIntervalSince(started) * 1000)) }
                 self.activeCommands.removeValue(forKey: key)
                 if readOnly {
                     // Reads never own durable journal entries. Another client
@@ -95,8 +87,6 @@ extension RuntimeClient {
                 }
                 return value
             } catch {
-                if observed { self.reportSettingsDiagnostic(SettingsDiagnostic(.command, .failed, flowID: flowID, operationID: id,
-                    durationMs: Date().timeIntervalSince(started) * 1000)) }
                 self.activeCommands.removeValue(forKey: key)
                 if readOnly {
                     self.explicitReceipts.removeValue(forKey: id)

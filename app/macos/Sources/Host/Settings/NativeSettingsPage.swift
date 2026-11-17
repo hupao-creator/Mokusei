@@ -106,7 +106,6 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                       value: settingsContentHeight + detailOverflow
                         + NativeSettingsHeaderLayout.topInset + NativeSettingsHeaderLayout.rowHeight
                         + NativeSettingsHeaderLayout.bottomInset + 18 + 36)
-            .nativeLayoutLog("settings.page")
             .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
             // Settings scopes its dark appearance without recoloring the workspace.
@@ -124,14 +123,12 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             .background(SettingsNavigationInputObserver { keyboardNavigation = $0 })
             .onAppear {
                 model.draft.beginPageEditing()
-                model.draft.diagnostics.record(.page, .opened, revision: model.draft.revision)
                 navigation.mounted = true
                 focusedBack = true
                 model.confirmClear = false; model.operationError = nil
                 agentRegion.dismiss = { dismissAgent() }
             }
             .onDisappear {
-                model.draft.diagnostics.record(.page, .closed, revision: model.draft.revision)
                 navigation.mounted = false
                 agentRegion.stop(); mokuMotion.stop(); onCoordinatorFrame(nil, true)
                 animationVisits.reset()

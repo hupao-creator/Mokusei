@@ -55,8 +55,8 @@ func rejectNativeClientWriters(ctx context.Context, directories ...string) error
 
 func (p nativeClientProcess) dataDirectory(ctx context.Context) (string, error) {
 	args := p.arguments
-	// The exit-cleanup helper uses the same executable and can still write its
-	// shutdown-error diagnostic after the window has gone away.
+	// The exit-cleanup helper uses the same executable and retains profile-local
+	// ownership after the window has gone away.
 	if len(args) == 4 && args[1] == "--finish-runtime" && filepath.IsAbs(args[2]) {
 		return args[2], nil
 	}
