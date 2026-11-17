@@ -849,6 +849,9 @@ public struct NativeWorkspaceView: View {
             onScroll: { presentation.scene.setShellScrollOffset($0) },
             onDismiss: { model.dismissOperationError() }) {
             workspaceScene
+                .nativeCollectionPanelHost(enabled: presentation.selected == nil
+                    && !presentation.scene.settingsOpen && !presentation.scene.mokuOpen
+                    && !presentation.scene.cameraActive && !presentation.onboarding.blocksWorkspace)
         }
         .overlay(alignment: .top) {
             NativeRuntimeConnectionNotice(model: model).padding(.top, 12)

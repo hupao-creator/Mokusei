@@ -67,7 +67,11 @@ struct NativeReadingPanelBackdrop: NSViewRepresentable {
         private var canDismiss: Bool {
             guard let window else { return false }
             return onDismiss != nil && !isHiddenOrHasHiddenAncestor && window.attachedSheet == nil
-                && NSApp.modalWindow == nil && !(window.childWindows ?? []).contains { $0.isVisible }
+                // System sharing/titlebar accessories are visible child windows,
+                // but do not own a transient input visit. Only a focusable child
+                // blocks dismissal; sheets, modal windows and forwarded popover
+                // presses retain their separate guards above.
+                && NSApp.modalWindow == nil && !(window.childWindows ?? []).contains { $0.isVisible && $0.canBecomeKey }
         }
         private func removeObservers() {
             if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor); self.mouseMonitor = nil }

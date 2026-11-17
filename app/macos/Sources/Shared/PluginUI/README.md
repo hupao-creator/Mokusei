@@ -32,6 +32,21 @@ the shared 44pt diameter and top 12 / trailing 17 seat. Other card badges retain
 their flat-material policy. Apply the backdrop separately from ink masks so a
 page reveal does not cut the collection's continuous material surface.
 
+`nativeCollectionPanelHost` gives a canvas collection a workspace-sized reading
+surface without creating a route or a native child window. Its environment
+presentation owns one UUID-scoped visit, uses native source/viewport anchors to
+convert camera geometry, and delegates travel, reduced motion, resize settling,
+blank-margin dismissal and Escape arbitration to the existing reading stack.
+Explicit Close refreshes the source frame; member navigation, source removal and
+covering routes retire the visit immediately. Callers refresh the contents when
+member facts change and retain their own selection, playback and data lifetimes.
+The collection parent remains mounted for those updates while drawing, input and
+accessibility are suppressed. The shared compositor's auxiliary lane stays
+outside the collection's fixed header and scroll viewport.
+Blank-margin dismissal ignores nonfocusable system child accessories such as the
+window-sharing indicator. Visible focusable child windows, sheets, modal windows
+and the press forwarded while closing an NSPopover still block dismissal.
+
 Settings role editors can opt into `NativeSettingsEditorDrafts` and
 `NativeSettingsEditorState` to retain incomplete plugin input across unmounts.
 Storage is local to the Settings visit and interaction scope; complete values still

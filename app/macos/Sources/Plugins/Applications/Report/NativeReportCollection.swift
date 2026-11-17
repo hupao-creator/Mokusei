@@ -16,6 +16,10 @@ struct NativeReportCollection: View {
     @State private var interacting = false
     @State private var hovered = false
     @State private var showingMembers = false
+    @State private var panelOwner = UUID()
+    @State private var panelSource = NativeCollectionPanelSource()
+    @Environment(\.nativeCollectionPanel) private var memberPresentation
+    @Environment(\.nativeReportCoverCache) private var coverCache
     @State private var trackingMenus: Set<ObjectIdentifier> = []
     @FocusState private var focusedControl: Control?
     @AccessibilityFocusState private var accessibilityFocusedControl: Control?
@@ -44,7 +48,7 @@ struct NativeReportCollection: View {
         case allMembers, previous, member(ApplicationThreadRef), menu, next
     }
     private var controlsVisible: Bool {
-        active && hovered
+        active && hovered && !showingMembers && visibility?.isVisible != false
     }
     private struct CoverIdentity: Hashable {
         let reference: ApplicationThreadRef
@@ -120,7 +124,7 @@ struct NativeReportCollection: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Button { showingMembers.toggle() } label: {
+                            Button { toggleMembers() } label: {
                                 Text("\(page + 1)/\(members.count)").font(.system(size: 11, weight: .medium)).monospacedDigit()
                                     .padding(.horizontal, 10).padding(.vertical, 6)
                                     .contentShape(Capsule())
@@ -131,58 +135,56 @@ struct NativeReportCollection: View {
                                 .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，第 \(page + 1) 篇，共 \(members.count) 篇", "Show all Super Threads, report \(page + 1) of \(members.count)"))
                                 .disabled(!active || outgoingID != nil)
                                 .glassEffect(.regular.interactive(), in: Capsule())
-                                .popover(isPresented: $showingMembers, arrowEdge: .top) {
-                                    memberPanel
-                                }
                         }
                         Spacer()
-                        HStack(spacing: 12) {
-                            Button { step(-1) } label: {
-                                Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle())
-                            }.accessibilityLabel(applicationText(locale, "上一个 Super Thread", "Previous Super Thread"))
-                                .focused($focusedControl, equals: .previous)
-                                .accessibilityFocused($accessibilityFocusedControl, equals: .previous)
-                            if props.count <= 7 {
-                                HStack(spacing: 7) {
-                                    ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
-                                        Button { select(member.entry.ref, direction: index >= page ? 1 : -1) } label: {
-                                            Capsule().fill(member.entry.ref == selected
-                                                ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                                                .frame(width: member.entry.ref == selected ? 16 : 5, height: 5)
-                                                .frame(minWidth: 16, minHeight: 28).contentShape(Rectangle())
-                                        }.accessibilityLabel(member.entry.title.string)
-                                            .accessibilityAddTraits(member.entry.ref == selected ? .isSelected : [])
-                                            .focused($focusedControl, equals: .member(member.entry.ref))
-                                            .accessibilityFocused($accessibilityFocusedControl, equals: .member(member.entry.ref))
+                        // Native Liquid Glass can draw outside a transparent SwiftUI
+                        // mask. Retire the whole control surface when not hovered,
+                        // including its native hit targets and accessibility children.
+                        if controlsVisible {
+                            HStack(spacing: 12) {
+                                Button { step(-1) } label: {
+                                    Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle())
+                                }.accessibilityLabel(applicationText(locale, "上一个 Super Thread", "Previous Super Thread"))
+                                    .focused($focusedControl, equals: .previous)
+                                    .accessibilityFocused($accessibilityFocusedControl, equals: .previous)
+                                if props.count <= 7 {
+                                    HStack(spacing: 7) {
+                                        ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
+                                            Button { select(member.entry.ref, direction: index >= page ? 1 : -1) } label: {
+                                                Capsule().fill(member.entry.ref == selected
+                                                    ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                                                    .frame(width: member.entry.ref == selected ? 16 : 5, height: 5)
+                                                    .frame(minWidth: 16, minHeight: 28).contentShape(Rectangle())
+                                            }.accessibilityLabel(member.entry.title.string)
+                                                .accessibilityAddTraits(member.entry.ref == selected ? .isSelected : [])
+                                                .focused($focusedControl, equals: .member(member.entry.ref))
+                                                .accessibilityFocused($accessibilityFocusedControl, equals: .member(member.entry.ref))
+                                        }
                                     }
                                 }
-                            }
-                            Menu {
-                                ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
-                                    Button(member.entry.title.string) { select(member.entry.ref, direction: index >= page ? 1 : -1) }
-                                }
-                            } label: {
-                                // Keep the borderless menu's spacing and disclosure
-                                // while letting the chrome style own all its ink.
-                                HStack(spacing: 4) {
-                                    Text("\(page + 1) / \(members.count)").font(.system(size: 10, weight: .medium)).monospacedDigit()
-                                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
-                                }.padding(.leading, 3).padding(.trailing, 2)
-                            }.menuStyle(.button).fixedSize()
-                                .accessibilityLabel(applicationText(locale, "选择 Super Thread", "Select Super Thread"))
-                                .focused($focusedControl, equals: .menu)
-                                .accessibilityFocused($accessibilityFocusedControl, equals: .menu)
-                            Button { step(1) } label: {
-                                Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle())
-                            }.accessibilityLabel(applicationText(locale, "下一个 Super Thread", "Next Super Thread"))
-                                .focused($focusedControl, equals: .next)
-                                .accessibilityFocused($accessibilityFocusedControl, equals: .next)
-                        }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
-                            // Only pointer hover reveals the entire capsule. Masking
-                            // retains native keyboard/AX controls without a hidden hit target.
-                            .mask { Rectangle().opacity(controlsVisible ? 1 : 0) }
-                            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: controlsVisible)
-                            .allowsHitTesting(controlsVisible)
+                                Menu {
+                                    ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
+                                        Button(member.entry.title.string) { select(member.entry.ref, direction: index >= page ? 1 : -1) }
+                                    }
+                                } label: {
+                                    // Keep the borderless menu's spacing and disclosure
+                                    // while letting the chrome style own all its ink.
+                                    HStack(spacing: 4) {
+                                        Text("\(page + 1) / \(members.count)").font(.system(size: 10, weight: .medium)).monospacedDigit()
+                                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                                    }.padding(.leading, 3).padding(.trailing, 2)
+                                }.menuStyle(.button).fixedSize()
+                                    .accessibilityLabel(applicationText(locale, "选择 Super Thread", "Select Super Thread"))
+                                    .focused($focusedControl, equals: .menu)
+                                    .accessibilityFocused($accessibilityFocusedControl, equals: .menu)
+                                Button { step(1) } label: {
+                                    Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle())
+                                }.accessibilityLabel(applicationText(locale, "下一个 Super Thread", "Next Super Thread"))
+                                    .focused($focusedControl, equals: .next)
+                                    .accessibilityFocused($accessibilityFocusedControl, equals: .next)
+                            }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
+                                .transition(.identity)
+                        }
                     }.foregroundStyle(.primary).padding(14).frame(height: coverHeight)
                 }.zIndex(4)
             }
@@ -193,8 +195,14 @@ struct NativeReportCollection: View {
                     opaque: NativePalette.overview.surface.swiftUI)
             }
         }
+        .background(NativeCollectionPanelAnchor(panelSource))
         .contentShape(RoundedRectangle(cornerRadius: 22))
-        .onHover { hovered = $0 }
+        .onChange(of: props.map(\.entry)) { _, _ in refreshMembers() }
+        .onChange(of: locale) { _, _ in refreshMembers() }
+        .onChange(of: showingMembers) { _, value in
+            if !value { memberPresentation?.dismiss(owner: panelOwner) }
+        }
+        .onHover { hovered = $0 && active && !showingMembers && visibility?.isVisible != false }
         .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { notification in
             // Pause auto-advance for native menu tracking, but never use it to
             // keep the capsule visible after the pointer leaves the card.
@@ -206,7 +214,7 @@ struct NativeReportCollection: View {
             guard let menu = notification.object as? NSMenu else { return }
             trackingMenus.remove(ObjectIdentifier(menu))
         }
-        .onDisappear { hovered = false; showingMembers = false; trackingMenus.removeAll() }
+        .onDisappear { hovered = false; showingMembers = false; memberPresentation?.dismiss(owner: panelOwner); trackingMenus.removeAll() }
         .onAppear { onSelection(selected) }
         .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
         .onChange(of: playing) { _, value in
@@ -250,41 +258,34 @@ struct NativeReportCollection: View {
             } catch { /* Leaving the view or manual input cancels this page's dwell. */ }
         }
     }
-    private var memberPanel: some View {
-        // Popovers size to the available screen rather than the zoomed canvas card.
-        let screen = NSScreen.main?.visibleFrame.size ?? NSSize(width: 800, height: 700)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(applicationText(locale, "全部 Super Thread", "All Super Threads"))
-                    .font(.headline)
-                Spacer()
-                Button { showingMembers = false } label: { Image(systemName: "xmark") }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(applicationText(locale, "关闭", "Close"))
-                    .keyboardShortcut(.cancelAction)
-            }
-            NativeScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280, maximum: 360), spacing: 12)], spacing: 12) {
-                    ForEach(props, id: \.entry.ref) { member in
-                        NativeReportCard(props: member,
-                            projection: .init(previewText: member.entry.view.shortDescription,
-                                              relatedThreadCount: member.entry.view.relatedExecutions.count),
-                            openThread: {
-                                guard showingMembers, active, currentMembers.contains(member.entry.ref) else { return }
-                                showingMembers = false
-                                openThread(member.entry.ref)
-                            }, allowsActions: { showingMembers && active && currentMembers.contains(member.entry.ref) })
-                            .frame(height: member.entry.view.hasCover ? 456 : 144)
-                            .background(NativePalette.overview.surface.swiftUI, in: RoundedRectangle(cornerRadius: 22))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI)
-                            }
-                    }
-                }
-            }
+    private func toggleMembers() {
+        guard let memberPresentation else { return }
+        if showingMembers { memberPresentation.close(owner: panelOwner); return }
+        hovered = false
+        showingMembers = true
+        memberPresentation.present(owner: panelOwner, source: panelSource, content: AnyView(memberPanel)) {
+            hovered = false
+            showingMembers = false
+            focusedControl = .allMembers
+            accessibilityFocusedControl = .allMembers
         }
-        .padding(16)
-        .frame(width: max(300, min(760, screen.width - 40)), height: max(250, min(650, screen.height - 40)))
+    }
+
+    private func refreshMembers() {
+        guard showingMembers else { return }
+        memberPresentation?.update(owner: panelOwner, content: AnyView(memberPanel))
+    }
+
+    private var memberPanel: some View {
+        NativeReportCollectionMembers(props: props, locale: locale,
+            close: { memberPresentation?.close(owner: panelOwner) },
+            allowsActions: { showingMembers && active && memberPresentation?.closing != true && currentMembers.contains($0) },
+            openThread: { reference in
+                guard showingMembers, active, currentMembers.contains(reference), memberPresentation?.closing != true else { return }
+                memberPresentation?.dismiss(owner: panelOwner)
+                openThread(reference)
+            })
+            .environment(\.nativeReportCoverCache, coverCache)
     }
 
     private func settle() {
