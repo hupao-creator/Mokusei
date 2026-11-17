@@ -52,3 +52,13 @@ dispatch measurements with fail-closed judgments. Their reports and gate scope
 are defined in the [performance guide](../../tools/benchmarks/gate/README.md).
 These jobs are separate from `Complete coverage`; workflow presence does not
 configure remote required checks. Signed optical UX suites have no hosted job.
+
+## Product interaction boundaries
+
+[Desktop e2e](../../.github/workflows/e2e.yml) is an independent manual, serial
+hosted workflow for READ and SETTINGS. The [scenario inventory](../../tools/e2e/scenarios.json)
+records the additional operator-assisted Composer boundary; no unattended
+Composer job is configured. Real Runtime/native Codex/UI runs use deterministic
+external model responses, not real provider availability or quality. Evidence
+verification preserves failures and cleanup status; a report for another commit
+does not establish the combined revision's GUI behavior.

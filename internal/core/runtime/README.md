@@ -228,9 +228,9 @@ a deleted session's gate is reclaimed after its final reference is released. His
 History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner.
 
 The [property boundaries](#property-boundaries) define Runtime admission, outbox
-and optional system coverage. No Go-backed Settings interaction replay is
-configured here. The [verification index](../../../docs/facts.md) separates
-implemented contracts, generated domains and actual run evidence.
+and optional system coverage. [E2E observation](#e2e-observation) describes the
+selected mounted Settings/read journeys. The [verification index](../../../docs/facts.md)
+separates implemented contracts, generated domains and actual run evidence.
 
 Automatic installation discovery uses `harness:detect-installation` with one
 Harness ID. Each response is independent and does not refresh the login shell.
@@ -372,3 +372,18 @@ fails instead of skipping. The system scenario has a 90s total execution budget,
 bound generation/shrinking. See the [PBT guide](../../../tools/verification/pbt/README.md)
 for budgets, failure evidence and replay. System coverage requires an actual run;
 its source or successful compilation alone is not a pass.
+
+## E2E observation
+
+The [desktop interaction runner](../../../tools/e2e/README.md) uses authenticated
+`state:load` and scoped content subscriptions as independent observations.
+`E2E-READ-001` supplies an ordinary `thread:follow-up` while a real reader is
+mounted, then checks the successor and historical mounted execution identities.
+The follow-up receipt and exact scoped reply remain evidence; this input is
+external setup, not a composer UI action. `E2E-SETTINGS-001` changes a mounted
+preset control and closes Settings through its production gate before checking
+`settings.moku.routingPreset` and the reopened selection. The runner neither
+reads/writes SQLite directly nor uses private diagnostics. Runtime cancellation,
+restart/reconnect, race and admission invariants are outside these interaction
+scenarios; their ownership is PBT. Actual coverage is the selected scenario's
+run receipt, not the existence of these public commands.

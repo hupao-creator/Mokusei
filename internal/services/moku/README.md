@@ -80,6 +80,8 @@ unproven remote completeness remains false. Configuration identity fences reuse,
 and actual creation validates native options again. This does not attest remote
 source completeness or current execution availability.
 
+See [native catalog evidence and limits](catalog-evidence.md).
+
 Every new execution crosses Runtime's common `admitMokuExecution` boundary:
 initial Send, renewal after exact unconsumed `ErrExecutionEnded`, and native
 Accept. Typed and relay submissions share Send. The immutable injection captures
@@ -395,3 +397,16 @@ Native creation schemas and admission still own available model choices.
 settings. The coordinator appends nonempty guidance after the base prompt with the
 `Model routing guidance:` prefix. Explicit user Harness/model/thinking choices
 still take precedence through the creation/follow-up tool contracts.
+
+## E2E preparation
+
+The [desktop interaction runner](../../../tools/e2e/README.md) prepares
+`E2E-READ-001` by submitting through public `moku:submit`. A deterministic
+loopback Responses peer requests the real injected `create_thread` tool through
+the real Codex CLI. A fresh profile and usable native model/default directory
+are prerequisites; Report/Tag and other Harnesses are disabled through public
+settings. Tool admission alone does not establish completion: preparation waits
+for the public terminal execution and checks exact output through a scoped
+content subscription. `creation.json`, `initial-content.json` and
+`initial-oracle.json` retain these facts. This is setup for UI interaction,
+not a Moku property suite or evidence of real provider/model behavior.

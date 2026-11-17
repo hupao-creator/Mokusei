@@ -84,3 +84,25 @@ current `collected` membership. Time eligibility alone does not establish two
 eligible members in the same browsing view. During
 reading travel the retained collection can temporarily differ from live
 eligibility. These observations neither create opens nor migrate unknown history.
+
+## E2E contract
+
+[`E2E-READ-001`](../../../../../tools/e2e/README.md) uses these real navigation
+callbacks and mounted reading registrations. Preconditions are an isolated
+connected workspace, a completed Codex Thread prepared through public Moku
+input, a private automation socket and an exclusively scheduled desktop.
+The runner opens the Overview target, observes its ready nonempty `turn`,
+supplies a public Runtime follow-up, observes the mounted successor, activates
+the initial `history.open` handle, then uses Back and Overview. Each selected
+execution must match the corresponding public scoped output identity. Required
+evidence is `ui-initial/current/history/return/overview.json` plus the public
+content and UI request/response transcript.
+
+This checks navigation, resource acquisition and mounted semantic content. It
+cannot establish pixel appearance, text geometry, pointer hit regions, keyboard
+routing, scroll smoothness or composer submission. A successful dispatch is
+insufficient without the settled mounted postcondition. A missing desktop,
+control, content or evidence yields a nonpassing receipt; this doc does not
+certify an unexecuted scenario. The public protocol has no composer send/pause
+operations. [`E2E-COMPOSER-001`](../MokuScene/README.md#e2e-contract) uses
+operator-assisted system input with separate public result oracles.

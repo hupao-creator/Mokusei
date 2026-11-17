@@ -1,0 +1,66 @@
+name: Desktop interaction e2e
+
+"on":
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A dedicated hosted desktop avoids sharing the user's workstation or the
+# benchmark runner. Dispatches queue instead of cancelling an active GUI run.
+concurrency:
+  group: desktop-interaction-e2e
+  cancel-in-progress: false
+
+jobs:
+  interactions:
+    name: Mounted reading and settings
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-go
+        with:
+          cache-scope: e2e
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the explicit native engine
+        run: |
+          npm install --prefix "$RUNNER_TEMP/e2e-native" @openai/codex@0.167.0
+          echo "$RUNNER_TEMP/e2e-native/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Prepare Metal compiler
+        run: |
+          if ! xcrun --sdk macosx metal --version; then
+            python3 scripts/ci/deadline.py xcodebuild -downloadComponent MetalToolchain
+          fi
+      - name: Build current production sources with receipts
+        run: python3 tools/e2e/build.py --with-app
+      - name: Run serial mounted-control journeys
+        run: |
+          python3 tools/e2e/run.py run \
+            --runtime .build/e2e/mokusei-runtime \
+            --app app/macos/.build/debug/Mokusei \
+            --desktop-lease "$RUNNER_TEMP/mokusei-desktop-interaction.lock" \
+            --desktop-owner "github-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --output output/e2e/ci --timeout 240
+      - name: Check evidence and report outcome
+        if: always()
+        run: |
+          if [ -f output/e2e/ci/report.md ]; then
+            cat output/e2e/ci/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          python3 tools/e2e/run.py verify output/e2e/ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interaction-e2e-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: output/e2e/ci/
+          if-no-files-found: error
+          retention-days: 14

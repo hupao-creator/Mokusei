@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "E2E-READ-001",
+      "implementation": "implemented",
+      "title": "Open reader, receive a follow-up, visit history, return",
+      "doc": "app/macos/Sources/Host/Interaction/README.md#e2e-contract",
+      "evidence": [
+        "ui-initial.json",
+        "followup.json",
+        "followup-content.json",
+        "ui-current.json",
+        "ui-history.json",
+        "ui-return.json",
+        "ui-overview.json"
+      ]
+    },
+    {
+      "id": "E2E-SETTINGS-001",
+      "implementation": "implemented",
+      "title": "Change a mounted Moku preference, save, reopen and read it",
+      "doc": "app/macos/Sources/Host/Settings/README.md#e2e-contract",
+      "evidence": [
+        "settings-before.json",
+        "settings-edited.json",
+        "settings-persisted.json",
+        "settings-reopened.json"
+      ]
+    },
+    {
+      "id": "E2E-COMPOSER-001",
+      "implementation": "operator-assisted",
+      "title": "Send through the composer and stop its current execution",
+      "doc": "app/macos/Sources/Host/MokuScene/README.md#e2e-contract",
+      "evidence": [
+        "operator-bundle.json",
+        "operator-send.json",
+        "operator-stop.json",
+        "composer-send-content.json",
+        "composer-send-oracle.json",
+        "composer-send-ui.json",
+        "composer-running.json",
+        "composer-stopped.json",
+        "composer-stop-content.json",
+        "composer-stop-ui.json"
+      ]
+    }
+  ]
+}

@@ -8,8 +8,8 @@
 AsciiDoc、README、文本运行说明/生产 prompt、证据文本及 LICENSE，包含隐藏 `.agents/`
 和 `CLAUDE.md` 符号链接：共 **197** 个范围标识，其中 **190** 项自有/适用文档、
 **7** 项第三方原文/生成数据。范围标识数量不是当前文件数量。
-当前树有 **140** 个文档候选：下表 **133** 项自有/适用入口，另列 **7** 项第三方输入；
-其中 **13** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
+当前树有 **141** 个文档候选：下表 **134** 项自有/适用入口，另列 **7** 项第三方输入；
+其中 **14** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
 逐项映射到当前事实所有者；日志接口类标识明确映射到现有能力边界，不声明日志实现。
 
 第三方依赖源码、SwiftPM/Go 缓存、构建输出、图片/字体二进制、JSON/CSV 原始采样和
@@ -127,6 +127,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [tools/benchmarks/baselines/2026-11-13.md](../tools/benchmarks/baselines/2026-11-13.md) | 测量制品/来源/限制核对；[2026-11-13.json](../tools/benchmarks/baselines/2026-11-13.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [tools/benchmarks/baselines/2026-11-14-emoji-badge-glass.md](../tools/benchmarks/baselines/2026-11-14-emoji-badge-glass.md) | 测量制品/来源/限制核对；[2026-11-14-emoji-badge-glass.json](../tools/benchmarks/baselines/2026-11-14-emoji-badge-glass.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [tools/benchmarks/reading/README.md](../tools/benchmarks/reading/README.md) | CLI/采集口径静态核对；[__init__.py](../tools/benchmarks/reading/__init__.py)、[analysis.py](../tools/benchmarks/reading/analysis.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
+| [tools/e2e/README.md](../tools/e2e/README.md) | 真实交互/证据/退出码静态核对；[scenarios.json](../tools/e2e/scenarios.json)、[run.py](../tools/e2e/run.py)、[e2e.yml](../.github/workflows/e2e.yml) | READ/SETTINGS 自动语义驱动，COMPOSER 人工系统 AX 辅助；真实 native CLI 与 deterministic peer；制品校验不认证组合版本 GUI 已运行 |
 | [tools/native-interaction/README.md](../tools/native-interaction/README.md) | CLI/采集口径静态核对；[client.py](../tools/native-interaction/client.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/verification/README.md](../tools/verification/README.md) | CLI/采集口径静态核对；[native_replay.py](../tools/verification/native_replay.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/verification/moku-note-performance/README.md](../tools/verification/moku-note-performance/README.md) | CLI/采集口径静态核对；[provenance.json](../tools/verification/moku-note-performance/evidence/provenance.json)、[diagnostic-counts.json](../tools/verification/moku-note-performance/evidence/diagnostic-counts.json)、[interaction.json](../tools/verification/moku-note-performance/evidence/interaction.json) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |

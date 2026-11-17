@@ -79,8 +79,8 @@ as other selects in Settings and onboarding, including compact role panels.
 Harness catalog, default and dependent-choice mapping remain at their callers.
 Embedded Thread editors retain their capsule/popover presentation.
 
-Mounted semantic controls invoke the production callbacks; no Settings-control
-replay suite is configured in this source tree.
+Mounted semantic controls invoke production callbacks. The [Settings e2e
+contract](#e2e-contract) covers its selected preset/save/reopen journey.
 
 [NativeSettingsNavigation](NativeSettingsNavigation.swift) shares section selection
 and the close gate between page controls and [semantic workspace actions](../Interaction/README.md).
@@ -98,8 +98,7 @@ panel rather than SwiftUI's overflow-dependent scroller proposal, keeping its
 padding keeps controls clear of the native gutter. The title and subtitle wrap
 to their natural height in narrow windows and either language; they remain part
 of the scrolling content.
-Unavailable selections, including archive and plugin management
-sections, fall back to General and normalize when the available sections change or the page mounts.
+Unavailable selections fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
 The expanded surface and page retain their fixed dark appearance in light,
@@ -130,7 +129,7 @@ pending intervention takes its ordinary priority over a retained Note/composer.
 `NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
 page lays out at its final size; closing fades its ink before panel contraction. Reversals fence obsolete completions. Resize, inactivity and
 explicit settling retire the current animation without leaving the modal gate
-stuck. Opening and return both report transitioning to semantic callers. No Settings screenshot assertion runner is configured here.
+stuck. Opening and return both report transitioning to semantic callers.
 
 The application menu and Cmd+, are enabled only for a loaded Overview. Direct
 presentation and semantic requests enforce the same boundary; reading, Moku
@@ -277,8 +276,8 @@ draft semantics, retain keyboard/accessibility selection, and localize through
 composition and close-flush behavior. Runtime injects routing priorities without fixed model mappings or candidate
 groups; native creation admission still owns availability. See
 [model routing policy](../../../../../internal/services/moku/README.md#model-routing-preferences).
-No mounted routing-preferences test suite is configured in this source tree. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
-Settings exposes no plugin enablement or service-restart instructions.
+A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
+Settings does not expose plugin enablement or service-restart instructions.
 
 The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
 same Moku coordination map with an in-memory settings model. Its `.compact`
@@ -291,11 +290,11 @@ path while Moku or any ordinary Agent Thread is busy, including pending input
 and waiting interactions. Other settings remain editable. The selected Harness
 inherits the existing note when the idle replacement is applied.
 
-No Go-backed Settings flow, settings-shell or Swift-capacity replay is
-configured in this source tree. Resource readiness, four-read client admission,
-command headroom, persistence and cancellation above are production contracts.
-The interactive [Settings demo](../../../../../demos/settings-navigation/README.md)
-uses fixtures and cannot establish Runtime persistence.
+The [Settings e2e contract](#e2e-contract) exercises a mounted preset save,
+close and reopen against the real Runtime. It does not certify four-Harness cold
+capacity, arbitrary resource discovery or every Settings/IME combination. The
+[Settings demo](../../../../../demos/settings-navigation/README.md) uses fixtures
+and cannot establish Runtime persistence.
 
 Automatic installation checks request each Harness independently. A completed
 row becomes usable while slower rows remain checking; an available Moku host's
@@ -338,9 +337,8 @@ expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
-The Report settings section is named **Super Thread Agent**. Its existing
-`report.settings` identity, inherited/independent choices and enabled state are
-unchanged; reopening Settings requires no preference migration.
+The **Super Thread Agent** section uses the `report.settings` identity and
+provides inherited/independent choices and an enabled state.
 
 All Harness advanced-options headers retain the native disclosure, with a
 full-width label and 32-point minimum hit height. Title, chevron and trailing space toggle the same
@@ -354,3 +352,22 @@ preserved but cannot establish a close. Appearance, locale, selection and
 onboarding writes preserve both dictionaries. This is reading state rather than
 a configurable setting; collection membership and carousel selection are not
 written to disk. See the [reading contract](../Overview/README.md#viewed-application-collections).
+
+## E2E contract
+
+[`E2E-SETTINGS-001`](../../../../../tools/e2e/README.md) operates the actual
+`moku.routingPreset.economy|balanced|performance|custom` mounted action controls.
+The fresh connected profile uses real Runtime and Codex discovery. From Overview,
+the runner opens Settings/Moku, activates an unselected Economy or Performance
+capsule using its observed handle, and observes its selected value after refresh.
+It closes through the normal save gate, checks the exact saved preset through
+public `state:load`, then reopens and observes the same selection. The four
+`settings-before/edited/persisted/reopened.json` artifacts and UI/API transcripts
+retain the criterion inputs.
+
+The scenario covers one preset's binding, draft, save, transport, persistence
+and reopened display. It does not cover IME, custom text, shortcut/pointer input,
+conflict/error recovery, other preferences or model-selection effectiveness.
+Mounted-control automation invokes the production callback, not a JSON mutation.
+Run receipts establish measured status; a source-level scenario definition or
+successful non-GUI preparation does not establish a desktop pass.

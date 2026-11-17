@@ -691,3 +691,38 @@ focus work. Escape retains the report's auxiliary Back or normal close; IME,
 completions and covering routes keep their existing precedence. Overview and
 exact-execution drafts retain their existing storage identities. No associated
 Agent receives unselected input.
+
+
+## E2E contract
+
+[`E2E-COMPOSER-001`](../../../../../tools/e2e/README.md#composer-system-input-boundary)
+uses real system text input and the mounted `moku-send` / `moku-stop` controls in
+an isolated ordinary Agent Thread. The operator observes the selected Thread,
+typed draft, Send, consumed draft and visible completed reply. A second typed
+input holds the real Codex execution at the external model-service boundary;
+its empty composer must expose Stop in the same reader visit. Clicking Stop
+interrupts that exact execution, removes the Stop action and leaves the editor
+usable. This is cancellation, with no pause/resume contract.
+
+The Dock retains its selected Thread as an observable snapshot, refreshed by
+normal catalog/presence events. Its running/finished action seat therefore updates
+without requiring a route change; unrelated indexed catalog reads remain quiet.
+The current Thread's empty input shows Stop while active, and nonempty input
+shows Send in that same seat. Existing source/draft ownership and exact-execution
+admission still govern the action.
+
+Preconditions are an exclusively scheduled desktop, current checked production
+artifacts, a unique test App/profile, real native Codex discovery and a system
+input operator with Accessibility access. The runner checks exact persisted user
+prompts, completed output, mounted execution identity and `interrupted` public
+state; `operator-send/stop.json` records actual AX observations and confirmation
+of the clicks. Those receipts are operator attestations, not unattended AX
+capture. Missing receipts or controls cannot pass. Report/source/manifest and
+cleanup records bind every attempt to its implementation and retained evidence.
+
+This scenario is operator-assisted and is not run by the hosted workflow. It
+covers ordinary current-Thread text submission and cancellation only. It does
+not certify IME, attachments, historical forks, Report input, Moku-wide cancel,
+uncertain receipts, restart recovery or real external-provider behavior. Runtime
+invariants remain PBT's responsibility; latency and animation quality belong to
+benchmarks. A scenario definition is not evidence that a particular commit ran.

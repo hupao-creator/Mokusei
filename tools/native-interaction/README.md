@@ -174,3 +174,11 @@ for measurement; it does not write preference/database/session files.
 The Overview benchmark entry also requests a fixed 1280 × 820 initial window
 and disables scene restoration for that explicit scenario. This removes saved
 window geometry as a startup variable; the OS bounds remain externally verified.
+
+## Interaction verification
+
+The [e2e runner](../e2e/README.md) records real mounted-control requests and
+postconditions for `E2E-READ-001` and `E2E-SETTINGS-001`, with separate public
+Runtime outcome evidence. Scenario definitions do not imply a passing run.
+No composer send/pause operation is exposed; HTTP follow-up and interrupt
+commands do not establish composer interaction coverage.

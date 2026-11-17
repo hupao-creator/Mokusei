@@ -23,7 +23,7 @@ specific concern. `make check` combines routine checks; do not run an equivalent
 local full suite merely to repeat required hosted validation.
 
 `make pbt-native-state` requires a graphical macOS session and checks mounted
-state convergence. `make pbt-system` additionally requires an installed native
+state convergence. `make pbt-system` is headless and requires macOS, an installed native
 Codex CLI and loopback/sandbox capability; it checks generated provider faults
 and durable cross-component effects. These are opt-in because their required
 environment is not supplied by routine CI. Missing capability fails, not skips.
@@ -50,3 +50,10 @@ measurement validity and result. `blocked`, `skipped`, unrun and another
 revision's results are not passes. Calibration establishes measurement
 capability, not product correctness. Independent adversarial review checks
 source/doc/evidence consistency, and findings require resolution and recheck.
+
+The [product e2e runner](../../tools/e2e/README.md) implements mounted READ and
+SETTINGS journeys plus an explicitly operator-assisted system-input Composer
+journey. Its independent manual hosted workflow excludes Composer. A deterministic
+external peer is not real-model/network coverage; offline artifact verification
+does not rerun the product. During signed UX sampling, defer heavy builds and
+property runs through the shared desktop/resource lease without stealing it.

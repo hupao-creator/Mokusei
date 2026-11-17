@@ -20,6 +20,7 @@ public final class NativeWorkspacePresentation {
     public let draft: NativeComposerDraft
     public private(set) var dockDraft: NativeComposerDraft
     public private(set) var dockThreadID: JSONText?
+    public private(set) var dockThread: HarnessThread?
     public private(set) var reportExecution: ApplicationExecutionRef?
     public private(set) var agentInputTarget: ThreadConversationInputTarget?
     @ObservationIgnored private var agentInputOwner: UUID?
@@ -421,8 +422,6 @@ public final class NativeWorkspacePresentation {
         await mokuSubmission.didConsumeDraft(input: submission.input, source: source)
     }
 
-    public var dockThread: HarnessThread? { dockThreadID.flatMap(workspace.catalog.thread) }
-
     /// A selected execution keeps the existing direct Agent route. The report
     /// document/list uses Moku, with a captured document identity on every send.
     public var mokuSuperThreadID: JSONText? {
@@ -563,6 +562,10 @@ public final class NativeWorkspacePresentation {
             return thread
         }
         dockThreadID = thread?.id
+        // The catalog's indexed lookup intentionally does not publish reads.
+        // Retain the selected record as an observed value so a running/stopped
+        // execution updates the action seat without another navigation event.
+        if dockThread != thread { dockThread = thread }
         if sidecardComposer != nil, sidecardComposerThread != thread?.id { clearSidecardComposer() }
         let normalDraft: NativeComposerDraft
         if let reference = dockExecution, let thread, reference.thread.threadID == thread.id {
