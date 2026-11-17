@@ -26,6 +26,61 @@ def exit_code(report):
     return 0
 
 
+def input_evidence_template():
+    return {"backend": "unknown", "tccHost": "unknown",
+            "probe": {"tool": "unknown", "status": "unknown", "artifact": None,
+                      "permissions": {name: "unknown" for name in ("accessibility", "input", "capture")}},
+            "rawAXArtifacts": None, "screenshotArtifacts": None}
+
+
+def operator_input_evidence(value, directory):
+    """Validate operator declarations; permission or TCC identity is never inferred."""
+    result = input_evidence_template()
+    if value is None:
+        return result
+    if not isinstance(value, dict) or set(value) - set(result):
+        raise ValueError("invalid operator input-evidence metadata")
+
+    def retained(name):
+        if not isinstance(name, str) or Path(name).name != name or name in (".", ".."):
+            raise ValueError("input evidence requires a bundle-local filename")
+        path = directory / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("input evidence not archived: " + name)
+        return name
+
+    for key in ("backend", "tccHost"):
+        text = value.get(key, "unknown")
+        if not isinstance(text, str) or not text.strip() or len(text) > 512:
+            raise ValueError("invalid input-evidence " + key)
+        result[key] = text
+    probe = value.get("probe", result["probe"])
+    if not isinstance(probe, dict) or set(probe) - set(result["probe"]):
+        raise ValueError("invalid permission probe metadata")
+    result["probe"].update(probe)
+    if result["probe"]["status"] not in ("unknown", "reported", "recorded"):
+        raise ValueError("unknown permission probe status")
+    tool = result["probe"]["tool"]
+    if not isinstance(tool, str) or not tool.strip() or len(tool) > 512:
+        raise ValueError("invalid permission probe tool")
+    permissions = result["probe"]["permissions"]
+    if not isinstance(permissions, dict) or set(permissions) != {"accessibility", "input", "capture"} or any(
+            type(v) is not bool and v != "unknown" for v in permissions.values()):
+        raise ValueError("invalid permission probe values")
+    artifact = result["probe"]["artifact"]
+    if artifact is not None:
+        retained(artifact)
+    if result["probe"]["status"] == "recorded" and artifact is None:
+        raise ValueError("recorded permission probe lacks its artifact")
+    for key in ("rawAXArtifacts", "screenshotArtifacts"):
+        names = value.get(key)
+        if names is not None:
+            if not isinstance(names, list) or len(names) > 100 or any(not isinstance(n, str) for n in names) or len(names) != len(set(names)):
+                raise ValueError("invalid archived input-artifact inventory")
+            result[key] = [retained(name) for name in names]
+    return result
+
+
 def finish(directory, report):
     report["functionality"] = ("failed" if any(r["functionality"] == "failed" for r in report["scenarios"])
         else "passed" if report["scenarios"] and all(r["status"] == "passed" for r in report["scenarios"]) else "unknown")
@@ -39,6 +94,11 @@ def finish(directory, report):
     for row in report["scenarios"]:
         reason = row.get("reason", "").replace("|", "\\|").replace("\n", " ")
         lines.append(f"| {row['id']} | {row['status']} | {row['functionality']} | {reason} |")
+    lines += ["", "## Input backend and retained evidence", "",
+              "Operator metadata is a declaration, not an automatically recorded AX trace or TCC-host proof.",
+              "Unknown stays unknown. A null raw-artifact inventory is unknown; an empty list declares none archived.",
+              "```json", json.dumps(report.get("inputEvidence", {"mode": "unknown", "operatorStages": {}}),
+                                    ensure_ascii=False, indent=2), "```"]
     lines += ["", f"Source: `{report['source']['commit']}`; dirty: `{report['source']['dirty']}`.",
               "See source.json for exact source hashes, scenario-contract.json for selected IDs,",
               "events.jsonl for phases and cleanup.json for process cleanup.", ""]
@@ -81,6 +141,20 @@ def verify(directory):
                     "native-cli.json", "selection.json", "creation.json", "initial-content.json", "initial-oracle.json"}
         if not required.issubset(files):
             raise ValueError("passing interaction lacks cross-boundary evidence")
+    for stage, metadata in report.get("inputEvidence", {}).get("operatorStages", {}).items():
+        if stage not in ("send", "stop") or metadata.get("receipt") != "operator-" + stage + ".json":
+            raise ValueError("operator metadata has no matching input-stage receipt")
+        if metadata["receipt"] not in files:
+            raise ValueError("operator metadata receipt absent from manifest")
+        normalized = operator_input_evidence({k: v for k, v in metadata.items() if k != "receipt"}, directory)
+        receipt = json.loads((directory / metadata["receipt"]).read_text())
+        if normalized != operator_input_evidence(receipt.get("inputEvidence"), directory):
+            raise ValueError("operator metadata differs from its receipt declaration")
+        referenced = (normalized["rawAXArtifacts"] or []) + (normalized["screenshotArtifacts"] or [])
+        if normalized["probe"]["artifact"] is not None:
+            referenced.append(normalized["probe"]["artifact"])
+        if not set(referenced).issubset(files):
+            raise ValueError("input artifacts absent from manifest")
     code = exit_code(report)
     if code != report["exitCode"]:
         raise ValueError("exit code contradicts report")

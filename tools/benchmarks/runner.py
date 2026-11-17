@@ -155,11 +155,10 @@ def control(tools, directory, mode, capability=None, observation_mode="observed"
 
 
 def calibrate(tools, directory):
+    from lifecycle import desktop_preflight
     directory.mkdir(parents=True, exist_ok=False, mode=0o700)
     reports = {}
-    probe=native(tools/'collector','probe');save(directory/'preflight.json',probe)
-    if not all(probe.get(k) is True for k in ('accessibility','capture','input')):
-        raise RuntimeError('required desktop permissions unavailable; calibration does not request authorization')
+    desktop_preflight(tools, directory)
     for mode in ('normal', 'swiftui', 'frozen', 'wrong', 'delay', 'stall', 'children'):
         print('Collector control: '+mode, flush=True)
         reports[mode] = control(tools, directory/mode, mode)
@@ -323,13 +322,11 @@ def startup(application, tools, directory, count, mode, seconds):
 def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capability_dir=None,
               pacing=DEFAULT_PACING, chunk_bytes=64, message_bytes=512,
               emoji_badge=None, warmup_seconds=1.0, window_bounds=None):
-    from lifecycle import Application
+    from lifecycle import Application, desktop_preflight
     from adapter import wait_for
     from workload import schedule
     directory.mkdir(parents=True,mode=0o700,exist_ok=False)
-    host=native(tools/'collector','probe');save(directory/'preflight.json',host)
-    if not all(host.get(k) is True for k in ('accessibility','input')+(('capture',) if mode=='observed' else ())):
-        raise RuntimeError('required desktop permissions unavailable; preflight does not request authorization')
+    desktop_preflight(tools, directory, observed=mode=='observed')
     capability = None
     if capability_dir:
         capability = json.loads((capability_dir/'capabilities.json').read_text())

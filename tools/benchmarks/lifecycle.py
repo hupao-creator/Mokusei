@@ -35,6 +35,28 @@ def native(helper, *arguments):
     return json.loads(result.stdout)
 
 
+class DesktopUnavailable(RuntimeError):
+    """No owned GUI process has started when this capability check fails."""
+
+
+def desktop_preflight(tools, directory, observed=True):
+    lease = Path('/private/tmp/mokusei-ui-verification.lock/owner.json')
+    save(directory / "desktop-lease.json", json.loads(lease.read_text()))
+    host = native(tools / "collector", "probe")
+    host["collectorSHA256"] = sha256(tools / "collector")
+    host["toolBuild"] = json.loads((tools / "build.json").read_text())
+    save(directory / "preflight.json", host)
+    required = ("accessibility", "input", "capture") if observed else ("accessibility", "input")
+    missing = [name for name in required if host.get(name) is not True]
+    if missing:
+        reason = "desktop permissions unavailable: " + ", ".join(missing)
+        save(directory / "blocked.json", {"schemaVersion": 1, "status": "blocked", "validity": "unsupported",
+             "decision": "not-evaluated", "exitCode": 2, "reasons": [reason], "missing": missing,
+             "ownedGUIProcessesStarted": False, "authorizationRequested": False})
+        raise DesktopUnavailable(reason)
+    return host
+
+
 class Application:
     def __init__(self, bundle, directory, count, helper, provider_factory=Provider, emoji_badge=None, window_bounds=None):
         self.bundle, self.root, self.count, self.helper = bundle.resolve(), directory, count, helper

@@ -49,6 +49,10 @@ visible desktop and exclusive use of the foreground window during each trial.
 The default build/calibration/run path does not launch XCTest, Instruments,
 `sudo`, or an authorization dialog. Read-only permission probes fail before
 fixture launch if the invoking context lacks an existing desktop permission.
+Both calibration and run retain `preflight.json` with the actual collector/build
+identity. Missing permission also writes `blocked.json` and returns exit 2 before
+starting a control or fixture App. No timing or resource value is emitted for
+that attempt.
 The CLI never changes Developer Tools authorization or system security settings.
 No native XCTest hitch collector is configured. Reports retain native hitches
 as unavailable; optical progress/stall estimates are not native frame-hitch metrics.

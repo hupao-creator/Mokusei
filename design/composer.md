@@ -2,8 +2,12 @@
 
 The [MokuScene guide](../app/macos/Sources/Host/MokuScene/README.md) owns Dock,
 Talk, Note, input and draft behavior. [Core](../app/macos/Sources/Core/README.md)
-owns durable receipt and attachment handoff. No interaction e2e gate is configured
-in this source tree; demo fixtures do not establish Runtime delivery.
+owns durable receipt and attachment handoff.
+[E2E-COMPOSER-001](../tools/e2e/README.md#composer-system-input-boundary) uses
+operator-assisted system Accessibility input with independent public persisted
+results; it is excluded from unattended hosted CI. READ/SETTINGS use automated
+semantic controls. These scenarios do not cover IME, historical forks or uncertain
+receipt recovery; demo fixtures do not establish Runtime delivery.
 
 ## Route, input and focus
 

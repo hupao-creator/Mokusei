@@ -23,10 +23,12 @@ replaces failed evidence. No production logging or user profile is required.
 
 GUI/input/capture holds the atomic directory `/private/tmp/mokusei-ui-verification.lock`.
 Creation is exclusive; an existing directory blocks and is never reclaimed by a
-runner. `owner.json` records `thread_id`, PID and an ownership token; set
+runner. `owner.json` records `thread_id`/`threadId`, `pid`, UTC `start` and an ownership token; set
 `MOKUSEI_VERIFICATION_THREAD_ID` to the coordinating thread identity. Performance
 also retains the NativeReplay flock. Only a direct child with the exact owner
-token may inherit a lease. Cleanup removes only the caller's own owner record.
+token may inherit a lease. SIGINT/SIGTERM unwind owned process cleanup before
+releasing the desktop; SIGKILL/host failure cannot promise cleanup. Cleanup
+removes only the caller's own owner record.
 
 ## Report envelope
 
@@ -40,15 +42,17 @@ never fabricate completion of a phase. Upload receipts belong to CI.
 | --- | --- | --- | --- | --- |
 | All required observations and oracles pass | passed | valid | passed | 0 |
 | Established performance regression | failed | valid | regressed | 1 |
-| Established functional/property failure | failed | valid | failed | 1 |
+| Functional observation did not pass | blocked | invalid | not-evaluated | 2 |
 | Bad evidence / failed cleanup | blocked | invalid | not-evaluated | 2 |
 | Missing case/sample/metric/evidence | blocked | incomplete | not-evaluated | 2 |
 | Capability unavailable | blocked | unsupported | not-evaluated | 2 |
 | Identity/configuration mismatch | blocked | valid | not-comparable | 2 |
 | Too noisy or uncertain to decide | blocked | valid | inconclusive | 2 |
 
-Blocked dominates aggregate success or failure; retain individual established
-failures. No skipped, uncollected, cancelled or unknown result counts as passed.
+The performance runner requires passing functional observations before comparing
+performance. It does not emit a property-failure classification; PBT retains its
+own summary contract. Blocked dominates aggregate performance judgment; retain
+individual observed failures. No skipped, uncollected, cancelled or unknown result counts as passed.
 All statuses are explicit strings, never inferred from an empty list. A wrapper
 may map unexpected failures to exit 2; CLI syntax errors also exit 2.
 

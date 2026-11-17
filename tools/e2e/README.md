@@ -183,6 +183,22 @@ automatically collected AX transcript or screenshot. The runner never creates
 these receipts. Operator mistakes and fabricated attestations cannot be excluded
 by a hash manifest; the public oracles are independent checks, not author authentication.
 
+Each request includes `inputEvidenceTemplate`. An operator may copy it to the
+receipt's optional `inputEvidence` field and record the actual backend name,
+TCC host when known, and permission probe tool/status/permissions/artifact.
+Probe status is `unknown`, `reported` or `recorded`; `recorded` requires its
+bundle-local artifact. Missing values remain `unknown`, not inferred from CUA,
+another probe or a successful click. These are operator declarations.
+
+`rawAXArtifacts` and `screenshotArtifacts` are null when archival status is
+unknown, empty lists when explicitly not archived, or bundle-local filename
+lists when retained. Named files must exist and be present in the manifest.
+The report's `inputEvidence.operatorStages` keeps each validated stage's metadata
+and receipt separately. A tool-return screenshot or manually summarized AX
+observation is not automatically a raw archived recording; Runtime result
+artifacts remain independent. Exact per-run probe results and input backends
+belong to that report, not a permanent host-capability claim in this guide.
+
 The Send criterion includes an exact persisted prompt, a new execution, exact
 completed reply, mounted result and observed empty draft. The second input holds
 the real native engine at an unfinished external Responses stream. Stop must be

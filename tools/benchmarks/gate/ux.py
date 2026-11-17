@@ -10,12 +10,13 @@ from pathlib import Path
 import plistlib
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 import uuid
 
 from .engine import digest, identity, read, reference, require, sha, write
-from .runner import BENCHMARKS, command, observe, phase, remaining, source_hash, store_observation
+from .runner import BENCHMARKS, command, observe, phase, remaining, source_hash, store_observation, utc
 
 
 def artifact(app, revision):
@@ -48,12 +49,18 @@ def ui_lease():
     directory.mkdir()
     token = uuid.uuid4().hex
     previous = os.environ.get('MOKUSEI_UI_LEASE_TOKEN')
+    previous_term = signal.getsignal(signal.SIGTERM)
+    def interrupt(signum, frame):
+        # Let subprocess/context-manager cleanup run before releasing the desktop.
+        raise KeyboardInterrupt('desktop lease interrupted')
     try:
-        write(owner, {'thread_id': os.environ.get('MOKUSEI_VERIFICATION_THREAD_ID', 'performance-regression-gates'),
-                      'pid': os.getpid(), 'token': token})
+        thread = os.environ.get('MOKUSEI_VERIFICATION_THREAD_ID', os.environ.get('CODEX_THREAD_ID', 'performance-regression-gates'))
+        write(owner, {'thread_id': thread, 'threadId': thread, 'pid': os.getpid(), 'start': utc(), 'token': token})
+        signal.signal(signal.SIGTERM, interrupt)
         os.environ['MOKUSEI_UI_LEASE_TOKEN'] = token
         yield
     finally:
+        signal.signal(signal.SIGTERM, previous_term)
         if previous is None:
             os.environ.pop('MOKUSEI_UI_LEASE_TOKEN', None)
         else:
@@ -174,6 +181,8 @@ def execute(output, campaign, suite, deadline, options):
     family = workload['family']
     phase(campaign, 'execute')
     with native_lease(), tempfile.TemporaryDirectory(prefix='mokusei-ux-private-') as temporary:
+        from lifecycle import desktop_preflight
+        desktop_preflight(tools, output)
         private = Path(temporary)
         for pair in range(suite['pairCount']):
             order = 'AB' if pair % 2 == 0 else 'BA'

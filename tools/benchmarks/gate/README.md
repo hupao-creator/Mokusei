@@ -127,3 +127,8 @@ status in `verification.json`; it does not measure product performance or
 calibrate thresholds. Native optical UX and foreground Overview judgments require
 their own valid signed/captured campaigns. Noise or uncertainty in an A/A campaign
 blocks judgment just as it does in an A/B campaign.
+
+All optical entrypoints perform no-prompt preflight before any control/fixture
+App is created. Missing collector Accessibility/input/capture permissions produce
+unsupported/2 with raw receipts, not a product performance judgment. Desktop
+contention refuses entry; normal SIGTERM unwinds the caller's lease cleanup.

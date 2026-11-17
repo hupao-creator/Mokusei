@@ -54,8 +54,9 @@ Before registration, supply an isolated, disposable machine for **each job**:
 - Replenish capacity for every job selected by the current workflows.
   One ephemeral registration can execute only one job, not a whole workflow. On each
   physical Mac, the provisioner serializes guests/listeners across production
-  builds and Overview performance runs. No extended CLI matrix or native
-  assertion suite is configured in the current workflow.
+  builds, routine generated geometry PBT and Overview performance runs. Mounted-state
+  and native system PBT are opt-in commands, outside the routine workflow; no
+  extended native assertion matrix is implied.
 - Keep provisioning credentials outside the guest and logs. Fetch short-lived
   registration tokens only at registration, never into repository files or shell
   history; disable shell tracing. Do not print `.credentials*`, `.env`, tokens or

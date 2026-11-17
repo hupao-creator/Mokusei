@@ -116,7 +116,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [tools/benchmarks/BOUNDARY_CONTRACT.md](../tools/benchmarks/BOUNDARY_CONTRACT.md) | 性能执行/报告边界静态核对；[performance.py](../tools/benchmarks/performance.py) | 仅性能 runner 实现该 envelope；PBT 有独立 summary，不推断 e2e 兼容 |
 | [tools/benchmarks/gate/README.md](../tools/benchmarks/gate/README.md) | 预算/配对/退出码静态核对；[engine.py](../tools/benchmarks/gate/engine.py) | 暂定未实机校准；CLI 判定机通过不等于产品性能通过 |
 | [tools/benchmarks/gate/SPEC.md](../tools/benchmarks/gate/SPEC.md) | 当前架构与证据边界静态核对；[runner.py](../tools/benchmarks/gate/runner.py) | 不认证 GUI、真实账户、FPS、能耗或完整任务资源 |
-| [tools/benchmarks/gate/UX.md](../tools/benchmarks/gate/UX.md) | 实际场景清单与窄采集范围静态核对；[catalog.json](../tools/benchmarks/gate/catalog.json) | signed GUI 矩阵须有独立实测；物理 FPS/能耗/pinch 缺口不记为通过 |
+| [tools/benchmarks/gate/UX.md](../tools/benchmarks/gate/UX.md) | 实际场景清单与窄采集范围静态核对；[catalog.json](../tools/benchmarks/gate/catalog.json) | signed GUI 矩阵须有独立实测，collector 权限缺失在启动前返回 unsupported/2；物理 FPS/能耗/pinch 缺口不记为通过 |
 | [tools/benchmarks/README.md](../tools/benchmarks/README.md) | CLI/采集口径静态核对；[adapter.py](../tools/benchmarks/adapter.py)、[badge_comparison.py](../tools/benchmarks/badge_comparison.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/benchmarks/REFERENCES.md](../tools/benchmarks/REFERENCES.md) | CLI/采集口径静态核对；[adapter.py](../tools/benchmarks/adapter.py)、[badge_comparison.py](../tools/benchmarks/badge_comparison.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/benchmarks/baselines/2026-11-13-combined-rendering.md](../tools/benchmarks/baselines/2026-11-13-combined-rendering.md) | 测量制品/来源/限制核对；[2026-11-13-combined-rendering.json](../tools/benchmarks/baselines/2026-11-13-combined-rendering.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |

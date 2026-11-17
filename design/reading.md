@@ -3,8 +3,11 @@
 The [native package guide](../app/macos/README.md) defines reader policy across
 Codex, Claude, Pi and OpenCode. The [WindowNavigation guide](../app/macos/Sources/Host/WindowNavigation/README.md)
 owns route and return admission; [PluginUI](../app/macos/Sources/Shared/PluginUI/README.md)
-owns shared reading components. These are source-backed contracts; no mounted
-correctness replay is configured in this source tree.
+owns shared reading components. [E2E-READ-001](../tools/e2e/README.md#current-scenario-contract)
+automates mounted reader/successor/history/return semantics on the declared Codex
+boundary. It does not certify exact pixels, every reader/loader or physical input.
+IME, historical-fork input and uncertain-receipt recovery remain outside these
+scenarios. Actual runs and their fixed revisions are separate evidence.
 
 ## Content and execution identity
 

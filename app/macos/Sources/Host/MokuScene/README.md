@@ -36,7 +36,7 @@ adapts to narrow windows using the existing shared contract.
 
 Entering history from Note keeps the existing Note-dismissal behavior. History
 covers the outside Dock and owns its existing current-session composer. Note
-layout/closing motion, scrollbar policy and Agent composer motion are independent of this migration.
+layout/closing motion, scrollbar policy and Agent composer motion are independently owned.
 
 ## Dock and composer
 
@@ -229,9 +229,8 @@ The public Harness foreground still supplies
 [MokuReasoningContent](../Moku/MokuReasoningContent.swift), identified by Thread,
 Harness, execution and foreground sequence with its UTF-16 source offset.
 Assistant/tool foreground changes, terminal states and disconnects retire that
-live projection as before. The Arc model, painter and layout remain available
-for a future presentation change, but the Dock does not admit or paint their
-text. Ordinary Agent Thread trace rendering and Moku's history reader are
+live projection. The Arc model, painter and layout exist; the Dock does not
+admit or paint their text. Ordinary Agent Thread trace rendering and Moku's history reader are
 unchanged; this is a Dock presentation policy, not a data/schema change.
 
 ## Talk, dispatch and notes

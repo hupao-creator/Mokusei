@@ -172,8 +172,7 @@ composer growth does not change the layout viewport. See the
 [current contract](../../../../../design/composer.md)
 for the implemented camera contract.
 
-The 1x grid cell is 414pt wide and 253pt high, a 15% increase in each logical
-dimension from 360×220pt, with the same 16pt gap. Two-row cards are therefore
+The 1x grid cell is 414pt wide and 253pt high, with a 16pt gap. Two-row cards are
 522pt high; two-column cards are 844pt wide. Footprints retain their column/row
 semantics, including Agent Threads, individual Reports and Super Thread collections.
 Packing, rendered card bounds, transitions and attention visibility all use

@@ -95,7 +95,9 @@ def run(args):
     save(output / "source.json", source)
     rows = [{"id": s["id"], "status": "not-run", "functionality": "unknown", "reason": "not reached"} for s in specs]
     report = {"version": 1, "source": source, "validity": "incomplete", "scenarios": rows,
-              "startedAt": time.time(), "suite": args.suite, "deadlineSeconds": args.timeout}
+              "startedAt": time.time(), "suite": args.suite, "deadlineSeconds": args.timeout,
+              "inputEvidence": {"mode": "operator-assisted-system-input" if args.operator_composer else "mounted-semantic-controls",
+                                "operatorStages": {}}}
     session = None
     desktop = None
     lease = None
@@ -196,7 +198,8 @@ def run(args):
             def composer():
                 if not args.operator_composer:
                     raise Blocked("requires --operator-composer and actual external system-input receipts; no unattended input driver")
-                operator_input.composer(session, desktop, thread, (thread_state, completed, read_turn, content, wait_for))
+                operator_input.composer(session, desktop, thread, (thread_state, completed, read_turn, content, wait_for),
+                                        report["inputEvidence"]["operatorStages"])
             execute("E2E-COMPOSER-001", composer)
 
     except BaseException as error:

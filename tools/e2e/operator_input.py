@@ -8,7 +8,7 @@ import plistlib
 import shutil
 
 from lifecycle import Blocked
-from report import save, sha256
+from report import input_evidence_template, operator_input_evidence, save, sha256
 
 
 def bundle(app, session):
@@ -31,7 +31,7 @@ def bundle(app, session):
     return executable
 
 
-def composer(session, desktop, thread, helpers):
+def composer(session, desktop, thread, helpers, evidence):
     state, completed, read_turn, content, wait_for = helpers
     out = session.output
     before = state(session, thread)["observation"]["latestExecution"]["executionId"]
@@ -48,6 +48,8 @@ def composer(session, desktop, thread, helpers):
                 "app": str(session.app.args[0].rsplit("/Contents/", 1)[0])}
 
     def request(stage, **values):
+        if stage in ("send", "stop"):
+            values["inputEvidenceTemplate"] = input_evidence_template()
         save(out / "operator-request.json", {**identity, "stage": stage, **values})
         session.event("operator-input-required", stage=stage, pid=session.app.pid)
 
@@ -61,6 +63,7 @@ def composer(session, desktop, thread, helpers):
             raise Blocked("operator has not confirmed the required real system-input observations")
         if not isinstance(value.get("observations"), str) or not value["observations"].strip():
             raise Blocked("operator AX observation transcript is absent")
+        evidence[stage] = {**operator_input_evidence(value.get("inputEvidence"), out), "receipt": path.name}
         return value
 
     def successor(previous):

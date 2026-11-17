@@ -8,7 +8,7 @@ import uuid
 
 from adapter import Runtime, UI, wait_for
 from analysis.report import seal, write_report
-from lifecycle import Application, native, save, sha256
+from lifecycle import Application, desktop_preflight, native, save, sha256
 from runner import collect, existing_fixture, boundary_outcome
 from reading.corpus import document, active_reply
 from reading.plan import interaction, ENTRY_SCENARIOS
@@ -271,6 +271,7 @@ def run_case(application, tools, directory, scenario, kib, execution_id, mode, c
 
 def run_suite(tools, bundle, directory, body_kib, scenarios, mode, capability_dir=None):
     directory.mkdir(parents=True, exist_ok=False, mode=0o700)
+    desktop_preflight(tools, directory, observed=mode == "observed")
     capability = None
     if capability_dir:
         capability = json.loads((capability_dir / "capabilities.json").read_text())

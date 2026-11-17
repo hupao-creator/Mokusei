@@ -243,9 +243,13 @@ def run(output, catalog_path, suite_id, baseline, candidate, go, configure_displ
             phase(campaign, 'collect')
             campaign.update(validity='valid', cleanup='passed')
     except (Exception, KeyboardInterrupt) as error:
-        campaign.update(validity='invalid', reasons=[type(error).__name__ + ': ' + str(error)])
-        # Adapter context managers have returned, but cleanup success is not
-        # inferred after an exception. The incomplete receipt stays explicit.
+        from lifecycle import DesktopUnavailable
+        unavailable = isinstance(error, DesktopUnavailable)
+        campaign.update(validity='unsupported' if unavailable else 'invalid', reasons=[type(error).__name__ + ': ' + str(error)])
+        if unavailable:
+            campaign['cleanup'] = 'passed'  # Preflight failed before creating any owned GUI process.
+        # Other exceptions can occur after process creation; context unwinding
+        # alone does not certify cleanup for those incomplete attempts.
     finally:
         campaign['evidence'] = [reference(output, p) for p in sorted(output.rglob('*'))
                                 if p.is_file() and p.relative_to(output).as_posix() not in ('campaign.json', 'catalog.json', 'report.json', 'report.md')]

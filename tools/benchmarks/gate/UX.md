@@ -67,6 +67,15 @@ The runner neither clears caches nor reboots or alters system authorization.
 
 ## Capability and scope
 
+Both calibration and signed campaigns check the independent collector's existing
+Accessibility, event-posting and screen-capture permissions before launching any
+control or fixture. `preflight.json` retains the actual host, collector digest and
+build; `desktop-lease.json` retains the owner. Missing permission writes
+`blocked.json` and returns unsupported/2 with zero measurements. Standalone
+reading and Overview commands use the same check. No authorization is requested.
+A separate operator/CUA permission does not establish the timed collector's
+capability and cannot replace its optical/input calibration.
+
 Every signed trial reanalyzes the sealed original observations and calibration
 controls. Pixel control failure, wrong product result, missing source delivery,
 changed artifacts, capture/input gaps, invalid ownership and failed cleanup block.

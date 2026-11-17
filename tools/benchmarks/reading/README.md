@@ -35,6 +35,10 @@ The shared default collector does not start XCTest or its privileged
 performance service. Native hitches remain explicitly unavailable; existing
 Screen Recording/Accessibility/input permissions are still required. No
 administrator prompt or system authorization change is part of a default run.
+Calibration and run check all required permissions before launching any control
+or fixture. Missing capability retains `preflight.json` and `blocked.json`, with
+unsupported status and exit 2. A trusted operator's separate input channel does
+not establish that the timestamped collector has permission or calibration.
 
 ## Workloads and scenarios
 
