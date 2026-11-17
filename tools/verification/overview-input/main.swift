@@ -211,9 +211,6 @@ private struct ReplaySurface: View {
         }.coordinateSpace(name: "replay-canvas")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { replay.viewport = $0 }
-        .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: nil)
-        }
         .modifier(NativeWorkspaceWindowSurface())
         .coordinateSpace(name: "replay")
         .preferredColorScheme(replay.dark ? .dark : .light)

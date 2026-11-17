@@ -1030,3 +1030,8 @@ native owner still runs this case inside `--tag-glass-captures`; the focused fla
 does not replace full CI coverage.
 
 Claude sidebar summary verification observes the same reading interaction collector in ordinary Swift tests and the isolated AppKit launcher. Preview facts are not gated by process flags; without a collector the registration is inert. History-close verification waits for input admission before sending its arrow key.
+
+Native Sidecard and Report navigation fixtures use the current production window
+surface and panel-owned Close. They do not mount the old window-wide Back capsule.
+The Sidecard regression still verifies that its nested scroll views cannot replace
+the main reading viewport, and that native window buttons remain available.

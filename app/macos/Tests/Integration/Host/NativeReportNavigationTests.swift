@@ -120,9 +120,6 @@ private struct ReportNavigationReplay: View {
             .environment(\.nativeWindowContentScale, fixture.scale)
             .scaleEffect(fixture.scale, anchor: .topLeading)
         }
-        .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: nil, hidden: true)
-        }
         .modifier(NativeWorkspaceWindowSurface())
     }
 }

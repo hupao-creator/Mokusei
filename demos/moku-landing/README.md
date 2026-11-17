@@ -1,5 +1,7 @@
 # Moku landing 原生 demo
 
+窗口装饰复用生产 `NativeWorkspaceWindowSurface`，不再额外叠加旧全窗口 Back 胶囊。
+
 [Spec #66](https://github.com/hupao-creator/Mokusei/issues/66) 的原生视觉回放与交互预览。
 复用生产 `NativeMokuScene`、`NativeMokuDock`、原生 composer、Overview Canvas、
 Chrome、Harness 卡片和 SwiftUI 窗口材质。中心态为 680 × 76pt，正文 16pt / 行高24pt；

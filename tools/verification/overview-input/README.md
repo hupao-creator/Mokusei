@@ -95,8 +95,9 @@ mounted identities. Packing tests distinguish a legal repack fallback from a
 certified straight-move order, including search cutoff after a fitting witness.
 
 The production window uses AppKit bridges for its real traffic-light controls
-and window-scoped canvas scroll routing. Window content, the navigation capsule,
-drag and pinch recognition remain SwiftUI.
+and window-scoped canvas scroll routing. Window content, drag and pinch
+recognition remain SwiftUI. This Overview fixture does not inject the old global
+Back capsule; reading panels own their Close control.
 
 The historical transition contract and restoration are documented in
 [Overview card transitions](../../../app/macos/Sources/Host/Overview/README.md).

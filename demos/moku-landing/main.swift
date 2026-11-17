@@ -291,8 +291,8 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         let reduced = NativeComposerCaret()
         reduced.reduceMotion = true
         let origin = CGRect(x: 20, y: 10, width: 1, height: 20)
-        reduced.show(at: origin, color: .textColor, in: input)
-        reduced.show(at: origin.offsetBy(dx: 30, dy: 0), color: .textColor, in: input)
+        reduced.show(at: origin, in: input)
+        reduced.show(at: origin.offsetBy(dx: 30, dy: 0), in: input)
         try require(reduced.layer.animation(forKey: "typing") == nil && reduced.layer.frame.midX == 50.5,
                     "Reduce Motion did not position the production caret immediately")
         try require(reduced.layer.sublayers!.allSatisfy { $0.animation(forKey: "breathing") == nil },

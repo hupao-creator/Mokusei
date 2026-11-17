@@ -63,11 +63,6 @@ struct NativeSidecardNavigationTests {
         return view.subviews.lazy.compactMap { marker(id, in: $0) }.first
     }
 
-    private func backButton(in view: NSView) -> NSButton? {
-        if let button = view as? NSButton, button.toolTip == "Back" { return button }
-        return view.subviews.lazy.compactMap { backButton(in: $0) }.first
-    }
-
     private func settle(_ window: NSWindow) async throws {
         for _ in 0..<35 {
             window.contentView?.layoutSubtreeIfNeeded()
@@ -76,7 +71,7 @@ struct NativeSidecardNavigationTests {
     }
 
     @Test(arguments: [CGFloat(620), 1180])
-    func sidecardAndNestedScrollCannotTakeOverWindowNavigation(width: CGFloat) async throws {
+    func sidecardAndNestedScrollPreserveMainViewportAndNativeControls(width: CGFloat) async throws {
         _ = NSApplication.shared
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -96,9 +91,9 @@ struct NativeSidecardNavigationTests {
             workspace
         }
         .environment(\.nativeReadingNavigation, reading)
-        .overlay {
-            NativeWindowNavigationView(action: .init(label: "Back", onBack: {}), reading: reading)
-        }
+        // Agent reading uses the workspace's own panel Close, not the retired
+        // window-wide Back capsule. Keep only the production window surface.
+        .modifier(NativeWorkspaceWindowSurface())
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width + 180, height: 700),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -127,29 +122,29 @@ struct NativeSidecardNavigationTests {
         let buttons = try [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].map {
             try #require(window.standardWindowButton($0))
         }
-        func expectNavigation(_ position: NativeReadingNavigationState.Viewport.Position, hidden: Bool) {
+        func expectNavigation(_ position: NativeReadingNavigationState.Viewport.Position) {
             #expect(reading.viewport?.source == source)
             #expect(reading.viewport?.position == position)
             #expect(buttons.allSatisfy { !$0.isHidden }) // SwiftUI leaves system window controls visible.
         }
-        expectNavigation(.withinShowThreshold, hidden: false)
+        expectNavigation(.withinShowThreshold)
         for scrollView in [card, nested] {
             try await scroll(scrollView, to: 180)
-            expectNavigation(.withinShowThreshold, hidden: false)
+            expectNavigation(.withinShowThreshold)
         }
         try await scroll(main, to: 180)
-        expectNavigation(.beyondHideThreshold, hidden: true)
-        // A sidecard returning to its top must not reveal chrome hidden by main.
+        expectNavigation(.beyondHideThreshold)
+        // Returning a Sidecard to its top must not replace the main viewport.
         for scrollView in [card, nested] {
             try await scroll(scrollView, to: 0)
-            expectNavigation(.beyondHideThreshold, hidden: true)
+            expectNavigation(.beyondHideThreshold)
         }
         try await scroll(main, to: 60)
-        expectNavigation(.betweenThresholds, hidden: true)
+        expectNavigation(.betweenThresholds)
         try await scroll(main, to: 20)
-        expectNavigation(.withinShowThreshold, hidden: false)
+        expectNavigation(.withinShowThreshold)
         try await scroll(main, to: 60)
-        expectNavigation(.betweenThresholds, hidden: false)
+        expectNavigation(.betweenThresholds)
         await host.releaseAll()
     }
 }
