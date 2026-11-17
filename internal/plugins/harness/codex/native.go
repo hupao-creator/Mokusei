@@ -37,7 +37,6 @@ type NativeSession struct {
 	pending                    map[string]*nativePending
 	emit                       func(Map)
 	activity                   func(Map)
-	nativeAdmit                func(string) (string, error)
 	terminal                   bool
 	bridge                     *ToolBridge
 	completed                  chan struct{}
@@ -52,8 +51,6 @@ type NativeSession struct {
 	toolCancel                 context.CancelFunc
 	toolCalls                  map[string]bool
 	toolWorkers                *sync.WaitGroup
-	nativeBacklog              []Map
-	nativeBacklogBytes         int
 	retiredTurns               map[string]bool
 	retryTimer                 *time.Timer
 	retryCount                 int
@@ -506,9 +503,6 @@ func (n *NativeSession) RespondExecution(ctx context.Context, executionID, id st
 	return nil
 }
 func (n *NativeSession) notification(method string, p Map, wireID any) {
-	if n.routeNativePending(method, p, wireID) {
-		return
-	}
 	if wireID != nil {
 		n.request(method, p, wireID)
 		return
@@ -533,14 +527,12 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		return
 	}
 	if terminal && method == "turn/started" && nativeTurn != "" {
-		if e := n.admitNative(nativeTurn); e != nil {
-			n.protocolFailure(e.Error())
-			return
-		}
-		terminal = false
-		turn = nativeTurn
-		n.drainNativePending(nativeTurn)
+		// Ordinary sends reserve the execution before native dispatch. An
+		// unsolicited turn cannot acquire that authority through notifications.
+		n.protocolFailure("Native Codex turn has no registered owner")
+		return
 	}
+
 	if method == "turn/started" {
 		n.mu.Lock()
 		if !n.terminal && n.turnID == "" {
@@ -1126,44 +1118,6 @@ func (n *NativeSession) completeBackground(item Map) bool {
 	return tracked || completed
 }
 
-func (n *NativeSession) admitNative(turnID string) error {
-	n.mu.Lock()
-	admit := n.nativeAdmit
-	n.mu.Unlock()
-	if admit == nil {
-		return errors.New("Native Codex turn has no registered owner")
-	}
-	executionID, e := admit(turnID)
-	if e != nil {
-		return e
-	}
-	n.mu.Lock()
-	n.executionID = executionID
-	n.turnID = turnID
-	delete(n.retiredTurns, turnID)
-	n.terminal = false
-	n.failure = ""
-	n.reasoning = map[string]string{}
-	n.finals = map[string]string{}
-	n.finalOrder = nil
-	n.outputs = map[string]string{}
-	n.seenUsage = map[string]bool{}
-	n.completed = make(chan struct{})
-	n.toolContext, n.toolCancel = context.WithCancel(context.Background())
-	n.toolCalls = map[string]bool{}
-	n.toolWorkers = &sync.WaitGroup{}
-	n.mu.Unlock()
-	n.server.mu.Lock()
-	closed := n.server.closed
-	failure := n.server.terminalErr
-	n.server.mu.Unlock()
-	if closed {
-		n.failed(failure)
-		return failure
-	}
-	return nil
-}
-
 func (n *NativeSession) validateSettings(ctx context.Context, o *NativeOptions) error {
 	o.Settings = clone(o.Settings)
 	if o.RequireExplicitSettings && str(o.Settings["serviceTier"]) == "" {
@@ -1218,54 +1172,4 @@ func (n *NativeSession) validateSettings(ctx context.Context, o *NativeOptions) 
 	}
 
 	return nil
-}
-
-// Native continuations can emit items and requests before their turn/started boundary.
-// Keep their exact wire identity until the registered owner durably admits it.
-func (n *NativeSession) routeNativePending(method string, p Map, id any) bool {
-	threadID := str(p["threadId"])
-	turnID := first(str(p["turnId"]), str(obj(p["turn"])["id"]))
-	if turnID == "" {
-		return false
-	}
-	n.mu.Lock()
-	if n.nativeAdmit == nil || threadID != n.id || n.retiredTurns[turnID] || (!n.terminal && (n.turnID == "" || n.turnID == turnID)) || (method == "turn/started" && n.terminal) {
-		n.mu.Unlock()
-		return false
-	}
-	frame := Map{"method": method, "params": p, "id": id}
-	size := len(jsonText(frame))
-	if len(n.nativeBacklog) >= 1024 || n.nativeBacklogBytes+size > 8*1024*1024 {
-		n.mu.Unlock()
-		if id != nil {
-			_ = n.server.Reply(id, nil, errors.New("native admission queue exceeded limit"))
-		}
-		n.protocolFailure("Codex native admission queue exceeded limit")
-		return true
-	}
-	n.nativeBacklog = append(n.nativeBacklog, frame)
-	n.nativeBacklogBytes += size
-	n.mu.Unlock()
-	return true
-}
-func (n *NativeSession) drainNativePending(turnID string) {
-	n.mu.Lock()
-	pending := []Map{}
-	retained := []Map{}
-	n.nativeBacklogBytes = 0
-	for _, frame := range n.nativeBacklog {
-		p := obj(frame["params"])
-		id := first(str(p["turnId"]), str(obj(p["turn"])["id"]))
-		if id == turnID {
-			pending = append(pending, frame)
-		} else {
-			retained = append(retained, frame)
-			n.nativeBacklogBytes += len(jsonText(frame))
-		}
-	}
-	n.nativeBacklog = retained
-	n.mu.Unlock()
-	for _, frame := range pending {
-		n.notification(str(frame["method"]), obj(frame["params"]), frame["id"])
-	}
 }

@@ -1245,17 +1245,7 @@ func (a *Adapter) prepareLaunch(ctx context.Context, launch LaunchOptions, mode,
 		launch.AuthSource = prepared.AuthSource
 		return launch, nil
 	}
-	if mode == "discussion" {
-		// The fork reads its source store from the native home.
-		// Only its restricted catalog is temporary; switching CODEX_HOME here would
-		// hide the history that discussion needs to paginate and fork.
-		restricted, err := prepareDiscussionCatalog(ctx, launch.Executable, launch.Environment, root, launch.Cwd)
-		if err != nil {
-			return launch, err
-		}
-		launch.ConfigOverrides = append(restricted.ConfigOverrides, "features.hooks=false", "features.goals=false", "features.plugins=false", "features.apps=false", "features.multi_agent=false")
-		launch.Dispose = restricted.Dispose
-	}
+
 	return launch, nil
 }
 func (a *Adapter) usesNativeAccount(ctx context.Context, s *AppServer, cwd string) (bool, error) {
