@@ -302,9 +302,9 @@ func runNoteRuntimeReplay() {
 	h.mu.Unlock()
 	mokuReplayCheck(openedAfterRead == openedBeforeRead, "read-only archive projection opened a native process")
 	_, e = s.db.Update(mokuReplayContext(), func(tx *store.Tx) error {
-		return s.r.ArchiveExecutions(tx, []model.ExecutionRef{{Thread: model.ThreadRef{TypeID: "agent", ThreadID: archive.ID}, ExecutionID: archive.Observation.LatestExecution.ExecutionID}}, false)
+		return s.r.ArchiveThreads(tx, []model.ThreadRef{{TypeID: "agent", ThreadID: archive.ID}}, false)
 	})
-	mokuReplayMust(e)
+	mokuReplayCheck(e != nil, "application archive propagation accepted a Moku history source")
 	unchangedArchive, e := s.r.Thread(archive.ID)
 	mokuReplayMust(e)
 	mokuReplayCheck(unchangedArchive.Archived != nil && *unchangedArchive.Archived, "application archive propagation reactivated Moku history")

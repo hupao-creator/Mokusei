@@ -185,7 +185,7 @@ func openHarness(ctx context.Context, data string) (*harness, error) {
 			return forgedScopeAccess{access}
 		}
 		return access
-	}, ArchiveExecutions: h.runtime.ArchiveExecutions, Now: func() time.Time { return time.UnixMilli(fixtureAt) }})
+	}, ArchiveThreads: h.runtime.ArchiveThreads, Now: func() time.Time { return time.UnixMilli(fixtureAt) }})
 	if err != nil {
 		return fail(err)
 	}

@@ -5,7 +5,7 @@ import SwiftUI
 
 extension EnvironmentValues {
     /// Cached workspaces can edit device-local text while host actions remain
-    /// unavailable. A disabled lifecycle or archived owner still stays inert.
+    /// unavailable. A disabled lifecycle or read-only history owner still stays inert.
     @Entry var nativeOfflineDraftEditing = false
 }
 

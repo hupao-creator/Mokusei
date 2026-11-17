@@ -278,7 +278,7 @@ public final class NativeWorkspacePresentation {
 
     public func openFollowUp(_ id: JSONText, draft: JSONText) {
         guard !onboarding.blocksWorkspace else { return }
-        guard let thread = workspace.catalog.thread(id), !thread.isHiddenFromUser, thread.archived != true else { return }
+        guard let thread = workspace.catalog.thread(id), !thread.isHiddenFromUser else { return }
         if selected?.threadID != id || selected?.typeID != "agent" {
             open(ApplicationThreadRef(threadID: id, typeID: "agent"))
         }
@@ -432,7 +432,7 @@ public final class NativeWorkspacePresentation {
         if let voiceOwner, voiceOwner != thread.id { workspace.voice.releaseThread(voiceOwner) }
         voiceOwner = thread.id
         let value = JSONValue.array([.string(thread.harnessID), thread.settings,
-            .string(thread.cwd), thread.worktree?["cwd"] ?? .null, .bool(thread.archived == true)])
+            .string(thread.cwd), thread.worktree?["cwd"] ?? .null])
         let bytes = (try? value.encodedData()) ?? Data()
         let identity = JSONText(SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined())
         threadVoice = workspace.voice.threadCapability(threadID: thread.id,

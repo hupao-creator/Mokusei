@@ -57,7 +57,7 @@ ThreadTypeDefinition 通过 Project 返回 title/view 和可选的稳定 Scope�
 |---|---|
 | Tags | 投影标签、声明来源、在同一 tag 事务内变换快照 |
 | Classification | 提供稳定 evidence revision 和有界分类内容 |
-| Archive | 更改归档状态并声明受影响的最新执行引用 |
+| Archive | 更改展示隐藏状态并声明持久关联的普通 Thread 身份（不比较最新执行） |
 | Overview | 声明可见性、directory filter 和覆盖的 execution |
 | Conversation | 读取、初始化配置和嵌回宿主授权的 Harness session |
 

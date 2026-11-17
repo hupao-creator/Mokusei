@@ -588,14 +588,15 @@ open a second member. The existing lower page menu and navigation controls
 continue to select carousel pages.
 
 The selected ID is shared by cover, metadata, opening and semantic navigation.
-Automatic advance follows an 8-second dwell while foreground, visible and not in
+Automatic advance follows an 11-second dwell while foreground, visible and not in
 a cover gesture. The dwell starts after the incoming page finishes travel and
 WebKit acknowledges cover playback; loading does not consume it. Manual advance
 resets the dwell. Offscreen and hidden collections stop advancing. Their covers
 pause the current motion/hold, and preloaded neighbors stay at their beginning.
-Each cover animates for at most 6 seconds, holds its final composition for 2
-seconds and repeats; a later cycle of a shorter cover may be interrupted by the
-page change. Returning to a selected page replays from its beginning.
+Each cover animates for at most 6 seconds. Collection covers play once per
+selection and hold their final composition until paging; standalone covers hold
+for 5 seconds after animation completion before replaying. Returning to a selected
+page replays from its beginning.
 Standalone application cards receive foreground/presentation activity through
 the shared animation environment too. Reduce Motion switches immediately,
 including during travel, and shows covers' completed static compositions.
@@ -614,3 +615,20 @@ provides headless model exports and manual viewing without running a Runtime.
 The Cmd+F conversation search, its menu command, interaction actions and Runtime
 keyword index have been removed. Tag filtering and Agent `grep_threads` remain
 independent capabilities; native text editing keeps its own find behavior.
+
+
+Collection member cards expose a labeled Archive Super Thread button beneath the
+open surface, alongside their existing context menu. Both invoke the same atomic
+application archive command: hide the report and its persisted associated ordinary
+Threads. UI membership and counts follow the authoritative catalog, not optimistic
+per-card removals. A surviving selection is retained; removal of that selection
+chooses a remaining member. Fewer than two visible members dissolve the Collection
+and dismiss its panel, leaving any survivor as an ordinary Report card. Archive
+changes no execution, background task, voice ownership, history or binding;
+explicit archived reading and actions remain available. Errors retain the member
+with retryable feedback. The panel and carousel keep their existing close, hover,
+scale and cover timing contracts.
+Member controls use the observable panel owner to admit drawing-time and invoked
+actions. The retained panel content must not infer admission from a captured
+card-local `showingMembers` State value: it can still hold the pre-opening value
+and leave archive disabled. Closing, inactive and removed-member guards remain.

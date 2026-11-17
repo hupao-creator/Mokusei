@@ -277,11 +277,14 @@ struct NativeReportCollection: View {
     }
 
     private var memberPanel: some View {
+        // This content is retained outside the card's view updates. Its captured
+        // State value can still say showingMembers=false while drawing; the
+        // observable presentation is the live authority for this panel visit.
         NativeReportCollectionMembers(props: props, locale: locale,
             close: { memberPresentation?.close(owner: panelOwner) },
-            allowsActions: { showingMembers && active && memberPresentation?.closing != true && currentMembers.contains($0) },
+            allowsActions: { memberPresentation?.owner == panelOwner && active && memberPresentation?.closing != true && currentMembers.contains($0) },
             openThread: { reference in
-                guard showingMembers, active, currentMembers.contains(reference), memberPresentation?.closing != true else { return }
+                guard memberPresentation?.owner == panelOwner, active, currentMembers.contains(reference), memberPresentation?.closing != true else { return }
                 memberPresentation?.dismiss(owner: panelOwner)
                 openThread(reference)
             })

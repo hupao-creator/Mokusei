@@ -209,7 +209,7 @@ func runUserThreadInputReplay() error {
 	_, err = s.r.SendThread(ctx, id, mokuReplayText("Moku tool follow-up").Input)
 	mokuReplayMust(err)
 
-	// Invalid, archived, cancelled and native-rejected sends cannot record user
+	// Invalid, cancelled and native-rejected sends cannot record user
 	// success. Rejecting a follow-up must not end the child's existing work.
 	_, err = invoke(ctx, id, mokuReplayText(" ").Input)
 	mokuReplayCheck(err != nil, "empty input accepted")
@@ -223,7 +223,11 @@ func runUserThreadInputReplay() error {
 	mokuReplayCheck(err != nil, "cancelled input accepted")
 	mokuReplayMust(s.r.SetArchived(ctx, id, true))
 	_, err = invoke(ctx, id, mokuReplayText("archived").Input)
-	mokuReplayCheck(err != nil, "archived input accepted")
+	mokuReplayMust(err)
+	h.awaitUserNotifications(5)
+	archivedThread, err := s.r.Thread(id)
+	mokuReplayMust(err)
+	mokuReplayCheck(archivedThread.Archived != nil && *archivedThread.Archived, "accepted input restored hidden Thread")
 	mokuReplayMust(s.r.SetArchived(ctx, id, false))
 	// Cancellation after entering the native boundary also stays silent.
 	entered = make(chan struct{})
@@ -250,7 +254,7 @@ func runUserThreadInputReplay() error {
 	h.mu.Unlock()
 	_, err = invoke(ctx, id, mokuReplayText("native rejection").Input)
 	mokuReplayCheck(err != nil, "native rejection reported success")
-	mokuReplayCheck(len(userInputEvents(s)) == 4, "failed or application-origin sends emitted user success")
+	mokuReplayCheck(len(userInputEvents(s)) == 5, "failed or application-origin sends emitted user success")
 	h.mu.Lock()
 	h.beforeThreadSend = nil
 	h.mu.Unlock()
@@ -261,11 +265,11 @@ func runUserThreadInputReplay() error {
 	continued, err := invoke(ctx, id, mokuReplayText(large).Input)
 	mokuReplayMust(err)
 	mokuReplayCheck(!continued.StartedNewExecution && continued.ExecutionID == newSend.ExecutionID, "rejected or cancelled follow-up ended the original child execution")
-	all := h.awaitUserNotifications(5)
-	preview := all[4].input.Parts[0].Text
+	all := h.awaitUserNotifications(6)
+	preview := all[5].input.Parts[0].Text
 	mokuReplayCheck(utf8.ValidString(preview) && len(preview) < 150000 && strings.Contains(preview, `"truncated":true`), "large notification not bounded or explicit")
 	events := userInputEvents(s)
-	mokuReplayMust(json.Unmarshal(events[4].Data, &accepted))
+	mokuReplayMust(json.Unmarshal(events[5].Data, &accepted))
 	mokuReplayCheck(accepted.Parts[0].Text == large, "durable input was truncated")
 	ids := map[string]bool{}
 	for _, event := range events {
@@ -277,8 +281,8 @@ func runUserThreadInputReplay() error {
 		mokuReplayMust(s.r.UpdateThread(ctx, id, func(record *model.ThreadRecord) error { return nil }))
 	}
 	time.Sleep(80 * time.Millisecond)
-	mokuReplayCheck(len(h.userNotifications()) == 5 && len(userInputEvents(s)) == 5, "duplicate revision, callback or notification loop")
-	h.awaitTools(6)
+	mokuReplayCheck(len(h.userNotifications()) == 6 && len(userInputEvents(s)) == 6, "duplicate revision, callback or notification loop")
+	h.awaitTools(7)
 	s.close()
 	closed = true
 
@@ -290,7 +294,7 @@ func runUserThreadInputReplay() error {
 	mokuReplayMust(reopened.c.Submit(ctx, mokuReplayText("after restart")))
 	reopenedHarness.awaitTools(1)
 	time.Sleep(80 * time.Millisecond)
-	mokuReplayCheck(len(reopenedHarness.userNotifications()) == 0 && len(userInputEvents(reopened)) == 5, "restart replayed historical direct inputs")
+	mokuReplayCheck(len(reopenedHarness.userNotifications()) == 0 && len(userInputEvents(reopened)) == 6, "restart replayed historical direct inputs")
 	fmt.Println("PASS public sidecard sends reach native Moku with content, origin, receipts and attachment/annotation context; failures, duplicate admission, loops and restart replay fenced")
 	return nil
 }

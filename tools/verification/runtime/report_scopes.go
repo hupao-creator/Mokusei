@@ -177,7 +177,7 @@ func verifyReportScopes(ctx context.Context) {
 		manager := workspaces.New(workspaces.Paths{TemporaryRoot: filepath.Join(data, "tmp-workspaces"), RegistryPath: filepath.Join(data, "worktrees.json")})
 		r, err = core.New(ctx, core.Config{Store: db, Harnesses: map[string]plugin.Harness{"fixture": f}, DataDir: data, DefaultCwd: data, Workspaces: manager, Log: func(kind string, err error) { fmt.Println("report replay", kind, err) }})
 		must(err)
-		app, err = applicationhost.New(ctx, applicationhost.Config{Store: db, Applications: []plugin.Application{report.New()}, RuntimeCapabilities: r.RuntimeCapabilities, BackgroundCapabilities: r.BackgroundCapabilities, SnapshotCapabilities: r.SnapshotCapabilities, ArchiveExecutions: r.ArchiveExecutions, DirectoryScopes: r.DirectoryScopes})
+		app, err = applicationhost.New(ctx, applicationhost.Config{Store: db, Applications: []plugin.Application{report.New()}, RuntimeCapabilities: r.RuntimeCapabilities, BackgroundCapabilities: r.BackgroundCapabilities, SnapshotCapabilities: r.SnapshotCapabilities, ArchiveThreads: r.ArchiveThreads, DirectoryScopes: r.DirectoryScopes})
 		must(err)
 		r.SetApplications(app)
 	}

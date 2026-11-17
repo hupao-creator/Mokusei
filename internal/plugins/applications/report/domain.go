@@ -629,15 +629,19 @@ func (threadExtensions) Change(record model.ApplicationThreadRecord, archived bo
 	encoded, err := json.Marshal(value)
 	return plugin.ThreadStateChange{Value: encoded}, err
 }
-func (threadExtensions) RelatedLatestExecutions(record model.ApplicationThreadRecord, archived bool) ([]model.ExecutionRef, error) {
+func (threadExtensions) RelatedThreads(record model.ApplicationThreadRecord, archived bool) ([]model.ThreadRef, error) {
 	value, err := ParseData(record.Value)
 	if err != nil {
 		return nil, err
 	}
 	if !archived {
-		return []model.ExecutionRef{}, nil
+		return nil, nil
 	}
-	return value.RelatedExecutions, nil
+	related := make([]model.ThreadRef, 0, len(value.RelatedExecutions))
+	for _, reference := range value.RelatedExecutions {
+		related = append(related, reference.Thread)
+	}
+	return related, nil
 }
 func (threadExtensions) Presentation(record model.ApplicationThreadRecord) (plugin.OverviewPresentation, error) {
 	value, err := ParseData(record.Value)

@@ -248,6 +248,30 @@ are part of this change. Native focus/animation, accessibility, real voice,
 concurrent binding and legacy-data interactions require later validation.
 
 
+## Archive visibility
+
+Archive only hides a Super Thread and all ordinary Agent Threads identified by
+its stored `relatedExecutions`. The referenced execution need not still be the
+latest; running successors and background tasks continue. The Host commits the
+document and source flags atomically, deduplicates Thread identities and skips
+already-hidden or deleted sources. A failure publishes no partial change. An
+explicit repeat archive re-hides independently restored sources. Other Super
+Threads (including historical conflicting owners) and Collections are not targets.
+
+HTML, covers, conversation history, persisted records and bindings remain intact.
+Explicit report queries, source reading/search, send/fork and sidecard actions
+remain available under their ordinary authority checks. Archive is not deletion,
+execution completion, cancellation, session close or unlink. Restore retains its
+existing behavior: restore the requested report only, without cascading to source
+Threads. A separately restored Thread keeps its report association.
+
+The expanded Collection panel shows an Archive Super Thread button below each
+member card, separate from its open action. The existing card context menu uses
+the same capability. Pending actions prevent duplicate activation; failures stay
+visible and retryable. Catalog changes refresh member counts and selection; when
+fewer than two members remain, normal Overview grouping retires the Collection
+and its panel, leaving a surviving report as an individual card.
+
 ## Explicit user unlink
 
 The related-list UI does not offer an unlink action. The underlying

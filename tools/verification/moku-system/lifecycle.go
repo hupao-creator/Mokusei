@@ -174,18 +174,7 @@ func exerciseLifecycle(ctx context.Context, invoke systemInvoke, host actionHost
 		fmt.Println("PASS Runtime delete: source gone, reports retained, stale read rejected")
 		return next, nil
 	}
-	if source.Archived != nil && *source.Archived {
-		channel, args := "thread:follow-up", []any{object{"threadId": source.ID, "input": object{"parts": []any{object{"kind": "text", "text": "must reject archived source"}}}}}
-		expected := "thread is archived"
-		if action == "fork" {
-			channel, args = "thread:fork", []any{object{"threadId": source.ID, "request": object{}}}
-			expected = "thread is not available for fork"
-		}
-		if e := invoke(channel, args, nil); e == nil || !strings.Contains(e.Error(), expected) {
-			return state, fmt.Errorf("archived source work not rejected: %v", e)
-		}
-		return state, unchangedSource(host, source)
-	}
+
 	if action == "fork" {
 		var fork struct{ ThreadID string }
 		if e := invoke("thread:fork", []any{object{"threadId": source.ID, "request": object{}}}, &fork); e != nil {
@@ -202,6 +191,9 @@ func exerciseLifecycle(ctx context.Context, invoke systemInvoke, host actionHost
 		}
 		if e = json.Unmarshal(derived.SessionState, &newNative); e != nil {
 			return state, e
+		}
+		if derived.Archived != nil && *derived.Archived {
+			return state, errors.New("fork inherited source visibility")
 		}
 		if derived.ID == source.ID || newNative["primarySessionId"] == oldNative["primarySessionId"] || text(newNative["primarySessionId"]) == "" {
 			return state, errors.New("fork reused native/host identity")

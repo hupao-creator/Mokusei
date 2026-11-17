@@ -13,7 +13,7 @@ public struct NativeHarnessHostCallbacks {
     public let resolveMedia: (@Sendable (URL) async throws -> Data)?
 
     public init(beforeCommand: @escaping () async throws -> Void = {},
-                canExecute: @escaping (HarnessThread) -> Bool = { $0.archived != true },
+                canExecute: @escaping (HarnessThread) -> Bool = { !$0.mokuHistory },
                 openExternal: @escaping (JSONText) async throws -> Void,
                 openFollowUp: @escaping (JSONText, JSONText) -> Void,
                 onError: @escaping (Error) -> Void,
@@ -170,7 +170,7 @@ public final class NativeHarnessHost {
         guard let thread = current, thread.id == threadID, thread.harnessID == harnessID else {
             throw PluginContractError("This thread is no longer available to its Harness")
         }
-        if execution && (thread.archived == true || !callbacks.canExecute(thread) || source?.canExecute() == false) {
+        if execution && (thread.mokuHistory || !callbacks.canExecute(thread) || source?.canExecute() == false) {
             throw PluginContractError("This thread currently cannot accept actions")
         }
         return thread

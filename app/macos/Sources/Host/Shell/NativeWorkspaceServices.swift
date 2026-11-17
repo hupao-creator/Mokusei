@@ -209,8 +209,8 @@ public final class NativeWorkspaceServices {
 
     public func followUp(threadID: JSONText, input: JSONValue) async throws -> SidecardSendReceipt {
         let workspace = try requireWorkspace()
-        guard let thread = workspace.catalog.thread(threadID), thread.archived != true else {
-            throw PluginContractError("此 Thread 已归档或不可用，无法追加任务。")
+        guard let thread = workspace.catalog.thread(threadID), !thread.mokuHistory else {
+            throw PluginContractError("此 Thread 不可用，无法追加任务。")
         }
         let result = try await workspace.invoke("thread:follow-up", args: [.object(["threadId": .string(threadID), "input": input])])
         guard case let .string(id) = result["executionId"] else { throw PluginContractError("The runtime returned no accepted execution identity") }

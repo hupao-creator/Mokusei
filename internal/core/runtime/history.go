@@ -55,7 +55,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 	if source.Moku || source.MokuHistory {
 		return "", errors.New("Moku thread cannot be forked")
 	}
-	if archived(&source) || source.Observation.BackgroundWork != nil {
+	if source.Observation.BackgroundWork != nil {
 		return "", errors.New("thread is not available for fork")
 	}
 	if e := source.Observation.LatestExecution; e != nil && !e.Terminal() {
@@ -84,6 +84,9 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 	}
 	next := source
 	next.ID = id
+	// A fork is a new visible Thread, independent of the source's visibility.
+	archived := false
+	next.Archived = &archived
 	// A new fork was not the target of the source thread's interrupt command.
 	next.MokuInterruptedExecutionID = ""
 	next.UserInterruptedExecutionID = ""
@@ -169,12 +172,8 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 	if r.IsDeleting(id) {
 		return errors.New("thread deletion is in progress")
 	}
-	if value {
-		if err := r.endThreadVoice(ctx, id); err != nil {
-			return err
-		}
-	}
-	err := r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
+	// Archive only changes visibility; native execution and voice owners stay live.
+	return r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
 		if t.Moku {
 			return errors.New("Moku thread cannot be archived")
 		}
@@ -190,10 +189,6 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 		t.Archived = &value
 		return nil
 	})
-	if err == nil && value {
-		return r.endThreadVoice(ctx, id)
-	}
-	return err
 }
 
 // Restore only durable owners requiring cleanup; opening never submits input.

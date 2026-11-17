@@ -274,7 +274,8 @@ type ThreadClassification interface {
 type ThreadArchive interface {
 	Archived(model.ApplicationThreadRecord) bool
 	Change(model.ApplicationThreadRecord, bool) (ThreadStateChange, error)
-	RelatedLatestExecutions(model.ApplicationThreadRecord, bool) ([]model.ExecutionRef, error)
+	// RelatedThreads supplies persisted associations, independent of execution state.
+	RelatedThreads(model.ApplicationThreadRecord, bool) ([]model.ThreadRef, error)
 }
 type ThreadOverview interface {
 	Presentation(model.ApplicationThreadRecord) (OverviewPresentation, error)
