@@ -396,10 +396,7 @@ Every selected method must pass exactly once, without skips. It does not replace
 full hosted native verification. Independent fixture producers run at most two
 at once, starting the longest Moku producer first (`replays.py fixtures --jobs 1`
 retains the diagnostic serial control). These producers write separate exports;
-all seven outputs are checked before they enter the Swift consumers.
-Scripted voice CLI child processes omit the race runtime's post-main sleep;
-their race instrumentation, the production parent's race settings, protocol
-barriers and the real speech-receipt timeout remain active.
+all six outputs are checked before they enter the Swift consumers.
 Each command has its own logs/result and cancellation drains all owned process
 groups. GUI and interop replays remain serial.
 

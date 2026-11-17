@@ -148,8 +148,7 @@ while system Keyboard Navigation retains focus indication and Space/Return
 activation. Callers keep
 their own close callback and Escape/navigation ownership; the button installs
 no global keyboard shortcut. Agent Sidecards use the corresponding right-side
-launcher as their open/close toggle and have no independent Close icon. Browser
-and Voice retain their activity toolbars and media/document actions.
+launcher as their open/close toggle and have no independent Close icon. Browser retains their activity toolbars and media/document actions.
 
 `NativeReadingPageStack` optionally reports whether its retained parent is
 participating in presentation and awaits host preparation before a settled-page
@@ -386,7 +385,7 @@ Inventory and integration boundaries:
 | Moku | Note (including short viewport), directory completion, Talk and interaction bodies | Wrapper; completion uses native drag/accessibility instead of its old custom thumb |
 | Overview | Tag/filter navigation strips | Wrapper; existing hidden indicators and canvas input routing retained |
 | Git | Worktree/file list, diff reader and synchronized horizontal code panes | Wrapper/subclass; line selection and horizontal synchronization remain owned by Git |
-| Plugins | Report relations, OpenCode process, Browser annotation list and Voice transcript | Wrapper; Browser comment TextEditor also uses the control-scoped adapter |
+| Plugins | Report relations, OpenCode process, Browser annotation list | Wrapper; Browser comment TextEditor also uses the control-scoped adapter |
 | Harness interactions | Codex JSON elicitation, Claude permission/elicitation/reply and OpenCode permission/custom-answer editors | Control-scoped TextEditor adapter; form state, validation and actions stay with each Harness |
 | WebKit Browser | External documents, frames and page-owned overflow | WebKit and the page own scrollbar styling |
 | Report HTML | App-owned custom-scheme documents, textarea and nested overflow | `NativeWebScrollbarStyle.reportScript`; thin, trackless native controls; external frames remain page-owned |
@@ -472,7 +471,6 @@ forcing the document heading, and manual scrolling takes ownership even before
 a non-following request's delayed anchor arrives. A new request may locate again.
 See the [recording, version and local-log investigation](../../../../../design/thread-opening-entry-admission.md)
 for evidence and the sprint verification limits.
-
 
 The timeline keeps exact scroll geometry in a view-owned observable reference.
 Only its small reading-control registration reads that geometry during view
@@ -589,7 +587,6 @@ content. Probes restore the actual displayed container width, and plain prose
 does not become width-dependent merely because its document enables capsules.
 See the [Note performance measurements](../../../../../tools/verification/moku-note-performance/README.md)
 for the isolated production-control comparison and its visual limitations.
-
 
 [Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadExecutionGroups.swift](Conversation/ThreadExecutionGroups.swift) presents adjacent execution rows under a summary with reasoning/tool counts and reported reasoning usage. Only the latest process summary in the latest running Agent execution carries a left-to-right text highlight, and only while it is also the final message-stream group. Harnesses classify the native tail before withholding streaming replies; a later assistant reply stops the sweep immediately, including before its text is mounted. OpenCode checks the last native part because replies, reasoning and tools can share a message. The 64pt band uses opaque strong reading ink with a broad center and soft edges. Only while motion is admitted, its text base uses 55% muted ink so both sides of the band visibly recede; the wrench keeps normal ink. Reduce Motion, inactive scenes and pending entrance restore normal static ink. Colors follow the light/dark palette; earlier groups, history, completed/interrupted/failed executions and waiting-for-user states stay static. Harnesses supply execution-running state separately from reader activity. The decorative leaf uses the shared frame cadence, pauses outside the active scene or before reading admission, and remains static under Reduce Motion; it adds no accessibility content or hit target. The highlight travels at roughly 180pt/s with a short gap between passes, without animating the wrench or changing text layout. In Agent Thread detail, the reading header's execution visibility control shows only this summary: nested Used tools group titles, Hooks, tool calls, commands, reasoning bodies and failed-tool diagnostics are details and never mount. Agent-only background terminal/task sections likewise show static counts/status rather than commands or descriptions, and hide with work; task failure is not a standalone Harness error. Summary-only historical groups do not acquire the scoped loader in [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift). Other conversation surfaces retain full member rows and scoped historical demand while visible. Execution membership takes precedence over attention styling, so a tool failure cannot escape the visibility group. Standalone errors and pending interactions keep their own timeline rows; a visible nonmember splitting a native run receives distinct summary identities. The summary itself has no disclosure arrow, hover treatment, keyboard focus or accessibility/reading action. Individual activity disclosures on other conversation surfaces retain their existing behavior.
 
@@ -1093,7 +1090,7 @@ Motion. The override does not change clocks, other effects or system preferences
 
 There is no global Reduce Motion policy applied to every animation. The current [Moku Dock](../../Host/MokuScene/NativeMokuDock.swift) disables its surface/eye expansion animation when that preference is enabled; [Overview chrome](../../Host/Overview/NativeOverviewChrome.swift) separately handles tag/control transitions. Other animation paths follow their own implementation. Do not infer support or removal from an old blanket statement.
 
-Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity. [NativeVoiceCloud.swift](Design/NativeVoiceCloud.swift) consumes bounded voice visualization state without starting capture.
+Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity.
 
 ### Native Overview decorations
 
@@ -1159,8 +1156,7 @@ in the card, while native views exclude themselves from input and accessibility.
 
 Pre-rendered atlas playback was removed after reported stutter. The production
 path again uses the live field; there are no baked loop resources or playback
-rate-selection branches. Equal voice-availability notification suppression and
-the existing body reveal, runtime-clock and scan animations remain unchanged.
+rate-selection branches. The existing body reveal, runtime-clock and scan animations remain unchanged.
 
 The mounted decoration replay requires the real Metal layer, fresh GPU work and
 independent WindowServer cloud/scan movement, including during a main-thread hold.
@@ -1257,7 +1253,6 @@ remain exact. OpenCode has no Agent selector or description and uses build for
 capability checks and writes. `HarnessAdvancedSettingsReplayTests` mounts all
 four production editors in defaults and execution-snapshot modes and verifies
 collapse, retained values, permission writes and live locale changes.
-
 
 [NativeModelSelector](Forms/NativeModelSelector.swift) uses the shared system
 `NSPopUpButton` for models and reasoning in Settings (`nativeSettingsFormPage`)
@@ -1463,7 +1458,6 @@ links. No reader/view or scroll state is cached. See the
 [loading investigation](../../../../../design/thread-loading-performance-cache.md)
 for paired observations, variability and manual coverage limits.
 
-
 ### Agent Thread admission and motion
 
 Agent Overview cards register window-local title/emoji anchors through
@@ -1601,11 +1595,10 @@ The production opening-path audit against local main `b20c011` covers:
 | --- | --- | --- |
 | Agent Execution | Launcher, initial active execution, correlated send reveal | Host selection snapshot → shared fold |
 | Agent Browser | Launcher, plugin URL intent | Host selection snapshot → shared fold |
-| Agent Voice | Launcher (media starts only through an explicit in-card action) | Host selection snapshot → shared fold |
 | Report related executions | Readiness admission, launcher, switch from Browser; list/execution width changes | Report active selection → shared fold |
 | Report linked Browser | HTML main-frame HTTP(S) link, new-window HTTP(S) GET, retained launcher, switch from references | Report active selection → shared fold |
 
-All five use fixed destination-size native content, the same launcher-to-panel
+All four use fixed destination-size native content, the same launcher-to-panel
 aperture/offset and opening opacity ramp, including narrow stacked layouts and
 retained widths. Agent drag and Reduced Motion disable travel; Report Browser
 drag and Reduced Motion do likewise. Report references have no divider.
@@ -1614,10 +1607,9 @@ workspace; no application-owned CSS/JavaScript sidecard opener exists.
 `BrowserViewport` keeps WebKit inside its representable, inheriting that shell's
 mask and motion rather than adding another webpage transition.
 
-Content admission is separate: Agent Browser suppresses its native page and
-Voice hides its discussion while the 380ms selection gate is active; Report
+Content admission is separate: Agent Browser suppresses its native page while the 380ms selection gate is active; Report
 waits for current HTML readiness plus 200ms.
-Those existing gates, document loading, Voice message entrances, Browser loading
+Those existing gates, document loading, Browser loading
 and annotation indicators, 220ms Report navigation retraction, the resident Dock's
 620ms response spring and the sequential 380ms fold / 420ms execution scroll retain
 their own sequencing policies. External pages keep their

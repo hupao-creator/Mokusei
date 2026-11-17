@@ -156,7 +156,6 @@ final class WorkspaceSession {
         let retiring = presentation
         replacePresentation(for: model) {
             await retiring?.release()
-            // Reload replaces presentation, not the workspace-owned voice call.
             await model.harnessHost.releaseAll()
         }
     }
@@ -174,7 +173,7 @@ final class WorkspaceSession {
             // A rejected Quit joins this same retirement before restoring a UI owner.
             await cleanup()
             guard !Task.isCancelled, self.operationID == operationID, !quitting else { return }
-            model.voice.receive(.connection(model.connection)); model.settingsOpen = false
+            model.settingsOpen = false
             presentation = NativeWorkspacePresentation(workspace: model); generation = UUID()
         }
         reloadTask = pending
@@ -190,7 +189,7 @@ final class WorkspaceSession {
         quitSavingSettings = !discardSettings
         exitCleanup?.captureEpoch()
         task?.cancel()
-        // Network/voice cleanup can outlive cancellation. The deadline must
+        // Network cleanup can outlive cancellation. The deadline must
         // not join that work; the epoch-fenced exit helper finishes it instead.
         quitDeadline = Task {
             do { try await Task.sleep(for: .seconds(3)) } catch { return }

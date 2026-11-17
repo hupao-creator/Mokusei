@@ -6,7 +6,7 @@
 
 Archive is a persisted **display-hidden** flag, independent of execution state.
 Ordinary Thread archive never deletes content/history, releases attachments,
-ends voice or native sessions, interrupts foreground/background work, or revokes
+ends native sessions, interrupts foreground/background work, or revokes
 send, interaction, configuration, fork and explicit reading capabilities. New
 work on a hidden Thread leaves it hidden; a fork creates a new visible Thread.
 Normal inventory/Overview filters omit archives, while explicit reads and search
@@ -147,9 +147,7 @@ checks again and reserves the native admission boundary through old-owner
 cleanup and durable replacement. Its triggering queued Moku input may proceed
 on the new owner afterward. Private Report/Tag executions do not themselves
 block switching; an in-flight native admission still does. Unrelated settings
-retain their existing save behavior. Voice preparation adopts a saved Harness
-preference before preparing media; the preparation's own admission does not
-block that replacement, while any other concurrent admission still does.
+retain their existing save behavior.
 
 Every new Moku execution crosses the same `admitMokuExecution` guard in
 [threads.go](threads.go): initial Send, successor renewal after a proven
@@ -236,7 +234,7 @@ Unknown-ID requests do not retain gates. These contracts are exercised by
 
 [service.go](service.go) revokes admission and drains participants and native owners before storage ownership is released. A protocol disconnect alone is not proof that a child process exited. Cleanup errors remain observable and prevent a replacement owner.
 
-History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner. Media participates in the same cancellation boundary.
+History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner.
 
 Verification from the repository root:
 
@@ -271,9 +269,7 @@ that batch. `sendLockedAdmitted` rejects an idle lazy-only admission and does no
 renew it after an exact `ErrExecutionEnded` or `ErrFollowUpUnavailable`, so finishing races cannot start a
 run. Confirmed unconsumed idle/configuration results release their attempt fence;
 other uncertain native outcomes require the existing operator reconciliation.
-Native voice context synchronization shares this outbox through its admission
-owner, with removal only after the execution commit. Neither receipt proves model
-processing or task completion.
+An admission receipt does not prove model processing or task completion.
 
 Moku's `GrepThreads` reads the current profile's committed ordinary-thread cache,
 including archives and busy owners, excluding Moku/history and deleting owners.
@@ -284,18 +280,12 @@ reuse the existing scope resolver. No native history is opened. See the
 
 Overview browsing does not apply agent-authored hidden-card markers. Retired visibility and reading-evidence records are left untouched; ordinary archive, execution eligibility and Report coverage still determine browsing membership.
 
-
-Thread voice calls are removed at the command authority boundary: prepare, start
-and heartbeat return `THREAD_VOICE_REMOVED`. Retained history, poll and Stop remain
-available without native Harness/model discovery. Global Overview Moku voice and
-ordinary text/attachment execution are independent; transcript storage is preserved.
-
 ## Moku recovery-only handles
 
 Stopping a restored Moku execution may open its native session before model
 catalog preparation, without any injection. Such an owner is marked
 `recoveryOnly`; it can restore/settle/interrupt but cannot admit new native work,
-receive user sends or interaction responses, or acquire a new native voice lease.
+receive user sends or interaction responses.
 Ordinary Thread recovery and existing fully prepared Moku handles are unchanged.
 
 A later Open/Send with injection does not retrofit the callback onto this owner.
@@ -309,9 +299,7 @@ injection, including tools, instructions, context and AdmitNewExecution.
 Concurrent Stop is fenced by the cancellation gate. Active/background recovery
 reports busy instead of being replaced; cancellation remains available. Native
 Accept on a recovery owner rejects before the configuration lock, so a Close
-performed by normal preparation cannot deadlock on such a callback. The native
-voice entry requires a prepared owner rather than creating an uninjected one.
-Fully prepared voice owners are not candidates for this replacement. Early send
+performed by normal preparation cannot deadlock on such a callback. Early send
 rejection remains explicitly unconsumed; interaction replies reject before
 claiming an answer. Cleanup failure leaves the owner fenced and prevents a new
 native owner from overlapping it. No new execution ID or input is reserved merely

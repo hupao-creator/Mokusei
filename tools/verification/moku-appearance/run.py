@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix="mokusei-moku-appearance-") as output:
     args = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
             "-warnings-as-errors", "-target", f"{platform.machine()}-apple-macosx26.0",
             "-I", str(build / "Modules"), "-F", str(build),
-            "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker", str(build),
+            "-Xlinker", "-rpath", "-Xlinker", str(build),
             "-module-cache-path", str(Path(output) / "modules")]
     for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include",
                      "swift-markdown/Sources/CAtomic/include", "swift-system/Sources/CSystem/include"]:

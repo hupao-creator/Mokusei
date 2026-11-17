@@ -210,7 +210,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		return CommandJSONSize(value, limit)
 	case "app:update-settings":
 		return CommandJSONSize(value, 2_000_000)
-	case "settings:diagnostics", "moku:voice", "moku:voice-events":
+	case "settings:diagnostics":
 		return nil // Strict typed validators are owned by these modules.
 	}
 	var allowed, required []string
@@ -233,9 +233,6 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 	case "thread:interaction-respond":
 		allowed = []string{"threadId", "executionId", "interactionId", "actionId", "answers", "message"}
 		required = []string{"threadId", "executionId", "interactionId", "actionId"}
-	case "thread:voice", "thread:voice-events":
-		allowed = []string{"threadId", "request"}
-		required = allowed
 	case "harness:extension":
 		allowed = []string{"harnessId", "method", "payload"}
 		required = allowed
@@ -243,7 +240,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		allowed = []string{"id", "decision"}
 		required = allowed
 	case "moku:submit":
-		allowed = []string{"input", "directoryTag", "directoryScopeId", "superThreadId", "voiceInput"}
+		allowed = []string{"input", "directoryTag", "directoryScopeId", "superThreadId"}
 		required = []string{"input"}
 	case "harness:settings-presentation":
 		object, ok := value.(map[string]any)

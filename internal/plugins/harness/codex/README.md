@@ -133,49 +133,6 @@ renderer projection. The native execution summary counts distinct paths across
 activities, so one patch touching several files reports its actual file scope.
 A source without path facts uses a neutral changed-files label.
 
-## Voice
-
-[voice.go](voice.go) uses the unmodified app-server's V3 WebRTC/sideband protocol. Voice is not gated by CLI version or user-agent format: all three paths share the real `thread/realtime/start` request and subsequent protocol events to determine compatibility. There is no separate capability probe before microphone permission and SDP creation. Unsupported startup methods or V3 parameters (`-32601` / `-32602`) add a Chinese compatibility diagnostic while retaining the native RPC error, and end that media attempt without automatic retries or protocol downgrade. Native provider/login checks still apply.
-
-A Codex Moku attaches directly to its prepared native session. A Codex thread discussion attaches to a separate read-only ephemeral fork. Direct preparation failure is surfaced, never silently routed through another account. Non-Codex targets use a private relay fixed to `gpt-6-luna`, checked against catalog, prepared thread and model events; there is no fallback model. The relay's only application tool is `forward_to_target`, which forwards the captured handoff rather than model-written replacement text. It has no project execution tools or source-history writer.
-
-`clientManagedHandoffs` disables automatic result speech, not native execution. Native starts are adopted through Core admission, with tools gated on that boundary; upstream inference may already have begun. Results use stock `thread/realtime/appendSpeech`, which may paraphrase. The relay's own final answer is not used as a target answer.
-
-Owner, execution, delivery and accepted-input generation fence speech. Duplicate handoffs and unmappable native input fail rather than inventing ownership. VAD or caption fragments do not accept a task. A current append failure is a nonterminal `speech-error`; obsolete failures cannot terminate a newer media generation. Uncertain speech delivery is not retried. Closing Moku media does not cancel already admitted task work; closing a private discussion disposes its work.
-
-The [native Swift media client](../../../../app/macos/Sources/Voice/README.md) owns microphone, WebRTC and playback. [voice_feedback_test.go](voice_feedback_test.go) covers exact ASR/handoff/answer identity association; source text/generation must match uniquely, and a late final may complete only the candidate captured at handoff.
-
-Pending Moku settings reject a native start before Core/tool admission. Only
-this exact rejection can return the captured handoff for configuration recovery,
-after the old process, tool bridge and in-flight notification have drained.
-Other native failures remain uncertain. Complete model/instruction/tool changes
-rebuild the native owner; reconnect does not pretend an existing realtime peer
-supports an in-place rebind or prewarm the configuration being retired.
-
-Moku-native speech can request a playback-readiness receipt. The adapter emits
-`speech-ready` with the exact delivery/generation and waits up to ten seconds
-before appending audio. Input-generation changes, cancellation and Stop release
-the wait; repeated acknowledgements cannot append speech again. Relay and
-private-discussion speech do not require this receipt.
-
-Stopping media also cancels native admission still waiting for the settings
-gate. An exact cancellation before projection retires the unadmitted native
-turn through its interrupt acknowledgement, allowing normal realtime shutdown
-to finish. Failed interrupt acknowledgement remains a visible cleanup failure;
-generic, joined and possibly projected errors keep the ordinary fault path.
-
-When that fault has retired the app-server, stopping media joins the native
-process and tool bridge instead of requiring an RPC acknowledgement from the
-closed channel. A typed transport failure identifies this case without treating
-native RPC rejections or cancellation failures as successful cleanup. Process or
-bridge drain failures remain errors. Prewarming checks the native owner's and
-transport's existing retirement state and must itself win retirement of a live
-owner before launching its replacement; joining a concurrent fault's cleanup
-grants no replacement authority. This cleanup does not recover input, and the
-original voice error event is retained.
-
-Verification: [Codex runner](../../../../tools/verification/codex/README.md), `./scripts/go.sh test -race ./internal/plugins/harness/codex`, and the runtime/Moku replays. Protocol fixtures establish adapter behavior, not live account entitlement or audible playback.
-
 ## Initial response cards
 
 The overview renderer supplies `initialResponseScope`, computed from the full
@@ -272,13 +229,6 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
-
-
-Only native voice handoff admission uses `plugin.WithVoiceAdmission` with its exact
-VoiceSession ID. Background terminal follow-ups use their original, unmarked Core
-admission path. This allows Moku to reject a retired microphone owner without
-blocking non-voice continuation. Thread voice calling is disabled by Runtime;
-Overview global Moku still uses the native/relay media implementation described here.
 
 Moku requires the full nonempty native model inventory before task admission.
 Unknown thinking capabilities remain named in that inventory but cannot authorize

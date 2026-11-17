@@ -40,8 +40,7 @@ A success line is emitted only after all assertions pass. This is a protocol and
 lifecycle integration replay. It does not establish compatibility with a
 particular installed Claude release, SQLite persistence (this runner uses an
 in-memory session store), model quality, network behavior, real
-microphone/speaker behavior, or production performance. Retired thread-discussion
-flows are excluded; native fork/read and current voice coverage remain independent.
+microphone/speaker behavior, or production performance.
 
 The replay covers nested Harness tool schemas, overlapping branches and singleton
 unions. They retain exactly-one validation without a root `oneOf`, which the

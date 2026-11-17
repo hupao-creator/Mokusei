@@ -32,7 +32,7 @@ objects = [line.strip().strip('"') for line in link_list.read_text().splitlines(
            if "/Mokusei.build/" not in line]
 args = ["/usr/bin/xcrun", "swiftc", "-swift-version", "6", "-warnings-as-errors", "-parse-as-library",
         "-target", f"{platform.machine()}-apple-macosx26.0", "-I", str(build / "Modules"), "-F", str(build),
-        "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker", str(build),
+        "-Xlinker", "-rpath", "-Xlinker", str(build),
         "-module-cache-path", str(application.parent / "ModuleCache")]
 for include in [
     package / ".build/checkouts/swift-cmark/src/include",

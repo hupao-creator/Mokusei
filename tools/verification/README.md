@@ -29,7 +29,6 @@ For real native CLI + mock LLM combinations spanning Moku, child tasks, scoped
 Report/Tag, faults, public actions and restart, see [Moku system verification](moku-system/README.md)
 and `make check-system` (requires `MOKUSEI_SYSTEM_CODEX`).
 
-
 For the sequential release gate runner, retained JSON/log evidence, isolated
 headless lifecycle checks and optional installed-CLI mock-provider verification,
 see [release runtime health](release-health/README.md).
@@ -118,8 +117,7 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/transport -swift-files` | Real Swift file upload/download against Go transport: regular-file symlinks, prompt FIFO rejection and `.partial` basename retention; no GUI |
 | `./tools/verification/transport -swift-settings-capacity` | Real Swift cold settings burst through Go's unchanged request limit: four Harnesses/four scopes plus installation reads, command headroom, queued/active cancellation and recovery |
 | `./tools/verification/thread-metadata` | Generated titles/emoji, subsequent messages, steer, completion races, timed retries, reopen and cancellation |
-| `./tools/verification/runtime` | Health client through production HTTP/NDJSON/SQLite (continuation identity, detached read, stale interaction rejection, interrupt and fork); Runtime/SQLite, bounded projection workers/byte admission and detached cache, execution lifecycle, steering, fork/delete, settings, private sessions, tags, independent Tag/Report enablement (active/discovery cancellation, native/write fences, receipt retention and disabled restart/resume), restart/history, ordinary-task question capability through Harness and cancellation; production scoped Report runners, evidence/domain isolation, steering, idle disposal and durable recovery; retained thread voice history/removal and global Moku device ownership, takeover, revocation and media lease lifetime |
-| `./tools/verification/runtime -swift-voice` | Actual Swift integer JSON encoding → Go int64 DTOs, retained thread history/cleanup and removed-call rejection; global Moku prepare, initial poll, SDP start, event cursors, stop and retired poll; exact signed boundaries and fractional/unsafe cursor rejection |
+| `./tools/verification/runtime` | Health client through production HTTP/NDJSON/SQLite (continuation identity, detached read, stale interaction rejection, interrupt and fork); Runtime/SQLite, bounded projection workers/byte admission and detached cache, execution lifecycle, steering, fork/delete, settings, private sessions, tags, independent Tag/Report enablement (active/discovery cancellation, native/write fences, receipt retention and disabled restart/resume), restart/history, ordinary-task question capability through Harness and cancellation; production scoped Report runners, evidence/domain isolation, steering, idle disposal and durable recovery |
 | `./tools/verification/runtime-concurrency` | Pending admission/open/fork/delete/interrupt; two-client execution-fenced cancellation and native successor races; thread settings CAS; native settings snapshot convergence, initialized reads, source fences and concurrent saves; first-answer claims; host drain admission |
 | `./tools/verification/runtime-helpers` | Pipe-independent descendant drain after leader exit, attachments, environment acquisition, owned process cleanup and detached daemon lifecycle, including failed-shutdown diagnostics and same-profile restart |
 | `./tools/verification/attachment-lifecycle` | Real Runtime/SQLite owner deletion and restart, fork/private-session retention, saved drafts after failed admission, process-held staging leases, crash cleanup and active streaming writers |
@@ -134,7 +132,7 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/maintenance` | Pinned allowance literal extraction without source execution |
 | `./tools/verification/git` | Real Git monitor, escaped paths, linked worktrees, files/diff, read-only boundaries, thread-directory membership, stale observations, cancellation and SQLite identities |
 | `./tools/verification/applicationhost` | Real Report domain, scopes/receipts, lifecycle and durable reopen |
-| `./tools/verification/moku` | Coordinator, saved/applied settings, real runtime/SQLite, public admission-fenced cancellation, tools, and authenticated HTTP → Runtime → coordinator voice envelopes/drain plus synthetic media ownership/takeover/revocation |
+| `./tools/verification/moku` | Coordinator, saved/applied settings, real runtime/SQLite, public admission-fenced cancellation and tools |
 | `./tools/verification/claude` | Native protocol fixture and real Go MCP subprocess |
 | `./tools/verification/codex` | Codex protocol replay; see its README for the real CLI/local provider mode |
 | `./tools/verification/pi -mode all` | Protocol plus real Pi/host extension/read guard with local provider |
@@ -160,7 +158,7 @@ The routing Undo replay identifies the sole editable native text view in the
 mounted Moku page by its saved fixture value, independently of localized help
 text, then checks native editing, autosave normalization and Undo persistence.
 
-External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
+External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability.
 
 The Tag statusbar replay uses the production scoped participant and injected tools
 to verify complete ID/title-only active membership, stable tag IDs, atomic batch
@@ -196,10 +194,3 @@ exports were removed; current Talk/dispatch checks remain. The old direct
 model-selector popover/slider suites were removed in favor of current Settings
 and Harness-form coverage. No skips, pixel thresholds or current production
 contracts were relaxed by these removals.
-
-The optional Moku attachment presentation inspector (`MOKU_CAPSULE_INSPECT=presentation`)
-enables the production Dock voice-entry policy and accepts evidence only through its gesture or
-accessibility action. Its media boundary throws before prepare/privacy/hardware;
-Finish succeeds only after such an entry. History has no voice entry. This mode
-reports that guarded boundary alone, not the separate attachment-picker or full
-capsule lifecycle checks.

@@ -30,8 +30,7 @@ mode, Command-Shift-D toggles light/dark appearance
 without system changes.
 
 The build driver still reads this checkout and uses its SwiftPM cache. The GUI
-fixture uses copied resources and an embedded WebRTC framework, with a relative
-bundle rpath; it never follows a resource link back into the checkout. Its cwd,
+fixture uses copied resources; it never follows a resource link back into the checkout. Its cwd,
 result and capture staging directories are also outside Desktop, Documents and
 Downloads, even if `TMPDIR` points into the checkout. Thus a Desktop checkout
 does not require giving the **replay application** Files & Folders permission.

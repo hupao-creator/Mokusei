@@ -24,11 +24,10 @@ type Adapter struct {
 	settings plugin.HarnessSettings
 	mu       sync.Mutex
 	handles  map[*Handle]bool
-	voices   map[string]*VoiceSession
 }
 
 func New(host plugin.HostContext) *Adapter {
-	a := &Adapter{host: host, handles: map[*Handle]bool{}, voices: map[string]*VoiceSession{}}
+	a := &Adapter{host: host, handles: map[*Handle]bool{}}
 	a.settings = NewSettingsAPI(func(ctx context.Context, cwd, executable string) (*AppServer, error) {
 		return a.server(ctx, cwd, executable, "", "")
 	})
@@ -218,16 +217,10 @@ func (a *Adapter) Close() error {
 	for h := range a.handles {
 		handles = append(handles, h)
 	}
-	voices := []*VoiceSession{}
-	for _, v := range a.voices {
-		voices = append(voices, v)
-	}
 	a.mu.Unlock()
 	var errs []error
 	errs = append(errs, a.settings.(*SettingsAPI).catalog.Close())
-	for _, v := range voices {
-		errs = append(errs, v.Close())
-	}
+
 	for _, h := range handles {
 		errs = append(errs, h.Close())
 	}
@@ -322,7 +315,6 @@ type Handle struct {
 	deltaTimer          *time.Timer
 	commitErr           error
 	reads               map[*NativeSession]bool
-	voice               *VoiceSession
 	pendingBytes        int
 	backgroundMu        sync.Mutex
 	backgroundQueue     map[string]Map
@@ -331,11 +323,6 @@ type Handle struct {
 	backgroundEpoch     int64
 	backgroundCancel    context.CancelFunc
 	readWG              sync.WaitGroup
-	voiceRetired        bool
-	voiceWarmCancel     context.CancelFunc
-	voiceAdmitting      bool
-	voiceWarmed         bool
-	voiceWarmIdentity   [32]byte
 	rotationSeed        string
 }
 
@@ -385,36 +372,14 @@ func (h *Handle) ensureNative(ctx context.Context, o *NativeOptions) error {
 	h.mu.Lock()
 	native := h.native
 	oldMode := str(h.state["nativeToolMode"])
-	warmed, warmIdentity := h.voiceWarmed, h.voiceWarmIdentity
 	h.mu.Unlock()
-	if native != nil && warmed {
-		identity, err := h.voiceLaunchIdentity(ctx, o, native.server.launch.Executable)
-		if err != nil {
-			return err
-		}
-		// Consume the candidate at its first validated use. Once it owns a
-		// voice or execution, ordinary busy rules protect it from rotation.
-		h.mu.Lock()
-		h.voiceWarmed = false
-		h.mu.Unlock()
-		if identity != warmIdentity {
-			if err = native.Close(); err != nil {
-				return err
-			}
-			h.mu.Lock()
-			h.native = nil
-			h.voiceWarmed = false
-			h.mu.Unlock()
-			native = nil
-		}
-	}
 	if native != nil {
 		native.server.mu.Lock()
 		dead := native.server.closed
 		native.server.mu.Unlock()
 		if !dead {
 			h.mu.Lock()
-			busy := h.voice != nil || len(arr(h.state["backgroundTerminals"])) > 0 || h.state["nativeActivity"] != nil
+			busy := len(arr(h.state["backgroundTerminals"])) > 0 || h.state["nativeActivity"] != nil
 			h.mu.Unlock()
 			native.mu.Lock()
 			busy = busy || !native.terminal
@@ -489,7 +454,6 @@ func (h *Handle) ensureNative(ctx context.Context, o *NativeOptions) error {
 		return errors.New("Codex handle closed")
 	}
 	h.native = native
-	h.voiceWarmed = false
 	if h.rotationSeed != "" {
 		h.mu.Unlock()
 		return nil
@@ -936,9 +900,6 @@ func (h *Handle) Close() error {
 	h.closeOnce.Do(func() {
 		h.mu.Lock()
 		h.backgroundPaused = true
-		if h.voiceWarmCancel != nil {
-			h.voiceWarmCancel()
-		}
 		h.backgroundEpoch++
 		if h.backgroundCancel != nil {
 			h.backgroundCancel()
@@ -950,7 +911,6 @@ func (h *Handle) Close() error {
 		h.adoptCanonicalTerminalLocked()
 		h.closeErr = h.flushLocked(context.Background())
 		native := h.native
-		voice := h.voice
 		reads := []*NativeSession{}
 		for n := range h.reads {
 			reads = append(reads, n)
@@ -958,9 +918,6 @@ func (h *Handle) Close() error {
 		h.mu.Unlock()
 		h.opMu.Unlock()
 		h.cancel()
-		if voice != nil {
-			h.closeErr = errors.Join(h.closeErr, voice.Close())
-		}
 		if native != nil {
 			h.closeErr = errors.Join(h.closeErr, native.Close())
 		}

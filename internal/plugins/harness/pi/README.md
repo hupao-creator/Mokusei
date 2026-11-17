@@ -23,7 +23,7 @@ separate JavaScript build for this adapter.
 
 The adapter implements `plugin.Harness`, `Forker`, `PromptCompleter`,
 `AvailabilityProbe`, `WorkspaceDiscoverer`, `ModelCatalogSource`,
-and `DiscussionPreparer`. Installation of the external
+and `MokuTargetDiscoverer`. Installation of the external
 Pi CLI is manual through the native client's installation guide; this adapter
 does not implement `plugin.Installer` or launch an installation subprocess.
 
@@ -157,10 +157,6 @@ exclusive injection only. Native Responses thinking uses only explicit supported
 missing mappings, disabled levels and request overrides remain unavailable.
 Unsupported or unconfirmed thinking dialects stay
 unavailable instead of silently selecting a different setting.
-
-Voice discussions use a private native JSONL fork with the exclusive Host extension
-and Core project read tools. Persisted source history and execution remain owned
-by the source Thread. See [discussion semantics](../../../services/threadvoice/README.md).
 
 ## Initial response cards
 

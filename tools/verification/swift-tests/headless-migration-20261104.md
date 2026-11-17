@@ -59,10 +59,7 @@ The reviewed helpers remain the same implementations:
   their real clocks; they do not use the mounted canvas or a display link.
 - Talk and reading-headless tests use unattached NSHostingViews/NSViews. Existing
   `host.window == nil` checks and teardown/cancellation assertions remain.
-- Voice analysis consumes synthetic PCM. Capture wiring attaches the production
-  processing delegate without starting a device. Voice ownership injects
-  ReplayMedia/ReplayAudioDevice; transcript polling suspends the permission seam
-  before device allocation. Timer injects its Player, so no real bell plays.
+- Timer injects its Player, so no real bell plays.
 - Metal retains its actual packaged library, device and SwiftUI ImageRenderer
   pixel assertions. This is GPU-backed offscreen rendering, not CPU simulation.
 - NativeSettingsDiscoveryTests shares a source file with a graphical helper,
@@ -107,16 +104,12 @@ Each row below names the existing source, not a replacement test.
 | `NativeSettingsAnimationVisitTests` | 2 | [NativeSettingsAnimationVisitTests.swift](../../../app/macos/Tests/Integration/Host/NativeSettingsAnimationVisitTests.swift) |
 | `NativeSettingsDiscoveryTests` | 1 | [NativeSettingsLoadingReplay.swift](../../../app/macos/Tests/Integration/Host/NativeSettingsLoadingReplay.swift) |
 | `NativeThreadVisibilityTests` | 2 | [NativeThreadVisibilityTests.swift](../../../app/macos/Tests/Integration/Host/NativeThreadVisibilityTests.swift) |
-| `NativeVoiceAnalysisTests` | 9 | [NativeVoiceAnalysisTests.swift](../../../app/macos/Tests/Integration/Host/NativeVoiceAnalysisTests.swift) |
-| `NativeVoiceCaptureWiringTests` | 6 | [NativeVoiceCaptureWiringTests.swift](../../../app/macos/Tests/Integration/Host/NativeVoiceCaptureWiringTests.swift) |
-| `NativeVoiceOwnershipTests` | 29 | [NativeVoiceOwnershipTests.swift](../../../app/macos/Tests/Integration/Host/NativeVoiceOwnershipTests.swift) |
 
 | Fixture-backed suite | Method declarations | Existing producer variable / source |
 | --- | ---: | --- |
 | `NativeMokuDispatchTests` | 7 | `MOKU_STATUS_NATIVE_FIXTURE`; [NativeMokuDispatchTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuDispatchTests.swift) |
 | `NativeMokuTimerTests` | 8 | `MOKU_TIMER_NATIVE_FIXTURE`; [NativeMokuTimerTests.swift](../../../app/macos/Tests/Integration/Host/NativeMokuTimerTests.swift) |
 | `NativeOverviewTagEmojiTests` | 4 | `MOKUSEI_CONVERSATION_CONTRACT_EXPORT`; [NativeOverviewTagEmojiTests.swift](../../../app/macos/Tests/Integration/Host/NativeOverviewTagEmojiTests.swift) |
-| `NativeVoiceInputTranscriptTests` | 10 | `MOKUSEI_VOICE_EVENT_EXPORT`; [NativeVoiceInputTranscriptTests.swift](../../../app/macos/Tests/Integration/Host/NativeVoiceInputTranscriptTests.swift) |
 
 The four fixture suites move only when their existing environment variable is
 nonempty. Their own file decoding/validation remains authoritative; an invalid
@@ -173,7 +166,7 @@ case or assertion was added.
   ownership. `SwiftUIReplay.window(offscreen: true)` still activates an app and
   orders a key window; offscreen placement is not windowless execution.
 - Overview capacity/mounting/entry/centering/resizing/transitions, glass,
-  loading clocks, Moku landing/history/voice layout and clipping retain display
+  loading clocks, Moku landing/history layout and clipping retain display
   execution. Their assertions depend on mounted geometry, occlusion, live clocks
   or composed pixels. All 11 explicit methods in
   [swift_ownership.py](../../../scripts/ci/swift_ownership.py) keep their original

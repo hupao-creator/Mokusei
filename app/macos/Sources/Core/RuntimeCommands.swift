@@ -12,7 +12,7 @@ extension RuntimeClient {
         let encodedArgs = try JSONValue.array(args).encodedData()
         var fingerprintInput = Data(channel.utf8); fingerprintInput.append(0); fingerprintInput.append(encodedArgs)
         let fingerprint = SHA256.hash(data: fingerprintInput).map { String(format: "%02x", $0) }.joined()
-        let readOnly = Set(["attachment:preview", "moku:voice-events", "thread:voice-events", "thread:read", "workspace:list-known-directories", "harness:settings-presentation", "harness:detect-installation", "state:load", "application:query", "settings:diagnostics"]).contains(channel)
+        let readOnly = Set(["attachment:preview", "thread:read", "workspace:list-known-directories", "harness:settings-presentation", "harness:detect-installation", "state:load", "application:query", "settings:diagnostics"]).contains(channel)
         if !readOnly {
             guard status == .connected, hydration == nil else {
                 throw RuntimeError("OFFLINE_COMMAND_DISABLED", "Connect and synchronize with the host before submitting this action; the draft is saved on this device")

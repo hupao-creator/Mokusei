@@ -27,8 +27,7 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 | [Sources/Shared/PluginUI](Sources/Shared/PluginUI/README.md) | Reading, forms, composer, cards and design resources |
 | Sources/Plugins/Harnesses | Codex, Claude, Pi and OpenCode projections and views |
 | Sources/Plugins/Applications | Report and Tag native contributions |
-| [Sources/Plugins/Sidecards](Sources/Plugins/Sidecards/README.md) | Conversation, browser and retained voice transcripts |
-| [Sources/Voice](Sources/Voice/README.md) | Native media, WebRTC and ownership |
+| [Sources/Plugins/Sidecards](Sources/Plugins/Sidecards/README.md) | Conversation and browser |
 
 The explicit `--benchmark-scenario overview` launch requires an isolated
 `--data-dir` and automation socket, completes onboarding before workspace creation
@@ -191,11 +190,7 @@ before retaining any profile-local state. Fresh rotation uses the same
 cross-process admission and lifetime locks; offline preferences and drafts
 therefore remain protected independently of the runtime service's ownership.
 
-Reload replaces presentation while retaining the workspace-owned voice session and
-its display intent. Only explicit voice exit or actual workspace shutdown owns
-call teardown; see the [voice lifecycle](Sources/Voice/README.md).
-
-Quit remains available during Reload and never requires successful runtime or voice cleanup. It gives local cleanup up to three seconds before requesting process exit; a second Quit skips pending application/drain waits while admitting the Runtime cleanup helper. Errors go to profile diagnostics, and the existing epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data.
+Quit remains available during Reload and never requires successful runtime cleanup. It gives local cleanup up to three seconds before requesting process exit; a second Quit skips pending application/drain waits while admitting the Runtime cleanup helper. Errors go to profile diagnostics, and the existing epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data.
 Quit revokes the pending Reload's publication identity before cancelling it.
 The retiring presentation's resource cleanup remains tracked until it drains;
 its late completion cannot publish a replacement or clear a successor operation.
@@ -216,7 +211,6 @@ The View menu routes Reload and Zoom through the focused Browser/Report document
 before changing the workspace. App zoom persists levels bounded to 1×…5×. Saved
 levels below 1× are normalized and rewritten during load. Clamping stored levels
 keeps the first reverse step at either limit responsive.
-
 
 Agent panels now carry source title/emoji ink separately during deferred opening,
 show a scoped skeleton while loading, and draw the full parsed Markdown body
@@ -252,7 +246,6 @@ The carousel begins its eleven-second dwell after entrance and WebKit playback
 admission. See the [animation contract](../../design/super-thread-animated-covers.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
-
 
 Super Thread browsing groups documents closed more than five minutes ago into
 one collection per tag view, when at least two qualify. Eligible documents retain

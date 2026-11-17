@@ -60,46 +60,4 @@ final class IntegerWireTests: XCTestCase {
                        "[9007199254740993,9223372036854775807,18446744073709551615]")
     }
 
-    // Go launches this test and consumes the bytes, rather than recreating the
-    // payload with encoding/json (which hid this bug in older Go-only replays).
-    func testExportActualSwiftRequestsToGo() throws {
-        let environment = ProcessInfo.processInfo.environment
-        guard let output = environment["MOKUSEI_SWIFT_INTEGER_REQUESTS"],
-              let threadID = environment["MOKUSEI_SWIFT_VOICE_THREAD"] else {
-            throw XCTSkip("Missing MOKUSEI_SWIFT_INTEGER_REQUESTS / MOKUSEI_SWIFT_VOICE_THREAD (Go request-export fixture). Run ./scripts/go.sh run -race ./tools/verification/runtime -swift-voice")
-        }
-        let sessionID = "11111111-1111-4111-8111-111111111111"
-        func voice(_ name: String, _ fields: [JSONText: JSONValue]) -> JSONValue {
-            .object(["name": .text(name), "channel": .text(fields["action"] == .text("poll") ? "moku:voice-events" : "moku:voice"),
-                     "args": .array([.object(fields)])])
-        }
-        func threadVoice(_ name: String, _ fields: [JSONText: JSONValue]) -> JSONValue {
-            .object(["name": .text(name), "channel": .text(fields["action"] == .text("history") || fields["action"] == .text("heartbeat") ? "thread:voice-events" : "thread:voice"),
-                     "args": .array([.object(["threadId": .text(threadID), "request": .object(fields)])])])
-        }
-        let commands: [JSONValue] = [
-            threadVoice("thread history", ["action": .text("history")]),
-            threadVoice("thread prepare removed", ["action": .text("prepare"), "requestId": .text(sessionID)]),
-            threadVoice("thread start removed", ["action": .text("start"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "sdp": .text("fixture-offer")]),
-            threadVoice("thread heartbeat removed", ["action": .text("heartbeat"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID)]),
-            threadVoice("thread stop", ["action": .text("stop"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID)]),
-            voice("prepare", ["action": .text("prepare"), "requestId": .text(sessionID)]),
-            // Keep a legacy Double construction too: the shared encoder must
-            // fix all existing whole-valued number callers, not only one field.
-            voice("initial poll", ["action": .text("poll"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "after": .number(0)]),
-            voice("start", ["action": .text("start"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "sdp": .text("fixture-offer")]),
-            voice("events", ["action": .text("poll"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "after": .integer(0)]),
-            voice("advanced poll", ["action": .text("poll"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "after": .integer(1)]),
-            voice("max cursor", ["action": .text("poll"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "after": .integer(RuntimeProtocol.maximumSafeInteger)]),
-            voice("stop", ["action": .text("stop"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID)]),
-            voice("retired poll", ["action": .text("poll"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "after": .integer(2)])
-        ]
-        let integerFields = ["after", "draftRevision", "expectedSettingsRevision", "revision", "metadataRevision"]
-        let contracts: [JSONValue] = [0, 1, 9_007_199_254_740_993, Int.max, Int.min].map { integer in
-            .object(Dictionary(uniqueKeysWithValues: integerFields.map { (JSONText($0), .integer(integer)) }))
-        }
-        let wire = JSONValue.object(["commands": .array(commands), "contracts": .array(contracts)])
-        try wire.encodedData().write(to: URL(fileURLWithPath: output))
-        print("PASS Swift integer requests exported")
-    }
 }

@@ -5,14 +5,13 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 import MokuseiSidecardConversation
 import MokuseiSidecardBrowser
-import MokuseiSidecardVoice
 @testable import MokuseiUI
 
 /// The fixture owns only selection and mock capabilities. Actual plugin sessions
 /// remain mounted while folded, so their editors and drafts survive switching.
 @MainActor @Observable final class DemoSidecards {
     let thread: HarnessThread
-    let modules = [AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(NativeBrowserSidecard()), AnySidecardPlugin(NativeVoiceSidecard())]
+    let modules = [AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(NativeBrowserSidecard())]
     var selected: JSONText?
     var lastSelected: JSONText?
     var widths: [JSONText: CGFloat] = [:]
@@ -26,14 +25,6 @@ import MokuseiSidecardVoice
     @ObservationIgnored private var handlers: [JSONText: [UUID: (SidecardIntent) -> Bool]] = [:]
     @ObservationIgnored private var retired = false
     @ObservationIgnored private let onBack: () -> Void
-    @ObservationIgnored private var muted = false
-    @ObservationIgnored lazy var voice: SidecardVoiceCapability = SidecardVoiceCapability(
-        state: voiceState(.closed),
-        start: { [weak self] in await MainActor.run { self?.setVoicePhase(.listening) } },
-        stop: { [weak self] in await MainActor.run { self?.setVoicePhase(.closed) } },
-        toggleMute: { [weak self] in guard let self else { return }; muted.toggle(); voice.publish(voiceState(voice.state.phase)) },
-        refresh: {})
-
     init(thread: DemoThread, onBack: @escaping () -> Void) {
         self.thread = try! HarnessThread(id: JSONText(thread.id), harnessID: "codex", revision: 0,
             sessionState: .null, observation: .init(latestExecution: try! .init(executionID: "demo-running-execution", status: .running, startedAt: 1793602800000)), cwd: "/demo/Mokusei", settings: .object([:]),
@@ -88,12 +79,6 @@ import MokuseiSidecardVoice
     private func update() {
         for (id, session) in sessions { try! session.update(context: context(id)) }
     }
-    private func setVoicePhase(_ phase: SidecardVoiceState.Phase) { voice.publish(voiceState(phase)) }
-    private func voiceState(_ phase: SidecardVoiceState.Phase) -> SidecardVoiceState {
-        .init(phase: phase, supported: true, available: true, loading: false, muted: muted, error: "",
-            messages: [try! .init(id: "demo-voice-note", sessionID: "demo-voice", role: .assistant,
-                text: "这里是本地语音讨论示例。演示不会开启麦克风或连接语音服务。", complete: true, createdAt: 1793602800000)])
-    }
     private func context(_ id: JSONText) -> SidecardContext {
         let actions = HarnessThreadActions(interrupt: {}, respond: { _ in }, invokeHarnessExtension: { _, _ in .null },
             forkThread: { _ in "demo-fork" }, openExternal: { _ in }, openFollowUp: { _ in })
@@ -101,7 +86,7 @@ import MokuseiSidecardVoice
             actions: actions, readingTarget: nil, executionDisabled: false, expanded: selected == id,
             transitioning: transitioning, suppressed: selected != id || transitioning || dragging,
             conversation: { _, _ in AnyView(ThreadMessage(id: "demo-execution", author: .assistant,
-                content: "正在整理交互细节。\n\n这是本地执行 fixture，不会提交真实任务。").padding(24)) }, voice: voice,
+                content: "正在整理交互细节。\n\n这是本地执行 fixture，不会提交真实任务。").padding(24)) },
             open: { [weak self] in self?.choose(id); return self?.revision ?? 0 },
             close: { [weak self] in if self?.selected == id { self?.choose(nil) } },
             selectionRevision: { [weak self] in self?.revision ?? 0 },

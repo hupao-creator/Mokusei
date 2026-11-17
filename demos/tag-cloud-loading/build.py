@@ -31,7 +31,7 @@ objects = [line.strip().strip('"') for line in
            if "/Mokusei.build/" not in line and "/MokuseiUI.build/" not in line]
 args = ["/usr/bin/xcrun", "swiftc", "-swift-version", "6", "-warnings-as-errors",
         "-target", "arm64-apple-macosx26.0", "-I", str(build / "Modules"), "-F", str(build),
-        "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker", str(build)]
+        "-Xlinker", "-rpath", "-Xlinker", str(build)]
 for include in [
     package / ".build/checkouts/swift-cmark/src/include",
     package / ".build/checkouts/swift-cmark/extensions/include",

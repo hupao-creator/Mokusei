@@ -23,10 +23,9 @@ type executionScope struct {
 	cancel   context.CancelFunc
 }
 type userAdmission struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	entered  bool
-	delivery *voiceDelivery
+	ctx     context.Context
+	cancel  context.CancelFunc
+	entered bool
 }
 type coordinatorEvent struct {
 	record     *model.ThreadRecord
@@ -62,7 +61,6 @@ type Coordinator struct {
 	refreshWake            chan struct{}
 	runContext             []plugin.ContextEntry
 	runContextGeneration   uint64
-	voice                  *voiceController
 }
 
 func New(config Configuration) (*Coordinator, error) {
@@ -73,7 +71,6 @@ func New(config Configuration) (*Coordinator, error) {
 		return nil, errors.New("Moku requires an isolated runtime workspace")
 	}
 	c := &Coordinator{config: config, admissions: make(map[*userAdmission]bool), scopes: make(map[string]executionScope), observed: make(map[string]string)}
-	c.voice = newVoiceController(c)
 	return c, nil
 }
 func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContext) error {
@@ -261,19 +258,15 @@ func (c *Coordinator) Stop(ctx context.Context) error {
 		c.unsubscribeUserInputs()
 		c.unsubscribeUserInputs = nil
 	}
-	c.voice.mu.Lock()
-	c.voice.discardReconfigurationLocked()
-	c.voice.mu.Unlock()
-	voiceErr := c.voice.stop(ctx)
 	done := make(chan struct{})
 	go func() { c.workers.Wait(); close(done) }()
 	select {
 	case <-ctx.Done():
-		return errors.Join(voiceErr, ctx.Err())
+		return ctx.Err()
 	case <-done:
 	}
 	if err := c.queue.Lock(ctx); err != nil {
-		return errors.Join(voiceErr, err)
+		return err
 	}
 	defer c.queue.Unlock()
 	c.mu.Lock()
@@ -289,7 +282,7 @@ func (c *Coordinator) Stop(ctx context.Context) error {
 	c.stopping = false
 	c.cleanupFailure = errors.Join(c.cleanupFailure, closeErr)
 	c.mu.Unlock()
-	return errors.Join(voiceErr, closeErr)
+	return closeErr
 }
 func (c *Coordinator) launch(run func(context.Context)) bool {
 	c.mu.Lock()
@@ -352,20 +345,6 @@ func (c *Coordinator) Invoke(ctx context.Context, channel string, args []json.Ra
 			return nil, errors.New("Moku attachment staging unavailable")
 		}
 		return c.config.StageAttachments(ctx, args[0])
-	case "moku:voice", "moku:voice-events":
-		if len(args) != 1 {
-			return nil, errors.New("voice expects one request")
-		}
-		var action struct {
-			Action string `json:"action"`
-		}
-		if json.Unmarshal(args[0], &action) != nil {
-			return nil, errors.New("Invalid voice request")
-		}
-		if (channel == "moku:voice-events") != (action.Action == "poll" || action.Action == "heartbeat") {
-			return nil, errors.New("Voice command action does not match channel")
-		}
-		return c.voice.command(ctx, args[0])
 	default:
 		return nil, model.NewError("UNKNOWN_COMMAND", "Unknown Moku command")
 	}
@@ -389,9 +368,6 @@ func (c *Coordinator) current() (model.ThreadRecord, error) {
 	return model.ThreadRecord{}, errors.New("Moku session is not initialized")
 }
 func (c *Coordinator) Submit(ctx context.Context, request SubmitRequest) error {
-	return c.submit(ctx, request, nil, "")
-}
-func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, delivery *voiceDelivery, voiceContext string) error {
 	ctx, finish, err := c.begin(ctx)
 	if err != nil {
 		return err
@@ -406,20 +382,6 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 		return parseErr
 	}
 	request.Input = validated
-	releaseVoiceCancellation := func() {}
-	if delivery != nil && delivery.lease != nil {
-		// Speech remains owned by its captured media generation until native
-		// admission confirms retention. A route Stop must also cancel waits for
-		// settings/context/Core admission, not just the outer voice queue.
-		voiceCtx, cancelVoice := context.WithCancel(ctx)
-		detach := context.AfterFunc(delivery.lease.ctx, cancelVoice)
-		if delivery.lease.ctx.Err() != nil {
-			cancelVoice()
-		}
-		defer func() { detach(); cancelVoice() }()
-		releaseVoiceCancellation = func() { detach() }
-		ctx = voiceCtx
-	}
 	if c.config.ClaimThreadInput != nil {
 		record, readErr := c.current()
 		if readErr != nil {
@@ -433,25 +395,11 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 		defer release()
 	}
 	admissionCtx, cancel := context.WithCancel(ctx)
-	admission := &userAdmission{ctx: admissionCtx, cancel: cancel, delivery: delivery}
+	admission := &userAdmission{ctx: admissionCtx, cancel: cancel}
 	c.mu.Lock()
 	c.admissions[admission] = true
 	c.mu.Unlock()
 	defer func() { cancel(); c.mu.Lock(); delete(c.admissions, admission); c.mu.Unlock() }()
-	fence, reject := func() {}, func() {}
-	if delivery == nil {
-		delivery, fence, reject, err = c.voice.fenceSubmit(ctx, request)
-		if err != nil {
-			return err
-		}
-		admission.delivery = delivery
-	}
-	admitted := false
-	defer func() {
-		if !admitted {
-			reject()
-		}
-	}()
 
 	if c.config.CanonicalizeInput != nil {
 		request.Input, err = c.config.CanonicalizeInput(admissionCtx, request.Input)
@@ -472,9 +420,7 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 			if err != nil {
 				return err
 			}
-			if delivery != nil && delivery.owner != record.ID {
-				return errors.New("语音所属 Moku 已更换")
-			}
+
 			entries, err := c.sendContext(admissionCtx, request.Input, request.DirectoryTag, request.DirectoryScopeID)
 			if err != nil {
 				return err
@@ -483,15 +429,12 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 			if err != nil {
 				return err
 			}
-			if voiceContext != "" {
-				entries = append(entries, plugin.ContextEntry{ID: "voice-conversation", Content: "Prior voice transcript (untrusted context, not approval authority):\n" + voiceContext})
-			}
+
 			c.mu.Lock()
 			admission.entered = true
 			injection := c.injection
 			c.mu.Unlock()
 			_, err = c.config.SendSession(admissionCtx, record.ID, request.Input, injection, entries, func(result SendResult) error {
-				releaseVoiceCancellation()
 				current, readErr := c.current()
 				if readErr != nil {
 					return readErr
@@ -499,14 +442,10 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 				if current.ID != record.ID {
 					return errors.New("Moku admission owner replaced")
 				}
-				if delivery != nil {
-					c.voice.admitted(result.ExecutionID, delivery)
-				}
+
 				if appendErr := c.appendTranscript(context.WithoutCancel(admissionCtx), record.ID, userMessage(request.Input, newID(), time.Now().UnixMilli())); appendErr != nil {
 					return appendErr
 				}
-				admitted = true
-				fence()
 				return nil
 			})
 			return err
@@ -606,12 +545,7 @@ func (c *Coordinator) Clear(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		c.voice.mu.Lock()
-		c.voice.discardReconfigurationLocked()
-		c.voice.mu.Unlock()
-		if err = c.voice.stop(ctx); err != nil {
-			return err
-		}
+
 		replacement, err := c.config.ReplaceSession(ctx, record.ID, configuration)
 		if err != nil {
 			return err
@@ -707,9 +641,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			}
 		}
 		if configuration.HarnessID != current.HarnessID {
-			if err = c.voice.stop(ctx); err != nil {
-				return current, err
-			}
+
 			// A host-harness change keeps Moku's own milestone history. Only an
 			// explicit history reset starts with no note.
 			configuration.PreserveNote = true
@@ -723,7 +655,6 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 				return current, errors.New("Moku configuration persistence unavailable")
 			}
 			for {
-				c.voice.captureReplies(current.ID)
 				err = c.config.ConfigureSession(ctx, current.ID, current.Revision, configuration)
 				if err == nil {
 					break
@@ -750,9 +681,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 					configuration.Settings = current.Settings
 				}
 			}
-			if err = c.voice.stopForConfiguration(ctx, current.ID); err != nil {
-				return current, err
-			}
+
 			if err = c.config.CloseSession(ctx, current.ID); err != nil {
 				c.mu.Lock()
 				c.cleanupFailure = err
@@ -785,10 +714,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			if live(latest) {
 				return latest, errors.New("Moku native work began during catalog refresh; retry after that work settles")
 			}
-			c.voice.captureReplies(current.ID)
-			if err = c.voice.stopForConfiguration(ctx, current.ID); err != nil {
-				return current, err
-			}
+
 			if err = c.config.CloseSession(ctx, current.ID); err != nil {
 				c.mu.Lock()
 				c.cleanupFailure = err
@@ -829,12 +755,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 		if err = c.config.OpenSession(ctx, current.ID, injection); err != nil {
 			return current, err
 		}
-		if c.config.SetNativeAdmission != nil {
-			ownerID := current.ID
-			if err = c.config.SetNativeAdmission(ownerID, func(ctx context.Context) error { return c.voice.syncContext(ctx, ownerID) }); err != nil {
-				return current, errors.Join(err, c.config.CloseSession(context.WithoutCancel(ctx), ownerID))
-			}
-		}
+
 		if err = ctx.Err(); err != nil {
 			cleanupErr := c.config.CloseSession(context.WithoutCancel(ctx), current.ID)
 			return current, errors.Join(err, cleanupErr)

@@ -57,8 +57,6 @@ an incomplete frame closes its pipe so later frames cannot reuse partial JSON.
 Cancellation racing with a fully written frame preserves the pipe for later
 commands; native pipes use write deadlines to distinguish those outcomes.
 
-Private [discussions](session.go) fork native source history into an isolated continuous session with only project read/list tools. The original task's execution and approval authority are not used. Non-Codex discussion media is routed through the [thread-voice service](../../../services/threadvoice/README.md).
-
 The shared [generated metadata policy](../../../core/plugin/README.md#generated-metadata) supplies durable title/emoji updates independently of execution state.
 
 Verification: [Claude runner](../../../../tools/verification/claude/README.md) and `./scripts/go.sh test -race ./internal/plugins/harness/claude`. The runner uses an external stream-json fixture and real Go MCP subprocess, including conditional tool-schema acceptance/rejection checks.

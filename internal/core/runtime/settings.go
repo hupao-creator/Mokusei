@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -422,7 +423,7 @@ func (r *Runtime) SettingsPresentation(ctx context.Context, raw json.RawMessage)
 		if e != nil {
 			return nil, e
 		}
-		if threadSource.SettingsRevision != current.SettingsRevision || !sameVoiceSource(*threadSource, current) {
+		if threadSource.SettingsRevision != current.SettingsRevision || !sameSettingsSource(*threadSource, current) {
 			return nil, errors.New("thread settings source changed during presentation")
 		}
 		if r.config.Workspaces != nil {
@@ -569,4 +570,11 @@ func (r *Runtime) KnownDirectories(ctx context.Context) ([]model.KnownDirectory,
 func within(root, path string) bool {
 	rel, err := filepath.Rel(root, path)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
+func sameSettingsSource(a, b model.ThreadRecord) bool {
+	if a.Cwd != b.Cwd || a.HarnessID != b.HarnessID || a.Moku != b.Moku || a.MokuHistory != b.MokuHistory || !bytes.Equal(a.Settings, b.Settings) || (a.Worktree == nil) != (b.Worktree == nil) {
+		return false
+	}
+	return a.Worktree == nil || a.Worktree.Cwd == b.Worktree.Cwd
 }

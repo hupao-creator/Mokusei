@@ -96,7 +96,7 @@ import MokuseiCore
                 SchemeProbe(name: "workspace").frame(height: 1)
                 NativeMokuDock(state: state, draft: draft, cwd: "", mode: .idle,
                     interaction: interaction ? AnyView(SchemeProbe(name: "interaction")) : nil,
-                    voiceBackground: AnyView(SchemeProbe(name: "dock")), onSend: { _ in }, onCancel: {})
+                    onSend: { _ in }, onCancel: {})
                     .environment(\.nativeMokuSettingsContent, AnyView(SchemeProbe(name: "settings")))
                 NativeMokuHistoryComposer(draft: draft, cwd: "", focusEnabled: false,
                     onSend: { _ in }, onCancel: {})
@@ -114,15 +114,13 @@ import MokuseiCore
             host.rootView = root(scheme)
             try await settle(host)
             precondition(probe("workspace", in: host) == scheme)
-            precondition(probe("dock", in: host) == .dark)
             let allEditors = descendants(host, ComposerTextView.self)
             let current = allEditors.filter(\.emphasizedInsertionPoint)
             precondition(current.count == 2, "Dock and history must retain their native editors")
             let ordinary = allEditors.first { !$0.emphasizedInsertionPoint }!
             precondition(ordinary.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == (scheme == .light ? .aqua : .darkAqua),
                          "Moku override leaked into an ordinary composer")
-            // History no longer mounts the retired voice-background slot. Inspect
-            // both real native editors instead of injecting a probe into that slot.
+            // Inspect both production editors at their native appearance boundary.
             for editor in current {
                 precondition(editor.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
                              "Native editor failed to inherit Moku's dark environment")

@@ -432,9 +432,7 @@ private struct ReplayObserved<Content: View>: View {
 @MainActor private final class Delegate: NSObject, NSApplicationDelegate {
     private func finish(error: Error? = nil) -> Never {
         let result: [String: Any] = ["ok": error == nil, "message": error.map(String.init(describing:))
-            ?? (ProcessInfo.processInfo.environment["MOKU_CAPSULE_INSPECT"] == "presentation"
-                ? "production Dock voice entry reached its guarded media boundary; no prepare/privacy/media allocation"
-                : ProcessInfo.processInfo.environment["MOKU_CAPSULE_INSPECT"] == "contrast"
+            ?? (ProcessInfo.processInfo.environment["MOKU_CAPSULE_INSPECT"] == "contrast"
                 || ProcessInfo.processInfo.environment["MOKU_CAPSULE_REPLAY"] == "appearance"
                 ? "production capsule single-line alignment, scrollbars and theme/background contrast"
                 : ProcessInfo.processInfo.environment["MOKU_CAPSULE_REPLAY"] == "completion"
@@ -455,9 +453,7 @@ private struct ReplayObserved<Content: View>: View {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
             do {
-                if ProcessInfo.processInfo.environment["MOKU_CAPSULE_INSPECT"] == "presentation" {
-                    try await inputPresentationReplay()
-                } else if ProcessInfo.processInfo.environment["MOKU_CAPSULE_INSPECT"] == "contrast"
+                if ProcessInfo.processInfo.environment["MOKU_CAPSULE_INSPECT"] == "contrast"
                             || ProcessInfo.processInfo.environment["MOKU_CAPSULE_REPLAY"] == "appearance" {
                     try await capsuleAppearanceReplay()
                 } else if ProcessInfo.processInfo.environment["MOKU_CAPSULE_REPLAY"] == "completion" {

@@ -26,41 +26,38 @@ type nativePending struct {
 	timer               *time.Timer
 }
 type NativeSession struct {
-	mu                          sync.Mutex
-	notificationMu              sync.Mutex
-	server                      *AppServer
-	id, turnID, executionID     string
-	settings                    Map
-	reasoning, finals, outputs  map[string]string
-	finalOrder                  []string
-	seenUsage                   map[string]bool
-	pending                     map[string]*nativePending
-	emit                        func(Map)
-	activity                    func(Map)
-	realtime                    func(string, Map)
-	nativeAdmit                 func(string) (string, error)
-	nativeConfigurationRejected func(error)
-	nativeAdmissionCancelled    func(string)
-	terminal                    bool
-	bridge                      *ToolBridge
-	completed                   chan struct{}
-	failure                     string
-	closed                      bool
-	closeOnce                   sync.Once
-	closeErr                    error
-	background                  map[string]Map
-	tombstones                  map[string]bool
-	refreshMu                   sync.Mutex
-	toolContext                 context.Context
-	toolCancel                  context.CancelFunc
-	toolCalls                   map[string]bool
-	toolWorkers                 *sync.WaitGroup
-	nativeBacklog               []Map
-	nativeBacklogBytes          int
-	retiredTurns                map[string]bool
-	retryTimer                  *time.Timer
-	retryCount                  int
-	retryGeneration             uint64
+	mu                         sync.Mutex
+	notificationMu             sync.Mutex
+	server                     *AppServer
+	id, turnID, executionID    string
+	settings                   Map
+	reasoning, finals, outputs map[string]string
+	finalOrder                 []string
+	seenUsage                  map[string]bool
+	pending                    map[string]*nativePending
+	emit                       func(Map)
+	activity                   func(Map)
+	nativeAdmit                func(string) (string, error)
+	terminal                   bool
+	bridge                     *ToolBridge
+	completed                  chan struct{}
+	failure                    string
+	closed                     bool
+	closeOnce                  sync.Once
+	closeErr                   error
+	background                 map[string]Map
+	tombstones                 map[string]bool
+	refreshMu                  sync.Mutex
+	toolContext                context.Context
+	toolCancel                 context.CancelFunc
+	toolCalls                  map[string]bool
+	toolWorkers                *sync.WaitGroup
+	nativeBacklog              []Map
+	nativeBacklogBytes         int
+	retiredTurns               map[string]bool
+	retryTimer                 *time.Timer
+	retryCount                 int
+	retryGeneration            uint64
 }
 
 func NewNativeSession(s *AppServer) *NativeSession {
@@ -517,14 +514,9 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		return
 	}
 	n.mu.Lock()
-	id, turn, terminal, rt := n.id, n.turnID, n.terminal, n.realtime
+	id, turn, terminal := n.id, n.turnID, n.terminal
 	n.mu.Unlock()
-	if rt != nil && (strings.HasPrefix(method, "thread/realtime/") || method == "turn/started") {
-		rt(method, p)
-	}
-	if strings.HasPrefix(method, "thread/realtime/") {
-		return
-	}
+
 	if str(p["threadId"]) != id {
 		return
 	}
@@ -542,32 +534,6 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 	}
 	if terminal && method == "turn/started" && nativeTurn != "" {
 		if e := n.admitNative(nativeTurn); e != nil {
-			if e == errNativeVoiceAdmissionCancelled {
-				n.mu.Lock()
-				n.retiredTurns[nativeTurn] = true
-				cancel := n.nativeAdmissionCancelled
-				n.mu.Unlock()
-				if cancel != nil {
-					cancel(nativeTurn)
-					return
-				}
-			}
-			if e == plugin.ErrMokuConfigurationPending {
-				n.mu.Lock()
-				callback := n.nativeConfigurationRejected
-				if callback != nil {
-					n.retiredTurns[nativeTurn] = true
-					n.nativeAdmit = nil
-				}
-				n.mu.Unlock()
-				if callback != nil {
-					// Core rejected before any tool/execution was admitted. Drain
-					// the original process before handing its exact input back;
-					// generic failures never enter this recovery path.
-					go func() { callback(n.Close()) }()
-					return
-				}
-			}
 			n.protocolFailure(e.Error())
 			return
 		}
@@ -605,16 +571,7 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		p = clone(p)
 		p["item"] = item
 	}
-	if item := obj(p["item"]); (method == "item/started" || method == "item/completed") && item["type"] == "userMessage" && rt != nil {
-		texts := []string{}
-		for _, part := range arr(item["content"]) {
-			texts = append(texts, str(obj(part)["text"]))
-		}
-		text := strings.Join(texts, "\n")
-		if strings.Contains(text, "<realtime_delegation>") {
-			rt("mokusei/voice/delegation", Map{"turnId": nativeTurn, "itemId": str(item["id"]), "text": text})
-		}
-	}
+
 	if events := DecodeNotification(method, p); events != nil {
 		for _, e := range events {
 			n.publish(e)
@@ -1263,12 +1220,12 @@ func (n *NativeSession) validateSettings(ctx context.Context, o *NativeOptions) 
 	return nil
 }
 
-// Voice can emit native items and requests before its turn/started boundary.
+// Native continuations can emit items and requests before their turn/started boundary.
 // Keep their exact wire identity until the registered owner durably admits it.
 func (n *NativeSession) routeNativePending(method string, p Map, id any) bool {
 	threadID := str(p["threadId"])
 	turnID := first(str(p["turnId"]), str(obj(p["turn"])["id"]))
-	if turnID == "" || strings.HasPrefix(method, "thread/realtime/") {
+	if turnID == "" {
 		return false
 	}
 	n.mu.Lock()

@@ -74,7 +74,7 @@ private struct NativeMokuComposerRowLayout: Layout {
 }
 
 /// The input row used by both the outside Dock and the permanently open history
-/// capsule. The scene supplies authority, draft lifetime and voice ownership.
+/// capsule. The scene supplies authority, draft lifetime.
 struct NativeMokuComposerInput: View {
     let draft: NativeComposerDraft
     var cwd: JSONText = ""
@@ -82,7 +82,6 @@ struct NativeMokuComposerInput: View {
     var busy = false
     var threadTitle: String?
     var superThreadContext = false
-    var voiceEntryEnabled = false
     var sidecardComposer: SidecardComposerRequest?
     var placeholderIcon: AnyView?
     var readOnly = false
@@ -96,11 +95,6 @@ struct NativeMokuComposerInput: View {
     var retainedText: String?
     var retainedAttachments: [NativeComposerAttachment]?
     var retainedDirectories: [NativeComposerDirectory]?
-    /// Voice starts by holding the native editor; the workspace owns the session.
-    var canStartVoice: () -> Bool = { false }
-    var startVoice: () -> Void = {}
-    var activeVoiceControls = AnyView(EmptyView())
-    var voiceModeActive = false
     var running = false
     var onCancel: () -> Void = {}
     var availableHeight: CGFloat = 420
@@ -126,9 +120,7 @@ struct NativeMokuComposerInput: View {
     private var completionVisible: Bool { mentions?.isOpen == true && !readOnly }
     private var unavailable: Bool { disabled || draft.clearing || draft.isDisposed }
     private var editingUnavailable: Bool { (disabled && !offlineDraftEditing) || draft.clearing || draft.isDisposed }
-    private var voiceControlsVisible: Bool {
-        voiceModeActive
-    }
+
     private var hasInput: Bool {
         !NativeComposerSubmissionPolicy.trimmedText(retainedText ?? draft.inputText).isEmpty
             || !(retainedAttachments ?? draft.inputAttachments).isEmpty
@@ -144,7 +136,7 @@ struct NativeMokuComposerInput: View {
         }
         let directories = retainedDirectories ?? draft.inputDirectories
         guard let first = directories.first else {
-            return voiceEntryEnabled ? localize("向 Moku 提问，或长按说话…", "Ask Moku… or hold to speak") : localize("向 Moku 提问…", "Ask Moku…")
+            return localize("向 Moku 提问…", "Ask Moku…")
         }
         let name = first.name.string
         let subject: String
@@ -157,7 +149,7 @@ struct NativeMokuComposerInput: View {
         default:
             subject = localize("\(name) 等 \(directories.count) 个目录", "\(name) and \(directories.count - 1) other directories")
         }
-        return localize("向 Moku 询问关于 \(subject) 的问题，或长按说话…", "Ask Moku about \(subject)… or hold to speak")
+        return localize("向 Moku 询问关于 \(subject) 的问题…", "Ask Moku about \(subject)…")
     }
     var body: some View {
         VStack(spacing: 0) {
@@ -194,7 +186,6 @@ struct NativeMokuComposerInput: View {
                 HStack(spacing: 0) { actions }
             }.padding(.leading, 6).padding(.trailing, 13)
                 .onGeometryChange(for: CGFloat.self) { compact ? 34 : $0.size.height } action: { editorRowHeight = $0 }
-                .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: voiceControlsVisible)
             if let error = draft.error {
                 Text(sidecardComposer == nil ? composerLocalized(error, locale: locale)
                     : NativePluginLocalization.localize(error, locale: locale))
@@ -239,22 +230,7 @@ struct NativeMokuComposerInput: View {
             selectionRequest: selectionRequest, initialSelection: initialSelection, preservesSelection: true, onEditorStateChange: { state in
                 onEditorStateChange?(state)
             }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
-            .overlay {
-                if voiceEntryEnabled {
-                    NativeMokuLongPressVoiceMonitor(
-                    isActive: { threadTitle == nil && focusEnabled && !unavailable && !readOnly && !voiceModeActive },
-                    canStart: canStartVoice, start: startVoice)
-                    .allowsHitTesting(false)
-                }
-            }
             .help(editorHelp)
-            .accessibilityActions {
-                if voiceEntryEnabled && threadTitle == nil {
-                    Button(localize("开始语音", "Start voice")) {
-                        if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
-                    }
-                }
-            }
     }
     private var importFiles: (([NativeComposerFile]) async -> Void)? {
         guard sidecardComposer == nil else { return nil }
@@ -268,26 +244,12 @@ struct NativeMokuComposerInput: View {
         if sidecardComposer != nil {
             return localize("描述当前网页选区；Return 发送，Shift+Return 换行，Esc 取消标注", "Describe the selected page area; Return sends, Shift+Return adds a line, Escape cancels annotation")
         }
-        if threadTitle == nil, !voiceEntryEnabled { return localize("输入内容将发送给 Moku", "Input is sent to Moku") }
         return threadTitle == nil
-            ? localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking")
+            ? localize("输入内容将发送给 Moku", "Input is sent to Moku")
             : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread")
     }
     @ViewBuilder private var actions: some View {
-        // Keep the seat while it opens, without mounting an inactive
-        // voice entry. The workspace retains the media client itself.
-        ZStack {
-            if voiceControlsVisible {
-                activeVoiceControls.fixedSize(horizontal: true, vertical: true)
-                    .transition(.opacity)
-            }
-        }
-            .frame(width: voiceControlsVisible ? 34 : 0, height: 34)
-            .clipped()
-            .disabled(!voiceControlsVisible)
-            .allowsHitTesting(voiceControlsVisible)
-            .accessibilityHidden(!voiceControlsVisible)
-        if running && !voiceModeActive {
+        if running {
             Button(action: onCancel) {
                 RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
                     .frame(width: 32, height: 32).contentShape(Circle())
@@ -339,8 +301,7 @@ struct NativeMokuComposerInput: View {
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
 }
 
-/// History owns no outside-Dock state: sending, Escape, focus changes and voice
-/// transitions cannot collapse this capsule or change its supplied send route.
+/// History owns no outside-Dock state: sending, Escape, focus changes cannot collapse this capsule or change its supplied send route.
 public struct NativeMokuHistoryComposer: View {
     public let draft: NativeComposerDraft
     public let cwd: JSONText
@@ -357,17 +318,12 @@ public struct NativeMokuHistoryComposer: View {
     @State private var availableHeight: CGFloat = 420
     @State private var hovered = false
 
-    // Legacy voice arguments cannot enable a call from the history reader.
     public init(draft: NativeComposerDraft, cwd: JSONText, disabled: Bool = false, running: Bool = false,
                 focusEnabled: Bool = true, focusRequestKey: Int = 0, suppressInitialFocus: Bool = false,
-                activeVoiceControls: AnyView = AnyView(EmptyView()), voiceBackground: AnyView = AnyView(EmptyView()),
-                voiceModeActive: Bool = false,
                 loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
                 onSend: @escaping (NativeComposerSubmission) async throws -> Void,
                 onSendConsumed: @escaping (NativeComposerSubmission) async -> Void = { _ in },
-                onCancel: @escaping () -> Void,
-                canStartVoice: @escaping () -> Bool = { false },
-                startVoice: @escaping () -> Void = {}) {
+                onCancel: @escaping () -> Void) {
         self.draft = draft; self.cwd = cwd; self.disabled = disabled; self.running = running
         self.focusEnabled = focusEnabled; self.focusRequestKey = focusRequestKey; self.suppressInitialFocus = suppressInitialFocus
         self.loadMentionDirectories = loadMentionDirectories; self.onSend = onSend

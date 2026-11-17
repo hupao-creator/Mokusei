@@ -28,8 +28,8 @@ documentation scope are not claimed as executed.
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh, cache ownership and actual Pi read-guard tool refusal | Linux `adapters` replay group; scripted external peers, loopback services and Node execution of the bundled guard |
 | Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Serial windowless and graphical ordinary processes plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
-| Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation, Harness-form and Git metadata contracts reach real Swift consumers | Six producers export seven files locally before the complete Swift run |
-| Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage, native profile leases | Seven interop launchers, three devtool replays and real daemon lifecycle on macOS |
+| Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, conversation, Harness-form and Git metadata contracts reach real Swift consumers | Five producers export six files locally before the complete Swift run |
+| Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage, native profile leases | Six interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
 
 The ordinary Swift run defers only named methods needing a live Go fixture or
@@ -147,7 +147,6 @@ These are change-triggered acceptance checks, not universal local merge gates.
 
 | Check and trigger | Defect that equivalent software injection cannot establish | Required evidence |
 | --- | --- | --- |
-| Microphone, audible WebRTC playback and audio-route changes; when media/audio/device routing, permission handling or WebRTC dependency changes | Permission succeeds but capture never starts; connected media is silent; switching an audio device fails to recover | A disposable real voice session on the affected Mac/device, observed capture/playback and route recovery. Synthetic PCM and signaling remain CI-covered |
 | Physical Force Touch and trackpad scroll/pinch; when pressure configuration, hit regions, monitors or recognizer routing changes | Correct controller state but real OS events never reach it, or recognizers steal physical input | Physical input on the affected path. State-machine, synthetic event, focus and geometry checks remain CI-covered |
 | A specified performance regression on a target Mac; only when a change makes a concrete device-performance claim | Target chip/display/thermal conditions produce a regression that a hosted VM's timing does not represent | Repeatable target-machine comparison with fixed workload and declared metric. CPU/timer samples are not display FPS, GPU or energy evidence |
 

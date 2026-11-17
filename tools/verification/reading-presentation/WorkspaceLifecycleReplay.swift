@@ -78,7 +78,6 @@ private struct WorkspaceLifecycleSurface: View {
         await session.reloadTask?.value
         window?.contentView = nil; window?.close(); window = nil
         await session.presentation?.release()
-        await workspace.voice.stopAll()
         await workspace.harnessHost.releaseAll()
         workspace.settingsModel.discardForReload()
         await client.close()

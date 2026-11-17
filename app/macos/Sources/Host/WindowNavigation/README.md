@@ -39,7 +39,7 @@ workspaces stack the two panels. Escape from the Report or linked webpage folds 
 before closing the Report; editable elements and dialogs retain key priority.
 Same-document anchors (including HTTP pages) and non-link navigations retain WebKit behavior.
 The linked Browser opens with the same `NativeSidecardFold` aperture and
-launcher travel as Agent Execution/Browser/Voice and Report related executions:
+launcher travel as Agent Execution/Browser and Report related executions:
 380ms with cubic Bézier `(0.22, 1, 0.36, 1)`. Its launcher is the lower 42pt
 right-rail control. The native document takes its destination size once while
 the shell unfolds. Closing retains the existing whole-shell fade and workspace
@@ -204,7 +204,6 @@ inside the clipped viewport, and both scroll limits retain the same 8pt border.
 This is card chrome, independent
 of the existing HTML safe-area and authored page padding; no Report HTML, CSS,
 scroll offset or theme content is rewritten by this viewport adjustment.
-
 
 Agent panel entry captures only the source title/emoji text and native window
 geometry. Its lightweight compositor ink survives deferred reader mounting and

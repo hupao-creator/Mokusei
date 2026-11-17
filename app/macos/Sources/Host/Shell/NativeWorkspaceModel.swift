@@ -2,7 +2,6 @@ import Foundation
 import Observation
 import MokuseiCore
 import MokuseiPluginAPI
-import MokuseiVoice
 
 @MainActor @Observable
 public final class NativeWorkspaceModel {
@@ -58,9 +57,6 @@ public final class NativeWorkspaceModel {
     @ObservationIgnored public var onFollowUp: ((JSONText, JSONText) -> Void)?
     @ObservationIgnored public var onStopped: (() async -> Void)?
     @ObservationIgnored public lazy var services = NativeWorkspaceServices(workspace: self)
-    @ObservationIgnored public lazy var voice = NativeVoiceCoordinator(client: client, beforeCommand: { [weak self] in
-        guard let self else { throw CancellationError() }; try await self.prepareCommand()
-    })
     @ObservationIgnored public lazy var settingsModel = makeSettingsModel()
     @ObservationIgnored private lazy var settingsPrefetch = NativeWorkspaceSettingsPrefetch(host: harnessHost)
     @ObservationIgnored public lazy var harnessHost = NativeHarnessHost(
@@ -147,8 +143,6 @@ public final class NativeWorkspaceModel {
                         if status == .connected, self.connection != .connected { self.connectionRevision += 1 }
                         if status != .connected, self.connection == .connected { self.recoveryRevision += 1 }
                         self.connection = status
-                        self.voice.configureMoku(owner: self.catalog.moku?.id,
-                            available: status == .connected && !self.stopping)
                         if status == .connected { self.connectionError = self.catalogError }
                         self.settingsModel.receive(snapshot: self.state, runtimeAvailable: self.runtimeAvailable)
                         self.onConnectionChange?(status)
@@ -170,8 +164,7 @@ public final class NativeWorkspaceModel {
                             self.operationError = error.message
                             continue
                         }
-                        // This local observer will immediately reattach. It is
-                        // not a transport outage and must not retire voice.
+                        // This local observer will immediately reattach.
                         if error.code != "CONSUMER_OVERFLOW" {
                             self.connectionError = error.message
                             self.refreshAvailability()
@@ -179,7 +172,6 @@ public final class NativeWorkspaceModel {
                     case .overviewFilter(let request): self.onOverviewFilter?(request)
                     case .threadContent: self.harnessHost.receive(event)
                     }
-                    self.voice.receive(event)
                     self.refreshSettingsPrefetch()
                 }
                 guard let self, !self.stopping, !Task.isCancelled else { return }
@@ -215,7 +207,6 @@ public final class NativeWorkspaceModel {
             settingsModel.receive(snapshot: snapshot, runtimeAvailable: runtimeAvailable)
             settingsModel.activeHostHarnessID = catalog.moku?.harnessID.string
             settingsModel.mokuRunning = catalog.executions.contains { $0["threadId"] == catalog.moku.map { .string($0.id) } }
-            voice.configureMoku(owner: catalog.moku?.id, available: connection == .connected && !stopping)
             harnessHost.receive(event)
             onCatalogChange?(event)
         } catch {
@@ -357,11 +348,8 @@ public final class NativeWorkspaceModel {
         guard !stopping else { return }
         stopping = true
         timer.stop()
-        // Pause pending settings timers before awaiting voice/service teardown.
+        // Pause pending settings timers before awaiting service teardown.
         refreshAvailability()
-        // Revoke local media immediately, but do not let an unacknowledged
-        // remote voice stop delay the service's own shutdown request.
-        let mediaStop = Task { await voice.stopAll() }
         var failure: Error?
         do {
             // Join the entire wrapper, including locale publication before it
@@ -370,7 +358,6 @@ public final class NativeWorkspaceModel {
             _ = try? await localeTask?.value
             try await client.stopService()
         } catch { failure = error }
-        await mediaStop.value
         await onStopped?()
         await client.close()
         await harnessHost.releaseAll()

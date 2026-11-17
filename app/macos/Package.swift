@@ -16,8 +16,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", exact: "0.8.0"),
         .package(url: "https://github.com/swiftlang/swift-cmark.git", exact: "0.9.0"),
-        .package(url: "https://github.com/karwa/swift-url.git", exact: "0.4.2"),
-        .package(url: "https://github.com/livekit/webrtc-xcframework.git", exact: "150.7871.02")
+        .package(url: "https://github.com/karwa/swift-url.git", exact: "0.4.2")
     ],
     targets: [
         .target(name: "MokuseiCore", path: "Sources/Core", exclude: ["README.md"]),
@@ -37,13 +36,11 @@ let package = Package(
         .target(name: "MokuseiApplications", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", .product(name: "WebURL", package: "swift-url")], path: "Sources/Plugins/Applications"),
         .target(name: "MokuseiSidecardConversation", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI"], path: "Sources/Plugins/Sidecards/Conversation"),
         .target(name: "MokuseiSidecardBrowser", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI"], path: "Sources/Plugins/Sidecards/Browser"),
-        .target(name: "MokuseiSidecardVoice", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI"], path: "Sources/Plugins/Sidecards/Voice"),
-        .target(name: "MokuseiVoice", dependencies: ["MokuseiCore", "MokuseiPluginAPI", .product(name: "LiveKitWebRTC", package: "webrtc-xcframework")], path: "Sources/Voice", exclude: ["README.md"]),
-        .target(name: "MokuseiUI", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiVoice", "MokuseiSidecardBrowser", .product(name: "WebURL", package: "swift-url")], path: "Sources/Host", exclude: [
+        .target(name: "MokuseiUI", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiSidecardBrowser", .product(name: "WebURL", package: "swift-url")], path: "Sources/Host", exclude: [
             "Overview/README.md", "MokuScene/README.md", "Settings/README.md", "Onboarding/README.md",
             "WindowNavigation/README.md", "Interaction/README.md", "Git/README.md"
         ]),
-        .target(name: "MokuseiComposition", dependencies: ["MokuseiCore", "MokuseiUI", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode", "MokuseiApplications", "MokuseiSidecardConversation", "MokuseiSidecardBrowser", "MokuseiSidecardVoice"], path: "Sources/Composition"),
+        .target(name: "MokuseiComposition", dependencies: ["MokuseiCore", "MokuseiUI", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode", "MokuseiApplications", "MokuseiSidecardConversation", "MokuseiSidecardBrowser"], path: "Sources/Composition"),
         .executableTarget(name: "Mokusei", dependencies: ["MokuseiComposition", "MokuseiCore", "MokuseiUI", "MokuseiPluginUI"], path: "Sources/App",
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .executableTarget(name: "MokuseiProbe", dependencies: ["MokuseiCore"], path: "Sources/Tools/Probe"),
@@ -53,7 +50,7 @@ let package = Package(
         .testTarget(name: "MokuseiSettingsIntegrationTests", dependencies: [
             "MokuseiTestSupport", "MokuseiNativeInputSupport",
             "MokuseiCore", "MokuseiUI", "MokuseiPluginAPI", "MokuseiPluginUI",
-            "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode", "MokuseiSidecardBrowser", "MokuseiSidecardConversation", "MokuseiSidecardVoice", "MokuseiVoice", "MokuseiApplications"
+            "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode", "MokuseiSidecardBrowser", "MokuseiSidecardConversation", "MokuseiApplications"
         ], path: "Tests/Integration/Host"),
         .testTarget(name: "MokuseiGitIntegrationTests", dependencies: ["MokuseiTestSupport", "MokuseiUI", "MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode"], path: "Tests/Integration/Threads"),
         .testTarget(name: "MokuseiCoreTests", dependencies: ["MokuseiCore"], path: "Tests/Core"),

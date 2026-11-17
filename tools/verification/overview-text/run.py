@@ -40,7 +40,7 @@ shutil.copytree(build / resource.name, resource, dirs_exist_ok=True)
 executable = macos / "OverviewTextReplay"
 compiler = ["xcrun", "swiftc", "-g", "-swift-version", "6", "-warnings-as-errors", "-parse-as-library",
             "-target", f"{platform.machine()}-apple-macosx26.0", "-I", str(build / "Modules"), "-F", str(build),
-            "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker", str(build),
+            "-Xlinker", "-rpath", "-Xlinker", str(build),
             "-module-cache-path", str(output / "ModuleCache")]
 for include in [package / ".build/checkouts/swift-cmark/src/include",
                 package / ".build/checkouts/swift-cmark/extensions/include",

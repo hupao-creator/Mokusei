@@ -11,56 +11,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
 )
 
-func probeFramework(ctx context.Context, framework string, identity signingIdentity, product Product) (map[string]any, error) {
-	directory, err := os.MkdirTemp("", "mokusei-framework-smoke-")
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(directory)
-	source := filepath.Join(directory, "load.m")
-	binary := filepath.Join(directory, "load-framework")
-	code := `#import <Foundation/Foundation.h>
-#include <dlfcn.h>
-#include <stdio.h>
-int main(int argc, const char *argv[]) {
- @autoreleasepool {
-  if (argc != 2) return 2;
-  void *handle = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
-  if (!handle) { fprintf(stderr, "%s\n", dlerror()); return 3; }
-  BOOL (*initialize)(void) = (BOOL (*)(void))dlsym(handle, "LKRTCInitializeSSL");
-  BOOL (*cleanup)(void) = (BOOL (*)(void))dlsym(handle, "LKRTCCleanupSSL");
-  if (!initialize || !cleanup || !NSClassFromString(@"LKRTCPeerConnectionFactory") || !NSClassFromString(@"LKRTCAudioDeviceModule") || !initialize()) return 4;
-  if (!cleanup()) return 5;
-  puts("{\"loaded\":true,\"ssl\":true,\"peerFactory\":true,\"audioDeviceModule\":true,\"microphoneAccess\":false}");
-  return 0;
- }
-}
-`
-	if err = os.WriteFile(source, []byte(code), 0600); err != nil {
-		return nil, err
-	}
-	if _, err = run(ctx, directory, nil, "/usr/bin/xcrun", "clang", "-arch", "arm64", "-Wall", "-Wextra", "-Werror", "-framework", "Foundation", source, "-o", binary); err != nil {
-		return nil, err
-	}
-	if err = sign(ctx, binary, identity, product.BundleIdentifier+".smoke.framework", ""); err != nil {
-		return nil, err
-	}
-	bounded, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	out, err := run(bounded, directory, ProductionEnvironment(), binary, filepath.Join(framework, "LiveKitWebRTC"))
-	if err != nil {
-		return nil, err
-	}
-	var result map[string]any
-	err = json.Unmarshal([]byte(strings.TrimSpace(out)), &result)
-	return result, err
-}
 func runtimeCommand(binary, profile, command string) (map[string]any, error) {
 	timeout := 45 * time.Second
 	if command == "start" {
@@ -180,21 +135,11 @@ func Smoke(ctx context.Context, repo, application, channel, report string) error
 	if err != nil {
 		return err
 	}
-	frameworks := filepath.Join(application, "Contents/Frameworks")
-	deps, err := assertPortableMachO(ctx, filepath.Join(application, "Contents/MacOS/Mokusei"), frameworks, false)
+	_, err = assertPortableMachO(ctx, filepath.Join(application, "Contents/MacOS/Mokusei"), false)
 	if err != nil {
 		return err
 	}
-	hasVoice := false
-	for _, dep := range deps {
-		if dep == voiceFrameworkDependency {
-			hasVoice = true
-		}
-	}
-	if !hasVoice {
-		return fmt.Errorf("native executable does not link embedded voice framework")
-	}
-	if _, err = assertPortableMachO(ctx, binary, "", false); err != nil {
+	if _, err = assertPortableMachO(ctx, binary, false); err != nil {
 		return err
 	}
 	rpaths, err := machORPaths(ctx, filepath.Join(application, "Contents/MacOS/Mokusei"))
@@ -235,37 +180,11 @@ func Smoke(ctx context.Context, repo, application, channel, report string) error
 			return fmt.Errorf("unexpected bundle metadata %s", key)
 		}
 	}
-	if info["NSMicrophoneUsageDescription"] == nil {
-		return fmt.Errorf("missing microphone privacy purpose")
-	}
-	out, err = combined(ctx, "/usr/bin/codesign", "--display", "--entitlements", "-", "--xml", application)
-	if err != nil {
-		return err
-	}
-	if !regexp.MustCompile(`<key>com\.apple\.security\.device\.audio-input</key>\s*<true\s*/>`).MatchString(out) {
-		return fmt.Errorf("missing audio-input entitlement")
-	}
-	framework := filepath.Join(frameworks, voiceFrameworkName)
-	frameworkSignature, err := VerifySignature(ctx, framework, voiceFrameworkIdentifier, signature.Team)
-	if err != nil {
-		return err
-	}
-	identity, err := developmentIdentity(ctx)
-	if err != nil {
-		return err
-	}
-	if identity.Team != signature.Team {
-		return fmt.Errorf("selected identity team differs from packaged app")
-	}
-	frameworkLoad, err := probeFramework(ctx, framework, identity, product)
-	if err != nil {
-		return err
-	}
 	lifecycle, err := runtimeLifecycle(ctx, binary)
 	if err != nil {
 		return err
 	}
-	result := map[string]any{"application": application, "signature": signature, "runtimeSignature": runtimeSignature, "frameworkSignature": frameworkSignature, "frameworkLoad": frameworkLoad, "runtime": lifecycle, "nodeFree": true, "headless": os.Getenv("MOKUSEI_HEADLESS") == "1", "scope": "Signed bundle, portable Go and Swift binaries, packaged resources, embedded WebRTC load/SSL, and isolated runtime lifecycle. GUI, privacy consent, microphone and physical audio are not exercised."}
+	result := map[string]any{"application": application, "signature": signature, "runtimeSignature": runtimeSignature, "runtime": lifecycle, "nodeFree": true, "headless": os.Getenv("MOKUSEI_HEADLESS") == "1", "scope": "Signed bundle, portable Go and Swift binaries, packaged resources and isolated runtime lifecycle. GUI is not exercised."}
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return err

@@ -239,8 +239,7 @@ workspace, current state and binding conflicts at admission. HTML is untrusted
 context and is not executed. Failed context resolution rejects the send rather
 than silently losing its source. Selecting an execution preserves the existing
 ordinary Agent send/fork/receipt route; folding or returning to the list restores
-Moku. Thread readers no longer offer voice calls; Overview retains global Moku
-voice without a Super Thread source (see [Moku](../../../services/moku/README.md)).
+Moku (see [Moku](../../../services/moku/README.md)).
 
 Sprint validation: Go formatting, architecture lint, vet and builds, and the Swift
 application product build only. No tests, integration replays, CI, PR, push or merge

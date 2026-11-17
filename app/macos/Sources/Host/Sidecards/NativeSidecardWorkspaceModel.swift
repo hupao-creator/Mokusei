@@ -320,7 +320,7 @@ final class NativeSidecardWorkspaceModel {
                     input: HarnessThreadInput(thread: input.thread, readingTarget: target),
                     presentation: .execution(executionID), routes: routes)
                     .disabled(disabled))
-            }, voice: services.voice,
+            },
             open: { [weak self] in self?.choose(id) ?? 0 },
             close: { [weak self] in self?.close(id) },
             selectionRevision: { [weak self] in self?.selectionRevision ?? 0 },

@@ -19,12 +19,11 @@ as capture errors. The replay never forces draw calls or advances animation
 clocks. The negative control supplies an inactive scene and must fail the
 specific natural-motion pixel observation.
 
-Checks include three visible dots and naturally changing pixels, source/segment
-identity and UTF-16 offsets, append clock continuity, absence of admitted/painted
-reasoning glyphs, tool-to-reasoning priority, composer/note/voice ownership,
-disconnect/reconnect, completion, failure, interruption, waiting for user input,
-reply completion, terminal retirement while inactive/hidden and resumption through
-the same display clock and eye identity. The transition replay separately
+Checks include three visible dots and changing pixels, source/segment identity,
+UTF-16 offsets, append clock continuity, tool priority, composer/note ownership,
+disconnect/reconnect and terminal retirement.
+
+The transition replay separately
 covers rapid reversals and bottom/landing viewport fitting. The standalone Arc
 study remains available but does not certify production thinking presentation.
 
@@ -32,9 +31,7 @@ Evidence defaults to `.build/moku-reasoning-evidence`: measurements, result,
 own-window screenshots, isolated launch/resource receipts and cleanup logs.
 The launcher stages source, object files, frameworks and all resources in
 temporary storage and cleans up only its owned process on timeout. Run SwiftPM
-builds and graphical replays serially. No real model request, account, microphone
-or WebRTC session is used. Voice mode uses presentation fixtures only.
-Window hide/show covers terminal retirement and clock resumption; physical
+builds and graphical replays serially. Window hide/show covers terminal retirement and clock resumption; physical
 minimize behavior remains outside this replay's scope.
 
 The fixture uses the production warm capsule and restored persistent eye seat.

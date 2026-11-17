@@ -55,9 +55,7 @@ func runSynthetic(ctx context.Context, root string) error {
 	if e = verifyFollowUpSettlement(ctx, filepath.Join(root, "follow-up-settlement"), binary); e != nil {
 		return e
 	}
-	if e = verifyVoiceConfiguration(ctx, filepath.Join(root, "voice-configuration"), binary); e != nil {
-		return e
-	}
+
 	if e = verifyRequiredServiceTier(ctx, filepath.Join(root, "service-tier"), binary); e != nil {
 		return e
 	}
@@ -67,7 +65,6 @@ func runSynthetic(ctx context.Context, root string) error {
 	if e = verifyLaunchCatalogCache(ctx, root, binary, environment); e != nil {
 		return e
 	}
-	environment["MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE"] = filepath.Join(root, "voice-launch.jsonl")
 	environment["MOKUSEI_CODEX_REPLAY_USAGE"] = "1"
 	store := &memoryStore{}
 	ledger := &generationUsageLedger{samples: make(chan json.RawMessage, 8)}
@@ -193,37 +190,6 @@ func runSynthetic(ctx context.Context, root string) error {
 		}
 	}
 	fmt.Println("PASS synthetic interrupt settlement")
-	native, ok := handle.(plugin.NativeVoiceCapability)
-	if !ok {
-		return fmt.Errorf("native voice capability unavailable")
-	}
-	voice, e := native.PrepareNativeVoice(ctx, []plugin.ContextEntry{{ID: "fixture", Content: "safe replay"}})
-	if e != nil {
-		return e
-	}
-	launches := launchCount(environment["MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE"], "initialize")
-	if e = verifyVoiceEvents(ctx, voice); e != nil {
-		return e
-	}
-	for launchCount(environment["MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE"], "initialize") == launches {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Millisecond):
-		}
-	}
-	warmCount := launchCount(environment["MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE"], "initialize")
-	voice, e = native.PrepareNativeVoice(ctx, []plugin.ContextEntry{{ID: "fixture", Content: "safe replay"}})
-	if e != nil {
-		return e
-	}
-	if launchCount(environment["MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE"], "initialize") != warmCount {
-		return fmt.Errorf("reopening voice started another process instead of using its prewarmed connection")
-	}
-	if e = verifyVoiceEvents(ctx, voice); e != nil {
-		return e
-	}
-	fmt.Println("PASS native voice fresh-process prewarm / reopen / unrelated-thread late event isolation")
 	if e = handle.Close(); e != nil {
 		return e
 	}

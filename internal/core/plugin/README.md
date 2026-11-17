@@ -2,7 +2,7 @@
 
 [Harness definitions](harness.go) describe the execution boundary; concrete implementations are composed in [bootstrap.go](../composition/bootstrap.go). Plugins receive scoped capabilities and do not import Runtime or the database implementation.
 
-`plugin.Harness` 必须提供 Descriptor、DefaultSettings、Detect、Settings、SessionState、Metadata 和 Open。可选功能使用独立接口，包括 Installer、Forker、PromptCompleter、AvailabilityProbe、ModelCatalogSource、WorkspaceDiscoverer、Extension、DiscussionPreparer、VoiceCapability 和 NativeVoiceCapability；未实现的能力不能以空成功响应冒充支持。
+`plugin.Harness` 必须提供 Descriptor、DefaultSettings、Detect、Settings、SessionState、Metadata 和 Open。可选功能使用独立接口，包括 Installer、Forker、PromptCompleter、AvailabilityProbe、ModelCatalogSource、WorkspaceDiscoverer、Extension；未实现的能力不能以空成功响应冒充支持。
 
 `OpenContext` 将会话限定到一个 Thread：
 
@@ -26,25 +26,11 @@ answer claim for a corrected retry. Transport errors or an unknown native outcom
 retain their claim. Validated public-form values supplied by Core are already
 native typed values, including defaults and conditional omission.
 
-共享 `GeneratedThreadMetadata{}` 与 `WithGeneratedThreadMetadata` 提供真实的模型命名策略：保留已接受输入、异步请求 title/emoji、45 秒超时、CAS、防止旧结果覆盖新输入，以及中断和恢复。命名失败不把已经接受的用户发送改成失败。包装器保留底层 Voice、NativeVoice 和 CompletedReply 能力。
-
-语音通过 `VoiceSession` 表达 start、poll、heartbeat、input fencing、speech、delegation、event 和 stop 的生命周期。过期 poll cursor 可以返回错误。私有 discussion 只提供 Ask/Close，以及可选 native voice，不允许推进原始任务。
-
-Native Moku configuration recovery uses optional `VoiceConfigurationCloser` and
-`VoiceConfigurationRecoverySource` capabilities. Closing for configuration must
-drain the old native owner and its in-flight notification before reporting any
-captured handoff. A recovery callback permits replay only after a confirmed
-pre-admission rejection and successful cleanup; generic native/transport errors
-do not carry that guarantee. Core's `ErrMokuConfigurationPending` is reserved for
-that unconsumed-input boundary, including ordinary Moku successor preparation.
-Native Moku reply delivery can require `VoiceSpeechReceipt`: the media client
-acknowledges an exact delivery/generation before audio starts. Waiting is bounded
-and cancelled by media retirement or a newer input; a duplicate receipt never
-authorizes another append. Other voice paths do not opt into this handshake.
+共享 `GeneratedThreadMetadata{}` 与 `WithGeneratedThreadMetadata` 提供真实的模型命名策略：保留已接受输入、异步请求 title/emoji、45 秒超时、CAS、防止旧结果覆盖新输入，以及中断和恢复。命名失败不把已经接受的用户发送改成失败。包装器保留底层 CompletedReply 能力。
 
 模型服务、账号和凭据由各 Harness 的原生配置管理。Core 不注册模型服务插件，不发现或注入跨 Harness 凭据；Thread 只保存 Harness 自己的 settings。
 
-模型和 thinking/effort 能力以原生 CLI 的明确声明为准，不以是否属于原生订阅账户作为准入条件。账户归因检查仍用于订阅额度、模型身份来源和原生语音权限；普通会话不额外探测账户来覆盖原生模型目录。
+模型和 thinking/effort 能力以原生 CLI 的明确声明为准，不以是否属于原生订阅账户作为准入条件。账户归因检查仍用于订阅额度和模型身份来源；普通会话不额外探测账户来覆盖原生模型目录。
 
 ## Generated metadata
 
@@ -111,13 +97,6 @@ Unavailable passages carry no text and require an explicit retrieval coverage
 issue. Core never interprets opaque Harness state to infer locators. Empty IDs
 remain unavailable.
 
-
-Native voice handoffs mark their internal admission context with
-`WithVoiceAdmission(sessionID)`. `VoiceAdmissionSession` distinguishes those from
-ordinary background/native continuations sharing the same Core hook. Only a marked
-voice admission needs the matching live media lease; the marker is not a public
-command field or a permission for task execution.
-
 `ModelCatalogSchema` binds completed enumeration and independent source evidence
 to creation options. It validates response shape, not provider completeness.
 Adapters must finish every page and supply source evidence separately; neither
@@ -138,7 +117,7 @@ native admission. Snapshot descriptions explicitly allow outdated information.
 
 `Injection.AdmitNewExecution` is an in-process, non-serialized authority callback
 used at Runtime's final Moku execution reservation boundary. It must not reopen
-handles or acquire coordinator/media queues from that boundary. Source evidence
+handles or acquire coordinator queues from that boundary. Source evidence
 in `CompleteModelCatalog` is distinct from its enumeration marker. A true source
 assertion requires an authoritative native completion/provenance contract, never
 only a nonempty list. Each native snapshot retains its own evidence; ordinary

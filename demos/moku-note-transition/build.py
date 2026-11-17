@@ -24,15 +24,11 @@ for bundle in production.glob('*.bundle'):
     shutil.copytree(bundle, resources / bundle.name, dirs_exist_ok=True)
 frameworks = application / 'Contents/Frameworks'
 frameworks.mkdir(exist_ok=True)
-if (frameworks / 'LiveKitWebRTC.framework').exists():
-    shutil.rmtree(frameworks / 'LiveKitWebRTC.framework')
-shutil.copytree(production / 'LiveKitWebRTC.framework', frameworks / 'LiveKitWebRTC.framework',
-                dirs_exist_ok=True, symlinks=True)
 objects = [line.strip().strip('"') for line in (production / 'Mokusei.product/Objects.LinkFileList').read_text().splitlines()
            if '/Mokusei.build/' not in line]
 args = ['xcrun', 'swiftc', '-O', '-swift-version', '6', '-warnings-as-errors', '-parse-as-library',
         '-target', 'arm64-apple-macosx26.0', '-I', str(production / 'Modules'), '-F', str(frameworks),
-        '-framework', 'LiveKitWebRTC', '-Xlinker', '-rpath', '-Xlinker', '@executable_path/../Frameworks',
+        '-Xlinker', '-rpath', '-Xlinker', '@executable_path/../Frameworks',
         '-module-cache-path', str(application.parent / 'ModuleCache')]
 for relative in ['swift-cmark/src/include', 'swift-cmark/extensions/include',
                  'swift-markdown/Sources/CAtomic/include', 'swift-system/Sources/CSystem/include']:

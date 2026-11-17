@@ -30,7 +30,6 @@ type peer struct {
 	recoveryMode      string
 	settlementMode    string
 	holdSettlement    bool
-	earlySpeeches     int
 	authLogin         object
 	authPending       map[string]any
 	catalogSource     *catalogSourcePeer
@@ -81,7 +80,7 @@ func fixtureMain() error {
 			fmt.Println("codex-cli 999.0.0")
 			return nil
 		case "debug":
-			if err := captureVoiceLaunch("catalog"); err != nil {
+			if err := captureLaunch("catalog"); err != nil {
 				return err
 			}
 			return json.NewEncoder(os.Stdout).Encode(object{"models": []any{object{"slug": fixtureModel(), "display_name": "Luna", "input_modalities": []string{"text"}, "context_window": 128000, "supports_reasoning_summaries": true, "supported_reasoning_levels": []any{object{"effort": fixtureEffort(), "description": fixtureEffort()}}}}})
@@ -157,12 +156,7 @@ func (p *peer) receive(frame object) error {
 	if id == nil {
 		return nil
 	}
-	if handled, err := p.voiceConfigurationFixture(method, params, id); handled {
-		return err
-	}
-	if handled, err := p.voiceReceiptFixture(method, params, id); handled {
-		return err
-	}
+
 	if handled, err := p.recoveryFixture(method, params, id); handled {
 		return err
 	}
@@ -191,13 +185,8 @@ func (p *peer) receive(frame object) error {
 	result := object{}
 	switch method {
 	case "initialize":
-		if err := captureVoiceLaunch("initialize"); err != nil {
-			return err
-		}
+
 		result["userAgent"] = "codex-cli/0.164.0 (fixture)"
-		if agent, ok := os.LookupEnv("MOKUSEI_CODEX_REPLAY_USER_AGENT"); ok {
-			result["userAgent"] = agent
-		}
 	case "config/read":
 		tier := os.Getenv("MOKUSEI_CODEX_REPLAY_DEFAULT_TIER")
 		if tier == "" {
@@ -386,104 +375,9 @@ func (p *peer) receive(frame object) error {
 			result["data"] = []any{object{"itemId": "background-command", "processId": "fixture-process", "command": "fixture worker", "cwd": root}}
 		}
 		result["nextCursor"] = nil
-	case "thread/realtime/start":
-		if params["version"] != "v3" || record(params["transport"])["type"] != "webrtc" || params["clientManagedHandoffs"] != true {
-			return p.send(object{"id": id, "error": object{"code": -32602, "message": "fixture requires V3 WebRTC with client-managed handoffs"}})
-		}
-		if err := captureVoiceLaunch("realtime.start"); err != nil {
-			return err
-		}
-		switch os.Getenv("MOKUSEI_CODEX_REPLAY_VOICE_REJECTION") {
-		case "method":
-			return p.send(object{"id": id, "error": object{"code": -32601, "message": "thread/realtime/start is not supported"}})
-		case "protocol":
-			return p.send(object{"id": id, "error": object{"code": -32602, "message": "realtime V3 transport is not supported"}})
-		}
-		for _, method := range []string{"thread/realtime/sdp", "thread/realtime/error", "thread/realtime/closed"} {
-			if err := p.event(method, object{"threadId": "unrelated-old-thread", "sdp": "stale-answer", "message": "stale-error"}); err != nil {
-				return err
-			}
-		}
-		if e := p.event("thread/realtime/sdp", object{"threadId": p.session, "sdp": "fixture-answer-sdp"}); e != nil {
-			return e
-		}
-		if os.Getenv("MOKUSEI_CODEX_REPLAY_VOICE_CONFIGURATION") == "1" {
-			return p.send(object{"id": id, "result": object{}})
-		}
-		// Native flat ASR notifications: no media, model or canonical history.
-		for _, notification := range []struct {
-			method string
-			params object
-		}{
-			{"thread/realtime/transcript/done", object{"role": "user", "text": "hello"}},
-			{"thread/realtime/transcript/delta", object{"role": "assistant", "delta": "Hello"}},
-			{"thread/realtime/transcript/delta", object{"role": "user", "delta": "voice "}},
-			{"thread/realtime/transcript/done", object{"role": "assistant", "text": "Hello there"}},
-			{"thread/realtime/transcript/done", object{"role": "user", "text": "voice request"}},
-			{"thread/realtime/itemAdded", object{"item": object{"type": "handoff_request", "handoff_id": "fixture-voice-handoff", "input_transcript": "voice request"}}},
-			{"thread/realtime/transcript/delta", object{"role": "assistant", "delta": "Accepted"}},
-			{"thread/realtime/transcript/delta", object{"role": "user", "delta": "new request"}},
-			{"thread/realtime/transcript/done", object{"role": "assistant", "text": "Accepted first request"}},
-			{"thread/realtime/transcript/done", object{"role": "user", "text": "new request"}},
-		} {
-			notification.params["threadId"] = p.session
-			if e := p.event(notification.method, notification.params); e != nil {
-				return e
-			}
-		}
-	case "thread/realtime/stop":
-		if e := p.event("thread/realtime/closed", object{"threadId": p.session, "reason": "client request"}); e != nil {
-			return e
-		}
 	case "thread/turns/list":
 		result["data"] = []any{object{"id": p.turn, "itemsView": "full", "items": []any{}}}
 		result["nextCursor"] = nil
-	case "thread/inject_items":
-		if strings.Contains(string(encoded(params)), "fixture-handoff-before-final") {
-			for _, notification := range []struct {
-				method string
-				params object
-			}{
-				{"thread/realtime/transcript/delta", object{"role": "user", "delta": "partial"}},
-				{"thread/realtime/itemAdded", object{"item": object{"type": "handoff_request", "handoff_id": "fixture-handoff-before-final", "input_transcript": "complete request"}}},
-				{"thread/realtime/transcript/done", object{"role": "user", "text": "complete request"}},
-			} {
-				notification.params["threadId"] = p.session
-				if e := p.event(notification.method, notification.params); e != nil {
-					return e
-				}
-			}
-		}
-		if strings.Contains(string(encoded(params)), "fixture-feedback-before-final") {
-			if e := p.event("thread/realtime/transcript/delta", object{"threadId": p.session, "role": "user", "delta": "early partial"}); e != nil {
-				return e
-			}
-			if e := p.event("thread/realtime/itemAdded", object{"threadId": p.session, "item": object{"type": "handoff_request", "handoff_id": "fixture-feedback-before-final", "input_transcript": "feedback before final request"}}); e != nil {
-				return e
-			}
-			// A later partial keeps ASR unfinished while giving the consumer an
-			// observable boundary after the handoff notification has returned.
-			if e := p.event("thread/realtime/transcript/delta", object{"threadId": p.session, "role": "user", "delta": " request"}); e != nil {
-				return e
-			}
-		}
-	case "thread/realtime/appendSpeech":
-		if text(params["text"]) == "Moku handoff-before-final feedback" {
-			if e := p.event("thread/realtime/transcript/done", object{"threadId": p.session, "role": "user", "text": "newer request after feedback"}); e != nil {
-				return e
-			}
-		}
-		if text(params["text"]) == "Moku feedback before final" {
-			p.earlySpeeches++
-			if p.earlySpeeches != 1 {
-				return fmt.Errorf("feedback identity repair repeated appendSpeech")
-			}
-			for _, value := range []string{"feedback before final request", "newer request after early feedback"} {
-				if e := p.event("thread/realtime/transcript/done", object{"threadId": p.session, "role": "user", "text": value}); e != nil {
-					return e
-				}
-			}
-		}
 	case "crash":
 		binary, e := os.Executable()
 		if e != nil {
@@ -533,19 +427,6 @@ func (p *peer) callTool() error {
 		return fmt.Errorf("fixture tool reply failed: %s", body)
 	}
 	return nil
-}
-
-func captureVoiceLaunch(kind string) error {
-	path := os.Getenv("MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE")
-	if path == "" {
-		return nil
-	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	return json.NewEncoder(file).Encode(object{"kind": kind, "pid": os.Getpid()})
 }
 
 func fixtureModel() string {

@@ -24,8 +24,7 @@ All persistent scenarios use newly created temporary directories and actual
 SQLite stores. The fixtures never open an existing Mokusei profile. They close
 their runtimes and remove their temporary data on completion. Timing checks use
 explicit admission and contributor signals; short deadlines verify that a
-blocked operation remains blocked. Native messages, model replies, SDP and
-media events are fixed local fixtures.
+blocked operation remains blocked. Native messages and model replies are fixed local fixtures.
 
 ## Coverage
 
@@ -78,16 +77,6 @@ media events are fixed local fixtures.
   fallback does not establish durable retry; production supplies the outbox.
   Unknown/wrapped admission failures retain the uncertain delivery instead of
   automatically replaying it.
-- Same-owner relay media and exact spoken-result identity across model, routing,
-  target-selection and target-catalog changes; retired tools, host replacement
-  and failed cleanup still enforce their ownership boundaries.
-- Native voice configuration reconnection, preserved unadmitted handoffs,
-  settings reverted after a reconnect token, retained device ownership,
-  Stop/cleanup-failure rejection and slow settings admission without blocking
-  media polling. Native admissions carry the media session's voice scope, as
-  real Codex admission does. Pending speech prevents premature reconnection;
-  pending settings with live background work reject new native foreground
-  input without reserving an execution or committing user audit.
 - Readable initial Moku shells even when native Probe/Describe fails or blocks,
   restoration of an unapplied shell, atomic configured replacement, and restart
   settlement of unfinished tool and assistant audit entries.
@@ -96,17 +85,9 @@ media events are fixed local fixtures.
   Configured host replacement can preserve the prior native session as read-only
   history; the replay checks native byte retention, note separation, execution
   and unarchive rejection, and history-reset cleanup.
-- Native voice and relay command protocols: context synchronization before
-  durable admission, owner/execution/generation checks, typed-input fences,
-  cancellation, retired polling, teardown ownership and visible cleanup failure.
-  Stopped preparation identities remain revoked; fresh attempts reach the
-  injected native failure and stop-before-session-ID cancellation boundaries.
-- A cancelled submission and a stopped voice preparation release their queue
+- Cancelled submissions release their queue
   waiters while an unrelated native admission still owns the coordinator gate.
-  The native owner remains admitted, and cancelled media never reaches prepare.
-- Ending relay media releases eight observed admission waiters before the held
-  native owner completes. The owner is held after its admitted callback commits
-  user audit; its native tools still finish, and retired requests do not enter.
+  The native owner remains admitted.
 - Outbox-backed ordinary terminal notifications bypass the ephemeral queue;
   the fallback path still delivers once. Metadata updates do not redeliver, and
   shutdown drains Moku's queued tool/assistant settlement after cancelling an
@@ -119,10 +100,9 @@ media events are fixed local fixtures.
   before routing and again for each creation, even within one tool binding generation.
 
 These are runnable integration replays, not unit-test files. They validate real
-coordinator/runtime/storage behavior against controlled native boundaries. They
-do not validate external CLI compatibility, live provider authentication or
-models, audio hardware, WebRTC transport, or macOS visual layout. Those require
-separate integration or application checks. The optional measurements below use
+coordinator/runtime/storage behavior against controlled native boundaries.
+External CLI compatibility, live provider authentication/model behavior and
+macOS visual layout require separate integration or application checks. The optional measurements below use
 controlled local workloads and do not predict live-provider latency.
 
 ## Controlled performance measurements
@@ -163,17 +143,14 @@ Queue samples report `releasedBeforeOwner`, cancellation latency and an explicit
 join both callers afterward, so the old mutex implementation produces a usable
 `false` baseline rather than hanging. Its reported cancellation latency includes
 that intentionally held-owner window; it is not a production latency estimate.
-The `submit-precancel` and `voice-prepare-precancel` cases cancel before gate
+The `submit-precancel` case cancels before gate
 acquisition. The corresponding `*-queued-cancel` cases release the final fixture
 adapter and keep the waiting request's context alive until its named fixture
 goroutine is observed blocked inside the production queue. `queueWaitState`
 records the stack witness (`select` or the baseline's `sync.Mutex.Lock`). Stack
 inspection happens before cancellation and outside its timed interval; there
 are no production test hooks. This distinguishes cancellation during waiting
-from a pre-cancelled request even under delayed scheduling. The voice cases use
-the real Runtime/SQLite fixture and a gated media teardown.
-The voice pre-cancel latency includes its deliberate 100 ms teardown hold,
-reported separately as `mediaHoldWindowNs`; it starts at the initial stop request.
+from a pre-cancelled request even under delayed scheduling.
 
 Performance mode does not assert that the implementation is already optimized.
 The default replay enforces prompt queue cancellation, exact lazy-read counts,
@@ -205,9 +182,7 @@ Admission removes the captured outbox batch durably. Uncertain native outcomes
 remain fenced and require explicit reconciliation; see the
 [Moku recovery procedure](../../../internal/services/moku/README.md#durable-system-notifications).
 Deletion/history reset retire pending facts. User-send success means the child
-admitted the input, independently of later Moku delivery. Voice discussions,
-interaction answers and interrupt/archive commands do not submit child input
-through this path. Repeated explicit submissions remain distinct admissions.
+admitted the input, independently of later Moku delivery. Repeated explicit submissions remain distinct admissions.
 
 For a compile/static check without executing the fixtures:
 

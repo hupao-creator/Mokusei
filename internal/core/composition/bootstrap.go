@@ -262,7 +262,6 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	// Sidecards remain native presentation plugins. Git is intentionally absent.
 	addPlugin("sidecard", "conversation")
 	addPlugin("sidecard", "iab")
-	addPlugin("sidecard", "voice")
 	for key := range persisted.PluginEnabled {
 		if !known[key] {
 			delete(b.enabled, key)

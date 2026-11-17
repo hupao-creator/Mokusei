@@ -59,7 +59,6 @@ extrapolation.
 | `NativeOverviewCenteringTests` | `screenshotMixedFootprintsBalanceBothControlsAndRestoreAfterExtensionChanges()` | `NativeOverviewCenteringTests.swift:201:38` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `NativeSettingsTransitionTests` | `anchoredRevealUsesACircleWithoutScalingThePage()` | `NativeSettingsTransitionTests.swift:84:13` — `Expectation failed: sawReveal` | B |
 | `NativeOverviewTransitionTests` | `recoveryDuringEntryFinishesEveryMountedCard()` | `NativeOverviewTransitionTests.swift:61:38` — `Issue recorded; SwiftUI presentation did not settle` | B |
-| `NativeVoiceOwnershipTests` | `enteringThreadDoesNotInterruptMokuAndThreadExclusivelyOwnsAudioUntilClosed()` | `NativeVoiceOwnershipTests.swift:72:6` — `Caught error: NativeVoiceError(message: "Replay timed out")` | B |
 | `NativeComposerPasteTests` | `shortcutPastesIntoMoku(content:control:)` — `png, false` | `NativeComposerPasteTests.swift:105:42` — `Issue recorded; SwiftUI presentation did not settle` | B |
 | `RollingNumberCellTests` | `threadCardUsageRollsInsideStableCells()` | `RollingNumberCellTests.swift:60:9` — `Expectation failed: (initial != during && during != settled → false) && (initial != settled → <not evaluated>)` | B |
 | `NativeOverviewAutoReturnTests` | `explicitReturnFitsBeforeResumingAttentionEvenWhenTargetIsVisible()` | `NativeOverviewAutoReturnTests.swift:24:24` — `Issue recorded; Camera did not reach the expected framing` | B |
@@ -153,7 +152,6 @@ variables before its first boundary operation; invalid supplied inputs still fai
 | XCTest method | Missing prerequisite / reason | Reproduction after `./scripts/go.sh run -race` |
 | --- | --- | --- |
 | `GoDeltaInteropTests.testGoGeneratedDeltasReconstructNativeContent` | `MOKUSEI_GO_DELTA_FIXTURES`: Go-generated before/patch/after corpus | `./tools/verification/transport -swift-deltas` |
-| `IntegerWireTests.testExportActualSwiftRequestsToGo` | `MOKUSEI_SWIFT_INTEGER_REQUESTS` and `MOKUSEI_SWIFT_VOICE_THREAD`: output path and thread for the Go consumer | `./tools/verification/runtime -swift-voice` |
 | `PiTokenUsageTests.testGoUsageProjectionsReachNativeCardAndExecutionUsage` | `MOKUSEI_PI_USAGE_FIXTURES`: 100 Go usage projections with independent compact-display literals | `./tools/verification/pi -swift-usage -timeout 10m` |
 | `RuntimeHostFilesInteropTests.testNativeUploadsAndDownloadsCrossTheGoTransportBoundary` | `MOKUSEI_SWIFT_FILES_PROFILE`: authenticated live Go file host | `./tools/verification/transport -swift-files` |
 | `RuntimeSettingsCapacityInteropTests.testColdSettingsBurstAndCancellation` | `MOKUSEI_SWIFT_SETTINGS_PROFILE`: Go HTTP admission/cancellation fixture | `./tools/verification/transport -swift-settings-capacity` |
@@ -174,7 +172,6 @@ preserved, now with visible reasons.
 | `NativeApplicationNavigationTests` | 1 (2 parameter cases) | Isolated AppKit host; `reading-presentation/run.py --application-navigation` |
 | `NativeSettingsUserFlows.dailySettingsFlow` | 1 | `MOKUSEI_SETTINGS_TEST_PROFILE`; Go Settings launcher |
 | `NativeMokuDispatchTests` | 1 | `MOKU_STATUS_NATIVE_FIXTURE`; Go dispatch snapshots |
-| `NativeVoiceInputTranscriptTests` | 2 | `MOKUSEI_VOICE_EVENT_EXPORT`; Go Codex event exports |
 | `NativeOverviewTagEmojiTests.applicationConversationProducerMatchesStrictDecoder` | 1 | `MOKUSEI_CONVERSATION_CONTRACT_EXPORT`; Go contract export |
 
 ## Report WebKit input capability (C)

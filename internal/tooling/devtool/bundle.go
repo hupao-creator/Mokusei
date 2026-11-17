@@ -105,75 +105,11 @@ func infoPlist(version string, p Product) string {
 <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
-<key>NSMicrophoneUsageDescription</key><string>Mokusei uses your microphone when you start a voice conversation.</string>
 <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/><key>NSAllowsArbitraryLoadsInWebContent</key><true/></dict>
 </dict></plist>
 `, xmlText(p.BundleIdentifier), xmlText(p.DisplayName), xmlText(p.DisplayName), xmlText(p.DataDirectoryName), xmlText(version), xmlText(version))
 }
 
-func stageVoiceFramework(ctx context.Context, repo, frameworks, resources string) (string, error) {
-	artifact := filepath.Join(repo, "app/macos/.build/artifacts/webrtc-xcframework/LiveKitWebRTC/LiveKitWebRTC.xcframework")
-	out, err := run(ctx, repo, nil, "/usr/bin/plutil", "-convert", "json", "-o", "-", filepath.Join(artifact, "Info.plist"))
-	if err != nil {
-		return "", err
-	}
-	var info struct {
-		AvailableLibraries []struct {
-			LibraryIdentifier, LibraryPath, SupportedPlatform, SupportedPlatformVariant string
-			SupportedArchitectures                                                      []string
-		}
-	}
-	if err = json.Unmarshal([]byte(out), &info); err != nil {
-		return "", err
-	}
-	var source string
-	for _, lib := range info.AvailableLibraries {
-		if lib.SupportedPlatform != "macos" || lib.SupportedPlatformVariant != "" || lib.LibraryPath != voiceFrameworkName {
-			continue
-		}
-		for _, arch := range lib.SupportedArchitectures {
-			if arch == "arm64" {
-				source = filepath.Join(artifact, lib.LibraryIdentifier, lib.LibraryPath)
-			}
-		}
-	}
-	if source == "" {
-		return "", fmt.Errorf("SwiftPM has no matching macOS arm64 WebRTC framework")
-	}
-	if _, err = assertPortableMachO(ctx, filepath.Join(source, "LiveKitWebRTC"), "", true); err != nil {
-		return "", err
-	}
-	if err = os.MkdirAll(frameworks, 0755); err != nil {
-		return "", err
-	}
-	destination := filepath.Join(frameworks, voiceFrameworkName)
-	if _, err = run(ctx, repo, nil, "/usr/bin/ditto", source, destination); err != nil {
-		return "", err
-	}
-	binary, err := filepath.EvalSymlinks(filepath.Join(destination, "LiveKitWebRTC"))
-	if err != nil {
-		return "", err
-	}
-	out, err = run(ctx, repo, nil, "/usr/bin/lipo", "-archs", binary)
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(out) != "arm64" {
-		if _, err = run(ctx, repo, nil, "/usr/bin/lipo", binary, "-thin", "arm64", "-output", binary+".arm64"); err != nil {
-			return "", err
-		}
-		if err = os.Rename(binary+".arm64", binary); err != nil {
-			return "", err
-		}
-	}
-	if _, err = assertPortableMachO(ctx, binary, "", false); err != nil {
-		return "", err
-	}
-	if err = copyFile(filepath.Join(artifact, "LICENSE"), filepath.Join(resources, "licenses/LiveKitWebRTC-LICENSE"), 0644); err != nil {
-		return "", err
-	}
-	return destination, nil
-}
 func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error) {
 	if err := platform(); err != nil {
 		return "", err
@@ -223,7 +159,6 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	app := filepath.Join(staging, product.AppName)
 	executables := filepath.Join(app, "Contents/MacOS")
 	resources := filepath.Join(app, "Contents/Resources")
-	frameworks := filepath.Join(app, "Contents/Frameworks")
 	for _, dir := range []string{executables, filepath.Join(resources, "licenses")} {
 		if err = os.MkdirAll(dir, 0755); err != nil {
 			return "", err
@@ -252,10 +187,6 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if err = copyFile(filepath.Join(repo, "app/macos/build/AppIcon.icns"), filepath.Join(resources, "AppIcon.icns"), 0644); err != nil {
 		return "", err
 	}
-	framework, err := stageVoiceFramework(ctx, repo, frameworks, resources)
-	if err != nil {
-		return "", err
-	}
 	rpaths, err := machORPaths(ctx, executable)
 	if err != nil {
 		return "", err
@@ -274,20 +205,10 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if !embedded {
 		return "", fmt.Errorf("native executable has no embedded Frameworks rpath")
 	}
-	deps, err := assertPortableMachO(ctx, executable, frameworks, false)
-	if err != nil {
+	if _, err = assertPortableMachO(ctx, executable, false); err != nil {
 		return "", err
 	}
-	linked := false
-	for _, dep := range deps {
-		if dep == voiceFrameworkDependency {
-			linked = true
-		}
-	}
-	if !linked {
-		return "", fmt.Errorf("native executable does not link embedded voice framework")
-	}
-	if _, err = assertPortableMachO(ctx, filepath.Join(executables, "mokusei-runtime"), "", false); err != nil {
+	if _, err = assertPortableMachO(ctx, filepath.Join(executables, "mokusei-runtime"), false); err != nil {
 		return "", err
 	}
 	// Copy the resource bundle declared by the native package, rather than
@@ -315,27 +236,21 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 		return "", err
 	}
 	fmt.Printf("Signing native %s bundle with %s\n", opts.Channel, identity.Name)
-	if err = sign(ctx, framework, identity, voiceFrameworkIdentifier, ""); err != nil {
-		return "", err
-	}
+
 	if err = sign(ctx, filepath.Join(executables, "mokusei-runtime"), identity, product.BundleIdentifier+".runtime", ""); err != nil {
 		return "", err
 	}
-	if err = sign(ctx, app, identity, "", filepath.Join(repo, "app/macos/build/entitlements.app.plist")); err != nil {
+	if err = sign(ctx, app, identity, "", ""); err != nil {
 		return "", err
 	}
 	if _, err = VerifySignature(ctx, app, product.BundleIdentifier, identity.Team); err != nil {
 		return "", err
 	}
-	if _, err = VerifySignature(ctx, framework, voiceFrameworkIdentifier, identity.Team); err != nil {
-		return "", err
-	}
+
 	if _, err = VerifySignature(ctx, filepath.Join(executables, "mokusei-runtime"), product.BundleIdentifier+".runtime", identity.Team); err != nil {
 		return "", err
 	}
-	if _, err = probeFramework(ctx, framework, identity, product); err != nil {
-		return "", err
-	}
+
 	publisher := filepath.Join(staging, "publish-bundle")
 	if _, err = run(ctx, repo, nil, "/usr/bin/xcrun", "clang", "-arch", "arm64", "-Os", "-Wall", "-Wextra", "-Werror", filepath.Join(repo, "app/macos/build/publish-bundle.c"), "-o", publisher); err != nil {
 		return "", err

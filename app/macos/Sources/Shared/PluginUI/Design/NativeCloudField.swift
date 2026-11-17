@@ -90,3 +90,12 @@ struct NativeCloudMotion {
         return value ^ (value >> 31)
     }
 }
+
+public extension NativeCloudPalette {
+    /// Shared visual palette. Harnesses still own where they choose to use it.
+    static let blueIndigo = NativeCloudPalette(channels: [
+        .init(color: NativePalette.color(0x799dff).swiftUI, seed: 136, energy: 0.42),
+        .init(color: NativePalette.color(0x3941ff).swiftUI, seed: 73, energy: 0.31),
+        .init(color: NativePalette.color(0xb1a7ff).swiftUI, seed: 211, energy: 0.34)
+    ], phase: 1.2)
+}

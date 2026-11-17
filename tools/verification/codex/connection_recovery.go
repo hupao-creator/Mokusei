@@ -37,20 +37,7 @@ func (p *peer) recoveryFixture(method string, params object, id any) (bool, erro
 			return true, fmt.Errorf("capture recovery dispatch: %v %v", err, closeErr)
 		}
 	}
-	if method == "thread/inject_items" && strings.Contains(string(encoded(params["items"])), "fixture-voice-takeover") {
-		if err := p.send(object{"id": id, "result": object{}}); err != nil {
-			return true, err
-		}
-		if err := p.event("thread/realtime/itemAdded", object{"threadId": p.session, "item": object{"type": "handoff_request", "handoff_id": "voice-takeover-request", "input_transcript": "Voice takeover"}}); err != nil {
-			return true, err
-		}
-		p.turnNumber++
-		p.turn = fmt.Sprintf("fixture-turn-%d", p.turnNumber)
-		if err := p.event("turn/started", object{"threadId": p.session, "turn": object{"id": p.turn}}); err != nil {
-			return true, err
-		}
-		return true, p.completed("Voice takeover completed")
-	}
+
 	input := ""
 	for _, part := range list(params["input"]) {
 		input += text(record(part)["text"])
@@ -143,7 +130,7 @@ func (p *peer) retryEvent() error {
 }
 
 func verifyConnectionRecovery(ctx context.Context, root, binary string) error {
-	modes := []string{"storm", "silent", "progress", "long-tool", "interrupt", "backend", "voice"}
+	modes := []string{"storm", "silent", "progress", "long-tool", "interrupt", "backend"}
 	type result struct {
 		mode string
 		err  error
@@ -170,9 +157,7 @@ func verifyConnectionRecovery(ctx context.Context, root, binary string) error {
 func verifyConnectionRecoveryCase(lifetime context.Context, root, binary, mode string) error {
 	ctx, cancel := context.WithTimeout(lifetime, 80*time.Second)
 	defer cancel()
-	if mode == "voice" {
-		return verifyVoiceOwnerRecovery(ctx, root, binary)
-	}
+
 	if mode == "backend" {
 		return verifyBackendRecovery(ctx, root, binary)
 	}
@@ -310,18 +295,5 @@ func verifyBackendRecovery(ctx context.Context, root, binary string) error {
 	if err == nil || !strings.Contains(err.Error(), "fixture backend temporarily unavailable") {
 		return fmt.Errorf("account provenance lost its original probe failure: %v", err)
 	}
-	externalEnv := map[string]string{}
-	for key, value := range env {
-		externalEnv[key] = value
-	}
-	externalEnv["CODEX_CLI_PATH"] = binary
-	externalEnv["OPENAI_API_KEY"] = "synthetic-external-account"
-	external := codex.New(host(root, externalEnv))
-	defer external.Close()
-	voice, err := external.PrepareVoice(ctx, "fixture")
-	if err == nil {
-		_ = voice.Stop(ctx)
-		return fmt.Errorf("external account incorrectly acquired native ChatGPT voice")
-	}
-	return check(strings.Contains(err.Error(), "原生 ChatGPT 登录"), "native voice lost its account authority check: "+err.Error())
+	return nil
 }

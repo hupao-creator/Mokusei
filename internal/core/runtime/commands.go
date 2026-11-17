@@ -95,27 +95,8 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, err
 		}
 		return r.config.Attachments.Stage(ctx, imports)
-	case "moku:submit", "moku:clear", "moku:cancel", "moku:voice", "moku:voice-events":
-		if channel == "moku:voice" {
-			// Peek only at routing. Moku owns the closed, action-specific
-			// envelope, including request/session IDs, ownership and SDP.
-			var envelope map[string]json.RawMessage
-			if err := model.Unmarshal(args[0], &envelope); err != nil {
-				return nil, err
-			}
-			var action string
-			if err := model.Unmarshal(envelope["action"], &action); err != nil {
-				return nil, err
-			}
-			if action == "prepare" || action == "start" {
-				var release func()
-				ctx, release, err = r.beginConfigurationAdmission(ctx, false)
-				if err != nil {
-					return nil, err
-				}
-				defer release()
-			}
-		}
+	case "moku:submit", "moku:clear", "moku:cancel":
+
 		r.mu.Lock()
 		moku := r.config.Moku
 		r.mu.Unlock()
@@ -123,8 +104,6 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, errors.New("Moku participant unavailable")
 		}
 		return moku.Invoke(ctx, channel, args)
-	case "thread:voice", "thread:voice-events":
-		return r.threadVoiceChannel(ctx, channel, args[0])
 	case "history:clear":
 		return nil, r.ClearHistory(ctx)
 	case "thread:follow-up":

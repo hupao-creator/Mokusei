@@ -18,7 +18,6 @@ from native_replay import NativeReplay
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--skip-build", action="store_true")
-parser.add_argument("--voice-only", action="store_true")
 parser.add_argument("--isolation-only", action="store_true", help="Validate staged paths/resources and exit before mounting UI")
 parser.add_argument("--timeout", type=int, default=180, help="Maximum app runtime in seconds; timeout terminates the owned app")
 source = parser.add_mutually_exclusive_group(required=True)
@@ -44,8 +43,6 @@ try:
         if not any(profile.is_relative_to(root) for root in allowed):
             raise RuntimeError("Exposure replay only accepts an isolated temporary Runtime profile")
         arguments = ["--exposure-connection", profile, output]
-    if options.voice_only:
-        arguments.append("--voice-only")
     if options.isolation_only:
         arguments.append("--isolation-only")
     status = replay.run(arguments, timeout=options.timeout)

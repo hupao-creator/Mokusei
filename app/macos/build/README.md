@@ -139,7 +139,6 @@ The tools do not reset or grant privacy consent.
 ```text
 Contents/MacOS/Mokusei
 Contents/MacOS/mokusei-runtime
-Contents/Frameworks/LiveKitWebRTC.framework
 Contents/Resources/MokuseiNative_MokuseiPluginUI.bundle
 Contents/Resources/AppIcon.icns
 Contents/Resources/build-provenance.json
@@ -182,22 +181,18 @@ HTTP destination.
 
 The packaging tool preserves Swift resource bundles, validates fonts and icon
 geometry, checks architecture and dynamic dependencies, and removes nonportable
-SwiftPM rpaths. WebRTC is copied with its framework symlinks and thinned to arm64.
-The framework, Go runtime and outer app are signed in dependency order with the
-same Apple Development team. Only the app receives the microphone entitlement;
-Go needs no JIT entitlement. Publication uses the existing locked atomic C
+SwiftPM rpaths. The Go runtime and outer app are signed in dependency order with the
+same Apple Development team. Go needs no JIT entitlement. Publication uses the existing locked atomic C
 publisher. Archives are created from the verified private staging tree.
 
 ## Validation
 
-Packaging verifies signatures, resources and the embedded WebRTC load/SSL path.
+Packaging verifies signatures and resources.
 `smoke` additionally verifies final product metadata, portable binary linkage,
-privacy entitlement, absence of old Node artifacts, and isolated runtime
+absence of old Node artifacts, and isolated runtime
 start/status/stop identity. Its temporary profile and derived workspace are
 removed only after a successful smoke and confirmed shutdown; failures retain
-the profile for diagnosis and report its location. Smoke never opens a GUI,
-requests microphone consent,
-or captures physical audio.
+the profile for diagnosis and report its location. Smoke never opens a GUI.
 
 `make check` runs Go formatting/static checks, Go/Swift builds and the required
 functional regression checks.

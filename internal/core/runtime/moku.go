@@ -406,46 +406,6 @@ func (r *Runtime) SendMokuThread(ctx context.Context, id string, input model.Age
 	})
 	return result, batch.releaseUnconsumed(ctx, err)
 }
-func (r *Runtime) CompletedReply(id, executionID string) (string, bool) {
-	r.mu.Lock()
-	owner := r.handles[id]
-	r.mu.Unlock()
-	if owner == nil {
-		return "", false
-	}
-	if reply, ok := owner.native.(plugin.CompletedReply); ok {
-		return reply.CompletedReply(executionID)
-	}
-	return "", false
-}
-func (r *Runtime) PrepareMokuVoice(ctx context.Context, id string, entries []plugin.ContextEntry) (plugin.VoiceSession, error) {
-	lock := r.threadLock(id)
-	lock.Lock()
-	defer lock.Unlock()
-	t, err := r.Thread(id)
-	if err != nil {
-		return nil, err
-	}
-	if !t.Moku {
-		return nil, errors.New("not a Moku session")
-	}
-	// Coordinator.ensure must first publish the complete injection. A stop's
-	// recovery-only owner must never acquire a voice lease before replacement.
-	r.mu.Lock()
-	owner := r.handles[id]
-	r.mu.Unlock()
-	if owner == nil || owner.recoveryOnly || owner.admitNewExecution == nil {
-		return nil, plugin.ErrMokuConfigurationPending
-	}
-	if err := owner.active(); err != nil {
-		return nil, err
-	}
-	native, ok := owner.native.(plugin.NativeVoiceCapability)
-	if !ok {
-		return nil, errors.New("Moku harness does not provide native voice")
-	}
-	return native.PrepareNativeVoice(ctx, entries)
-}
 func (r *Runtime) Ledger(id string) plugin.TelemetryLedger {
 	if r.config.TelemetryLedger != nil {
 		harnessID := id
@@ -457,19 +417,4 @@ func (r *Runtime) Ledger(id string) plugin.TelemetryLedger {
 		return r.config.TelemetryLedger(harnessID)
 	}
 	return telemetryLedger{r, id}
-}
-func (r *Runtime) SetMokuNativeAdmission(id string, callback func(context.Context) error) error {
-	r.mu.Lock()
-	owner := r.handles[id]
-	r.mu.Unlock()
-	if owner == nil {
-		return errors.New("Moku native handle is not open")
-	}
-	owner.mu.Lock()
-	defer owner.mu.Unlock()
-	if owner.closed {
-		return errors.New("Moku native handle is closed")
-	}
-	owner.beforeNativeAdmission = callback
-	return nil
 }

@@ -44,7 +44,7 @@ Verification from the repository root:
 ./scripts/go.sh run -race ./tools/verification/transport
 ```
 
-`transport -swift-deltas` and `runtime -swift-voice` additionally use the actual Swift codecs and client.
+`transport -swift-deltas` additionally uses the actual Swift codecs and client.
 
 After a semantic no-op, content subscriptions retain a fixed-size digest of
 the accepted encoded projection; visible changes disarm it so continuously

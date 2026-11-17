@@ -303,7 +303,6 @@ private struct PanelDemo: View {
             VStack(spacing: 14) {
                 tool("Activity", label: "执行", id: "conversation")
                 tool("Globe", label: "浏览器", id: "iab")
-                tool("AudioLines", label: "语音讨论", id: "voice")
             }
         }
         .position(x: target.maxX + 38, y: target.midY)
@@ -527,7 +526,7 @@ private struct PanelDemo: View {
             guard let sides = state.sidecards else { throw DemoFailure(message: "Sidecard sessions did not mount") }
             let retained = sides.sessions.mapValues(ObjectIdentifier.init)
             var splitMeasurements: [[String: String]] = []
-            for (id, name): (JSONText, String) in [("conversation", "06-input-split"), ("iab", "07-browser-split"), ("voice", "08-voice-split")] {
+            for (id, name): (JSONText, String) in [("conversation", "06-input-split"), ("iab", "07-browser-split")] {
                 sides.activate(id)
                 try await Task.sleep(for: .milliseconds(650))
                 try await waitForSidecardSettlement()
@@ -544,8 +543,6 @@ private struct PanelDemo: View {
             try verifySplit(stacked: false)
             try await capture("09-resized-input", window: window)
             sides.activate("iab")
-            try await Task.sleep(for: .milliseconds(80))
-            sides.activate("voice")
             try await Task.sleep(for: .milliseconds(80))
             sides.activate("conversation")
             try await Task.sleep(for: .milliseconds(650))

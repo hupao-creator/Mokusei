@@ -489,8 +489,6 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 	if err := h.active(); err != nil {
 		return "", errors.New("native execution owner closed")
 	}
-	var notifications mokuNativeDelivery
-	ctx = context.WithValue(ctx, mokuNativeDeliveryKey{}, &notifications)
 	if before != nil {
 		if err := before(ctx); err != nil {
 			return "", err
@@ -541,11 +539,7 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 		h.mu.Unlock()
 		return "", err
 	}
-	if notifications.batch != nil {
-		if err := notifications.batch.admitted(ctx); err != nil {
-			return "", err
-		}
-	}
+
 	return id, nil
 }
 func (h *threadHandle) close() error {
@@ -1519,7 +1513,6 @@ func (r *Runtime) DeleteThread(ctx context.Context, id string) error {
 	if r.config.Attachments != nil {
 		r.log("thread.delete.attachments", r.config.Attachments.ReleaseOwner(cleanup, id))
 	}
-	r.log("thread.delete.voice", r.removeThreadVoice(cleanup, id))
 	if r.config.Workspaces != nil && t.Worktree != nil {
 		r.log("thread.delete.workspace", r.config.Workspaces.Unregister(cleanup, id, t.Worktree))
 	}

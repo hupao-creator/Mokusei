@@ -169,7 +169,7 @@ Ordinary threads require exact provider/model/thinking choices. Native variants 
 validated from their effective request encoding, including at model admission.
 Mokusei always selects the native `build` primary agent. Settings normalization,
 execution snapshots, effective model presentation, restored Thread settings,
-isolated prompts and voice discussion all use build, including previously saved
+isolated prompts all use build, including previously saved
 `plan` selections and native configurations with a different default agent.
 The native build agent must be available; there is no fallback to another agent.
 Settings omit the Agent selector and description, and creation schemas expose no
@@ -197,12 +197,7 @@ isolated profile. It resolves and saves native default execution settings withou
 a cross-provider model/variant change. The loopback model request must use the new
 wire model and thinking encoding while retaining conversation history, native
 session identity and each execution's original model attribution.
-Live native account inference and physical voice playback require separate verification.
-
-Ordinary Thread voice implements `DiscussionPreparer` with an independent native
-branch and exclusive Core project read tools. Continuous discussion uses native
-prompt/wait rather than transient generate, then deletes only the private branch.
-See [discussion semantics](../../../services/threadvoice/README.md).
+Live native account inference requires separate verification.
 
 ## Permission and account boundaries
 

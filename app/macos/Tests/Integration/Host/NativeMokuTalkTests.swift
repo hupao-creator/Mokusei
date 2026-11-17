@@ -166,21 +166,6 @@ struct NativeMokuTalkTests {
         #expect(scene.talkPresentation.deadline != nil)
     }
 
-    @Test func voiceComposerRestoresOnlyAnInputThatWasAlreadyOpen() {
-        var restoration = NativeMokuVoiceComposerRestoration()
-        #expect(restoration.update(active: false, inputOpen: false) == nil)
-        #expect(restoration.update(active: true, inputOpen: false) == nil)
-        #expect(restoration.update(active: true, inputOpen: false) == nil)
-        #expect(restoration.update(active: false, inputOpen: false) == nil)
-
-        #expect(restoration.update(active: true, inputOpen: true) == false)
-        #expect(restoration.shouldRestore)
-        #expect(restoration.update(active: true, inputOpen: false) == nil)
-        #expect(restoration.update(active: false, inputOpen: false) == true)
-        #expect(!restoration.shouldRestore)
-    }
-
-
     @Test(arguments: [false, true])
     func longMessagesFitTheCapsuleAndReserveStopWithoutOpeningAWindow(running: Bool) async throws {
         func descendants<T: NSView>(_ root: NSView, of type: T.Type) -> [T] {
@@ -247,7 +232,7 @@ struct NativeMokuTalkTests {
     }
 
     @Test func narrowActionStackKeepsMountedControlsInsideItsBounds() async throws {
-        final class Frames { var history = CGRect.zero; var voice = CGRect.zero }
+        final class Frames { var history = CGRect.zero; var stop = CGRect.zero }
         let naturalWidth = NSHostingView(rootView: NativeMokuNoteHistoryButton {}.fixedSize()
             .environment(\.locale, Locale(identifier: "en"))).fittingSize.width
         for width: CGFloat in [50, 72, 73, 100, 160] {
@@ -258,8 +243,8 @@ struct NativeMokuTalkTests {
                 NativeMokuNoteActionStack(stacked: decision.stacked, trailing: decision.edgeInset, height: decision.band) {
                     NativeMokuNoteHistoryButton(compact: decision.compact) {}.fixedSize()
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("actions-test")) } action: { frames.history = $0 }
-                    Button("Voice") {}.frame(width: 34, height: 34)
-                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("actions-test")) } action: { frames.voice = $0 }
+                    Button("Stop") {}.frame(width: 34, height: 34)
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("actions-test")) } action: { frames.stop = $0 }
                 }
                 .frame(width: width, height: decision.band, alignment: .trailing)
                 .coordinateSpace(name: "actions-test")
@@ -267,14 +252,14 @@ struct NativeMokuTalkTests {
             host.frame = CGRect(x: 0, y: 0, width: width, height: decision.band)
             for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
             #expect(host.window == nil)
-            #expect(frames.history.width >= 28 && frames.voice.width == 34)
+            #expect(frames.history.width >= 28 && frames.stop.width == 34)
             #expect(frames.history.minX >= 0 && frames.history.maxX <= width)
-            #expect(frames.voice.minX >= 0 && frames.voice.maxX <= width)
-            #expect(!frames.history.intersects(frames.voice))
+            #expect(frames.stop.minX >= 0 && frames.stop.maxX <= width)
+            #expect(!frames.history.intersects(frames.stop))
             #expect(frames.history.minY >= 0 && frames.history.maxY <= decision.band)
-            #expect(frames.voice.minY >= 0 && frames.voice.maxY <= decision.band)
-            if decision.stacked { #expect(frames.history.midY < frames.voice.midY) }
-            else { #expect(frames.history.maxX <= frames.voice.minX) }
+            #expect(frames.stop.minY >= 0 && frames.stop.maxY <= decision.band)
+            if decision.stacked { #expect(frames.history.midY < frames.stop.midY) }
+            else { #expect(frames.history.maxX <= frames.stop.minX) }
         }
     }
 

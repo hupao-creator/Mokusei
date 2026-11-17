@@ -90,13 +90,9 @@ It uses the production Host
 input-target admission and native editor; no Runtime/provider task is sent.
 Run just this regression with
 `python3 tools/verification/reading-presentation/run.py --execution-composer-focus`.
-Real right-side launcher controls toggle Conversation, Browser and retained Voice
-transcripts without
-an independent card Close icon; switching launchers retains execution identity
-and never navigates back or starts voice media. Browser uses a loopback URL; Voice
-uses a completed transcript with unavailable live-media capabilities, verifies
-that it remains readable after toggling and records zero media actions. Neither
-external pages nor microphone access are required.
+Real right-side launcher controls toggle Conversation and Browser without
+an independent card Close icon. Switching launchers retains execution identity
+and never navigates back. Browser uses a loopback URL; external pages are not required.
 
 The native subset also checks sidecard fold geometry using colored fixture
 plugins inside `NativeSidecardWorkspaceLayout`. Native aperture bounds must
@@ -196,37 +192,10 @@ without skips; plain headless Swift runs explicitly skip this display-dependent 
 
 The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
-must complete all eight tests without skips to certify it.
+must complete all declared tests without skips to certify it.
 The session-picker case mounts the production Moku reader and window navigation
 at 0.25×, 1× and 5× workspace zoom. It checks native accessibility geometry below
 Back, activates Back, retains the draft and exports `history-session-*.png`.
-
-The composer hold replay mounts the Overview input row, the current owner of
-voice entry. The history click/persistence case separately requires that the
-reader has no voice monitor. The hold proof queues each down/drag/up through AppKit in order. A
-window- and gesture-scoped local monitor anchors a private serial Dispatch timer
-to actual down dispatch. Strict zero-leeway deadlines supply drag after 100ms
-and release after the unchanged 100/800ms duration; the worker creates and posts
-each event without waiting for the MainActor. Apple permits
-[posting events from secondary threads](https://developer.apple.com/documentation/appkit/nsapplication/postevent(_:atstart:)).
-The Swift SDK nevertheless imports this inherited AppKit method as `MainActor`.
-The [native input test support](../../../app/macos/Tests/NativeInputSupport/README.md)
-provides one typed Objective-C function that creates and posts the mouse event
-on the calling worker. The application reference and window coordinates are
-captured on the main actor; the bridge never inspects a window or view. SwiftPM's
-Host test target and the isolated replay compile the same source. The replay
-stages its header, module map and implementation, compiles with warnings as errors,
-and records their hashes, the object hash and compiler command in `launch.json`.
-Planned and actual post times, optional drag/up dispatch observations and
-voice-start timestamps are retained. Each post must complete within 50ms of its
-deadline; drag and short release must also precede the recognizer's actual
-minimum press duration. Nested text tracking can bypass local drag/up monitors,
-so these optional observations cannot certify or invalidate execution merely by
-being absent. Every stage still requires real release posting and the recognizer
-back at `.possible` within three seconds, without forcing layout/display while
-the gesture is in flight. The original start-count, draft and detachment
-assertions, 90-second replay timeout and owned-process stack capture remain unchanged.
-Posting receipts do not claim physical input delivery.
 
 CI uses `--isolated-input` to link the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
@@ -855,17 +824,15 @@ before a table, header code, NUL, and an escaped-pipe URL before a later footnot
 cell.
 These run in the default Swift suite; the mounted source test requires a display.
 
-
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
 
-The twelve-method note suite checks Talk-bubble note entry in both Natural
+The note suite checks Talk-bubble note entry in both Natural
 Scrolling directions, retaining the message and preserving native overflow
 scrolling and Stop-control exclusion at narrow and wide widths. It also
 activates the expanded production Dock's
 history button through accessibility, with and without a note, checking real
 scene navigation and draft preservation. Wide and narrow mounted layouts assert
-history's position before voice or Stop, its shared action row, and separation
-from a long voice transcript. The short-viewport Markdown case checks that
+history's position before Stop and its shared action row. The short-viewport Markdown case checks that
 reading remains scrollable independently of the Dock-owned history button.
 
 For headless-only verification, run
@@ -1002,7 +969,6 @@ foreground application before the existing window and pixel checks. Its scoped
 artifact paths are forwarded so the original frames and receipts remain retained.
 Bounded foreground admission precedes the original 100/90/300ms sampling timeline;
 the foreground requirement is checked again at input and still fails if absent.
-
 
 ## Agent reading panel admission
 

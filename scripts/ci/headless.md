@@ -12,9 +12,9 @@ real graphical session; this setting does not manufacture display capability.
 
 The registry in [swift_execution.py](swift_execution.py) contains 36 self-contained
 suites, including the offline reading cache's isolated scope/reopen case and the
-bare-host Overview geometry suite. Five fixture-backed suites move only when
+bare-host Overview geometry suite. Four fixture-backed suites move only when
 their existing Go producer's environment is present: Moku dispatch/status, Timer,
-tag emoji and voice events.
+and tag emoji.
 Without those variables they retain their previous ordinary execution/deferral.
 The [migration audit](../../tools/verification/swift-tests/headless-migration-20261104.md)
 records the source evidence, retained graphical suites and validation limits.

@@ -21,7 +21,7 @@ open .build/moku-gradient-material/MokuGradientMaterialDemo.app
 
 ## 复用与实验边界
 
-构建直接编译未修改的生产 `MokuGeometry`、`NativeMokuCapsuleLayout`、`NativeMokuCapsuleEyes` 和 `NativeMokuCapsuleGlass` 源码。仅把原有 `NativePlatform.swift` 编译成最小平台桥接模块，避免为了看材质而链接 Runtime、Markdown 或 WebRTC。
+构建直接编译未修改的生产 `MokuGeometry`、`NativeMokuCapsuleLayout`、`NativeMokuCapsuleEyes` 和 `NativeMokuCapsuleGlass` 源码。仅把原有 `NativePlatform.swift` 编译成最小平台桥接模块，避免为了看材质而链接 Runtime 或 Markdown。
 
 原提案使用 clear glass 比较暖黑和乳白渐变。当前复用的生产实现将暖黑渐变和细亮边叠在 clear glass 上，并在降低透明度时统一回退为暖黑实色；不会因 demo 的浅色环境切换成乳白材质。生产展开 Note 使用不带该渐变的 dark regular glass；demo 的展开 fixture 仍调用 clear 分支，不能代替 Note 验收。没有复制 Siri 私有实现，也不代表 Apple 官方材质。参考：[Apple Glass API](https://developer.apple.com/documentation/swiftui/glass)。
 

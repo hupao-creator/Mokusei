@@ -65,18 +65,6 @@ func (r *Runtime) admitService(continuation, configuration bool) (func(), *servi
 	return release, token, nil
 }
 
-// VoicePreparationContext derives a Moku-lifetime preparation context that
-// keeps this command's admission identity. Voice preparation can adopt a saved
-// host preference; that replacement must not be rejected by the preparing
-// command's own admission.
-func (r *Runtime) VoicePreparationContext(service, command context.Context) context.Context {
-	token, ok := command.Value(serviceAdmissionContextKey{}).(*serviceAdmissionToken)
-	if !ok {
-		return service
-	}
-	return context.WithValue(service, serviceAdmissionContextKey{}, token)
-}
-
 // Reserve the existing native admission boundary without holding its mutex
 // across native cleanup. A queued Moku input may trigger the idle replacement;
 // it will be sent to the new owner only after the replacement commits.
@@ -159,8 +147,6 @@ func (r *Runtime) ServiceActivity() (model.RuntimeServiceActivity, error) {
 		}
 		count(session.Record)
 	}
-	if r.ServiceVoiceActive() {
-		activity.ActiveVoice = 1
-	}
+
 	return activity, nil
 }

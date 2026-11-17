@@ -289,25 +289,3 @@ func (r *Runtime) ResolveMokuDelivery(ctx context.Context, id, decision string) 
 	})
 	return err
 }
-
-// Native voice has its own admission instead of SendMokuThread. Accept owns this
-// holder through its durable execution commit; syncing context alone is not an
-// admission receipt. A failed/uncertain sync retains the same reconciliation fence.
-type mokuNativeDeliveryKey struct{}
-type mokuNativeDelivery struct{ batch *mokuDeliveryBatch }
-
-func (r *Runtime) SyncMokuVoiceContext(ctx context.Context, syncer plugin.VoiceContextSync, entries []plugin.ContextEntry) error {
-	holder, ok := ctx.Value(mokuNativeDeliveryKey{}).(*mokuNativeDelivery)
-	if !ok {
-		return errors.New("Moku voice context requires native admission ownership")
-	}
-	_, entries, batch, err := r.prepareMokuDeliveries(ctx, entries)
-	if err != nil {
-		return err
-	}
-	holder.batch = batch
-	if err := batch.attempt(ctx); err != nil {
-		return err
-	}
-	return syncer.SyncContext(ctx, entries)
-}

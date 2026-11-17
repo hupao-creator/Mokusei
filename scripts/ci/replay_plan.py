@@ -7,7 +7,6 @@ def fixture_environment(output):
         "MOKUSEI_INITIAL_RESPONSE_FIXTURES": str(output / "initial-response.json"),
         "MOKU_STATUS_NATIVE_FIXTURE": str(output / "moku-status.json"),
         "MOKU_TIMER_NATIVE_FIXTURE": str(output / "moku-timer.json"),
-        "MOKUSEI_VOICE_EVENT_EXPORT": str(output / "voice-events.json"),
         "MOKUSEI_CONVERSATION_CONTRACT_EXPORT": str(output / "conversation.json"),
         "MOKUSEI_HARNESS_FORM_FIXTURE": str(output / "harness-forms.json"),
         "MOKUSEI_GIT_CONTRACT_EVIDENCE": str(output / "git-contract.json"),
@@ -32,7 +31,6 @@ def replay_groups(go_executable, output):
             # Start the longest independent fixture first to avoid a late tail.
             ("moku", go + ["./tools/verification/moku"]),
             ("initial-response", go + ["./tools/verification/initial-response", "-output", fixtures["MOKUSEI_INITIAL_RESPONSE_FIXTURES"]]),
-            ("voice", go + ["./tools/verification/codex", "-voice-only"]),
             ("conversation", [go_executable, "test", "-count=1", "./internal/hosts/applicationhost",
                               "-run", "^TestConversationProjectionCarriesCurrentSemanticDecoration$"]),
             ("harness-forms", go + ["./tools/verification/opencode/cases/renderer", "-forms-output", fixtures["MOKUSEI_HARNESS_FORM_FIXTURE"]]),
@@ -42,7 +40,6 @@ def replay_groups(go_executable, output):
             ("swift-deltas", go + ["./tools/verification/transport", "-swift-deltas"]),
             ("swift-files", go + ["./tools/verification/transport", "-swift-files"]),
             ("swift-settings", go + ["./tools/verification/transport", "-swift-settings-capacity"]),
-            ("runtime-voice", go + ["./tools/verification/runtime", "-swift-voice"]),
             ("runtime-shutdown", go + ["./tools/verification/runtime-helpers", "--swift-shutdown",
                                        "--artifacts", str(output / "runtime-shutdown")]),
             ("pi-usage", go + ["./tools/verification/pi", "-swift-usage", "-timeout", "10m"]),

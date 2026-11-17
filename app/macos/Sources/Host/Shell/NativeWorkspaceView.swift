@@ -1,4 +1,3 @@
-import CryptoKit
 import Observation
 import MokuseiCore
 import MokuseiPluginAPI
@@ -60,10 +59,7 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored var navigationRouteID = UUID()
     public var nativeApplicationNavigation = false
     public private(set) var followUpVisible = false
-    public private(set) var threadVoice: SidecardVoiceCapability?
     @ObservationIgnored private var applicationReturn: (thread: ApplicationThreadRef, target: HarnessReadingTarget?)?
-    @ObservationIgnored private var voiceOwner: JSONText?
-    @ObservationIgnored private let mokuSourceOwner = UUID()
     @ObservationIgnored public lazy var scene = makeScene()
     @ObservationIgnored lazy var onboarding = NativeOnboardingState(workspace: workspace)
     @ObservationIgnored public lazy var applicationHost = NativeApplicationHost(workspace: workspace,
@@ -137,9 +133,6 @@ public final class NativeWorkspacePresentation {
         _ = overview; _ = moku; _ = scene
         onboarding.admitIfNeeded()
         applicationHost.git.start { [weak self] in self?.overview.refreshCardExtensions() }
-        workspace.voice.configureMoku(owner: workspace.catalog.moku?.id,
-            available: workspace.connection == .connected && !workspace.stopping)
-        workspace.voice.receive(.connection(workspace.connection))
         workspace.onCatalogChange = { [weak self] event in
             guard let self else { return }
             self.overview.receive(event)
@@ -169,7 +162,7 @@ public final class NativeWorkspacePresentation {
                 self.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
             }
             else { self.scene.retryNoteExposure() }
-            self.configureThreadVoice(); self.publishPresence()
+            self.publishPresence()
         }
         if let state = workspace.state, let authority = workspace.snapshotAuthority {
             snapshotAuthority = authority
@@ -217,7 +210,6 @@ public final class NativeWorkspacePresentation {
                 else { closeApplication() }
             }
         }
-        configureThreadVoice()
     }
 
     public func open(_ ref: ApplicationThreadRef, target: HarnessReadingTarget? = nil, sourceCardID: String? = nil) {
@@ -240,7 +232,6 @@ public final class NativeWorkspacePresentation {
             if ref.typeID != "agent", let selected, selected.typeID == "agent" {
                 applicationReturn = (selected, readingTarget)
             } else if ref.typeID == "agent" { applicationReturn = nil }
-            if let previous = selected, previous.typeID == "agent" { workspace.voice.releaseThread(previous.threadID) }
             followUpVisible = false; resetNavigation(); nativeApplicationNavigation = false
         }
         if selected != ref {
@@ -251,7 +242,7 @@ public final class NativeWorkspacePresentation {
         }
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
-        configureThreadVoice(); publishPresence()
+        publishPresence()
         if ref.typeID == "agent" { scene.setInputOpen(true) }
         Task { await overview.recordUserAction(kind: "open-thread", thread: ref) }
     }
@@ -327,12 +318,9 @@ public final class NativeWorkspacePresentation {
 
     public func finishBack() {
         performanceVisit?.end(); performanceVisit = nil; performanceOperation = nil
-        let previous = selected
         overview.recordApplicationClose()
         selected = nil; readingTarget = nil; threadIdentityVisit = nil; resetNavigation(); followUpVisible = false
         nativeApplicationNavigation = false
-        if let previous, previous.typeID == "agent" { workspace.voice.releaseThread(previous.threadID) }
-        threadVoice = nil
         applicationReturn = nil
         persistSelection(nil); publishPresence()
     }
@@ -348,7 +336,7 @@ public final class NativeWorkspacePresentation {
         if let selected { beginPerformanceVisit(selected) }
         applicationReturn = nil; resetNavigation(); nativeApplicationNavigation = false
         followUpVisible = false
-        configureThreadVoice(); publishPresence()
+        publishPresence()
     }
 
     private func persistSelection(_ id: JSONText?) {
@@ -402,7 +390,6 @@ public final class NativeWorkspacePresentation {
 
     public func publishPresence() {
         guard started else { return }
-        configureThreadVoice()
         // Keep Dock eligibility continuous while moving between its two routes.
         if selected == nil { scene.overviewVisible = true; scene.readingPanelVisible = false }
         else { scene.readingPanelVisible = usesReadingPanel; scene.overviewVisible = false }
@@ -421,22 +408,6 @@ public final class NativeWorkspacePresentation {
         // Catalog changes also reconcile association ownership while reading.
         overview.recordReadingRoute(selected)
         overview.updateApplicationReading(visible: readingForeground)
-    }
-
-    private func configureThreadVoice() {
-        guard !scene.mokuOpen || scene.cameraActive,
-              let selected, selected.typeID == "agent", let thread = workspace.catalog.thread(selected.threadID) else {
-            if let voiceOwner { workspace.voice.releaseThread(voiceOwner); self.voiceOwner = nil }
-            threadVoice = nil; return
-        }
-        if let voiceOwner, voiceOwner != thread.id { workspace.voice.releaseThread(voiceOwner) }
-        voiceOwner = thread.id
-        let value = JSONValue.array([.string(thread.harnessID), thread.settings,
-            .string(thread.cwd), thread.worktree?["cwd"] ?? .null])
-        let bytes = (try? value.encodedData()) ?? Data()
-        let identity = JSONText(SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined())
-        threadVoice = workspace.voice.threadCapability(threadID: thread.id,
-            enabled: workspace.canExecute(thread), identity: identity)
     }
 
     var mokuSubmissionSource: JSONValue {
@@ -458,9 +429,8 @@ public final class NativeWorkspacePresentation {
         request["input"] = submission.input
         workspace.dismissOperationError()
         try await mokuSubmission.send(input: submission.input, source: source) {
-            let fencedRequest = workspace.voice.moku.fenceTypedInput(.object(request))
             await overview.recordUserAction(kind: "moku-input", text: JSONText(submission.text))
-            return fencedRequest
+            return .object(request)
         }
     }
 
@@ -646,11 +616,6 @@ public final class NativeWorkspacePresentation {
                 && (selected?.typeID != "report.document" || (thread != nil && reportInputReady)),
             waitsForHarnessIdentity: thread != nil,
             autofocus: autofocus)
-        if started {
-            workspace.voice.moku.setVoiceStartRoute(owner: mokuSourceOwner,
-                active: focused && documentVisible && workspace.runtimeAvailable,
-                allowed: selected == nil && !state.mokuOpen && !state.cameraActive && !state.settingsOpen)
-        }
     }
 
     fileprivate func admitReadingEntrance(routeID: UUID, reference: ApplicationThreadRef) -> Bool {
@@ -756,7 +721,7 @@ public final class NativeWorkspacePresentation {
             guard let self else { throw CancellationError() }; try await self.workspace.services.discard(ids)
         }, openExternal: { [weak self] url in
             guard let self else { throw CancellationError() }; try await self.workspace.services.openExternal(url)
-        }, voice: threadVoice, attachmentImport: SidecardAttachmentImport(stage: { [weak self] sources, lifetime in
+        }, attachmentImport: SidecardAttachmentImport(stage: { [weak self] sources, lifetime in
             guard let self else { throw CancellationError() }
             let files = sources.map { source -> NativeComposerFile in
                 switch source {
@@ -784,13 +749,11 @@ public final class NativeWorkspacePresentation {
         guard started else { return }
         overview.recordApplicationClose()
         started = false
-        workspace.voice.moku.setVoiceStartRoute(owner: mokuSourceOwner, active: false, allowed: false)
         clearSidecardComposer()
         scene.resetNoteExposureAuthority()
         workspace.onCatalogChange = nil; workspace.onConnectionChange = nil
         workspace.onOverviewFilter = nil; workspace.onFollowUp = nil; workspace.onStopped = nil
         themeTransition.cancel(); scene.settle(); moku.stop(); applicationHost.release()
-        if let voiceOwner { workspace.voice.releaseThread(voiceOwner); self.voiceOwner = nil }
         let task = Task {
             await overview.stop(); await draft.dispose(discardRemoteAttachments: !runtimeStopped)
             for draft in threadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
@@ -813,18 +776,6 @@ public struct NativeWorkspaceView: View {
         self.model = model; _presentation = State(initialValue: presentation ?? NativeWorkspacePresentation(workspace: model))
     }
     private var disabled: Bool { !model.runtimeAvailable }
-    private var overviewVoiceVisible: Bool {
-        presentation.selected == nil && !presentation.scene.mokuOpen
-            && !presentation.scene.cameraActive && !presentation.scene.settingsOpen
-    }
-    private var canStartMokuVoice: Bool {
-        guard overviewVoiceVisible, !presentation.onboarding.blocksWorkspace, !disabled, model.voice.moku.state.available else { return false }
-        return model.voice.moku.state.phase == .closed || model.voice.moku.state.phase == .failed
-    }
-    private func startMokuVoice() {
-        guard canStartMokuVoice else { return }
-        Task { await model.voice.moku.start() }
-    }
     private var applicationSuppressed: Bool {
         presentation.scene.settingsOpen || presentation.scene.cameraActive || presentation.scene.mokuOpen
             // Report selection revokes Moku send context before the execution
@@ -858,12 +809,6 @@ public struct NativeWorkspaceView: View {
                 .blur(radius: presentation.scene.settingsExpanded ? 12 : 0)
                 .allowsHitTesting(!presentation.scene.settingsOpen)
                 .accessibilityHidden(presentation.scene.settingsOpen)
-        }
-        .overlay(alignment: .top) {
-            // Outside the routed scene/Dock: Settings, readers and remounts may
-            // replace their content without hiding or owning the global call.
-            NativeMokuVoicePanel(client: model.voice.moku, exclusions: presentation.scene.outsideClickExclusions)
-                .frame(maxWidth: 560).padding(.horizontal, 24).padding(.top, 76)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             NativeMokuTimerBar(timer: model.timer, exclusions: presentation.scene.outsideClickExclusions)
@@ -943,7 +888,6 @@ public struct NativeWorkspaceView: View {
                     threadID: detail?.id,
                     threadTitle: detailTitle,
                     superThreadContext: superThreadID != nil,
-                    voiceEntryEnabled: overviewVoiceVisible,
                     threadHarness: detail.flatMap { try? model.plugins.harnesses.require($0.harnessID) },
                     onThreadClose: {
                         if superThreadID != nil {
@@ -997,8 +941,7 @@ public struct NativeWorkspaceView: View {
                             presentation.perform { try await model.harnessHost.actions(for: detail).interrupt() }
                         }
                         else { presentation.cancelMoku(observed: thread) }
-                    },
-                    canStartVoice: { detail == nil && canStartMokuVoice }, startVoice: startMokuVoice)
+                    })
                     .opacity(presentation.onboarding.dockVisible ? 1 : 0)
                     // The handoff shows this Dock behind the opaque onboarding
                     // panel, then fades only the panel. Cross-fading both would

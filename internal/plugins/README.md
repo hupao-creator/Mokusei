@@ -19,7 +19,7 @@ The Artificial Analysis tests ensure unavailable, ambiguous, contradictory and
 explicitly suppressed identities cannot acquire another release's evaluations.
 Codex, Claude, Pi and OpenCode retain their Agent grep adapters: only completed public content may be extracted; unfinished,
 failed, interrupted, unknown-execution, tool and private fields stay excluded.
-Existing native adapter tests cover additional settings, projections, voice and
+Existing native adapter tests cover additional settings, projections and
 cleanup contracts. OpenCode account telemetry tests constrain official endpoint
 authority including scheme, credentials, port, query and encoded path boundaries.
 

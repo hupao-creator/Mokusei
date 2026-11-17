@@ -59,9 +59,6 @@ func runMokuReplays() error {
 		{"Git worktree creation", runWorktreeCreationReplay},
 		{"runtime admission and SQLite", runRuntimeReplay},
 		{"settings at successor admission", runAdmissionSettingsChangeReplay},
-		{"relay voice across settings changes", runRelaySettingsChangeReplay},
-		{"pending host preference at voice preparation", runPendingHostVoiceReplay},
-		{"native voice settings recovery", runNativeVoiceSettingsReplay},
 		{"execution-fenced public cancellation", runFencedMokuCancellationReplay},
 		{"sidecard direct thread notifications", runUserThreadInputReplay},
 		{"initial shell and restart", runShellReplay},
@@ -71,9 +68,6 @@ func runMokuReplays() error {
 		{"lazy context Thread reads", runContextReadContractReplay},
 		{"compiled tool schema ownership", runCompiledToolContractReplay},
 		{"terminal queue and outbox ownership", runTerminalQueueReplay},
-		{"queued voice preparation cancellation", runQueuedVoiceCancellationReplay},
-		{"retired relay queue cancellation", runRelayQueueCancellationReplay},
-		{"voice lifecycle", runVoiceReplay},
 	} {
 		if err := runMokuReplaySection(replay.name, replay.run); err != nil {
 			return err

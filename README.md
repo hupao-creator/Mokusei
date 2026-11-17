@@ -18,7 +18,6 @@ app/
       Host/            Native host UI, navigation and feature surfaces
       Shared/          Plugin API and shared plugin UI
       Plugins/         Harnesses, Applications and Sidecards
-      Voice/           Native voice integration
       Tools/           Protocol and host service probes
     Tests/
       Core/            Runtime client and protocol tests
@@ -30,7 +29,7 @@ internal/
   core/              Composition, models, plugin API, runtime and state store
   hosts/             Application and Context plugin hosts
   plugins/           Harnesses, applications and contexts
-  services/          Moku, attachments, search, voice, tags and workspaces
+  services/          Moku, attachments, search, tags and workspaces
   platform/          Daemon, transport, processes, SQLite and diagnostics
   tooling/           Development, architecture and maintenance
 tools/verification/  Functional integration replays

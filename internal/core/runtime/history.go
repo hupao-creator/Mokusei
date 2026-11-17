@@ -172,7 +172,7 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 	if r.IsDeleting(id) {
 		return errors.New("thread deletion is in progress")
 	}
-	// Archive only changes visibility; native execution and voice owners stay live.
+	// Archive only changes visibility; native execution owners stay live.
 	return r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
 		if t.Moku {
 			return errors.New("Moku thread cannot be archived")
@@ -283,9 +283,7 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 	}
 	r.mu.Unlock()
 	var errs []error
-	if err := r.closeVoice(ctx); err != nil {
-		errs = append(errs, err)
-	}
+
 	if coordinator, ok := r.config.Moku.(plugin.RuntimeParticipant); ok {
 		if err := coordinator.Stop(ctx); err != nil {
 			errs = append(errs, err)
@@ -389,9 +387,7 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		return err
 	}
 	r.pruneCancellationStates()
-	if err := r.clearVoice(ctx); err != nil {
-		return err
-	}
+
 	if r.config.Attachments != nil {
 		owners := []string{}
 		if moku.ID != "" {

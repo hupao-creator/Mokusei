@@ -21,9 +21,9 @@ selector; the Runtime rejects execution, settings changes and unarchive attempts
 and retained overrides. Missing values decode as true; false round-trips with
 both modes, and changing a mode/profile preserves the switch.
 
-[SidecardPlugin.swift](SidecardPlugin.swift) defines descriptors, thread-bound context, lifetime, intent routing, file/attachment and voice capabilities. Plugins return content while the host owns outer size, suppression and transitions. `openURL`, compose and send notifications are semantic intents; sibling plugins do not call one another by identity. The built-in Conversation display accepts no compose/send intent; reading follow-up routes open the Host-owned detail Moku composer. Availability changes retire an expanded Sidecard before the next Host snapshot. A voice capability exposes a private read-only discussion, not a send action against the source task.
+[SidecardPlugin.swift](SidecardPlugin.swift) defines descriptors, thread-bound context, lifetime, intent routing, file/attachment capabilities. Plugins return content while the host owns outer size, suppression and transitions. `openURL`, compose and send notifications are semantic intents; sibling plugins do not call one another by identity. The built-in Conversation display accepts no compose/send intent; reading follow-up routes open the Host-owned detail Moku composer. Availability changes retire an expanded Sidecard before the next Host snapshot.
 
-[Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser/Voice modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.
+[Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.
 
 `ApplicationExecutionReferencesUI.subscribe` takes the exact execution references
 whose source facts the renderer consumes. The host routes changed Thread IDs and
@@ -158,7 +158,6 @@ text is capped at 600 characters; a non-running execution with no end time is
 shown as unknown duration rather than ticking indefinitely. Super Thread relations
 now obtain authoritative exact-execution state/timing from `report.relations`,
 separate from current Thread state. Bounded native previews remain exact-ID-only.
-
 
 ### Application overview collections
 

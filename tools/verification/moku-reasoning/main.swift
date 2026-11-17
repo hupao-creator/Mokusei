@@ -43,7 +43,6 @@ extension RuntimeClient {
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var dark = false
     var mounted = true
-    var voice = false
     var phase = ScenePhase.active
     var revision = 0
     var talkAudit: [JSONValue] = []
@@ -108,7 +107,6 @@ private struct Scene: View {
                     mode: fixture.presentation.dockMode, running: fixture.presentation.running,
                     interaction: fixture.presentation.interaction,
                     interactionIsQuestion: fixture.presentation.interactionIsQuestion,
-                    voiceControls: AnyView(Text("Voice")), voiceStatusVisible: fixture.voice, voiceModeActive: fixture.voice,
                     presentation: fixture.presentation, note: .init(id: "note", text: "A fixture note for Arc ownership.", revision: 1, updatedAt: 1), onSend: { _ in }, onCancel: {})
             }
         } settings: { Color.clear }
@@ -263,10 +261,6 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try await wait("note covers loading") { controller.input?.running == false }
     fixture.scene.setNotePanelOpen(false)
     try await wait("note releases loading") { controller.input?.running == true }
-    fixture.voice = true
-    try await wait("voice covers loading") { controller.input?.running == false }
-    fixture.voice = false
-    try await wait("voice releases loading") { controller.input?.running == true }
     await fixture.client.fixtureAvailability(.disconnected)
     try await wait("disconnect retires loading") { controller.input?.running == false && fixture.presentation.reasoning == nil }
     await fixture.client.fixtureAvailability(.connected)
@@ -316,7 +310,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try require(canvas(host) === residentCanvas, "Loading replaced the persistent decoration view")
     let result: [String: Any] = ["input": "Runtime fixtures through production workspace, Codex projection, presentation and Dock",
         "movingLoadingPixels": count, "reasoningTraceVisible": false,
-        "lifecycle": "append, source offset, tool handoff, composer, note, voice, disconnect/reconnect, completed, failed, interrupted, waiting and reply completion",
+        "lifecycle": "append, source offset, tool handoff, composer, note, disconnect/reconnect, completed, failed, interrupted, waiting and reply completion",
         "pausedTerminalRetirement": ["inactive", "hidden"],
         "realModelRequest": false]
     try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])

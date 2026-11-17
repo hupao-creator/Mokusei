@@ -18,7 +18,7 @@
 | Harness | Codex、Claude、Pi、OpenCode；各自拥有外部原生引擎的模型、账号、凭据、设置、session state 和协议翻译。Runtime 只通过 `core/plugin` 合同授权线程能力。 |
 | Application | Report、Tag 和不可禁用的 Git；Application host 验证 manifest/贡献身份、注册、schema、scope、事务、receipt 和后台 agent 生命周期。 |
 | Context | Artificial Analysis；独立 Context host，仅接收绑定模型目录，向 Moku 注入附加内容，不获得应用记录或执行能力。 |
-| Sidecard | Conversation、Browser、Voice；原生 host 管理线程身份、实例 lifetime、选择与抑制；Voice 使用私有只读讨论。 |
+| Sidecard | Conversation、Browser；原生 host 管理线程身份、实例 lifetime、选择与抑制。 |
 | 启停与持久化 | 当前进程捕获 active catalog；保存的是 desired enablement，重启生效。禁用应用保留 schema/settings；移除的贡献清理过期设置及偏好。 |
 | 工具与资源 | 注入由 `Injection`/`ToolBinding` 提供；各 Harness 转换其原生协议。Pi/OpenCode 的小型 JS 资源仅供外部引擎加载，没有独立 Node 应用。没有统一的 skills/resource 服务注册表。 |
 | 版本与信任 | 当前 Application/Context API version 为 1；各 Harness 自行验证原生协议与 JSON，宿主注入的是受限能力；没有跨 Harness 凭据发现。 |

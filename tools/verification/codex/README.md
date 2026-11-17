@@ -14,13 +14,6 @@ a wall-clock millisecond must not make the fixture violate the production
 `turn.updatedAt <= state.updatedAt` contract. The unchanged production adapter
 validates every exported state before the Swift consumers receive it.
 
-Voice fixtures set `GORACE=atexit_sleep_ms=0` only in their scripted CLI child
-environments, avoiding the race detector's one-second post-main delay on each
-version/catalog probe and app-server exit. Child race instrumentation remains
-enabled; production adapters run in the parent with its usual race options.
-Protocol barriers, process cleanup checks and the real ten-second speech receipt
-timeout remain unchanged.
-
 The scripted peer advertises version `999.0.0` so production newest-candidate
 discovery selects it ahead of a locally installed app bundle. Its protocol
 user-agent fixtures remain independent of that discovery version.
@@ -54,9 +47,7 @@ The synthetic replay checks:
 - Native `model/list` fixtures explicitly finish enumeration with `nextCursor: null`.
   Model controls remain usable without an account probe. A failed
   account RPC does not block ordinary execution, while model provenance still
-  reports that failure and external accounts cannot acquire native ChatGPT voice. A voice owner
-  can execute text, admit a new native voice execution, fail its connection,
-  release voice, complete new text and prepare voice again.
+  reports that failure.
 - Notifications arriving before the `turn/start` response, streaming text, approvals, public interaction IDs and final durable projection.
 - Native `rawResponse/completed` usage crosses the actual JSONL notification path
   into the renderer and an asynchronous telemetry ledger. Two response IDs retain
@@ -78,26 +69,6 @@ The synthetic replay checks:
   execution, acknowledges rejected input, or prevents the next send. Cancelled
   and uncertain sends are not replayed.
 - Interrupt settlement and session resume after process shutdown.
-- Native voice context injection, SDP response, polling and explicit stop acknowledgement.
-- Early-feedback replay waits for the next unfinished ASR partial after a handoff,
-  which crosses the serial notification boundary before calling `Speak`. The
-  input-generation event alone precedes request registration. Final ASR identity,
-  duplicate delivery and late feedback assertions remain on the complete stream.
-- Native voice configuration rejection before Core/tool admission, exact
-  handoff recovery only after process and bridge cleanup, generic/uncertain
-  rejection without automatic recovery, and concurrent configuration closure.
-  Generic/joined rejection holds the real voice error callback until explicit
-  owner cleanup joins the retired peer; a faster asynchronous watcher cannot hide
-  a stale `realtime/stop` call against the closed server. The callback is released
-  on every exit, and exact-pending recovery and cancellation-error assertions stay
-  independent of this ordering.
-  Use `-voice-configuration-only` for these external-process protocol fixtures.
-- Voice relay and direct owner startup with a newer CLI.
-  The focused `-voice-only` replay also accepts future, unversioned and empty
-  user-agent strings when V3 works, and preserves native method/parameter
-  rejections with a Chinese compatibility diagnostic, one start attempt and no
-  reuse of the failed media session.
-  The peer requires V3 WebRTC with client-managed handoffs.
 - An authenticated private MCP tool call with native thread, turn and call identities.
 - Process crashes with a descendant holding inherited pipes, malformed JSON, bounded failure propagation and process-group cleanup.
 - Real Runtime/SQLite history reset with screenshot-shaped stale Hooks, lost
@@ -124,17 +95,11 @@ The installed-CLI replay verifies real protocol admission with workspace-write a
 
 Verified with **Codex CLI 0.163.0**, including Go's race detector. A different CLI version may expose protocol changes and legitimately fail the replay.
 
-The voice check uses synthetic SDP only. These commands do not establish real WebRTC audio, microphone permissions, spoken transcripts, remote subscription quota, or model quality. Installed-CLI approvals, cancellation, and steering are not claimed by the real-CLI pass; those branches are covered by the scripted peer.
+Installed-CLI approvals, cancellation, and steering are not claimed by the real-CLI pass; those branches are covered by the scripted peer.
+
+The synthetic replay also checks launch-catalog reuse and configuration/account invalidation.
 
 Both modes build as part of `go build ./...`. Temporary peers never become a runtime fallback for Mokusei.
-
-For just the native voice event/feedback correlation replay (no audio devices), run
-`./scripts/go.sh run -race ./tools/verification/codex -voice-only`.
-Set `MOKUSEI_VOICE_EVENT_EXPORT=/tmp/mokusei-moku-voice-events.json` to export
-the production adapter's events for the Swift `NativeVoiceInputTranscriptTests`
-cross-language replay. This covers accumulated partial/final ASR, direct feedback,
-handoff generation identity, interleaved new input and late feedback for an older
-ASR item. It does not launch the installed app or an existing runtime.
 
 The synthetic replay also settles a running execution through the host before
 closing its native handle. Late native callbacks must not rewrite that durable
@@ -165,17 +130,10 @@ prove live model interpretation. A targeted live headless dispatch remains the
 diagnostic check for regressions in model/provider schema interpretation and
 does not become a paid or credential-dependent hosted gate.
 
-`-voice-only` additionally checks launch-catalog reuse and account/configuration
-invalidation, idle fresh-process prewarming, repeated direct calls, consuming a
-warm candidate before work, active-owner protection, shutdown during prewarm,
-and unrelated-thread late events. Retired private thread-discussion preparation
-is excluded.
-
 To run the installed-CLI loopback checks independently of the synthetic
 background/process-group scenarios, use `-real-only -real-codex /path/to/codex`.
 The original phase's network audit requires exactly six scripted Provider
-requests before the separate recovery fault phase. Ordinary fork/read and direct
-native voice remain covered; this does not establish a remote microphone call.
+requests before the separate recovery fault phase.
 
 The full replay has a bounded five-minute lifetime to include the production
 60-second retry window and the concurrent healthy 63-second tool scenario.

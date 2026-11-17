@@ -23,11 +23,6 @@ public enum NativePerformance {
         case metalPresented = "metal.presented", metalSkipped = "metal.skipped"
         case windowFlush = "window.flush", mainDelay = "main.delay", display = "display"
         case windowPresented = "window.presented"
-        case voiceStartup = "voice.startup", voiceOwnership = "voice.ownership", voiceBeforeStart = "voice.beforeStart"
-        case voicePrepare = "voice.prepare", voiceMicrophonePermission = "voice.microphonePermission"
-        case voiceOffer = "voice.offer", voiceFactory = "voice.factory", voiceLocalSDP = "voice.localSDP", voiceICE = "voice.ice"
-        case voiceRemoteSDP = "voice.remoteSDP", voiceConnect = "voice.connect", voicePeerReady = "voice.peerReady", voiceAudioReady = "voice.audioReady"
-        case voiceMediaHealth = "voice.mediaHealth"
         case scenario = "scenario"
     }
 

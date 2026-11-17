@@ -35,7 +35,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 		ConfigureSession: func(ctx context.Context, id string, revision int64, value moku.SessionConfiguration) error {
 			return r.ConfigureMokuThread(ctx, id, revision, value.HarnessID, value.Settings, value.AppliedSettings, value.SettingsRevision, value.Cwd)
 		},
-		OpenSession: r.OpenMokuThread, SetNativeAdmission: r.SetMokuNativeAdmission, SyncNativeContext: r.SyncMokuVoiceContext, CloseSession: r.CloseMokuThread, SendSession: r.SendMokuThread,
+		OpenSession: r.OpenMokuThread, CloseSession: r.CloseMokuThread, SendSession: r.SendMokuThread,
 		PendingDeliveries: r.PendingMokuDeliveries, SendDelivery: r.SendMokuDelivery,
 		SubscribeCommitted: r.OnThreadCommitted, SubscribeDiagnostics: b.subscribeDiagnostics,
 		SubscribeUserThreadInputs: r.SubscribeUserThreadInputs,
@@ -77,18 +77,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 			}
 			return b.contexts.CollectMokuContexts(ctx, phase, catalogs)
 		},
-		Ledger:             b.ledger,
-		PrepareNativeVoice: r.PrepareMokuVoice, CompletedReply: r.CompletedReply, ReportFailure: b.log,
-		VoicePreparationContext: r.VoicePreparationContext,
-	}
-	for _, id := range []string{"codex", "claude", "pi", "opencode"} {
-		if b.disabled[id] != "" {
-			continue
-		}
-		if voice, ok := b.harnesses[id].(plugin.VoiceCapability); ok {
-			config.Voice = voice
-			break
-		}
+		Ledger: b.ledger, ReportFailure: b.log,
 	}
 	return config
 }

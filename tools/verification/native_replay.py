@@ -62,8 +62,6 @@ class NativeReplay:
         shutil.copytree(production / "Modules", self.build / "Modules")
         frameworks = self.application / "Contents/Frameworks"
         frameworks.mkdir()
-        subprocess.run(["/usr/bin/ditto", str(production / "LiveKitWebRTC.framework"),
-                        str(frameworks / "LiveKitWebRTC.framework")], check=True)
         resources = self.application / "Contents/Resources"
         resources.mkdir()
         bundles = []
@@ -158,7 +156,7 @@ class NativeReplay:
         args = ["/usr/bin/xcrun", "swiftc", "-swift-version", "6", "-warnings-as-errors",
                 "-parse-as-library", "-target", f"{platform.machine()}-apple-macosx26.0",
                 "-I", str(self.build / "Modules"), "-F", str(self.application / "Contents/Frameworks"),
-                "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker",
+                "-Xlinker", "-rpath", "-Xlinker",
                 "@executable_path/../Frameworks", "-module-cache-path", str(self.module_cache)]
         for include in self.includes:
             args += ["-I", str(include), "-Xcc", "-fmodule-map-file=" + str(include / "module.modulemap")]

@@ -3,7 +3,7 @@ import MokuseiPluginUI
 import SwiftUI
 
 /// A resident Moku communication seat above every route. It adds space rather
-/// than covering the editor or permission/voice controls, and never takes focus.
+/// than covering the editor or permission controls, and never takes focus.
 struct NativeMokuTimerBar: View {
     let timer: NativeMokuTimerController
     let exclusions: NativeClickExclusions

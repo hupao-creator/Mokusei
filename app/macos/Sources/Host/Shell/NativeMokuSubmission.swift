@@ -5,7 +5,7 @@ import MokuseiPluginAPI
 
 /// The captured input owns its receipt until its persisted draft is consumed.
 /// Retrying an uncertain send observes that receipt, including its original
-/// voice fence and Report/directory context; it never constructs another write.
+/// Report/directory context; it never constructs another write.
 @MainActor
 final class NativeMokuSubmission {
     private final class Operation {

@@ -83,7 +83,7 @@ func runMokuPerformance(options mokuPerformanceOptions) error {
 	}
 	if options.selected == "all" || options.selected == "queue" {
 		for index := 1; index <= options.samples; index++ {
-			for _, measure := range []func() (mokuQueueSample, error){measurePreCancelledSubmitCancellation, measureQueuedSubmitCancellation, measurePreCancelledVoiceCancellation, measureQueuedVoiceCancellation} {
+			for _, measure := range []func() (mokuQueueSample, error){measurePreCancelledSubmitCancellation, measureQueuedSubmitCancellation} {
 				sample, err := measure()
 				if err != nil {
 					return err

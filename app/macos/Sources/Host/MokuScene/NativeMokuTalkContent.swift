@@ -15,7 +15,6 @@ import SwiftUI
     /// Talk stays inside a four-line notification viewport. Live dictation has no
     /// equivalent length bound, so it may grow to twice that before the same
     /// internal scroller takes over; a normal sentence never shows only its tail.
-    static var transcriptMaximumHeight: CGFloat { lineHeight * 8 + lineSpacing * 7 }
     static func height(_ text: String, width: CGFloat) -> CGFloat {
         // Match the rendered weight so Latin wrapping and the viewport agree.
         let font = NativePlatformFont.systemFont(ofSize: 13, weight: .semibold)

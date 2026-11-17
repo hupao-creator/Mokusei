@@ -98,10 +98,6 @@ private struct Failure: Error, CustomStringConvertible { let description: String
     let overview: NativeOverviewWorkspaceModel
     let presentation: NativeMokuWorkspacePresentation
     var scheme: ColorScheme = .light
-    var voiceMotionDisabled = false
-    var voiceActive = false
-    var voiceTranscript: NativeMokuTalkMessage?
-    var voiceControlClicks = 0
     var forceRunning = false
     var overrideNote: NativeMokuNote?
     var usesOverrideNote = false
@@ -147,11 +143,6 @@ private struct Dock: View {
         NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/isolated/moku",
             mode: fixture.presentation.dockMode, running: fixture.forceRunning || fixture.presentation.running,
             talk: nil,
-            voiceControls: AnyView(Button { fixture.voiceControlClicks += 1 } label: {
-                Image(systemName: "mic").frame(width: 34, height: 34)
-            }.buttonStyle(.plain)),
-            voiceStatusVisible: fixture.voiceActive, voiceModeActive: fixture.voiceActive,
-            voiceTranscript: fixture.voiceTranscript,
             presentation: fixture.presentation, note: fixture.displayedNote,
             onSend: { _ in }, onCancel: {})
     }
@@ -168,12 +159,7 @@ private struct Scene: View {
         .environment(\.nativeCanvasInputRegions, fixture.regions)
         .environment(\.colorScheme, fixture.scheme)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
-        .transaction { transaction in
-            if fixture.voiceMotionDisabled {
-                transaction.disablesAnimations = true
-                transaction.animation = nil
-            }
-        }
+
     }
 }
 
@@ -564,163 +550,6 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     fixture.state.dismissTalk()
     try await settle()
 
-    // Voice is a presentation fixture: no microphone/provider is opened. Route
-    // through the production Dock monitor and reuse its real note/close paths.
-    // Inactive apps can pause SwiftUI presentation animations. Keep functional
-    // hit tests deterministic; ordinary motion checks outside this section remain.
-    fixture.voiceMotionDisabled = true
-    fixture.draft.text = "keep this voice draft"
-    fixture.state.setInputOpen(true)
-    try await settle()
-    try await wait("Original composer did not receive focus") {
-        (window.firstResponder as? NSTextView)?.isEditable == true
-    }
-    fixture.voiceActive = true
-    try await wait("Voice did not retain the composer seat") { !fixture.state.inputOpen && !fixture.state.inputLeaving }
-    try await settle()
-    try require((window.firstResponder as? NSTextView)?.isEditable != true, "Voice retained hidden editor focus")
-    let voiceRow = fixture.state.capsuleFrame
-    let voicePoint = CGPoint(x: voiceRow.midX, y: voiceRow.midY)
-    let controlPoint = CGPoint(x: voiceRow.maxX - 20, y: voiceRow.midY)
-    try require(try await scroll(-40, point: controlPoint) != nil, "Voice control scroll was acquired by Moku")
-    _ = try await scroll(-40, phase: .changed, point: voicePoint)
-    try require(!fixture.state.notePanelOpen, "Scroll starting on voice controls acquired the note")
-    try await click(controlPoint)
-    try require(fixture.voiceControlClicks == 1 && !fixture.state.notePanelOpen, "Voice button click was stolen")
-    try await click(voicePoint)
-    try require(!fixture.state.inputOpen && !fixture.state.notePanelOpen, "Voice click changed the composer seat")
-    _ = try await scroll(0, x: -40, point: voicePoint)
-    try require(!fixture.state.inputOpen && !fixture.state.notePanelOpen, "Voice left swipe changed the composer seat")
-    for (y, x, phase, momentum, precise) in [
-        (CGFloat(40), CGFloat(0), NSEvent.Phase.began, NSEvent.Phase(), true),
-        (-40, 60, .began, [], true), (-40, 0, [], .began, true),
-        (-40, 0, [], [], false), (-10, 0, .began, [], true)
-    ] {
-        _ = try await scroll(y, x: x, phase: phase, momentum: momentum, point: voicePoint, precise: precise)
-        try require(!fixture.state.notePanelOpen, "Non-upward/direct voice gesture opened note")
-    }
-    _ = try await scroll(-40, point: CGPoint(x: 20, y: 20))
-    _ = try await scroll(-40, phase: .changed, point: voicePoint)
-    try require(!fixture.state.notePanelOpen, "Outside-origin voice scroll acquired note")
-    fixture.state.setDockInteractionVisible(true, question: false)
-    _ = try await scroll(-40, point: voicePoint)
-    try require(!fixture.state.notePanelOpen, "Voice note overrode an interaction")
-    fixture.state.setDockInteractionVisible(false, question: false)
-    try await settle()
-    _ = try await scroll(-10, point: voicePoint)
-    _ = try await scroll(-16, phase: .changed, point: voicePoint)
-    try await wait("Voice upward swipe did not open note") { fixture.state.notePanelOpen }
-    try await settle()
-    try require(panelText()?.contains("Schema migration merged") == true, "Voice did not reuse persisted note content")
-    try await capture("voice-note-expanded")
-    let noteBody = CGPoint(x: fixture.state.capsuleFrame.midX, y: fixture.state.capsuleFrame.minY + 65)
-    try require(try await scroll(-40, point: noteBody) != nil, "Voice swipe acquired note reading scroll")
-    NSApp.sendEvent(escape)
-    try await wait("Voice note Escape did not close") { !fixture.state.notePanelOpen }
-    try await settle()
-    _ = try await scroll(30, point: voicePoint, inverted: false)
-    try await wait("Voice upward swipe with natural scrolling disabled failed") { fixture.state.notePanelOpen }
-    try await settle()
-    try await click(CGPoint(x: 20, y: 20))
-    try await wait("Voice note outside click did not close") { !fixture.state.notePanelOpen }
-    try await settle()
-
-    // A transcript keeps its native scrolling region; only the eye seat opens notes.
-    fixture.voiceTranscript = NativeMokuTalkMessage(id: "voice-fixture", text: "Voice transcript stays visible")
-    try await settle()
-    let transcriptRow = fixture.state.capsuleFrame
-    _ = try await scroll(-40, point: CGPoint(x: transcriptRow.midX, y: transcriptRow.midY))
-    try require(!fixture.state.notePanelOpen, "Transcript scrolling opened note")
-    _ = try await scroll(-40, point: CGPoint(x: transcriptRow.minX + 30, y: transcriptRow.midY))
-    try await wait("Voice transcript eye swipe did not open note") { fixture.state.notePanelOpen }
-    try await settle()
-    try await capture("voice-transcript-note-expanded")
-    try await click(CGPoint(x: fixture.state.capsuleFrame.maxX - 30, y: fixture.state.capsuleFrame.minY + 30))
-    try await wait("Voice note close control failed") { !fixture.state.notePanelOpen }
-    try require(fixture.voiceActive && fixture.voiceControlClicks == 1 && fixture.draft.text == "keep this voice draft",
-                "Note interactions changed voice controls or draft")
-    fixture.state.setNotePanelOpen(true)
-    fixture.state.overviewVisible = false
-    try require(!fixture.state.notePanelOpen, "Leaving Overview retained voice note")
-    fixture.state.overviewVisible = true
-    fixture.voiceTranscript = nil
-    try await settle()
-    fixture.state.setNotePanelOpen(true)
-    try await settle()
-    fixture.voiceActive = false
-    try await wait("Ending voice over a note did not restore the original composer and focus") {
-        fixture.state.inputOpen && !fixture.state.notePanelOpen
-            && (window.firstResponder as? NSTextView)?.isEditable == true
-    }
-    try require(fixture.draft.text == "keep this voice draft", "Voice note lost the restored draft")
-    fixture.state.setInputOpen(false)
-    try await settle()
-
-    // A voice session started from idle must not invent an editor restoration.
-    // Exercise the same note command with no persisted note in a narrow viewport.
-    fixture.voiceActive = true
-    fixture.usesOverrideNote = true
-    fixture.overrideNote = nil
-    window.setContentSize(NSSize(width: 340, height: 420))
-    try await settle()
-    let narrowVoiceRow = fixture.state.capsuleFrame
-    _ = try await scroll(-40, point: CGPoint(x: narrowVoiceRow.midX, y: narrowVoiceRow.midY))
-    try await wait("Voice could not open an empty note") { fixture.state.notePanelOpen }
-    try await settle()
-    try checkExpandedSurface(above: narrowVoiceRow, label: "voice-empty-note-narrow")
-    let emptyVoiceText = try recognizedText(try await capture("voice-empty-note-narrow"))
-    try require(emptyVoiceText.contains("还没有"), "Empty voice note retained stale content: \(emptyVoiceText)")
-    fixture.state.toggleNotePanel()
-    try require(!fixture.state.notePanelOpen && !fixture.state.inputOpen, "Voice note command opened the editor")
-    fixture.state.toggleNotePanel()
-    fixture.voiceActive = false
-    try await settle()
-    try require(fixture.state.notePanelOpen && !fixture.state.inputOpen,
-                "Ending idle-origin voice changed the note or opened an editor")
-    try require((window.firstResponder as? NSTextView)?.isEditable != true, "Idle-origin voice invented editor focus")
-    fixture.state.setNotePanelOpen(false)
-    let unsupported: [(String, String)] = [
-        ("code", "# Code case\n\n```swift\nlet value = 1\n```"),
-        ("table", "# Table case\n\n| Key | Value |\n| --- | --- |\n| a | b |"),
-        ("image", "# Image case\n\n![preview](/tmp/mokusei-note-missing.png)"),
-        ("local-link", "# Link case\n\n[preview](/tmp/mokusei-note-missing.png)")
-    ]
-    for (kind, source) in unsupported {
-        fixture.overrideNote = NativeMokuNote(id: JSONText("unsupported-\(kind)"),
-                                               text: source, revision: 1, updatedAt: 3)
-        try await settle()
-        fixture.state.openNotePanelFromUser()
-        let marker = kind == "local-link" ? "Link case" : "\(kind.capitalized) case"
-        try await wait("Unsupported \(kind) note did not render") { panelText()?.contains(marker) == true }
-        try await Task.sleep(for: .milliseconds(2_300))
-        try require(!fixture.exposureAttempts.contains("unsupported-\(kind):1"),
-                    "Unsupported \(kind) Markdown emitted complete exposure")
-        fixture.state.setNotePanelOpen(false)
-    }
-    fixture.usesOverrideNote = false
-    window.setContentSize(NSSize(width: 900, height: 620))
-    try await settle()
-    measurements.append(["state": "voice-note", "draftPreserved": true, "focusRestored": true,
-                         "idleOriginKeepsNote": true, "controlClicks": fixture.voiceControlClicks])
-    fixture.voiceMotionDisabled = false
-    try await settle()
-
-    if CommandLine.arguments.contains("--voice-only") {
-        let report: [String: Any] = ["source": data["source"]?.stringValue ?? "unknown",
-            "measurements": measurements,
-            "checks": ["production Dock upward note swipe during voice, both natural scrolling settings",
-                "voice control scroll exclusion and native click delivery; left swipe leaves composer closed",
-                "outside-origin, wheel, momentum, diagonal, small, covered and interaction gestures rejected",
-                "transcript and note body retain scrolling; Escape, outside click and close button dismiss",
-                "note navigation preserves draft and original composer focus restoration",
-                "empty note fits narrow voice Dock; note command and idle-origin voice termination preserve editor ownership"],
-            "limits": "Voice functional checks disable animations to avoid inactive-app presentation pauses; status/transcript and button actions are fixtures; no live microphone, playback or provider session. Later rapid-toggle and narrow-window long-note layout stress cases are excluded."]
-        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
-            .write(to: evidence.appendingPathComponent("report.json"))
-        await fixture.draft.dispose()
-        return
-    }
-
     // Redirecting the same glass surface must not leave an exiting note or an
     // oversized capsule behind when the user changes their mind mid-motion.
     for _ in 0..<6 {
@@ -843,14 +672,12 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
             "opening and in-place updates retain unexposed state until Runtime accepts a full-coverage receipt",
             "composer and permission/question panels take priority",
             "Talk bubble upward swipe in both scrolling directions retains the bubble; overflow keeps scrolling and eye entry",
-            "voice upward swipe, retained transcript scroll, control exclusion/clicks, close paths and draft/focus restoration",
-            "empty voice note fits a narrow viewport; idle-origin voice termination preserves the note without opening input",
             "Escape, outside click and the title close control dismiss; inside click keeps the panel",
             "rapid open/close redirects and composer interruptions settle to the requested size",
             "contract-sized long note wraps and scrolls natively in a narrow window",
             "long-note first screen and middle gap stay unknown; overlapping settled viewports complete coverage",
             "clear shows the empty state; light and dark appearances"],
-        "limits": "Voice functional checks disable animations to avoid inactive-app presentation pauses. Voice mode/transcript and button actions are presentation fixtures; media/session continuity is source-reviewed, not a live capture/playback test. Mock Harness and isolated profile; long note is a UI-only fixture within the production 1200-code-point contract; screenshots sample expansion/contraction and settled endpoints; hover reveal and full frame-by-frame continuity are source-reviewed (no physical pointer or video capture); Reduce Motion is source-reviewed (the SwiftUI system environment value is read-only; user preferences were not changed); no live provider, microphone or user runtime started"]
+        "limits": "Mock Harness and isolated profile; long note is a UI-only fixture within the production 1200-code-point contract; screenshots sample expansion/contraction and settled endpoints; hover reveal and full frame-by-frame continuity are source-reviewed (no physical pointer or video capture); Reduce Motion is source-reviewed (the SwiftUI system environment value is read-only; user preferences were not changed); no live provider, microphone or user runtime started"]
     try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: evidence.appendingPathComponent("report.json"))
     await fixture.draft.dispose()
 }

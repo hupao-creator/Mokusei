@@ -311,7 +311,6 @@ Tag widths have no fixed point cap. Each top-level chip may use the scroll viewp
 
 All, directory and semantic capsules (including child menus) use the same 1.1× enlargement of the previous tag metrics. Their measured frames, hit areas and canvas clearance follow the larger height; independent action controls retain their size. Semantic labels always lay out the emoji separately from the plain title, in both selection states. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
 
-
 ## Tag activity
 
 Directory and semantic tag chips append an 11pt native status ring only when
@@ -379,7 +378,7 @@ operation state continue at each runtime transaction. Hidden transactions coales
 the display's sorting, plugin projections and content installs;
 the mounted canvas also defers layout (including viewport changes). Existing card
 snapshots, native controls, drafts and camera remain retained. Settings, Git
-monitoring, runtime, notifications and Voice keep their existing lifecycles.
+monitoring, runtime, notifications keep their existing lifecycles.
 
 Before an animated return, the stack unhides the same host at the latest viewport,
 resumes projection and awaits a new canvas
@@ -410,7 +409,6 @@ settling remain owned by the shared reading stack.
 Reports expand from their own card. The shell uses that identity to refresh
 the return frame after layout changes. Git summaries remain read-only card metadata.
 
-
 Agent card title/emoji leaves register weak native anchors with the workspace's
 identity registry. Only an actual ordinary open captures text and geometry;
 this adds no projection cache or per-frame catalog publication. The destination
@@ -429,7 +427,6 @@ their existing rules. Refresh and restart consume the retained envelope rather
 than guessing from terminal status or local UI actions.
 
 Ordinary browsing ignores retired agent-authored visibility markers. Archive, execution eligibility and Report coverage retain their own selection rules. Detail reading no longer sends per-thread visit or foreground-time receipts to Runtime; application collection reading remains independently owned by the desktop.
-
 
 ## Viewed application collections
 
@@ -616,7 +613,6 @@ The Cmd+F conversation search, its menu command, interaction actions and Runtime
 keyword index have been removed. Tag filtering and Agent `grep_threads` remain
 independent capabilities; native text editing keeps its own find behavior.
 
-
 Collection member cards expose a labeled Archive Super Thread button beneath the
 open surface, alongside their existing context menu. Both invoke the same atomic
 application archive command: hide the report and its persisted associated ordinary
@@ -624,7 +620,7 @@ Threads. UI membership and counts follow the authoritative catalog, not optimist
 per-card removals. A surviving selection is retained; removal of that selection
 chooses a remaining member. Fewer than two visible members dissolve the Collection
 and dismiss its panel, leaving any survivor as an ordinary Report card. Archive
-changes no execution, background task, voice ownership, history or binding;
+changes no execution, background task, history or binding;
 explicit archived reading and actions remain available. Errors retain the member
 with retryable feedback. The panel and carousel keep their existing close, hover,
 scale and cover timing contracts.

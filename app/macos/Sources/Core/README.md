@@ -154,7 +154,7 @@ so distinct symlinks to the same target retain stable labels after redraws.
 Client appearance and language preferences live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
 
 Verification: Core Swift tests, `./scripts/go.sh run -race ./tools/verification/transport -swift-deltas`,
-`transport -swift-files`, `runtime-helpers --swift-shutdown` and `runtime -swift-voice`
+`transport -swift-files`, `runtime-helpers --swift-shutdown`
 from the repository root on macOS. The file interop replay uses the real Swift
 client without GUI: regular and symlink uploads, prompt FIFO rejection, and
 `.partial` downloads retain their validated bytes and basename.

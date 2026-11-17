@@ -37,7 +37,7 @@ def build(label):
                if "/Mokusei.build/" not in line]
     args = ["xcrun", "swiftc", "-O", "-g", "-swift-version", "6", "-warnings-as-errors", "-parse-as-library",
             "-target", f"{platform.machine()}-apple-macosx26.0", "-I", str(binary / "Modules"), "-F", str(binary),
-            "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker", str(binary),
+            "-Xlinker", "-rpath", "-Xlinker", str(binary),
             "-module-cache-path", str(OUTPUT / "ModuleCache")]
     for relative in ["swift-cmark/src/include", "swift-cmark/extensions/include", "swift-markdown/Sources/CAtomic/include", "swift-system/Sources/CSystem/include"]:
         include = PACKAGE / ".build/checkouts" / relative

@@ -46,9 +46,6 @@ HEADLESS_SUITES = {
     "MokuseiSettingsIntegrationTests.NativeSettingsAnimationVisitTests",
     "MokuseiSettingsIntegrationTests.NativeSettingsDiscoveryTests",
     "MokuseiSettingsIntegrationTests.NativeThreadVisibilityTests",
-    "MokuseiSettingsIntegrationTests.NativeVoiceAnalysisTests",
-    "MokuseiSettingsIntegrationTests.NativeVoiceCaptureWiringTests",
-    "MokuseiSettingsIntegrationTests.NativeVoiceOwnershipTests",
 }
 
 # These suites are windowless too, but their existing fixture conditions must
@@ -59,7 +56,6 @@ HEADLESS_FIXTURE_SUITES = {
     "MokuseiSettingsIntegrationTests.NativeMokuDispatchTests": "MOKU_STATUS_NATIVE_FIXTURE",
     "MokuseiSettingsIntegrationTests.NativeMokuTimerTests": "MOKU_TIMER_NATIVE_FIXTURE",
     "MokuseiSettingsIntegrationTests.NativeOverviewTagEmojiTests": "MOKUSEI_CONVERSATION_CONTRACT_EXPORT",
-    "MokuseiSettingsIntegrationTests.NativeVoiceInputTranscriptTests": "MOKUSEI_VOICE_EVENT_EXPORT",
 }
 
 

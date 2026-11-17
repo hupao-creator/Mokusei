@@ -377,21 +377,3 @@ type MokuTargetDiscoverer interface {
 type MokuContextContributor interface {
 	MokuContext(context.Context, string, SettingsRequest, TelemetryLedger) (string, error)
 }
-
-// Voice and discussion data remain protocol JSON: codecs belong to the owning
-// Harness and voice provider rather than to the runtime's persistence layer.
-type Voice interface {
-	Voice(context.Context, json.RawMessage) (json.RawMessage, error)
-}
-type DiscussionPreparer interface {
-	PrepareDiscussion(context.Context, DiscussionRequest) (Discussion, error)
-}
-type DiscussionRequest struct {
-	Source       model.ThreadRecord
-	Tools        []ToolBinding
-	Instructions string
-}
-type Discussion interface {
-	Ask(context.Context, string) (string, error)
-	Close() error
-}

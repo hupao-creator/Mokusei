@@ -44,8 +44,6 @@ private struct DemoWindow: View {
                         .accessibilityLabel("执行卡片：重播或取消交接")
                     NativeIcon(name: "Globe", size: 17).frame(width: 42, height: 42).opacity(0.3)
                         .help("Browser · 此 demo 不连接网页")
-                    NativeIcon(name: "Phone", size: 17).frame(width: 42, height: 42).opacity(0.3)
-                        .help("Voice · 此 demo 不打开麦克风")
                 }.frame(width: 62)
             }.padding(.leading, 22).padding(.trailing, 10).padding(.bottom, 18)
             VStack(alignment: .leading, spacing: 12) {

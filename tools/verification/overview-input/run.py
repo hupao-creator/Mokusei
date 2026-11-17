@@ -70,7 +70,6 @@ def main():
     shutil.copytree(build / resource.name, resource)
     frameworks = bundle / "Contents/Frameworks"
     frameworks.mkdir()
-    shutil.copytree(build / "LiveKitWebRTC.framework", frameworks / "LiveKitWebRTC.framework", symlinks=True)
     # Framework version links are relative and stay inside this private bundle.
     for path in bundle.rglob("*"):
         if path.is_symlink() and not path.resolve().is_relative_to(bundle):
@@ -78,7 +77,7 @@ def main():
     executable = macos / "OverviewInputReplay"
     args = ["xcrun", "swiftc", "-g", "-swift-version", "6", "-warnings-as-errors", "-parse-as-library",
             "-target", f"{platform.machine()}-apple-macosx26.0", "-I", str(build / "Modules"), "-F", str(build),
-            "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks",
+            "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks",
             "-module-cache-path", str(output / "ModuleCache")]
     for include in [package / ".build/checkouts/swift-cmark/src/include",
                     package / ".build/checkouts/swift-cmark/extensions/include",
@@ -89,7 +88,6 @@ def main():
     shared = [str(source / "card-materials-fixture.swift")] if materials_dir else []
     subprocess.run([*args, str(source / "environment.swift"), str(source / "gestures.swift"), str(source / replay_source), *shared, *objects, "-o", str(executable)], cwd=repo, check=True)
     # Local fixture signing only; no production identity or privacy entitlements.
-    subprocess.run(["codesign", "--force", "--sign", "-", str(frameworks / "LiveKitWebRTC.framework")], cwd=run, check=True)
     subprocess.run(["codesign", "--force", "--sign", "-", str(bundle)], cwd=run, check=True)
     print(f"Replay app: {bundle}\nReplay result: {result}", flush=True)
     if "--build-only" in sys.argv:

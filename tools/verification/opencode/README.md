@@ -105,8 +105,7 @@ The native `thread` case checks both ordinary injected tool names and `__proto__
 through actual plugin loading, provider advertisement, execution and projection.
 
 The `thread` case retains installed-native fork/read, cancellation and cleanup
-that preserve completed or actively running source sessions. Retired private
-thread-voice discussion scenarios are excluded.
+that preserve completed or actively running source sessions.
 
 Before asserting byte-for-byte source immutability during a completed-session
 read, the replay waits for that execution's input and successful idle boundary

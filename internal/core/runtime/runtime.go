@@ -21,7 +21,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
 	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
 	"github.com/hupao-creator/Mokusei/internal/services/attachments"
-	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
 )
 
@@ -82,8 +81,6 @@ type Runtime struct {
 	compute                   *workpool.Pool
 	threadCache               map[string]cachedThread
 	overviewCache             map[string]cachedOverview
-	voiceOnce                 sync.Once
-	voice                     *threadvoice.Manager
 	config                    Config
 	ctx                       context.Context
 	cancel                    context.CancelFunc
@@ -473,9 +470,7 @@ func (r *Runtime) Close(ctx context.Context) error {
 		}
 		r.mu.Unlock()
 		var errs []error
-		if err := r.closeVoice(ctx); err != nil {
-			errs = append(errs, err)
-		}
+
 		if participant, ok := r.config.Moku.(plugin.RuntimeParticipant); ok {
 			if err := participant.Stop(ctx); err != nil {
 				errs = append(errs, err)

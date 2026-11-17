@@ -110,5 +110,4 @@ The follow-up [OpenCode/Claude T3 comparison](t3-native-discovery.md) records th
 upstream best-effort behavior and differences. Runtime also distinguishes an
 uninjected recovery-only Moku handle from a prepared execution owner: once idle,
 normal preparation closes it and reopens with the complete injection instead of
-reusing an owner without tools/callbacks. Native voice cannot attach to that
-cleanup-only owner. See [Runtime recovery](../../core/runtime/README.md#moku-recovery-only-handles).
+reusing an owner without tools/callbacks. See [Runtime recovery](../../core/runtime/README.md#moku-recovery-only-handles).

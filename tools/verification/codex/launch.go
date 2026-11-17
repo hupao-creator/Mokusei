@@ -25,6 +25,19 @@ func launchCount(path, kind string) int {
 	return count
 }
 
+func captureLaunch(kind string) error {
+	path := os.Getenv("MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE")
+	if path == "" {
+		return nil
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return json.NewEncoder(file).Encode(object{"kind": kind, "pid": os.Getpid()})
+}
+
 func verifyLaunchCatalogCache(ctx context.Context, root, binary string, environment map[string]string) error {
 	env := make(map[string]string)
 	for key, value := range environment {

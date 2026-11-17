@@ -144,7 +144,7 @@ struct NativeMokuTimerTests {
         #expect(timer.current == nil && player.stops == stops)
     }
 
-    @Test func workspaceInstallationNavigationAndDisconnectRetainQueueWithoutChangingDraftOrVoice() async throws {
+    @Test func workspaceInstallationNavigationAndDisconnectRetainQueueWithoutChangingDraft() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let player = Player(), timer = NativeMokuTimerController(player: player)
@@ -155,7 +155,6 @@ struct NativeMokuTimerTests {
         presentation.draft.text = "unsent draft 🙂"
         presentation.scene.setInputOpen(true)
         presentation.scene.retainedSelection = NSRange(location: 3, length: 4)
-        let voice = workspace.voice.moku.state.phase
         let authority = UUID()
         func install(_ items: [JSONValue], revision: Int, reconnect: Bool = false) async throws {
             let snapshot: JSONValue = .object(["revision": .integer(revision), "settingsRevision": .integer(0),
@@ -176,7 +175,6 @@ struct NativeMokuTimerTests {
         #expect(workspace.connection != .connected)
         try await install([operation("one"), operation("two")], revision: 3, reconnect: true)
         #expect(timer.pending.count == 2 && player.starts == 1)
-        #expect(workspace.voice.moku.state.phase == voice)
         timer.acknowledge(id: try #require(timer.current?.id))
         #expect(timer.pending.count == 1)
         timer.stop()

@@ -21,7 +21,7 @@ struct NativeBrowserAnnotationTests {
             forkThread: { _ in "fork" }, openExternal: { _ in }, openFollowUp: { _ in })
         return .init(thread: thread, conversationIndex: nil, actions: actions, readingTarget: nil,
             executionDisabled: false, expanded: true, transitioning: false, suppressed: false,
-            conversation: { _, _ in AnyView(EmptyView()) }, voice: nil, open: { 0 }, close: {}, selectionRevision: { 0 },
+            conversation: { _, _ in AnyView(EmptyView()) }, open: { 0 }, close: {}, selectionRevision: { 0 },
             onIntent: { _ in {} }, send: send, stageAttachments: stage, discardAttachments: discard, backToOverview: {}, draftStorageDirectory: storageDirectory)
     }
     private func annotations(_ count: Int) throws -> [BrowserPendingAnnotation] {
@@ -101,7 +101,6 @@ struct NativeBrowserAnnotationTests {
         #expect(input["annotations"]?.arrayValue?.allSatisfy { $0["screenshotId"] == nil } == true)
         presentation.release()
     }
-
 
     @Test func lateReceiptUsesTerminalStateObservedByTheReopenedPresentation() async throws {
         for status in [PublicExecution.Status.completed, .failed, .interrupted] {

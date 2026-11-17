@@ -1,6 +1,6 @@
 # Thread Sidecards
 
-The shared [NativePlugins](../../Composition/NativePlugins.swift) composition registers Conversation, Browser (`iab`) and Voice. The host in [Host/Sidecards](../../Host/Sidecards/) selects one expanded card, owns widths/responsive layout, outer transitions, focus and suppression, and injects [thread-bound capabilities](../../Shared/PluginAPI/SidecardPlugin.swift). Sidecards apply to ordinary Agent Threads.
+The shared [NativePlugins](../../Composition/NativePlugins.swift) composition registers Conversation and Browser (`iab`). The host in [Host/Sidecards](../../Host/Sidecards/) selects one expanded card, owns widths/responsive layout, outer transitions, focus and suppression, and injects [thread-bound capabilities](../../Shared/PluginAPI/SidecardPlugin.swift). Sidecards apply to ordinary Agent Threads.
 
 Agent reading and the selected Sidecard occupy independent opaque reading-palette
 panels with fine borders and a 16pt workspace gap. The resident Moku Dock stays
@@ -11,7 +11,7 @@ again folds it. Per-plugin preferred widths and retained drag widths still belon
 to the host. Browser defaults to an equal split with the Agent reader, subject to
 the shared minimum widths; a retained drag width takes precedence. Below 760pt of
 available panel width the two panels stack vertically.
-Only their shells change; plugin forms, browser behavior and voice ownership remain
+Only their shells change; plugin forms and browser behavior remain
 with the existing sessions. Nested history Back belongs inside the main panel;
 its independent Close returns to Overview.
 
@@ -30,7 +30,7 @@ centers below that column and narrows to fit it. Its horizontal entrance uses a
 sizing and return keep the 380ms fold curve. On initial entry the compact Dock
 finishes that travel before input expansion is admitted. Later card choices keep
 the editor mounted and open. Dragging/resizing settles directly; stacked layout
-uses the panels' shared full column width. Choosing Browser/Voice or another
+uses the panels' shared full column width. Choosing Browser or another
 non-owning activity centers and fits input below main, including for a completed
 Thread; its send target remains that Thread. Browser annotation mode uses its
 own column and description route as specified below. Folding, suppression, losing
@@ -58,7 +58,7 @@ commands retain their own routes. Covered/disabled cards cannot close a replacem
 
 Agent Sidecards have no independent Close icon. The corresponding right-side
 launcher toggles open/closed and selecting another launcher switches activity.
-The main Thread's Close remains separate. Conversation, Browser and Voice retain
+The main Thread's Close remains separate. Conversation and Browser retain
 their programmatic/Escape dismissal without ending execution, drafts or media.
 The host's animated
 [NativeSidecardFold](../../Shared/PluginUI/Conversation/NativeSidecardFold.swift) resolves the
@@ -96,7 +96,7 @@ The `--thread-send-feedback-native` replay samples mounted native aperture
 frames in the production layout for all three launcher positions, opening and
 closing in wide/stacked layouts, quick reversals and switching, button availability
 changes, resize during opening and retained width. Existing production
-Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
+Conversation/Browser toggle, Dock and handoff cases run beside it.
 
 ## Conversation
 
@@ -245,11 +245,7 @@ Page-owned file pickers and JavaScript dialogs close with a negative result when
 
 Run `python3 tools/verification/reading-presentation/run.py --browser-dialogs` in a graphical macOS session. The isolated AppKit runner owns the application event loop and checks the complete four-test summary and all 19 cases. Ordinary SwiftPM skips this suite: without that event loop, `NSOpenPanel` can end the test process before the suite finishes, even with a zero exit status.
 
-## Voice
-
-[Voice](Voice/) now presents only retained **Past voice transcripts**. Its stable `voice` identity preserves settings and existing history, but it offers no call, microphone or mute controls. The native history source creates no media client; Runtime rejects thread prepare/start/heartbeat. The [native voice owner](../../Voice/README.md) retains only Overview global Moku calls. Stored discussion transcripts are not deleted or resent.
-
-Verification uses the existing sidecard navigation, conversation, browser annotation/viewport and voice suites.
+## Verification
 
 `NativeBrowserViewportTests` loads real loopback HTTP pages in WKWebView to
 verify that iframe attachment and unsupported-MIME responses preserve the
@@ -300,16 +296,3 @@ and input ownership keep their existing boundaries. See the
 for the demo comparison and Sprint observation scope.
 
 Same-document SPA history keeps the current address and annotation source synchronized. Unsupported protocol links and popup non-GET requests display a non-destructive notice; the latter are never rewritten as GET. The source document and unsent DOM input remain usable.
-
-The Voice transcript’s explicit jump to latest animates unless Reduce Motion is
-enabled. Its follow state and fixed-offset request share one animation transaction.
-Automatic follow remains immediate; growth during the transition is
-resolved afterward by restoring the bottom edge anchor from a fixed-offset
-animation. Manual scrolling takes ownership using its latest geometry: tracking
-at the bottom without displacement does not abandon following, while taking over
-an in-flight jump immediately updates the away indicator. Capability replacement,
-suppression, folding, release and disappearance invalidate completion. Enabling
-Reduce Motion during the transition settles directly to the latest content.
-The native thread-send replay mounts the production Voice plugin and checks
-unchanged-offset tracking, user takeover and late completion after suppression,
-folding and release.

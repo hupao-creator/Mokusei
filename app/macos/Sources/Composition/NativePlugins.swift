@@ -7,7 +7,6 @@ import MokuseiHarnessOpenCode
 import MokuseiApplications
 import MokuseiSidecardConversation
 import MokuseiSidecardBrowser
-import MokuseiSidecardVoice
 
 /// Both application hosts register the same modules. New features belong here
 /// once, so neither device can silently miss a renderer or capability.
@@ -16,8 +15,7 @@ import MokuseiSidecardVoice
         try NativePluginComposition(
             harnesses: [AnyHarnessPlugin(PiHarnessPlugin()), AnyHarnessPlugin(CodexHarnessPlugin()),
                         AnyHarnessPlugin(ClaudeHarnessPlugin()), AnyHarnessPlugin(OpenCodeHarnessPlugin())],
-            sidecards: [AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(NativeBrowserSidecard()),
-                       AnySidecardPlugin(NativeVoiceSidecard())],
+            sidecards: [AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(NativeBrowserSidecard())],
             applications: NativeApplicationModules.make())
     }
 }

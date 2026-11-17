@@ -64,6 +64,13 @@ func main() {
 	reject("moku:record-note-exposure", map[string]any{"noteId": validNoteID, "revision": 1, "signal": "understood"})
 	reject("moku:record-note-exposure", map[string]any{"noteId": validNoteID, "revision": 1, "signal": model.NoteExposureSignal, "text": "client asserted"})
 	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": 1})
+	reject("moku:submit", map[string]any{"input": nil, "voiceInput": map[string]any{}})
+	for _, channel := range []string{"moku:voice", "moku:voice-events", "thread:voice", "thread:voice-events"} {
+		_, err := runtime.Invoke(ctx, channel, []json.RawMessage{raw(map[string]any{"action": "prepare"})})
+		if err == nil || !strings.Contains(err.Error(), "unknown command channel:") {
+			panic(fmt.Sprintf("removed command %s remains available: %v", channel, err))
+		}
+	}
 	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": ""})
 	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": "scope\x00"})
 	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": strings.Repeat("x", 4097)})

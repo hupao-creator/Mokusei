@@ -139,7 +139,6 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [app/macos/Sources/Shared/PluginUI/README.md](../app/macos/Sources/Shared/PluginUI/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md](../app/macos/Sources/Shared/PluginUI/Resources/fonts/SOURCES.md) | 来源 | 资源/来源路径；历史转换与现行构建区分 |
 | [app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md](../app/macos/Sources/Shared/PluginUI/Resources/icons/LUCIDE-SOURCES.md) | 来源 | 资源/来源路径；历史转换与现行构建区分 |
-| [app/macos/Sources/Voice/README.md](../app/macos/Sources/Voice/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [app/macos/Tests/NativeInputSupport/README.md](../app/macos/Tests/NativeInputSupport/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [app/macos/Tests/Support/README.md](../app/macos/Tests/Support/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [app/macos/build/README.md](../app/macos/build/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
@@ -211,7 +210,6 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [internal/services/attachments/README.md](../internal/services/attachments/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [internal/services/moku/README.md](../internal/services/moku/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [internal/services/threadsearch/README.md](../internal/services/threadsearch/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
-| [internal/services/threadvoice/README.md](../internal/services/threadvoice/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [internal/services/workspaces/README.md](../internal/services/workspaces/README.md) | 现行 | 模块职责/入口与重点契约源码对照；非逐句动态验收 |
 | [scripts/ci/README.md](../scripts/ci/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [scripts/ci/flaky-review.md](../scripts/ci/flaky-review.md) | 历史 | 识别基线/记录性质，检查链接；保留原结论 |
@@ -234,7 +232,6 @@ Makefile 与 CLI parser 阅读、工作树文件类型与 CI scope 判定。没�
 | [tools/verification/moku-system/README.md](../tools/verification/moku-system/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/moku-talk-dismiss/README.md](../tools/verification/moku-talk-dismiss/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/moku-transitions/README.md](../tools/verification/moku-transitions/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
-| [tools/verification/moku-voice-cloud/README.md](../tools/verification/moku-voice-cloud/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/moku/README.md](../tools/verification/moku/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/native-interaction/README.md](../tools/verification/native-interaction/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |
 | [tools/verification/opencode/README.md](../tools/verification/opencode/README.md) | 工具 | 命令/路径/范围静态核对；未运行回归 |

@@ -46,8 +46,6 @@ resources = application / "Contents/Resources"
 resources.mkdir(exist_ok=True)
 frameworks = application / "Contents/Frameworks"
 frameworks.mkdir(exist_ok=True)
-subprocess.run(["/usr/bin/ditto", str(build / "LiveKitWebRTC.framework"),
-                str(frameworks / "LiveKitWebRTC.framework")], check=True)
 for bundle in build.glob("*.bundle"):
     shutil.copytree(bundle, resources / bundle.name, dirs_exist_ok=True)
 with (application / "Contents/Info.plist").open("wb") as output:
@@ -65,7 +63,7 @@ if not objects or any(not Path(item).is_file() for item in objects):
     raise SystemExit("Production link list contains missing objects; run make check")
 args = ["/usr/bin/xcrun", "swiftc", "-swift-version", "6", "-warnings-as-errors", "-parse-as-library",
         "-target", f"{platform.machine()}-apple-macosx26.0", "-I", str(build / "Modules"), "-F", str(build),
-        "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks",
+        "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks",
         "-module-cache-path", str(application.parent / "ModuleCache")]
 for include in [
     package / ".build/checkouts/swift-cmark/src/include",
@@ -74,7 +72,7 @@ for include in [
     package / ".build/checkouts/swift-system/Sources/CSystem/include",
 ]:
     args += ["-I", str(include), "-Xcc", "-fmodule-map-file=" + str(include / "module.modulemap")]
-result = subprocess.run([*args, str(preview / "main.swift"), str(preview / "InputPresentationReplay.swift"), *objects, "-o", str(executable)])
+result = subprocess.run([*args, str(preview / "main.swift"), str(preview / "InputCompletionReplay.swift"), *objects, "-o", str(executable)])
 if result.returncode:
     raise SystemExit(result.returncode)
 subprocess.run(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", str(application)], check=True)
@@ -82,7 +80,7 @@ subprocess.run(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", str(app
 report = application.parent / "result.json"
 report.unlink(missing_ok=True)
 execution = subprocess.run([str(executable)], cwd=repo, check=False,
-                           timeout=300 if os.environ.get("MOKU_CAPSULE_INSPECT") == "presentation" else (180 if os.environ.get("MOKU_CAPSULE_INSPECT") else 90))
+                           timeout=180 if os.environ.get("MOKU_CAPSULE_INSPECT") else 90)
 if not report.is_file():
     raise SystemExit("FAIL: replay exited without a result")
 result = json.loads(report.read_text())

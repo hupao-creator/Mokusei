@@ -64,10 +64,10 @@ func awaitMokuQueueWait(caller string, result <-chan error) (string, error) {
 				return "select", nil
 			}
 			// The historical implementation waits in a mutex directly inside
-			// submit/voice.command. Also recognize a precheck-only broken gate
+			// Submit. Also recognize a precheck-only broken gate
 			// for the negative-control run.
 			if strings.Contains(header, "[sync.Mutex.Lock") &&
-				(strings.Contains(boundary, "moku.(*admissionQueue).Lock(") || strings.Contains(boundary, "moku.(*Coordinator).submit(") || strings.Contains(boundary, "moku.(*voiceController).command(")) {
+				(strings.Contains(boundary, "moku.(*admissionQueue).Lock(") || strings.Contains(boundary, "moku.(*Coordinator).Submit(")) {
 				return "sync.Mutex.Lock", nil
 			}
 		}

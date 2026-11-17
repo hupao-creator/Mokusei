@@ -66,7 +66,7 @@ demo 最小内容尺寸为 960×620；不模拟生产的更窄堆叠布局。
 demo 复用 `ThreadConversation`、`HarnessMessageTimeline`、`ThreadDetailTurn`、
 `NativeMarkdownView`、`ThreadTokenUsage`、面板 Close，以及生产字体、图标和配色。
 两轮执行与 sidecard 状态由内存 fixture 提供；未连接完整插件会话和业务请求。
-Browser / Voice 图标仅用于保持场景，不提供操作能力。
+Browser 图标仅用于保持场景，不提供操作能力。
 
 完成按钮保留正在阅读的上一轮 reader 及滚动位置，只更新 sidecard 的完成内容。
 新结果在透明度门禁后准备，通过 `NativeMarkdownView.onDocumentApplied` 确认

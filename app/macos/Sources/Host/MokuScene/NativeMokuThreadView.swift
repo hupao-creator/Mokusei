@@ -28,14 +28,9 @@ public struct NativeMokuThreadView: View {
     @State private var nestedNavigation: ThreadDetailBackAction?
     @State private var focusRequest = 0
 
-    // Former voice arguments are accepted for source compatibility only; this
-    // reader neither retains nor mounts those controls or callbacks.
     public init(harnessHost: NativeHarnessHost, thread: HarnessThread, draft: NativeComposerDraft,
                 readingTarget: HarnessReadingTarget? = nil,
                 running: Bool = false, disabled: Bool = false,
-                activeVoiceControls: AnyView = AnyView(EmptyView()),
-                voiceBackground: AnyView = AnyView(EmptyView()),
-                voiceModeActive: Bool = false,
                 loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
                 backLabel: String? = nil, focusEnabled: Bool = true,
                 onNavigationChange: ((ThreadDetailBackAction?) -> Void)? = nil,
@@ -43,9 +38,7 @@ public struct NativeMokuThreadView: View {
                 onBack: @escaping () -> Void,
                 onSend: @escaping (NativeComposerSubmission) async throws -> Void,
                 onSendConsumed: @escaping (NativeComposerSubmission) async -> Void = { _ in },
-                onCancel: @escaping () -> Void,
-                canStartVoice: @escaping () -> Bool = { false },
-                startVoice: @escaping () -> Void = {}) {
+                onCancel: @escaping () -> Void) {
         self.harnessHost = harnessHost; self.thread = thread; self.draft = draft; self.readingTarget = readingTarget
         self.running = running; self.disabled = disabled
         self.error = error; self.loadMentionDirectories = loadMentionDirectories
