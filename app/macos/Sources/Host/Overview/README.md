@@ -216,6 +216,20 @@ current transform and no animation is needed.
 
 [NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples each mounted card's current pose. An interrupted transition retargets from that sample. Outgoing content remains mounted until its exit completes; entries, moves and exits share one bounded transition and then release retiring snapshots. Shell and semantic planes share geometry and opacity. Retired and transparent semantic cards are hidden from accessibility.
 
+Tag/search scene changes retain their filter choreography: outgoing cards shrink
+and fade over 140ms, survivors move over 320ms after a 70ms delay, and new cards
+enter over 230ms after a 150ms delay. The new collection first lays out at frozen
+start poses; only that layout's acknowledgement starts the shared clock, so plugin
+construction cannot consume the transition. Automatic framing is prepared at its
+final transform before that layout, including automatic search-bookmark returns;
+the card clock owns screen-space travel rather than starting a second camera
+clock during mounting. Camera cuts reproject sampled old poses to preserve their
+screen positions. Visible survivors retain manual framing, and manual search
+bookmarks restore their saved transform. Rapid selections cancel the old owner
+and retarget those samples. An empty destination retains the camera through the
+exit before disposing it; switching from an empty scene still animates entry.
+Reduce Motion continues to commit immediately.
+
 Card motion starts, interruption samples and display samples all use
 `ProcessInfo.systemUptime`. A MainActor clock shares one uptime sample for each
 exact SwiftUI timeline date across the shell and semantic planes. Dates are only

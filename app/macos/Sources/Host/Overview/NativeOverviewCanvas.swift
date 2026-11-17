@@ -205,6 +205,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var retry = 0
     @State private var ownership = UUID()
     @State private var layoutToken = UUID()
+    @State private var presentationToken = UUID()
+    @State private var preparedPresentationToken: UUID?
     @GestureState private var dragOrigin: NativeOverviewTransform?
     @GestureState private var zoomActive = false
     @State private var navigationInput: NativeOverviewNavigationInput
@@ -294,6 +296,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
             .environment(\.nativeCanvasInputRegions, navigationInput.regions)
             .coordinateSpace(name: ownership)
             .nativeLayoutLog("overview.canvas")
+            // Mount the new collection at frozen start poses before its clock
+            // runs. Plugin construction must not consume the filter transition.
+            .onGeometryChange(for: UUID.self) { [presentationToken] _ in presentationToken } action: {
+                preparedPresentationToken = $0
+            }
             .clipped()
             // Group before attaching the canvas gesture; otherwise SwiftUI
             // derives its accessibility attachment for every card descendant.
@@ -599,7 +606,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
                                                       policy: .standard)
         try Task.checkCancellation()
         guard layoutToken == token, state.hostOwner == ownership else { throw CancellationError() }
-        let initial = mountedScene == nil || (displayed.isEmpty && outgoingPlacements.isEmpty)
+        let initial = mountedScene == nil || (!replaceScene && displayed.isEmpty && outgoingPlacements.isEmpty)
         let animated = state.visible && !initial && !spatialMotionReduced
         let now = ProcessInfo.processInfo.systemUptime
         let oldPlacements = displayed + outgoingPlacements
@@ -635,9 +642,13 @@ public struct NativeOverviewCanvas<Content: View>: View {
         cardPoses = oldPoses
         state.presentedPlacements = geometry.placements
         diagnosticAfter = geometry.placements
-        prepareCamera(next, initial: initial, replaceScene: replaceScene,
-                      hasVisibleSurvivor: hasVisibleSurvivor, viewport: viewport,
-                      contentRect: contentRect, automatic: geometry.automaticCamera)
+        // Empty targets keep the old camera until the last outgoing card has
+        // retired; disposing it here would jump those cards before their exit.
+        if !animated || !next.isEmpty {
+            prepareCamera(next, initial: initial, replaceScene: replaceScene, animated: animated,
+                          hasVisibleSurvivor: hasVisibleSurvivor, viewport: viewport,
+                          contentRect: contentRect, automatic: geometry.automaticCamera)
+        }
         retain()
         guard animated else {
             cardPoses = Dictionary(geometry.placements.map { ($0.id, OverviewCardPose(frame: $0.cardFrame)) },
@@ -650,49 +661,91 @@ public struct NativeOverviewCanvas<Content: View>: View {
             return
         }
 
-        var longest = 0.0
-        for placement in outgoingPlacements {
-            guard let from = oldPoses[placement.id] else { continue }
-            setMotion(placement.id, from: from,
-                      to: from.transformed(scale: OverviewCardTransition.exitScale,
-                                           dy: OverviewCardTransition.exitRise, opacity: 0),
-                      duration: OverviewCardTransition.exitDuration,
-                      curve: replaceScene ? .filter : .layout,
-                      layoutSize: from.frame.size, start: now)
-            longest = max(longest, OverviewCardTransition.exitDuration)
-        }
-        for placement in geometry.placements {
-            let target = OverviewCardPose(frame: boxes[placement.id] ?? placement.cardFrame)
-            if let from = oldPoses[placement.id] {
-                if from == target {
-                    cardPoses[placement.id] = target
-                } else {
-                    setMotion(placement.id, from: from, to: target,
-                              duration: OverviewCardTransition.moveDuration,
-                              curve: replaceScene ? .filter : .layout, layoutSize: target.frame.size, start: now)
-                    longest = max(longest, OverviewCardTransition.moveDuration)
-                }
-            } else if instantEntryIDs.contains(placement.id) {
-                cardPoses[placement.id] = target
-            } else {
-                setMotion(placement.id,
-                          from: target.transformed(scale: OverviewCardTransition.entryScale,
-                                                   dy: OverviewCardTransition.entryRise, opacity: 0),
-                          to: target, duration: OverviewCardTransition.entryDuration,
-                          curve: .entry, layoutSize: target.frame.size, start: now)
-                longest = max(longest, OverviewCardTransition.entryDuration)
+        if replaceScene {
+            // Preserve screen-space origins across a camera cut, including
+            // sampled outgoing cards when a rapid selection reverses an exit.
+            let camera = state.camera.liveTransform
+            let preparation = UUID()
+            presentationToken = preparation
+            for placement in outgoingPlacements {
+                guard let old = oldPoses[placement.id] else { continue }
+                let from = old.reproject(from: sampledCamera, to: camera)
+                setMotion(placement.id, from: from, to: from.transformed(scale: 0.88, opacity: 0),
+                          duration: 0.14, curve: .filter, layoutSize: placement.cardFrame.size, start: .infinity)
             }
-        }
-        if longest > 0 {
-            try await waitForMotion(longest)
+            for placement in geometry.placements {
+                let target = OverviewCardPose(frame: placement.cardFrame)
+                if let old = oldPoses[placement.id] {
+                    setMotion(placement.id, from: old.reproject(from: sampledCamera, to: camera), to: target,
+                              duration: 0.32, delay: 0.07, curve: .filter,
+                              layoutSize: target.frame.size, start: .infinity)
+                } else {
+                    setMotion(placement.id,
+                              from: target.transformed(scale: 0.94, dy: 12 / camera.scale, opacity: 0), to: target,
+                              duration: 0.23, delay: 0.15, curve: .filter,
+                              layoutSize: target.frame.size, start: .infinity)
+                }
+            }
+            while state.visible && preparedPresentationToken != preparation {
+                try await waitForMotion(0.001)
+            }
             try Task.checkCancellation()
             guard layoutToken == token else { throw CancellationError() }
+            let startedAt = ProcessInfo.processInfo.systemUptime
+            for id in Array(cardMotions.keys) { cardMotions[id]?.start = startedAt }
+            try await waitForMotion(0.39)
+        } else {
+            var longest = 0.0
+            for placement in outgoingPlacements {
+                guard let from = oldPoses[placement.id] else { continue }
+                setMotion(placement.id, from: from,
+                          to: from.transformed(scale: OverviewCardTransition.exitScale,
+                                               dy: OverviewCardTransition.exitRise, opacity: 0),
+                          duration: OverviewCardTransition.exitDuration,
+                          curve: .layout,
+                          layoutSize: from.frame.size, start: now)
+                longest = max(longest, OverviewCardTransition.exitDuration)
+            }
+            for placement in geometry.placements {
+                let target = OverviewCardPose(frame: boxes[placement.id] ?? placement.cardFrame)
+                if let from = oldPoses[placement.id] {
+                    if from == target {
+                        cardPoses[placement.id] = target
+                    } else {
+                        setMotion(placement.id, from: from, to: target,
+                                  duration: OverviewCardTransition.moveDuration,
+                                  curve: .layout, layoutSize: target.frame.size, start: now)
+                        longest = max(longest, OverviewCardTransition.moveDuration)
+                    }
+                } else if instantEntryIDs.contains(placement.id) {
+                    cardPoses[placement.id] = target
+                } else {
+                    setMotion(placement.id,
+                              from: target.transformed(scale: OverviewCardTransition.entryScale,
+                                                       dy: OverviewCardTransition.entryRise, opacity: 0),
+                              to: target, duration: OverviewCardTransition.entryDuration,
+                              curve: .entry, layoutSize: target.frame.size, start: now)
+                    longest = max(longest, OverviewCardTransition.entryDuration)
+                }
+            }
+            if longest > 0 {
+                try await waitForMotion(longest)
+                try Task.checkCancellation()
+                guard layoutToken == token else { throw CancellationError() }
+            }
         }
+        try Task.checkCancellation()
+        guard layoutToken == token else { throw CancellationError() }
         cardMotions.removeAll()
         cardPoses = Dictionary(geometry.placements.map { ($0.id, OverviewCardPose(frame: $0.cardFrame)) },
                                uniquingKeysWith: { first, _ in first })
         outgoingPlacements.removeAll()
         retiringPresentationIDs.removeAll()
+        if next.isEmpty {
+            prepareCamera(next, initial: initial, replaceScene: replaceScene, animated: animated,
+                          hasVisibleSurvivor: hasVisibleSurvivor, viewport: viewport,
+                          contentRect: contentRect, automatic: geometry.automaticCamera)
+        }
         installRendered(next.map(currentContentItem))
         finishPresentation(next: next, revisions: revisions)
         diagnosticOutcome = .completed
@@ -712,12 +765,17 @@ public struct NativeOverviewCanvas<Content: View>: View {
         return latest
     }
 
-    private func prepareCamera(_ next: [NativeOverviewItem], initial: Bool, replaceScene: Bool,
+    private func prepareCamera(_ next: [NativeOverviewItem], initial: Bool, replaceScene: Bool, animated: Bool,
                                hasVisibleSurvivor: Bool,
                                viewport: NativeOverviewViewport, contentRect: NativeOverviewContentRect,
                                automatic: NativeOverviewTransform?) {
+        // Filter card poses own screen-space travel, including camera changes.
+        // Prepare the final automatic camera before the frozen layout; an
+        // independent camera clock would run while plugin cards are mounting.
+        let filterTransition = animated && replaceScene
         if initial || next.isEmpty || !state.camera.isInitialized
-            || (replaceScene && !hasVisibleSurvivor) {
+            || (replaceScene && !hasVisibleSurvivor)
+            || (filterTransition && !state.camera.manual) {
             if initial, !next.isEmpty, let saved = state.memory.current, saved.sceneKey == sceneKey {
                 state.camera.restore(view: saved.view, content: contentRect, viewport: viewport)
             } else {
@@ -728,7 +786,13 @@ public struct NativeOverviewCanvas<Content: View>: View {
         }
         if let restore = state.pendingSearchCameraRestoration, restore.sceneKey == sceneKey {
             state.pendingSearchCameraRestoration = nil
-            state.camera.restore(view: restore.view, content: contentRect, viewport: viewport)
+            if filterTransition && !restore.view.manual {
+                // Automatic bookmarks converge to this collection's FitAll.
+                // Manual bookmarks keep their exact transform and ownership.
+                state.camera.cutTo(content: contentRect, viewport: viewport)
+            } else {
+                state.camera.restore(view: restore.view, content: contentRect, viewport: viewport)
+            }
         }
     }
 
