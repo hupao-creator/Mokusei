@@ -87,7 +87,7 @@ Rapid replacement retains the current mark during travel; the same Harness
 reuses a settled or in-flight flip. Return keeps the existing collapse path.
 An inactive scene or a hidden window settles the mark immediately,
 while reading/content readiness still gates input. See the
-[entrance contract](../../../../../design/reading-entrance-choreography.md).
+[entrance contract](../../../../../design/reading.md).
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
@@ -98,14 +98,13 @@ Admission still owns persistence consumption and staged-file release. Failure
 reveals the retained draft, preserving any new text after the failed message;
 no automatic retry occurs. Ready image chips use system Quick Look with the
 shared strip's local managed-file URLs and independent preview/remove actions.
-Sprint validation is limited to headless compilation and affected existing
-windowless cases; it does not certify Quick Look window, focus or pointer behavior.
+No current e2e evidence is supplied for Quick Look focus or pointer behavior.
 
 The identity seat retains the last open editor position while the composer
 retires. Directory completion stays above the same bottom-anchored native editor.
 Its measured height changes the shell without replacing the editor or its
-selection owner. Existing completion regression cases check native editor drift
-through entry, exit and rapid reversal.
+selection owner through entry, exit and rapid reversal. No completion replay
+is configured in this source tree.
 
 Input collapse fades the retained editor within 120ms of the close intent, even
 while `inputLeaving` keeps its native lifetime for 420ms. The shell and the single
@@ -197,7 +196,7 @@ row remain note entry points for a long message. The monitor checks the actual
 hit-tested AppKit viewport, so resizing and persistent scroller gutters do not
 depend on a predicted text height. Dispatch status is informational; clicking it does not open a detail sheet.
 
-The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The choreography comes from Bart commits `2c3125ac7` and `45578f321`; the eyes retain their seat while the 5-point dots follow the capsule's outer contour, with 3 points of clear space. [NativeMokuRunningGeometry](NativeMokuRunningGeometry.swift) supplies that authored path to the persistent character host. Decorations paint outside the glass clip.
+The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The eyes retain their seat while the 5-point dots follow the capsule's outer contour, with 3 points of clear space. [NativeMokuRunningGeometry](NativeMokuRunningGeometry.swift) supplies that authored path to the persistent character host. Decorations paint outside the glass clip.
 
 [NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock. Blink shape uses the continuous timestamp rather than fixed-rate samples.
 
@@ -207,11 +206,10 @@ link sleeps between the existing absolute-time blinks (4.2-second period,
 identity with no face and no moving decoration has neither frames nor a blink
 wake. Role transitions, loading, visible reasoning and retiring ink keep their
 frames through the final paint. Resuming starts a fresh wall-time interval, so
-sleep cannot advance a new transition. Eye-only checks removed by the orb
-rebrand remain absent; this rollback adds no test cases.
+sleep cannot advance a new transition. No eye-only correctness suite is configured here.
 
-Talk and live transcript prose retain their later semibold, centered layout.
-Symmetric 64-point insets reserve the restored eye seat without shifting text
+Talk and live transcript prose use semibold, centered layout.
+Symmetric 64-point insets reserve the eye seat without shifting text
 away from the capsule center.
 
 Overview derives its persistent bottom reservation from the same idle capsule
@@ -251,23 +249,18 @@ without changing its exposure receipt or the workspace draft.
 
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. Its trailing control seat stays reserved for the whole message so retiring Stop does not shift centered text or change its wrapping. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
 
-Talk uses an 18-point leading inset with no eye reservation and selectable text viewport.
-Its retired eye painting has been removed. The existing windowless long-message
-regression now checks actual text clip bounds and Stop clearance without asserting
-an obsolete eye path. Native scrolling remains covered by the transcript suite.
+Talk uses symmetric 64-point insets around its centered selectable text viewport,
+reserving the persistent eye/control seats without shifting prose. No Talk clipping/transcript
+correctness suite is configured in this source tree.
 
 The
 capsule height uses the same width; changing the scrollbar preference updates
-both without replacing the scroll view. `NativeMokuTalkClippingTests` mounts the
-production selectable content with overlay and persistent scrollers at six
-widths, including the reported Chinese/Overview sentence, mixed Unicode, long
-Chinese/Latin text and explicit overflow. It checks the rendered label's text
-seat against the actual native clip and scrolls overflow to both ends.
+both without replacing the scroll view. The production selectable text uses
+the native clip/scroller boundary for mixed Unicode and overflowing content.
 The native viewport also stays inside its promised host bounds: the prose width
 is a maximum inside a flexible, leading-aligned document, so persistent scrollers
 cannot expand it into the note's history actions.
-Set `MOKU_TALK_CLIPPING_EVIDENCE` to retain mounted-view PNGs of the reported sentence;
-these are AppKit display-cache images, not WindowServer glass captures.
+
 
 Text shorter than the Talk viewport is vertically centered in its row.
 The Dock's Stop
@@ -346,16 +339,14 @@ Talk keeps its original deadline and can expire while covered; a new operation
 received inside Note starts its deadline only when it becomes visible on return.
 The latest scene-owned message supplies that return, with no snapshot or cached
 message to resurrect. Text selection, scrolling, composer drafts and note data
-retain their existing owners. See the [same-level handoff investigation](../../../../../design/moku-talk-note-handoff.md)
-for source-video evidence and this change's validation limits. The earlier
-[geometry investigation](../../../../../design/moku-talk-note-transition.md)
-records the preceding repair, whose simultaneous Talk/Note presentation is
-superseded by this handoff.
+retain their existing owners. See the [same-level handoff contract](../../../../../design/composer.md)
+for the current Talk/Note ownership contract.
 
-Note uses the same uniform Harness tint and a noninteractive clear glass surface;
+Expanded Note uses dark Regular Liquid Glass without the compact clear shell's
+bottom-fading gradient; the expanded material is noninteractive;
 selection, links, scrolling and dismissal retain their existing targets. The
 material stays mounted through opening, closing and reversal. Reduce Transparency retains the
-same opaque tint. The existing Note lifecycle and viewport regressions remain.
+same opaque warm-black fallback. No Note lifecycle/viewport regression runner is configured here.
 The [Note transition preview](../../../../../demos/moku-note-transition/README.md)
 records the production Dock with synthetic notes, including intermediate frames,
 rapid reversals, narrow/centered layouts and a local no-animation fixture.
@@ -464,7 +455,7 @@ covering or closing returns to the ordinary draft and send route. Annotation
 input admits text without file or directory controls. Failed capture
 keeps the description; failed sends keep the captured batch for the existing
 retry/text-only controls. See the
-[annotation input contract and Sprint limits](../../../../../design/browser-annotation-resident-input.md).
+[annotation input contract](../../../../../design/composer.md).
 
 While the selected Sidecard owns the current running/waiting execution, the
 resident input is centered below that panel and fits its width with the ordinary
@@ -510,8 +501,8 @@ one hosting tree, including Settings height preferences and input hit regions.
 The hosting root stays fixed while observable content carries outer updates;
 replacing the root can settle the shell before its content finishes moving.
 
-This is a targeted regression check for the native travel boundary, not a claim
-about full-workspace FPS or GPU/energy use.
+Native compositor travel is distinct from full-workspace frame pacing, GPU
+or energy measurements.
 
 Primary reading entry lowers the collapsed Dock with its native 420ms
 ease-in/ease-out curve. Its composer stays unmounted until the reading panel/title handoff
@@ -538,7 +529,7 @@ bottom moves down by up to 16pt, keeping at least
 associated Thread; Git retains its normal input policy in that same lower seat.
 Landing and Settings keep their existing positions. The bottom-anchored editor,
 reasoning envelope and hit regions still use the fitted surface. See the
-[reading choreography](../../../../../design/reading-entrance-choreography.md).
+[reading choreography](../../../../../design/reading.md).
 
 The same resident Dock remains mounted and interactive while an ordinary Agent
 Thread, Report or Git detail is presented in a reading panel. `dockRouteVisible` combines Overview and
@@ -572,7 +563,7 @@ late receipts consume only their original draft and cannot reopen another visit.
 Retiring composer callbacks may refresh the capsule's retained text, directories
 and attachment ink only while they still own its selected draft. A Thread title
 or execution change keeps that Thread's unsent draft. See the
-[recording and attachment ownership investigation](../../../../../design/thread-attachment-ownership.md)
+[draft and attachment contract](../../../../../design/composer.md)
 for the distinction between restored input and cross-Thread routing defects.
 The local send publishes a visit-scoped reveal request before admission, then
 attaches the exact execution receipt. Conversation opens once that same execution
@@ -609,7 +600,7 @@ cancellation policies. Closing detail or changing targets retains unsent text,
 attachments and directories through the window-owned persisted Thread draft.
 Sending still consumes only the accepted revision; failed sends retain the draft
 and error, and late receipts cannot alter another target's presentation.
-See the [routing investigation and sprint limits](../../../../../design/thread-detail-input-dismissal.md).
+See the [composer routing contract](../../../../../design/composer.md).
 
 Report execution details borrow that same Agent composer and native column
 placement. Exact-execution drafts are shared with Agent history/result readers
@@ -627,7 +618,7 @@ current sends keep their existing visit-scoped execution reveal. TOC selection c
 explicit Browser annotation mode and Moku retain their existing autofocus. Pending focus requests wait for editor eligibility and are applied once, so an
 unavailable first render cannot lose the request and later availability cannot
 repeatedly steal the reader's focus. See the
-[recording, focus chain and manual validation limits](../../../../../design/execution-composer-focus.md). Execution completion lends input publication only to the current native reader
+[focus ownership contract](../../../../../design/composer.md). Execution completion lends input publication only to the current native reader
 seat. The retained outgoing reader cannot overwrite or clear that target, and
 canceling a handoff republishes the restored reader's target. The workspace
 withdraws its input owner when it leaves, independently of either reader's
@@ -643,8 +634,8 @@ reopened owner without the phase context blocks new work and identifies the
 protected receipt. Successful follow-up receipts remain protected until the
 captured draft consumption callback, including late/disposed owners. A receipt
 release callback is identity-fenced against a newer operation. This policy is
-shared by Report and Agent input; there is no force-resend button. See [Execution continuation](../../../../../design/report-execution-continuation.md)
-for native constraints and the current sprint validation scope.
+shared by Report and Agent input; there is no force-resend button. See [Execution continuation](../../../../../design/reading.md)
+for native constraints and evidence limits.
 
 Direct Thread sends admit three-dot orbit feedback as soon as the Dock captures
 the submission. Open input hides the orbit, including retiring dot ink; closing
@@ -655,7 +646,7 @@ lifetime, including reading travel and the Harness flip before input opens.
 Entry, replacement and return therefore cannot mistake delayed editor admission
 for a user-closed input or reveal retained orbit ink. Ordinary closed-input
 running/submission feedback and the running story remain unchanged. See the
-[recording diagnosis and headless limits](../../../../../design/agent-detail-entry-orbit.md).
+[composer admission contract](../../../../../design/composer.md).
 This feedback skips
 the running choreography's initial three-beat prelude; it does not grant Stop
 authority, consume a draft or navigate before a confirmed receipt. Failure or
@@ -674,13 +665,11 @@ adding an intermediate layout destination. Replacements use
 the currently presented horizontal position; resize, dragging and deactivation
 settle travel directly. This preserves the existing draft,
 receipt, input-readiness and late-callback fences. See the
-[recording diagnosis and Sprint limits](../../../../../design/direct-send-transition.md).
+[composer geometry contract](../../../../../design/composer.md).
 
-The original direct-send repair used static review and the application product
-build only. Its open-input follow-up also manually inspected the built production
-Dock in an isolated native window: running feedback is absent with input open
-and present after closing it. Real Runtime sends and receipt recovery were not exercised by that preview;
-see the linked investigation for the exact verification limits.
+No Runtime send/receipt e2e is configured in this source tree.
+The [composer ownership guide](../../../../../design/composer.md) describes
+the implemented admission and cancellation boundaries.
 
 Settings starts with a 900-point preferred height and grows to the active tab's
 natural document height (including header and form insets). The shared Dock shell

@@ -41,6 +41,13 @@ configuration for the same Thread preserves that revision floor; replacement
 and restart initialize it from the adopted Thread. Older terminal facts still
 settle their own audit rows independently of scope authority.
 
+Tool-operation transcripts are business records, written under the captured Moku
+execution. [tools.go](tools.go) assigns host `id`, `callId` and `invocationId` at
+insertion, retains the native `harnessCallId` when supplied, and records arguments
+and completion results. These identities do not depend on a private log sink.
+A callback rejected before transcript insertion has no operation row; its error
+returns through the tool bridge. Result-recording failures remain tool faults.
+
 Moku guidance defaults to managed `worktree:true` for tasks in a committed Git workspace, even without parallel tasks. It reserves `false` for tasks without an eligible Git workspace, explicit requests for the existing checkout, or tasks requiring its uncommitted changes or live state. Moku creates the managed worktree through `create_thread` rather than delegating worktree creation to the Agent. This is model guidance, not an enforced boolean default.
 
 Every `create_thread` call supplies `worktree` as a boolean. `false` uses an explicit existing directory or allocates a temporary workspace. `true` requires an explicit committed Git workspace. The result distinguishes base `workspace.cwd` from execution `workspace.worktreeCwd`. Optional `worktreeName` is a directory label, never the task title; [workspace rules](../workspaces/README.md) define validation, normalization, collisions and reported adjustments.
@@ -96,7 +103,7 @@ configuration/account inputs. Bounded dependency scanning strengthens the key;
 if scanning fails it falls back to root-file generations with a degraded marker.
 Cancellation still rejects and a detected source change fences publication.
 Arbitrary imports, custom credential helpers and remote/MDM policy are not thereby
-proven; their unknown provenance no longer prevents native inventory routing.
+proven; unknown provenance does not prevent native inventory routing.
 Settings changes still participate in final Runtime admission. No system-prompt
 or tool-use instruction is added by discovery; directory data stays in schemas.
 
@@ -112,7 +119,7 @@ A successful matching cache hit does not wait for a native catalog fetch. A miss
 execution-profile preparation and local launch/dependency resolution remain
 separate costs. Native enumeration still has its existing bounds (OpenCode:
 30-second native timer and 55-second full probe, plus joined cleanup). Resolving local binaries and checking dependency fingerprints is separate work;
-unchanged Codex binary-version facts no longer expire merely with catalog TTL.
+unchanged Codex binary-version facts remain cached independently of catalog TTL.
 
 Both creation/follow-up prompt schemas carry target-routing guidance: explicit
 user choices take precedence over general routing guidance and belong under the single Harness key in `create_thread.target`. Moku addresses the receiving Agent
@@ -141,8 +148,7 @@ lines; it has no abbreviations, URLs or embedded periods.
 [Coordinator preparation](coordinator.go) injects that string as its only built-in
 `Injection.Instructions` entry, independently of the number of target Harnesses.
 `DescribeThreadCreation` supplies tool schemas, not an additional instruction
-block or prose target roster. No removed instructions are relocated into context,
-tool descriptions or another Agent's prompt.
+block or prose target roster. Tool schemas and context remain separate instruction/data boundaries.
 
 The three-sentence budget is **not a cap on the provider's entire model input**:
 
@@ -153,7 +159,7 @@ The three-sentence budget is **not a cap on the provider's entire model input**:
 - Existing tool descriptions and schemas retain their full contracts: exact
   native options and catalog status, routing, worktree naming, Talk/Timer
   limits, note evidence and compare-and-swap rules, and bounded Thread queries.
-  Those contracts already existed separately and are unchanged by this budget.
+  Their size is independent of the three-sentence base-prompt budget.
 - `ContextEntries` contain session-start workspace context and before-send note,
   directory, telemetry, evaluation and notification context, including runtime
   interpretation/safety guidance and variable user or native text; they have
@@ -167,21 +173,16 @@ The three-sentence budget is **not a cap on the provider's entire model input**:
 - Native engines/providers may supply their own system instructions, workspace
   instructions or session history outside this Moku coordinator budget.
 
-Detailed wording about character budgets, emoji, Talk expiry and layout, note
-compaction/evidence, native options and worktree names is no longer duplicated
-in the base prompt; its existing tool contract remains authoritative. The base
-omits detailed channel selection, target routing, worktree rules, dispatch
-confirmation and terminal-event waiting; existing tool guidance is unchanged, not expanded to absorb removals.
-Tag, Report, ordinary Agent instructions and shared Harness serializers are unchanged.
-Updated guidance takes effect when a Moku native session is prepared; existing
-native histories are not rewritten.
+Talk/Timer limits, Note evidence, native options and worktree naming live in
+their tool contracts. The three-sentence base prompt does not duplicate those
+contracts. Native session preparation injects current guidance; stored native
+history retains its original messages.
 
 ## Talk and notes
 
 The built-in prompt states that Moku's own assistant replies are invisible.
 Visible surfaces remain Talk, Timer, the persistent note and ordinary Agent
-Threads, including Moku's delegated instructions; their detailed usage is no
-longer enumerated in the base prompt. Anything the user needs to know or respond
+Threads, including Moku's delegated instructions; their detailed usage lives in tool contracts. Anything the user needs to know or respond
 to must reach a visible surface: Talk for short
 immediate answers, questions, confirmations and updates; the note for persistent
 milestone recaps; and the relevant Agent Thread for detailed task discussion and

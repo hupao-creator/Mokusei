@@ -10,4 +10,4 @@ python3 demos/moku-landing/build.py --open
 已有当前生产 Swift build 可加 `--skip-build`。按 Command-D 打开演示控制，
 Command-1/2/3/4 分别重置、演示成功、失败及归档。
 独立 app 路径写入 `.build/moku-landing/app-path.txt`。
-自动断言、截图验收及验证报告入口已删除；预览不启动 Runtime 或真实模型。
+预览不配置自动断言、截图验收或验证报告，也不启动 Runtime 或真实模型。

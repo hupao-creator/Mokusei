@@ -1,10 +1,11 @@
 # Agent emoji badge 材质对比 · 2026-11-14
 
+报告对象以对应 JSON 的源码、采集器与二进制身份为准；这些数据不认证当前源码或统计回归 gate。
 本轮在同一个签名 production Release 包中，对比普通不透明 badge 与 Liquid Glass badge。**运行中静置的 App CPU 平均增加 10.5%，正文更新增加 18.2%；已完成静置的绝对差异很小。** 两个拖动场景未通过现有轨迹校验，不能据其资源数值给出收益结论。普通产品启动仍使用原来的不透明 badge，本轮没有把玻璃设为默认。
 
 ## 条件
 
-制品基于 `c57e171e` 加本次显式场景开关，唯一受控样式变量是 Agent 卡片的 44pt emoji 背景：原有静态 palette 填充，或无额外 tint / interactive 的 regular Liquid Glass。emoji 保持 21pt，终态小图标、正文动效、实时半分辨率云纹、卡片底色、Report/集合 badge 与其他控件保持原有实现。开关只在隔离 Overview benchmark 启动中可用，App 回执确认 PID、材质与辅助功能设置。
+制品基于 `c57e171e` 加测量专用显式场景开关，唯一受控样式变量是 Agent 卡片的 44pt emoji 背景：原有静态 palette 填充，或无额外 tint / interactive 的 regular Liquid Glass。emoji 保持 21pt，终态小图标、正文动效、实时半分辨率云纹、卡片底色、Report/集合 badge 与其他控件保持原有实现。开关只在隔离 Overview benchmark 启动中可用，App 回执确认 PID、材质与辅助功能设置。
 
 固定 10 张计时前已经存在的 Codex 卡片，公开准备状态确认全部具有固定 📄 emoji。每组独立创建隔离 profile；未在计时窗内逐张创建或显示卡片。顺序为普通 → 玻璃 → 玻璃 → 普通，每种材质两次。系统只有内建 1512×982 pt、scale 2、120 Hz 屏；窗口固定为 `(116, 32, 1280, 950)`。Reduce Transparency、Reduce Motion、Increase Contrast 均关闭。
 
@@ -45,7 +46,7 @@ CPU 100% 表示一个核。内存为每轮采样物理占用峰值的两轮平�
 
 ## 验证与边界
 
-- production Release 构建、签名验证完成；构建耗时 175.74 秒，embedding 产品构建 0.23 秒。制品与来源摘要见 [JSON](2026-11-14-emoji-badge-glass.json)。本次测量对应这个制品；随后 main 的 reader/Chrome 变更没有重测。
+- production Release 构建、签名验证完成；构建耗时 175.74 秒，embedding 产品构建 0.23 秒。制品与来源摘要见 [JSON](2026-11-14-emoji-badge-glass.json)。本次测量对应这个制品；不认证其他产品输入。
 - 采集器的正常运动、SwiftUI 输入、冻结、错误位移、延迟、真实主线程停顿和错误 owner 控制完成，像素敏感性成立。未启用需要额外授权的 XCTest hitch。所有正式 run 的完整状态仍为 `incomplete / not-comparable`，CLI 以 2 退出；没有补零或将能力缺失记为通过。
 - 初次准备因 108 字节 Unix socket 路径超过 macOS 限制而超时，未进入任何正式场景，所属进程已清理。已改为独立 0700 短 IPC 目录，跨重启保留，确认所属进程退出后移除。失败尝试独立保留，未混入均值。
 - 新增 emoji 缺失控制曾发现就绪条件未检查 emoji，已补齐固定 emoji 条件。最终 115 项 Overview 合同回放通过，包含错误材质/owner、透明度 fallback、缺失回执、制品不匹配、缺少对照轮次、App 样本缺失和不同工作量拒绝。共享 reading 合同回放 23 项通过。

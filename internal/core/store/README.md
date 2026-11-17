@@ -188,9 +188,7 @@ immutable reads, and [lifecycle.go](lifecycle.go) owns events, work and receipts
 [lifecycle_index.go](lifecycle_index.go) owns query indexes and pending readers;
 [lifecycle_subscriptions.go](lifecycle_subscriptions.go) owns routed notifications.
 
-Run `./scripts/go.sh run -race ./tools/verification/storage-workspaces` from the
-repository root. Allocation probes
-compare one-key transaction snapshots, warm pending reads and exact-ID history
-with 64 versus 4,096 unrelated or acknowledged facts; they assert bounded memory
-growth rather than machine-dependent timing. Runtime domain validation is also
-exercised by the [runtime and application-host replays](../../../tools/verification/README.md).
+No storage/workspace correctness replay is configured in this source tree.
+The [Runtime benchmark](../../../tools/verification/runtime-performance/README.md)
+measures selected production calls; timing and allocation observations do not
+prove transaction, ownership or cancellation correctness.

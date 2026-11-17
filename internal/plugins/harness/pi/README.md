@@ -13,7 +13,7 @@ ordered native/public assistant sequence and linear JSONL ancestry before
 trimming to that execution's native prefix, then uses the existing independent
 snapshot fork. Missing/nonmatching/branched history or an execution without an
 assistant checkpoint fails without sending. Source idle/native-work gates stay
-in force. See [Report continuation](../../../../design/report-execution-continuation.md).
+in force. See [Report continuation](../../../../design/reading.md).
 
 `pi.New(plugin.HostContext)` is the Go implementation of the Pi Agent Harness.
 It uses the external `pi --mode rpc` process and requires a stable Pi release
@@ -135,17 +135,17 @@ Bridge shutdown stops new calls and cancels existing callbacks; Close waits for
 their cleanup before returning. Tool implementations must observe cancellation. A callback panic becomes a tool error without exposing its panic payload or
 terminating the runtime.
 
-A blocked protocol reader exercises the incomplete-cleanup path; callback-driven
-Close cases ensure the application dispatcher is never asked to join itself. The adapter scenario crosses Open, Send, Close and the committed session-state
-projection.
+Session Close joins the native process and readers; application callbacks do
+not join their own dispatcher. No child-peer correctness replay is configured.
 
 `resources/read-guard.mjs` blocks all native tool calls during a history read. Its command registration lets Go verify the exact guard file loaded. Both
-resources are embedded by `go:embed`; neither requires Node or npm to build. The installed-Pi replay
-retains responsibility for proving the native loader and tool boundary.
+resources are embedded by `go:embed`; neither requires Node or npm to build. The native loader and tool boundary have no installed-Pi replay configured
+in this source tree.
 
 ## Preserved native limits
 
-Pi Threads do not accept slash commands or historical fork selectors. Ordinary
+Pi Threads do not accept slash commands. Fork accepts the exact `executionId`
+selector described above; arbitrary historical checkpoint selectors are unavailable. Ordinary
 Threads require exact provider/model settings and an explicit thinking choice
 whose actual native application is checked before execution. Host tools support
 exclusive injection only. Native Responses thinking uses only explicit supported `thinkingLevelMap` values;
@@ -180,10 +180,8 @@ existing short retry interval. Native execution confirmation remains unchanged.
 
 Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding.
 
-Interaction lifecycle fixtures run the production adapter and Session dispatcher
-against a child-process peer. A controlled pipe write pauses after the complete
-answer reaches native input, exposing immediate settlement and already fired
-expiry callbacks before local consumption.
+Interaction answers and expiry callbacks serialize through the production
+event gate. No interaction lifecycle fixture runner is configured here.
 
 This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
 input protocol has no proven atomic active-only condition. Lazy Moku notices
@@ -242,10 +240,6 @@ immediately; failed refreshes retain it and add a retained-snapshot note. Cold
 acquisition failure still reports an error. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
 
-The Pi 1.3.0 SDK source audit distinguishes configured-provider errors,
-unconfigured credential skips, bundled/cache fallback and superseded publications.
-Neither an empty refresh error map nor a ModelsStore write is a completeness
-receipt. The [provider receipt investigation](catalog-receipts.md) documents the
-native outcomes needed for optional stronger source diagnostics. These receipts
-are not required for ordinary native-inventory routing.
-No bridge or source-completeness support is claimed by that investigation.
+Pi does not expose formal per-provider source/publication receipts through its
+RPC inventory. Successful offline inventory does not establish complete remote
+discovery. This limit does not reject an otherwise usable Moku routing snapshot.

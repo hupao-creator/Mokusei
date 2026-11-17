@@ -72,7 +72,5 @@ pathspecs, and disable external diff, text conversion and fsmonitor hooks.
 
 See the [native card extension](../../../../app/macos/Sources/Host/Git/README.md).
 
-Verification: `./scripts/go.sh run -race ./tools/verification/git` from the repository root. This exercises disposable repositories and the real process capability, application host and SQLite store.
-The ignored-cache fixture uses 257 paths, one beyond the line-statistics budget,
-to verify that ignored files do not make complete totals unavailable while
-tracked paths inside an ignored directory still contribute their real changes.
+No Git correctness replay is configured in this source tree. File statistics
+remain bounded production observations, including explicit unavailable totals.

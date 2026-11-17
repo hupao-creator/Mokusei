@@ -17,14 +17,14 @@ item and reports the error. Full/deferred execution projections retain the fact;
 Agent detail uses it for compact text/time rows. Unknown imported/native input
 identity and child-session prompts do not become user steer rows. Directory
 compaction keeps its existing schema; no historical marker is inferred. See the
-[identity correction record](../../../../design/steer-message-identity.md).
+[input identity contract](../../../../design/composer.md).
 
 Exact execution forks accept `{executionId}` beside the existing message
 selector (mutually exclusive). A completed execution resolves to its last root
 message in native transcript order and uses the existing checkpoint/import
 path. Newer context-entry state is omitted from historical forks. Missing native
 checkpoints fail without sending. See
-[Report continuation](../../../../design/report-execution-continuation.md).
+[Report continuation](../../../../design/reading.md).
 
 `New(plugin.HostContext)` composes the OpenCode Harness, settings, native model catalog,
 installation, workspace discovery, isolated completion, fork/read and Moku telemetry.
@@ -88,8 +88,7 @@ one initial check, four degraded stages, and one fixed-size minimal fallback. Th
 projection (identity, tool display inputs and presence flags) and releases the
 duplicate encoded collections before projecting, so peak memory stays close to
 canonical state instead of retaining a second full conversation. The projection carries `contentTruncated` so the native reader can explain the
-omission/truncation; the authoritative session state is never rewritten. A
-transport test covers the 32 MiB accept/reject boundary. An HTTP prompt receipt admits input; terminal native execution facts settle it. New executions retain their input before dispatch. Follow-up message retention
+omission/truncation; the authoritative session state is never rewritten. The transport enforces the 32 MiB response/event boundary. An HTTP prompt receipt admits input; terminal native execution facts settle it. New executions retain their input before dispatch. Follow-up message retention
 requires a native prompt receipt or matching native inbox/history evidence;
 the command's `Admitted` callback still requires its successful HTTP prompt
 receipt. Lost HTTP acknowledgement is not automatically retried or converted
@@ -134,8 +133,7 @@ configured by OpenCode. Account telemetry helpers live within this Harness.
 Credential material is excluded from durable session/UI state.
 
 Moku target discovery reuses complete same-configuration catalogs and exposes
-exact options in its initial creation tool schema. It no longer returns an
-installation-only deferred target. A cold configuration waits for account
+exact options in its initial creation tool schema. An installation-only deferred target is not an admitted discovery result. A cold configuration waits for account
 filtering; complete cached directories return immediately regardless of age.
 Expired entries trigger an owned background refresh with a 30-second failure
 cooldown. Concurrent refreshes do not block routing through the last complete
@@ -191,8 +189,8 @@ paths use the native process environment's `HOME`, with the existing
 reports failed session deletion or runtime/workspace cleanup; a runtime cleanup
 failure retains the owned workspace.
 
-The installed-native `thread` replay
-also verifies that reserved JavaScript property names remain callable tool aliases.
+Reserved JavaScript property names remain valid tool aliases in the bridge;
+no installed-native thread replay is configured here.
 
 ## Initial response cards
 
@@ -275,10 +273,10 @@ directly to the runtime, rather than invoking a closure that resolves them again
 Before publication and after discovery, the source resolver is checked again;
 changed launch/configuration/account identities reject the observation.
 
-Editor, complete, advisory and routing reads now use the same detailed observed
+Editor, complete, advisory and routing reads use the same detailed observed
 source key, including project namespaces and referenced configuration files.
 Snapshots carry their acquisition identity before publication, and cache hits
 must match it. The outer routing cache verifies that identity rather than
 relabeling an inner result. A source change during acquisition rejects that
 observation; an old same-key directory remains available on failed refresh.
-See [OpenCode/Claude T3 comparison](../../../services/moku/t3-native-discovery.md).
+See [OpenCode/Claude T3 comparison](../../../services/moku/catalog-evidence.md).

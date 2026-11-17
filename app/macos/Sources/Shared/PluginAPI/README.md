@@ -56,7 +56,7 @@ available, selected and unsuppressed card publishes a request. Losing selection,
 covering or release retires it; callbacks remain fenced to their owning operation
 and reading visit. Browser uses this for annotation descriptions; execution
 Sidecards continue to own no composer. See the
-[annotation input contract](../../../../../design/browser-annotation-resident-input.md).
+[annotation input contract](../../../../../design/composer.md).
 
 `ClientWebNavigation.localFileURL` parses absolute local paths and local `file:`
 URLs once, retaining literal spaces/Unicode and file-URL query/fragment escapes.
@@ -156,7 +156,7 @@ execution label when absent), never the current Thread title. Missing historical
 preview data stays absent rather than borrowing the latest execution. Preview
 text is capped at 600 characters; a non-running execution with no end time is
 shown as unknown duration rather than ticking indefinitely. Super Thread relations
-now obtain authoritative exact-execution state/timing from `report.relations`,
+obtain authoritative exact-execution state/timing from `report.relations`,
 separate from current Thread state. Bounded native previews remain exact-ID-only.
 
 ### Application overview collections

@@ -34,7 +34,7 @@ demos/               Native interaction prototypes
 ```
 
 See [native build and packaging](app/macos/build/README.md) for Mac client development, signing and verification.
-The [demo inventory](demos/README.md) distinguishes current production replays from retained historical visual experiments.
+The [demo inventory](demos/README.md) distinguishes production-component previews from independent visual experiments.
 
 Directory groups organize existing modules. Swift target names and dependencies
 are declared in `app/macos/Package.swift`; Go package dependencies are checked by
@@ -58,7 +58,7 @@ make open                     # open the installed application
 make smoke ARGS='--app "/absolute/path/to/Mokusei.app"'
 ```
 
-While the repository is private, cloning requires an authenticated GitHub account with access. `make build` checks compilation without installing an app. `make install` builds and signs a production bundle, refuses to replace a running installation, and requires the signing identity described in the [packaging guide](app/macos/build/README.md). No prebuilt or notarized release is provided by this source delivery.
+Cloning requires whatever access is configured for the repository. `make build` checks compilation without installing an app. `make install` builds and signs a production bundle, refuses to replace a running installation, and requires the signing identity described in the [packaging guide](app/macos/build/README.md). No prebuilt or notarized release is provided by this source delivery.
 
 The service owns its profile independently of the client connection. A disconnected client does not cancel accepted work. Explicitly quitting the native application requests a coordinated runtime shutdown. Manage an isolated profile directly:
 
@@ -70,20 +70,19 @@ The service owns its profile independently of the client connection. A disconnec
 
 Use `./scripts/go.sh run ./cmd/mokusei-dev --help` for development and installation commands. Native OpenCode allowance-data maintenance is in `cmd/mokusei-maintain`.
 
-[Integration replays](tools/verification/README.md) run real host/store/protocol code with isolated profiles. [Plugin contracts](internal/core/plugin/README.md) describe Go extensions. [Runtime module documentation](internal/README.md) and [native module documentation](app/macos/README.md) map the current implementation. [Contributor checks](.agents/linting.md) describe the local validation workflow. [Continuous integration](scripts/ci/README.md) defines Linux/macOS coverage and the test, suite, failure/issue and skip counts.
+[Performance tools](tools/verification/README.md) measure isolated Runtime and native presentation paths. They do not provide correctness replay coverage. [Plugin contracts](internal/core/plugin/README.md) describe Go extensions. [Runtime module documentation](internal/README.md) and [native module documentation](app/macos/README.md) map the current implementation. [Contributor checks](.agents/linting.md) describe the local validation workflow. [Continuous integration](scripts/ci/README.md) defines Linux/macOS build and static checks, including their documentation scope.
 
-Mermaid fences display as source code. The built-in [Git application](internal/plugins/applications/git/README.md) supplies read-only worktree facts on task cards and the native diff reader. Managed Git worktrees are owned by the [workspace service](internal/services/workspaces/README.md).
+Mermaid fences display as source code. The built-in [Git application](internal/plugins/applications/git/README.md) supplies read-only worktree facts on task cards and on-demand file/diff query APIs. Managed Git worktrees are owned by the [workspace service](internal/services/workspaces/README.md).
 
-Current behavior, contracts, limits and runnable commands live with their owning
-modules. Update those guides with the implementation. Dated investigations in
-`design/`, retained evidence and explicitly historical sections in tool/demo
-guides describe their recorded revisions; they do not certify current behavior
-or test results. Some tool guides combine a runnable entry point with historical
-measurements. The [2026-11-04 documentation audit](design/documentation-audit-2026-11-04.md)
-records the inventory, source-backed corrections and replay-cleanup dependencies
-for its source revision.
+Current behavior, constraints, limits and runnable commands live with their owning
+modules. The [fact index](docs/facts.md) connects those documents to implementation
+and validation boundaries; the [coverage map](docs/coverage.md) lists every
+first-party document and its evidence limits. Documentation describes implemented
+state. Git retains design and change history. Measurement reports retain source,
+collector and artifact identities so results remain attributable.
 
-The public source history starts from a single release snapshot. Older revisions cited by retained evidence belong to private development history. Before/after verification tools require the requested baseline revision to be available locally.
+Before/after measurements require the named baseline revision to be available
+locally. A report for another revision does not certify the current build.
 
 ## License
 
@@ -91,9 +90,8 @@ Mokusei is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 hupa
 
 Third-party materials retain their existing licenses and attribution notices, including [agent skills](.agents/skills/LICENSE), [fonts and icons](app/macos/Sources/Shared/PluginUI/Resources/), and [Unicode data](internal/services/taglabel/UNICODE-LICENSE.txt).
 
-The first-party automated test suites and test-only fixtures have been removed.
-See [contributor checks](.agents/linting.md) and the [CI guide](scripts/ci/README.md)
-for the retained build and static validation.
-
-[Runtime modules](internal/README.md), [native modules](app/macos/README.md) and
-[plugin contracts](internal/core/plugin/README.md) map the production implementation.
+At this source revision, no first-party automated test suites or Swift test
+targets are configured. Build/static validation is described in the
+[contributor guide](.agents/linting.md). Project behavioral verification uses
+PBT for Moku runtime, e2e for interactions and performance benchmarks for user
+experience; this ownership does not imply those gates are implemented here.

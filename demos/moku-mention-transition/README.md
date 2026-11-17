@@ -12,7 +12,7 @@ python3 demos/moku-mention-transition/build.py --open
 点击“回放展开 / 收起”会通过真实 NSTextView 依次输入 @、缩小匹配范围和清空；
 也可直接打字、方向键选择、Esc 关闭。支持浅深色。
 数据来自内存 fixture，发送不执行任务，不启动 Runtime，不访问真实目录。
-此交互 demo 侧重菜单视觉；Dock 收缩、运行中角色交接由生产 transition 回放验证。
+此交互 demo 侧重菜单视觉；Dock 收缩与运行中角色交接属于生产组件；本目录不提供其自动验收。
 
 构建复用生产 SwiftPM 模块，将独立 app 和资源放在临时目录，路径记录于
 `.build/moku-mention-transition/app-path.txt`。

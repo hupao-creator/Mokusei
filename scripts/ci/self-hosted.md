@@ -28,7 +28,7 @@ integration. This task does not provision capacity or change remote branch rules
 
 ## Public repository trust boundary
 
-This repository is public. GitHub [warns against using self-hosted runners for
+For public repositories, GitHub [warns against using self-hosted runners for
 public repositories](https://docs.github.com/en/actions/reference/security/secure-use#self-hosted-runners).
 The fork-routing expressions are defense in depth, **not an access-control
 boundary**: a PR can modify workflow YAML and request any repository runner label.
@@ -50,12 +50,11 @@ Before registration, supply an isolated, disposable machine for **each job**:
   failure, cancellation, timeout and provisioner restart. `--ephemeral` removes
   registration after a job but does **not** wipe the machine, kill all descendants,
   or create a replacement. Retain diagnostics outside the guest before destruction.
-- Replenish capacity for the entire run, including all native and extended jobs.
+- Replenish capacity for every job selected by the current workflows.
   One ephemeral registration can execute only one job, not a whole workflow. On each
-  physical Mac, the provisioner must serialize guests/listeners across CI,
-  extended CLI and Overview performance runs. The native suite/replays remain
-  serial; the extended matrix admits one lane at a time on the self-hosted route
-  and retains four-way parallelism on the existing GitHub route.
+  physical Mac, the provisioner serializes guests/listeners across production
+  builds and Overview performance runs. No extended CLI matrix or native
+  assertion suite is configured in the current workflow.
 - Keep provisioning credentials outside the guest and logs. Fetch short-lived
   registration tokens only at registration, never into repository files or shell
   history; disable shell tracing. Do not print `.credentials*`, `.env`, tokens or

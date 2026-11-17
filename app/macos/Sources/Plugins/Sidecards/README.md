@@ -38,7 +38,7 @@ selected-card eligibility or promoting a completed execution returns input to
 the workspace center. No composer mounts
 inside a Sidecard and no plugin input ownership changes. See the
 [Reading-panel Dock contract](../../Host/MokuScene/README.md#reading-panel-dock)
-for fit, editor lifetime and Sprint validation limits.
+for fit and editor lifetime.
 
 When the Agent reader selects a historical execution, the resident input stays
 under main even if a newer execution owns the expanded Conversation Sidecard.
@@ -72,8 +72,7 @@ the launcher. The shell remains visible until the final part of folding.
 Ordinary toggles and card choices admit each reader's destination size once,
 including when retained widths differ. The main reading column's center and
 outer shell animate separately, while its Close stays fixed at the upper-left;
-TextKit and SwiftUI documents no longer receive intermediate widths on every
-fold tick. Line wrapping therefore settles at the start of travel rather than
+TextKit and SwiftUI document layout keeps its admitted width through fold ticks. Line wrapping therefore settles at the start of travel rather than
 continuously reflowing. Only size changes clear inherited animation; subsequent
 reader-owned animation transactions remain intact. Sidecard interpolation owns
 only paint, hit aperture, opacity and the native aperture marker, with travel applied as a rendering
@@ -89,8 +88,8 @@ The existing selected/suppressed gates disable folded, retiring and covered
 cards; native document suppression, resizing, sessions and dismissal callbacks
 keep their ownership. Completion handoff still promotes the retained execution
 reader into the main panel.
-See the [fold performance investigation](../../../../../design/sidecard-fold-performance.md)
-for the original-recording evidence and this repair's sprint validation limits.
+See the [fold performance contract](../../../../../design/reading.md)
+for the current content admission boundaries.
 
 Existing production
 Conversation/Browser toggle, Dock and handoff cases run beside it.
@@ -106,7 +105,7 @@ admitted at the layout commit. The card keeps its existing 380ms animation.
 No available card is required for input.
 Plugin selection/execution ownership stays live while presentation waits; retiring
 availability cannot be reopened by the layout completion. See the
-[shared entrance contract and sprint limits](../../../../../design/reading-entrance-choreography.md).
+[shared entrance contract](../../../../../design/reading.md).
 
 [Conversation](Conversation/) is an execution display. It owns no composer,
 draft, attachments, Send or Stop control; Agent input belongs to the Thread detail
@@ -139,7 +138,7 @@ title and emoji, including exact-execution and result navigation. When earlier
 history exists, the main reader keeps that history and its heading while the
 active execution belongs to the Sidecard. Report's related-execution heading
 policy remains separately scoped. See the
-[heading regression investigation](../../../../../design/agent-thread-execution-heading-regression.md).
+[heading regression contract](../../../../../design/reading.md).
 
 The live execution viewport reserves 22pt at both vertical edges, with 12pt of
 scrollable document padding at each end, matching the main Agent reader. The
@@ -167,7 +166,7 @@ Report's Browser and related-execution list/detail share one active selection
 and wait for Report document readiness plus 200ms on initial admission. Browser
 DOM Back callbacks follow the current URL request and selection; a callback
 from a folded or replaced card cannot dismiss its replacement. This does not
-change Agent Sidecard timing. See the [Report admission contract](../../../../../design/report-sidecard-admission.md).
+change Agent Sidecard timing. See the [Report admission contract](../../../../../design/reading.md).
 
 Agent Thread Markdown links (Codex, Claude, Pi and OpenCode, including current,
 historical/inherited and Conversation execution readers) also route readable
@@ -194,7 +193,7 @@ Browser pages and their frames retain their own scrollbar styling. The native
 annotation list and its comment TextEditor use the shared trackless policy on
 their respective viewports; system scrollbar preferences remain in effect.
 
-Annotation selection no longer mounts a floating editor or native annotation
+Annotation selection does not mount a floating editor or native annotation
 portal over the page. The selected Browser publishes a visit-scoped resident
 composer request: Moku moves to the Browser column's horizontal center, retains
 page focus until selection completes, then accepts a text description. Return
@@ -203,8 +202,8 @@ Thread. Capture checks and failures, attachment staging/cleanup and receipt
 consumption keep their existing owners. Cancel, navigation, covering, folding
 and card switches revoke the request and restore normal Thread/Moku input.
 The pending-annotation list, editing, preview and retry controls remain in Browser.
-See the [resident annotation input contract](../../../../../design/browser-annotation-resident-input.md)
-for lifecycle and Sprint verification limits.
+See the [resident annotation input contract](../../../../../design/composer.md)
+for lifecycle boundaries.
 
 Loading state follows the main frame. Address editing, page navigation and external URL intents retain their distinct focus ownership. A web view suppressed by host transitions does not paint over other surfaces. Annotations are assembled into shared attachments and sent through the current thread's admitted send capability; failed submission preserves the recoverable annotation batch. The footer's material/shadow belongs inside the browser's own surface.
 
@@ -237,18 +236,14 @@ closed shadow roots; unhandled Escape crosses the isolated WebKit bridge and
 ⌘K remains available for global Overview navigation. Browser chrome, errors and accessibility labels
 use the current host translation.
 
-Page-owned file pickers and JavaScript dialogs close with a negative result when the browser is suppressed, its document navigates, or its session is released. Their WebKit callbacks complete once, including when AppKit delivers a delayed sheet completion. Cancellation retains dialog ownership across synchronous reentrant navigation; normal completion releases ownership before the page can open its next dialog. `NativeBrowserDialogTests` obtains WebKit parameters from a local HTML fixture and exercises these native sheets without external pages.
+Page-owned file pickers and JavaScript dialogs close with a negative result when the browser is suppressed, its document navigates, or its session is released. Their WebKit callbacks complete once, including when AppKit delivers a delayed sheet completion. Cancellation retains dialog ownership across synchronous reentrant navigation; normal completion releases ownership before the page can open its next dialog.
 
-## Verification
+## Verification boundary
 
-`NativeBrowserViewportTests` loads real loopback HTTP pages in WKWebView to
-verify that iframe attachment and unsupported-MIME responses preserve the
-main page. A rejected main-frame download likewise retains a displayable source document; an initial download without a source remains an explicit error. Its annotation replay
-compares DOM geometry and the production document portal after zoom commands
-pass both WebKit limits, while asserting the removed annotation editor portal stays absent. Navigation fixtures explicitly admit the WebKit session with `setSuppressed(false)`,
-as the Browser presentation does; mounting a visible viewport alone does not admit annotation. Submission fixtures wait for the expected stage/send callback and the completed
-`sending` state, so idle before the queued task starts cannot certify completion. Plain SwiftPM retains the portal geometry, document layers, cookie isolation and
-navigation/cancellation cases.
+No Browser dialog/viewport/annotation correctness replay is configured in this
+source tree. Current WebKit code retains source documents on rejected downloads,
+uses scoped native dialog callbacks and maps annotation geometry through the
+production portal. These are implemented constraints, not certified e2e coverage.
 
 The detail Moku bar owns text and attachment persistence per profile and Thread.
 Browser annotation imports and send receipts retain their existing independent
@@ -275,7 +270,7 @@ remains in place rather than being replaced by this animation. Resize and an ina
 scene settle to the latest reader once its content is ready. The handoff
 never requests editor/content/launcher focus. Retained widths, stacked layout
 and input ownership keep their existing boundaries. See the
-[production handoff notes](../../../../../design/execution-handoff-production.md)
-for the demo comparison and Sprint observation scope.
+[production handoff notes](../../../../../design/reading.md)
+for the implemented completion handoff.
 
 Same-document SPA history keeps the current address and annotation source synchronized. Unsupported protocol links and popup non-GET requests display a non-destructive notice; the latter are never rewritten as GET. The source document and unsent DOM input remain usable.

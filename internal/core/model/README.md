@@ -25,7 +25,9 @@ choice membership is enforced separately.
 
 Source: [commands.go](commands.go), [command_validation.go](command_validation.go), [validate.go](validate.go), [records.go](records.go), [state.go](state.go). The authenticated wire version belongs to [transport](../../platform/transport/README.md).
 
-Verification: `./scripts/go.sh run -race ./tools/verification/command-boundaries` from the repository root.
+The parsers and validators above are production boundaries. No executable
+command-boundary replay is configured in this source tree; see the
+[verification index](../../../docs/facts.md).
 
 `ThreadNote` carries `readingRevision` and one server-owned `lastExposure` snapshot.
 An exposure is evidence that the exact nonempty revision completed foreground

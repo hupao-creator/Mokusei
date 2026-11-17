@@ -18,7 +18,7 @@ make fast         # incremental Go/Swift build into a new development generation
 make watch-main   # rebuild each clean local main commit
 make build        # build Go runtime and release Swift application
 make pack         # sign app/macos/dist/Mokusei.app
-make dist         # also publish Mokusei.app.zip
+make dist         # also create Mokusei.app.zip
 make smoke        # statically validate the packaged production app
 make install      # install to ~/Applications/Mokusei.app
 make open         # open the installed application
@@ -147,7 +147,7 @@ and authored HTML document content.
 
 The application icon is generated entirely from geometry defined in this
 repository; see
-[its source, regeneration command and historical provenance limit](SOURCES.md).
+[its source, regeneration command and provenance limit](SOURCES.md).
 
 ## Web content networking
 
@@ -185,8 +185,8 @@ publisher. Archives are created from the verified private staging tree.
 
 Packaging verifies signatures and resources.
 `smoke` additionally verifies final product metadata, portable binary linkage
-and absence of old Node artifacts. Its isolated runtime lifecycle test has been
-removed; the command does not launch the application or runtime.
+and absence of old Node artifacts. The command does not launch the application or runtime or provide lifecycle
+correctness coverage.
 
 `make check` runs Go formatting/static checks and Go/Swift production builds.
 

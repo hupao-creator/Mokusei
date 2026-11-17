@@ -25,3 +25,21 @@ The four Harnesses use externally installed native engines. Their account, model
 `internal/tooling/architecture/check.go` enforces the Go import graph across all source files and build tags, static registration and the allowed external JS resources. The generic store has no application-model dependency. Plugins do not import Runtime or construct their own Core authority. The Swift client consumes public projections over authenticated HTTP/NDJSON; it does not open the host database.
 
 See [performance tools](../tools/verification/README.md) and [local checks](../.agents/linting.md). Module READMEs describe the implementation and its invariants; change history belongs in Git.
+
+## Business evidence
+
+Runtime and native application evidence belongs to business records: native
+conversation history, Moku tool-operation transcripts, execution/tool results,
+lifecycle events, durable command receipts and account usage ledgers. Recovery
+notices still enter Moku's transcript; uncertain delivery is inspected through
+`moku:deliveries` and reconciled through `moku:resolve-delivery`, as described in
+[Moku](services/moku/README.md). User-visible failures, CLI/Probe responses and
+`runtime/startup-error.json` remain their own output boundaries.
+
+The runtime and app have no private service/tool journal, settings diagnostics
+channel, layout/performance recorder or OSLog instrumentation. Business usage
+telemetry and retained measurement artifacts are separate from these channels.
+Development readiness uses a temporary one-shot PID receipt; native exit admits
+the epoch-fenced cleanup helper through atexit with a separate 750ms deadline.
+See [native lifecycle](../app/macos/README.md) and
+[development launch](../app/macos/build/README.md#development-and-watching-main).

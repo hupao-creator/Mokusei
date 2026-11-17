@@ -1,6 +1,6 @@
 # Runtime 性能复现
 
-本目录使用生产 Store、Runtime 和 Application host 的公开边界，在独立临时 SQLite 数据库上测量；不读取用户 profile、不调用真实模型。语义回归仍由 storage-workspaces、runtime、applicationhost、moku、codex 的可执行回放负责。
+本目录使用生产 Store、Runtime 和 Application host 的公开边界，在独立临时 SQLite 数据库上测量；不读取用户 profile、不调用真实模型。当前源码没有 storage-workspaces、runtime、applicationhost、moku、codex 正确性回放；这些测量不提供其语义覆盖。
 
 ```sh
 ./scripts/go.sh build -trimpath -o .build/runtime-performance/after ./tools/verification/runtime-performance
@@ -39,8 +39,8 @@ python3 tools/verification/runtime-performance/prepare_baseline.py c17a3fcb .bui
 ./scripts/go.sh build -trimpath -o .build/runtime-performance/after ./tools/verification/runtime-performance
 ```
 
-同一 overlay 也可用于 Moku `-performance` 和 Codex `-stream-performance` 的可执行回放。基线不能运行依赖新 API 的完整新增回归；性能 fixture 使用原公开 API。先单独编译，再在没有编译/其他采样的窗口顺序运行两个二进制。
+overlay 只替换所选版本的生产文件，基线必须与当前 fixture/API 兼容。先编译，再在无并发编译/采样的窗口顺序运行两个二进制；不提供 Moku/Codex 回放入口。
 
-运行前协调独占 CPU 时段；不要并行构建、回放、GUI 或截图。这些是本地边界微基准，不能据此宣称真实模型端到端延迟或 GUI 帧率收益。具体规模、原始结果、环境、验证和未测边界见 [本次审计报告](AUDIT.md)。
+运行前协调独占 CPU 时段；不要并行构建、回放、GUI 或截图。这些是本地边界微基准，不能据此宣称真实模型端到端延迟或 GUI 帧率收益。具体规模、原始结果、环境、验证和未测边界见 [测量报告](AUDIT.md)。
 
-归档测量 JSON 已移除旧仓库的模块路径字段；测量数值、源码版本、依赖版本和可执行文件 SHA 保持原值。此项元数据脱敏不代表重新测量。
+测量数值、源码版本、依赖版本及可执行文件 SHA 共同确定报告对象；报告数据不认证当前源码。

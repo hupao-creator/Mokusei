@@ -31,8 +31,7 @@ The macOS 26 minimum supports clear directly; there is no regular-glass fallback
 Reduce Transparency explicitly replaces glass with an opaque system window
 background, without changing system preferences or button behavior.
 Current Report panels keep those controls visible while the HTML document
-scrolls, with document clearance owned by the panel Close. The retired full-window
-navigation portal and capsule expansion are excluded from product replays.
+scrolls, with document clearance owned by the panel Close. There is no full-window navigation portal or capsule-expansion replay.
 WebKit retains Option-Left
 for native word movement, including editors hidden inside closed Shadow DOM.
 Escape stays with native form inputs, actual editable elements in the composed
@@ -63,13 +62,11 @@ independent of this motion.
 Outside a Report panel, new-window HTTP(S) GET links use the external browser.
 Non-GET new-window form requests are rejected with an in-document notice; the
 host never converts a request body into a URL-only GET.
-This restores the contract from `bfc2c9f4f`, whose synchronization calls were
-removed by the SwiftUI shell migration `310149f1d`; `ef0164c88` subsequently
-restored only fixed placement.
+
 
 The optional back-frame callback reports logical `workspace` coordinates for
-navigation geometry observers. Settings now owns a separate panel close button
-inside the resident Dock and no longer uses a window-wide return mask.
+navigation geometry observers. Settings owns a separate panel close button
+inside the resident Dock and does not use a window-wide return mask.
 Only actual controls own pointer regions; dragging the window header does not
 pan Overview. Hover is reconciled with current availability and pointer geometry
 rather than a stale enter event.
@@ -107,10 +104,7 @@ before admitting Moku input and Sidecards. Markdown draws in full once parsed
 and the panel is admitted. Nested history, including an empty/error page, holds
 content readiness until its own travel finishes. Report admits its auxiliary
 card after primary travel and a committed folded layout. See the
-[admission contract](../../../../../design/reading-entrance-choreography.md). Its panel-scale checks observe the
-existing 380ms responsive fold until the native frame reaches the unchanged
-one-point geometry tolerance. Panel Escape checks first observe WebKit's focused
-document frame for editing and for the subsequent non-editing key.
+[admission contract](../../../../../design/reading.md). No panel-scale or WebKit Escape assertion replay is configured in this tree.
 
 Direct execution requests enter through Report/application `openExecution`,
 explicit `openThread` reading targets, or Moku note `openNoteExecution`. All four
@@ -180,7 +174,7 @@ Moku, remain above it. The backdrop is inactive during reading motion or coverin
 Moku interactions, and native sheets/popovers keep their dismissing press.
 Outside dismissal uses the panel's existing Close route: an application opened
 from an Agent returns to that Agent rather than dropping its reading target.
-Escape in the current Agent document now has the same native fallback as history;
+Escape in the current Agent document has the same native fallback as history;
 nested history and Sidecards retain their existing cancellation order.
 Application panel chrome also accepts Escape while loaded WebKit content keeps
 its trusted DOM editor/dialog handling. Native editors, IME, menus, sheets,
@@ -240,8 +234,8 @@ inner clip and 22pt outer shell/border share one interpolated size. The retained
 WebKit document reflows during travel, avoiding a final-width layout jump ahead
 of its shell. Browser routing, divider resizing and retained documents keep
 their existing ownership.
-See the [admission and referenced-execution contract](../../../../../design/report-sidecard-admission.md)
-for readiness, cancellation, screenshot diagnosis and Sprint verification limits.
+See the [admission and referenced-execution contract](../../../../../design/reading.md)
+for readiness and cancellation boundaries.
 
 An expanded referenced execution lends its exact identity and destination column
 to the resident composer. Returning to references, folding, replacing it with a
@@ -276,7 +270,7 @@ fence readiness/completion. Folding, Browser selection, covering and return
 revoke pending send navigation. Inactive/covered scenes and resize
 settle admitted content without travel. Returning to the list or unmounting retires
 both reader leases. Ordinary Agent sends, Agent history navigation and completion
-promotion retain their own behavior. See the [implementation notes](../../../../../design/execution-route-slide.md).
+promotion retain their own behavior. See the [reading contract](../../../../../design/reading.md).
 
 Report related-card width changes keep the HTML document anchored at its
 left edge and resize its viewport with the shell. Selection travel does not animate newly
@@ -286,7 +280,7 @@ mounting cannot consume it. Loading remains visible while preparing, and hidden
 reader controls/accessibility cannot act. Errors admit normally, refresh/retry
 keeps the same entrance, and a new selection retires pending preparation. The
 ordinary entrance does not consult system motion preferences. See the
-[related-execution fade investigation](../../../../../design/related-thread-fade.md) and the [recording investigation and Sprint limits](../../../../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
+[execution entrance contract](../../../../../design/reading.md) and the [Report viewport contract](../../../../../design/reading.md).
 
 Closing a settled Report retains its current split layout from return preparation
 through route completion. The Report main shell scales/translates directly from
@@ -296,5 +290,5 @@ The full-workspace native carrier stays stationary for this return and owns only
 generation-fenced completion, avoiding a second crop/travel over the split panes.
 Closing before primary content admission keeps the existing native opening-reversal
 path. Resize, cancellation and inactive-scene completion retain
-the reading stack's policies. See the [return investigation](../../../../../design/report-sidecard-close.md)
-for the retained-layout boundary and Sprint validation limits.
+the reading stack's policies. See the [Report return contract](../../../../../design/reading.md)
+for the retained-layout boundary.

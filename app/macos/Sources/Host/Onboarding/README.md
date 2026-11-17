@@ -86,18 +86,9 @@ view and its backing Metal layer nonopaque and clears the layer before presentin
 the scene. This keeps tab entry transparent before SpriteKit's first drawable;
 a clear scene background alone does not configure the native host. Ordinary
 updates retain scene identity, and unmounting pauses and detaches it.
-`NativeOnboardingTagSurfaceTests` mounts the production animation and captures
-continuous WindowServer frames across entry and return in the isolated AppKit
-capture host (`--tag-glass-captures`), rejecting a broad light
-rectangle in the dark animation area. CI retains those frames alongside its
-native evidence. The capture method has an explicit mandatory native owner;
-ordinary SwiftPM execution cannot certify its frame delivery. A small clock
-outside the sampled area keeps complete frames arriving for a paused final scene;
-capture begins before insertion, while its 400ms observation window waits for
-the real scene to prepare and start or settle. At least two frames must follow
-that boundary, and the opacity check still includes the earlier entry frames.
-Pixel scans and PNG encoding happen only after capture stops. The same suite checks pause/resume, scene replacement and
-unmount/remount ownership.
+No native Tag-surface capture suite is configured in this source tree;
+transparent host/layer state and playback lifecycle are production constraints,
+not a claim of continuous-frame coverage.
 Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
 
@@ -107,23 +98,11 @@ the panel fades its contents, contracts to the actual Dock geometry, and reveals
 the real composer. The one-time marker is independent of empty-workspace landing:
 archiving all conversations still restores landing without replaying setup.
 
-Verification uses the mounted `NativeMokuLandingTests` for hydration, admission,
-interruption and marker errors. `NativeOnboardingUserFlow` extends the existing
-Go-backed Settings flow with real discovery/resources, independent and inherited
-role settings, Back, failed completion persistence and actual Dock handoff. It
-drives the current `off`, `inherit` and `independent` controls, checking disabled
-readiness, hidden execution fields and exact profile restoration after reopening.
-Before asserting that an incomplete model edit cannot change saved settings, the
-flow joins the earlier discovery-seeded target save through the production flush.
-After onboarding, it checks the exact Settings section order for the full
-production application composition with the built-in role sections:
-
-
 The deterministic [visual demo](../../../../../demos/landing-setup/README.md)
-remains available for appearance and animation review. The production settings
-flow, rather than its fixture controls, certifies Runtime persistence. Startup
-and navigation changes also require the signed production package checks in the
-[verification policy](../../../../../scripts/ci/verification-policy.md).
+uses the production surfaces with in-memory data. It does not establish Runtime
+persistence, real discovery, focus, input or native-frame correctness. No
+onboarding/Settings e2e flow is configured in this source tree; validation
+ownership is defined by the [verification policy](../../../../../scripts/ci/verification-policy.md).
 
 The Report role is displayed as Super Thread Agent through its application
 settings label. Onboarding progress keys and the `report.settings` binding stay

@@ -86,14 +86,14 @@ reply data for explicit message visits without loading execution detail; the
 reader applies the same terminal-execution policy to live settlement, loaded
 history and inherited turns. Repeated native tool references render
 once by identity; separate calls with equal labels or output remain separate.
-See the [terminal reply investigation](../../design/terminal-assistant-disclosure.md)
-for the regression source, verification scope and remaining limits.
+See the [reader contract](../../design/reading.md)
+for the implemented policy and its verification limits.
 
 Panel opening uses compositor-owned geometry. Ordinary Agent card readers start
 hidden preparation after native animation-start delivery, overlapping travel;
 content drawing, input, accessibility, text entrance and secondary surfaces wait
 for arrival. Source-less and non-Agent entries keep their existing mounting gate.
-Once submitted, panel travel no longer waits for main-actor animation ticks;
+Once submitted, panel travel is independent of main-actor animation ticks;
 reader mounting can still occupy the main thread.
 Data-only route prefetch overlaps content acquisition with travel; a bounded
 short-lived cache transfers continuously subscribed ready data between readers.
@@ -101,10 +101,10 @@ Codex, Claude, Pi and OpenCode reader admission validates/decodes changed opaque
 reuses only exact immutable inputs. Claude, Pi and OpenCode keep the last prepared reader and row mounted during same-thread updates, publishing the matching input and decoded state together; changing threads starts a fresh admission. OpenCode groups messages by execution during admission; Codex skips construction of collapsed work rows.
 Read-only transcript TextKit views disable Writing Tools. Reader/view, history
 requests and scroll state remain scoped to their existing lifetimes. See the
-[loading/cache investigation](../../design/thread-loading-performance-cache.md). Native
+[reading data contract](../../design/reading.md). Native
 content and error admission policies remain owned by their existing boundaries.
-See the [manual investigation](../../design/thread-open-animation-investigation.md)
-for evidence and the limits of the isolated measurements.
+See the [reading lifecycle](../../design/reading.md)
+for ownership and admission boundaries.
 
 Report HTML fades in over 200ms after its first successful WebKit load in a
 reader visit; later content revisions do not repeat the entrance. Loading and error controls remain independent.
@@ -114,7 +114,7 @@ still suppress them. The default document/list keeps Moku input closed and
 rejects expansion through the capsule, Compose shortcut/menu and scripted actions.
 Surface suppression belongs to the Report route rather than its send context,
 which is revoked before the execution preference arrives.
-See the [recording and local-log diagnosis](../../design/super-thread-associated-open.md).
+See the [Report admission contract](../../design/overview.md).
 
 Report related executions target a 3:7 sidecard-to-Report width in list state
 and 5:5 in execution detail, subject to the shared width constraints and stacked
@@ -153,11 +153,11 @@ in place. A successor execution enters through a downward reading scroll: the
 old viewport moves up and the new one enters from below after content readiness.
 The floating Back button still returns to the related list. Same-execution steer
 keeps its reader and scroll position; historical forks use the accepted branch's
-exact execution. See the [continuation contract](../../design/execution-route-slide.md).
+exact execution. See the [execution transition contract](../../design/reading.md).
 When the related card changes width or folds, the retained Report HTML viewport
 and shell share one interpolated size. Responsive content reflows during travel
 instead of jumping to the destination width before the shell moves. See the
-[recording diagnosis and validation limits](../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
+[Report viewport contract](../../design/reading.md).
 
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands.
 
@@ -191,17 +191,17 @@ before changing the workspace. App zoom persists levels bounded to 1×…5×. Sa
 levels below 1× are normalized and rewritten during load. Clamping stored levels
 keeps the first reverse step at either limit responsive.
 
-Agent panels now carry source title/emoji ink separately during deferred opening,
+Agent panels carry source title/emoji ink separately during deferred opening,
 show a scoped skeleton while loading, and draw the full parsed Markdown body
 once the reader is admitted. Completed turns keep their footer in the normal layout; running turns keep
 their existing latest-message positioning.
 Closing retains the 420ms native return: reader content fades over the first
 80%, travel reaches the source card at 86%, and the shell crossfades to the
 refreshed card over the final 14%. See the shared PluginUI and WindowNavigation
-documentation for lifecycle boundaries and the production fixture command.
+documentation for lifecycle boundaries and the current presentation contracts.
 
 Super Thread cards with an authored cover occupy the shared 1×2 Overview footprint
-(360×456pt). A passive 360×308 HTML/CSS cover and the original metadata share one
+(414×522pt). A passive 360×308 CSS-pixel logical HTML/CSS cover and the original metadata share one
 outer card, separated by 4pt; the introduction is limited to three lines. The Report
 plugin fetches `report.cover` by the independent catalog cover revision instead
 of carrying HTML in the catalog. Its nonpersistent, input-transparent WebKit document
@@ -213,7 +213,7 @@ collection remounts reuse those pixels while their new WebKit surface prepares;
 no cached browser or persistent user data is involved. WebKit stays hidden until
 its complete final-frame snapshot, and that image remains underneath it through native
 layer commits. Revision/theme changes use a fresh entry. See the
-[recording diagnosis and focused validation](../../design/super-thread-cover-flicker.md).
+[cover presentation contract](../../design/overview.md).
 The generation tool describes the cover's dimensions and standalone HTML/CSS
 environment: the author supplies layout styles and spacing; the host injects
 playback-only CSS, without Report-reader safe-area handling. An isolated host
@@ -226,7 +226,7 @@ revision receives its own first play. Leaving the grid suspends playback; other
 Report surfaces keep their existing playback policy. Preloaded covers wait at their
 beginning; offscreen/inactive covers pause.
 The carousel begins its eleven-second dwell after entrance and WebKit playback
-admission. See the [animation contract](../../design/super-thread-animated-covers.md), the
+admission. See the [animation contract](../../design/overview.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
 

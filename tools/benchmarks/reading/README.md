@@ -24,8 +24,7 @@ context. Run GUI experiments serially, including Overview experiments. Fixture
 preparation and heavy compilation should finish before formal collection.
 Keep profile and Runtime connection files private. Exit 2 describes unavailable,
 incomplete or unsuccessful observation, not a statistical regression gate.
-The shared default collector no longer starts XCTest or its privileged
-performance service. Native hitches remain explicitly unavailable; existing
+The shared collector does not start XCTest or its privileged performance service. Native hitches remain explicitly unavailable; existing
 Screen Recording/Accessibility/input permissions are still required. No
 administrator prompt or system authorization change is part of a default run.
 
@@ -84,9 +83,8 @@ composition, byte count and digest. This is a warm open, not a process-cold laun
 
 `first-open`/`reopen` cover completed executions; `output-scroll` admits its
 Sidecard before timing. First recognizable main-body content does not establish
-Sidecard or composer readiness. The
-[November 14 recording diagnosis](../../../design/reader-opening-20261114.md)
-motivated the separate active entry case; its Debug logs are not Release results.
+Sidecard or composer readiness. The [reading lifecycle](../../../design/reading.md)
+describes those separate production admission gates.
 
 ## Measurements and evidence
 
@@ -118,10 +116,8 @@ A wholly inert product probe cannot distinguish a blocked input target from a
 frozen reader; it reports unknown input acceptance/responsiveness. The independent
 frozen control still verifies that the optical scorer detects absent progress.
 
-The shared native hitch collector must pass its own positive/negative/ownership
-controls before a zero value can support a no-hitch conclusion. The separate
-reading controls establish scrolling input and pixel analysis only; they do not
-certify hitch capability. Missing short-lived descendant/exit CPU accounting
+Native hitch collection is unavailable. Independent scrolling controls
+establish system-input and sampled pixel-analysis capability only. Missing short-lived descendant/exit CPU accounting
 prevents a complete application-task resource claim. These limitations remain
 visible independently of business correctness.
 
@@ -139,7 +135,7 @@ of typical user latency; repeat separate runs before comparing versions.
 
 ## Verification
 
-Portable conformance tests have been removed.
+No portable conformance test suite is configured.
 
 Live calibration builds an independent AppKit scroll window with normal, frozen,
 reversed, delayed and real main-thread-stall behaviors. It uses the same system

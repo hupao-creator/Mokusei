@@ -227,10 +227,9 @@ a deleted session's gate is reclaimed after its final reference is released. His
 
 History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner.
 
-Verification from the repository root:
-
-
-The [native settings launcher](../../../tools/verification/README.md) additionally exercises the Swift draft/save path against a real daemon.
+No Runtime/settings correctness replay is configured in this source tree.
+The [verification index](../../../docs/facts.md) separates source facts from
+measured coverage.
 
 Automatic installation discovery uses `harness:detect-installation` with one
 Harness ID. Each response is independent and does not refresh the login shell.

@@ -17,15 +17,15 @@ Native message IDs and thinking-block indexes delimit reasoning paragraphs.
 Only the first nonempty chunk of a new block inserts a blank line, respecting
 existing newlines. Streamed and completed-message-only input share this rule;
 duplicate completed messages do not repeat text. The resulting timeline feeds
-both live foreground/Overview and persisted history. Previously discarded
-boundaries cannot be recovered from already concatenated retained text.
+both live foreground/Overview and persisted history. Already concatenated text carries no information for reconstructing paragraph
+boundaries; the reader does not infer missing boundaries.
 
 Exact execution forks accept `{executionId}` beside the existing checkpoint
 selector (mutually exclusive). The adapter retains the public prefix and
 resolves the final assistant's API message ID to its native transcript UUID in
 that source session, then uses the existing `--resume-session-at` fork path.
 Unavailable native history/checkpoints fail without sending. See
-[Report continuation](../../../../design/report-execution-continuation.md).
+[Report continuation](../../../../design/reading.md).
 
 Checkpoint and execution fork history resolve selected timeline references
 against the turn's current entity tables rather than replaying per-checkpoint
@@ -105,8 +105,7 @@ Native config/credential file metadata and the environment partition the cache;
 no credential or account snapshot is persisted. Execution capture continues to
 confirm effective settings through its own native session.
 
-`./scripts/go.sh run ./tools/verification/claude -settings-performance` measures
-cold and warm concurrent production reads with an isolated stream-json fixture.
+No settings-performance replay for this Harness is configured in this source tree.
 
 Turn-scoped reader projections omit plan steps, explanations and timeline markers,
 including inherited history, before native transport encoding. Canonical state,
@@ -175,7 +174,5 @@ immediately; failed refreshes retain it and add a retained-snapshot note. Cold
 acquisition failure still reports an error. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
 
-[T3 comparison](../../../services/moku/t3-native-discovery.md) documents Claude's
-bundled/version/custom-model fallback and optional gateway cache grace period.
-This adapter retains its native initialized inventory plus matching old snapshots;
-it does not invent a bundled catalog or add an unconditional wait for provenance.
+The native initialized inventory and matching complete cached snapshots supply
+routing. No bundled Moku catalog or wait-for-provenance heuristic is supplied.

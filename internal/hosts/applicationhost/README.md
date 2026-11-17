@@ -150,20 +150,9 @@ do not acknowledge additional events or silently deliver a metadata-only row.
 - [Tag](../../plugins/applications/tag/README.md) maintains a separate tag pool in each scope.
 - [Git](../../plugins/applications/git/README.md) stores observations for ordinary thread card extensions. It declares no Git thread type and is excluded from user enablement controls.
 
-## Isolated Swift query fixture
+## Verification boundary
 
-The application-host runner uses actual Report schemas, Plan/Reduce, queries and SQLite with a controlled background participant. The runtime runner additionally exercises the production scoped Report runner. To retain a Report for an actual Swift client query:
-
-```sh
-mokusei_report_profile="$(mktemp -d /tmp/mokusei-report-probe.XXXXXX)"
-./scripts/go.sh run -race ./tools/verification/applicationhost \
-  --seed-profile "$mokusei_report_profile"
-xcrun swift run --package-path app/macos MokuseiProbe \
-  --data-dir "$mokusei_report_profile" \
-  --runtime "$PWD/.build/go/mokusei-runtime" \
-  --query-plugin report --query-operation report.html \
-  --query-input '{"reportId":"ID_FROM_FIXTURE_OUTPUT"}' \
-  --duration 0.5 --stop-service
-```
-
-Build the runtime with `make runtime` first and replace the sample Report ID with the runner's output. Seeding requires an empty absolute directory and rejects a symlink profile. `applicationhost-fixture.json` records the actual query and generated identity. The probe uses production discovery/HTTP/JSON decoding; it does not evaluate report-writing quality or native rendered layout. Remove the isolated profile only after its service has stopped.
+No Application-host fixture producer or Swift-query correctness replay is
+configured in this source tree. [Runtime performance](../../../tools/verification/runtime-performance/README.md)
+measures the public collection-list query with isolated SQLite data, not rendered
+Report layout or model-written report quality.

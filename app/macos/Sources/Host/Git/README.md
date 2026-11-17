@@ -6,7 +6,5 @@ The card extension shows changed-file count, signed added/deleted line counts an
 
 The native host retains the Git monitor, metadata polling, strict snapshot decoding and Harness card projection. The Go application's `git.files` and `git.diff` queries remain independent on-demand APIs; removing the native panel does not remove those queries or change other diff presentations.
 
-Verification from the repository root:
-
-
-The Go replay creates disposable repositories. For headless-only work, select the four non-display methods in `GitThreadExtensionTests`; its display/animation methods are separate GUI validation and are not covered by that selection. Set `MOKUSEI_GIT_ARTIFACTS` to retain native card captures.
+No Git card test or capture replay is configured in this source tree. The
+production client and projection contracts above remain the evidence boundary.

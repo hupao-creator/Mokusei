@@ -151,13 +151,12 @@ so distinct symlinks to the same target retain stable labels after redraws.
 
 Client appearance and language preferences live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
 
-`RuntimeCommandJournalIntegrationTests` uses real clients and loopback HTTP to
-interleave shared-profile admission, completion, acknowledgement and recovery.
-It verifies that independent receipts survive, delayed recovery cannot revive a
-consumed receipt or downgrade acceptance, and a fork handoff always retains a
-receipt before HTTP, including a denied journal write.
 HTTP and command rejections after handoff retain the original fork identity;
 an explicit replacement preserves it until the accepted draft is consumed.
 Handoff and replacement publish their exact attachment references before HTTP,
 and replacing a rejected predecessor retains the successor's files with the
 original fork lineage.
+
+No command-journal integration suite is configured in this source tree. Receipt
+identity, shared-profile admission and attachment handoff above are implemented
+constraints; no runtime coverage is implied by the production build.

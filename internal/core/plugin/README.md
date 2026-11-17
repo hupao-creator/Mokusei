@@ -63,7 +63,9 @@ avoiding unrelated record-body reads. They add no database or cross-plugin acces
 - [Context host](../../hosts/contexthost/README.md): Moku-only context collection, declared in [context.go](context.go).
 - [Native Plugin API](../../../app/macos/Sources/Shared/PluginAPI/README.md): Swift presentation and Sidecard contracts.
 
-Verification from the repository root: `./scripts/go.sh run -race ./tools/verification/thread-metadata` and the affected [Harness replay](../../../tools/verification/README.md).
+The interfaces and generated-metadata policy above are implemented contracts.
+No metadata/Harness correctness replay is configured in this source tree.
+See the [verification index](../../../docs/facts.md).
 
 `MokuDelivery` represents either a wake-producing terminal fact or a lazy internal
 system notification. `Lazy` forbids starting an execution solely for that delivery;

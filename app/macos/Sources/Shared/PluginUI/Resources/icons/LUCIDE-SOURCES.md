@@ -1,9 +1,8 @@
 # Native Lucide paths
 
-The native icon catalog was derived from `lucide-react@0.544.0`, installed in
-the former Electron renderer's authoring environment, under `dist/esm/icons/*.js`.
+The native icon catalog was derived from `lucide-react@0.544.0`, with source geometry under `dist/esm/icons/*.js`.
 The generated catalog is bundled here; native builds do not require that npm
-package or the removed renderer. The upstream
+package. The upstream
 [Lucide project](https://github.com/lucide-icons/lucide) uses ISC (with Feather
 portions under MIT); the complete package license is included as `lucide-LICENSE.txt`.
 
@@ -30,8 +29,7 @@ The conversion covers each source node type (`path`, `line`, `polyline`, `polygo
 `circle`, `ellipse`, `rect`) without changing its outline. There are no source transforms,
 custom fill attributes, or node-level stroke overrides in this selected catalog.
 
-Temporary native rendering probes verified all catalog entries and produced a contact
-sheet for visual review. These probes are intentionally not part of the unit-test suite.
+No native icon correctness suite is configured in this source tree.
 
 ## Source icon names
 

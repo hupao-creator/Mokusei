@@ -1,6 +1,6 @@
 # Agent thread retrieval
 
-GUI thread search and its derived index have been removed. This module serves
+There is no GUI thread search or derived index. This module serves
 only the independent `grep_threads` Agent capability.
 
 ## Moku deterministic grep

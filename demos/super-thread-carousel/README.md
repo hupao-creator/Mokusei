@@ -1,90 +1,31 @@
-# Super Thread 原生轮播集合
-
-已确认的设计已接入生产 Overview。这个独立 App 直接复用生产 `NativeReportCollection`、`NativeReportCard` 和 `NativeReportCover`，只注入确定性报告 fixture；不运行 Runtime、不连接真实会话、不安装或重启正式应用。
-
-## 生产行为
-
-- 当前标签内，已关闭且距离最近一次关闭 **超过 300 秒** 的 Super Thread 自动归入一个 collection。至少两篇才成组；无关闭记录、刚关闭和未来关闭时间记录不合格。
-- collection 只是视图投影；成员保留原报告身份，过滤和关联执行数据不变。关闭时间与短读保留资格由生产客户端保存在当前 profile 的 desktop preferences，collection 本身不持久化。
-- 点击封面/body 才打开报告并开始独立阅读访问；翻页不计为打开。打开时从 collection 位置展开；单次前台阅读超过 120 秒才清除原资格，短读返回保留；每次关闭重新开始 300 秒等待；只剩一篇时解散集合。
-- 封面按 360:308 逻辑画布比例随卡片宽度适配；当前生产 414×522pt 卡片的封面高 354.2pt，底部 163.8pt body 保持原位，旧内容淡出后新内容淡入。两部分共享选择和 460ms 时钟，4pt 间距和外壳固定。
-- Liquid Glass 轮播控件固定在封面上，仅悬停时挂载。封面准备好、入场结束且 WebKit 确认开始播放后，停留 11 秒再自动切换；手动切换立即响应并重新计时。离屏、阅读页、失焦或封面手势暂停自动轮播及封面播放。
-- 封面采用有限 CSS keyframes：总动画上限 6 秒，独立卡片在动画完成后静止 5 秒再重播。集合每次选中只播放一遍，保留结束画面直到换页。预加载邻页不提前播放，再次选中从头播放。当前示例的符号、标题、横线依次完成，总长 5 秒。
-- 集合采用已确认的 regular Liquid Glass：同一背板连续覆盖封面、4pt 布局间距和 body，不露出背景缝。emoji badge 保持生产 44pt 直径、距 metadata 顶部 12pt / 右边 17pt；单篇 Report 仍为不透明材质。降低透明度时新表面使用实色。
-- 大集合最多挂载四个封面；超过七篇以菜单代替圆点列表。无封面报告使用自身 emoji 占位。
-- 预览根视图注入与生产 Report plugin 相同的封面缓存，标签重建时用已绘制图像衔接 WebKit 首帧；缓存最多 16 项，仅存在于当前预览，不保留浏览器或写入 profile。封面 revision / 主题变更独立加载。见[闪烁定位与验证](../../design/super-thread-cover-flicker.md)。
-
-动画契约与本次验证见[animated covers](../../design/super-thread-animated-covers.md)。
-
-生产边界和输入归属见 [Overview README](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)。没有 Thinking Effort 控件改动。
-
-## 构建与手动查看
-
-要求 macOS 26、项目当前 Xcode/Swift 工具链，以及 `Package.resolved` 的锁定依赖：
+# Super Thread collection preview
 
 ```sh
 python3 demos/super-thread-carousel/build.py --headless
-cat .build/super-thread-carousel/app-path.txt
-```
-
-生产模块已按当前源码构建时，加 `--skip-build`。构建脚本只编译、打包、签名和可选的 headless 导出，永不启动 GUI。它使用当前工作树 Debug 对象和独立 bundle ID，将完整依赖/资源复制到 `/private/tmp/mokusei-native-replay-carousel-*/SuperThreadProductionDemo.app`。这是本机 ad-hoc App；临时文件清理后需要重建。
-
-用户手动打开 `app-path.txt` 所列 App，或执行：
-
-```sh
 open "$(cat .build/super-thread-carousel/app-path.txt)"
 ```
 
-如果当前环境的命令行 `open` 报 LaunchServices `-10827`，使用 Finder/桌面接口打开相同路径。此前 demo 已通过桌面接口打开，不需要停止现有正式应用。
+`--skip-build` reuses current Debug production objects. The builder packages an
+independent ad-hoc app under `/private/tmp` and does not launch a GUI itself.
+`--headless` exports fixture data before creating NSApplication; it mounts no
+WebKit and produces no screenshots. `headless.json` contains fixture policy
+outputs; `production-projection.json` uses real catalog, Overview model and
+profile preferences in a temporary profile. Data export is not an assertion suite.
 
-## Regular glass 的 headless 验证
+The visible app reuses production collection, card, cover and member panel views.
+Its close records, time advancement, read sheets, tags and document bodies are
+fixtures. Production policy groups at least two eligible Super Threads after
+strictly more than 300s since close; a foreground read over 120s clears retained
+eligibility, while a short read can retain it. Carousel selection is not opening.
+The [Overview guide](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+owns that policy and its fingerprint/close ownership.
 
-`--headless` 导出真实生产投影的 `surfaceOwners`：collection 为 true，单篇
-Report 为 false。它在创建 NSApplication 之前退出，不启动 GUI。
-生产 Canvas 根据这个声明省略 collection 的实色底壳，regular 背板由 Report
-renderer 提供。现有手动 App 的集合外壳同样让出底色，其他卡片保留实色。
+Cover playback, 360:308 logical viewport scaling and the 414×522pt grid footprint
+come from production. Bottom navigation mounts only while actually hovered and
+retires its native hit/AX children on exit; x/x remains the member-panel control.
+The member panel scrolls real report-card fixtures, including coverless members.
+The preview's active/slow/time/window/zoom controls are local and cannot certify
+system foreground lifecycle. It neither starts Runtime nor reads real sessions.
 
-本次落地的构建、导出和未完成视觉验证见
-[regular-glass-validation.md](regular-glass-validation.md)。
-
-## 查看路径
-
-1. “全部”：三篇集合、一篇最近关闭、一篇无关闭记录。等待就绪后的 11 秒停留结束，或用封面拖动、触控板横向滑动、左右按钮/圆点切换。
-2. 勾选“慢速 ×3”，观察封面位移和固定 body 的淡出/淡入。这个仅供预览的选项不进入生产控件。
-3. “产品”两篇成组；“原生”“工程”只有一篇合格，不成组；“未读”零篇合格。
-4. 打开集合成员可查看示意阅读 sheet；真实开关与计时以生产 headless 导出为准；“时间 +10 分钟”只推进 demo 归组时钟，未打开者始终不自动归组。
-5. 深色只影响预览窗口，“重置”恢复 fixture 关闭记录。预览阅读 sheet 是说明页，不模拟真实 Report reader。
-
-可视 App 的关闭记录为内存 fixture，便于重置；生产已使用持久化记录。卡片、动效、封面输入与 Liquid Glass 完全来自生产组件，没有 demo 动效副本。
-
-## Headless 数据导出
-
-`--headless` 在创建 `NSApplication` 之前退出；不挂载 WebKit、不产生截图。
-
-- `.build/super-thread-carousel/headless.json`：13 个 fixture 数据场景，资格判断复用 `ApplicationOverviewCollectionPolicy`，包含严格 300 秒边界。
-- `.build/super-thread-carousel/production-projection.json`：[ProductionProjection.swift](ProductionProjection.swift) 经真实 `NativeWorkspaceCatalog`、`NativeOverviewWorkspaceModel` 和 `DesktopPreferences` 导出生产投影。覆盖各标签、短读保留/长读移出/解散、持久化重载、成员更新、无 catalog 事件的到期归组，以及普通偏好写入保留关闭事实。另通过真实 `NativeWorkspacePresentation.open` 方法验证首次 Overview 投影前的打开标记落盘、旧打开数据不冒充关闭事实、返回后保留记录及无效引用拒绝；不创建窗口。
-
-生产导出使用独立临时 profile，不连接 Runtime；完成后清理该 profile。这是可审阅的 fixture 数据导出，不是新测试套件，不证明视觉中间帧或物理手势通过。已运行和未运行的检查见 [validation.md](validation.md)。
-
-## Collection 成员面板
-
-点击右上角 x/x 展开真实生产成员面板，按 collection 顺序平铺普通报告卡片。
-复用窗口级生产阅读容器，从 collection 卡片展开到居中面板；背景退出视觉与输入。
-可滚动到末尾，点击成员打开原有示意阅读页；Escape、左上角关闭按钮或面板外空白收起。
-展开期间暂停底层轮播，关闭后重新开始停留计时。
-
-勾选「9 篇成员」增加六篇已符合归组资格的 fixture，最后一篇没有封面。
-默认仍为原有三篇集合；随着原有「最近关闭」fixture 到期，总数可继续增加。
-「保持预览活跃」只用于自动化工具不能持续保持 App 前台时检查组件，默认关闭，
-不改变生产失活判断，也不能用它证明系统前台生命周期。缩小窗口后继续滚动，
-检查末尾卡片与关闭控件；面板由当前窗口逻辑 viewport 定尺寸，不越过父窗口。
-固定标题和关闭控件不随成员滚动；窄窗口降为单列，封面仍按 360:308 比例适配。
-
-本次实际观察、构建记录与未验证项见 [collection-panel-validation.md](collection-panel-validation.md)。
-
-本次窗口级展开调整与验证见 [collection-expansion-validation.md](collection-expansion-validation.md)。
-
-预览底部的 1192×780 / 500×400 与 1× / 1.5× / 2× 按钮只控制隔离窗口，
-便于面板展开后检查 resize 和窗口缩放；缩放复用生产窗口的逻辑 viewport / scaleEffect 方式。
-「保持预览活跃」同时向 SwiftUI 内容传递活跃 scenePhase，避免工具后台观察时暂停摘要。
-hover 修复移除非悬停的整个底部玻璃导航；右上角 x/x 保留。
+Requires the repository macOS/Xcode toolchain. This preview has no automated
+correctness acceptance gate; it does not install or replace the production app.

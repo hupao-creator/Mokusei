@@ -75,17 +75,13 @@ distinct in the retained accounting.
 Source validity requires actual enqueue lateness no greater than 50ms. The
 producer remains subject to runner scheduling: missing that deadline is still
 invalid. Queue wait, content preparation, store-call time and complete accepted
-latency are measured separately. The old sent-minus-planned timing remains in
+latency are measured separately. The sent-minus-planned diagnostic is retained in
 each event and in `source.legacySentDeadline`, including its late count, maximum
 and whether the old 50ms gate would have failed. A queue delay cannot disappear
 from the report merely because enqueue was timely.
 
-This is a versioned change in the source boundary. Protocol 1 performed content
-preparation and the store call in the producer itself; one slow mutation could
-delay many later planned inputs. Its accepted and invalid experiments keep their
-original interpretation. Do not revalidate old results with the new enqueue
-criterion, combine protocols into a pair, or treat an old baseline as a current
-product comparison.
+Comparable pairs require source protocol 2 and one shared harness. A different
+producer boundary cannot be reinterpreted with this enqueue deadline criterion.
 
 Receipts retain boundary counts, queue high water, pending/in-flight work, oldest
 queued age, overflow and unprocessed event identities. These describe the
@@ -143,17 +139,13 @@ not change.
 
 Both UTC/raw anchors are retained, including UTC drift. UTC and explicitly named
 estimated Unix fields are diagnostic metadata only: wall-clock synchronization
-can step or slew without altering measured intervals. The earlier clock contract
-mapped cross-process UTC through one anchor and rejected drift above 5ms. Those
-experiments retain their original validity; this protocol must not retroactively
-validate or pool them. A new pair must use one common current harness.
+can step or slew without altering measured intervals. Comparable pairs require the same raw-clock contract and one shared harness;
+UTC diagnostics cannot validate another clock protocol.
 
 The Go clock bridge uses the OS API through Cgo, fails closed on read failure,
-and never falls back to realtime. The standalone Go and Python clock/contract
-tests and their workflow step have been removed. After toolchain and graphical
-preflight, the workflow runs the actual Release matrix directly. The experiment
-retains the runtime clock observations and measurement-validity checks described
-in this guide.
+and never falls back to realtime. No standalone clock/contract test suite is configured. After toolchain and
+graphical preflight, the workflow runs the Release matrix directly, retaining
+the runtime clock observations and measurement-validity checks above.
 
 ### CPU intervals
 
@@ -223,7 +215,10 @@ window is constrained to the screen, and four-card plus whole-window containment
 is the final criterion. A runner without a suitable mode fails
 with capability evidence before product builds or CPU claims.
 
-The workflow enables motion/transparency only for its disposable account. The
+On GitHub-hosted runners the workflow sets Reduce Transparency false for the
+disposable account. Self-hosted accounts must already satisfy that policy. The
+workflow does not change Reduce Motion; application-owned animation does not
+read that preference. The
 probe records actual window activation, visibility, screen geometry, refresh
 information and thermal/power state. The Python driver records machine, Xcode,
 Swift, Go, display and power observations, including power before and after every
@@ -293,4 +288,4 @@ when B is cheaper. Both opposite orders must be inspected; these two pairs are
 an initial screen, not a confidence interval. Do not pair percentages from
 different CI machines or combine these values with historical local M1 results.
 Regressions remain visible in the report instead of being hidden behind a pass
-threshold. Ordinary CI now retains only production builds and static checks; it provides no functional or pixel test coverage.
+threshold. Ordinary CI runs production builds and static checks; it provides no functional or pixel test coverage.

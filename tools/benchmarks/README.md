@@ -42,7 +42,7 @@ The default build/calibration/run path does not launch XCTest, Instruments,
 `sudo`, or an authorization dialog. Read-only permission probes fail before
 fixture launch if the invoking context lacks an existing desktop permission.
 The CLI never changes Developer Tools authorization or system security settings.
-Native XCTest hitch collection has been removed. Reports retain native hitches
+No native XCTest hitch collector is configured. Reports retain native hitches
 as unavailable; optical progress/stall estimates are not native frame-hitch metrics.
 The collector records foreground loss, missed input deadlines and capture gaps.
 Response/stasis estimates retain sampling bounds. A bound that straddles the
@@ -120,10 +120,8 @@ converts them with the host's timebase before emitting `cpuNS`. Every collector
 build links the real sampler into a busy-process check against the independent
 `CLOCK_PROCESS_CPUTIME_ID` clock and retains `cpu-clock-check.json` (also embedded
 in `build.json`). This validates units, not a performance threshold or complete
-descendant accounting. Collectors before this correction mislabeled ticks as
-nanoseconds: their absolute CPU seconds and single-core percentages are invalid
-on non-1:1 timebases. Keep their sealed evidence intact; any derived correction
-must name the old collector and use that run's recorded timebase explicitly.
+descendant accounting. CPU results require the recorded collector timebase and unit contract; data
+without that unit evidence cannot support an absolute CPU comparison.
 The observation declares `cpuTimeUnit: nanoseconds`; the analyzer withholds CPU
 metrics when that declaration is absent or unsupported, retaining footprint data.
 
@@ -134,15 +132,8 @@ cost belongs to the collector; OCR runs after collection. Raw screenshots remain
 available for review. Business anchors can be any observable fixture card.
 Absence of useful anchors is a measurement limitation, never a layout failure.
 
-Hitch collection subclasses the native `XCTHitchMetric` to retain its lifecycle,
-copying and raw measurements, with original identifiers, values, units and
-monotonic timestamps. XCTest's discarded iteration does not dispatch workload.
-It attaches to a unique existing PID + birth/launch identity and retains the
-`.xcresult`; it never launches or activates the product. Its sandboxed runner
-uses authenticated loopback coordination, without broader signing entitlements.
-Normal, real main-thread stall and wrong-owner controls must establish capability.
-If pixels freeze while hitches remain zero, the metric is **unsupported** for
-responsiveness conclusions. Zero is never substituted for unavailable data.
+No native hitch collector is built or launched. Reports expose native hitches
+as unavailable; optical motion/stall analysis cannot substitute a native metric.
 
 ## Agent emoji badge material comparison
 
@@ -198,7 +189,8 @@ loopback Responses provider. Public `thread:follow-up` starts the fixed set of
 active tasks. The framework records the **actually selected native CLI** path,
 version and digest; it does not spoof a discovery version or claim an environment
 variable pins discovery. Background Tag/Report agents are disabled using public
-settings with the real revision. Production search remains enabled.
+settings with the real revision. Tag filtering and the Agent `grep_threads` capability are independent; no GUI
+conversation search or derived keyword index is configured.
 
 The App's explicit `--benchmark-scenario overview` entry requires the isolated
 `--data-dir` and automation socket. It records onboarding completion before the
@@ -227,9 +219,8 @@ is involved.
 20 packets/s bursts) are explicit **stress loads**, not the default.
 `--chunk-bytes` and `--message-bytes` are retained in plans. All rates are
 controlled synthetic inputs, not frequencies certified from production traces.
-Workload schedule version 2 records the load kind and card timing; old synchronized
-workloads and the removed `return` case are not silently reinterpreted by current
-analysis. Retain their evidence and original analysis identity separately.
+Workload schedule version 2 records load kind and per-card timing. Comparisons
+require matching schedule/collector identity; incompatible workloads are not pooled.
 
 Absolute deadlines drive output independently of UI responsiveness. The source
 ledger records intended and actual sends, bytes, payload hashes and every card's
@@ -269,44 +260,19 @@ regression gate, formal A/B inference, physical FPS, energy or GPU claims are
 made. Fixed-count summaries permit inspection of scaling of individual observed
 metrics with their coverage limitations.
 
-The retained [2026-11-13 observation](baselines/2026-11-13.md) and
-[machine-readable data](baselines/2026-11-13.json) preserve the original
-incomplete 5/10-card measurements. N=20 is explicitly unmeasured; the user
-stopped further collection. This snapshot is not a regression gate and belongs
-to the original collector configuration, not the later default without XCTest.
-
-The [runtime-clock optimization observation](baselines/2026-11-13-runtime-clock.md)
-uses the later default collector for two 10-card scenarios. It records signed
-before/after artifacts and App CPU samples, while retaining incomplete process
-coverage and unavailable hitch status. It is not a statistical regression result.
-
-The [rendering-cost investigation](baselines/2026-11-13-rendering-costs.md)
-separates six scenario profiles from measured style candidates. It includes a
-120 fps pre-rendered cloud prototype, actual 60/120 Hz window transitions and
-paired App CPU observations on the 120 Hz display. Playback configuration is
-not physical FPS evidence; the product changes remain unshipped experiments.
-
-The historical [production combination](baselines/2026-11-13-combined-rendering.md)
-paired equal voice-availability notification suppression with pre-rendered clouds.
-Pre-rendered playback has since been removed after reported stutter; the live
-Metal cloud, notification suppression and original body reveal are retained.
-Its CPU figures apply to the recorded combination, not the current product.
-The original incomplete measurement status and invalid startup remain explicit.
-
-The [shared pre-rendered follow-up](baselines/2026-11-13-shared-prebaked.md)
-tests one masked player per palette on top of that production change. N10 App
-CPU was effectively unchanged after a matched idle warmup. Both pre-rendered
-approaches are now historical; the prototype and failed preparation are archived.
+The [measurement reports](baselines/) retain source/collector/artifact identities,
+raw-data links, failed preparations and capability limits. Their metrics describe
+only those artifacts; they do not certify current rendering or a regression gate.
 
 ## Verification boundary
 
 `calibrate` retains independent normal/frozen/wrong/delayed-motion, main-thread-stall,
 SwiftUI drag and short-lived-child controls to establish collector capability.
-Portable conformance tests and the optional XCTest diagnostic have been removed.
+No portable conformance suite or XCTest diagnostic is configured.
 Signed production GUI experiments remain local because CI has no production
 signing credentials. See [verification policy](../../scripts/ci/verification-policy.md).
 
-The older `overview-ci-performance` and
+The `overview-ci-performance` and
 [Overview performance probes](../verification/overview-performance/README.md)
 remain diagnostics with separate baselines. Do not pool their results with these
 external measurements. [Implementation references](REFERENCES.md) document the

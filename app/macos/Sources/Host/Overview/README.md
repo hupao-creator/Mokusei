@@ -63,7 +63,7 @@ Agent emoji backdrops with regular glass; ordinary launch defaults and all other
 card materials remain unchanged. See the [external comparison](../../../../../tools/benchmarks/README.md#agent-emoji-badge-material-comparison).
 Only Super Thread collections opt into the new card material; individual Report
 and ordinary Thread surfaces stay flat.
-The former `glass world` preference is removed. Chrome, directory menus, Moku,
+There is no `glass world` preference. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
 scan and spatial-animation ownership are unchanged.
 
@@ -155,13 +155,13 @@ controls remain readable and independently actionable inside that container.
 Do not move these groups outside the gesture modifiers: SwiftUI otherwise derives
 gesture attachments for every descendant when navigation or Moku input changes
 visibility/enablement, blocking transition startup even for the retained backdrop.
-See the [target-Mac investigation](../../../../../design/thread-transition-latency.md)
-for samples, paired observations and validation limits.
+See the [target-Mac contract](../../../../../design/reading.md)
+for reading admission and source ownership.
 
 ## Layout, motion and input
 
-The FitAll decision, removed history rules and verification limits are recorded in
-[the layout refactor note](../../../../../design/overview-fitall-layout.md).
+The FitAll contract and verification limits are described in
+[the layout refactor note](../../../../../design/overview.md).
 
 Presentation pauses (including the expanded Moku composer) gate canvas hit
 testing and accessibility without disabling the card control tree. Native
@@ -169,8 +169,8 @@ Button labels, including Report cards and Git summaries, therefore keep their
 ordinary colors alongside gesture-based Agent cards. Camera pause, activation
 guards and Moku outside-click dismissal retain their existing owners; transient
 composer growth does not change the layout viewport. See the
-[recording investigation](../../../../../design/moku-input-card-dimming.md)
-for observed behavior and sprint verification limits.
+[current contract](../../../../../design/composer.md)
+for the implemented camera contract.
 
 The 1x grid cell is 414pt wide and 253pt high, a 15% increase in each logical
 dimension from 360×220pt, with the same 16pt gap. Two-row cards are therefore
@@ -315,31 +315,28 @@ visibility remains owned by the production spinner. Tooltips and
 accessibility values announce active presence in the selected UI language. The
 shared slot is implemented in [NativeOverviewTagActivity](NativeOverviewTagActivity.swift).
 
-## Validation
+## Verification boundary
 
-The centering and transition fixtures read the rendered card frames rather than a
-planner target. They independently compute the usable viewport from the product
-controls, assert every latest card is inside it, assert the rendered union is
-centered, and compare the camera scale with FitAll (including the explicit cap).
-Resize observations wait for the new viewport and the submitted camera motion.
-Membership freshness uses Report's authored introduction and independent cover
-revision, preserving the two-row covered-card footprint without rebuilding membership.
-The subsequent coverage/filter cases retain the ordinary one-row card without a cover.
+No geometry property suite, state interleaving suite, native capture replay or
+production chaos runner is configured in this source tree. The pure solver's
+implemented constraints include stable identity/footprints, finite nonoverlapping
+placements, gaps, scene bounds, FitAll containment/centering and scale cap. A
+build/static pass does not establish those properties at runtime.
 
-## Production control chaos
-
-[NativeOverviewInteraction](../Interaction/NativeOverviewInteraction.swift) exposes the camera's production methods and registers callbacks owned by the mounted directory controls. Opening a menu calls the same `revealChildren` path as hover/accessibility; selecting a child requires its real glass menu to be mounted, then follows the production selection/exit transaction before the chip title changes. Explicit close uses the accessibility close callback; pointer exit retains its delayed dismissal. Filter-bar scrolling uses the mounted SwiftUI scroll view. A retiring registration cannot remove another view's callbacks.
-
-The Overview chaos guide (historical; removed) describes the actions and coverage limits. Runtime `state:load` supplies the independent scope/membership oracle; mounted card identities, placement cells and camera bounds supply rendering invariants. No tag CRUD or multi-selection actions are invented: those controls do not exist in the current Overview.
-
-The geometry contract runs headlessly: generated inputs verify identity, latest sizes, non-overlap, gaps, finite values, exact bounds, FitAll containment and centering, viewport-translation covariance, determinism and the independent regular-grid quality floor. A 1,500-card 4K/ultrawide case covers legality, cap and the same floor. The state contract mounts the real canvas and replays randomized insert/remove/footprint/viewport/pause/visibility/manual/content schedules; a failure prints the complete trace, shrinks it by removing events, and the fixed reduced trace is checked in as `reducedInterleavingRegressionConverges`.
+[NativeOverviewInteraction](../Interaction/NativeOverviewInteraction.swift)
+exposes production camera/control callbacks. Runtime `state:load` supplies
+independent public membership facts; automation acceptance is not a rendered
+frame receipt. No tag CRUD or multiselection controls exist. The
+[performance tools](../../../../../tools/verification/overview-performance/README.md)
+measure internal CPU paths; the [external benchmark](../../../../../tools/benchmarks/README.md)
+observes fixed-count app rendering with explicit measurement limits.
 
 ## Agent reading panels
 
 Reading entry shares the 420ms emphasized panel curve with tag-chrome withdrawal
 and the resident Dock. Tag clearance remains fixed while the retained controls
-move upward. See the [two-stage reading choreography](../../../../../design/reading-entrance-choreography.md)
-for secondary Sidecard admission, cancellation and sprint verification limits.
+move upward. See the [reading choreography](../../../../../design/reading.md)
+for secondary Sidecard admission and cancellation.
 
 The presentation gate and prepared return apply to Agent and Report panels.
 Report returns to its document card.
@@ -364,9 +361,8 @@ cards cannot supply that destination. Preparation is cancelled with its route;
 replacement, focus loss, disconnect/recovery and direct returns cannot let an old
 waiter close a newer visit. A reversal during opening uses the participating parent
 immediately. Hidden and foreground structural changes both resolve to the latest
-snapshot; omitted intermediate geometry is not replayed. `NativeOverviewMembershipTests`,
-`NativeMokuLandingTests.detailCoalescesHiddenOverviewAndPreparesLatestReturnFrame`
-and the reading presentation preparation cases exercise these production paths.
+snapshot; omitted intermediate geometry is not replayed. No mounted hidden-
+Overview/return correctness replay is configured in this source tree.
 
 Opening an Agent Thread captures its displayed card frame from the stable layout
 and live camera transform. The shared reading stack expands that shell into an
@@ -402,7 +398,7 @@ plugin-owned application visibility and explicit result-reading links keep
 their existing rules. Refresh and restart consume the retained envelope rather
 than guessing from terminal status or local UI actions.
 
-Ordinary browsing ignores retired agent-authored visibility markers. Archive, execution eligibility and Report coverage retain their own selection rules. Detail reading no longer sends per-thread visit or foreground-time receipts to Runtime; application collection reading remains independently owned by the desktop.
+Ordinary browsing ignores retired agent-authored visibility markers. Archive, execution eligibility and Report coverage retain their own selection rules. Detail reading sends no per-thread visit or foreground-time receipts to Runtime; application collection reading remains independently owned by the desktop.
 
 ## Viewed application collections
 
@@ -588,8 +584,8 @@ collections use the page menu instead of an overflowing dot row.
 The [production-backed demo](../../../../../demos/super-thread-carousel/README.md)
 provides headless model exports and manual viewing without running a Runtime.
 
-The Cmd+F conversation search, its menu command, interaction actions and Runtime
-keyword index have been removed. Tag filtering and Agent `grep_threads` remain
+There is no Cmd+F conversation search, search menu/interaction action or Runtime
+keyword index. Tag filtering and Agent `grep_threads` remain
 independent capabilities; native text editing keeps its own find behavior.
 
 Collection member cards expose an icon-only Archive Super Thread button over the

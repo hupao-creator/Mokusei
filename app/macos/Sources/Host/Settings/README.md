@@ -63,16 +63,15 @@ choice in both Settings and onboarding.
 The shared choices retain their interactive capsule glass in Settings and
 onboarding; selection, save gates and capability checks are unchanged.
 
-The coordination and dispatch map retains the icon presentation from before
-`016735c` (system Settings controls): transparent 48-point seats, hover surfaces
+The coordination and dispatch map uses transparent 48-point seats, hover surfaces
 and keyboard focus rings. Targets use icons, selection underlines and dashed
 paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled. General's Agent installation buttons and the other
 Settings form controls retain their system presentation.
 
-Settings and onboarding use the original animated eye character for every
+Settings and onboarding use the animated eye character for every
 coordinating Harness. Its vector body, idle motion, handoff and target-gaze
-feedback are restored; no sphere artwork or fallback sphere gradient remains.
+feedback use the native renderer; no sphere artwork or fallback sphere gradient remains.
 
 Model, thinking/effort and variant choices use the same AppKit `NSPopUpButton`
 as other selects in Settings and onboarding, including compact role panels.
@@ -80,12 +79,8 @@ as other selects in Settings and onboarding, including compact role panels.
 Harness catalog, default and dependent-choice mapping remain at their callers.
 Embedded Thread editors retain their capsule/popover presentation.
 
-`NativeSettingsControlsReplayTests` mounts the shared production form and sends
-AppKit actions through real controls, checking option identity/disabled state,
-text binding and disabled input. The existing Settings launcher below exercises
-routing-guidance editing/Undo through the actual SettingsTextArea, persistence,
-IME, conflict and close behavior; the navigation demo covers light/dark, compact
-and zoomed production page layouts.
+Mounted semantic controls invoke the production callbacks; no Settings-control
+replay suite is configured in this source tree.
 
 [NativeSettingsNavigation](NativeSettingsNavigation.swift) shares section selection
 and the close gate between page controls and [semantic workspace actions](../Interaction/README.md).
@@ -103,7 +98,7 @@ panel rather than SwiftUI's overflow-dependent scroller proposal, keeping its
 padding keeps controls clear of the native gutter. The title and subtitle wrap
 to their natural height in narrow windows and either language; they remain part
 of the scrolling content.
-Unavailable selections, including the removed archive and plugin management
+Unavailable selections, including archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
@@ -135,7 +130,7 @@ pending intervention takes its ordinary priority over a retained Note/composer.
 `NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
 page lays out at its final size; closing fades its ink before panel contraction. Reversals fence obsolete completions. Resize, inactivity and
 explicit settling retire the current animation without leaving the modal gate
-stuck. Opening and return both report transitioning to semantic callers. The runner captures representative panel screenshots with its evidence.
+stuck. Opening and return both report transitioning to semantic callers. No Settings screenshot assertion runner is configured here.
 
 The application menu and Cmd+, are enabled only for a loaded Overview. Direct
 presentation and semantic requests enforce the same boundary; reading, Moku
@@ -282,14 +277,13 @@ draft semantics, retain keyboard/accessibility selection, and localize through
 composition and close-flush behavior. Runtime injects routing priorities without fixed model mappings or candidate
 groups; native creation admission still owns availability. See
 [model routing policy](../../../../../internal/services/moku/README.md#model-routing-preferences).
-`NativeModelRoutingPreferencesTests` mounts the real capsule controls and saves
-through the production draft to verify restoration and language changes. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
-Settings no longer exposes plugin enablement or service-restart instructions.
+No mounted routing-preferences test suite is configured in this source tree. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
+Settings exposes no plugin enablement or service-restart instructions.
 
 The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
 same Moku coordination map with an in-memory settings model. Its `.compact`
 presentation omits map labels and model selection preferences. Settings also uses this map presentation and shows the four model preference choices directly. Both presentations
-use the historical circular avatar (`8f3548f`) with the same selection, handoff
+use the circular vector avatar with the same selection, handoff
 and target feedback; the Settings page retains its native execution editors and saved values.
 
 Changing the coordinating Harness is rejected through the existing save-error
@@ -297,12 +291,11 @@ path while Moku or any ordinary Agent Thread is busy, including pending input
 and waiting interactions. Other settings remain editable. The selected Harness
 inherits the existing note when the idle replacement is applied.
 
-Verification: `./scripts/go.sh run -race ./tools/verification/settings-shell` for Go boundaries; on macOS build a runtime with `make runtime`, then run `./scripts/go.sh run -race ./tools/verification/settings -runtime "$PWD/.build/go/mokusei-runtime"`. The launcher drives real Swift settings flows against an isolated daemon, including acquisition before page mount, cache reuse, concurrent readers and failed-read recovery. The same native flow mounts the production General page offline to verify appearance/language controls, snapshot and JSON persistence, new-profile defaults, selection/onboarding preservation, and visible write failures with recovery.
-
-The launcher leaves execution profiles uninitialized until native workspace
-acquisition. `transport -swift-settings-capacity` additionally replays the full
-four-Harness cold burst through the real Swift client and Go HTTP admission,
-including slow discovery, ordinary command headroom and cancellation.
+No Go-backed Settings flow, settings-shell or Swift-capacity replay is
+configured in this source tree. Resource readiness, four-read client admission,
+command headroom, persistence and cancellation above are production contracts.
+The interactive [Settings demo](../../../../../demos/settings-navigation/README.md)
+uses fixtures and cannot establish Runtime persistence.
 
 Automatic installation checks request each Harness independently. A completed
 row becomes usable while slower rows remain checking; an available Moku host's
@@ -345,7 +338,7 @@ expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
-The former Report Agent section is named **Super Thread Agent**. Its existing
+The Report settings section is named **Super Thread Agent**. Its existing
 `report.settings` identity, inherited/independent choices and enabled state are
 unchanged; reopening Settings requires no preference migration.
 

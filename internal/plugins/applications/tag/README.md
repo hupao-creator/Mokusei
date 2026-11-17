@@ -75,6 +75,6 @@ emoji prefixes. [taglabel](../../../services/taglabel/) validates complete Unico
 Emoji 16.0 sequences. Invalid nonempty generated emoji falls back to `🏷️`;
 missing/empty creation emoji rejects. An omitted update emoji preserves it.
 
-Every public thread envelope includes `tagEmojis`, even when empty. Keys match semantic tags, excluding directory tags. Emoji-only changes publish revisions and update Report source decoration. [generate-tag-emoji.py](../../../../scripts/generate-tag-emoji.py) generates the Swift table from the pinned data; the parity test checks agreement.
+Every public thread envelope includes `tagEmojis`, even when empty. Keys match semantic tags, excluding directory tags. Emoji-only changes publish revisions and update Report source decoration. [generate-tag-emoji.py](../../../../scripts/generate-tag-emoji.py) generates the Swift table from the pinned data; the generated table is a production resource. No parity test is configured here.
 
 Overview displays emoji and name separately from the identity, groups aliases with identical membership, and includes singly used semantic tags. Directory labels come from [directorytag](../../../services/directorytag/directorytag.go). [Overview presentation](../../../../app/macos/Sources/Host/Overview/README.md) owns visual filtering and motion.

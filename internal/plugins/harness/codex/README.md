@@ -12,7 +12,7 @@ adapter resolves the native user-message client identity, requests `lastTurnId`
 on `thread/fork`, verifies the returned history boundary and trims public fork
 history to that execution. Missing/unsupported checkpoints fail closed; the
 source must satisfy the existing idle/native-work gates. See
-[Report continuation](../../../../design/report-execution-continuation.md).
+[Report continuation](../../../../design/reading.md).
 
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
@@ -60,9 +60,8 @@ available. Missing history or a failed fork read uses a snapshot fallback in an
 isolated read-only session and temporary workspace. Each temporary session is registered with the Handle and releases its own exact
 registration on return, even when a fallback replaces the current session. Handle Close cancels and joins in-flight reads before returning. Read answers
 are not projected into the source session; their native processes, temporary
-workspace and one-shot configuration homes are drained on successful cleanup. It
-checks ownership release, process exit, temporary-file cleanup and source-state
-preservation without an installed Codex or model account.
+workspace and one-shot configuration homes are drained on successful cleanup. Ownership release, process exit, temporary-file cleanup and source-state
+preservation are implemented responsibilities of that read owner.
 
 Resume supplies tool definitions again while preserving native history in the same home. Tool schema changes do not themselves discard compacted context. Ordinary/extend modes share a home; exclusive mode uses isolated configuration. User-global Codex configuration is not rewritten.
 
@@ -111,7 +110,7 @@ that timeout still does not authorize a successor. Generic transport failures
 retain their input because native acceptance is unknown. Core can reserve a
 successor only after the existing durable-settlement gate and successful commit.
 No delivery status is added to the native text/time message UI. See the
-[identity correction record](../../../../design/steer-message-identity.md).
+[input identity contract](../../../../design/composer.md).
 
 Text and reasoning deltas commit in 50 ms batches, flushing earlier at 1,024
 events or 256 KiB. The first native reasoning status publishes immediately; repeated
@@ -145,7 +144,7 @@ retains its existing precedence. Other scopes omit the field.
 Settings directory, execution-default capture and auto-review capability reads
 share one bounded catalog acquisition. Configuration, model list, Computer Use
 and version facts are read concurrently from the same native process; default
-capture no longer starts a second server. Auto-review reuses that configuration,
+capture uses that same server. Auto-review reuses that configuration,
 while live admission still checks the owning execution session. The launch's
 already observed version is reused. Standalone successful version probes cache
 by binary metadata/environment for five minutes and drain their own subprocess.
@@ -170,8 +169,7 @@ shutdown joining use [discovery](../../../platform/discovery/README.md). A faile
 partial observation can describe its own failure but earns no successful TTL.
 No credential snapshot is written to disk.
 
-`./scripts/go.sh run ./tools/verification/codex -settings-performance` measures
-mixed catalog/defaults reads.
+No settings-performance replay for this Harness is configured in this source tree.
 
 Turn-scoped reader projections omit plan steps, explanations and timeline markers
 before encoding and copying them to native clients. Canonical, overview, context
@@ -255,5 +253,4 @@ failed second enumeration retains the first complete result. A matching warm
 snapshot returns immediately and failed refreshes preserve it with a failure
 note. First-page/later-page errors and empty initial inventories still reject a
 cold acquisition. No static candidate or failed page prefix is synthesized.
-See the [T3 source comparison and differences](t3-discovery.md) and
-[current admission contract](../../../services/moku/catalog-evidence.md).
+See the [catalog admission contract](../../../services/moku/catalog-evidence.md).

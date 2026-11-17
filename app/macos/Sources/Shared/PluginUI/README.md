@@ -3,8 +3,8 @@
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
 `NativeGeometry.overviewCard` defines the 414×253pt logical 1×1 cell shared by
-Harness card ideal sizes and the Host Overview grid (15% larger in both dimensions
-than 360×220pt). Larger footprints add cells with the unchanged 16pt gap;
+Harness card ideal sizes and the Host Overview grid. Larger footprints add cells
+with the 16pt gap;
 typography, icons and corner radii retain their own metrics.
 
 The timeline's floating Jump to latest control uses a 42pt circular interactive
@@ -23,7 +23,7 @@ The TOC selection belongs to navigation/input routing; it cannot retarget that
 document's header while its body is still visible. Each history document keeps
 its own exact-execution heading and mounted-turn author preference. Pending
 history content retains its normal loading state without borrowing another
-execution's author. See the [recording diagnosis](../../../../../design/history-author-title-transition.md).
+execution's author. See the [reading contract](../../../../../design/reading.md).
 
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread
@@ -55,7 +55,7 @@ choices to the Host's close gate. Without that environment, the wrapper retains
 ordinary view-local state, preserving other settings and onboarding behavior.
 
 Moku's eye character is drawn by the Host's vector renderer. The sphere-specific
-Moku Map PNG resources, loader and Harness gradient palette have been removed;
+Moku Map uses no sphere PNG loader or Harness gradient palette;
 application icon resources remain independent.
 
 Adaptive color assets in `Resources/Palette.xcassets` match the normalized
@@ -90,7 +90,7 @@ editor is unavailable or focus is suspended. Eligibility changes retry that
 intent once; already consumed requests do not reacquire focus on passive
 availability changes. Hosts can turn off automatic initial focus and supply
 explicit requests independently of native click/Tab eligibility. See the
-[execution focus investigation](../../../../../design/execution-composer-focus.md).
+[execution focus contract](../../../../../design/composer.md).
 
 The shared `NativePalette.thread` dark reading surfaces use a charcoal canvas,
 progressively lighter content/interaction/composer fills and warm off-white text.
@@ -98,8 +98,8 @@ SwiftUI, TextKit and the panel transition resolve the same adaptive assets;
 other readers consuming this palette share its dark tones. Light variants and
 Overview/Settings palette definitions retain their existing values. Claude's
 Overview workflow cards and Thread settings hints also consume thread surface
-and muted colors, so those shared consumers inherit the dark changes. See the
-[Notion reference, palette decisions and sprint verification limits](../../../../../design/agent-detail-dark-tone.md).
+and muted colors, so those shared consumers use the same dark values. See the
+[shared reading palette](../../../../../design/reading.md).
 
 `nativeReadingEscape` preserves native editor/IME, menu, sheet, popup and WebKit
 cancellation before reading navigation. Hosts can supply
@@ -202,17 +202,16 @@ and scroll container stay visible; the title/emoji handoff never fades again.
 The transparent preparation frame excludes hit testing and accessibility.
 The fade changes only opacity and preserves layout and scroll ownership. Inactive scenes settle the fade
 immediately while preserving readiness rules. See the
-[reading choreography](../../../../../design/reading-entrance-choreography.md)
-for lifecycle details and sprint verification limits.
+[reading choreography](../../../../../design/reading.md)
+for lifecycle and readiness details.
 
 `ThreadDeferredExecutionContent` keeps the same mounted row when an active
 response becomes a completed `deferred-execution` envelope. Only its content,
 presence facts and execution-detail loader change; the reader's decode state,
 Markdown tree and native text selection survive settlement. Deferred groups
 still own separate detail leases, and malformed envelopes remain rejected.
-The mounted `NativeThreadSendFeedbackTests` settlement regression checks
-continuity across this boundary. See the
-[recording investigation and regression evidence](../../../../../design/message-settlement-flicker.md).
+The [Markdown ownership contract](../../../../../design/markdown.md) describes
+the stable render site. No settlement correctness replay is configured here.
 
 Codex reading validates and decodes each changed opaque state on its background
 actor before publishing its immutable typed result. Superseded and unmounted
@@ -249,7 +248,7 @@ and it is absent from accessibility until visible. Unmounting cancels the delay
 and resets visibility; errors and retry controls appear immediately. The shared
 semantic palette and locale follow the reader. This is presentation state only:
 content acquisition, decoding, caching and resource release are unchanged.
-See the [recording review and validation limits](../../../../../design/reading-placeholder-alignment.md).
+See the [recording review and validation limits](../../../../../design/reading.md).
 
 The Agent reader hides its work visibility control when the mounted execution
 content reports no displayable work. Missing reports during scoped loading remain
@@ -264,8 +263,8 @@ other activity kinds, running/failed/cancelled Hooks, interactions and unknown
 rows remain admitted. Classification follows content and native identity rather
 than position or zero counts. Lightweight Codex/Claude history carries output
 presence independently of stripped detail. Full/Moku readers retain the original
-disclosures and detail loading. See the [investigation](../../../../../design/empty-execution-summary.md)
-for the reported Hook group, asynchronous behavior and sprint validation limits.
+disclosures and detail loading. See the [contract](../../../../../design/reading.md)
+for the current execution-summary admission rules.
 
 Execution summaries label execution-scoped reported reasoning usage as “总共思考
 N tokens” (“N reasoning tokens in total”). Running executions show only usage
@@ -317,30 +316,12 @@ content. Content loading can therefore change the available width; scrolling an
 already loaded document must not. Explicit hidden indicators remain SwiftUI-owned.
 The AppKit subclass and scoped control adapter retain their resident-gutter policy.
 
-`NativeScrollViewportTests` exercises the plain wrapper against an unstyled
-SwiftUI reference in two nonoverlapping visible windows. It retains the
-80→900→80 content-height sequence, native knob/autohiding checks and exact
-scroll-offset and loaded-width comparisons from the scrollbar replay. Current
-content-height callbacks, positive document/viewport dimensions and both native
-overflow states matching the requested phase establish readiness within three
-seconds, including the installed trackless scroller and an unstyled reference
-scroller; an unattached hosting view's empty document
-cannot certify this layout boundary. This method runs once in ordinary graphical
-CI. The separate windowless replay continues to cover AppKit viewports, scoped
-TextEditor/List controls and WebKit styling.
+No native scrollbar correctness suite or windowless styling replay is
+configured in this source tree. The resident AppKit gutter and SwiftUI-owned
+indicator/width policies above are implemented boundaries, not passing GUI
+evidence. Content readiness requires actual native document/viewport geometry.
 
-The first-load investigation used a temporary visible window containing the
-production wrapper, an initially empty document, delayed message rows and a
-centered 680pt reading column. In a fresh 900pt legacy-mode window, forcing
-autohiding off left the document at 900pt until the first native wheel scroll,
-then narrowed it to 883pt and moved the column from x=110 to x=101.5. The native
-clip width stayed 887pt throughout: the scrollbar was already resident. With
-SwiftUI retaining autohiding, the loaded document measured 883pt before scrolling
-and the column stayed at x=101.5 afterward. A 420pt window retained x=18 and a
-process-local When Scrolling override retained x=110 with a 900pt overlay viewport. An additional local TextField retained focus and its draft across wheel scrolling
-and accepted further typing; nested explicitly hidden indicators stayed hidden. These were isolated manual observations, without Runtime or profile data, not a
-full fresh-app Thread Detail, composer/IME, physical-device or live-preference
-acceptance run.
+
 
 The SwiftUI adapter is a noninteractive background **inside its own content**.
 Do not attach it outside a viewport: nested code/table panes must configure their
@@ -428,8 +409,8 @@ with its scroll state. Explicit TOC navigation still admits current for the
 existing return transition. Result links keep their reply anchor rather than
 forcing the document heading, and manual scrolling takes ownership even before
 a non-following request's delayed anchor arrives. A new request may locate again.
-See the [recording, version and local-log investigation](../../../../../design/thread-opening-entry-admission.md)
-for evidence and the sprint verification limits.
+See the [reading ownership contract](../../../../../design/reading.md)
+for the implemented ownership boundaries.
 
 The timeline keeps exact scroll geometry in a view-owned observable reference.
 Only its small reading-control registration reads that geometry during view
@@ -437,7 +418,7 @@ construction. Native offset updates therefore refresh the control descriptor and
 stale-handle fencing without rebuilding the document's row tree. Follow, locate,
 prepend retention and relative scroll commands still read the latest geometry;
 visible-row projection is shared by the document and registration per body pass.
-See the [scroll investigation](../../../../../design/thread-scroll-observation.md)
+See the [scroll contract](../../../../../design/reading.md)
 for the measured update counts and the remaining validation limits.
 
 Ordinary Agent Thread detail withholds assistant reply bodies while their native
@@ -487,7 +468,7 @@ space. Vertical wheel input continues to the reader, while horizontal and
 Shift-wheel input belong to the code viewport. Selection retains source
 characters and the block's Copy Code action retains the complete original
 source, including its terminal newline. Inline code keeps its existing wrapping
-and padding policy. See the [clipping investigation](../../../../../design/markdown-code-block-clipping.md)
+and padding policy. See the [code viewport contract](../../../../../design/markdown.md)
 for headless evidence and verification limits.
 
 Absolute local HTML destinations and local `file:` HTML URLs retain the same
@@ -500,7 +481,7 @@ fragments survive rendering; absolute paths treat `?` and `#` as filename bytes
 path escapes once; the Browser/Host validates filesystem eligibility on opening.
 
 Markdown source preprocessing preserves code characters and recognizes footnotes
-before entity decoding; escaped syntax stays literal. Labels containing whitespace remain ordinary reference links rather than footnotes. [Reading/NativeMarkdownSourceMap.swift](Reading/NativeMarkdownSourceMap.swift) records each physical line's content start as bundled cmark consumes its quote/list prefix. Inline positions map through the retained raw block lines after reference definitions are removed, so lazy continuations, Setext, tabs and multiline literals share one source mapping rather than fixed column adjustments. BOM removal and NUL replacement retain physical byte provenance for every input line, including nodes without paragraph traces. Table cells also map their whitespace trimming and escaped pipes back through those input coordinates; a read-only parser hook observes each row’s actual container prefix without changing the AST. Paragraph-to-table promotion retains the complete original trace for both header cells and the synthesized preceding paragraph. Bare-URL rewrites stay within the original cell, preserve destination escapes until cmark decodes them, and escape generated pipe syntax so later cells cannot be swallowed. The mapper directly declares the already-bundled cmark 0.9.0 and isolates access to its exposed parser/block state; a cmark upgrade must rerun the source-range matrices and native Markdown replay. Parser cache keys, stored SwiftUI inputs (including message and code-block wrappers), document revisions and rendered text comparisons preserve raw UTF-8 identity, so canonically equivalent Unicode sources cannot substitute URL or copy bytes. Footnote labels use Unicode
+before entity decoding; escaped syntax stays literal. Labels containing whitespace remain ordinary reference links rather than footnotes. [Reading/NativeMarkdownSourceMap.swift](Reading/NativeMarkdownSourceMap.swift) records each physical line's content start as bundled cmark consumes its quote/list prefix. Inline positions map through the retained raw block lines after reference definitions are removed, so lazy continuations, Setext, tabs and multiline literals share one source mapping rather than fixed column adjustments. BOM removal and NUL replacement retain physical byte provenance for every input line, including nodes without paragraph traces. Table cells also map their whitespace trimming and escaped pipes back through those input coordinates; a read-only parser hook observes each row’s actual container prefix without changing the AST. Paragraph-to-table promotion retains the complete original trace for both header cells and the synthesized preceding paragraph. Bare-URL rewrites stay within the original cell, preserve destination escapes until cmark decodes them, and escape generated pipe syntax so later cells cannot be swallowed. The mapper directly declares the already-bundled cmark 0.9.0 and isolates access to its exposed parser/block state; cmark source positions are an explicit parser/renderer boundary; no source-range matrix or native Markdown replay is configured here. Parser cache keys, stored SwiftUI inputs (including message and code-block wrappers), document revisions and rendered text comparisons preserve raw UTF-8 identity, so canonically equivalent Unicode sources cannot substitute URL or copy bytes. Footnote labels use Unicode
 case folding and opaque URL-safe destination identities, including literal percent
 sequences. Lazy paragraph continuations remain in their note. Bare HTTP(S) URLs
 retain Markdown punctuation in their paths. Image alternative text flattens inline
@@ -666,24 +647,13 @@ keeps the previous model-based fallback. Vertical/history replacement, cancellat
 and settled-page returns do not use this correction. This boundary accounts for
 a model value being ahead of committed native geometry; it does not treat AppKit
 bounds as proof of WindowServer pixels or assert that such lag caused a specific
-historical failure. The former full-page horizontal-entry and mid-opening Overview-return visual
-replays have been retired: Agent, Report and Moku entry now uses panel
-presentation.
+historical failure. Agent, Report and Moku entry use panel presentation.
 
 Non-panel progress is written synchronously from a per-stack display callback in
 [NativeReadingPageFrames](Conversation/NativeReadingPageFrames.swift).
-[CI #389](https://github.com/hupao-creator/Mokusei/actions/runs/42448341067)
-recorded a 76.938ms gap between consecutive progress writes, from 0.394718 to
-0.645411, while display callbacks continued and native geometry followed those
-writes. The source values themselves skipped the replay's midpoint interval;
-the trace does not identify which scheduling mechanism caused the gap. The
-zero-tolerance sleep attempt passed
-[CI #392](https://github.com/hupao-creator/Mokusei/actions/runs/42451341019), but
-still recorded successive 68.928ms and 68.444ms source-write gaps. The replay's
-1.2-second emphasized curve spends only 59.801ms between progress 0.4 and 0.6,
-so that pass did not establish a sufficiently regular source cadence.
 
-The display callback now writes progress directly, without another task or timer
+
+The display callback writes progress directly, without another task or timer
 resume. The existing preparation sleep and the `ContinuousClock` origin taken
 when preparation ends are unchanged; every sample uses actual elapsed time and
 the same curve and duration. A native anchor attaches the clock only while a
@@ -863,8 +833,8 @@ Attachment paste shortcuts bind to the exact mounted native composer through a
 shared editor identity. Common window ancestry and overlapping geometry cannot
 authorize a retained/covered composer to paste into its draft. Provider decoding
 and staging keep the draft captured at paste admission. See the
-[attachment ownership investigation](../../../../../design/thread-attachment-ownership.md)
-for the recording evidence and this sprint's static-only verification limits.
+[attachment ownership contract](../../../../../design/composer.md)
+for draft and attachment ownership.
 
 [Forms/PublicInteractionQuestionnaire.swift](Forms/PublicInteractionQuestionnaire.swift)
 projects public form metadata consistently for the Dock and Reader fallback.
@@ -889,8 +859,7 @@ UTF-16 text; changed text uses an insertion point at the end. Marked text is
 never snapshotted or replaced by this suspension path. Explicit selection
 requests retain priority, and restoration does not request focus. The Host
 retains a text-associated initial selection for full Dock editor remounts.
-This sprint uses source review and targeted Swift parsing only; mounted UI,
-IME and regression replays were not run.
+No mounted UI/IME correctness replay is configured in this source tree.
 
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
 [NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
@@ -1012,23 +981,9 @@ the same window and local width changes retain the current visual identity.
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display. Hiding, backgrounding or detaching cancels that owner and settles the latest title. Cancelling an active transition replaces only its stateless animated text leaf,
 so an in-flight fade-in is retired even when its model phase is already settled;
-the transition owner and card keep their identity. Disabling cloud effects does not freeze text content. The title cancellation method runs once in the mandatory
-`reading-presentation/run.py --tag-glass-captures` native AppKit entry point;
-the CI manifest assigns it there instead of ordinary Swift execution. It arms
-the existing continuous WindowServer capture before a blank NBSP title changes
-to visible text. Only a current partial incoming frame admits cancellation;
-the first replacement frame and every later complete frame must match the
-settled reference from that same stream. AX delivery and `cacheDisplay` are not
-used to identify the moving frame. After the stream stops, PNGs and
-frame/cancellation timestamps go to the launcher's
-`MOKUSEI_READING_MOTION_ARTIFACTS/overview-text-motion` directory. The native
-launcher exports it under
-`.scratch/reading-presentation/NativeOverviewTagGlassTests/overview-text-motion`
-for the hosted capture artifact; staged source paths do not determine that root. Application-owned animations use their ordinary motion path regardless of the
-system Reduce Motion preference. The app does not read, observe, propagate or
-adapt to that preference. Native framework defaults and arbitrary external
-Report HTML/CSS remain owned by those renderers; the host does not rewrite them. The [removal audit](../../../../../design/remove-reduce-motion.md) records scope
-and verification.
+the transition owner and card keep their identity. Disabling cloud effects does not freeze text content. Application-owned animations use ordinary motion without reading, observing
+or propagating system Reduce Motion. Native framework defaults and external
+Report HTML/CSS remain renderer-owned. See the [motion contract](../../../../../design/motion.md).
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity.
 
@@ -1076,7 +1031,7 @@ resolved colors, line width and size retain the original geometry. Background
 scenes, hidden/occluded windows and detachment stop rotation.
 Resume rejoins the existing wall-clock phase. The decoration owns no input or
 accessibility, and its native layer changes never publish a SwiftUI frame value.
-See the [implementation and validation record](../../../../../design/animation-main-thread.md)
+See the [implementation and validation record](../../../../../design/motion.md)
 for main-thread admission boundaries and remaining performance limits.
 
 [NativeCardScan](Design/NativeCardScan.swift) moves the existing gradient through
@@ -1085,15 +1040,11 @@ resuming aligns to the current wall-clock phase. It needs no application
 per-frame callback. The existing scene and visibility gates stay
 in the card, while native views exclude themselves from input and accessibility.
 
-Pre-rendered atlas playback was removed after reported stutter. The production
-path again uses the live field; there are no baked loop resources or playback
-rate-selection branches. The existing body reveal, runtime-clock and scan animations remain unchanged.
-
-The mounted decoration replay requires the real Metal layer, fresh GPU work and
-independent WindowServer cloud/scan movement, including during a main-thread hold.
-It also checks retained native identities through a camera change. These are
-rendering-progress controls, not style-equivalence goldens or physical FPS
-measurements. Historical pre-rendered CPU results do not describe this version.
+The production path uses the live Metal field. There are no baked loop
+resources or playback rate-selection branches. No decoration/main-thread-hold
+correctness replay is configured in this source tree. CPU, producer callbacks
+and GPU submissions alone do not establish independent WindowServer motion
+or physical frame pacing.
 
 Fonts, icon licenses and attribution live under [Resources](Resources/). Metal assets are compiled through the package's build plugin.
 
@@ -1181,9 +1132,7 @@ scope independent of the Harness. `nativeSettingsRowVerticalPadding` allows its
 Provider labels and the disclosure title use the existing Chinese/English
 localization catalogs and update with the interface locale; native provider IDs
 remain exact. OpenCode has no Agent selector or description and uses build for
-capability checks and writes. `HarnessAdvancedSettingsReplayTests` mounts all
-four production editors in defaults and execution-snapshot modes and verifies
-collapse, retained values, permission writes and live locale changes.
+capability checks and writes. No Harness editor correctness replay is configured here.
 
 [NativeModelSelector](Forms/NativeModelSelector.swift) uses the shared system
 `NSPopUpButton` for models and reasoning in Settings (`nativeSettingsFormPage`)
@@ -1192,8 +1141,8 @@ reset values remain explicit menu options; no slider or nested model menu is
 mounted in those forms. AppKit owns menu rendering, focus, keyboard navigation,
 cancellation and accessibility. The shared adapter preserves opaque option IDs,
 disabled rows, row-label activation and discrete-change interaction registration.
-`NativeSettingsControlsReplayTests` mounts the production standard/model/reasoning
-selects in both environments and checks real AppKit actions and bindings.
+The native controls expose their actual actions/bindings to semantic interaction;
+no select-control correctness replay is configured here.
 
 Embedded Thread editors retain the capsule and popover for Harness model choices.
 The model list scrolls, marks the current choice, preserves disabled rows and supports arrows, Home/End, Page Up/Down,
@@ -1217,11 +1166,9 @@ leaving the page, even when AppKit
 addresses the key event to the anchor window.
 
 Current Settings pages and compact configuration use `NativeSettingsSelect`.
-The direct embedded-popover/slider fixtures were removed because they exercised
-the former selector presentation rather than those production entry points.
-Settings control, Harness-form and full-page Settings replays retain coverage of
-current selection values, admission and persistence. The embedded component's
-code is not changed by this test cleanup.
+The direct embedded-popover/slider components are separate from the current
+Settings page/compact selectors. No Settings-control, Harness-form or full-page
+Settings correctness replay is configured in this source tree.
 
 ## Compact configuration presentation
 
@@ -1288,7 +1235,7 @@ is added. Readers derive their available width/height from the inset viewport.
 history/unavailable pages and execution presentations. The inset selection uses
 explicit `contentTopInset` (12pt for Agent detail and execution), otherwise
 94pt under reading navigation, or 24/28/44pt for widths >=1024 / <=540 / between.
-Despite its name, the explicit top override now applies to both document edges.
+Despite its name, the explicit top override applies to both document edges.
 The streaming Markdown page capacity subtracts this inset twice from the current
 viewport height; resize, sidebar changes and content growth use the same layout
 proposal rather than a cached height.
@@ -1305,10 +1252,7 @@ layout and receive the same outer document inset.
 The main Agent panel has fixed viewport chrome of 22pt above and below, with
 no additional page-stack inset around its main conversation. Together with the
 12pt document inset, this gives 34pt from either outer panel edge to the
-corresponding document boundary at its scroll limit. The previous 48/22pt shell
-left 26pt of extra space above the viewport even after `9b835d0` made document
-padding symmetric. Title/emoji and author spacing belong inside the document;
-they are not the source of this fixed viewport imbalance. Close stays at its
+corresponding document boundary at its scroll limit. Title/emoji and author spacing belong inside the document. Close stays at its
 14pt panel inset, separate from the document's reserved leading rail throughout
 scrolling, history navigation, resizing and Sidecard layout changes.
 Short documents remain top aligned;
@@ -1329,11 +1273,7 @@ balanced viewport argument with an 8pt top inset; its related-execution reader
 retains its own page-stack spacing.
 Moku viewport defaults are unchanged.
 
-Sprint verification for this viewport adjustment is source/layout review,
-application product build, lint and documentation/diff checks. The supplied
-screenshot was inspected; the changed layout has not been viewed in a running
-application, so rendered geometry and interaction/animation behavior are not
-claimed as observed acceptance.
+No mounted viewport correctness replay is configured in this source tree.
 
 The later live Sidecard alignment was reviewed against the source geometry and
 checked with Swift parsing and lint; its rendered scroll limits and interactions
@@ -1355,8 +1295,7 @@ clip and inset contain the viewport at its rounded edges without adding a mask
 over the document or its scrollbar. This reduces the dark shell padding shown
 in the supplied screenshot without rewriting its report.
 
-Sprint verification for this Report adjustment is limited to Swift parsing,
-source/layout review and documentation/diff checks.
+No mounted Report-return correctness replay is configured in this source tree.
 
 Hosts interrupting motion for recovery can request `cancelAll(finishingClose: true)`
 to complete an accepted return for its current visit. Default cancellation still
@@ -1383,7 +1322,7 @@ successfully admitted immutable state by complete opaque input, with a bounded
 actor cache; new input cannot select an older revision. Read-only Markdown
 TextKit views disable Writing Tools while retaining native selection, copy and
 links. No reader/view or scroll state is cached. See the
-[loading investigation](../../../../../design/thread-loading-performance-cache.md)
+[loading contract](../../../../../design/reading.md)
 for paired observations, variability and manual coverage limits.
 
 ### Agent Thread admission and motion
@@ -1413,7 +1352,7 @@ not an independent duration timer, admit the title handoff. Loaded content only 
 post-opening title animation or data-loading timeout. The bridge never retains
 card/reader/plugin instances; replacement and close retire its layers. Direct result
 navigation and entries without a visible source card retain their ordinary entry.
-See the [recording analysis and sprint verification limits](../../../../../design/emoji-title-transition-handoff.md).
+See the [reading admission contract](../../../../../design/reading.md).
 
 Agent closing keeps the 420ms native panel return. The complete reader fades
 over the first 80%; scaling and shell travel reach the source card at 86%.
@@ -1456,7 +1395,7 @@ These are process observations, not display-frame timestamps.
 width with unconstrained height. It retains at most four width proposals in
 SwiftUI's layout cache, clearing them when the layout/subviews change; measurement
 and placement share those results. List markers, quote rules and footnote numbers
-use a fixed leading slot, so horizontal flexibility negotiation no longer probes
+use a fixed leading slot, so horizontal flexibility negotiation does not probe
 their paragraph at one-point width. SwiftUI owns right-to-left mirroring.
 
 Completed replies in a reading viewport mount top-level blocks near the visible
@@ -1466,9 +1405,8 @@ all native anchors mounted; exposure-tracked notes and streaming pages retain
 their exact geometry and existing admission policy. No cross-document height
 cache or cross-block selection registry remains.
 
-The native Markdown replay includes actual text growth/shrink, reaching both
-ends of a deferred document after window resize, both writing directions,
-block-local selection/copy, table geometry and footnote return. Image failure hints use the native text view's tooltip and
+No native Markdown growth/resize/selection/table/footnote correctness replay is
+configured in this source tree. Image failure hints use the native text view's tooltip and
 accessibility help; ordinary text adds no SwiftUI help responder.
 
 Markdown publishes the complete parsed document and acknowledges its token in
@@ -1486,7 +1424,7 @@ descendants to infer another viewport size. Unspecified/unbounded proposals stil
 use the default fitting path. The panel's manually framed `NSHostingView` disables
 content-derived sizing constraints, matching the retained handoff seats.
 Content layout, selection, scroll position and compositor travel remain owned by
-their existing implementations. See the [8 KiB reader investigation](../../../../../design/reader-8k-performance.md).
+their existing implementations. See the [reader layout contract](../../../../../design/reading.md).
 
 Report uses `NativeReadingAuxiliaryBackKey` to offer an opened referenced
 execution's Back action to the outer reading workspace. Its default reference
@@ -1508,15 +1446,15 @@ its existing per-frame return-pose memo for closing during a fold. All use
 `NativeSidecardTiming.foldAnimation`:
 380ms, cubic Bézier `(0.22, 1, 0.36, 1)`. The shared duration also supplies the
 Agent native-content interaction gate.
-See the [layout-placement follow-up](../../../../../design/sidecard-fold-performance.md#layout-placement-follow-up-2026-11-17)
-for the recording, measured layout-call comparison and frame-rate limitations.
-Report's linked Browser keeps its historical close fade through `fadesOnClose`;
+See the [layout-placement follow-up](../../../../../design/reading.md)
+for the implemented layout/admission boundaries.
+Report's linked Browser uses a close fade through `fadesOnClose`;
 this changes only return presentation, not opening geometry or timing. Its shell
 is retained before the first URL, so first opening and reopening use the same
 host selection transaction as the other sidecards and the main pane. There is
 no Browser-specific opening state, layout-stage callback or completion reset.
 
-The production opening-path audit against local main `b20c011` covers:
+The production opening paths share these owners:
 
 | Sidecard | Entry paths | Opening owner |
 | --- | --- | --- |
@@ -1581,15 +1519,15 @@ The shared heading truncates long text to two lines and exposes its full text on
 hover. Only the still-current composer/selection visit may install this title;
 other active readers keep their existing heading policy. Completion restores the
 ordinary execution title and Thread emoji; no catalog or historical title is
-written. Leaving the Report retires these visit-local send titles. See the [Report admission contract](../../../../../design/report-sidecard-admission.md)
-for lifecycle details and Sprint validation limits.
+written. Leaving the Report retires these visit-local send titles. See the [Report admission contract](../../../../../design/reading.md)
+for lifecycle details.
 
 The outer reading stack can accept a `panelFrontIdentity` for a route-retaining
 Host container. Its default remains the document identity. Report continuation
 uses a stable native slide container inside that single outer stack; the Host
 still keys each production document by route. Retiring a Report therefore cannot
 tear down or replace the new route's outer motion/Close owner. See the
-[continuation slide notes](../../../../../design/execution-route-slide.md).
+[continuation slide notes](../../../../../design/reading.md).
 
 Report Close supplies `NativeReportPanelReturn` during parent preparation and
 return only. `NativeReportSidecardPresentation.updateLayout` cancels pending
@@ -1613,9 +1551,8 @@ curve `(0.3, 0, 0.2, 1)`. Native completion remains generation-fenced. Cancellin
 return removes
 carrier animations and restores its untransformed reader; route unmount retires
 the hosting content. There is one live reader per surface, without a bitmap copy.
-The old native carrier return diagnostic remains absent for this independent
-surface path. See [Report Close](../../../../../design/report-sidecard-close.md)
-for observed failures, native-host repair and actual window capture evidence.
+No native carrier-return correctness replay is configured for this surface path. See [Report Close](../../../../../design/reading.md)
+for the native-host return and ownership contract.
 
 `NativeRelatedExecutionEntrance` owns Report referenced-reader admission. It
 reuses `NativeReadingContentPreparation` to wait for real row content and native

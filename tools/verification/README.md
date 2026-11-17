@@ -1,15 +1,18 @@
-# Performance and native build tools
+# Performance and native packaging tools
 
-Automated correctness replays, test suites, test-only fixture producers and their
-stored evidence have been removed. This directory retains independent diagnostic
-measurements and shared native packaging used by interactive demos:
+This tree contains independent measurements and packaging for interactive demos:
 
-- [Runtime performance](runtime-performance/README.md), with its shared list seed.
-- [Overview Release comparison](overview-ci-performance/README.md), manually dispatched.
-- [Overview performance](overview-performance/README.md) and [historical glass analysis](overview-glass/README.md).
-- [Note performance](moku-note-performance/README.md).
-- `native_replay.py` and `NativeReplayIsolation.swift`: compile, package and isolate
-  production-linked demos and performance tools. They do not reuse test objects.
+- [Runtime CPU/allocation probes](runtime-performance/README.md).
+- [Foreground Release comparison](overview-ci-performance/README.md), manually dispatched.
+- [Overview internal CPU probe](overview-performance/README.md).
+- [Glass evidence analyzer and geometry probe](overview-glass/README.md).
+- [Note native preparation probe](moku-note-performance/README.md).
+- `native_replay.py` and `NativeReplayIsolation.swift`: production-object compile,
+  packaging, signing and isolated presentation helpers. They do not link test objects.
 
-These tools do not provide automated test coverage. Build/static validation is
-specified in the [CI guide](../../scripts/ci/README.md).
+No correctness assertion replay, test-only fixture producer or test coverage
+report is configured in this source tree. Measurements retain explicit
+source and artifact identity and do not certify another revision. Behavioral
+ownership is PBT for Moku runtime, e2e for interaction and benchmarks for user
+experience; see the [policy](../../scripts/ci/verification-policy.md) and
+[fact index](../../docs/facts.md). Current CI supplies build/static validation.

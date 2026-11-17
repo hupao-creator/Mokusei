@@ -5,10 +5,22 @@ registration, the external Harness JS allowlist, `go vet ./...`, `go build ./...
 and the macOS Swift production build. `make lint` runs only the static checks;
 `make typecheck` runs the Go and Swift builds.
 
-The repository contains no first-party automated test suites or test targets.
-The former unit/property/native integration tests, assertion replays, fixture
-producers and test reporting commands have been removed. Do not add tests unless
-explicitly requested. Build success does not establish runtime behavior.
+In this source tree, no first-party test suites, native test targets,
+assertion replays or test-only fixture producers are configured. No PBT/e2e
+regression gate is configured. Ordinary unit tests are not a project boundary;
+do not add or restore them. Build success does not establish runtime behavior.
+
+Follow the [document-driven workflow](../AGENTS.md#文档驱动): read the owning guide,
+check its facts against implementation, document implemented behavior and
+constraints, then derive PBT properties, e2e scenarios or benchmark metrics and
+criteria from those facts. Link the guide and actual evidence in the
+[fact/verification index](../docs/facts.md). Keep gaps and blocked/skipped results
+explicit. The index is not a second specification or a claim of test coverage.
+e2e owns interactions, PBT owns Moku runtime, and benchmarks own user experience.
+Extra PBT coverage needs a concrete reason and does not replace that ownership.
+Independent adversarial review checks documentation, implementation and evidence
+at a fixed commit, with findings resolved and rechecked. The coordinator arranges
+GLM-5.3 reviews for final checkpoints and combined revisions without adding a user approval step.
 
 Install the repository-local hook with `make install-hooks`; it runs `make lint`
 without modifying files. Review the staged diff when partially staging.

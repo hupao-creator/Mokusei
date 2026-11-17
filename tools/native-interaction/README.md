@@ -2,7 +2,9 @@
 
 Launch a built application with an explicit profile and a socket inside an
 existing private directory. Use a separate profile for scripted interaction. Normal
-launches expose no automation endpoint.
+launches expose no automation endpoint. A fresh profile first presents onboarding;
+`settings.open` is admitted only after setup completes and a loaded Overview
+advertises that action. Launch success alone does not establish readiness.
 
 ```sh
 automation_root="$(mktemp -d /private/tmp/oa-interaction.XXXXXX)"
@@ -91,17 +93,17 @@ from client import Client
 client = Client("/private/tmp/my-run/ui.sock")
 client.request({"name": "settings.open"})
 client.request({"name": "settings.select", "section": "moku"})
-state = client.settle(lambda s: any(c["id"] == "moku.routingEnabled"
+state = client.settle(lambda s: any(c["id"].endswith("routingPreset.custom")
     and not c["pending"] for c in s["settings"]["controls"]))
-toggle = next(c for c in state["settings"]["controls"]
-    if c["id"] == "moku.routingEnabled")
-response = client.request({"name": "settings.control", "controlId": toggle["id"],
-    "handle": toggle["handle"], "operation": "set", "value": True})
+choice = next(c for c in state["settings"]["controls"]
+    if c["id"].endswith("routingPreset.custom"))
+response = client.request({"name": "settings.control", "controlId": choice["id"],
+    "handle": choice["handle"], "operation": "activate", "value": None})
 assert response["ok"], response["error"]
-state = client.settle(lambda s: any(c["id"] == "moku.routingGuidance"
+state = client.settle(lambda s: any(c["id"].endswith("routingGuidance")
     and not c["pending"] for c in s["settings"]["controls"]))
 control = next(c for c in state["settings"]["controls"]
-    if c["id"] == "moku.routingGuidance")
+    if c["id"].endswith("routingGuidance"))
 response = client.request({"name": "settings.control", "controlId": control["id"],
     "handle": control["handle"], "operation": "set", "value": "Prefer small tasks 🚀"})
 assert response["ok"], response["error"]
@@ -153,8 +155,11 @@ Settings uses a horizontal header. Report/Tag modes are exposed through
 `<section>.off`, `<section>.inherit` and `<section>.independent` activation
 actions. Independent Harness seats use `<section>.harness.<id>`; inherited mode
 shows read-only execution fields, while off hides execution fields.
-Moku's model selection preferences switch (`moku.routingEnabled`) is
-directly visible; enabling it reveals the `moku.routingGuidance` editor.
+Moku exposes Economy, Balanced, Performance and Custom actions with
+`routingPreset.<id>` field suffixes. The current mounted scope prefixes their
+full IDs; use observed `id`/`handle`, not a fabricated prefix. Custom reveals
+the `routingGuidance` editor. Selecting another preset retains the custom text.
+There is no `moku.routingEnabled` switch.
 
 ## External benchmark scenario entry
 
