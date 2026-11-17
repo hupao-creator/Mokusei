@@ -21,6 +21,11 @@ retention across redraw and one bounded replay per explicit replay generation.
 The two appearance/loading regressions verify completed-revision retention across
 theme changes, first playback for new revisions and replay admission during loading.
 Each requires its own native owner and completion marker.
+Grid reentry checks document visibility because lazy rows may retain hidden
+WebViews. Revision replacement keeps the panel's completion history mounted.
+The launcher selects the exact graphical suite (excluding the separate
+windowless initial-pose test) and allows 120 seconds for its serial fixed holds,
+carousel dwells and delayed failure; individual playback assertions are unchanged.
 Logs and PNGs are retained under
 `.scratch/reading-presentation/NativeReportCoverTests`. Ordinary SwiftPM marks
 the WebKit page hidden and cannot advance its CSS timeline; the ownership

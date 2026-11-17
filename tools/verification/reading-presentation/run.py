@@ -249,9 +249,17 @@ def main():
             selected = "NativeReadingPageHeadlessTests|NativeReadingRouteLifecycleTests"
         if composer_refocus:
             selected = "completedSendAllowsClickingAndTypingIntoTheResidentComposer"
+        if "--report-covers" in sys.argv:
+            # A bare suite name also matches the source-location suffix of
+            # CoverInitialPoseTests, which lives in NativeReportCoverTests.swift.
+            selected = r"(?:^|\.)NativeReportCoverTests/"
         if native_methods is not None:
             selected = r"(?:^|\.)(?:" + "|".join(re.escape(name) for name in native_methods) + r")(?:/|$)"
-        status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
+        # Seven cover cases include serial five-second holds, eleven-second
+        # carousel dwells and a thirteen-second failing preload. Their combined
+        # fixed waits no longer fit the former five-case 90-second budget.
+        status = replay.run(["--no-parallel", "--filter", selected],
+                            timeout=120 if "--report-covers" in sys.argv else 90,
                             launch_services=suite == "NativeSettingsTransitionTests" or "--rolling-numbers" in sys.argv,
                             env=environment,
                             launch_environment={key: environment[key] for key in (

@@ -270,11 +270,32 @@ struct NativeReportCoverTests {
         try await Task.sleep(for: .milliseconds(1000))
         #expect(try await x(darkWeb) >= 219.9, "Theme changes must retain the completed pose")
         model.panelVisible = false
-        try await wait { webViews(root).isEmpty }
-        model.panelRevision = "second"
+        // LazyVGrid may retain offscreen native views. Visibility, rather than
+        // physical removal from AppKit's tree, owns suspension and reentry.
+        try await wait {
+            for web in webViews(root) {
+                if try await read(web, "document.hidden") as? Bool != true { return false }
+            }
+            return true
+        }
         model.panelVisible = true
-        try await wait { webViews(root).contains { $0.alphaValue == 1 } }
-        let newWeb = try #require(webViews(root).first { $0.alphaValue == 1 })
+        var visibleWeb: WKWebView?
+        try await wait {
+            for web in webViews(root) where web.alphaValue == 1 {
+                if try await read(web, "document.hidden") as? Bool == false {
+                    visibleWeb = web
+                    return true
+                }
+            }
+            return false
+        }
+        let returnedWeb = try #require(visibleWeb)
+        #expect(try await x(returnedWeb) >= 219.9, "Reentry must retain the completed revision")
+        // Replace the revision while the panel and its completion history stay
+        // mounted, so a thread-only completion key cannot pass this assertion.
+        model.panelRevision = "second"
+        try await wait { webViews(root).contains { $0 !== returnedWeb && $0.alphaValue == 1 } }
+        let newWeb = try #require(webViews(root).first { $0 !== returnedWeb && $0.alphaValue == 1 })
         try await wait { let position = try await x(newWeb); return position > 25 && position < 200 }
         try await wait { try await x(newWeb) >= 219.9 }
         print("REPORT_COVER_REVISION_RETENTION_CONFIRMED")
