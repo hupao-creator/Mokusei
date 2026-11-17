@@ -34,8 +34,8 @@ final class NativeWorkspaceSettingsPrefetch {
         var next: [NativeHarnessSettingsConfiguration] = []
         for harness in harnesses {
             let id = harness.descriptor.id
-            next.append(.init(harnessID: id, cwd: cwd, source: settings["harnesses"]?[id.string] ?? .null))
-            guard harness.descriptor.threadCapabilities.canHostMoku else { continue }
+            let defaults = NativeHarnessSettingsConfiguration(harnessID: id, cwd: cwd, source: settings["harnesses"]?[id.string] ?? .null)
+            guard harness.descriptor.threadCapabilities.canHostMoku else { next.append(defaults); continue }
             let execution = settings["moku"]?["executionHarnesses"]?[id.string] ?? .null
             next.append(.init(harnessID: id, cwd: cwd, source: execution, scope: .global(executionOwner: .moku)))
             for definition in backgroundSettings {
@@ -47,6 +47,9 @@ final class NativeWorkspaceSettingsPrefetch {
                 next.append(.background(harnessID: id, cwd: cwd, settingID: definition.id,
                                         inherited: false, source: overrides.harnesses[id] ?? .null))
             }
+            // Prioritize execution admission without holding defaults behind
+            // execution retry backoff; all scopes share the bounded read queue.
+            next.append(defaults)
         }
         let sequences = model.detailRefreshSequences
         guard next != configurations || sequences != refreshSequences || authority != workspace.snapshotAuthority else { return }
@@ -57,40 +60,14 @@ final class NativeWorkspaceSettingsPrefetch {
         configurations = next; refreshSequences = sequences; authority = workspace.snapshotAuthority
         host.retainGlobalSettings(configurations: next)
         task = Task { [host] in
-            await Self.prefetch(next, host: host)
+            await host.prefetchSettings(configurations: next)
             // Model capabilities change independently of installation paths.
             // Revalidate at the native catalog TTL without clearing visible
             // editors or forcing unrelated Harness caches to expire.
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(300)) } catch { return }
-                await Self.prefetch(next, host: host, reload: true)
+                await host.prefetchSettings(configurations: next, reload: true)
             }
-        }
-    }
-
-    private static func prefetch(_ configurations: [NativeHarnessSettingsConfiguration], host: NativeHarnessHost,
-                                 reload: Bool = false) async {
-        guard !Task.isCancelled else { return }
-        let loads = Dictionary(grouping: configurations, by: \.harnessID).values.map { configurations in
-            Task { @MainActor [host] in
-                let execution = configurations.filter(\.isExecutionConfiguration)
-                let defaults = configurations.filter { !$0.isExecutionConfiguration }
-                // Each Harness advances independently. Ordinary defaults
-                // cannot queue ahead of the profiles onboarding will mount.
-                guard !Task.isCancelled else { return }
-                await host.prefetchSettings(configurations: execution, reload: reload)
-                // Leave the queue free for execution recovery after failure;
-                // an explicitly opened defaults editor can still demand a read.
-                guard !Task.isCancelled, execution.allSatisfy({
-                    host.cachedSettingsSurface(configuration: $0)?.loadState == .ready
-                }) else { return }
-                await host.prefetchSettings(configurations: defaults, reload: reload)
-            }
-        }
-        await withTaskCancellationHandler {
-            for load in loads { await load.value }
-        } onCancel: {
-            for load in loads { load.cancel() }
         }
     }
 

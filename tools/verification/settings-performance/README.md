@@ -188,7 +188,8 @@ Claude. Eight subsequent complete 16-request refresh bursts between 11:02 and
 11:38 had a 7.78s whole-burst median (7.12–11.50s), dominated by OpenCode.
 These are historical client response timings, including queueing, not semantic
 readiness or certified cold-start measurements. The running binary's revision
-is unavailable in those records. No real CLI/network benchmark was rerun.
+is unavailable in those records. The controlled real-CLI follow-up below uses a
+separate, equal readiness predicate; these historical logs are not its baseline.
 
 The macOS prefetch previously requested a defaults, Moku, Report and Tag surface
 for every enabled Harness even when both roles inherited Moku. The inherited
@@ -204,10 +205,10 @@ above must not be described as halved by this change.
 Installation now precedes each Harness's configuration prefetch. Missing or
 failed installations no longer start three rounds of speculative presentation
 reads, and a fast installation reply starts its own configuration without
-waiting for a slower Harness. Execution resources now precede ordinary Thread
-defaults independently within each Harness. Failed execution preparation leaves
-the queue available for recovery; explicitly opened default editors can still
-demand their own reads. Onboarding's next pages mount only Moku and independent role
+waiting for a slower Harness. Execution scopes are queued before ordinary Thread
+defaults within each Harness in one bounded batch. There is no phase barrier
+that holds all defaults behind execution retries; each resource retries and
+exposes failures independently. Onboarding's next pages mount only Moku and independent role
 execution editors, so those exact resources determine readiness and retry;
 ordinary Thread defaults continue warming for Settings without holding discovery
 open. A Harness without execution-host capability still requires its ordinary
@@ -235,8 +236,11 @@ macOS desktop path (Windows/WSL, mobile and cloud paths were not adopted):
 
 The existing Settings prefetch replay's request-count and handle-identity
 expectations now require inherited-role sharing; no test case was added. The
-scope-count reduction is a structural result, not a measured real-account
-wall-clock speedup. Headless checks do not certify the graphical Settings replay.
+stable scope-count reduction is structural. Actual startup request counts and
+wall-clock results, including regressions, are recorded in the
+[real-CLI A/C report](onboarding-startup-20261117.md) and its
+[per-sample JSON](onboarding-startup-20261117.json). Headless checks do not
+certify the graphical Settings replay.
 
 Follow-up validation: the Swift package and existing test bundle compiled;
 `MOKUSEI_TEST_HEADLESS=1 swift test --filter NativeSettingsDiscoveryTests`
@@ -245,5 +249,7 @@ passed its existing independent-reply/retirement case. The existing
 responsive-command, active/queued cancellation and teardown checks (20 slow
 reads, maximum four globally and one per Harness). No test case was added.
 The graphical prefetch replay was compiled but not run, and no running App was
-restarted. A Swift region-isolation compiler failure in the task-group form was
-resolved by using the project's existing cancellable-task ownership pattern.
+restarted. Actual A/B measurement exposed extra whole-prefetch latency in the
+initial phased scheduler (`c030a4b4`). The correction removes that barrier and
+retains execution-first queueing. The report distinguishes A/B diagnostic trials
+from the final A/C comparison; it does not claim every startup metric improves.

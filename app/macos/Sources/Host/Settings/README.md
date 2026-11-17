@@ -206,9 +206,10 @@ one per Harness). Inherited roles use Moku's exact saved resource, including
 while an independent-mode draft is waiting to save its source change. They do
 not introduce separate application presentation reads or retry loops. Independent
 roles still own distinct resources/workspaces even when their profile JSON is
-equal. Execution resources acquire first within each Harness, followed by
-ordinary Thread defaults; each Harness advances independently. Onboarding joins
-only the execution resources it actually mounts (or the ordinary resource for a
+equal. Each Harness queues execution resources before ordinary Thread defaults
+in the same bounded batch. Defaults do not wait for every execution scope to
+finish its retries; each scope keeps its own bounded retry lifetime. Onboarding
+joins only the execution resources it actually mounts (or the ordinary resource for a
 Harness without execution-host capability). Defaults remain prefetched for Settings
 and explicitly opened editors can still demand their resources immediately.
 Slow native discovery does not occupy every Runtime command

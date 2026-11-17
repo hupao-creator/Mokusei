@@ -25,9 +25,10 @@ readiness joins the workspace's retained Moku execution and enabled independent
 background-role resources for that Harness. Inherited roles join
 Moku's exact resource, so readiness does not wait for unused application scopes.
 Configuration prefetch begins after that Harness is confirmed installed, leaving
-the shared queue available for other installation replies. Each Harness prepares
-its execution resources before ordinary Thread defaults. Those defaults are not
-read by any subsequent onboarding page and do not gate discovery or its retry;
+the shared queue available for other installation replies. Each Harness queues
+its execution resources ahead of ordinary Thread defaults in the same batch,
+without a phase barrier that holds defaults behind execution retries. Defaults
+are not read by any subsequent onboarding page and do not gate discovery or its retry;
 they continue warming separately for Settings. Harnesses without execution-host
 capability still require their ordinary resource. This includes each plugin's decoded
 model catalog, capabilities/options and nonempty saved execution snapshots.
