@@ -28,14 +28,21 @@ import SwiftUI
             .overlay(alignment: .topTrailing) {
                 if showsArchiveAction {
                     Button { Task { await archive() } } label: {
-                        NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 13)
-                            .frame(width: 32, height: 32).contentShape(Circle())
+                        Group {
+                            if archivePending {
+                                ProgressView().controlSize(.small).accessibilityHidden(true)
+                            } else {
+                                NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 13)
+                            }
+                        }.frame(width: 32, height: 32).contentShape(Circle())
                     }.buttonStyle(.plain)
                         .foregroundStyle(NativePalette.overview.ink.swiftUI)
                         .background(NativePalette.overview.surface.swiftUI, in: Circle())
                         .disabled(archivePending || !allowsActions())
-                        .accessibilityLabel(archiveLabel + " · " + props.entry.title.string)
-                        .help(applicationText(locale, "隐藏此 Super Thread 及其关联的 Threads；运行中的任务继续执行。",
+                        .accessibilityLabel((archivePending ? applicationText(locale, "处理中…", "Working…") : archiveLabel)
+                            + " · " + props.entry.title.string)
+                        .help(archivePending ? applicationText(locale, "处理中…", "Working…")
+                            : applicationText(locale, "隐藏此 Super Thread 及其关联的 Threads；运行中的任务继续执行。",
                                               "Hide this Super Thread and its related threads; running tasks continue."))
                         .padding(12)
                 }

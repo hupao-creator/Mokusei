@@ -618,6 +618,8 @@ independent capabilities; native text editing keeps its own find behavior.
 Collection member cards expose an icon-only Archive Super Thread button over the
 upper-right cover corner (or the equivalent corner without a cover), alongside
 their existing context menu. The button retains its accessible label and help.
+Pending archive work replaces the icon with a spinner in the same 32pt target;
+its accessible label and help announce that work is in progress.
 Both invoke the same atomic
 application archive command: hide the report and its persisted associated ordinary
 Threads. UI membership and counts follow the authoritative catalog, not optimistic
