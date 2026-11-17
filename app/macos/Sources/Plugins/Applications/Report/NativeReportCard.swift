@@ -12,6 +12,7 @@ import SwiftUI
     var coverPlayback: NativeReportCoverPlayback = .playing
     var coverReplayID = 0
     var coverInitiallyFinished = false
+    var onCoverPlaybackCompleted: (ApplicationThreadRef, JSONText, Int) -> Void = { _, _, _ in }
     var usesGlassBadge = false
     var showsArchiveAction = false
     var allowsActions: () -> Bool = { true }
@@ -61,7 +62,7 @@ import SwiftUI
                 VStack(spacing: 4) {
                     if showsCover && props.entry.view.hasCover {
                         NativeReportCover(props: props, playback: coverPlayback, replayID: coverReplayID,
-                                          initiallyFinished: coverInitiallyFinished)
+                                          initiallyFinished: coverInitiallyFinished, onPlaybackCompleted: onCoverPlaybackCompleted)
                             .frame(height: NativeReportCoverLayout.height(for: geometry.size.width))
                             .allowsHitTesting(false).accessibilityHidden(true)
                     }

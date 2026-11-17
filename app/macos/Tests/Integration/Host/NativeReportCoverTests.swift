@@ -14,21 +14,25 @@ import MokuseiPluginUI
 @MainActor @Observable private final class CoverReplay {
     var playback = NativeReportCoverPlayback.reset
     var replayID = 0
+    var initiallyFinished = false
     var redraw = false
     var reduced = false
     var active = true
     var dark = false
     var identity = UUID()
     var ready = 0
+    var panelRevision = "first"
+    var panelVisible = true
     var selections: [ApplicationThreadRef] = []
     let visibility = ThreadCardAnimationVisibility()
     let cache = NativeReportCoverCache()
 
-    static func props(_ id: String, duration: Double = 2, delay: Double = 0,
+    static func props(_ id: String, revision: String? = nil, duration: Double = 2, delay: Double = 0,
                       loadDelay: Duration = .zero, infinite: Bool = false, fails: Bool = false) throws -> ApplicationThreadProps<NativeReportView> {
+        let revision = revision ?? id
         let ref = ApplicationThreadRef(threadID: JSONText(id), typeID: "report.document")
         let view = try NativeReportView(json: .object([
-            "coverRevision": .text(id), "contentRevision": .text(id), "emoji": .text("📖"),
+            "coverRevision": .text(revision), "contentRevision": .text(revision), "emoji": .text("📖"),
             "shortDescription": .text("Animated cover fixture"), "previewText": .text("Animated cover fixture"),
             "relatedExecutions": .array([])
         ]))
@@ -56,7 +60,7 @@ import MokuseiPluginUI
                     guard operation == "report.cover" else { throw PluginContractError("Unexpected cover operation") }
                     try await Task.sleep(for: loadDelay)
                     if fails { throw PluginContractError("Cover fixture query failed") }
-                    return .object(["html": .text(html), "contentRevision": .text(id)])
+                    return .object(["html": .text(html), "contentRevision": .text(revision)])
                 }), capabilities: capabilities, openThread: { _, _ in }, openExecution: { _ in }))
     }
 }
@@ -68,7 +72,7 @@ private struct CoverReplayView: View {
         Group {
             if props.count == 1 {
                 NativeReportCover(props: props[0], playback: model.reduced ? .reduced : model.playback, replayID: model.replayID,
-                    onReady: { model.ready += 1 })
+                    initiallyFinished: model.initiallyFinished, onReady: { model.ready += 1 })
             } else {
                 NativeReportCollection(props: props, active: model.active,
                     onSelection: { model.selections.append($0) }, openThread: { _ in })
@@ -80,6 +84,31 @@ private struct CoverReplayView: View {
         .environment(\.threadCardAnimationVisibility, model.visibility)
         .environment(\.threadCardCloudAnimationsEnabled, model.active)
         .environment(\.colorScheme, model.dark ? .dark : .light)
+    }
+}
+
+private struct CoverGridReplayView: View {
+    let model: CoverReplay
+    let first: ApplicationThreadProps<NativeReportView>
+    let second: ApplicationThreadProps<NativeReportView>
+    var body: some View {
+        NativeReportCollectionMembers(props: model.panelVisible ? [model.panelRevision == "first" ? first : second] : [],
+            locale: "en", close: {}, allowsActions: { _ in true }, openThread: { _ in })
+            .environment(\.nativeReportCoverCache, model.cache)
+            .environment(\.colorScheme, model.dark ? .dark : .light)
+    }
+}
+
+@MainActor @Suite struct CoverInitialPoseTests {
+    @Test func newerReplaySurvivesStaleInitializationCallback() {
+        let coordinator = ReportCoverHTML.Coordinator()
+        coordinator.updateReplay(0, initiallyFinished: true)
+        let oldGeneration = coordinator.replayID
+        coordinator.updateReplay(1, initiallyFinished: false)
+        coordinator.admitInitialPose(.reduced, replayID: oldGeneration)
+        #expect(coordinator.ready)
+        #expect(coordinator.appliedPlayback == nil)
+        #expect(!coordinator.completedOnce)
     }
 }
 
@@ -221,6 +250,50 @@ struct NativeReportCoverTests {
         model.replayID += 1
         try await wait { try await x(web) < 180 }
         print("REPORT_COVER_SINGLE_PLAY_CONFIRMED")
+    }
+
+    @Test func gridRetainsCompletedRevisionAcrossThemeAndPlaysNewRevision() async throws {
+        let model = CoverReplay()
+        let first = try CoverReplay.props("grid", revision: "first", duration: 0.8)
+        let second = try CoverReplay.props("grid", revision: "second", duration: 0.8)
+        let window = SwiftUIReplay.window(CoverGridReplayView(model: model, first: first, second: second), width: 500, height: 700)
+        defer { window.contentView = nil; window.close() }
+        let root = try #require(window.contentView)
+        try await wait { webViews(root).contains { $0.alphaValue == 1 } }
+        let firstWeb = try #require(webViews(root).first { $0.alphaValue == 1 })
+        try await wait { try await x(firstWeb) >= 219.9 }
+        try await Task.sleep(for: .milliseconds(250))
+        model.dark = true
+        try await wait { webViews(root).contains { $0 !== firstWeb && $0.alphaValue == 1 } }
+        let darkWeb = try #require(webViews(root).first { $0 !== firstWeb && $0.alphaValue == 1 })
+        #expect(try await x(darkWeb) >= 219.9)
+        try await Task.sleep(for: .milliseconds(1000))
+        #expect(try await x(darkWeb) >= 219.9, "Theme changes must retain the completed pose")
+        model.panelVisible = false
+        try await wait { webViews(root).isEmpty }
+        model.panelRevision = "second"
+        model.panelVisible = true
+        try await wait { webViews(root).contains { $0.alphaValue == 1 } }
+        let newWeb = try #require(webViews(root).first { $0.alphaValue == 1 })
+        try await wait { let position = try await x(newWeb); return position > 25 && position < 200 }
+        try await wait { try await x(newWeb) >= 219.9 }
+    }
+
+    @Test func replayRequestedDuringCoverLoadIsAdmitted() async throws {
+        let model = CoverReplay(), props = try CoverReplay.props("loading", duration: 1, loadDelay: .seconds(1))
+        model.playback = .playingOnce
+        model.initiallyFinished = true
+        let window = SwiftUIReplay.window(CoverReplayView(model: model, props: [props]), width: 360, height: 308)
+        defer { window.contentView = nil; window.close() }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(model.ready == 0)
+        model.replayID += 1
+        model.initiallyFinished = false
+        try await wait { model.ready == 1 }
+        let root = try #require(window.contentView)
+        let web = try #require(webViews(root).first)
+        try await wait { let position = try await x(web); return position > 25 && position < 200 }
+        try await wait { try await x(web) >= 219.9 }
     }
 
     @Test func oversizedInfiniteAuthorMotionStillCompletesWithinSixSeconds() async throws {

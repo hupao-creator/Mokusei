@@ -10,7 +10,8 @@ struct NativeReportCollectionMembers: View {
     let close: () -> Void
     let allowsActions: (ApplicationThreadRef) -> Bool
     let openThread: (ApplicationThreadRef) -> Void
-    @State private var visited: Set<ApplicationThreadRef> = []
+    @State private var replayIDs: [CoverIdentity: Int] = [:]
+    @State private var completed: [CoverIdentity: Int] = [:]
 
     var body: some View {
         GeometryReader { geometry in
@@ -34,9 +35,14 @@ struct NativeReportCollectionMembers: View {
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: 20, alignment: .top), count: columns),
                               alignment: .center, spacing: 20) {
                         ForEach(props, id: \.entry.ref) { member in
+                            let identity = CoverIdentity(reference: member.entry.ref, revision: member.entry.view.coverRevision)
+                            let replayID = replayIDs[identity, default: 0]
                             CollectionMemberCard(member: member, width: width,
-                                initiallyFinished: visited.contains(member.entry.ref),
-                                onDisappear: { visited.insert(member.entry.ref) },
+                                replayID: replayID, initiallyFinished: completed[identity] == replayID,
+                                replay: { replayIDs[identity, default: 0] += 1 },
+                                onPlaybackCompleted: { reference, revision, generation in
+                                    completed[CoverIdentity(reference: reference, revision: revision)] = generation
+                                },
                                 allowsActions: { allowsActions(member.entry.ref) },
                                 openThread: { openThread(member.entry.ref) })
                         }
@@ -51,29 +57,36 @@ struct NativeReportCollectionMembers: View {
     }
 }
 
-/// The panel owns visit history so lazy grid remounts retain the final pose.
+private struct CoverIdentity: Hashable {
+    let reference: ApplicationThreadRef
+    let revision: JSONText
+}
+
+/// Playback history belongs to the panel visit, independent of WebKit appearance.
 private struct CollectionMemberCard: View {
     let member: ApplicationThreadProps<NativeReportView>
     let width: CGFloat
+    let replayID: Int
     let initiallyFinished: Bool
-    let onDisappear: () -> Void
+    let replay: () -> Void
+    let onPlaybackCompleted: (ApplicationThreadRef, JSONText, Int) -> Void
     let allowsActions: () -> Bool
     let openThread: () -> Void
     @State private var visible = false
-    @State private var replayID = 0
 
     var body: some View {
         NativeReportCard(props: member,
             projection: .init(previewText: member.entry.view.shortDescription,
                               relatedThreadCount: member.entry.view.relatedExecutions.count),
             openThread: openThread, coverPlayback: visible ? .playingOnce : .paused,
-            coverReplayID: replayID, coverInitiallyFinished: initiallyFinished && replayID == 0,
+            coverReplayID: replayID, coverInitiallyFinished: initiallyFinished,
+            onCoverPlaybackCompleted: onPlaybackCompleted,
             showsArchiveAction: true, allowsActions: allowsActions)
             .frame(height: member.entry.view.hasCover ? NativeReportCoverLayout.height(for: width) + 212 : 208)
             .background(NativePalette.overview.surface.swiftUI, in: RoundedRectangle(cornerRadius: 22))
             .overlay { RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI) }
             .onAppear { visible = true }
-            .onDisappear { visible = false; replayID = 0; onDisappear() }
-            .onHover { inside in if inside && visible { replayID += 1 } }
+            .onDisappear { visible = false }
+            .onHover { inside in if inside && visible { replay() } }
     }
 }

@@ -241,8 +241,9 @@ playback-only CSS, without Report-reader safe-area handling. An isolated host
 controller bounds each animation to six seconds. Standalone cards hold their final
 frame for five seconds and replay while active; collection cards play once per
 selection and retain the final frame until paging. The All Super Threads grid plays
-each visible cover once, retains its final pose across redraws and lazy remounts,
-and replays once on each pointer entry. Leaving the grid suspends playback; other
+each visible cover revision once, retains its final pose across redraws, theme
+changes and lazy remounts, and replays once on each pointer entry. A new cover
+revision receives its own first play. Leaving the grid suspends playback; other
 Report surfaces keep their existing playback policy. Preloaded covers wait at their
 beginning; offscreen/inactive covers pause. Reduce Motion shows the final composition.
 The carousel begins its eleven-second dwell after entrance and WebKit playback
