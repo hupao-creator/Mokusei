@@ -99,6 +99,6 @@ update cannot publish B after returning to A. `Reduce Motion` commits immediatel
 The solver does not claim globally optimal packing for arbitrary mixed
 rectangles; the regular-grid result is a quality floor, not an optimum proof.
 Exits, moves and entries share one transition rather than proving collision-free
-paths. The 1.7 cap is an explicit product parameter; a caller may pass nil for a
+paths. The 1.0 cap is an explicit product parameter; a caller may pass nil for a
 raw FitAll scale. Native decoration capture and signed-app replays remain
 separate owners and are not certified by these geometry tests.

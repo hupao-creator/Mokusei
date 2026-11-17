@@ -64,7 +64,7 @@ public struct NativeOverviewGeometryPolicy: Equatable, Sendable {
     public var metrics: NativeOverviewGridMetrics
     public var scaleCap: Double?
 
-    public init(metrics: NativeOverviewGridMetrics = .standard, scaleCap: Double? = 1.7) {
+    public init(metrics: NativeOverviewGridMetrics = .standard, scaleCap: Double? = 1.0) {
         self.metrics = metrics
         self.scaleCap = scaleCap
     }

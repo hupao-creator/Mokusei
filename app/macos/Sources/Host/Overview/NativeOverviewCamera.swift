@@ -97,7 +97,7 @@ public struct NativeOverviewCameraSubmission: Sendable {
 public enum NativeOverviewCameraGeometry {
     /// Explicit product zoom ceiling. Automatic FitAll respects it; the same
     /// ceiling bounds manual zoom so both paths share one declared limit.
-    public static let scaleCap = NativeOverviewGeometryPolicy.standard.scaleCap ?? 1.7
+    public static let scaleCap = NativeOverviewGeometryPolicy.standard.scaleCap ?? 1.0
     /// Numerical guard for manual transforms, not a readability policy.
     public static let manualScaleFloor = 0.01
     public static let wheelZoomIntensity = 0.0015
