@@ -520,10 +520,9 @@ opening an activity does not make that activity its target. Folding the selected
 card, suppression, losing the selected card's eligibility or starting completion
 promotion restores the workspace-centered input. A first execution in main with
 no expanded activity does not move it. Horizontal travel into a target column
-uses a 520ms native keyframe curve with one restrained settling rebound. Its
-overshoot is 2.5% of the remaining travel, capped at 6 logical points; the peak
-is at 76% of the timeline, followed by a zero-velocity return to the target.
-Corrections below 12pt keep their existing non-overshooting curve. Vertical
+uses the existing monotone native easing for every distance: 380ms for a changed
+column frame, otherwise 420ms. The compositor moves directly from the current
+presentation position to the target, without overshoot or a settling rebound. Vertical
 descent retains its independent, non-bouncing timing. Shell sizing retains the
 Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
 travel, and Reduce Motion disables spatial animation. Stacked layouts share the
@@ -555,17 +554,13 @@ about full-workspace FPS or GPU/energy use.
 
 The earlier placement update used source/diff review and an application product
 build, without tests/replays or real-device input/animation acceptance.
-The horizontal spring adjustment was reviewed against the reported recording
-(the movement starts around 3.7s), with Swift syntax and diff checks only. No new
-tests, existing regression runs, live animation acceptance or hosted CI were run
-for that adjustment; its rendered feel remains to be confirmed in the app.
 
 Primary reading entry lowers the collapsed Dock with its native 420ms
 ease-in/ease-out curve. Its composer stays unmounted until the reading panel/title handoff
 finishes and the main document is ready, then the folded Agent workspace
 commits. That visit-scoped boundary admits the Sidecard reveal (380ms). If its
 execution column owns the Dock, the compact Moku travels there first; the actual
-horizontal animation's final completion, including the rebound, then admits the
+horizontal animation's final completion then admits the
 Harness flip and subsequent input expansion (420ms each).
 The native geometry bridge fences completion to the current destination revision,
 and the workspace retains the existing route-visit admission check. A folded,
@@ -727,7 +722,7 @@ An accepted exact-execution continuation retains the previous Dock column,
 expanded shell and Harness logo seat while its new reading visit prepares. Native column
 markers belong to a route and publish only after auxiliary layout admission;
 retained outgoing Report markers cannot overwrite the destination. The Dock
-travels to that committed column with one bounded settling rebound, without
+travels directly to that committed column with monotone easing, without
 adding an intermediate layout destination. Replacements use
 the currently presented horizontal position; resize, dragging, deactivation and
 Reduce Motion settle travel directly. This preserves the existing draft,

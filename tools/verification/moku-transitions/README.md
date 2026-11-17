@@ -24,6 +24,8 @@ counter or the final layer destination cannot satisfy this assertion. The former
 SwiftUI offset remains stationary in this interval. This controlled fault verifies
 compositor independence, not the cause or duration of real application stalls.
 
+The first arrival must stay inside its source/target pixel interval and progress
+monotonically, allowing only 2px of capture quantization; overshoot/rebound fails.
 The stage also checks revision-fenced arrival and rapid reversal, absorption of
 pointer hits on the moving capsule, at most one native editor width change when
 entering a narrower column, retained drafts and resize settling. Arrival is checked against the newly published column revision;

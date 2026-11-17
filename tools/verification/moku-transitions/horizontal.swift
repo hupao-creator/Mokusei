@@ -182,6 +182,16 @@ private final class HorizontalCapture: NSObject, SCStreamOutput, @unchecked Send
         guard positions.count >= 3, (positions.max() ?? 0) - (positions.min() ?? 0) > 20 else {
             throw HorizontalFailure(description: "Capsule froze during main-actor hold: \(positions.sorted())")
         }
+        let arrivalFrames = capture.snapshot().filter { $0.time >= motionStart }
+        let direction = arrivalPixels.x >= initialPixels.x ? 1 : -1
+        let arrivalBounds = (min(initialPixels.x, arrivalPixels.x) - 2)...(max(initialPixels.x, arrivalPixels.x) + 2)
+        var furthest = initialPixels.x * direction
+        for frame in arrivalFrames {
+            guard arrivalBounds.contains(frame.x), frame.x * direction >= furthest - 2 else {
+                throw HorizontalFailure(description: "Capsule overshot or rebounded during arrival: \(frame)")
+            }
+            furthest = max(furthest, frame.x * direction)
+        }
         fixture.toggle()
         try await Task.sleep(for: .milliseconds(120))
         let returnRevision = fixture.state.executionDockPlacement.travelRevision
@@ -210,7 +220,7 @@ private final class HorizontalCapture: NSObject, SCStreamOutput, @unchecked Send
             throw HorizontalFailure(description: "Native editor missing or reflowed during travel: \(widths.sorted())")
         }
         guard fixture.normal.text == "Ordinary draft retained across annotation", fixture.annotation.text == "Annotation description" else {
-            throw HorizontalFailure(description: "Column travel changed a retained draft")
+            throw HorizontalFailure(description: "Column travel changed a retained draft: normal=\(String(reflecting: fixture.normal.text)), annotation=\(String(reflecting: fixture.annotation.text))")
         }
         let resizePreviousRevision = fixture.state.executionDockPlacement.travelRevision
         fixture.toggle()
