@@ -230,8 +230,8 @@ The public Harness foreground still supplies
 Harness, execution and foreground sequence with its UTF-16 source offset.
 Assistant/tool foreground changes, terminal states and disconnects retire that
 live projection. The Arc model, painter and layout exist; the Dock does not
-admit or paint their text. Ordinary Agent Thread trace rendering and Moku's history reader are
-unchanged; this is a Dock presentation policy, not a data/schema change.
+admit or paint their text. Ordinary Agent Thread and Moku history readers own
+their trace rendering.
 
 ## Talk, dispatch and notes
 

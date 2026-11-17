@@ -176,8 +176,8 @@ The 1x grid cell is 414pt wide and 253pt high, with a 16pt gap. Two-row cards ar
 522pt high; two-column cards are 844pt wide. Footprints retain their column/row
 semantics, including Agent Threads, individual Reports and Super Thread collections.
 Packing, rendered card bounds, transitions and attention visibility all use
-the shared grid pitch, as do camera bounds and hit regions. Text/icon metrics
-remain unchanged. Manual and automatic camera framing keep at least 1×, so large
+the shared grid pitch, as do camera bounds and hit regions. Manual and automatic
+camera framing keep at least 1×, so large
 layouts overflow the viewport and remain reachable by pan.
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) is a pure function. Its inputs are the latest members in product order, the usable viewport and an explicit geometry policy; its output is placements, bounds and the automatic camera. Previous placements, old cameras, animation progress, pauses and revision history are not inputs.
