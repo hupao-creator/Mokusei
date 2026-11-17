@@ -551,6 +551,14 @@ the native borderless menu style would dim the x/x label during every turn.
 The count and navigation glass inherit the workspace color scheme; selected
 page markers use primary ink and unselected markers use secondary ink, retaining
 the capsule/dot shape distinction in both light and dark appearances.
+The entire lower navigation capsule mounts only while the pointer hovers this
+active, visible collection. A transparent SwiftUI mask cannot reliably suppress
+the native Liquid Glass surface; removing the surface also removes its invisible
+hit targets and accessibility children. The upper-right count stays available
+for keyboard/accessibility member navigation. Opening/closing the member panel,
+focus loss, leaving the card and offscreen removal clear hover; keyboard focus
+and menu tracking never force the capsule visible. Carousel timing remains
+independent of hover.
 A native cover input region retains pointer drag and trackpad input instead of
 moving the canvas; its scroll/pinch region is intentionally reserved for the
 collection cover.
@@ -560,9 +568,21 @@ collection members, using the ordinary Super Thread cards and their open actions
 The panel preserves the filtered collection order (creation time, stable ties),
 including members outside the carousel's four-cover preload window. Its cards keep
 the ordinary opaque surfaces, archive actions and native trackless scrolling.
-The carousel pauses while the popover is open; closing it starts a fresh dwell.
-Escape, the close button and a second count activation dismiss it; opening a
-member dismisses before invoking the existing navigation callback. Inactive,
+The count expands from the collection card into the workspace's centered reading
+panel, using `NativeCollectionPanelPresentation`, the same `NativeReadingPageStack`
+compositor, window-relative margins and emphasized 420ms opening as Agent/Report
+readers. Overview and Dock fade out and reject input/accessibility while the panel
+is open; this is not a screen-sized popover or a zoomed canvas child. The fixed
+header uses the shared upper-left Close; only the centered member grid scrolls.
+Columns adapt to the logical window viewport (including window zoom), with up to
+360pt cards, 20pt gaps, and a single shrinking column in narrow windows. Cover
+height preserves 360:308, with a separate metadata region. No panel dimension can
+extend beyond the host viewport. Reduce Motion settles through the shared stack;
+the opaque reading surface also works with Reduce Transparency.
+The carousel pauses through opening and return; closing starts a fresh dwell.
+Escape, Close and blank-margin clicks reverse the panel into the current card
+frame. The count is behind the expanded surface, not a second floating control.
+Opening a member retires the collection panel before invoking existing navigation. Inactive,
 offscreen and removed collections dismiss the panel. Dismissed card actions cannot
 open a second member. The existing lower page menu and navigation controls
 continue to select carousel pages.

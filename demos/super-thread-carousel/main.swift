@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import Observation
+import MokuseiUI
 import MokuseiPluginUI
 @testable import MokuseiApplications
 
@@ -85,6 +87,8 @@ private struct DemoView: View {
                 Button("重置") { model.reset() }
             }.buttonStyle(.bordered).controlSize(.small)
         }.padding(30)
+            .nativeCollectionPanelHost()
+            .environment(\.scenePhase, active || keepActive ? .active : .inactive)
             .environment(\.nativeReportCoverCache, coverCache)
             .background(dark ? Color(white: 0.105) : Color(red: 0.95, green: 0.945, blue: 0.93))
             .preferredColorScheme(dark ? .dark : .light)
@@ -117,17 +121,38 @@ private struct DemoView: View {
     }
 }
 
+@MainActor @Observable private final class DemoViewport {
+    var scale: CGFloat = 1
+}
+
 @MainActor private final class Delegate: NSObject, NSApplicationDelegate {
     let fixtures: [String: ReportFixture]
     var window: NSWindow?
+    let viewport = DemoViewport()
     init(fixtures: [String: ReportFixture]) { self.fixtures = fixtures }
     func applicationDidFinishLaunching(_ notification: Notification) {
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1192, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "Super Thread · Production Carousel"
-        window.minSize = .init(width: 840, height: 660)
+        window.minSize = .init(width: 500, height: 400)
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: DemoView(fixtures: fixtures))
+        let viewport = self.viewport
+        let host = NSHostingView(rootView: GeometryReader { geometry in
+            DemoView(fixtures: self.fixtures)
+                .frame(width: geometry.size.width / viewport.scale, height: geometry.size.height / viewport.scale)
+                .environment(\.nativeWindowContentScale, viewport.scale)
+                .scaleEffect(viewport.scale, anchor: .topLeading)
+        }.overlay(alignment: .bottomTrailing) {
+            HStack(spacing: 6) {
+                Button("1192×780") { [weak window] in window?.setContentSize(.init(width: 1192, height: 780)) }
+                Button("500×400") { [weak window] in window?.setContentSize(.init(width: 500, height: 400)) }
+                Button("1×") { viewport.scale = 1 }
+                Button("1.5×") { viewport.scale = 1.5 }
+                Button("2×") { viewport.scale = 2 }
+            }.font(.system(size: 10)).buttonStyle(.bordered).padding(6)
+        })
+        host.sizingOptions = []
+        window.contentView = host
         self.window = window
         window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate()
         let menu = NSMenu(), item = NSMenuItem(), submenu = NSMenu()
