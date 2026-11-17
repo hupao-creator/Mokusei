@@ -291,7 +291,7 @@ and both write tools require purposeful, evidence-grounded CSS keyframes rather
 than a static cover or a generic decorative template. The complete finite timeline,
 including delays and repetitions, is at most six seconds. Its final composition
 must remain readable on its own, and a title or recognizable key visual stays
-visible from time zero so a replay does not start with an empty background. The host holds that final frame for two seconds
+visible from time zero so a replay does not start with an empty background. The host holds that final frame for five seconds
 and then replays; authors must not include the hold, infinite loops, hover
 transitions or scroll timelines. Covers supply both light and dark palettes.
 This guidance is independent of the report body's ELI5/host-integration rules.
@@ -332,13 +332,13 @@ effects and suppress transitions, without injecting layout or safe-area styles.
 This does not enable document scripts or add an application API.
 
 Preloaded neighbors remain at their beginning. A selected cover starts after
-its native entrance; its eight-second carousel dwell waits for actual WebKit
+its native entrance; its eleven-second carousel dwell waits for actual WebKit
 playback acknowledgement. Collection covers play their complete admitted CSS
 timeline once, then hold its final frame until selection changes. Reselecting a
 cover grants a new run; hover chrome, focus, redraws and pause/resume do not.
 Leaving selection resets for the next visit; inactivity, hidden viewports and
 cover gestures pause the current motion. Standalone cards retain their existing
-animation/two-second-hold replay cycle and foreground/visibility controls.
+animation/five-second-hold replay cycle and foreground/visibility controls.
 Reduce Motion displays the complete final composition. The bounded cache retains
 a final-frame poster beneath the live surface to bridge remounts without caching
 browser instances. See the [animation contract and verification](../../../../design/super-thread-animated-covers.md).

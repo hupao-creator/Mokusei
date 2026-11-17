@@ -2,12 +2,12 @@
 
 The cover is a silent, passive HTML/CSS composition, authored by Super Thread
 Agent from report evidence. Its finite animation includes all delays and
-repetitions and lasts at most six seconds: the carousel's eight-second dwell
-minus at least a two-second final-frame hold. Collection covers play the complete
+repetitions and lasts at most six seconds: the carousel's eleven-second dwell
+minus at least a five-second final-frame hold. Collection covers play the complete
 admitted timeline once per selection, then hold their final composition until
 paging. Short covers do not replay during that dwell. Returning to the same cover
 after another selection starts a new run. Standalone cards retain their repeating
-animation/two-second-hold cycle.
+animation/five-second-hold cycle.
 
 ## Ownership and timing
 
@@ -25,7 +25,7 @@ seconds, and final styles remain filled. Empty timelines remain static.
 Preloaded neighbors stay at the beginning. Outgoing covers freeze their current
 pose while sliding away. Incoming covers start only after native travel ends;
 the carousel waits for WebKit's playback acknowledgement before starting its
-eight-second dwell. Failed covers still admit navigation and automatic advance.
+eleven-second dwell. Failed covers still admit navigation and automatic advance.
 Visibility/activity/gesture pauses preserve elapsed motion or hold time; resume
 does not count hidden wall-clock time. The carousel starts a fresh dwell on
 resume. Reselection resets the cover for a fresh first run. Collection completion
@@ -57,9 +57,9 @@ regeneration or data migration runs.
 
 `NativeReportCoverTests` mounts production covers and collections with local
 HTML fixtures. It checks rendered first/middle/final/restarted pixels, the
-two-second hold, preload/reset, visibility/activity pause, the reduced-playback
+five-second hold, preload/reset, visibility/activity pause, the reduced-playback
 poster, theme/remount behavior, oversized/infinite author timing, delayed cover
-admission, eight-second dwell selection replay and a pending preload failing after selection. The reduced-playback input
+admission, eleven-second dwell selection replay and a pending preload failing after selection. The reduced-playback input
 is fixture-driven; it does not modify the machine's accessibility preferences.
 WebKit snapshots prove authored pixels, not WindowServer intermediate-frame
 continuity; that visual boundary requires the separate presentation capture.

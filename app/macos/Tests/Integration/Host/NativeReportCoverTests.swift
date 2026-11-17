@@ -158,10 +158,10 @@ struct NativeReportCoverTests {
         let finished = ContinuousClock.now
         let final = try await capture(web, name: "cycle-final")
         #expect(final > middle + 20)
-        try await Task.sleep(until: finished + .milliseconds(1400), clock: .continuous)
-        #expect(try await x(web) >= 219.9, "Final composition must remain during the two-second hold")
+        try await Task.sleep(until: finished + .milliseconds(4400), clock: .continuous)
+        #expect(try await x(web) >= 219.9, "Final composition must remain during the five-second hold")
         try await wait { try await x(web) < 100 }
-        #expect(ContinuousClock.now - finished >= .milliseconds(1900), "Replay started before its two-second hold")
+        #expect(ContinuousClock.now - finished >= .milliseconds(4900), "Replay started before its five-second hold")
         let restarted = try await capture(web, name: "cycle-restarted")
         #expect(restarted < final - 100)
         model.visibility.isVisible = false
@@ -226,11 +226,11 @@ struct NativeReportCoverTests {
         var documents: [String: WKWebView] = [:]
         for web in webViews(root) { documents[try #require(try await read(web, "document.body.dataset.cover") as? String)] = web }
         let first = try #require(documents["first"]), second = try #require(documents["second"])
-        try await Task.sleep(until: readyAt + .seconds(7), clock: .continuous)
-        #expect(model.selections.last?.threadID == "first", "Loading must not consume the eight-second dwell")
+        try await Task.sleep(until: readyAt + .seconds(10), clock: .continuous)
+        #expect(model.selections.last?.threadID == "first", "Loading must not consume the eleven-second dwell")
         #expect(try await x(second) == 20, "Neighbor animation ran while hidden")
         try await wait { model.selections.last?.threadID == "second" }
-        #expect(ContinuousClock.now - readyAt >= .milliseconds(7800))
+        #expect(ContinuousClock.now - readyAt >= .milliseconds(10800))
         try await Task.sleep(for: .milliseconds(180))
         #expect(try await x(second) == 20, "Incoming cover ran during its native entrance")
         try await wait { try await x(second) > 35 }
@@ -252,7 +252,7 @@ struct NativeReportCoverTests {
     @Test func carouselAdvancesPastCoverThatFailsAfterSelection() async throws {
         let model = CoverReplay()
         let props = try [CoverReplay.props("available", duration: 1),
-                         CoverReplay.props("unavailable", loadDelay: .seconds(10), fails: true)]
+                         CoverReplay.props("unavailable", loadDelay: .seconds(13), fails: true)]
         let window = SwiftUIReplay.window(CoverReplayView(model: model, props: props), width: 360, height: 456)
         defer { window.contentView = nil; window.close() }
         try await wait { model.selections.last?.threadID == "unavailable" }

@@ -1,9 +1,10 @@
 import WebKit
 
 enum NativeReportCoverTiming {
-    static let dwell = 8.0
-    static let hold = 2.0
-    static let maximumAnimation = dwell - hold
+    static let hold = 5.0
+    // Keep authored playback speed independent of the final-frame hold.
+    static let maximumAnimation = 6.0
+    static let dwell = maximumAnimation + hold
 }
 
 enum NativeReportCoverPlayback: String {
