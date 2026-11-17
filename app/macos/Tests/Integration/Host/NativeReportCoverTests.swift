@@ -93,8 +93,9 @@ struct NativeReportCoverTests {
     private func x(_ web: WKWebView) async throws -> Double {
         try #require(try await read(web, "document.getElementById('marker').getBoundingClientRect().x") as? Double)
     }
-    private func wait(sourceLocation: SourceLocation = #_sourceLocation, _ predicate: () async throws -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(12)
+    private func wait(timeout: Duration = .seconds(12), sourceLocation: SourceLocation = #_sourceLocation,
+                      _ predicate: () async throws -> Bool) async throws {
+        let deadline = ContinuousClock.now + timeout
         while ContinuousClock.now < deadline {
             for window in NSApp?.windows ?? [] { window.contentView?.layoutSubtreeIfNeeded(); window.displayIfNeeded() }
             if try await predicate() { return }
@@ -256,7 +257,8 @@ struct NativeReportCoverTests {
         let window = SwiftUIReplay.window(CoverReplayView(model: model, props: props), width: 360, height: 456)
         defer { window.contentView = nil; window.close() }
         try await wait { model.selections.last?.threadID == "unavailable" }
-        try await wait { model.selections.last?.threadID == "available" }
+        // Include the pending preload failure and the full eleven-second dwell.
+        try await wait(timeout: .seconds(15)) { model.selections.last?.threadID == "available" }
         print("REPORT_COVER_FAILURE_ADVANCE_CONFIRMED")
     }
 }
