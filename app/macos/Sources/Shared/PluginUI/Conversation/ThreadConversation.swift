@@ -155,18 +155,24 @@ public struct ThreadConversation: View {
     }
     private var tocRows: [ThreadConversationRow] { visibleRows.filter { $0.execution != nil || $0.history } }
     private var currentRow: ThreadConversationRow? { visibleRows.last { $0.execution != nil } }
+    // The retained document keeps rendering while history enters and returns.
+    // Its heading and author must follow its own rows, not the TOC destination.
+    private var documentRow: ThreadConversationRow? {
+        if let inlineRow { return visibleRows.first { $0.id == inlineRow } }
+        return currentRow
+    }
     private var selectedRowID: JSONText? {
         if case .history = destination { return selectedPage?.id }
         if case .unavailable = destination { return nil }
-        return inlineRow ?? currentRow?.id
+        return documentRow?.id
     }
     private var effectiveRunningID: JSONText? {
         guard let runningTurnId, !excluded.contains(runningTurnId) else { return nil }
         if case let .execution(id) = context?.presentation, id != runningTurnId { return nil }
         return runningTurnId
     }
-    private var selectedIsRunning: Bool {
-        running && effectiveRunningID != nil && visibleRows.first { $0.id == selectedRowID }?.execution?.id == effectiveRunningID
+    private var documentIsRunning: Bool {
+        running && effectiveRunningID != nil && documentRow?.execution?.id == effectiveRunningID
     }
     private var selectedIsActive: Bool {
         guard let execution = visibleRows.first(where: { $0.id == selectedRowID })?.execution else { return false }
@@ -190,7 +196,7 @@ public struct ThreadConversation: View {
         if case let .execution(id) = context?.presentation, id != activeExecutionId { return false }
         return true
     }
-    private var work: Bool { (!relatedExecution || selectedIsActive) && (executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil))) }
+    private var work: Bool { (!relatedExecution || selectedIsActive) && (executionCard || documentIsRunning || (manualWork ?? (effectiveRunningID != nil))) }
     private var visibility: ThreadDetailVisibility {
         ThreadDetailVisibility(userMessages: !agentDetail && (executionCard || userMessages), work: work,
                                workTurnID: executionCard || manualWork == true ? nil : effectiveRunningID,
@@ -398,11 +404,10 @@ public struct ThreadConversation: View {
             }
             if let actions { actions.padding(.top, 15) }
             if !rows.isEmpty {
-                let selected = selectedRowID
-                let authorID = visibleRows.first { $0.id == selected }?.execution?.id
+                let authorID = documentRow?.execution?.id
                 ThreadReadingHeader(author: authorID.flatMap { authors[$0] },
                     authorResolved: authorID.map { authors[$0] != nil } ?? false, showsAuthor: authorID != nil,
-                    showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning && (!agentDetail || hasDisplayableWork), users: userMessages, work: work,
+                    showsFilters: !executionCard, showsWorkFilter: !documentIsRunning && (!agentDetail || hasDisplayableWork), users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
                     .padding(.top, showsDocumentHeading ? 12 : 0).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
@@ -414,12 +419,12 @@ public struct ThreadConversation: View {
         return ids.isEmpty || ids.contains { workAvailability[$0] != false } || workAvailability.values.contains(true)
     }
     private var documentTitle: String {
-        if relatedExecution, let row = visibleRows.first(where: { $0.id == selectedRowID }) {
+        if relatedExecution, let row = documentRow {
             return row.executionTitle
         }
         // Main can retain an older execution while the newest one lives in a
         // Sidecard. Its heading must not borrow the newest catalog title.
-        if agentDetail, let row = visibleRows.first(where: { $0.id == selectedRowID }),
+        if agentDetail, let row = documentRow,
            row.execution != nil, row.execution?.id != rows.last(where: { $0.execution != nil })?.execution?.id {
             return row.executionTitle
         }

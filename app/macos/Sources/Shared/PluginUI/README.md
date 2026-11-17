@@ -17,6 +17,14 @@ Without that identity they retain the text-only fallback. The shared label is
 used in reading headers and turn footers, and exposes the Harness name to
 accessibility while keeping the logo decorative.
 
+During vertical history entry and return, the retained current document resolves
+its title, author and running-work presentation from its own document row.
+The TOC selection belongs to navigation/input routing; it cannot retarget that
+document's header while its body is still visible. Each history document keeps
+its own exact-execution heading and mounted-turn author preference. Pending
+history content retains its normal loading state without borrowing another
+execution's author. See the [recording diagnosis](../../../../../design/history-author-title-transition.md).
+
 `nativeRegularCardGlass` supplies native regular glass with a system Material
 fallback and an opaque palette fill under Reduce Transparency. Super Thread
 collections opt into it for their full backdrop and emoji badge; the badge keeps
