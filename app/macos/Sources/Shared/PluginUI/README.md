@@ -1585,10 +1585,16 @@ Agent and Report Sidecards share `NativeSidecardWorkspaceGeometry`,
 `NativeSidecardFold` and `NativeSidecardToggle` in Conversation. The shared
 geometry retains the 16pt gap and switches to vertically stacked panes below
 760pt; the fold owns the visible and interactive aperture without resizing the
-native document on each animation frame. Aperture, travel and opacity interpolate
-in the same animatable presentation with `NativeSidecardTiming.foldAnimation`:
+native document on each animation frame. Agent aperture shapes and native frame
+markers interpolate at the rendering leaves; only the bounded opacity curve has
+an animatable view modifier. This avoids placing the retained document again on
+every fold tick, even when its proposed size is already fixed. Report retains
+its existing per-frame return-pose memo for closing during a fold. All use
+`NativeSidecardTiming.foldAnimation`:
 380ms, cubic Bézier `(0.22, 1, 0.36, 1)`. The shared duration also supplies the
 Agent native-content interaction gate. Reduced Motion settles immediately.
+See the [layout-placement follow-up](../../../../../design/sidecard-fold-performance.md#layout-placement-follow-up-2026-11-17)
+for the recording, measured layout-call comparison and frame-rate limitations.
 Report's linked Browser keeps its historical close fade through `fadesOnClose`;
 this changes only return presentation, not opening geometry or timing. Its shell
 is retained before the first URL, so first opening and reopening use the same

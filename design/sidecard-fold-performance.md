@@ -81,3 +81,78 @@ Read-only remote inspection found main rulesets requiring strict `Complete
 coverage` and a PR. This delivery is a detached-worktree local commit only:
 no push, PR, CI dispatch, main update or publication. Existing remote results
 are for other revisions and do not validate this repair.
+
+## Layout-placement follow-up (2026-11-17)
+
+The new report supplies `录屏2026-11-17 17.23.57.mov`, attachment
+`8143b6d7-dbed-4e1f-920a-95460e3bf53f`. The original was decoded and inspected
+before changing code. It contains 435 frames over 8.051667 seconds at variable
+sample intervals. Contact sheets and individual timestamps show two Agent
+entries followed by right-hand Execution Sidecard unfolding, around 1.2 and
+5.2 seconds. The samples at 1.116667→1.183333 and 5.083333→5.158333 have
+66.7ms and 75ms gaps near content admission/opening. These are recording gaps,
+not measured application frame times or proof of the dominant blocking stack.
+
+The final-size repair above is present in baseline `a43931d2020bc3fc44d97d5187d9d017eae91c9a`,
+but its `NativeSidecardFoldPresentation` still interpolates a complete view
+modifier. Every tick reconstructs the mask, pointer aperture, opacity, native
+frame-marker layout and travel around the retained document. Fixing the proposed
+size prevents repeated measurement; it does not prevent repeated placement.
+
+A temporary isolated AppKit probe wraps the **production** `NativeSidecardFold`
+document in a counting SwiftUI `Layout`, with a ScrollView containing 100 fixed
+paragraphs. It uses a 1180×620 viewport, a 435×620 destination, the real fold
+curve and eight alternating open/close changes, 600ms apart. On the same Mac
+and Debug toolchain, the baseline's document `placeSubviews` counts are
+`48, 49, 47, 48, 47, 49, 47, 47`; the candidate's are
+`2, 2, 2, 2, 2, 2, 2, 2`. Both measure the document once per change.
+This directly demonstrates avoidable per-frame placement, independently of
+reader loading. It does not establish repeated TextKit measurement, optical
+FPS, GPU cost or the share of the user's hitch attributable to this work.
+
+The Agent path now interpolates its mask and interaction Shape locally, with
+SwiftUI's leaf frame/offset interpolation for the native marker and travel.
+Only the existing `clamp(progress * 5)` opacity rule needs an animatable modifier;
+it does not change layout. Mask, interaction shape, marker and offset still
+receive the same endpoint geometry and selection animation. Duration, curve,
+launcher seats, final document sizing, retained sessions, suppression,
+accessibility and Reduced Motion gates remain owned by their existing paths.
+Report and explicit fading returns keep their original presentation and
+non-animatable aperture because the Report return memo must retain the last presented pose when closing mid-fold.
+
+The current main implementation worktree was inspected read-only. Its pending
+Moku horizontal-travel and traffic-light changes are separate; this repair
+does not edit or incorporate them. Obsolete capsule tests are outside this scope.
+
+Validation uses `xcrun swift build --package-path app/macos` and the existing
+replay:
+
+```sh
+MOKUSEI_SWIFT_SKIP_BUILD=1 python3 tools/verification/reading-presentation/run.py \
+  --thread-send-feedback-native
+```
+
+Its five native-owned methods cover
+production launcher toggles, wide/stacked aperture travel from all three seats,
+rapid reversal/switching, availability changes, resize and retained widths,
+live divider reflow, execution handoff/content readiness, Reduced Motion and
+resident-composer click/type focus. These pass on baseline and candidate.
+A separate temporary native-click probe rejects a point outside the aperture
+40ms into opening, with a successful button click after settling as its input
+control.
+
+The native captures are AppKit diagnostic renders, not WindowServer optical
+frame-rate evidence. No new unit tests or test cleanup are included.
+
+Private original frames, probe sources/raw counts, build/replay logs and a
+candidate fixture stack sample are retained locally under
+`/tmp/mokusei-sidebar-evidence`. The temporary probes are diagnostics, not a new
+mandatory verification gate. `git diff --check` and local documentation-link
+review supplement the affected build/replay. No full local `make check` or
+hosted CI is claimed. The running user application was not restarted or profiled;
+post-integration target-app pacing remains unmeasured.
+
+Read-only remote inspection on this date finds an active PR requirement, a
+disabled `main-pr-gates` ruleset and no classic main protection. This is an
+independent detached commit for the coordinator: no main merge, push, publish
+or CI dispatch. Other revisions' hosted results do not certify this commit.
