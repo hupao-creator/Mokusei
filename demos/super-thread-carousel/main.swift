@@ -7,7 +7,7 @@ private struct CardShell<Content: View>: View {
     var providesCardSurface = false
     @ViewBuilder let content: Content
     var body: some View {
-        content.frame(width: 360, height: 456)
+        content.frame(width: NativeGeometry.overviewCard.width, height: NativeGeometry.overviewCard.height * 2 + NativeGeometry.overviewCardGap)
             .background(providesCardSurface ? Color.clear : NativePalette.overview.surface.swiftUI)
             .clipShape(RoundedRectangle(cornerRadius: 22))
             .overlay {
@@ -51,7 +51,7 @@ private struct DemoView: View {
                 Toggle("慢速 ×3", isOn: $slow).toggleStyle(.checkbox).font(.system(size: 11))
             }
             ScrollView {
-                LazyVGrid(columns: [.init(.adaptive(minimum: 360, maximum: 360), spacing: 16)], alignment: .center, spacing: 22) {
+                LazyVGrid(columns: [.init(.adaptive(minimum: NativeGeometry.overviewCard.width, maximum: NativeGeometry.overviewCard.width), spacing: 16)], alignment: .center, spacing: 22) {
                     if !model.projection.members.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
                             CardShell(providesCardSurface: true) {

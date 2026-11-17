@@ -95,6 +95,7 @@ struct NativeReportCollection: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let coverHeight = NativeReportCoverLayout.height(for: geometry.size.width)
             ZStack(alignment: .top) {
                 VStack(spacing: 4) {
                     // Preload covers in their own clipped viewport. Metadata never
@@ -102,19 +103,19 @@ struct NativeReportCollection: View {
                     ZStack {
                         ForEach(rendered, id: \.entry.ref) { member in
                             cover(member)
-                                .frame(width: geometry.size.width, height: 308)
+                                .frame(width: geometry.size.width, height: coverHeight)
                                 .modifier(NativeReportCollectionCoverOffset(direction: Double(direction), incoming: member.entry.ref != outgoingID,
                                     moving: outgoingID != nil, width: geometry.size.width, progress: progress))
                                 .opacity(member.entry.ref == selected || member.entry.ref == outgoingID ? 1 : 0)
                         }
-                    }.frame(height: 308).clipped().allowsHitTesting(false).accessibilityHidden(true)
+                    }.frame(height: coverHeight).clipped().allowsHitTesting(false).accessibilityHidden(true)
                     NativeReportCollectionBody(props: rendered, selected: selected, outgoingID: outgoingID,
                         direction: direction, progress: progress, visualEpoch: motionEpoch, active: active,
                         allowsActions: { active && outgoingID == nil && $0 == selected }, openThread: openThread)
                         .frame(maxHeight: .infinity).clipped()
                 }
                 NativeReportCarouselInput(step: step, open: { if active && outgoingID == nil { openThread(selected) } }, interacting: { interacting = $0 })
-                    .frame(height: 308).nativeCanvasNavigationRegion().accessibilityHidden(true).zIndex(3)
+                    .frame(height: coverHeight).nativeCanvasNavigationRegion().accessibilityHidden(true).zIndex(3)
                 GlassEffectContainer(spacing: 12) {
                     VStack {
                         HStack {
@@ -182,7 +183,7 @@ struct NativeReportCollection: View {
                             .mask { Rectangle().opacity(controlsVisible ? 1 : 0) }
                             .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: controlsVisible)
                             .allowsHitTesting(controlsVisible)
-                    }.foregroundStyle(.primary).padding(14).frame(height: 308)
+                    }.foregroundStyle(.primary).padding(14).frame(height: coverHeight)
                 }.zIndex(4)
             }
             .background {

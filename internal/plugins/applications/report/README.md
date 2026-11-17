@@ -283,8 +283,8 @@ reports remain readable, and create/new binding uses the existing authority.
 
 New Super Thread tool calls supply `coverHTML`; updates may replace it independently
 of the report document. The shared create/update field description specifies a
-standalone 360×308 HTML/CSS viewport: no host layout CSS, padding or safe-area styles are
-injected. The report body's host-integration rules and `--mokusei-*` variables do
+standalone 360×308 CSS-pixel logical HTML/CSS viewport: no host layout CSS, padding
+or safe-area styles are injected. The report body's host-integration rules and `--mokusei-*` variables do
 not apply to covers; the authored HTML must supply its own CSS and spacing.
 Author JavaScript and external resources are unavailable. The Agent instructions
 and both write tools require purposeful, evidence-grounded CSS keyframes rather
@@ -310,8 +310,15 @@ cover stay one grid row until authored cover content is supplied; no bulk genera
 or rewrite runs on startup.
 
 The production card uses one shell, one open action and its existing archive menu.
-A cover makes its Overview footprint 1×2 (360×456pt on the current grid): 308pt
-cover, 4pt gap and the original metadata/content region with a two-line introduction.
+A cover makes its Overview footprint 1×2 (414×522pt on the current grid).
+The native cover region preserves the logical viewport ratio: height = width ×
+308/360 (354.2pt at 414pt width), followed by the 4pt gap and remaining metadata
+region (163.8pt). WebKit and its cached poster both render at 360×308 and scale
+uniformly as one centered surface. Fixed-pixel existing covers and percentage
+layouts therefore use the same viewport without cropping or rewriting HTML.
+Narrower Report cards use the same ratio; coverless cards retain metadata only.
+Authored internal whitespace remains authored content, not an inferred crop.
+See the [viewport investigation and panel measurements](../../../../design/super-thread-cover-layout.md).
 The passive native WebKit surface uses a nonpersistent store, disabled author JavaScript,
 a host-owned document response with a sandbox CSP blocking external resources.
 It neither navigates nor handles input; theme follows the native appearance.

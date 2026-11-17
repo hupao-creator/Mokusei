@@ -5,6 +5,13 @@ import MokuseiPluginUI
 import SwiftUI
 import WebKit
 
+/// The authoring viewport is independent of the Overview grid and panel width.
+/// Keep existing fixed-pixel HTML and responsive HTML in the same coordinate space.
+enum NativeReportCoverLayout {
+    static let viewport = CGSize(width: 360, height: 308)
+    static func height(for width: CGFloat) -> CGFloat { width * viewport.height / viewport.width }
+}
+
 /// Scoped to one Report plugin registration, never shared across workspaces.
 /// Retain pixels and markup, not browsers, across tag-scoped card identities.
 @MainActor final class NativeReportCoverCache {
@@ -60,8 +67,17 @@ struct NativeReportCover: View {
     var body: some View {
         let key = NativeReportCoverCache.Key(source: .init(pluginID: "report", queryID: "report.cover",
             input: props.entry.ref.json, contentRevision: props.entry.view.coverRevision), dark: colorScheme == .dark)
-        ReportCoverSession(props: props, key: key, cache: sharedCache ?? localCache,
-            playback: effectivePlayback, onReady: onReady, onPlaybackStarted: onPlaybackStarted).id(key)
+        GeometryReader { geometry in
+            let viewport = NativeReportCoverLayout.viewport
+            let scale = min(geometry.size.width / viewport.width, geometry.size.height / viewport.height)
+            ReportCoverSession(props: props, key: key, cache: sharedCache ?? localCache,
+                playback: effectivePlayback, onReady: onReady, onPlaybackStarted: onPlaybackStarted).id(key)
+                .frame(width: viewport.width, height: viewport.height)
+                // Scale the live browser and its cached poster together, without
+                // changing CSS layout, stretching text or cropping authored content.
+                .scaleEffect(scale)
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+        }
     }
 }
 

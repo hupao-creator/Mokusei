@@ -538,11 +538,15 @@ visit, or the member's individual card after a long visit. One remaining
 candidate dissolves the collection. Semantic interaction targets include every
 real member, never the synthetic ID; snapshots expose membership and selection.
 
-The Report plugin owns `NativeReportCollection`: a 308pt cover slides horizontally
-while the 144pt metadata stays in place and switches through the shared
+The Report plugin owns `NativeReportCollection`: a cover preserving its 360:308
+logical viewport ratio slides horizontally while the remaining metadata region
+stays in place and switches through the shared
 `ThreadCardInkMask`. Cover and ink use one 460ms ease-in-out progress; backward
 paging mirrors only the mask so the reveal follows cover travel. Outgoing ink
-stays above incoming ink. The 4pt layout spacing and card shell stay fixed;
+stays above incoming ink. At the current 414×522pt grid footprint, the cover is
+354.2pt high and metadata is 163.8pt high. WebKit and its poster share a centered, uniformly scaled
+360×308 CSS-pixel viewport, including for existing fixed-width HTML.
+The 4pt layout spacing and card shell stay fixed;
 the spacing is filled by the same glass plate as the body, without an exposed
 background seam or a separate body glass edge. It reuses `NativeReportCover` and `NativeReportCard`
 with `showsCover: false`, rather than duplicating metadata. Coverless reports use

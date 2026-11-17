@@ -77,6 +77,6 @@ struct ProductionCard: View {
     var body: some View {
         NativeReportCard(props: fixture.props,
             projection: .init(previewText: fixture.props.entry.view.shortDescription, relatedThreadCount: 2), openThread: open)
-            .frame(width: 360, height: 456)
+            .frame(width: NativeGeometry.overviewCard.width, height: NativeGeometry.overviewCard.height * 2 + NativeGeometry.overviewCardGap)
     }
 }

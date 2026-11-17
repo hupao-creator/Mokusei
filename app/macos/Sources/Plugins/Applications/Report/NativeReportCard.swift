@@ -21,16 +21,18 @@ import SwiftUI
         Button {
             if allowsActions() { openThread() }
         } label: {
-            VStack(spacing: 4) {
-                if showsCover && props.entry.view.hasCover {
-                    NativeReportCover(props: props)
-                        .frame(height: 308)
-                        .allowsHitTesting(false).accessibilityHidden(true)
-                }
-                metadata
-            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .clipShape(RoundedRectangle(cornerRadius: 22))
-                .contentShape(Rectangle())
+            GeometryReader { geometry in
+                VStack(spacing: 4) {
+                    if showsCover && props.entry.view.hasCover {
+                        NativeReportCover(props: props)
+                            .frame(height: NativeReportCoverLayout.height(for: geometry.size.width))
+                            .allowsHitTesting(false).accessibilityHidden(true)
+                    }
+                    metadata
+                }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .contentShape(Rectangle())
+            }
         }.buttonStyle(.plain).foregroundStyle(NativePalette.overview.ink.swiftUI)
             .environment(\.threadCardUsesFlatMaterials, true)
             .contextMenu {
