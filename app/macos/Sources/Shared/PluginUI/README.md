@@ -2,6 +2,11 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+`NativeGeometry.overviewCard` defines the 414×253pt logical 1×1 cell shared by
+Harness card ideal sizes and the Host Overview grid (15% larger in both dimensions
+than 360×220pt). Larger footprints add cells with the unchanged 16pt gap;
+typography, icons and corner radii retain their own metrics.
+
 The timeline's floating Jump to latest control uses a 42pt circular interactive
 regular glass target, matching the Sidecard launcher. Its bottom inset, navigation
 action and localized accessibility label remain owned by the timeline.

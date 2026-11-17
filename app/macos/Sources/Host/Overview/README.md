@@ -181,10 +181,14 @@ composer growth does not change the layout viewport. See the
 [recording investigation](../../../../../design/moku-input-card-dimming.md)
 for observed behavior and sprint verification limits.
 
-The 1x grid cell is 360pt wide and 220pt high (10% taller than the former
-200pt baseline), with a 16pt gap. Two-row cards are therefore 456pt high.
+The 1x grid cell is 414pt wide and 253pt high, a 15% increase in each logical
+dimension from 360×220pt, with the same 16pt gap. Two-row cards are therefore
+522pt high; two-column cards are 844pt wide. Footprints retain their column/row
+semantics, including Agent Threads, individual Reports and Super Thread collections.
 Packing, rendered card bounds, transitions and attention visibility all use
-the shared grid pitch; width and gap stay unchanged.
+the shared grid pitch, as do camera bounds and hit regions. Text/icon metrics
+and the manual/automatic camera zoom policy remain unchanged; FitAll can still
+shrink the enlarged logical layout to fit the viewport.
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) is a pure function. Its inputs are the latest members in product order, the usable viewport and an explicit geometry policy; its output is placements, bounds and the automatic camera. Previous placements, old cameras, animation progress, pauses and revision history are not inputs.
 
