@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mokusei.invalid/schemas/performance-boundary-report-v1",
+  "title": "Mokusei performance boundary report v1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "boundary", "suite", "runId", "status", "validity", "decision", "exitCode", "reasons", "evidence", "phases", "metrics"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "boundary-report"},
+    "boundary": {"const": "performance"},
+    "suite": {"type": "string", "minLength": 1},
+    "runId": {"type": "string", "minLength": 1},
+    "status": {"enum": ["passed", "failed", "blocked"]},
+    "validity": {"enum": ["valid", "invalid", "incomplete", "unsupported"]},
+    "decision": {"enum": ["passed", "regressed", "failed", "inconclusive", "not-comparable", "not-evaluated"]},
+    "exitCode": {"enum": [0, 1, 2]},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "phases": {"type": "array", "items": {"type": "object", "required": ["phase", "at"], "properties": {
+      "phase": {"enum": ["prepare", "execute", "collect", "validate", "judge", "report", "upload"]},
+      "at": {"type": "string"}
+    }}},
+    "metrics": {"type": "array", "items": {"type": "object", "required": ["scenario", "metric", "unit", "direction", "relative", "absolute", "pairs", "decision", "confidenceInterval", "normalizedMAD", "maxNormalizedMAD"], "properties": {
+      "scenario": {"type": "string"}, "metric": {"type": "string"}, "unit": {"type": "string"},
+      "direction": {"enum": ["lower", "higher"]}, "relative": {"type": "number", "minimum": 0},
+      "absolute": {"type": "number", "exclusiveMinimum": 0},
+      "decision": {"enum": ["passed", "regressed", "inconclusive"]},
+      "pairs": {"type": "array", "minItems": 6, "items": {"type": "object", "required": ["pair", "order", "baseline", "candidate", "delta", "relativeDelta", "allowed", "excess", "excessBounds", "evidence"]}},
+      "confidenceInterval": {"type": "object", "required": ["level", "lower", "upper", "method", "resamples", "seed", "independentPairs"]}
+    }}}
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"const": "passed"}}}, "then": {"properties": {"exitCode": {"const": 0}, "validity": {"const": "valid"}, "decision": {"const": "passed"}}}},
+    {"if": {"properties": {"status": {"const": "failed"}}}, "then": {"properties": {"exitCode": {"const": 1}, "validity": {"const": "valid"}, "decision": {"enum": ["failed", "regressed"]}}}},
+    {"if": {"properties": {"status": {"const": "blocked"}}}, "then": {"properties": {"exitCode": {"const": 2}, "decision": {"enum": ["inconclusive", "not-comparable", "not-evaluated"]}}}}
+  ],
+  "$defs": {"evidence": {"type": "object", "required": ["path", "sha256"], "properties": {
+    "path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }, "additionalProperties": false}}
+}

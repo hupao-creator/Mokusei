@@ -1,6 +1,10 @@
 # Runtime 性能复现
 
-本目录使用生产 Store、Runtime 和 Application host 的公开边界，在独立临时 SQLite 数据库上测量；不读取用户 profile、不调用真实模型。当前源码没有 storage-workspaces、runtime、applicationhost、moku、codex 正确性回放；这些测量不提供其语义覆盖。
+本目录使用生产 Store、Runtime 和 Application host 的公开边界，在独立临时 SQLite 数据库上测量；不读取用户 profile、不调用真实模型。本工具在真实调用内保留必要结果断言，但不提供完整业务正确性覆盖。
+
+版本化场景 ID 即下表名称。基础设施的配对运行、指标预算、暂定阈值和覆盖边界以
+[性能门禁规范](../../benchmarks/gate/README.md) 的 `runtime-boundaries` 为准。
+裸命令仍只测量；统一入口完成有效性检查、配对判定、报告及退出码。
 
 ```sh
 ./scripts/go.sh build -trimpath -o .build/runtime-performance/after ./tools/verification/runtime-performance
@@ -39,7 +43,9 @@ python3 tools/verification/runtime-performance/prepare_baseline.py c17a3fcb .bui
 ./scripts/go.sh build -trimpath -o .build/runtime-performance/after ./tools/verification/runtime-performance
 ```
 
-overlay 只替换所选版本的生产文件，基线必须与当前 fixture/API 兼容。先编译，再在无并发编译/采样的窗口顺序运行两个二进制；不提供 Moku/Codex 回放入口。
+overlay 只替换所选版本的生产文件，基线必须与当前 fixture/API 兼容。
+此命令只测量公开 API 成本；属性入口见 [PBT 清单](../pbt/README.md)。
+先单独编译，再在没有编译/其他采样的窗口顺序运行两个二进制。
 
 运行前协调独占 CPU 时段；不要并行构建、回放、GUI 或截图。这些是本地边界微基准，不能据此宣称真实模型端到端延迟或 GUI 帧率收益。具体规模、原始结果、环境、验证和未测边界见 [测量报告](AUDIT.md)。
 

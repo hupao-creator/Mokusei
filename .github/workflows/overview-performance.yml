@@ -30,7 +30,7 @@ jobs:
   paired-release:
     name: Release A/B · foreground Overview
     runs-on: ${{ fromJSON(vars.MOKUSEI_SELF_HOSTED_MACOS == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","ARM64","mokusei-macos-26-gui"]' || '["macos-26"]') }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CGO_ENABLED: '1'
       GOTOOLCHAIN: local
@@ -63,16 +63,16 @@ jobs:
           fi
           # A self-hosted image must already satisfy this graphical contract.
           xcrun swift scripts/ci/native-environment.swift
-      - name: Measure fixed Release products with one harness
+      - name: Measure fixed Release products and enforce regression budgets
         run: |
           display_args=()
           if [[ "$RUNNER_ENVIRONMENT" == github-hosted ]]; then
             display_args+=(--configure-display)
           fi
-          python3 tools/verification/overview-ci-performance/run.py \
+          python3 tools/benchmarks/performance.py run --suite overview-release \
             --baseline "$BASELINE_SHA" --candidate "$CANDIDATE_SHA" \
             --output "$RUNNER_TEMP/overview-performance" \
-            "${display_args[@]}" --time-budget-seconds 1500
+            "${display_args[@]}"
       - name: Publish complete measurement report
         if: ${{ always() }}
         run: |

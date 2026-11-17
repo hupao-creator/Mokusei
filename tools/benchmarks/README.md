@@ -1,5 +1,13 @@
 # External Overview rendering benchmark
 
+The [UX gate](gate/UX.md) defines current paired startup, response, progress and
+App resource budgets. [The common runner](gate/README.md) owns policy, identities,
+confidence intervals, evidence and nonzero regression/blocked exits. The commands
+below collect the wider standalone measurement scope; they do not certify a gate.
+Scenario IDs `zoom` and `body.zoom` are explicit unsupported capabilities because
+no validated public system pinch injector is available.
+
+
 This Python CLI runs against a **built, signed production Release `.app`**. It
 builds only its independent macOS collectors and control app. It never imports product modules, reads Overview types or writes product
 persistence. Copy this directory outside the repository to run it independently.
@@ -120,8 +128,9 @@ converts them with the host's timebase before emitting `cpuNS`. Every collector
 build links the real sampler into a busy-process check against the independent
 `CLOCK_PROCESS_CPUTIME_ID` clock and retains `cpu-clock-check.json` (also embedded
 in `build.json`). This validates units, not a performance threshold or complete
-descendant accounting. CPU results require the recorded collector timebase and unit contract; data
-without that unit evidence cannot support an absolute CPU comparison.
+descendant accounting. Collector identity and timebase are required measurement
+metadata; datasets with different collector identities cannot be pooled. Data
+without the CPU unit contract cannot support an absolute CPU comparison.
 The observation declares `cpuTimeUnit: nanoseconds`; the analyzer withholds CPU
 metrics when that declaration is absent or unsupported, retaining footprint data.
 
@@ -132,8 +141,9 @@ cost belongs to the collector; OCR runs after collection. Raw screenshots remain
 available for review. Business anchors can be any observable fixture card.
 Absence of useful anchors is a measurement limitation, never a layout failure.
 
-No native hitch collector is built or launched. Reports expose native hitches
-as unavailable; optical motion/stall analysis cannot substitute a native metric.
+Native hitch collection is unavailable. Optical normal/frozen/wrong/delayed/stall
+controls establish sampled pixel sensitivity only. No zero hitch value is
+substituted for unavailable data, and optical progress is not physical FPS.
 
 ## Agent emoji badge material comparison
 
@@ -189,8 +199,9 @@ loopback Responses provider. Public `thread:follow-up` starts the fixed set of
 active tasks. The framework records the **actually selected native CLI** path,
 version and digest; it does not spoof a discovery version or claim an environment
 variable pins discovery. Background Tag/Report agents are disabled using public
-settings with the real revision. Tag filtering and the Agent `grep_threads` capability are independent; no GUI
-conversation search or derived keyword index is configured.
+settings with the real revision. Tag filtering and the Agent `grep_threads`
+capability are independent; no GUI conversation search or derived keyword index
+is configured.
 
 The App's explicit `--benchmark-scenario overview` entry requires the isolated
 `--data-dir` and automation socket. It records onboarding completion before the
@@ -220,7 +231,7 @@ is involved.
 `--chunk-bytes` and `--message-bytes` are retained in plans. All rates are
 controlled synthetic inputs, not frequencies certified from production traces.
 Workload schedule version 2 records load kind and per-card timing. Comparisons
-require matching schedule/collector identity; incompatible workloads are not pooled.
+require explicit matching schedule/collector identity; incompatible workloads are not pooled.
 
 Absolute deadlines drive output independently of UI responsiveness. The source
 ledger records intended and actual sends, bytes, payload hashes and every card's
@@ -255,10 +266,9 @@ Offline analysis re-evaluates the retained calibration controls against the
 collector/toolchain/OS identity instead of trusting capability booleans. A passing
 product observation requires established pixel sensitivity; observed motion with
 incorrect displacement is reported separately from an actual progress stall.
-Incomplete measurements cannot produce a passing comparison. No statistical
-regression gate, formal A/B inference, physical FPS, energy or GPU claims are
-made. Fixed-count summaries permit inspection of scaling of individual observed
-metrics with their coverage limitations.
+Incomplete measurements cannot produce a passing comparison. The standalone summaries make no regression judgment or physical FPS, energy
+or GPU claim. The paired UX adapter judges only its documented narrower metrics
+and propagates capture uncertainty; incomplete whole-task accounting stays visible.
 
 The [measurement reports](baselines/) retain source/collector/artifact identities,
 raw-data links, failed preparations and capability limits. Their metrics describe
@@ -268,7 +278,8 @@ only those artifacts; they do not certify current rendering or a regression gate
 
 `calibrate` retains independent normal/frozen/wrong/delayed-motion, main-thread-stall,
 SwiftUI drag and short-lived-child controls to establish collector capability.
-No portable conformance suite or XCTest diagnostic is configured.
+CLI-level PBT/e2e exercises the current performance gate. Native hitches have no
+validated collector.
 Signed production GUI experiments remain local because CI has no production
 signing credentials. See [verification policy](../../scripts/ci/verification-policy.md).
 
@@ -277,8 +288,3 @@ The `overview-ci-performance` and
 remain diagnostics with separate baselines. Do not pool their results with these
 external measurements. [Implementation references](REFERENCES.md) document the
 pinned Swift open-source projects and the practices adopted here.
-
-The [2026-11-14 Agent emoji badge comparison](baselines/2026-11-14-emoji-badge-glass.md)
-uses the same signed artifact with launch-scoped flat/glass selection in both
-orders. It reports App CPU/footprint observations separately from failed pan
-trajectory checks and retains the incomplete full-benchmark status.

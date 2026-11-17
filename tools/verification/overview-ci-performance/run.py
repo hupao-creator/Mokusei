@@ -826,10 +826,10 @@ def model_flow(result):
 def paired_results(records):
     pairs = []
     for condition in ("R0", "S4", "A4"):
-        for order in ("AB", "BA"):
-            matching = [row for row in records if row["condition"] == condition and row["order"] == order]
+        for repetition, order in ((r, o) for r in range(3) for o in ("AB", "BA")):
+            matching = [row for row in records if row["condition"] == condition and row["order"] == order and row.get("repetition") == repetition]
             selected = {row["side"]: row for row in matching}
-            row = {"condition": condition, "order": order, "valid": False, "invalidReasons": []}
+            row = {"condition": condition, "repetition": repetition, "order": order, "valid": False, "invalidReasons": []}
             if len(matching) == 2 and set(selected) == {"A", "B"} and all(record.get("valid") for record in selected.values()):
                 if selected["A"].get("powerBefore") != selected["B"].get("powerBefore"):
                     row["invalidReasons"].append("A/B power sources differ")
@@ -910,8 +910,8 @@ def markdown(report):
              "A4 strictly appends at the same rates. Each process has 5s of load-bearing warmup and 20s formal supply. "
              "No profiler, diagnostic build, screenshot capture, hidden/background case, N100, or N500 is part of formal CPU.", "",
              "CPU% is 100 × process user+system CPU seconds / actual monotonic wall seconds, on a single-core scale. "
-             "UI and Core are reported separately. Two opposite-order pairs are an initial screen, not a confidence interval "
-             "or an estimate comparable to historical local-Mac percentages.", "", "## Fixed versions and builds", "",
+             "UI and Core are reported separately. Six opposite-order pairs retain every independent process observation; "
+             "these values are not interchangeable with measurements from another machine or workload.", "", "## Fixed versions and builds", "",
              f"- Source protocol: `{report.get('sourceProtocolVersion', 'unavailable')}`; bounded input FIFO capacity: `{report.get('sourceQueueCapacity', 'unavailable')}`.",
              f"- Measurement clock: version `{report.get('measurementClockVersion', 'unavailable')}`, `{report.get('measurementClockID', 'unavailable')}`.",
              f"- Baseline A: `{report['baseline']}`", f"- Candidate B: `{report['candidate']}`",
@@ -1097,7 +1097,7 @@ def main():
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--configure-display", action="store_true")
-    parser.add_argument("--time-budget-seconds", type=int, default=1650)
+    parser.add_argument("--time-budget-seconds", type=int, default=2400)
     args = parser.parse_args()
     for value in (args.baseline, args.candidate):
         if not re.fullmatch(r"[0-9a-f]{40}", value):
@@ -1195,7 +1195,8 @@ def main():
         # Reverse both side order and scenario order in the second block.
         sequence = [(condition, "AB", side) for condition in ("R0", "S4", "A4") for side in "AB"]
         sequence += [(condition, "BA", side) for condition in ("A4", "S4", "R0") for side in "BA"]
-        for index, (condition, order, side) in enumerate(sequence, 1):
+        sequence = [(repetition, *item) for repetition in range(3) for item in sequence]
+        for index, (repetition, condition, order, side) in enumerate(sequence, 1):
             identifier = f"{index:02d}-{condition}-{order}-{side}"
             run_dir = output / "runs" / identifier
             run_dir.mkdir(parents=True)
@@ -1214,7 +1215,7 @@ def main():
             staged_evidence.mkdir()
             result_path = staged_evidence / "ui-result.json"
             before = machine_snapshot()
-            row = {"id": identifier, "condition": condition, "order": order, "side": side, "status": "running",
+            row = {"id": identifier, "condition": condition, "repetition": repetition, "order": order, "side": side, "status": "running",
                    "valid": False, "invalidReasons": [], "startedAt": utc(), "powerBefore": power_source(before)}
             report["runs"].append(row)
             write_json(run_dir / "machine-before.json", before)
@@ -1307,6 +1308,7 @@ def main():
                         output / "builds" / checkout.name / "cleanup.log", timeout=30)
             except BaseException as error:
                 report["errors"].append("Worktree cleanup: " + str(error))
+                report["status"] = "failed"
         temporary.cleanup()
         report["finishedAt"] = utc()
         save_report(output, report)
@@ -1315,4 +1317,11 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.path.insert(0, str(ROOT / 'tools/benchmarks'))
+    from gate.ux import ui_lease
+    try:
+        with ui_lease():
+            raise SystemExit(main())
+    except OSError as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(2)

@@ -41,3 +41,14 @@ SHAs. It is separate from required build checks.
 
 Locally use `make lint`, `make typecheck` and `make pbt`, or their combined `make check`.
 See the [verification policy](verification-policy.md) for limitations.
+
+## Independent performance boundaries
+
+[Performance contract](../../.github/workflows/performance-contract.yml) runs the
+portable judgment CLI's generated properties and e2e scenarios on its configured
+path triggers. [Runtime A/B](../../.github/workflows/runtime-performance.yml) and
+[Overview A/B](../../.github/workflows/overview-performance.yml) are explicit
+dispatch measurements with fail-closed judgments. Their reports and gate scope
+are defined in the [performance guide](../../tools/benchmarks/gate/README.md).
+These jobs are separate from `Complete coverage`; workflow presence does not
+configure remote required checks. Signed optical UX suites have no hosted job.

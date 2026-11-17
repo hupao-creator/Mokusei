@@ -8,8 +8,8 @@
 AsciiDoc、README、文本运行说明/生产 prompt、证据文本及 LICENSE，包含隐藏 `.agents/`
 和 `CLAUDE.md` 符号链接：共 **197** 个范围标识，其中 **190** 项自有/适用文档、
 **7** 项第三方原文/生成数据。范围标识数量不是当前文件数量。
-当前树有 **136** 个文档候选：下表 **129** 项自有/适用入口，另列 **7** 项第三方输入；
-其中 **9** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
+当前树有 **140** 个文档候选：下表 **133** 项自有/适用入口，另列 **7** 项第三方输入；
+其中 **13** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
 逐项映射到当前事实所有者；日志接口类标识明确映射到现有能力边界，不声明日志实现。
 
 第三方依赖源码、SwiftPM/Go 缓存、构建输出、图片/字体二进制、JSON/CSV 原始采样和
@@ -113,6 +113,10 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [scripts/ci/README.md](../scripts/ci/README.md) | 流程/配置静态核对；[ci.yml](../.github/workflows/ci.yml)、[scope.py](../scripts/ci/scope.py)、[PBT inventory](../tools/verification/pbt/properties.json) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [scripts/ci/self-hosted.md](../scripts/ci/self-hosted.md) | 流程/配置静态核对；[ci.yml](../.github/workflows/ci.yml)、[overview-performance.yml](../.github/workflows/overview-performance.yml)、[macos-runner-preflight.py](../scripts/ci/macos-runner-preflight.py) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [scripts/ci/verification-policy.md](../scripts/ci/verification-policy.md) | 流程/配置静态核对；[AGENTS.md](../AGENTS.md)、[Makefile](../Makefile)、[ci.yml](../.github/workflows/ci.yml) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
+| [tools/benchmarks/BOUNDARY_CONTRACT.md](../tools/benchmarks/BOUNDARY_CONTRACT.md) | 性能执行/报告边界静态核对；[performance.py](../tools/benchmarks/performance.py) | 仅性能 runner 实现该 envelope；PBT 有独立 summary，不推断 e2e 兼容 |
+| [tools/benchmarks/gate/README.md](../tools/benchmarks/gate/README.md) | 预算/配对/退出码静态核对；[engine.py](../tools/benchmarks/gate/engine.py) | 暂定未实机校准；CLI 判定机通过不等于产品性能通过 |
+| [tools/benchmarks/gate/SPEC.md](../tools/benchmarks/gate/SPEC.md) | 当前架构与证据边界静态核对；[runner.py](../tools/benchmarks/gate/runner.py) | 不认证 GUI、真实账户、FPS、能耗或完整任务资源 |
+| [tools/benchmarks/gate/UX.md](../tools/benchmarks/gate/UX.md) | 实际场景清单与窄采集范围静态核对；[catalog.json](../tools/benchmarks/gate/catalog.json) | signed GUI 矩阵须有独立实测；物理 FPS/能耗/pinch 缺口不记为通过 |
 | [tools/benchmarks/README.md](../tools/benchmarks/README.md) | CLI/采集口径静态核对；[adapter.py](../tools/benchmarks/adapter.py)、[badge_comparison.py](../tools/benchmarks/badge_comparison.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/benchmarks/REFERENCES.md](../tools/benchmarks/REFERENCES.md) | CLI/采集口径静态核对；[adapter.py](../tools/benchmarks/adapter.py)、[badge_comparison.py](../tools/benchmarks/badge_comparison.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/benchmarks/baselines/2026-11-13-combined-rendering.md](../tools/benchmarks/baselines/2026-11-13-combined-rendering.md) | 测量制品/来源/限制核对；[2026-11-13-combined-rendering.json](../tools/benchmarks/baselines/2026-11-13-combined-rendering.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |

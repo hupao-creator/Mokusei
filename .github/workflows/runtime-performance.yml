@@ -1,0 +1,55 @@
+name: Runtime performance diagnostics
+
+"on":
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: Full baseline product SHA
+        required: true
+        type: string
+      candidate:
+        description: Full candidate product SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-performance-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  paired:
+    name: Runtime paired cost diagnostics
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Prepare, measure and enforce declared budgets
+        env:
+          BASELINE_SHA: ${{ inputs.baseline }}
+          CANDIDATE_SHA: ${{ inputs.candidate }}
+        run: >-
+          python3 tools/benchmarks/performance.py run --suite runtime-boundaries
+          --baseline "$BASELINE_SHA" --candidate "$CANDIDATE_SHA"
+          --output "$RUNNER_TEMP/runtime-performance"
+      - name: Publish judgment
+        if: ${{ always() }}
+        run: |
+          if test -f "$RUNNER_TEMP/runtime-performance/report.md"; then
+            cat "$RUNNER_TEMP/runtime-performance/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: runtime-performance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/runtime-performance
+          if-no-files-found: error
+          retention-days: 14

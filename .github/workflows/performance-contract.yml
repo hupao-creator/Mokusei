@@ -1,0 +1,35 @@
+name: Performance contract
+
+"on":
+  pull_request:
+    paths: ['tools/benchmarks/**', 'tools/verification/overview-ci-performance/**', '.github/workflows/*performance*.yml']
+  push:
+    branches: [main]
+    paths: ['tools/benchmarks/**', 'tools/verification/overview-ci-performance/**', '.github/workflows/*performance*.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-contract-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Performance judgment / PBT and CLI e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exercise real judgment with generated observations
+        run: python3 tools/benchmarks/gate/verify.py --output "$RUNNER_TEMP/performance-contract"
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: performance-contract-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/performance-contract
+          if-no-files-found: error
+          retention-days: 14

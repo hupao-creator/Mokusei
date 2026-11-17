@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "kind": "performance-catalog",
+  "suites": {
+    "runtime-boundaries": {
+      "version": 1,
+      "documentation": "gate/README.md",
+      "calibration": "provisional-not-physically-calibrated",
+      "maxNormalizedMAD": 1.0,
+      "adapter": "runtime",
+      "pairCount": 6,
+      "budgetSeconds": 900,
+      "processSeconds": 120,
+      "scenarios": [
+        "store-noop",
+        "store-lifecycle-append",
+        "store-work-read",
+        "runtime-list",
+        "runtime-notify",
+        "application-list"
+      ],
+      "workload": {
+        "records": 1000,
+        "iterations": 100,
+        "warmup": 1,
+        "samples": 1,
+        "gomaxprocs": 2
+      },
+      "metrics": {
+        "nsPerOperation": {
+          "unit": "ns/op",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 5000
+        },
+        "bytesPerOperation": {
+          "unit": "bytes/op",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 1024
+        },
+        "allocsPerOperation": {
+          "unit": "allocations/op",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 8
+        }
+      }
+    },
+    "overview-release": {
+      "version": 1,
+      "documentation": "gate/README.md",
+      "calibration": "provisional-not-physically-calibrated",
+      "maxNormalizedMAD": 1.0,
+      "adapter": "overview",
+      "pairCount": 6,
+      "budgetSeconds": 2400,
+      "scenarios": [
+        "R0",
+        "S4",
+        "A4"
+      ],
+      "workload": {
+        "n": 40,
+        "k": 4,
+        "warmupSeconds": 5,
+        "formalSeconds": 20,
+        "sourceProtocol": 2,
+        "clockVersion": 2
+      },
+      "metrics": {
+        "uiCPUPercent": {
+          "unit": "one-core percentage points",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 2
+        },
+        "coreCPUPercent": {
+          "unit": "one-core percentage points",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 2
+        },
+        "totalCPUPercent": {
+          "unit": "one-core percentage points",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 3
+        }
+      }
+    },
+    "external-overview": {
+      "version": 1,
+      "documentation": "README.md",
+      "calibration": "provisional-not-physically-calibrated",
+      "maxNormalizedMAD": 1.0,
+      "adapter": "unsupported",
+      "reason": "Whole-application descendant/exit accounting incomplete; no certified regression adapter",
+      "scenarios": [
+        "first-render",
+        "idle.completed",
+        "idle.active",
+        "pan",
+        "zoom",
+        "body",
+        "body.pan",
+        "body.zoom"
+      ]
+    },
+    "external-reading": {
+      "version": 1,
+      "documentation": "reading/README.md",
+      "calibration": "provisional-not-physically-calibrated",
+      "maxNormalizedMAD": 1.0,
+      "adapter": "unsupported",
+      "reason": "Whole-application descendant/exit accounting incomplete; no certified regression adapter",
+      "scenarios": [
+        "reading.first-open",
+        "reading.reopen",
+        "reading.scroll",
+        "reading.active-open",
+        "reading.output-scroll"
+      ]
+    },
+    "ux-startup": {
+      "version": 1,
+      "documentation": "gate/UX.md",
+      "calibration": "provisional-not-physically-calibrated",
+      "maxNormalizedMAD": 1.0,
+      "adapter": "external",
+      "pairCount": 6,
+      "budgetSeconds": 3600,
+      "scenarios": [
+        "first-render"
+      ],
+      "workload": {
+        "family": "startup",
+        "count": 5,
+        "formalSeconds": 8,
+        "windowBounds": [
+          50,
+          60,
+          1280,
+          950
+        ]
+      },
+      "metrics": {
+        "firstContentSeconds": {
+          "unit": "seconds",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 0.2
+        },
+        "appCPUSeconds": {
+          "unit": "seconds",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 0.1
+        },
+        "appPeakFootprintBytes": {
+          "unit": "bytes",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 16777216
+        }
+      }
+    },
+    "ux-overview": {
+      "version": 1,
+      "documentation": "gate/UX.md",
+      "calibration": "provisional-not-physically-calibrated",
+      "maxNormalizedMAD": 1.0,
+      "adapter": "external",
+      "pairCount": 6,
+      "budgetSeconds": 3600,
+      "scenarios": [
+        "pan",
+        "body.pan"
+      ],
+      "workload": {
+        "family": "overview",
+        "count": 10,
+        "formalSeconds": 8,
+        "windowBounds": [
+          50,
+          60,
+          1280,
+          950
+        ]
+      },
+      "metrics": {
+        "appCPUPercent": {
+          "unit": "one-core percentage points",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 2
+        },
+        "appPeakFootprintBytes": {
+          "unit": "bytes",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 16777216
+        },
+        "responseSeconds": {
+          "unit": "seconds",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 0.1
+        },
+        "noProgressSeconds": {
+          "unit": "seconds",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 0.1
+        }
+      }
+    },
+    "ux-reading": {
+      "version": 1,
+      "documentation": "gate/UX.md",
+      "calibration": "provisional-not-physically-calibrated",
+      "maxNormalizedMAD": 1.0,
+      "adapter": "external",
+      "pairCount": 6,
+      "budgetSeconds": 3600,
+      "scenarios": [
+        "reading.first-open",
+        "reading.reopen"
+      ],
+      "workload": {
+        "family": "reading",
+        "bodyKiB": 8
+      },
+      "metrics": {
+        "appCPUPercent": {
+          "unit": "one-core percentage points",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 2
+        },
+        "appPeakFootprintBytes": {
+          "unit": "bytes",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 16777216
+        },
+        "responseSeconds": {
+          "unit": "seconds",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 0.1
+        },
+        "noProgressSeconds": {
+          "unit": "seconds",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 0.1
+        },
+        "firstContentSeconds": {
+          "unit": "seconds",
+          "direction": "lower",
+          "relative": 0.15,
+          "absolute": 0.1
+        }
+      }
+    },
+    "ux-zoom": {
+      "version": 1,
+      "documentation": "gate/UX.md",
+      "calibration": "unavailable",
+      "adapter": "unsupported",
+      "reason": "No validated public system magnification injector; actual product pinch input cannot be replaced with command-wheel or internal camera setters",
+      "scenarios": [
+        "zoom",
+        "body.zoom"
+      ]
+    }
+  }
+}

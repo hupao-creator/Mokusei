@@ -1,5 +1,12 @@
 # External Agent Thread reading benchmark
 
+The [UX gate](../gate/UX.md) registers `ux-reading`, its current scenario/metric
+IDs, repeated paired schedule, provisional response/resource budgets and scoped
+capability requirements. Use the shared [performance runner](../gate/README.md)
+for regression judgment; standalone commands below retain the wider observation
+status and do not apply regression thresholds.
+
+
 This extension uses the [external benchmark framework](../README.md): a built,
 signed production Release app, its bundled Runtime, the actually discovered
 native Codex CLI, a deterministic loopback provider, and independent macOS
@@ -24,7 +31,8 @@ context. Run GUI experiments serially, including Overview experiments. Fixture
 preparation and heavy compilation should finish before formal collection.
 Keep profile and Runtime connection files private. Exit 2 describes unavailable,
 incomplete or unsuccessful observation, not a statistical regression gate.
-The shared collector does not start XCTest or its privileged performance service. Native hitches remain explicitly unavailable; existing
+The shared default collector does not start XCTest or its privileged
+performance service. Native hitches remain explicitly unavailable; existing
 Screen Recording/Accessibility/input permissions are still required. No
 administrator prompt or system authorization change is part of a default run.
 
@@ -116,17 +124,18 @@ A wholly inert product probe cannot distinguish a blocked input target from a
 frozen reader; it reports unknown input acceptance/responsiveness. The independent
 frozen control still verifies that the optical scorer detects absent progress.
 
-Native hitch collection is unavailable. Independent scrolling controls
-establish system-input and sampled pixel-analysis capability only. Missing short-lived descendant/exit CPU accounting
+Native hitch collection is unavailable. Independent scrolling controls establish
+system-input and sampled pixel-analysis capability only. Missing short-lived
+descendant/exit CPU accounting
 prevents a complete application-task resource claim. These limitations remain
 visible independently of business correctness.
 
 Every trial retains the source plan, content manifest, public preparation and
 outcome, input/source ledgers, process identities, raw captures/OCR, collector
 result, cleanup and evidence manifest. Measurement state, product outcome and
-comparison remain separate. There is no total score or statistical performance
-regression gate. The older backend detail probe has a different boundary and
-must not be pooled with these measurements.
+comparison remain separate. The standalone report has no total score or regression judgment. The paired
+UX adapter evaluates only its documented narrower metrics; backend diagnostics
+have a different boundary and cannot be pooled with these measurements.
 
 The suite's `summary.md` puts body appearance and scroll response bounds first,
 then observed App CPU and sampled memory. JSON retains every segment and raw
@@ -135,7 +144,8 @@ of typical user latency; repeat separate runs before comparing versions.
 
 ## Verification
 
-No portable conformance test suite is configured.
+The portable gate includes CLI-level generated properties and e2e scenarios;
+synthetic observations do not establish native collection capability.
 
 Live calibration builds an independent AppKit scroll window with normal, frozen,
 reversed, delayed and real main-thread-stall behaviors. It uses the same system

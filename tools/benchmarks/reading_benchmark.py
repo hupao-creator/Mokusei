@@ -62,4 +62,12 @@ def main():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ('run', 'calibrate'):
+        from gate.ux import native_lease
+        try:
+            with native_lease():
+                raise SystemExit(main())
+        except OSError as error:
+            print(str(error), file=sys.stderr)
+            raise SystemExit(2)
     raise SystemExit(main())
