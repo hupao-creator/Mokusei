@@ -60,7 +60,7 @@ def replay_groups(go_executable, output):
             *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name]
                      + (["--native-owned"] if name in {"local-images", "moku-execution-links", "rolling-numbers"} else []))
               for name in ["browser-dialogs", "application-navigation", "workspace-lifecycle", "local-images", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
-                           "settings-transition", "isolated-input"]],
+                           "settings-transition", "isolated-input", "report-covers"]],
             ("thread-send-feedback", [sys.executable, "tools/verification/reading-presentation/run.py", "--thread-send-feedback-native"]),
             ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
         ],

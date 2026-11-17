@@ -227,18 +227,23 @@ Super Thread cards with an authored cover occupy the shared 1×2 Overview footpr
 outer card, separated by 4pt; the introduction is limited to three lines. The Report
 plugin fetches `report.cover` by the independent catalog cover revision instead
 of carrying HTML in the catalog. Its nonpersistent, input-transparent WebKit document
-blocks script execution, navigation and external resources. Closing/unmounting
+blocks author script execution, navigation and external resources. Closing/unmounting
 cancels the card's load; cover failure leaves the native open/archive actions usable.
 The Report plugin registration retains at most 16 cover documents/rendered images,
 keyed by source, cover revision and appearance, within its workspace. Tag-scoped
 collection remounts reuse those pixels while their new WebKit surface prepares;
 no cached browser or persistent user data is involved. WebKit stays hidden until
-its first rendered snapshot, and that image remains underneath it through native
+its complete final-frame snapshot, and that image remains underneath it through native
 layer commits. Revision/theme changes use a fresh entry. See the
 [recording diagnosis and focused validation](../../design/super-thread-cover-flicker.md).
 The generation tool describes the cover's dimensions and standalone HTML/CSS
-environment: the author supplies all styles and spacing; the host injects no CSS
-or Report-reader safe-area handling. See the
+environment: the author supplies layout styles and spacing; the host injects
+playback-only CSS, without Report-reader safe-area handling. An isolated host
+controller bounds each animation to six seconds, holds its final frame for two
+seconds, and replays while active. Preloaded covers wait at their beginning;
+offscreen/inactive covers pause. Reduce Motion shows the final composition.
+The carousel begins its eight-second dwell after entrance and WebKit playback
+admission. See the [animation contract](../../design/super-thread-animated-covers.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
 

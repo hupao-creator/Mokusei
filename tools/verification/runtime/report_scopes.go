@@ -139,6 +139,13 @@ func verifyReportGuidance(h *handle) {
 	}
 	for _, tool := range h.open.Injection.Tools.Bindings {
 		guidance += "\n" + tool.Description + "\n" + string(tool.InputSchema)
+		if tool.Name == "create_report" || tool.Name == "update_report" {
+			for _, contract := range []string{"Animated standalone HTML/CSS cover", "within 6 seconds", "final frame for 2 seconds", "do not author infinite loops", "visible at time zero"} {
+				if !strings.Contains(string(tool.InputSchema), contract) {
+					panic("Report cover tool lacks animation contract: " + tool.Name + ": " + contract)
+				}
+			}
+		}
 	}
 	var s state
 	must(json.Unmarshal(h.open.SessionState.Read(), &s))

@@ -6,6 +6,22 @@ fixture has been replaced with the production panel configuration. Vertical
 history still uses the production page stack and retains its intermediate
 geometry, pixel-coverage and cancellation assertions.
 
+## Animated Super Thread covers
+
+```sh
+python3 tools/verification/reading-presentation/run.py --report-covers
+```
+
+Four native-owned integration cases mount the production Report cover and
+carousel in the AppKit event loop. They verify rendered motion, the six-second
+bound, two-second final hold and replay, visibility/activity suspension,
+reduced-playback poster, theme/remounts, preload/entrance/dwell ordering and a
+preloaded cover failing after selection. Logs and PNGs are retained under
+`.scratch/reading-presentation/NativeReportCoverTests`. Ordinary SwiftPM marks
+the WebKit page hidden and cannot advance its CSS timeline; the ownership
+registry assigns these methods exclusively to `native/report-covers` without
+adding a test skip. See the [cover contract](../../../design/super-thread-animated-covers.md).
+
 ## Workspace Reload and rejected Quit
 
 ```sh

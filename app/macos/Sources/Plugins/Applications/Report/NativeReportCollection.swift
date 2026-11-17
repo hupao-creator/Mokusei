@@ -15,8 +15,11 @@ struct NativeReportCollection: View {
     @State private var outgoingID: ApplicationThreadRef?
     @State private var progress = 1.0
     @State private var motionEpoch = UUID()
+    @State private var readyCovers: Set<CoverIdentity> = []
+    @State private var playbackStarted: CoverIdentity?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardAnimationVisibility) private var visibility
+    @Environment(\.colorScheme) private var colorScheme
 
     init(props: [ApplicationThreadProps<NativeReportView>], initialSelection: ApplicationThreadRef? = nil,
          active: Bool, slow: Bool = false, onSelection: @escaping (ApplicationThreadRef) -> Void,
@@ -29,12 +32,27 @@ struct NativeReportCollection: View {
     private var selected: ApplicationThreadRef { members.contains(selection) ? selection : members[0] }
     private var page: Int { members.firstIndex(of: selected) ?? 0 }
     private var playing: Bool { active && visibility?.isVisible != false && !interacting }
+    private struct CoverIdentity: Hashable {
+        let reference: ApplicationThreadRef
+        let revision: JSONText
+        let dark: Bool
+    }
+    private func identity(_ member: ApplicationThreadProps<NativeReportView>) -> CoverIdentity {
+        .init(reference: member.entry.ref, revision: member.entry.view.coverRevision, dark: colorScheme == .dark)
+    }
+    private var renderedIdentities: Set<CoverIdentity> { Set(rendered.map(identity)) }
     private struct ClockKey: Hashable {
         let selection: ApplicationThreadRef
         let members: [ApplicationThreadRef]
         let playing: Bool
+        let cover: CoverIdentity
     }
-    private var clockKey: ClockKey { .init(selection: selected, members: members, playing: playing) }
+    private var clockKey: ClockKey {
+        let member = props[page], cover = identity(member)
+        return .init(selection: selected, members: members,
+            playing: playing && outgoingID == nil && (!member.entry.view.hasCover
+                || (readyCovers.contains(cover) && (reduceMotion || playbackStarted == cover))), cover: cover)
+    }
     private var locale: JSONText { props[0].context.locale }
     // Keep at most four WebKit covers alive: visible, retiring, and neighbors.
     // An arbitrarily large collection must not mount one browser per report.
@@ -135,6 +153,10 @@ struct NativeReportCollection: View {
             }
         }
         .onAppear { onSelection(selected) }
+        .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
+        .onChange(of: playing) { _, value in
+            if !value { playbackStarted = nil }
+        }
         .onChange(of: members) { _, next in
             settle()
             if !next.contains(selection) { selection = next[0] }
@@ -144,6 +166,8 @@ struct NativeReportCollection: View {
             if !value { settle() }
         }
         .onChange(of: reduceMotion) { _, reduced in
+            // Leaving the static poster needs a fresh playback acknowledgement.
+            playbackStarted = nil
             if reduced { settle() }
         }
         .onChange(of: visibility?.isVisible) { _, visible in
@@ -162,9 +186,9 @@ struct NativeReportCollection: View {
             } catch { /* View identity owns and cancels this transition. */ }
         }
         .task(id: clockKey) {
-            guard playing else { return }
+            guard clockKey.playing else { return }
             do {
-                try await Task.sleep(for: .seconds(8))
+                try await Task.sleep(for: .seconds(NativeReportCoverTiming.dwell))
                 try Task.checkCancellation()
                 step(1)
             } catch { /* Leaving the view or manual input cancels this page's dwell. */ }
@@ -178,13 +202,29 @@ struct NativeReportCollection: View {
         }
     }
     @ViewBuilder private func cover(_ member: ApplicationThreadProps<NativeReportView>) -> some View {
-        if member.entry.view.hasCover { NativeReportCover(props: member) }
+        if member.entry.view.hasCover {
+            let key = identity(member)
+            NativeReportCover(props: member, playback: coverPlayback(member.entry.ref),
+                onReady: { readyCovers.insert(key) }, onPlaybackStarted: {
+                    // Start dwell after WebKit acknowledges playback, not when a
+                    // SwiftUI update merely queues IPC to its content process.
+                    if playing && outgoingID == nil && identity(props[page]) == key { playbackStarted = key }
+                })
+        }
         else {
             ZStack {
                 NativePalette.overview.surface.swiftUI
                 Text(member.entry.view.emoji.string).font(.system(size: 72))
             }
         }
+    }
+
+    private func coverPlayback(_ reference: ApplicationThreadRef) -> NativeReportCoverPlayback {
+        if reference == outgoingID { return .paused }
+        // Incoming and preloaded documents stay on their first frame until the
+        // shared native entrance settles; outgoing pages keep their last pose.
+        guard reference == selected, outgoingID == nil else { return .reset }
+        return playing ? .playing : .paused
     }
 
 }

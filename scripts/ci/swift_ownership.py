@@ -2,6 +2,18 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/liveCoverHoldsReplaysPausesAndShowsReducedMotionPoster()": {
+        "group": "native", "check": "report-covers", "marker": "REPORT_COVER_RENDERED_CYCLE_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/oversizedInfiniteAuthorMotionStillCompletesWithinSixSeconds()": {
+        "group": "native", "check": "report-covers", "marker": "REPORT_COVER_BOUND_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/carouselWaitsForReadinessAndEntranceAndReplaysSelectedCovers()": {
+        "group": "native", "check": "report-covers", "marker": "REPORT_COVER_CAROUSEL_ADMISSION_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeReportCoverTests/carouselAdvancesPastCoverThatFailsAfterSelection()": {
+        "group": "native", "check": "report-covers", "marker": "REPORT_COVER_FAILURE_ADVANCE_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeMarkdownLocalImageTests/localImagesRenderInProductionMessageAndKeepLinks()": {
         "group": "native", "check": "local-images", "marker": "MARKDOWN_LOCAL_IMAGE_NATIVE_CLICK_CONFIRMED",
     },

@@ -548,9 +548,17 @@ moving the canvas; its scroll/pinch region is intentionally reserved for the
 collection cover.
 
 The selected ID is shared by cover, metadata, opening and semantic navigation.
-Automatic advance is every 8 seconds while foreground, visible and not in a
-cover gesture; manual advance resets the dwell. Offscreen and hidden collections
-stop advancing. Reduce Motion switches immediately, including during travel.
+Automatic advance follows an 8-second dwell while foreground, visible and not in
+a cover gesture. The dwell starts after the incoming page finishes travel and
+WebKit acknowledges cover playback; loading does not consume it. Manual advance
+resets the dwell. Offscreen and hidden collections stop advancing. Their covers
+pause the current motion/hold, and preloaded neighbors stay at their beginning.
+Each cover animates for at most 6 seconds, holds its final composition for 2
+seconds and repeats; a later cycle of a shorter cover may be interrupted by the
+page change. Returning to a selected page replays from its beginning.
+Standalone application cards receive foreground/presentation activity through
+the shared animation environment too. Reduce Motion switches immediately,
+including during travel, and shows covers' completed static compositions.
 Active/visibility loss and membership replacement settle the current selection and cancel its
 motion owner. Only the stateless mask identity is replaced; settled metadata
 subscriptions and in-flight card actions remain mounted. Cover geometry ignores

@@ -87,7 +87,7 @@ The native job performs these stages:
    graphical remainder, both with `--skip-build --no-parallel`. Every ordinary
    method belongs to exactly one process; fixture-backed windowless suites move
    only when their existing producer environment is supplied.
-5. Run all eleven `interop` checks and all fourteen `native` checks serially.
+5. Run all eleven `interop` checks and all fifteen `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 
@@ -158,6 +158,7 @@ its 100/90/300ms sampling intervals, three distinct frames and fixed geometry.
 It requires a foreground key window in the AppKit runner and emits
 `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` only after those assertions. The same manifest,
 exclusion and exactly-once receipt audit apply; a skipped or absent run fails.
+
 The projected-usage animation method uses the same native owner. It requires a
 running AppKit loop and an active, visible key window before its original
 350/65/330ms sampling sequence, retains the original three-frame inequalities
@@ -166,6 +167,13 @@ and interrupted-update/reference checks, and emits
 and actual sampling times are retained after observation; zero sleep tolerance
 requests no extra timer coalescing. CI's `--native-owned` selects these two
 methods exactly once; the stable-cell leaf keeps its ordinary graphical execution.
+
+Animated Super Thread covers use `native/report-covers`. Its production WebKit
+documents need the running AppKit event loop to become visible and advance CSS
+time. The four owned methods require rendered cycle, duration-bound,
+carousel-admission and failure-advance markers, including real
+first/middle/final/restarted pixels. Ordinary SwiftPM's hidden document cannot
+replace this native boundary.
 
 The Moku note capsule hydration/wrapping/copy/input case uses
 `native/moku-execution-links`. It requires the real AppKit loop, tests both

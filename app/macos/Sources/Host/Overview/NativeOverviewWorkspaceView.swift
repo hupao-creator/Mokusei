@@ -311,11 +311,13 @@ private struct NativeOverviewWorkspaceCard: View {
                     guard model.canvasState.allowsActivation(cardID: item.id) else { return }
                     provided.openExecution(reference)
                 })
-            return try snapshot.card(context: context, openThread: {
+            return try AnyView(snapshot.card(context: context, openThread: {
                 guard plugin.hasDetail, model.canvasState.allowsActivation(cardID: item.id) else { return }
                 callbacks.current.openApplication(snapshot.entry.ref, nil)
                 Task { await model.recordUserAction(kind: "open-thread", thread: snapshot.entry.ref) }
-            })
+            }).environment(\.threadCardCloudAnimationsEnabled,
+                model.presentationActive && model.facts.focused && model.facts.overviewVisible
+                    && model.facts.documentVisible && !model.facts.settingsOpen))
         } catch {
             return AnyView(VStack(alignment: .leading, spacing: 8) {
                 Text(snapshot.entry.title.string).font(NativeTypography.inter(size: 15, weight: 620))

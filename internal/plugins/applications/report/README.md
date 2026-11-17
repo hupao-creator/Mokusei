@@ -283,11 +283,19 @@ reports remain readable, and create/new binding uses the existing authority.
 
 New Super Thread tool calls supply `coverHTML`; updates may replace it independently
 of the report document. The shared create/update field description specifies a
-standalone 360×308 HTML/CSS viewport: no host CSS, padding or safe-area styles are
+standalone 360×308 HTML/CSS viewport: no host layout CSS, padding or safe-area styles are
 injected. The report body's host-integration rules and `--mokusei-*` variables do
 not apply to covers; the authored HTML must supply its own CSS and spacing.
-JavaScript and external resources are unavailable. No additional cover art-direction
-prompt is injected. The report introduction targets a concise two-line card.
+Author JavaScript and external resources are unavailable. The Agent instructions
+and both write tools require purposeful, evidence-grounded CSS keyframes rather
+than a static cover or a generic decorative template. The complete finite timeline,
+including delays and repetitions, is at most six seconds. Its final composition
+must remain readable on its own, and a title or recognizable key visual stays
+visible from time zero so a replay does not start with an empty background. The host holds that final frame for two seconds
+and then replays; authors must not include the hold, infinite loops, hover
+transitions or scroll timelines. Covers supply both light and dark palettes.
+This guidance is independent of the report body's ELI5/host-integration rules.
+The report introduction targets a concise two-line card.
 Cover markup is HTML/CSS, limited to 64,000 Unicode scalars; inline SVG, scripts
 and embedded documents are rejected at admission. See the
 [cropping investigation](../../../../design/super-thread-cover-top-space.md)
@@ -304,10 +312,28 @@ or rewrite runs on startup.
 The production card uses one shell, one open action and its existing archive menu.
 A cover makes its Overview footprint 1×2 (360×456pt on the current grid): 308pt
 cover, 4pt gap and the original metadata/content region with a two-line introduction.
-The passive native WebKit surface uses a nonpersistent store, disabled JavaScript,
+The passive native WebKit surface uses a nonpersistent store, disabled author JavaScript,
 a host-owned document response with a sandbox CSP blocking external resources.
 It neither navigates nor handles input; theme follows the native appearance.
 A failed cover leaves the native card usable with an unavailable label.
+
+An isolated host-owned WebKit content world controls the admitted CSS effects.
+It retains their final styles, treats an out-of-contract infinite effect as one
+iteration, and accelerates an oversized timeline as a whole to fit six seconds.
+Static covers remain readable. The host adds playback-only CSS to pause authored
+effects and suppress transitions, without injecting layout or safe-area styles.
+This does not enable document scripts or add an application API.
+
+Preloaded neighbors remain at their beginning. A selected cover starts after
+its native entrance; its eight-second carousel dwell waits for actual WebKit
+playback acknowledgement. Each cycle ends with a two-second hold before replay.
+Short covers may begin another cycle before the eight-second page change, which
+can interrupt that later cycle. Leaving selection resets for the next visit;
+inactivity, hidden viewports and cover gestures pause the current motion/hold.
+Standalone cards share the same playback and foreground/visibility controls.
+Reduce Motion displays the complete final composition. The bounded cache retains
+a final-frame poster beneath the live surface to bridge remounts without caching
+browser instances. See the [animation contract and verification](../../../../design/super-thread-animated-covers.md).
 
 
 ## Updated collection members
