@@ -236,17 +236,16 @@ type ThreadProjection struct {
 	View  json.RawMessage
 }
 type ThreadTypeDefinition struct {
-	ID             string
-	OwnerPluginID  string
-	DisplayName    string
-	CollectionID   string
-	Contract       ValueContract
-	Project        func(model.ApplicationThreadRecord) (ThreadProjection, error)
-	Tags           ThreadTags
-	Classification ThreadClassification
-	Archive        ThreadArchive
-	Overview       ThreadOverview
-	Conversation   ThreadConversation
+	ID            string
+	OwnerPluginID string
+	DisplayName   string
+	CollectionID  string
+	Contract      ValueContract
+	Project       func(model.ApplicationThreadRecord) (ThreadProjection, error)
+	Tags          ThreadTags
+	Archive       ThreadArchive
+	Overview      ThreadOverview
+	Conversation  ThreadConversation
 }
 type ThreadStateChange struct {
 	Value          json.RawMessage
@@ -263,13 +262,6 @@ type ThreadTags interface {
 	Project(model.ApplicationThreadRecord) (model.TagProjection, error)
 	Sources(model.ApplicationThreadRecord) ([]model.ThreadRef, error)
 	Apply(model.ApplicationThreadRecord, SemanticTagEffect) (ThreadStateChange, error)
-}
-type ClassificationEvidence struct {
-	Content  string
-	Revision string
-}
-type ThreadClassification interface {
-	Evidence(model.ApplicationThreadRecord) (ClassificationEvidence, error)
 }
 type ThreadArchive interface {
 	Archived(model.ApplicationThreadRecord) bool

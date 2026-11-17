@@ -43,10 +43,6 @@ func (r *Runtime) BackgroundCapabilities(owner plugin.BackgroundAgentRef, settin
 	access.values[plugin.LifecycleCapabilityKey.ID] = scopedLifecycle{base: r.lifecycle, owner: owner}
 	access.values[plugin.SemanticTagsReadCapabilityKey.ID] = tagsReadCapability{r, owner.Binding.Scope}
 	access.values[plugin.SemanticTagsWriteCapabilityKey.ID] = tagsWriteCapability{runtime: r, source: owner.AgentID, scope: owner.Binding.Scope, settingsID: settingsID}
-	if owner.Binding.Kind == plugin.DirectoryScopeKind {
-		// Classification includes application-wide evidence and has no scoped contract.
-		delete(access.values, plugin.ClassificationReadCapabilityKey.ID)
-	}
 	if owner.Binding.Kind == plugin.GlobalScope {
 		// Semantic-tag operations require a particular directory, never an implicit Inbox.
 		delete(access.values, plugin.SemanticTagsReadCapabilityKey.ID)

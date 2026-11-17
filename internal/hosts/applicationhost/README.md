@@ -56,7 +56,6 @@ ThreadTypeDefinition 通过 Project 返回 title/view 和可选的稳定 Scope�
 | 扩展 | 职责 |
 |---|---|
 | Tags | 投影标签、声明来源、在同一 tag 事务内变换快照 |
-| Classification | 提供稳定 evidence revision 和有界分类内容 |
 | Archive | 更改展示隐藏状态并声明持久关联的普通 Thread 身份（不比较最新执行） |
 | Overview | 声明可见性、directory filter 和覆盖的 execution |
 | Conversation | 读取、初始化配置和嵌回宿主授权的 Harness session |
@@ -70,11 +69,11 @@ ordering 仅在增删或顺序变化时生成。精确 source hash 缓存每条�
 
 ### 后台能力与生命周期
 
-能力 key 包含 ID、APIVersion 和 Phase。宿主只发放定义的 Requires 清单中的能力；snapshot 能力只在纯查询/事务中使用。现有 keys 覆盖 lifecycle、background configuration/sessions/environment、ordinary tasks read/snapshot、classification、semantic tags read/write/snapshot、只读 overview context 和受控 process。
+能力 key 包含 ID、APIVersion 和 Phase。宿主只发放定义的 Requires 清单中的能力；snapshot 能力只在纯查询/事务中使用。现有 keys 覆盖 lifecycle、background configuration/sessions/environment、ordinary tasks read/snapshot、semantic tags read/write/snapshot、只读 overview context 和受控 process。
 
 BackgroundAgentDefinition 必须显式声明 Global 或 PerDirectoryScope。Runtime 的 DirectoryScopes 只提供持久目录身份与名称；Host 根据注册定义派生稳定实例 ID。目录在 task 生命周期事务中记录，来源删除或事件类型不会影响恢复。
 
-每个实例携带显式 ScopeBinding：Global 与 Directory 不同，Inbox 是有效 Directory，零值和非法绑定被拒绝。生命周期订阅、历史（包括显式事件 ID）和普通任务读取自动与绑定取交集；冲突的事件 scope 匹配空集合。观察私有 session 也必须属于同一实例。Global 仍受 Requires 和普通来源校验约束；分类证据能力暂不支持 Directory 绑定。实例划分不决定 lazy/idle 会话资源策略。
+每个实例携带显式 ScopeBinding：Global 与 Directory 不同，Inbox 是有效 Directory，零值和非法绑定被拒绝。生命周期订阅、历史（包括显式事件 ID）和普通任务读取自动与绑定取交集；冲突的事件 scope 匹配空集合。观察私有 session 也必须属于同一实例。Global 仍受 Requires 和普通来源校验约束。实例划分不决定 lazy/idle 会话资源策略。
 
 `ExecutionSettingsID` 绑定的 `enabled` 控制后台执行，缺省为开启。Settings
 提交后，Host 同步通知支持 `RefreshSettings` 的参与者撤销当前 attempt；参与者
