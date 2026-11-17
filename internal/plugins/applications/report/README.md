@@ -338,11 +338,13 @@ browser instances. See the [animation contract and verification](../../../../des
 Collection cards show the current report/total in their upper-right badge. Their
 bottom carousel capsule fades in over 160ms while the whole card is hovered and
 fades out on exit, without changing layout or intercepting pointer input while
-hidden. Keyboard and accessibility focus also reveal the retained native controls;
-native menu tracking keeps the capsule visible and pauses automatic page changes
-until dismissal. Reduce Motion changes visibility immediately. Page numbers follow
-the surviving selected member after collection updates; stale menu actions for
-removed members are ignored. Single-member input displays 1/1 (ordinary Overview
+hidden. Only pointer hover reveals the whole capsule: retained keyboard/accessibility
+focus and native menu tracking never extend its visibility after pointer exit.
+Controls stay mounted for native keyboard/accessibility operation; menu tracking
+pauses automatic page changes until dismissal. Deactivation, viewport exit and
+unmount clear remembered hover. Reduce Motion changes visibility immediately.
+Page numbers follow the surviving selected member after collection updates; stale
+menu actions for removed members are ignored. Single-member input displays 1/1 (ordinary Overview
 grouping currently requires at least two members). Other card types are unchanged.
 
 

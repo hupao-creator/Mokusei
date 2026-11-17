@@ -43,7 +43,7 @@ struct NativeReportCollection: View {
         case previous, member(ApplicationThreadRef), menu, next
     }
     private var controlsVisible: Bool {
-        active && (hovered || focusedControl != nil || accessibilityFocusedControl != nil || !trackingMenus.isEmpty)
+        active && hovered
     }
     private struct CoverIdentity: Hashable {
         let reference: ApplicationThreadRef
@@ -166,8 +166,8 @@ struct NativeReportCollection: View {
                                 .focused($focusedControl, equals: .next)
                                 .accessibilityFocused($accessibilityFocusedControl, equals: .next)
                         }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
-                            // Mask only the pixels: mounted controls retain keyboard/AX
-                            // discovery, without a transparent pointer target or reflow.
+                            // Only pointer hover reveals the entire capsule. Masking
+                            // retains native keyboard/AX controls without a hidden hit target.
                             .mask { Rectangle().opacity(controlsVisible ? 1 : 0) }
                             .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: controlsVisible)
                             .allowsHitTesting(controlsVisible)
@@ -184,9 +184,10 @@ struct NativeReportCollection: View {
         .contentShape(RoundedRectangle(cornerRadius: 22))
         .onHover { hovered = $0 }
         .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { notification in
-            // Native menu tracking can move the pointer outside the card. Retain
-            // its anchor and suspend auto-advance until tracking actually ends.
-            guard controlsVisible, let menu = notification.object as? NSMenu else { return }
+            // Pause auto-advance for native menu tracking, but never use it to
+            // keep the capsule visible after the pointer leaves the card.
+            guard active, hovered || focusedControl == .menu || accessibilityFocusedControl == .menu || !trackingMenus.isEmpty,
+                  let menu = notification.object as? NSMenu else { return }
             trackingMenus.insert(ObjectIdentifier(menu))
         }
         .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { notification in
@@ -206,7 +207,7 @@ struct NativeReportCollection: View {
             onSelection(selected)
         }
         .onChange(of: active) { _, value in
-            if !value { settle() }
+            if !value { hovered = false; settle() }
         }
         .onChange(of: reduceMotion) { _, reduced in
             // Leaving the static poster needs a fresh playback acknowledgement.
@@ -214,7 +215,7 @@ struct NativeReportCollection: View {
             if reduced { settle() }
         }
         .onChange(of: visibility?.isVisible) { _, visible in
-            if visible == false { settle() }
+            if visible == false { hovered = false; settle() }
         }
         .task(id: motionEpoch) {
             guard outgoingID != nil else { return }
