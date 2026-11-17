@@ -69,7 +69,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         webView.allowsBackForwardNavigationGestures = true
         webView.underPageBackgroundColor = .clear
         webView.onCancelAnnotation = { [weak self] in self?.cancelAnnotation() }
-        webView.onReloadDocument = { [weak self] force in self?.reloadFocusedDocument(fromOrigin: force) }
+        webView.onReloadDocument = { [weak self] in self?.reloadFocusedDocument() }
         webView.onDocumentZoomChanged = { [weak self] in
             self?.refreshSelectionAfterResize()
         }
@@ -139,10 +139,10 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     }
     /// Application menu roles target the focused document, as Electron does;
     /// the browser toolbar's failed-target retry remains a separate action.
-    private func reloadFocusedDocument(fromOrigin: Bool) {
+    private func reloadFocusedDocument() {
         guard !released else { return }
         begin(webView.url)
-        remember(fromOrigin ? webView.reloadFromOrigin() : webView.reload())
+        remember(webView.reload())
     }
     func retry() { if let pendingURL { navigate(pendingURL) } else { reload() } }
     func setSuppressed(_ hidden: Bool) {
@@ -594,7 +594,7 @@ private final class BrowserPageDialog {
 @MainActor
 final class BrowserWKWebView: WKWebView {
     var onCancelAnnotation: (() -> Void)?
-    var onReloadDocument: ((Bool) -> Void)?
+    var onReloadDocument: (() -> Void)?
     var onDocumentZoomChanged: (() -> Void)?
     var annotationActive = false
     private(set) var documentZoomLevel: Double = 0
@@ -613,8 +613,7 @@ final class BrowserWKWebView: WKWebView {
 
     // These AppKit selectors are intentionally shared by name, without giving
     // the application host any dependency on a concrete browser plugin type.
-    @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { onReloadDocument?(false) }
-    @objc func mokuseiForceReloadFocusedWebContent(_ sender: Any?) { onReloadDocument?(true) }
+    @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { onReloadDocument?() }
     @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setDocumentZoomLevel(0) }
     @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel + 0.5) }
     @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel - 0.5) }

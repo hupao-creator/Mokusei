@@ -1078,7 +1078,6 @@ private final class HTMLNavigationViewport: NSView {
     }
 
     @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { remount() }
-    @objc func mokuseiForceReloadFocusedWebContent(_ sender: Any?) { remount() }
     @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setZoomLevel(0) }
     @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel + 0.5) }
     @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel - 0.5) }
@@ -1189,7 +1188,6 @@ private final class HTMLDocumentWebView: WKWebView {
     }
 
     @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { reload() }
-    @objc func mokuseiForceReloadFocusedWebContent(_ sender: Any?) { reloadFromOrigin() }
     @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setDocumentZoomLevel(0) }
     @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel + 0.5) }
     @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel - 0.5) }

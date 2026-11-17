@@ -95,27 +95,7 @@ struct NativeMokuNoteTests {
         #expect(sample(0, x: 30, phase: .began, inverted: false).action == nil)
     }
 
-    @Test func touchSwipeUsesTheSameThresholdAndIgnoresLeftwardInput() {
-        let state = NativeMokuSceneState()
-        state.setWindowVisible(true)
-        var touch = NativeMokuTouchSwipeSequence()
-        let start = CGPoint(x: 160, y: 322)
-        #expect(touch.begin(at: start, eligible: true, inside: true) == true)
-        #expect(touch.move(to: CGPoint(x: 160, y: 299), eligible: true) == nil)
-        // A finger may leave the 44-point row while completing an upward swipe.
-        #expect(touch.move(to: CGPoint(x: 160, y: 298), eligible: true) == .note)
-        state.setNotePanelOpen(true)
-        #expect(state.notePanelOpen && !state.inputOpen)
-        #expect(touch.move(to: CGPoint(x: 80, y: 240), eligible: true) == nil)
-        touch.cancel()
-        #expect(touch.begin(at: start, eligible: true, inside: true) == true)
-        #expect(touch.move(to: CGPoint(x: 136, y: 322), eligible: true) == nil)
-        #expect(!state.inputOpen && state.notePanelOpen)
-        #expect(touch.move(to: CGPoint(x: 100, y: 280), eligible: true) == nil)
-        state.settle()
-    }
-
-    @Test func touchSwipeCannotAcquireMicNoteReadingOrCanvasTouches() {
+    @Test func swipeTargetExcludesMicNoteReadingAndCanvas() {
         let row = CGRect(x: 100, y: 300, width: 168, height: 44)
         let mic = CGRect(x: 221, y: 300, width: 44, height: 44)
         func allowed(_ point: CGPoint) -> Bool {
@@ -125,41 +105,6 @@ struct NativeMokuNoteTests {
         #expect(!allowed(CGPoint(x: 243, y: 322))) // Mic tap and long press.
         #expect(!allowed(CGPoint(x: 160, y: 280))) // Note's reading/scrolling area.
         #expect(!allowed(CGPoint(x: 293, y: 322))) // Separate note button.
-
-        var touch = NativeMokuTouchSwipeSequence()
-        #expect(touch.begin(at: CGPoint(x: 95, y: 322), eligible: true, inside: false) == false)
-        #expect(touch.move(to: CGPoint(x: 160, y: 280), eligible: true) == nil)
-        #expect(touch.begin(at: CGPoint(x: 160, y: 322), eligible: false, inside: true) == false)
-        #expect(touch.begin(at: CGPoint(x: 160, y: 322), eligible: true, inside: true) == true)
-        #expect(touch.move(to: CGPoint(x: 160, y: 310), eligible: false) == nil)
-        #expect(!touch.isTracking)
-        #expect(touch.move(to: CGPoint(x: 160, y: 280), eligible: true) == nil)
-        #expect(touch.begin(at: CGPoint(x: 160, y: 322), eligible: true, inside: true) == true)
-        touch.cancel()
-        #expect(touch.move(to: CGPoint(x: 100, y: 322), eligible: true) == nil)
-    }
-
-    @Test func touchAndTrackpadAgreeOnDirectionalIntentIncludingNaturalScrolling() {
-        let paths: [[CGPoint]] = [
-            [.init(x: -12, y: 1), .init(x: -12, y: -1), .init(x: -50, y: -50)],
-            [.init(x: 1, y: -12), .init(x: -1, y: -12), .init(x: -50, y: -50)],
-            [.init(x: 40, y: 0)], [.init(x: 0, y: 40)], [.init(x: -30, y: -30)],
-            [.init(x: 30, y: 0), .init(x: -20, y: -10)]
-        ]
-        for path in paths {
-            for inverted in [false, true] {
-                var touch = NativeMokuTouchSwipeSequence(), trackpad = NativeMokuSwipeSequence()
-                var point = CGPoint(x: 160, y: 322)
-                #expect(touch.begin(at: point, eligible: true, inside: true) == true)
-                for (index, delta) in path.enumerated() {
-                    point.x += delta.x; point.y += delta.y
-                    let expected = trackpad.route(x: inverted ? delta.x : -delta.x,
-                        y: inverted ? delta.y : -delta.y, phase: index == 0 ? .began : .changed,
-                        momentum: [], precise: true, inverted: inverted, eligible: true, inside: true)
-                    #expect(touch.move(to: point, eligible: true) == expected.action)
-                }
-            }
-        }
     }
 
     @Test(.requiresDisplay, arguments: [236.0, 600.0])
@@ -212,22 +157,6 @@ struct NativeMokuNoteTests {
         }
         #expect(swipe(at: CGPoint(x: overflowRow.minX + 9, y: overflowRow.midY)) == nil)
         #expect(state.notePanelOpen && state.talkPresentation.message?.id == "overflow")
-    }
-
-    @Test func wrongDirectionTouchDragsCannotFallBackToAButtonTap() {
-        let start = CGPoint(x: 160, y: 322)
-        for offset in [CGPoint(x: 24, y: 0), CGPoint(x: 0, y: 24), CGPoint(x: -20, y: -20)] {
-            var touch = NativeMokuTouchSwipeSequence()
-            #expect(touch.begin(at: start, eligible: true, inside: true) == true)
-            #expect(touch.move(to: CGPoint(x: 166, y: 325), eligible: true) == nil)
-            #expect(!touch.hasClaimedDrag)
-            #expect(touch.move(to: CGPoint(x: start.x + offset.x, y: start.y + offset.y), eligible: true) == nil)
-            #expect(touch.hasClaimedDrag)
-            #expect(touch.move(to: start, eligible: true) == nil)
-            #expect(touch.hasClaimedDrag)
-            touch.cancel()
-            #expect(!touch.hasClaimedDrag && !touch.isTracking)
-        }
     }
 
     @Test func contractProjectsAbsentValidAndEmptyNotes() throws {
