@@ -152,6 +152,16 @@ limits; the launcher and Escape continue to own dismissal.
 ## Browser
 
 [Browser](Browser/) owns WKWebView navigation, URL policy, annotation and capture.
+Displayable main-document HTTP responses remain visible and interactive even for
+4xx/5xx statuses: a non-blocking status notice preserves failure feedback without
+covering the site's explanation or verification controls. Back/forward restoration
+retains that response status. A successful navigation or reload clears the notice.
+HTTP status alone never triggers an automatic retry or request replay. Transport
+failures, terminated web processes and rejected initial downloads retain the native
+error/retry surface. Initial navigation and retry of a pending failed target use
+`load`; after a completed response, toolbar refresh and retry use WebKit `reload`
+on the same session and data store. Refreshing does not recreate cookies or
+initialize a different browser identity.
 Its shared navigation toolbar and WebKit session also serve the Host's Report
 link card through `NativeBrowserDocumentCard`. That document-owned surface has
 an ephemeral partition and no SidecardContext, annotation draft, attachment or
@@ -201,7 +211,7 @@ for lifecycle and Sprint verification limits.
 
 Loading state follows the main frame. Address editing, page navigation and external URL intents retain their distinct focus ownership. A web view suppressed by host transitions does not paint over other surfaces. Annotations are assembled into shared attachments and sent through the current thread's admitted send capability; failed submission preserves the recoverable annotation batch. The footer's material/shadow belongs inside the browser's own surface.
 
-Rejected subframe and new-window downloads do not replace the main page's ready/error state. Canceling an uncommitted navigation restores the last successful document's address and annotation readiness; a stale navigation cannot settle a newer one.
+Rejected subframe and new-window downloads do not replace the main page's ready/error state. Canceling an uncommitted navigation restores the last displayable document's address, response status and annotation readiness; a stale navigation cannot settle a newer one.
 Annotation placement follows WebKit's applied page zoom at its limits, while
 menu zoom commands retain their accumulated level for consistent reversal.
 
@@ -242,7 +252,7 @@ Verification uses the existing sidecard navigation, conversation, browser annota
 
 `NativeBrowserViewportTests` loads real loopback HTTP pages in WKWebView to
 verify that iframe attachment and unsupported-MIME responses preserve the
-main page. A rejected main-frame download likewise retains a successful source document; an initial download without a source remains an explicit error. The same fixture covers new-window downloads, cancellation before document commit, native word navigation in DOM/shadow editors and dialogs, and annotation capture after target mutation/removal. Its annotation replay
+main page. A rejected main-frame download likewise retains a displayable source document; an initial download without a source remains an explicit error. The same fixture covers new-window downloads, cancellation before document commit, native word navigation in DOM/shadow editors and dialogs, and annotation capture after target mutation/removal. Its annotation replay
 compares DOM geometry and the production document portal after zoom commands
 pass both WebKit limits, while asserting the removed annotation editor portal stays absent.
 Navigation fixtures explicitly admit the WebKit session with `setSuppressed(false)`,

@@ -41,7 +41,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     @ObservationIgnored private var activeNavigation: WKNavigation?
     @ObservationIgnored private let navigationGenerations = NSMapTable<WKNavigation, NSNumber>.weakToStrongObjects()
     @ObservationIgnored private var historyStartPending = false
-    @ObservationIgnored private var documentResponseOK = false
+    @ObservationIgnored private var documentResponseDisplayable = false
     @ObservationIgnored private var receivedDocumentResponse = false
     @ObservationIgnored private var historyResponses: [WKBackForwardListItem: Int] = [:]
     @ObservationIgnored private var documentStatus = 0
@@ -123,8 +123,8 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         cancelAnnotation()
         pendingURL = target; loading = true; ready = false; error = nil; notice = nil
         navigationCommitted = false
-        sameDocumentCandidate = allowSameDocument && documentResponseOK && sameDocument(target, completedDocumentURL)
-        if !sameDocumentCandidate { documentResponseOK = false }
+        sameDocumentCandidate = allowSameDocument && documentResponseDisplayable && sameDocument(target, completedDocumentURL)
+        if !sameDocumentCandidate { documentResponseDisplayable = false }
         receivedDocumentResponse = false
     }
     private func remember(_ navigation: WKNavigation?) {
@@ -155,7 +155,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         if let current = webView.url, current.isFileURL || BrowserURL.absolute(current.absoluteString) != nil {
             if !url.isEmpty, current.absoluteString != url {
                 if annotating { cancelAnnotation() }
-                if documentResponseOK, !webView.isLoading, let item = webView.backForwardList.currentItem {
+                if documentResponseDisplayable, !webView.isLoading, let item = webView.backForwardList.currentItem {
                     historyResponses[item] = documentStatus
                     let retained = Set(webView.backForwardList.backList + [item] + webView.backForwardList.forwardList)
                     historyResponses = historyResponses.filter { retained.contains($0.key) }
@@ -165,16 +165,16 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         }
         title = webView.title ?? ""; canGoBack = webView.canGoBack; canGoForward = webView.canGoForward
         // Same-document history has no response/commit callback. Its current
-        // history item carries the successful document status, including SPA paths.
+        // history item carries the displayable document status, including SPA paths.
         if !webView.isLoading, !navigationCommitted, webView.url == pendingURL,
            let item = webView.backForwardList.currentItem, let status = historyResponses[item] {
-            documentStatus = status; documentResponseOK = (200..<300).contains(status)
-            completedDocumentURL = documentResponseOK ? webView.url : nil
+            acceptDocumentResponse(status: status)
+            completedDocumentURL = webView.url
             completedDocumentStatus = status
             loading = false; pendingURL = nil; sameDocumentCandidate = false
-            ready = documentResponseOK && error == nil
+            ready = documentResponseDisplayable && error == nil
         }
-        if !loading, !webView.isLoading, documentResponseOK, error == nil {
+        if !loading, !webView.isLoading, documentResponseDisplayable, error == nil {
             completedDocumentURL = webView.url
             completedDocumentStatus = documentStatus
         }
@@ -182,7 +182,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             finishCancelledNavigation()
         }
         if !webView.isLoading, sameDocumentCandidate, webView.url == pendingURL {
-            pendingURL = nil; loading = false; ready = documentResponseOK && error == nil; sameDocumentCandidate = false
+            pendingURL = nil; loading = false; ready = documentResponseDisplayable && error == nil; sameDocumentCandidate = false
         }
     }
     private func sameDocument(_ first: URL?, _ second: URL?) -> Bool {
@@ -219,7 +219,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         if main {
             historyStartPending = navigationAction.navigationType == .backForward
             pendingURL = target; error = nil; notice = nil
-            if documentResponseOK && sameDocument(target, completedDocumentURL) { sameDocumentCandidate = true }
+            if documentResponseDisplayable && sameDocument(target, completedDocumentURL) { sameDocumentCandidate = true }
         }
         decisionHandler(.allow)
     }
@@ -233,11 +233,17 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             let response = navigationResponse.response
             let localHTML = response.url?.isFileURL == true && response.mimeType?.lowercased() == "text/html"
             let status = (response as? HTTPURLResponse)?.statusCode ?? (localHTML ? 200 : 0)
-            receivedDocumentResponse = true; documentStatus = status
-            documentResponseOK = (200..<300).contains(status)
-            if !documentResponseOK { error = "网页响应失败（HTTP \(status)）" }
+            receivedDocumentResponse = true
+            // A displayable HTTP error can contain the site's explanation or
+            // an interactive verification page. Keep WebKit visible and let
+            // that document finish; status alone is not a navigation failure.
+            acceptDocumentResponse(status: status)
         }
         decisionHandler(.allow)
+    }
+    private func acceptDocumentResponse(status: Int) {
+        documentStatus = status; documentResponseDisplayable = true
+        notice = status >= 400 ? "网页响应失败（HTTP \(status)）" : nil
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         guard !released else { return }
@@ -261,14 +267,13 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         if let item = webView.backForwardList.currentItem {
             let identity = item
             if !receivedDocumentResponse, let status = historyResponses[identity] {
-                documentStatus = status; documentResponseOK = (200..<300).contains(status)
-                error = documentResponseOK ? nil : "网页响应失败（HTTP \(status)）"
+                acceptDocumentResponse(status: status)
             }
             historyResponses[identity] = documentStatus
             let retained = Set((webView.backForwardList.backList + [item] + webView.backForwardList.forwardList))
             historyResponses = historyResponses.filter { retained.contains($0.key) }
         }
-        syncState(); loading = false; ready = documentResponseOK && error == nil; pendingURL = nil
+        syncState(); loading = false; ready = documentResponseDisplayable && error == nil; pendingURL = nil
         self.webView.synchronizeDocumentZoom()
         completedDocumentURL = ready ? webView.url : nil
         completedDocumentStatus = documentStatus
@@ -289,7 +294,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 return
             }
         }
-        loading = false; ready = false; documentResponseOK = false; error = failure.localizedDescription
+        loading = false; ready = false; documentResponseDisplayable = false; error = failure.localizedDescription
         cancelAnnotation(); viewport?.setSuppressed(true)
     }
     private func rejectMainFrameDownload() {
@@ -304,10 +309,10 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         loading = false; pendingURL = nil; sameDocumentCandidate = false
         if !navigationCommitted, let completedDocumentURL {
             url = completedDocumentURL.absoluteString
-            documentStatus = completedDocumentStatus
-            documentResponseOK = true; error = nil
+            acceptDocumentResponse(status: completedDocumentStatus)
+            error = nil
         }
-        ready = documentResponseOK && error == nil
+        ready = documentResponseDisplayable && error == nil
     }
     func handleNavigationKey() {
         guard !released, !suppressed, pageDialog == nil, webView.window?.attachedSheet == nil else { return }
@@ -329,7 +334,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         } else { report(message) }
     }
     private func report(_ message: String) {
-        loading = false; ready = false; documentResponseOK = false; error = message
+        loading = false; ready = false; documentResponseDisplayable = false; error = message
         cancelAnnotation(); viewport?.setSuppressed(true)
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
