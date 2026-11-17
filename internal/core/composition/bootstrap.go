@@ -285,7 +285,7 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	b.applications, err = applicationhost.New(ctx, applicationhost.Config{Store: b.store, Applications: applications, PluginEnabled: b.enabled, RuntimeCapabilities: b.runtime.RuntimeCapabilities, BackgroundCapabilities: b.runtime.BackgroundCapabilities, SnapshotCapabilities: b.runtime.SnapshotCapabilities, DirectoryScopes: b.runtime.DirectoryScopes, InitializeSession: b.runtime.InitializeApplicationSession, ProjectSession: b.runtime.ProjectSession, ArchiveExecutions: b.runtime.ArchiveExecutions})
+	b.applications, err = applicationhost.New(ctx, applicationhost.Config{Store: b.store, Applications: applications, PluginEnabled: b.enabled, RuntimeCapabilities: b.runtime.RuntimeCapabilities, BackgroundCapabilities: b.runtime.BackgroundCapabilities, SnapshotCapabilities: b.runtime.SnapshotCapabilities, DirectoryScopes: b.runtime.DirectoryScopes, InitializeSession: b.runtime.InitializeApplicationSession, ProjectSession: b.runtime.ProjectSession, ArchiveThreads: b.runtime.ArchiveThreads})
 	if err != nil {
 		return err
 	}

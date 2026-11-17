@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
@@ -184,6 +185,38 @@ func (h *harness) replay(ctx context.Context) (string, error) {
 		return "", err
 	}
 	h.checks = append(h.checks, "same-revision concurrent Report edits admit one winner, reject stale peers and preserve the winner's exact content")
+	// The existing archive replay uses stored historical associations, including
+	// a running successor. No UI projection or latest-execution match supplies them.
+	key := "application:" + report.CollectionID + ":" + summary.ID
+	var retained model.VersionedRecord
+	if _, err = h.store.Snapshot().Get(key, &retained); err != nil {
+		return "", err
+	}
+	data, err := report.ParseData(retained.Value)
+	if err != nil {
+		return "", err
+	}
+	data.RelatedExecutions = []model.ExecutionRef{
+		{Thread: model.ThreadRef{ThreadID: "archive-source", TypeID: "agent"}, ExecutionID: "historical"},
+		{Thread: model.ThreadRef{ThreadID: "deleted-source", TypeID: "agent"}, ExecutionID: "historical"},
+	}
+	data.TagSources = map[string]report.TagSource{
+		"archive-source": {SemanticTags: []string{}, DirectoryTags: []string{}, TagEmojis: map[string]string{}},
+		"deleted-source": {SemanticTags: []string{}, DirectoryTags: []string{}, TagEmojis: map[string]string{}},
+	}
+	retained.Value = encode(data)
+	source := model.ThreadRecord{SessionRecord: model.SessionRecord{ID: "archive-source", Cwd: "", HarnessID: "fixture",
+		SessionState: encode(map[string]string{"history": "retained"}), Settings: encode(map[string]any{}),
+		Observation: model.PublicObservation{LatestExecution: &model.PublicExecution{ExecutionID: "successor", Status: "running", StartedAt: fixtureAt}}}}
+	_, err = h.store.Update(ctx, func(tx *store.Tx) error {
+		if err := tx.Put("thread:"+source.ID, source); err != nil {
+			return err
+		}
+		return tx.Put(key, retained)
+	})
+	if err != nil {
+		return "", err
+	}
 	ref := model.ThreadRef{ThreadID: summary.ID, TypeID: report.ThreadTypeID}
 	if err = h.host.Archive(ctx, ref, true); err != nil {
 		return "", err
@@ -195,7 +228,30 @@ func (h *harness) replay(ctx context.Context) (string, error) {
 	if !catalog[0].Archived {
 		return "", errors.New("archive projection did not update")
 	}
-	h.checks = append(h.checks, "archive projection and entity/lifecycle facts")
+	archivedSource, err := h.runtime.Thread(source.ID)
+	if err != nil {
+		return "", err
+	}
+	if archivedSource.Archived == nil || !*archivedSource.Archived ||
+		!reflect.DeepEqual(archivedSource.Observation, source.Observation) ||
+		string(archivedSource.SessionState) != string(source.SessionState) {
+		return "", errors.New("archive did not hide the historical source while retaining active work and history")
+	}
+	archivedReport, err := h.read(ctx, summary.ID)
+	if err != nil {
+		return "", err
+	}
+	if !reflect.DeepEqual(archivedReport.RelatedExecutions, data.RelatedExecutions) || archivedReport.HTML != data.HTML {
+		return "", errors.New("archive changed retained report content or associations")
+	}
+	beforeRepeat := h.store.Snapshot().Revision()
+	if err = h.host.Archive(ctx, ref, true); err != nil {
+		return "", err
+	}
+	if h.store.Snapshot().Revision() != beforeRepeat {
+		return "", errors.New("repeated archive rewrote already-hidden records")
+	}
+	h.checks = append(h.checks, "atomic archive projection retains historical bindings, active successor and content; deleted sources and repeat archive are idempotent")
 	events, err := h.store.Snapshot().Events()
 	if err != nil {
 		return "", err

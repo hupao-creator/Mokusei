@@ -4,6 +4,24 @@
 
 ## Threads and content
 
+Archive is a persisted **display-hidden** flag, independent of execution state.
+Ordinary Thread archive never deletes content/history, releases attachments,
+ends voice or native sessions, interrupts foreground/background work, or revokes
+send, interaction, configuration, fork and explicit reading capabilities. New
+work on a hidden Thread leaves it hidden; a fork creates a new visible Thread.
+Normal inventory/Overview filters omit archives, while explicit reads and search
+with archive inclusion continue to use retained records. Moku conversation
+history has a separate `MokuHistory` read-only policy; it is not inferred from
+archive. Existing tag decoration freeze/reclassification on restore is unchanged.
+
+Application archive resolves persisted associated Thread identities within the
+same store writer transaction as the document flag. Super Thread references to
+older executions still hide the whole source Thread, including a newer active
+execution. Duplicate sources and already-hidden sources are idempotent; deleted
+sources stay absent. Invalid sources or storage failures roll back the whole
+change. No associated Super Thread/Collection is recursively archived, no links
+are removed, and restoring a report does not restore its sources.
+
 Moku note writes compare the note incarnation, content revision and
 `readingRevision` inside the store writer transaction. A mismatched basis returns
 the current note/evidence snapshot without changing the note. Full-exposure
@@ -82,7 +100,7 @@ Runtime compares it with the authoritative latest execution after native-owner
 recovery, under the existing cancellation/admission gate. A mismatch returns
 `EXECUTION_CHANGED` before dispatch/reservation; ordinary follow-ups omit the
 field and keep their existing behavior. Historical continuation uses the same
-`ForkThread` ownership, archive, native-work and revision gates, with an opaque
+`ForkThread` ownership, native-work and revision gates, with an opaque
 Harness-owned `executionId` selector. Busy sources remain unavailable for fork;
 the caller retains its draft instead of steering the source or truncating it.
 

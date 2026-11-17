@@ -9,7 +9,7 @@ struct ConversationExecutionState {
     }
 
     func sidecardExecutionID(thread: HarnessThread, index: ThreadConversationIndex?) -> JSONText? {
-        guard thread.archived != true, let active = activeExecutionID(thread: thread),
+        guard let active = activeExecutionID(thread: thread),
               Self.hasHistoryBefore(index, executionID: active) else { return nil }
         return active
     }

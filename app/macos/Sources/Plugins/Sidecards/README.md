@@ -129,8 +129,9 @@ inherited history. A request for a different historical execution cannot reveal
 the current one. An active first execution stays in main; unrelated background
 starts do not create a new entry request. User fold/card choices win over delayed
 index/receipt delivery and ordinary streaming updates. New explicit reading
-requests and local detail sends may reveal again. Archive or loss of eligibility
-closes and removes it. Acknowledged input alone does not prove an execution is active.
+requests and local detail sends may reveal again. Loss of execution eligibility closes and removes it. Archive only hides the
+Thread from normal lists; it neither closes the active execution display nor
+disables Browser annotations or follow-up sends. Acknowledged input alone does not prove an execution is active.
 The host rejects stale launcher activations and retires unavailable selections
 before publishing the next snapshot. Folding retains the existing execution
 ownership policy and Harness response forms. The execution card has no decorative

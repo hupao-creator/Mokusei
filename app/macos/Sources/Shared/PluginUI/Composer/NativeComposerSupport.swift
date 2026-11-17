@@ -43,7 +43,7 @@ public func composerLocalized(_ text: String, locale: Locale) -> String {
         "无效的主机文件路径": "Invalid host file path",
         "附件总大小不能超过 100 MB": "Attachments cannot exceed 100 MB in total",
         "无路径的粘贴内容不能超过 20 MB": "Pasted content without a file path cannot exceed 20 MB",
-        "此 Thread 已归档或不可用，无法追加任务。": "This thread is archived or unavailable and cannot accept a follow-up.",
+        "此 Thread 不可用，无法追加任务。": "This thread is unavailable and cannot accept a follow-up.",
         "请选择文件": "Choose files", "主机文件预览不可用": "Host file preview is unavailable",
         "主机文件选择不可用": "Host file selection is unavailable",
         "附件数量超过主机限制": "The attachments exceed the host file limit",

@@ -119,7 +119,7 @@ final class NativeSidecardWorkspaceModel {
         // directly in main; there is no visible source reader to promote.
         let canHandoff = sameReading && self.configuration.entranceReady && configuration.entranceReady
             && !configuration.suppressed && !configuration.executionDisabled
-            && !configuration.mainReadingHistory && configuration.input.thread.archived != true
+            && !configuration.mainReadingHistory
         if let handoff, !canHandoff || nextExecution?.executionID != handoff.executionID
             || configuration.input.thread.observation.isExecutionActive
             || configuration.enabledIDs?.contains(handoff.cardID) == false {
@@ -284,7 +284,7 @@ final class NativeSidecardWorkspaceModel {
     }
 
     private func send(_ input: JSONValue) async throws -> SidecardSendReceipt {
-        guard !isReleased, !configuration.executionDisabled, configuration.input.thread.archived != true else {
+        guard !isReleased, !configuration.executionDisabled else {
             throw PluginContractError("This thread currently cannot accept input")
         }
         requestSequence += 1
@@ -408,7 +408,7 @@ final class NativeSidecardWorkspaceModel {
                 }
             }
             // A plugin can lose availability without a user action (execution
-            // completion, archive or reading-target change). Retire selection
+            // completion or reading-target change). Retire selection
             // before publishing so no unavailable card remains interactive.
             if let selected, !cards.contains(where: { $0.id == selected && $0.view.available }) {
                 _ = choose(nil)

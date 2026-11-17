@@ -682,7 +682,8 @@ original Thread, while historical input forks at the native checkpoint before
 following up on the admitted branch. The source identity is captured before
 the first suspension. Runtime chooses steer or a successor execution for a
 latest follow-up. Stop uses the viewed current execution's cancellation identity.
-Unavailable/archived Threads cannot send. Failed sends keep their draft and error;
+Unavailable Threads and read-only Moku histories cannot send. Ordinary Thread
+archive only changes list visibility and does not disable sends. Failed sends keep their draft and error;
 late receipts consume only their original draft and cannot reopen another visit.
 Retiring composer callbacks may refresh the capsule's retained text, directories
 and attachment ink only while they still own its selected draft. A Thread title

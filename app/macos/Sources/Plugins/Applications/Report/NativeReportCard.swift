@@ -10,16 +10,49 @@ import SwiftUI
     let openThread: () -> Void
     var showsCover = true
     var usesGlassBadge = false
+    var showsArchiveAction = false
     var allowsActions: () -> Bool = { true }
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
     @State private var failure: String?
     @State private var unsubscribe: (() -> Void)?
     @State private var archivePending = false
+    @State private var archiveFailure: String?
     private var locale: JSONText { props.context.locale }
     var body: some View {
+        VStack(spacing: 0) {
+            card
+            if showsArchiveAction {
+                HStack {
+                    Spacer(minLength: 0)
+                    Button { Task { await archive() } } label: {
+                        HStack(spacing: 6) {
+                            NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 13)
+                            Text(archivePending ? applicationText(locale, "处理中…", "Working…") : archiveLabel)
+                        }.font(NativeTypography.inter(size: 11, weight: 550))
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .contentShape(Capsule())
+                    }.buttonStyle(.plain)
+                        .background(.primary.opacity(0.05), in: Capsule())
+                        .disabled(archivePending || !allowsActions())
+                        .accessibilityLabel(archiveLabel + " · " + props.entry.title.string)
+                        .help(applicationText(locale, "隐藏此 Super Thread 及其关联的 Threads；运行中的任务继续执行。",
+                                              "Hide this Super Thread and its related threads; running tasks continue."))
+                }.padding(.horizontal, 14).padding(.bottom, 12)
+            }
+        }
+        .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
+        .onDisappear { unsubscribe?(); unsubscribe = nil }
+        .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; subscribe() }
+        .onChange(of: props.entry.ref) { _, _ in requestedReferences = props.entry.view.relatedExecutions; subscribe() }
+    }
+    private var archiveLabel: String {
+        applicationText(locale, props.entry.archived ? "恢复 Super Thread" : "归档 Super Thread",
+                        props.entry.archived ? "Restore Super Thread" : "Archive Super Thread")
+    }
+    private var card: some View {
         Button {
-            if allowsActions() { openThread() }
+            if allowsActions(), !archivePending { openThread() }
         } label: {
             GeometryReader { geometry in
                 VStack(spacing: 4) {
@@ -36,14 +69,10 @@ import SwiftUI
         }.buttonStyle(.plain).foregroundStyle(NativePalette.overview.ink.swiftUI)
             .environment(\.threadCardUsesFlatMaterials, true)
             .contextMenu {
-                Button(applicationText(locale, props.entry.archived ? "恢复报告" : "归档报告", props.entry.archived ? "Restore report" : "Archive report")) {
+                Button(archiveLabel) {
                     Task { await archive() }
                 }.disabled(archivePending || !allowsActions())
             }
-            .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
-            .onDisappear { unsubscribe?(); unsubscribe = nil }
-            .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; subscribe() }
-            .onChange(of: props.entry.ref) { _, _ in requestedReferences = props.entry.view.relatedExecutions; subscribe() }
     }
     private var metadata: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -68,7 +97,7 @@ import SwiftUI
                 .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
             ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
-            if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
+            if let failure = archiveFailure ?? failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
         }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .threadCardBadge {
                 ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
@@ -111,8 +140,8 @@ import SwiftUI
         do {
             try await props.context.capabilities.require(ApplicationCapabilities.threadUserActions)
                 .setArchived(!props.entry.archived, JSONText(UUID().uuidString), props.context.lifetime)
-            failure = nil
-        } catch { failure = error.localizedDescription }
+            archiveFailure = nil
+        } catch { archiveFailure = error.localizedDescription }
     }
     private func updatedLabel(now: Date) -> String {
         let updated = Date(timeIntervalSince1970: props.entry.updatedAt / 1_000)

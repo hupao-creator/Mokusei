@@ -43,7 +43,6 @@ public final class NativeWorkspaceModel {
         let translations = [
             "附件数量不能超过 20 个": "You can attach at most 20 files.",
             "附件正在处理中，请稍候": "Attachments are being processed. Please wait.",
-            "此 Thread 已归档，取消归档后才能追加任务。": "This Thread is archived. Unarchive it to add a task.",
             "关联 Thread 已删除，无法打开。": "The linked Thread was deleted and cannot be opened."
         ]
         return preferences.locale == .english ? translations[operationError] ?? operationError : operationError
@@ -250,7 +249,7 @@ public final class NativeWorkspaceModel {
     }
 
     public func canExecute(_ thread: HarnessThread) -> Bool {
-        executionAvailable(thread) && thread.archived != true
+        executionAvailable(thread) && !thread.mokuHistory
     }
 
     public func executionAvailable(_ thread: HarnessThread) -> Bool {

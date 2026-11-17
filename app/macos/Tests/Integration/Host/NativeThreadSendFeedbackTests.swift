@@ -371,7 +371,7 @@ struct NativeThreadSendFeedbackTests {
     }
 
     @Test(arguments: ["failure", "choice", "covered", "target", "archived", "disabled", "terminal", "wrong-receipt", "released"])
-    func pendingSendCannotStealANewerReadingChoiceOrRevealAnInvalidExecution(reason: String) async throws {
+    func pendingSendRespectsReadingChoiceAndExecutionEligibilityRegardlessOfArchive(reason: String) async throws {
         let fixture = try Fixture()
         let request = UUID()
         fixture.request(request)
@@ -389,7 +389,7 @@ struct NativeThreadSendFeedbackTests {
         if reason != "failure" { fixture.request(request, accepted: reason == "wrong-receipt" ? "unrelated" : "new") }
         try fixture.observe(status: reason == "terminal" ? .failed : .running, archived: reason == "archived")
         if reason != "released" { try await fixture.index() }
-        #expect(fixture.model.snapshot?.selected == (reason == "choice" ? "other" : nil))
+        #expect(fixture.model.snapshot?.selected == (reason == "choice" ? "other" : reason == "archived" ? "conversation" : nil))
         if reason == "covered" {
             fixture.configuration.suppressed = false; fixture.update()
             #expect(fixture.model.snapshot?.selected == nil)

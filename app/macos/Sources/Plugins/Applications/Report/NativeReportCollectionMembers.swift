@@ -36,10 +36,10 @@ struct NativeReportCollectionMembers: View {
                             NativeReportCard(props: member,
                                 projection: .init(previewText: member.entry.view.shortDescription,
                                                   relatedThreadCount: member.entry.view.relatedExecutions.count),
-                                openThread: { openThread(member.entry.ref) },
+                                openThread: { openThread(member.entry.ref) }, showsArchiveAction: true,
                                 allowsActions: { allowsActions(member.entry.ref) })
                                 .frame(height: member.entry.view.hasCover
-                                    ? NativeReportCoverLayout.height(for: width) + 168 : 164)
+                                    ? NativeReportCoverLayout.height(for: width) + 212 : 208)
                                 .background(NativePalette.overview.surface.swiftUI, in: RoundedRectangle(cornerRadius: 22))
                                 .overlay { RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI) }
                         }

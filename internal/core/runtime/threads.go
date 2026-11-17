@@ -500,8 +500,8 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 	if err != nil {
 		return "", err
 	}
-	if t.MokuHistory || archived(&t) {
-		return "", errors.New("archived conversations cannot admit native execution")
+	if t.MokuHistory {
+		return "", errors.New("Moku history cannot admit native execution")
 	}
 	if e := t.Observation.LatestExecution; e != nil && !e.Terminal() {
 		return "", errors.New("another execution is already active")
@@ -911,8 +911,8 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 	if err != nil {
 		return SendResult{}, err
 	}
-	if t.MokuHistory || t.Archived != nil && *t.Archived {
-		return SendResult{}, errors.New("thread is archived")
+	if t.MokuHistory {
+		return SendResult{}, errors.New("Moku history is read-only")
 	}
 	if _, err := validateCwd(effectiveCwd(t)); err != nil {
 		return SendResult{}, err

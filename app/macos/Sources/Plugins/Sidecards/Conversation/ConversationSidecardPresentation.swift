@@ -56,7 +56,7 @@ public final class ConversationSidecardPresentation {
             revealSelection = context.selectionRevision(); revealTarget = context.readingTarget
         }
         if let execution = entryExecution {
-            if context.selectionRevision() != entrySelection || context.thread.archived == true || context.executionDisabled {
+            if context.selectionRevision() != entrySelection || context.executionDisabled {
                 entryExecution = nil
             } else if sidecardExecutionID == execution {
                 entryExecution = nil
@@ -68,7 +68,7 @@ public final class ConversationSidecardPresentation {
         guard pendingReveal else { return }
         guard let request = context.executionReveal,
               context.selectionRevision() == revealSelection, context.readingTarget == revealTarget,
-              context.thread.archived != true, !context.executionDisabled else {
+              !context.executionDisabled else {
             pendingReveal = false; return
         }
         guard let receipt = request.receipt,

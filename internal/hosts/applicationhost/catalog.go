@@ -256,16 +256,25 @@ func (h *Host) Archive(ctx context.Context, ref model.ThreadRef, archived bool) 
 		if definition.Archive == nil {
 			return errors.New("thread cannot be archived")
 		}
-		if definition.Archive.Archived(record) == archived {
-			return nil
-		}
 		change, e := definition.Archive.Change(record, archived)
 		if e != nil {
 			return e
 		}
-		related, e := definition.Archive.RelatedLatestExecutions(record, archived)
+		related, e := definition.Archive.RelatedThreads(record, archived)
 		if e != nil {
 			return e
+		}
+		if len(related) > 0 {
+			if h.config.ArchiveThreads == nil {
+				return errors.New("related thread archival unavailable")
+			}
+			if e = h.config.ArchiveThreads(tx, related, archived); e != nil {
+				return e
+			}
+		}
+		// Repeated archive requests still hide any independently restored sources.
+		if definition.Archive.Archived(record) == archived {
+			return nil
 		}
 		writer := newReader(h, definition.OwnerPluginID, tx.Snapshot())
 		writer.tx = tx
@@ -275,14 +284,6 @@ func (h *Host) Archive(ctx context.Context, ref model.ThreadRef, archived bool) 
 		_, e = writer.Put(definition.CollectionID, record.ID, change.Value, plugin.RecordWriteOptions{ExpectedRevision: &record.Revision, TouchUpdatedAt: change.TouchUpdatedAt})
 		if e != nil {
 			return e
-		}
-		if len(related) > 0 {
-			if h.config.ArchiveExecutions == nil {
-				return errors.New("related execution archival unavailable")
-			}
-			if e = h.config.ArchiveExecutions(tx, related, archived); e != nil {
-				return e
-			}
 		}
 		if e = writer.flushEvents(); e != nil {
 			return e

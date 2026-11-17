@@ -33,9 +33,9 @@ type Config struct {
 	InitializeSession func(context.Context, model.ThreadRef, plugin.ConversationConfiguration) (model.SessionRecord, error)
 	// Projects durable native state for a catalog without leaking complete history.
 	ProjectSession func(context.Context, model.SessionRecord) (model.SessionRecord, error)
-	// User archive propagation must check the referenced execution is still latest.
-	ArchiveExecutions func(*store.Tx, []model.ExecutionRef, bool) error
-	Now               func() time.Time
+	// Visibility changes for the document and associated Threads share one transaction.
+	ArchiveThreads func(*store.Tx, []model.ThreadRef, bool) error
+	Now            func() time.Time
 }
 type Host struct {
 	config           Config

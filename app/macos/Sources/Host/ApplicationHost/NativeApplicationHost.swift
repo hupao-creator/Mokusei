@@ -89,7 +89,7 @@ public final class NativeApplicationHost {
             && (harness?["unavailableReason"] == nil || harness?["unavailableReason"] == .null)
     }
     func canExecute(_ owner: JSONText, entry: ApplicationThreadCatalogEntry<JSONValue>) -> Bool {
-        workspace.runtimeAvailable && isEnabled(owner) && !entry.archived
+        workspace.runtimeAvailable && isEnabled(owner)
     }
     var theme: PluginTheme {
         switch workspace.preferences.appearance {

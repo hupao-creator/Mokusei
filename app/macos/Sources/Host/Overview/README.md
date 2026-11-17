@@ -614,3 +614,16 @@ provides headless model exports and manual viewing without running a Runtime.
 The Cmd+F conversation search, its menu command, interaction actions and Runtime
 keyword index have been removed. Tag filtering and Agent `grep_threads` remain
 independent capabilities; native text editing keeps its own find behavior.
+
+
+Collection member cards expose a labeled Archive Super Thread button beneath the
+open surface, alongside their existing context menu. Both invoke the same atomic
+application archive command: hide the report and its persisted associated ordinary
+Threads. UI membership and counts follow the authoritative catalog, not optimistic
+per-card removals. A surviving selection is retained; removal of that selection
+chooses a remaining member. Fewer than two visible members dissolve the Collection
+and dismiss its panel, leaving any survivor as an ordinary Report card. Archive
+changes no execution, background task, voice ownership, history or binding;
+explicit archived reading and actions remain available. Errors retain the member
+with retryable feedback. The panel and carousel keep their existing close, hover,
+scale and cover timing contracts.
