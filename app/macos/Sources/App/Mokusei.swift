@@ -156,7 +156,7 @@ final class WorkspaceSession {
         let retiring = presentation
         replacePresentation(for: model) {
             await retiring?.release()
-            await model.voice.stopAll()
+            // Reload replaces presentation, not the workspace-owned voice call.
             await model.harnessHost.releaseAll()
         }
     }

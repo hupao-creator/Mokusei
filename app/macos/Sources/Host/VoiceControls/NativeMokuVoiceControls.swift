@@ -71,7 +71,7 @@ public struct NativeMokuVoiceControls: View {
             .buttonStyle(MokuVoiceStartStyle(style: style))
             .accessibilityLabel(actionLabel)
             .accessibilityValue(client.state.error.codeUnits.isEmpty ? status : client.state.error.string)
-            .accessibilityIdentifier(active ? "moku-voice-stop" : "moku-voice-start")
+            .accessibilityIdentifier(active || client.hasPendingStop ? "moku-voice-stop" : "moku-voice-start")
             .accessibilityActions {
                 if client.state.phase == .listening { Button(muteLabel, action: client.toggleMute) }
             }
@@ -91,7 +91,7 @@ public struct NativeMokuVoiceControls: View {
                 }
                 if active {
                     Button(muteLabel, action: client.toggleMute).disabled(client.state.phase != .listening)
-                    Button(actionLabel) { Task { await client.stop() } }.disabled(client.state.phase == .stopping)
+                    Button(actionLabel) { Task { await client.closeInterface() } }.disabled(client.state.phase == .stopping)
                 }
                 if !client.state.error.codeUnits.isEmpty { Text(client.state.error.string) }
             }
@@ -107,12 +107,12 @@ public struct NativeMokuVoiceControls: View {
         }
     }
     private var canActivate: Bool {
-        active ? client.state.phase != .stopping : !disabled && client.state.available
+        (active || client.hasPendingStop) ? client.state.phase != .stopping : !disabled && client.state.available
     }
     private func activate() {
         guard canActivate else { return }
-        if client.state.occupiedOwner != nil && !active { confirmingTakeover = true; return }
-        Task { if active || client.hasPendingStop { await client.stop() } else { await client.start() } }
+        if client.state.occupiedOwner != nil && !active && !client.hasPendingStop { confirmingTakeover = true; return }
+        Task { if active || client.hasPendingStop { await client.closeInterface() } else { await client.start() } }
     }
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
 }

@@ -13,13 +13,6 @@ public struct NativeVoiceMediaState: Hashable, Sendable {
     public init() {}
 }
 
-public struct NativeVoiceRouteNotice: Identifiable, Sendable {
-    public let id = UUID()
-    public let superThreadID: JSONText?
-    public let transcript: JSONText?
-    public let agentSelected: Bool
-}
-
 struct NativeVoiceEvent: Sendable {
     let sequence: Int
     let type: String

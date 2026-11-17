@@ -401,16 +401,22 @@ rapid reversals, narrow/centered layouts and a local no-animation fixture.
 
 ## Voice display
 
-Voice controls alone keep the ordinary 168×44pt capsule, fitted to the viewport.
-A visible transcript expands to the message width (up to 560pt in the ordinary
-Overview Dock) and grows to eight lines before scrolling. When it disappears,
-the capsule becomes compact again unless a pending Talk/dispatch or another
-surface needs expansion. The 34×34pt voice control remains inside the compact
-row. See the [width regression investigation](../../../../../design/moku-voice-compact-width.md).
+The workspace-owned [voice panel](../VoiceControls/NativeMokuVoicePanel.swift)
+is outside the routed Scene and Dock. It keeps controls, connection/error status,
+cloud and scrollable user transcription visible across readers, Settings, notes,
+interventions and presentation replacement. Display intent belongs to the retained
+media client, not the current route or connection phase. Explicit Close/Stop
+hides it after cleanup; failed cleanup remains available for retry. Navigation
+never stops or recreates media. The ordinary Dock retains its text/draft behavior
+and provides the initial Overview entry without hosting a second live surface.
 
-The current user transcript takes precedence over Talk/dispatch while present. Partial/final snapshots replace the same session/item; final or handoff alone does not hide it. The first nonempty assistant item or explicitly associated Moku answer consumes it once. Duplicate assistant fragments cannot hide a newer input, and a late final cannot resurrect a consumed item. Owner/media termination clears the projection. [Native voice](../../Voice/README.md) owns these identities and microphone lifecycle; mounting the Dock/history or cloud never starts media.
-
-The [voice cloud](../VoiceControls/NativeMokuVoiceCloud.swift) is driven by the production capture analyser's bounded loudness/onset signals. Active voice presentation covers the thinking arc; the history composer does not mount it.
+Partial/final transcript snapshots replace the same session/item; final or
+handoff alone does not hide it. The first nonempty assistant item or explicitly
+associated Moku answer consumes it once. Owner/media termination clears the
+projection. [Native voice](../../Voice/README.md) owns these identities and
+microphone lifecycle; mounting the panel or cloud never starts media. The cloud
+uses the production capture analyser's bounded signals and releases only its
+metering demand on disappearance.
 
 Holding the Overview text editor for 0.5 seconds starts the workspace-owned voice client
 through [NativeMokuLongPressVoiceMonitor](../VoiceControls/NativeMokuLongPressVoiceMonitor.swift).
@@ -424,17 +430,10 @@ event stream, including native text selection. Only the editor is eligible; iden
 notes and directory suggestions are excluded. Release after activation keeps the
 voice session running and retains the draft. The localized placeholder/help and
 VoiceOver Start voice action expose the entrance. Force Touch and the former
-Ctrl+Option+V menu command no longer start or stop Moku voice. Its preparing through
-stopping phases drive presentation. The cloud fades over the existing 0.42-second
-smooth capsule timing; the drawing stays mounted with its timeline paused while
-inactive, so resizing does not insert a final-width cloud mid-collapse. Overview Dock
-editor text fades out in 0.12 seconds before the shell changes shape, and its
-composer opens a 34-point control seat without replacing the editor or draft.
-Transitions reverse directly from current presentation values, without timers,
-delayed audio, or a second voice-session lifecycle. Reduce Motion disables these
-transitions and uses the cloud's static drawing. Cancelling preparation restores
-previously open Dock input. The [voice cloud replay](../../../../../tools/verification/moku-voice-cloud/README.md)
-also exercises these production surfaces with the real client held at preparation.
+Ctrl+Option+V menu command no longer start or stop Moku voice. The panel's cloud
+retains its existing 0.42-second fade and static Reduce Motion drawing. The
+window-owned client and session survive panel remounts, without delayed starts
+or a second media lifecycle.
 
 Validation: existing Moku Dock, history composer, Talk, dispatch, note, gesture and transcript suites; [Moku backend replay](../../../../../tools/verification/moku/README.md), [Talk dismissal and capsule edge replay](../../../../../tools/verification/moku-talk-dismiss/README.md) and `tools/verification/moku-note/run.py`. The note replay mounts the production Dock with voice presentation fixtures to verify gesture ownership, voice control clicks, note dismissal and composer draft/focus restoration. It also ends voice while the note is open with and without a saved composer, and checks the empty voice note in a narrow viewport. Voice functional hit tests disable animations to avoid inactive-app presentation pauses. It does not open a live microphone or prove WebRTC playback continuity. Add `--voice-only` to stop after the ordinary note lifecycle and voice routing checks, before the separate rapid-toggle/narrow-window long-note layout stress cases.
 
@@ -657,8 +656,9 @@ reasoning envelope and hit regions still use the fitted surface. See the
 The same resident Dock remains mounted and interactive while an ordinary Agent
 Thread, Report or Git detail is presented in a reading panel. `dockRouteVisible` combines Overview and
 reading-panel eligibility without admitting Settings or Note on a reading route.
-The composer, Talk, voice visuals and pending interventions use that shared
-eligibility; other application pages and covering routes still hide it.
+The composer, Talk and pending interventions use that shared eligibility; other
+application pages and covering routes still hide the Dock. The workspace voice
+panel remains independently visible.
 Returning to Overview publishes eligibility in an order that retains native
 input/hit-region ownership. Agent detail keeps its input expanded, with a localized
 placeholder naming that Thread. Its leading identity seat reveals the
@@ -717,8 +717,8 @@ mark or removes a popup. No forced unmark/discard or delayed close is added.
 Existing Moku interventions/covering routes keep their surface priority and release
 the Agent editor afterward; its draft remains owned by the same Thread.
 Agent input does not expose Moku voice-start actions, live transcripts or Talk.
-Switching to that send route stops Moku media; a separate route-stop notice keeps
-the received original-call transcription and teardown status accessible. Execution Sidecards stay usable
+Switching to that send route retains the global Moku call and its workspace
+voice panel, without changing the speech target. Execution Sidecards stay usable
 beside the open composer and own no text/attachment input.
 
 Overview, landing, Git and Moku history retain their existing input and
@@ -830,9 +830,8 @@ focus work. Escape retains the report's auxiliary Back or normal close; IME,
 completions and covering routes keep their existing precedence. Overview and
 exact-execution drafts retain their existing storage identities. No associated
 Agent receives unselected input.
-Voice is now restricted to Overview. Entering an ordinary Agent, Super Thread or
-Moku history reader stops the global call before its controls are hidden, retaining
-a visible cleanup notice and received transcript. Reader inputs mount no long-press
-monitor, voice accessibility action or live controls. Overview retains its production
-Moku voice controls and must be explicitly started after a return. Selecting an
-execution continues to select ordinary Agent text/attachment input.
+Voice entry remains in Overview. An existing global call and its workspace
+panel persist across ordinary Agent, Super Thread and Moku history readers.
+Reader inputs mount no long-press monitor or voice-start action. Selecting an
+execution continues to select ordinary Agent text/attachment input; it does not
+stop, recreate or retarget the voice session.

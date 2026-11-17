@@ -10,7 +10,9 @@ public final class NativeVoiceMediaClient {
     // Kept outside the semantic state: metering must not republish sidecard history.
     public private(set) var inputAnalysis = NativeVoiceInputAnalysis()
     public private(set) var inputTranscript = NativeVoiceInputTranscript()
-    public private(set) var routeNotices: [NativeVoiceRouteNotice] = []
+    // User intent belongs to the workspace media owner, not a mounted page or
+    // connection phase. Failures and view replacement keep the interface open.
+    public private(set) var interfacePresented = false
     public var hasPendingStop: Bool { retiringAttempt != nil }
     public var inputLevel: Double { inputAnalysis.level }
     @ObservationIgnored private var visualizers: Set<UUID> = []
@@ -26,6 +28,7 @@ public final class NativeVoiceMediaClient {
     @ObservationIgnored private var pendingTakeover: JSONText?
     @ObservationIgnored private var sourceOwner: UUID?
     @ObservationIgnored private var sourceRevision = 0
+    @ObservationIgnored private var interfaceRevision = 0
     @ObservationIgnored private var mokuRouteAllowed = true
     @ObservationIgnored private var retiringAttempt: Attempt?
     @ObservationIgnored var onEvent: ((NativeVoiceEvent) -> Void)?
@@ -110,8 +113,10 @@ public final class NativeVoiceMediaClient {
 
     private func start(takeover: JSONText?) async {
         guard !Task.isCancelled, state.available, attempt == nil, stopping == nil, retiringAttempt == nil,
-              role != .moku || mokuRouteAllowed,
+              role != .moku || mokuRouteAllowed || interfacePresented,
               state.phase == .closed || state.phase == .failed else { return }
+        interfaceRevision += 1
+        interfacePresented = true
         let attempt = Attempt(takeover: takeover, source: role == .moku ? Source(superThreadID: nil, revision: sourceRevision) : nil)
         install(attempt)
         await runStartup(attempt)
@@ -350,7 +355,8 @@ public final class NativeVoiceMediaClient {
                   previous.playback.responseID == nil, previous.playback.bufferedResponseID == nil,
                   previous.playback.playbackID == nil else { return false }
         }
-        guard mokuRouteAllowed, previous.source == Source(superThreadID: nil, revision: sourceRevision) else { return false }
+        // Configuration recovery continues the admitted call and its source,
+        // even when navigation no longer permits a new Overview entry.
         let next = Attempt(takeover: nil, reconnectFrom: previous.requestID, muted: state.muted, source: previous.source)
         previous.poll?.cancel(); previous.poll = nil
         previous.media?.close(); previous.media = nil
@@ -382,24 +388,23 @@ public final class NativeVoiceMediaClient {
         return .object(fields)
     }
 
-    public func setOverviewVoiceRoute(owner: UUID, active: Bool, allowed: Bool) {
+    /// Route ownership admits new calls only. It never retires an existing call,
+    /// including when a parent presentation releases or another window mounts.
+    public func setVoiceStartRoute(owner: UUID, active: Bool, allowed: Bool) {
         guard role == .moku, active || sourceOwner == owner else { return }
-        // Losing key-window focus to a permission prompt is not navigation.
-        // Retain the owner until another window claims it or it releases its route.
-        let nextOwner = owner
-        guard nextOwner != sourceOwner || allowed != mokuRouteAllowed else { return }
-        sourceOwner = nextOwner; mokuRouteAllowed = allowed
+        guard owner != sourceOwner || allowed != mokuRouteAllowed else { return }
+        sourceOwner = owner; mokuRouteAllowed = allowed
         sourceRevision += 1
-        guard let attempt else { return }
-        // Closing the peer is synchronous. No microphone, startup callback or
-        // automatic reconnect can survive a route change. Already admitted work
-        // retains its original source; unadmitted work is cancelled by Stop.
-        routeNotices.append(NativeVoiceRouteNotice(superThreadID: attempt.source?.superThreadID,
-            transcript: inputTranscript.message?.text, agentSelected: !allowed))
-        _ = beginStop()
     }
 
-    public func dismissRouteNotice(_ id: UUID) { routeNotices.removeAll { $0.id == id } }
+    /// Explicit UI exit is separate from transport/owner teardown. Keep failed
+    /// cleanup visible and retryable until the retiring attempt has drained.
+    public func closeInterface() async {
+        let revision = interfaceRevision
+        await stop()
+        guard interfaceRevision == revision, !hasPendingStop, attempt == nil else { return }
+        interfacePresented = false
+    }
 
     public func toggleMute() {
         guard state.phase == .listening, let media = attempt?.media else { return }

@@ -647,7 +647,7 @@ public final class NativeWorkspacePresentation {
             waitsForHarnessIdentity: thread != nil,
             autofocus: autofocus)
         if started {
-            workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner,
+            workspace.voice.moku.setVoiceStartRoute(owner: mokuSourceOwner,
                 active: focused && documentVisible && workspace.runtimeAvailable,
                 allowed: selected == nil && !state.mokuOpen && !state.cameraActive && !state.settingsOpen)
         }
@@ -784,7 +784,7 @@ public final class NativeWorkspacePresentation {
         guard started else { return }
         overview.recordApplicationClose()
         started = false
-        workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner, active: false, allowed: false)
+        workspace.voice.moku.setVoiceStartRoute(owner: mokuSourceOwner, active: false, allowed: false)
         clearSidecardComposer()
         scene.resetNoteExposureAuthority()
         workspace.onCatalogChange = nil; workspace.onConnectionChange = nil
@@ -855,6 +855,12 @@ public struct NativeWorkspaceView: View {
                 .blur(radius: presentation.scene.settingsExpanded ? 12 : 0)
                 .allowsHitTesting(!presentation.scene.settingsOpen)
                 .accessibilityHidden(presentation.scene.settingsOpen)
+        }
+        .overlay(alignment: .top) {
+            // Outside the routed scene/Dock: Settings, readers and remounts may
+            // replace their content without hiding or owning the global call.
+            NativeMokuVoicePanel(client: model.voice.moku, exclusions: presentation.scene.outsideClickExclusions)
+                .frame(maxWidth: 560).padding(.horizontal, 24).padding(.top, 76)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             NativeMokuTimerBar(timer: model.timer, exclusions: presentation.scene.outsideClickExclusions)
@@ -959,13 +965,6 @@ public struct NativeWorkspaceView: View {
                     talk: presentation.moku.talk, reply: detail == nil ? presentation.moku.reply : nil,
                     disabled: disabled || (detail.map { !model.canExecute($0) || !presentation.dockInputAvailable } ?? false),
                     interaction: presentation.moku.interaction, interactionIsQuestion: presentation.moku.interactionIsQuestion,
-                    voiceControls: overviewVoiceVisible ? AnyView(NativeMokuVoiceControls(client: model.voice.moku, style: .dock, disabled: disabled)) : AnyView(EmptyView()),
-                    voiceBackground: AnyView(NativeMokuVoiceCloud(client: model.voice.moku,
-                        visible: overviewVoiceVisible && presentation.scene.dockContentVisible)),
-                    voiceStatusVisible: overviewVoiceVisible && ((model.voice.moku.state.phase != .closed && model.voice.moku.state.phase != .failed)
-                        || !model.voice.moku.state.error.codeUnits.isEmpty),
-                    voiceModeActive: overviewVoiceVisible && [.preparing, .connecting, .listening, .stopping].contains(model.voice.moku.state.phase),
-                    voiceTranscript: overviewVoiceVisible ? model.voice.moku.inputTranscript.message.map { NativeMokuTalkMessage(id: $0.id, text: $0.text.string) } : nil,
                     presentation: presentation.moku,
                     note: presentation.moku.note,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
@@ -1022,12 +1021,6 @@ public struct NativeWorkspaceView: View {
                 NativeOnboardingSurface(state: presentation.onboarding, scene: presentation.scene,
                     applicationSections: presentation.applicationHost.settingsSections(model: model.settingsModel))
             }
-        }
-        .overlay(alignment: .top) {
-            // This notice remains reachable after the execution composer hides
-            // Moku call controls. It never offers voice input to that Agent.
-            NativeMokuVoiceRouteNotice(client: model.voice.moku)
-                .frame(maxWidth: 560).padding(.horizontal, 24).padding(.top, 76)
         }
         .overlay(alignment: .topLeading) {
             NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.scene.mokuOpen || presentation.nativeApplicationNavigation || presentation.usesReadingPanel,

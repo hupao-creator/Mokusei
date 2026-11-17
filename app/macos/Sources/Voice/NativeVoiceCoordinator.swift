@@ -71,7 +71,7 @@ public final class NativeVoiceCoordinator {
         let all = Array(threads.values)
         for thread in all { thread.release() }
         threads.removeAll()
-        await moku.stop()
+        await moku.closeInterface()
     }
 }
 

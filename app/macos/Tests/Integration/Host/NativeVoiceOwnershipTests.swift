@@ -68,6 +68,7 @@ struct NativeVoiceOwnershipTests {
         await call.client.start()
         let previous = call.backend.ownershipID
         call.client.toggleMute()
+        call.client.setVoiceStartRoute(owner: UUID(), active: true, allowed: false)
         call.backend.reconnect = true
         try await until { call.backend.starts == 2 && call.client.state.phase == .listening }
         #expect(call.backend.reconnectFrom == .string(previous))
@@ -509,27 +510,31 @@ struct NativeVoiceOwnershipTests {
         #expect(moku.backend.prepares == 1 && moku.backend.starts == 1)
     }
 
-    @Test func leavingOverviewDuringPermissionRetiresMokuWithoutReopeningOnReturn() async throws {
+    @Test func navigationDuringPermissionKeepsTheOriginalAttempt() async throws {
         let replay = VoiceReplay()
         let moku = replay.call()
         let owner = UUID()
-        moku.client.setOverviewVoiceRoute(owner: owner, active: true, allowed: true)
+        moku.client.setVoiceStartRoute(owner: owner, active: true, allowed: true)
         let permission = VoiceGate()
         moku.permissionGate = permission
         let pending = Task { await moku.client.start() }
         try await until { permission.waiting }
-        moku.client.setOverviewVoiceRoute(owner: owner, active: true, allowed: false)
-        #expect(moku.client.state.phase == .stopping && moku.client.hasPendingStop)
-        #expect(!moku.media.device.inputRunning && !moku.media.device.outputRunning)
+        moku.client.setVoiceStartRoute(owner: owner, active: true, allowed: false)
+        #expect(moku.client.interfacePresented && moku.client.state.phase == .preparing)
+        #expect(!moku.client.hasPendingStop && moku.backend.stops.isEmpty)
         permission.open()
         await pending.value
-        await moku.client.stop()
+        #expect(moku.client.state.phase == .listening)
+        #expect(moku.backend.prepares == 1 && moku.permissionRequests == 1 && moku.media.offers == 1)
+        #expect(moku.media.device.inputRunning && moku.media.device.outputRunning)
+        await moku.client.closeInterface()
+        #expect(!moku.client.interfacePresented && moku.client.state.phase == .closed)
+        #expect(moku.media.closed && !moku.client.hasPendingStop)
+        // A closed interface on a reader does not grant a fresh voice entry.
         await moku.client.start()
-        #expect(moku.backend.prepares == 1 && moku.permissionRequests == 1 && moku.media.offers == 0)
-        #expect(moku.backend.stops == [moku.backend.sessionID, moku.backend.sessionID])
-        moku.client.setOverviewVoiceRoute(owner: owner, active: true, allowed: true)
-        #expect(moku.client.state.phase == .closed && !moku.client.hasPendingStop)
-        #expect(moku.backend.prepares == 1 && moku.backend.starts == 0 && moku.media.offers == 0)
+        #expect(moku.backend.prepares == 1)
+        moku.client.setVoiceStartRoute(owner: owner, active: true, allowed: true)
+        #expect(moku.backend.prepares == 1 && !moku.client.interfacePresented)
     }
 
     @Test func audioAvailabilityGateRejectsErrorsAndUnexpectedRunningHardware() throws {

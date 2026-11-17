@@ -1,6 +1,6 @@
 # Native voice
 
-[NativeVoiceCoordinator.swift](NativeVoiceCoordinator.swift) coordinates Overview's global Moku media client and retained Thread transcript readers. [NativeVoiceMediaClient.swift](NativeVoiceMediaClient.swift) owns an attempt through preparation, permission, SDP, connection, polling and stop. [NativeWebRTCMedia.swift](NativeWebRTCMedia.swift) owns the microphone, WebRTC peer, audio and ordered data channel. Platform audio-session/device routing is adapted here, while [Go](../../../../internal/plugins/harness/codex/README.md#voice) owns native authentication and sideband handoffs.
+[NativeVoiceCoordinator.swift](NativeVoiceCoordinator.swift) coordinates the workspace's global Moku media client and retained Thread transcript readers. [NativeVoiceMediaClient.swift](NativeVoiceMediaClient.swift) owns an attempt through preparation, permission, SDP, connection, polling and stop. [NativeWebRTCMedia.swift](NativeWebRTCMedia.swift) owns the microphone, WebRTC peer, audio and ordered data channel. Platform audio-session/device routing is adapted here, while [Go](../../../../internal/plugins/harness/codex/README.md#voice) owns native authentication and sideband handoffs.
 
 Media starts only through an explicit action and successful current-owner preparation. Workspace/device/attempt/session identity rejects old asynchronous completions. Replacing owners, disconnecting or ending the media attempt cancels its resources; merely rendering a cloud, Dock or Sidecard does not start capture. Moku task work already accepted by the host survives ending Moku media.
 
@@ -49,16 +49,25 @@ User transcript projection keeps stable session/item identity through partial an
 
 [NativeVoiceCaptureAnalyser.swift](NativeVoiceCaptureAnalyser.swift) reads bounded capture samples for visual metering and emits scalar loudness/onset state. It does not provide a wake-word detector or historical PCM injection path. [VoiceControls](../Host/VoiceControls/) and the shared cloud consume that state. Rendering demand controls analysis, not microphone authority.
 
-Verification combines the Codex `-voice-only` fixture, Moku and retained Thread history Runtime replays, and native voice ownership/transcript suites. Their Moku prepare responses confirm the requested `superThreadId` and `sourceRevision` before permission or polling. Stop replays record the initial revocation and post-prepare confirmation with the retiring request/session/ownership identity; a held prepare is released before joining that same Stop, and Start remains blocked while cleanup drains. The ownership suite uses the coordinator's single Moku media client lifecycle: startup failures, mute, cancellation, stop/disconnect, return from a reader without automatic restart, and late callbacks after the same client starts a new attempt. Cross-device occupied-owner and explicit takeover identities remain covered. Removed Thread media takeover, suspension and restoration paths have no replay entry; retained Thread transcript readers remain covered by Runtime history replays. Physical microphone, WebRTC playback and audio-route changes require separate Mac hardware validation.
+Verification combines the Codex `-voice-only` fixture, Moku and retained Thread history Runtime replays, and native voice ownership/transcript suites. Their Moku prepare responses confirm the requested `superThreadId` and `sourceRevision` before permission or polling. Stop replays record the initial revocation and post-prepare confirmation with the retiring request/session/ownership identity; a held prepare is released before joining that same Stop, and Start remains blocked while cleanup drains. The ownership suite uses the coordinator's single Moku media client lifecycle: startup failures, mute, cancellation, stop/disconnect, navigation and presentation replacement without media restart, and late callbacks after the same client starts a new attempt. Cross-device occupied-owner and explicit takeover identities remain covered. Removed Thread media takeover, suspension and restoration paths have no replay entry; retained Thread transcript readers remain covered by Runtime history replays. Physical microphone, WebRTC playback and audio-route changes require separate Mac hardware validation.
 
 
-Voice calls are available only from Overview's global Moku. Ordinary Agent
-readers, Super Thread readers and Moku history have no start/long-press/accessibility
-voice action, live controls or voice background. Entering any reader synchronously
-closes the global peer, cancels its capture and requests Stop. A separate visible
-notice retains received ASR for copying and exposes pending/failed cleanup. Returning
-to Overview never restarts media automatically. A permission prompt's focus change
-alone is not navigation. Text/attachments retain their existing send targets.
+New voice calls enter through Overview's global Moku controls. Once admitted,
+`NativeVoiceMediaClient.interfacePresented` retains the user's display intent
+independently of connection phase and mounted views. The workspace voice panel
+stays above Thread readers, history, Settings, notes and other routed content.
+Opening/expanding/switching a Thread, returning to Overview, losing window focus,
+releasing a presentation or Reload never stops or recreates the call. Route
+ownership only gates new entry; retries in an already open panel are explicit.
+Text/attachments retain their current send targets; navigation never retargets
+speech away from its original global Moku session.
+
+Explicit Close/Stop closes local media synchronously, joins the existing Stop
+protocol and hides the panel only after cleanup succeeds. Failed cleanup remains
+visible and retryable. Connection failure, server closure and owner revocation
+may still retire invalid media, but retain the panel and status without automatic
+restart. Actual workspace shutdown/Quit retains its resource cleanup authority.
+Cloud mount/unmount controls only reference-counted metering demand.
 
 The ordinary Thread `voice` Sidecard keeps its stable identity solely as **Past
 voice transcripts**. Its native data source owns no media client. Existing transcript
@@ -76,5 +85,11 @@ revokes stopped preparation IDs even when Stop arrives before prepare.
 Native voice admission carries an internal session marker; non-voice background
 continuations do not need a voice lease. Accepted task work survives media shutdown.
 Unadmitted speech is not automatically resent, and audio that has not been transcribed
-cannot be recovered by the client. This sprint verifies only static code, lint and
-product builds, not microphone, WebRTC, UI interaction or timing replays.
+cannot be recovered by the client. The ownership regression suite uses controlled media and backend boundaries; it
+does not open a physical microphone or certify audible WebRTC playback.
+
+The existing `NativeVoiceOwnershipTests` covers navigation during permission
+and configuration recovery after navigation using injected media. Sprint
+integration maintains those existing cases without adding test cases. The
+workspace panel's whole-app placement, remount interaction and physical audio
+remain outside this windowless validation.
