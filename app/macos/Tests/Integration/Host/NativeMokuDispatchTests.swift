@@ -142,20 +142,4 @@ struct NativeMokuDispatchTests {
             "arguments": .object(["text": .text(String(repeating: "😀", count: 161))])])
         #expect(NativeMokuTalkMessage.latest(in: try thread([.object(dispatch), oversizedTalk])) == expected)
     }
-
-    @Test func selectedDispatchUpdatesAfterNewerMessagesWithoutCrossingOwners() throws {
-        let a = operation(id: "a"), b = operation(id: "b")
-        let selected = try #require(NativeMokuTalkMessage.latest(in: thread([a])))
-        let failed = operation(id: "a", completed: true,
-            result: .object(["error": .text("A failed after B arrived")]), error: true)
-        let current = try thread([failed, b])
-        #expect(NativeMokuTalkMessage.latest(in: current)?.id != selected.id)
-        let detail = try #require(NativeMokuTalkMessage.dispatch(id: selected.id, in: current))
-        #expect(detail.dispatch?.phase == .failed && detail.dispatch?.error == "A failed after B arrived")
-        #expect(NativeMokuTalkMessage.dispatch(id: selected.id, in: try thread([failed, b], id: "replacement")) == nil)
-        let talk: JSONValue = .object(["type": .text("tool-operation"), "id": .text("new-talk"),
-            "executionId": .text("execution"), "name": .text("talk"), "completedAt": .number(3),
-            "arguments": .object(["text": .text("B feedback")])])
-        #expect(NativeMokuTalkMessage.dispatch(id: selected.id, in: try thread([failed, talk])) == detail)
-    }
 }

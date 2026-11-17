@@ -62,7 +62,6 @@ def main():
     # allowed to turn a partial Swift run into complete CI coverage.
     xctest_launchers = {
         "MokuseiCoreTests.GoDeltaInteropTests.testGoGeneratedDeltasReconstructNativeContent",
-        "MokuseiCoreTests.IntegerWireTests.testExportActualSwiftRequestsToGo",
         "MokuseiCoreTests.RuntimeHostFilesInteropTests.testNativeUploadsAndDownloadsCrossTheGoTransportBoundary",
         "MokuseiCoreTests.RuntimeSettingsCapacityInteropTests.testColdSettingsBurstAndCancellation",
         "MokuseiCoreTests.RuntimeShutdownInteropTests.testCanonicalProfileIdentity",
