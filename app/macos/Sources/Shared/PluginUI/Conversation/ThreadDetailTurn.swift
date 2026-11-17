@@ -208,7 +208,8 @@ public struct ThreadDetailTurn: View {
                         .padding(.bottom, index == displayed.count - 1 ? 0 : row.kind == .user ? 26 : 16)
                 }
                 if displayed.isEmpty {
-                    Text(localize(status)).foregroundStyle(NativePalette.thread.muted.swiftUI)
+                    Text(localize(status))
+                        .modifier(ThreadLoadingTextStyle(loading: active && executionRunning))
                         .threadReadingAnchor(threadExecutionResultAnchor(id))
                 }
                 // Catalog activity and scoped Harness content update independently.

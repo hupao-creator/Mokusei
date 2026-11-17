@@ -118,9 +118,6 @@ public struct ThreadExecutionProcess: View {
     public let reasoningUsage: ThreadReasoningUsage?
     public let running: Bool
     @Environment(\.locale) private var locale
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @Environment(\.threadExecutionLoader) private var loader
     @Environment(\.threadAgentDetail) private var agentDetail
 
@@ -143,25 +140,13 @@ public struct ThreadExecutionProcess: View {
         }
     }
 
-    private var loadingMotionEnabled: Bool {
-        running && agentDetail && entranceReady && !reduceMotion && scenePhase == .active
-    }
-
     private var summaryRow: some View {
         HStack(spacing: 7) {
             NativeIcon(name: "Wrench", size: 13)
                 .frame(width: 20)
                 .accessibilityHidden(true)
             summaryText
-                // Dim only the moving label: the bright center must differ from
-                // both the leading and trailing text, not just the canvas.
-                .foregroundStyle(NativePalette.thread.muted.swiftUI.opacity(loadingMotionEnabled ? 0.55 : 1))
-                .overlay {
-                    if loadingMotionEnabled {
-                        ThreadExecutionLoadingSweep()
-                            .mask { summaryText.foregroundStyle(.white) }
-                    }
-                }
+                .modifier(ThreadLoadingTextStyle(loading: running && agentDetail))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
@@ -210,6 +195,29 @@ private func executionProcessID(_ source: JSONText) -> JSONText {
 private extension ThreadReasoningUsage {
     var hasValidTokens: Bool {
         tokens.isFinite && tokens >= 0 && tokens.rounded() == tokens && tokens <= 9_007_199_254_740_991
+    }
+}
+
+/// Share the summary's text treatment and motion gates with pending connection labels.
+struct ThreadLoadingTextStyle: ViewModifier {
+    let loading: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.nativeReadingEntranceReady) private var entranceReady
+
+    private var motionEnabled: Bool {
+        loading && entranceReady && !reduceMotion && scenePhase == .active
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(NativePalette.thread.muted.swiftUI.opacity(motionEnabled ? 0.55 : 1))
+            .overlay {
+                if motionEnabled {
+                    ThreadExecutionLoadingSweep()
+                        .mask { content.foregroundStyle(.white) }
+                }
+            }
     }
 }
 
