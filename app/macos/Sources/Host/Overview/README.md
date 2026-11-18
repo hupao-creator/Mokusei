@@ -172,8 +172,8 @@ composer growth does not change the layout viewport. See the
 [current contract](../../../../../design/composer.md)
 for the implemented camera contract.
 
-The 1x grid cell is 414pt wide and 253pt high, with a 16pt gap. Two-row cards are
-522pt high; two-column cards are 844pt wide. Footprints retain their column/row
+The 1x grid cell is 320pt wide and 196pt high, with a 16pt gap. Two-row cards are
+408pt high; two-column cards are 656pt wide. Footprints retain their column/row
 semantics, including Agent Threads, individual Reports and Super Thread collections.
 Packing, rendered card bounds, transitions and attention visibility all use
 the shared grid pitch, as do camera bounds and hit regions. Manual and automatic
@@ -517,8 +517,8 @@ logical viewport ratio slides horizontally while the remaining metadata region
 stays in place and switches through the shared
 `ThreadCardInkMask`. Cover and ink use one 460ms ease-in-out progress; backward
 paging mirrors only the mask so the reveal follows cover travel. Outgoing ink
-stays above incoming ink. At the current 414×522pt grid footprint, the cover is
-354.2pt high and metadata is 163.8pt high. WebKit and its poster share a centered, uniformly scaled
+stays above incoming ink. At the current 320×408pt grid footprint, the cover is
+273.8pt high and metadata is 130.2pt high. WebKit and its poster share a centered, uniformly scaled
 360×308 CSS-pixel viewport, including for existing fixed-width HTML.
 The 4pt layout spacing and card shell stay fixed;
 the spacing is filled by the same glass plate as the body, without an exposed

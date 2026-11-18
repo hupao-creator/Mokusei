@@ -20,7 +20,7 @@ eligibility, while a short read can retain it. Carousel selection is not opening
 The [Overview guide](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
 owns that policy and its fingerprint/close ownership.
 
-Cover playback, 360:308 logical viewport scaling and the 414×522pt grid footprint
+Cover playback, 360:308 logical viewport scaling and the 320×408pt grid footprint
 come from production. Bottom navigation mounts only while actually hovered and
 retires its native hit/AX children on exit; x/x remains the member-panel control.
 The member panel scrolls real report-card fixtures, including coverless members.

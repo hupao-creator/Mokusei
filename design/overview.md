@@ -6,8 +6,20 @@ owns documents, exact execution references, binding and cover admission.
 
 ## Layout and camera
 
-The logical 1×1 grid cell is 414×253pt with 16pt gaps; 1×2 is 414×522pt and
-2×1 is 844pt wide. The pure solver returns placements and bounds from one input.
+The logical 1×1 grid cell is 320×196pt with 16pt gaps; 1×2 is 320×408pt and
+2×1 is 656pt wide. All window sizes share these metrics at the default 1× camera.
+In a 1512×900pt client area with filters and the idle Moku Dock, the framing
+region is 1384×712pt. Twelve 1×1 cards occupy four columns and three rows
+(1328×620pt). Card text keeps its declared point sizes.
+
+The [14-inch reference capture](overview-4x3.png) shows a mounted
+`NativeOverviewCanvas` with twelve fixture-backed `HarnessThreadCard` views in
+an offscreen AppKit window. It uses the production viewport reservations for
+the filter bar and idle Dock. At the 1× camera, the measured card origins in
+client points were x = 92, 428, 764, 1100 and y = 130, 342, 554. The capture
+covers the card plane and uses an isolated profile.
+
+The pure solver returns placements and bounds from one input.
 Mixed spans can fill gaps within horizontal or vertical bands. The four-card
 mix of a wide card, a tall card and two single cells fills a 3×2 or 2×3
 rectangle according to the usable viewport. FitAll centers the card union at
@@ -19,8 +31,8 @@ Automatic focus can refit after membership shrinks, including increasing scale;
 a blank click restores automatic FitAll rather than preserving an obsolete
 smaller scale indefinitely. Manual pan/zoom remains a distinct ownership mode.
 
-Agent card title swaps reserve two lines so one-line generated titles do not
-shift model/time/body content. Empty, missing and error facts keep their own
+Agent card titles reserve one line and truncate at the tail so title swaps do
+not shift model, time or body content. Empty, missing and error facts keep their own
 presentation; zero Git line totals omit the extension, while unavailable totals
 do not become zero. Read-only ink does not inherit disabled-control dimming from
 Moku's input overlay. Canvas/card accessibility groups precede gesture/action
@@ -33,7 +45,7 @@ Source: [layout](../app/macos/Sources/Host/Overview/NativeOverviewLayout.swift),
 ## Cover dimensions and ownership
 
 The passive cover's logical viewport is 360×308 CSS pixels. Native height is
-width × 308/360: 354.2pt at 414pt width, followed by a 4pt gap and 163.8pt metadata
+width × 308/360: 273.8pt at 320pt width, followed by a 4pt gap and 130.2pt metadata
 region. One outer 1×2 card owns open/archive actions; introduction display allows
 three lines. The agent prompt asks for concise text suited to two lines; this
 writing guidance is distinct from the three-line native limit.

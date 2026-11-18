@@ -201,7 +201,7 @@ refreshed card over the final 14%. See the shared PluginUI and WindowNavigation
 documentation for lifecycle boundaries and the current presentation contracts.
 
 Super Thread cards with an authored cover occupy the shared 1×2 Overview footprint
-(414×522pt). A passive 360×308 CSS-pixel logical HTML/CSS cover and the original metadata share one
+(320×408pt). A passive 360×308 CSS-pixel logical HTML/CSS cover and the original metadata share one
 outer card, separated by 4pt; the introduction is limited to three lines. The Report
 plugin fetches `report.cover` by the independent catalog cover revision instead
 of carrying HTML in the catalog. Its nonpersistent, input-transparent WebKit document

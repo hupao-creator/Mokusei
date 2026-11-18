@@ -307,10 +307,10 @@ cover stay one grid row until authored cover content is supplied; no bulk genera
 or rewrite runs on startup.
 
 The production card uses one shell, one open action and its existing archive menu.
-A cover makes its Overview footprint 1×2 (414×522pt on the current grid).
+A cover makes its Overview footprint 1×2 (320×408pt on the current grid).
 The native cover region preserves the logical viewport ratio: height = width ×
-308/360 (354.2pt at 414pt width), followed by the 4pt gap and remaining metadata
-region (163.8pt). WebKit and its cached poster both render at 360×308 and scale
+308/360 (273.8pt at 320pt width), followed by the 4pt gap and remaining metadata
+region (130.2pt). WebKit and its cached poster both render at 360×308 and scale
 uniformly as one centered surface. Fixed-pixel existing covers and percentage
 layouts therefore use the same viewport without cropping or rewriting HTML.
 Narrower Report cards use the same ratio; coverless cards retain metadata only.
