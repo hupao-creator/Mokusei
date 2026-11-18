@@ -27,13 +27,15 @@ selects only these entries and requires evidence that they actually ran.
 | PBT-STORE-SNAPSHOT | [Store](../../../internal/core/store/README.md): 1–80 transactions, overlapping ASCII/Unicode/long prefixes, puts/deletes | Independent map oracle for exact prefix/diff results and snapshot immutability |
 | PBT-STORE-LIFECYCLE | [Store](../../../internal/core/store/README.md): 1–60 append/batch/receipt/settle/rollback/reopen actions, three scopes/consumers | Independent fact/acknowledgement model; effect idempotency, rollback isolation, pending/history and durable work |
 | PBT-CODEX-TERMINAL | [Codex](../../../internal/plugins/harness/codex/README.md): generated start/event/follow-up/reject/settle histories | Durable state decodes; first terminal is absorbing; rejection notice retained |
+| PBT-CODEX-CATALOG | [Codex](../../../internal/plugins/harness/codex/README.md): client version, valid/malformed timestamp and a write before/during/after acquisition | Counted native probes distinguish reuse, one re-enumeration and reuse of the new result |
 | PBT-REPORT-PREVIEW | [Report](../../../internal/plugins/applications/report/README.md): Go fuzz over bounded arbitrary HTML | Parser safety and preview code-point bound |
 | PBT-OVERVIEW-GEOMETRY | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): 0–18 cards, generated footprints/viewports/caps | Independent geometry constraints, regular-grid lower bound and exact area/fit of shuffled six-tile rectangles |
-| PBT-OVERVIEW-STATE | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): generated 18-event schedule plus reduced corpus | Production-mounted latest-state convergence; no physical input, screenshot or frame pacing |
+| PBT-OVERVIEW-STATE | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): generated clearances, sparse and crowded starts, 18 event attempts plus reduced corpus | Mounted membership, scale and rendered frame center after returning to automatic |
 | PBT-SYSTEM-COMBINATION | [Runtime](../../../internal/core/runtime/README.md#property-boundaries): 1–3 scopes, role-wise HTTP/SSE faults, action sequence and restart | Real Codex + composition + loopback provider; command receipts, scoped effects and retained facts |
 
 The limited cross-boundary properties have distinct value: Codex's absorbing
-terminal state supplies Runtime execution facts; Report parses untrusted agent
+terminal state supplies Runtime execution facts. Codex cache writes can occur
+during enumeration and leave a fallback model list apparently fresh. Report parses untrusted agent
 output; geometry has mathematical invariants; mounted Overview state has a
 latest-wins convergence contract. They do not justify expanding PBT to every UI
 or plugin. The optional system property validates durable composition effects,

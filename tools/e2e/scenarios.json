@@ -2,6 +2,17 @@
   "version": 1,
   "scenarios": [
     {
+      "id": "E2E-OVERVIEW-001",
+      "implementation": "implemented",
+      "title": "Pan a mounted task card and return to automatic framing",
+      "doc": "app/macos/Sources/Host/Overview/README.md#camera-interaction-e2e",
+      "evidence": [
+        "overview-automatic.json",
+        "overview-panned.json",
+        "overview-recentered.json"
+      ]
+    },
+    {
       "id": "E2E-READ-001",
       "implementation": "implemented",
       "title": "Open reader, receive a follow-up, visit history, return",

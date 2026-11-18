@@ -269,7 +269,7 @@ repack the scene. The reservation consumes the existing vertical padding budget 
 
 The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Closing a covering surface can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
 
-Overview cards, canvas background and directory chips expose no context menus. Background clicks still restore automatic framing; drag, scroll and pinch keep their existing camera behavior. Directory children remain available through hover and accessibility actions. Reading, composer and other scene menus are owned separately.
+The host supplies no context menu on the canvas background or directory chips. Report cards provide their plugin-owned archive menu. A background click restores automatic framing. Directory children remain available through hover and accessibility actions.
 
 Geometry reuse applies when the current membership and viewport are unchanged; a structural slot refresh then updates content without invoking the solver. Recovery from an interrupted entry, resize or exit samples the current poses and starts the latest presentation, so transparent entrants and retired snapshots are released. No reading-position edge seat is retained.
 
@@ -647,8 +647,9 @@ and leave archive disabled. Closing, inactive and removed-member guards remain.
 unique product-ordered cards (1–3 columns, 1–2 rows), usable viewport widths
 240–2,600pt, heights 240–1,600pt, origins −400…400/−200…200pt and either no scale
 cap or an explicit cap 1…2.6. The [generated property](../../../Tests/Properties/NativeOverviewGeometryProperties.swift)
-checks exact membership/order/spans, finite positive nonoverlapping card frames
-with world gaps, bounds equal to the card union, bounded FitAll scale with its
+checks exact membership/order/spans and uses the specified 320×196pt cell and
+16pt gap to check the frame union against the solver's production metrics.
+It checks finite positive nonoverlapping frames and bounded FitAll scale with its
 1× floor, centered projection and viewport containment when raw fit permits it.
 It independently enumerates largest-card regular grids to check the documented
 quality floor. Every fourth seed shuffles the six-cell tiling with base spans of
@@ -662,14 +663,18 @@ all-policy or global-optimality coverage.
 
 **PBT-OVERVIEW-STATE** mounts the production Canvas in a native SwiftUI window.
 [Generated traces](../../../Tests/Properties/NativeOverviewStateProperties.swift)
-have 18 attempts at insert/remove/footprint/resize/pause/visibility/manual/auto/
+start with independent toolbar (0–120pt) and Dock (0–180pt) clearances.
+Every fourth seed starts with 8–14 single-width cards of varying heights to
+exercise overflow. Each trace makes 18 attempts at insert/remove/footprint/resize/pause/visibility/manual/auto/
 content events, up to 1–2 column/row spans, 500–1,500 by 500–1,000pt sizes,
 manual scales 0.6…1.5 (production normalization still applies) and revisions 0–5.
 ID selection sorts the live set before seeded sampling. After releasing pause,
 hiding and manual ownership, the latest snapshot must settle within 3s: presented
 membership and rendered frame identities agree, card/camera projection differs
 by less than one physical pixel, and final scale matches the documented FitAll
-floor/cap formula. Events are submitted 4ms apart; this samples interleavings
+floor/cap formula. The union of mounted card frames must center horizontally
+and balance the toolbar and Dock clearances according to the automatic framing
+rule, including when the union overflows. Events are submitted 4ms apart; this samples interleavings
 rather than enumerating all scheduler orders. A reduced trace is
 retained as property corpus. Failures print original/reduced event traces and
 only shrink to the same failure category. This checks mounted convergence, not
@@ -683,3 +688,14 @@ not a user-experience latency threshold. Both write original/reduced JSON for
 failure replay and bound shrinking by elapsed time. These are scoped mathematical
 and state-convergence properties; interaction coverage belongs to e2e and
 experience measurements to benchmarks. See [PBT commands/evidence](../../../../../tools/verification/pbt/README.md).
+
+## Camera interaction e2e
+
+`E2E-OVERVIEW-001` opens an isolated workspace at Overview with one completed
+task. The runner observes the mounted card, its cell span, the viewport and
+both control clearances. At 1× it checks the automatic center, requests a
+manual pan, checks both displacement axes, and returns to automatic framing.
+The settled return must recover the original center. The three snapshots and
+socket transcript certify semantic camera behavior. Physical input, clipping
+at the window edges and cover pixels require separate observations.
+[Desktop scenario and evidence](../../../../../tools/e2e/README.md)

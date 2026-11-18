@@ -5,7 +5,7 @@ Talk, Note, input and draft behavior. [Core](../app/macos/Sources/Core/README.md
 owns durable receipt and attachment handoff.
 [E2E-COMPOSER-001](../tools/e2e/README.md#composer-system-input-boundary) uses
 operator-assisted system Accessibility input with independent public persisted
-results; it is excluded from unattended hosted CI. READ/SETTINGS use automated
+results; it is excluded from unattended hosted CI. OVERVIEW/READ/SETTINGS use automated
 semantic controls. These scenarios do not cover IME, historical forks or uncertain
 receipt recovery; demo fixtures do not establish Runtime delivery.
 

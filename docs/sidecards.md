@@ -4,7 +4,7 @@
 
 In an agent conversation, click **Execution** on the right to keep reading earlier messages while you watch the current run. The button appears when the conversation already has some history and the current run is active or waiting for your response. The first run stays in the main reading area. When a run ends, you can read the result there.
 
-Click the same button to close a sidecard, or another button to switch sidecards. The task keeps running when you close or switch them. Drag the divider to change the width of the two panels. In a narrow window, the panels stack vertically.
+When **Execution** opens beside the conversation, the text you are reading settles at the narrower width as the sidecard unfolds. Click the same button to close a sidecard, or another button to switch sidecards. The task keeps running when you close or switch them. Drag the divider to change the width of the two panels. In a narrow window, the panels stack vertically.
 
 ## Browse a web page and send feedback
 

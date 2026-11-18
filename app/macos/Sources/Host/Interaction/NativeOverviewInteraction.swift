@@ -168,7 +168,8 @@ extension NativeWorkspacePresentation {
         let camera = canvas.camera
         let transform = camera.liveTransform
         let viewport: JSONValue = camera.viewport.map {
-            .object(["width": .number($0.width), "height": .number($0.height), "toolbarBottom": .number($0.toolbarBottom)])
+            .object(["width": .number($0.width), "height": .number($0.height),
+                     "toolbarBottom": .number($0.toolbarBottom), "bottomReservedHeight": .number($0.bottomReservedHeight)])
         } ?? .null
         let automaticFitTarget: JSONValue = camera.automaticFitTarget.map {
             .object(["scale": .number($0.scale), "x": .number($0.x), "y": .number($0.y)])

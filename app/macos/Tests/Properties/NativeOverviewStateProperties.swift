@@ -10,6 +10,7 @@ private enum StateEvent: Codable, CustomStringConvertible {
     case remove(String)
     case footprint(String, Int, Int)
     case resize(Double, Double)
+    case clearances(toolbar: Double, dock: Double)
     case pause(Bool)
     case visible(Bool)
     case manual(Double)
@@ -22,6 +23,7 @@ private enum StateEvent: Codable, CustomStringConvertible {
         case .remove(let id): "remove(\(id))"
         case .footprint(let id, let columns, let rows): "footprint(\(id),\(columns)x\(rows))"
         case .resize(let width, let height): "resize(\(width)x\(height))"
+        case .clearances(let toolbar, let dock): "clearances(toolbar=\(toolbar),dock=\(dock))"
         case .pause(let value): "pause(\(value))"
         case .visible(let value): "visible(\(value))"
         case .manual(let scale): "manual(\(scale))"
@@ -53,9 +55,17 @@ private struct StateGenerator: RandomNumberGenerator {
 
 private func generateTrace(seed: UInt64, length: Int = 18) -> StateTrace {
     var random = StateGenerator(seed: seed)
-    var events = [StateEvent]()
+    var events: [StateEvent] = [.clearances(toolbar: Double(random.pick(0...120)), dock: Double(random.pick(0...180)))]
     var live = Set<String>()
     var nextID = 0
+    if seed.isMultiple(of: 4) {
+        for _ in 0..<random.pick(8...14) {
+            let id = "card-\(nextID)"
+            nextID += 1
+            live.insert(id)
+            events.append(.insert(id, 1, random.pick(1...2)))
+        }
+    }
     for _ in 0..<length {
         switch random.pick(0...8) {
         case 0, 1:
@@ -153,6 +163,9 @@ struct NativeOverviewStateProperties {
                 fixture.install(items)
             case .resize(let width, let height):
                 fixture.size = .init(width: width, height: height)
+            case .clearances(let toolbar, let dock):
+                fixture.toolbarBottom = toolbar
+                fixture.bottomReservedHeight = dock
             case .pause(let value):
                 fixture.layoutPaused = value
             case .visible(let value):
@@ -193,6 +206,15 @@ struct NativeOverviewStateProperties {
             let expected = max(1, min(NativeOverviewCameraGeometry.scaleCap, raw))
             if abs(fixture.state.camera.liveTransform.scale - expected) > 1e-6 {
                 return "scale does not match FitAll: " + summary(fixture)
+            }
+            // Equal top/bottom space when the Dock is taller. A taller toolbar
+            // keeps half the excess clearance above the center of the cards.
+            let center = CGPoint(x: fixture.size.width / 2,
+                                 y: (fixture.size.height + max(0, fixture.toolbarBottom - fixture.bottomReservedHeight)) / 2)
+            let envelope = fixture.renderedEnvelope
+            let pixel = 1 / window.backingScaleFactor
+            if abs(envelope.midX - center.x) > pixel || abs(envelope.midY - center.y) > pixel {
+                return "automatic center differs: expected=\(center) rendered=\(envelope) " + summary(fixture)
             }
         }
         return nil

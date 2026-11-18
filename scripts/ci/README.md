@@ -6,7 +6,7 @@ ordinary example/table unit-test suites. Each property names its module contract
 input domain and oracle; generated sample counts are not code-coverage percentages.
 
 Linux runs Go formatting, architecture/import and static registration checks,
-`go vet ./...`, `go build ./...` and Go PBT (seven Rapid properties, 100 cases each,
+`go vet ./...`, `go build ./...` and Go PBT (eight Rapid properties, 100 cases each,
 seed 1; Report HTML fuzz, 10s), followed by the explicit-replay CLI e2e for
 generated invalid inputs, witnessed corpus execution and injected/fixed oracle
 failure. Replay mechanism checks are separate from the property inventory count.
@@ -59,7 +59,7 @@ configure remote required checks. Signed optical UX suites have no hosted job.
 ## Product interaction boundaries
 
 [Desktop e2e](../../.github/workflows/e2e.yml) is an independent manual, serial
-hosted workflow for READ and SETTINGS. The [scenario inventory](../../tools/e2e/scenarios.json)
+hosted workflow for OVERVIEW, READ and SETTINGS. The [scenario inventory](../../tools/e2e/scenarios.json)
 records the additional operator-assisted Composer boundary; no unattended
 Composer job is configured. Real Runtime/native Codex/UI runs use deterministic
 external model responses, not real provider availability or quality. Evidence

@@ -88,7 +88,7 @@ def finish(directory, report):
     save(directory / "report.json", report)
     lines = ["# E2E run", "", f"Validity: **{report['validity']}**; functionality: **{report['functionality']}**; exit: **{report['exitCode']}**.",
              "", "Boundary: real Runtime / HTTP+NDJSON / SQLite / real Codex CLI; deterministic external provider.",
-             "Reading/settings use mounted-control callbacks. Composer requires explicit operator-assisted system input.",
+             "Overview uses semantic camera actions. Reading and Settings use mounted controls. Composer uses operator-assisted system input.",
              "Only passing rows are certified for this attempt; real external-provider behavior is not covered.", "",
              "| Scenario | Status | Functionality | Reason |", "| --- | --- | --- | --- |"]
     for row in report["scenarios"]:

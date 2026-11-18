@@ -50,8 +50,8 @@ measurement validity and result. `blocked`, `skipped`, unrun and another
 revision's results are not passes. Calibration establishes measurement
 capability, not product correctness.
 
-The [product e2e runner](../../tools/e2e/README.md) implements mounted READ and
-SETTINGS journeys plus an explicitly operator-assisted system-input Composer
+The [product e2e runner](../../tools/e2e/README.md) implements semantic Overview
+camera actions, mounted READ and SETTINGS journeys, and an operator-assisted Composer
 journey. Its independent manual hosted workflow excludes Composer. A deterministic
 external peer is not real-model/network coverage; offline artifact verification
 does not rerun the product. During signed UX sampling, defer heavy builds and

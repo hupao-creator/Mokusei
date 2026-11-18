@@ -1,7 +1,7 @@
 # Desktop interaction verification
 
 This runner checks **interaction input → real system → user-observable state**.
-Reading and Settings drive mounted production controls through the opt-in
+Overview, Reading and Settings use the opt-in
 [native automation protocol](../native-interaction/README.md), with real Swift
 UI, Runtime, authenticated HTTP/NDJSON, persistence and native Codex processes.
 Composer uses an explicit operator-assisted system Accessibility/input path; the
@@ -20,6 +20,7 @@ contains every requested ID, including blocked and unreached entries.
 
 | ID | Implemented interaction and criterion | Prerequisite / evidence | Coverage boundary |
 | --- | --- | --- | --- |
+| `E2E-OVERVIEW-001` | Observe a single mounted task at 1×, pan by (+48, −90)pt, and restore its automatic center. The card span and window clearances determine the expected coordinates. | Fresh profile with one completed task. The automatic, panned and recentered snapshots and UI requests record the three poses. | Semantic camera actions and mounted identity. Pointer hit testing and drawn pixels need separate evidence. |
 | `E2E-READ-001` | Open the prepared Agent from Overview; observe its ready, nonempty mounted turn; deliver an external follow-up; observe its mounted successor; activate the first history entry; Back returns to the successor; Overview closes the reader | Fresh profile, real Codex directory, settled source reply; `creation.json`, scoped content, `ui-initial/current/history/return/overview.json`, `ui-events.jsonl` | Navigation callbacks, content acquisition and mounted turn identity; HTTP follow-up input, not composer submission. Semantic readiness is not proof of exact rendered pixels or text layout |
 | `E2E-SETTINGS-001` | Open Settings/Moku; activate an unselected `routingPreset` capsule; observe selection; close through the save gate; read the exact saved preset through public Runtime state; reopen and observe it selected | Same isolated connected workspace; `settings-before/edited/persisted/reopened.json`, UI operations and public API receipts | Real binding/draft/transport/persistence/reopen path for one preset; not IME, keyboard, pointer hit-testing, errors/conflicts or all settings |
 | `E2E-COMPOSER-001` | Type a follow-up and activate the actual Send button; observe accepted draft clearing and completed output; send a held task, observe Stop in the empty action seat, activate it and observe interruption and an editable empty composer without navigating away | Exclusive desktop, accessible isolated bundle, external operator; `operator-send/stop.json` AX observations, exact persisted prompts, `composer-send-content/oracle/ui.json`, `composer-running/stopped/stop-content/stop-ui.json` | Operator-assisted OS input, not unattended CI; current ordinary Thread text input and cancellation only, not pause/resume, historical forks, IME or uncertain receipt recovery |
@@ -80,7 +81,7 @@ python3 tools/e2e/run.py verify output/e2e/interaction
 ```
 
 Output directories must be new; no rerun overwrites evidence. The default
-`supported` suite requests reading and settings. `all` additionally requests
+`supported` suite requests Overview, reading and settings. `all` additionally requests
 Composer, which remains blocked without `--operator-composer` and real external
 input receipts. `--suite composer` selects just that scenario. No scenario is
 silently skipped. The desktop lease uses atomic directory creation, records

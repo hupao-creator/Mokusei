@@ -34,7 +34,7 @@ private struct SplitMix64: RandomNumberGenerator {
 }
 
 private let tolerance = 1e-9
-private let metrics = NativeOverviewGridMetrics.standard
+private let metrics = NativeOverviewGridMetrics(columnWidth: 320, rowHeight: 196, gap: 16)
 
 private func frame(of placement: NativeOverviewPlacement) -> CGRect {
     CGRect(x: Double(placement.column) * metrics.columnPitch,
@@ -74,7 +74,7 @@ private func violations(_ input: LayoutCase) -> [String] {
         result = try NativeOverviewLayout.solve(
             members: input.members,
             usableViewport: input.usable,
-            policy: .init(metrics: metrics, scaleCap: input.scaleCap))
+            policy: .init(metrics: .standard, scaleCap: input.scaleCap))
     } catch {
         return ["solve threw: \(error)"]
     }

@@ -16,6 +16,12 @@ The report and its list are for reading. To send a follow-up, open one of the re
 
 To hide a report, right-click its card and choose **Archive Super Thread**. This hides the report and its linked task conversations from Overview. Work in progress keeps running, and the report and conversation records stay saved.
 
+## Browse reports in a collection
+
+A collection shows one report at a time. Move the pointer over its cover to show the arrows and page controls. The cover, page count, and report text stay in place as the controls appear. Use an arrow to turn one page, or open **Select Super Thread** to choose a report by title. Click the cover to read the displayed report.
+
+Click the page count in the upper-right corner to see all the reports together. The count is available even when the pointer is outside the card. Click a report to read it, or use its upper-right **Archive Super Thread** button to archive it and hide its linked conversations. Press **Esc** to close the collection panel.
+
 ## Check Git changes on a task card
 
 For projects that use Git, some task cards show the branch, how many files changed, and how many lines were added or removed. The summary is hidden when Mokusei knows that both line counts are zero. If the counts are temporarily unavailable, the card says so. The summary is for reference. Clicking the task card opens its conversation.

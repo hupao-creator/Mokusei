@@ -6,6 +6,7 @@
   {"id":"PBT-STORE-SNAPSHOT","suite":"go","engine":"rapid","package":"tools/verification/pbt/store","test":"TestSnapshotProperties","doc":"internal/core/store/README.md","cases":100},
   {"id":"PBT-STORE-LIFECYCLE","suite":"go","engine":"rapid","package":"tools/verification/pbt/store","test":"TestLifecycleProperties","doc":"internal/core/store/README.md","cases":100},
   {"id":"PBT-CODEX-TERMINAL","suite":"go","engine":"rapid","package":"tools/verification/pbt/codex","test":"TestCodexTerminalProperties","doc":"internal/plugins/harness/codex/README.md","cases":100},
+  {"id":"PBT-CODEX-CATALOG","suite":"go","engine":"rapid","package":"internal/plugins/harness/codex","test":"TestNativeCatalogWriteProperties","doc":"internal/plugins/harness/codex/README.md","cases":100},
   {"id":"PBT-REPORT-PREVIEW","suite":"go","engine":"fuzz","package":"internal/plugins/applications/report","test":"FuzzReportHTMLProjections","doc":"internal/plugins/applications/report/README.md"},
   {"id":"PBT-OVERVIEW-GEOMETRY","suite":"native","engine":"swift","test":"NativeOverviewGeometryProperties/generatedLayoutsSatisfyTheContract","doc":"app/macos/Sources/Host/Overview/README.md","cases":480},
   {"id":"PBT-OVERVIEW-STATE","suite":"native-state","engine":"swift","test":"NativeOverviewStateProperties/randomInterleavingsConvergeToTheLatestSnapshot","doc":"app/macos/Sources/Host/Overview/README.md","cases":8},

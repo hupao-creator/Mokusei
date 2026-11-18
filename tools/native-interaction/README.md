@@ -177,8 +177,10 @@ window geometry as a startup variable; the OS bounds remain externally verified.
 
 ## Interaction verification
 
-The [e2e runner](../e2e/README.md) records real mounted-control requests and
-postconditions for `E2E-READ-001` and `E2E-SETTINGS-001`, with separate public
+The [e2e runner](../e2e/README.md) records camera actions and settled transforms
+for `E2E-OVERVIEW-001`. The viewport exposes the window width, height, toolbar
+bottom and bottom reserved height in points. It records mounted-control requests
+and postconditions for `E2E-READ-001` and `E2E-SETTINGS-001`, with separate public
 Runtime outcome evidence. Scenario definitions do not imply a passing run.
 No composer send/pause operation is exposed; HTTP follow-up and interrupt
 commands do not establish composer interaction coverage.

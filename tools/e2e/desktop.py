@@ -1,5 +1,6 @@
 """Interact with real mounted controls; semantic observations are not pixels."""
 import json
+import math
 import time
 
 from client import Client
@@ -53,6 +54,46 @@ class Desktop:
         return route and any(c["role"] == "turn" and c["value"].get("executionId") == execution
             and c["value"].get("state") == "ready" and c["value"].get("visibleRowCount", 0) > 0
             for c in controls)
+
+    def overview_camera(self, thread):
+        def settled(state, manual):
+            overview = state["overview"]
+            camera = overview["camera"]
+            return (state["page"] == "overview" and state["runtimeAvailable"]
+                    and camera["initialized"] and camera["manual"] is manual
+                    and not any(camera[key] for key in ("animating", "motionPending", "automaticFitPending"))
+                    and not overview["layingOut"] and len(overview["placements"]) == 1
+                    and any(card.get("ref", {}).get("threadId") == thread
+                            and card["id"] == overview["placements"][0]["id"]
+                            and card["id"] in overview["mountedCardIds"] for card in overview["cards"]))
+
+        state = self.stable(lambda s: settled(s, False))
+        save(self.session.output / "overview-automatic.json", state)
+        initial = state["overview"]["camera"]
+        viewport = initial["viewport"]
+        card = state["overview"]["placements"][0]
+        gap = 16
+        column_pitch, row_pitch = 320 + gap, 196 + gap
+        width = card["columns"] * column_pitch - gap
+        height = card["rows"] * row_pitch - gap
+        center_y = (viewport["height"] + max(0, viewport["toolbarBottom"] - viewport["bottomReservedHeight"])) / 2
+        expected_x = viewport["width"] / 2 - width / 2 - card["column"] * column_pitch
+        expected_y = center_y - height / 2 - card["row"] * row_pitch
+
+        def check_pose(camera, x, y):
+            assert (camera["scale"] == 1 and math.isclose(camera["x"], x, abs_tol=.01)
+                    and math.isclose(camera["y"], y, abs_tol=.01)), (camera, x, y)
+
+        check_pose(initial, expected_x, expected_y)
+        self.request({"name": "overview.pan", "deltaX": 48, "deltaY": -90})
+        moved = self.stable(lambda s: settled(s, True))
+        save(self.session.output / "overview-panned.json", moved)
+        check_pose(moved["overview"]["camera"], expected_x + 48, expected_y - 90)
+
+        self.request({"name": "overview.auto"})
+        returned = self.stable(lambda s: settled(s, False))
+        save(self.session.output / "overview-recentered.json", returned)
+        check_pose(returned["overview"]["camera"], expected_x, expected_y)
 
     def read(self, thread, initial, followup):
         overview = self.stable(lambda s: s["page"] == "overview" and s["runtimeAvailable"])

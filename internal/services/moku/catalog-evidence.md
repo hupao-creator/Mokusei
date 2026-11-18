@@ -46,5 +46,7 @@ heuristic establishes remote completeness.
 Source: [shared cache](../../platform/discovery/cache.go),
 [source identity](../../platform/discovery/source.go),
 [Moku target schema](tool_schema.go), and the Harness guides above.
-No installed-client discovery e2e is configured in this source tree;
-source review/build does not certify all accounts/clients in a user's environment.
+The [desktop e2e runner](../../../tools/e2e/README.md) uses an installed Codex
+CLI and a private provider during preparation. The [Codex catalog property](../../plugins/harness/codex/catalog_property_test.go)
+checks compatible cache writes around a strict read. Live account directories
+and refreshes of other Harnesses need separate evidence.

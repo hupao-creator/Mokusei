@@ -25,9 +25,9 @@ the configured floor and cap. Overflow remains reachable by panning.
 Layout and camera targets are latest-wins, fenced by identity and
 revision. Content-only updates do not restart structural motion. Interrupted
 travel samples current poses; hidden work coalesces to the latest target.
-Automatic focus can refit after membership shrinks, including increasing scale;
-a blank click restores automatic FitAll rather than preserving an obsolete
-smaller scale indefinitely. Manual pan/zoom remains a distinct ownership mode.
+Automatic focus recomputes placement and center when membership shrinks. The
+product camera stays at 1×. Clicking empty canvas restores automatic framing
+after a manual pan.
 
 Agent card titles reserve one line and truncate at the tail so title swaps do
 not shift model, time or body content. Empty, missing and error facts keep their own

@@ -177,6 +177,15 @@ observation's ordinary lifetime in effect. The file supplies only a freshness
 hint. A fresh app-server still enumerates under its captured configuration and
 account, and the returned list alone supplies model choices and capabilities.
 
+The [catalog freshness property](catalog_property_test.go) generates client versions
+and private cache writes before, during, or after the first successful read.
+A readable timestamp and matching client version on a newer write must trigger
+one new enumeration. A strict read after that reuses the result. A different
+client version, malformed timestamp or older write preserves the first result.
+Virtual time distinguishes probe start from publication. The property exercises
+the native stamp reader and shared discovery cache with a counted probe. Real
+account enumeration and Settings refresh interactions require separate evidence.
+
 No settings-performance replay for this Harness is configured in this source tree.
 
 Turn-scoped reader projections omit plan steps, explanations and timeline markers

@@ -49,6 +49,7 @@ def source_identity():
         "tools/benchmarks/reading/public.py", "tools/native-interaction/client.py",
         "tools/e2e/README.md", ".github/workflows/e2e.yml",
         "app/macos/Sources/Host/Interaction/README.md", "app/macos/Sources/Host/Settings/README.md",
+        "app/macos/Sources/Host/Overview/README.md",
         "internal/services/moku/README.md", "internal/core/runtime/README.md",
         "app/macos/Sources/Host/MokuScene/README.md")]
     return {"commit": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain")),
@@ -192,6 +193,7 @@ def run(args):
             return latest
 
         if args.suite != "composer":
+            execute("E2E-OVERVIEW-001", lambda: desktop.overview_camera(thread))
             execute("E2E-READ-001", lambda: desktop.read(thread, initial, followup))
             execute("E2E-SETTINGS-001", desktop.settings)
         if args.suite in ("all", "composer"):
