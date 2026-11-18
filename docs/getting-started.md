@@ -1,35 +1,39 @@
-# 首次使用 Mokusei
+# Getting started with Mokusei
 
-## 安装 Mokusei Alpha
+## Install Mokusei Alpha
 
-你需要一台搭载 Apple 芯片、运行 macOS 26 或更新版本的 Mac。
+You'll need a Mac with Apple silicon running macOS 26 or later.
 
-1. 从邀请方取得 Mokusei Alpha 的安装文件，确认版本与来源。
-2. 打开安装文件，把 **Mokusei Alpha.app** 拖入 **应用程序**，弹出安装盘，再从 **应用程序** 打开 Mokusei Alpha。
-3. 如果 macOS 提示无法验证开发者或无法检查恶意软件，先确认你信任邀请方提供的这个安装包，再到 **系统设置 → 隐私与安全性** 找到对应提示，点 **仍要打开** 并按提示确认。如果 macOS 提示文件损坏、发现恶意软件，或仍无法打开，把完整提示和版本发给邀请方。
+1. Get the Mokusei Alpha disk image from your inviter and confirm its source and version.
+2. Open the disk image and drag **Mokusei Alpha.app** into **Applications**. Eject the disk image, then open Mokusei Alpha from **Applications**.
+3. If macOS says it can't verify the developer or check the app for malicious software, confirm that you trust the copy your inviter supplied. In **System Settings → Privacy & Security**, find the message for Mokusei Alpha, click **Open Anyway**, and follow the prompts. If macOS reports malware or a damaged app, or the app still won't open, send the full message and version to your inviter.
 
-## 准备一位 Agent
+## Set up an agent
 
-Mokusei 可以使用 Codex、Claude、Pi Agent 和 OpenCode。至少选一位，按它的安装指引在这台 Mac 上完成安装，再按需要登录或配置模型。可用模型和使用费用由相应服务决定。
+On a fresh install, Mokusei opens in Simplified Chinese. This guide uses the English interface labels. You can change the app's language in Settings after setup.
 
-首次打开 Mokusei 时，应用会逐个检查 Agent。未安装时，可以点 **安装** 查看对应指引。完成后回到 Mokusei，如果页面显示 **重新检测**，点它查看结果。如果某位 Agent 的配置读取失败，点该条提示旁的 **重试**。只要有一位能担任 Moku 的 Agent 就绪，就可以点 **继续**。其他 Agent 仍在检查时，可以先用已就绪的选项，之后返回检测页查看结果。
+Mokusei works with Codex, Claude, Pi Agent, and OpenCode. Choose at least one, follow its installation instructions on this Mac, and sign in or set up a model as needed. Each service determines which models you can use and what they cost.
 
-## 选好 Moku 和协作角色
+When you first open Mokusei, it checks for each agent. If an agent is missing, click **Install** to open its instructions. Once you've set it up, return to Mokusei and click **Check again** when that button is available. If Mokusei couldn't load an agent's settings, click **Retry** next to the error. You can click **Continue** as soon as one agent that can serve as Moku is ready. If other agents are still being checked, you can set up the ones that are ready and come back to see the rest.
 
-1. 在 Moku 页选择由哪位 Agent 担任 Moku，并选至少一位允许它派去做任务的 Agent。前一项决定谁与你沟通和安排工作，后一项决定它可以把工作交给谁。按页面提供的选项完成模型设置。
-2. 接下来的两页分别设置标签助手和报告助手。两个角色都有 **不启用**、**跟随 Moku** 和 **单独配置** 三个选项。
-3. 点 **开始使用 Moku**。设置保存后，工作区会出现 Moku 的输入框。中途退出时，再次打开会回到检测页，已经保存的选择仍然有效。
+## Choose who does what
 
-如果设置页显示读取或保存错误，先点错误提示旁的 **重试**。若模型等选项还没填完整，补齐后再点 **继续** 或 **开始使用 Moku**。以后可以在应用内调整这些选项。[设置](settings.md)
+1. On the **Moku** page, choose the agent that will talk to you and coordinate your work. Then choose at least one agent Moku can assign tasks to. Use the options on the page to finish choosing a model.
+2. The next two pages set up the tag and report agents. Each offers **Agent off**, **Use Moku**, and **Configure separately**.
+3. Click **Start using Moku**. Once your settings are saved, Moku's input box appears in the workspace. If you quit partway through setup, Mokusei opens to the agent check when you return and keeps the choices you've already saved.
 
-## 发出第一条请求
+If a setup page couldn't load or save your settings, click **Retry** next to the error. Fill in any missing choices, such as a model, before clicking **Continue** or **Start using Moku**. You can change these choices later. [Settings](settings.md)
 
-在 **向 Moku 提问，或长按说话…** 输入框里说明你想完成什么，并交代你希望拿到什么结果。任务和某个文件夹有关时，可以在输入时用 `@` 选择目录，再发送请求。
+## Send your first request
 
-Moku 可以直接回答，也可以创建 Agent 会话来处理任务。创建成功后，会话会出现在 **会话俯瞰** 中，Moku 移到窗口底部。点会话卡片可以看进展、读结果，或处理 Agent 正在等待的确认。关于后续操作和发送失败的处理，见[与 Moku 协作](working-with-moku.md)。
+In the **Ask Moku…** box, describe what you want done and what you'd like to get back. If the work belongs to a project folder, type `@` and choose the folder before sending.
 
-## 更新 Mokusei Alpha
+Moku can answer you directly or create an agent conversation to handle the task. Once the conversation is created, its card appears in **Overview** and Moku moves to the bottom of the window. Click the card to check progress, read the result, or respond to a request from the agent. [Working with Moku](working-with-moku.md)
 
-Alpha 需要手动更新。先退出 Mokusei Alpha，按随包说明备份应用数据，再把新版本拖入 **应用程序**，替换原来的 Mokusei Alpha。不同 Alpha 版本之间可能无法沿用应用数据，更新后 macOS 也可能再次询问文件访问等权限。Alpha 单独保存应用数据，仍使用你在这台 Mac 上选择的项目目录和已有 Agent 登录。
+## Update Mokusei Alpha
 
-[返回产品指南](README.md)
+Alpha updates are manual. Quit Mokusei Alpha and back up its app data as described in the accompanying `READ-ME-FIRST.txt`. Then drag the new **Mokusei Alpha.app** into **Applications** and replace the existing copy.
+
+App data may be incompatible between Alpha versions. macOS may also ask for file access or other permissions again after an update. Alpha keeps its own app data and uses the project folders and agent sign-ins you already have on this Mac.
+
+[Back to the product guide](README.md)

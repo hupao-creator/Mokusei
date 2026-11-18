@@ -1,23 +1,23 @@
-# 在会话俯瞰找到任务
+# Find and track tasks in Overview
 
-## 用目录和标签缩小范围
+## Narrow the view by folder or tag
 
-按 **⌘K** 打开 **会话俯瞰**。从筛选栏选 **全部** 浏览工作，或打开一个项目目录筛选该目录下的任务。可选目录里的标签进一步缩小范围。没有固定目录的任务归入 Inbox，有标签时可从顶层筛选栏直接选它的标签。
+Press **⌘K** to open **Overview**. Choose **All** in the filter bar to see your work, or open a project folder to see its tasks. Pick a tag inside the folder to narrow the view further. Tasks without a project folder go into Inbox. When those tasks have tags, you can choose those tags directly from the main filter bar.
 
-同名目录分别归类。若一个目录只有一个标签，而且它与目录显示完全相同的一组卡片，目录菜单可能省略该标签。当前筛选没有结果时，可以选 **全部** 或换一个目录。
+Folders with the same name are listed separately. If a folder has just one tag and that tag shows exactly the same cards as the folder itself, the folder menu may leave the tag out. If your filter shows nothing, choose **All** or try a different folder.
 
-同一视图中的 Super Thread 如果引用的正是任务最新一次执行，俯瞰可以只显示报告卡片。任务有了更新的一次执行后，可再次独立出现。报告里仍保留原来的关联。[标签、报告与文件改动](reports-tags-and-changes.md)
+When a Super Thread in the same view cites a task's latest run, Overview may show just the report card. Once the task has a newer run, it can appear again as its own card. The report still cites the original run. [Tags, reports, and file changes](reports-tags-and-changes.md)
 
-## 看进度和待介入的任务
+## Check progress and see what needs your attention
 
-点卡片打开会话。看卡片上的 **运行中**、**已完成**、**已中断** 等状态。卡片上出现问题或权限请求时，可以直接回应，也可打开会话先读上下文。显示 **后台仍在运行** 时，即使已有答复，仍有工作在继续。
+Click a task card to open its conversation. Task cards show statuses such as **Running**, **Completed**, and **Interrupted**. If a card shows a question or a permission request, you can respond there or open the conversation for context first. **Background work is still running** means work is continuing, even if you already have a reply.
 
-最新一次执行失败，或被 Moku 中断的会话，会从俯瞰隐藏。若已有指向这项工作的笔记链接或报告关联，仍可用它查看可用的记录。普通任务消息从会话详情底部发送。
+Overview hides a conversation if its latest run failed or Moku interrupted it. If a Moku note or report already links to the work, you can use that link to see what's still available. To send a follow-up on a task, use the input box at the bottom of its conversation.
 
-## 归档不再需要展示的会话
+## Archive a conversation
 
-普通任务在你主动点 **停止**，且没有待发送的输入或后台工作时，可从俯瞰归档。把指针移到卡片上，点原表情位置出现的关闭图标，或在图标获得键盘焦点后按回车。归档成功后，卡片从俯瞰移除，已保存的会话仍保留。失败时，错误会显示在卡片上，可以从同一归档按钮重试。俯瞰和设置没有普通会话的恢复归档列表。
+You can archive a task conversation after you stop it yourself, once it has no unsent input or background work. Move the pointer over the card and click the close icon that replaces the emoji, or press Return when the icon has keyboard focus. The card disappears from Overview and the saved conversation stays on your Mac. If archiving fails, the card shows the error and you can retry from the same button. Overview and Settings have no list for restoring archived task conversations.
 
-报告有自己的归档操作，会同时隐藏其关联的普通会话。仍在进行的任务会继续。[标签、报告与文件改动](reports-tags-and-changes.md)
+Reports have their own archive action. It hides the report and its linked task conversations. Any work already in progress keeps running. [Tags, reports, and file changes](reports-tags-and-changes.md)
 
-[返回产品指南](README.md)
+[Back to the product guide](README.md)

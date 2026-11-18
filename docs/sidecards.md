@@ -1,23 +1,23 @@
-# 在会话旁使用侧卡
+# Use sidecards alongside a conversation
 
-## 查看正在进行的执行
+## Watch a run in progress
 
-在普通 Agent 会话右侧，点 **执行** 按钮，便可同时查看以往对话和正在进行的工作。已有历史且当前执行正在运行或等待确认时才会出现这个按钮。第一次执行留在主阅读区。执行结束后，可以回到主阅读区查看结果。
+In an agent conversation, click **Execution** on the right to keep reading earlier messages while you watch the current run. The button appears when the conversation already has some history and the current run is active or waiting for your response. The first run stays in the main reading area. When a run ends, you can read the result there.
 
-点右侧同一个按钮收起侧卡，点另一个按钮切换。工作不会因收起或切换而停止。可以拖动两栏之间的分隔处调整宽度，较窄的窗口会上下排列。
+Click the same button to close a sidecard, or another button to switch sidecards. The task keeps running when you close or switch them. Drag the divider to change the width of the two panels. In a narrow window, the panels stack vertically.
 
-## 浏览网页并发出批注
+## Browse a web page and send feedback
 
-先点会话里的网页链接打开侧卡。之后可用右侧 **网页** 按钮重新打开，也可以在地址栏换一个网址。浏览时可以返回、前进或刷新。页面无法载入时，点侧卡中的 **重试**。会话里的本地网页文件也可以在侧卡中打开，批注功能用于网上的页面。
+Click a web link in the conversation to open it in a sidecard. To reopen the sidecard, click **Web page** on the right. You can enter a different address, go back or forward, or reload the page. If a page fails to load, click **Retry** in the sidecard. You can also open a local HTML file from a conversation. You can annotate pages opened from a web address.
 
-1. 点工具栏的 **批注网页**，点击页面元素或拖出要说明的区域。按 **Esc** 可取消这次选取。
-2. 在移到网页下方的输入框写下说明，按回车。页面截图和说明会一起提交给当前 Agent 会话。
-3. 如果发送失败，从侧卡底部打开待发送批注。可以改评论、预览截图、删除某条批注或补充说明，再按 **发送批注**。出现 **仅发送文字** 时，也可以只发说明。收起侧卡或回到俯瞰后，待发批注仍可在这条会话里找到。待发批注只保留到退出应用。
+1. Click **Annotate page** in the toolbar, then click an element or drag to select an area. Press **Esc** to cancel the selection.
+2. Write your feedback in the input box below the web page and press Return. Mokusei sends the screenshot and your comment together to the current agent conversation.
+3. If sending fails, open the pending annotations at the bottom of the sidecard. You can edit comments, preview screenshots, remove individual annotations, or add a note. Then click **Send annotations**. If **Send text only** is available, you can send just the comments. Pending annotations stay with the conversation if you close the sidecard or go back to Overview. They last until you quit Mokusei.
 
-## 看清底部输入的去向
+## See where your message goes
 
-普通浏览时，底部输入仍发给正在阅读的 Agent 会话。选中历史执行时，普通会话输入从该次执行接续，而网页批注仍交给这条会话的当前工作。收起浏览器、切换侧卡或取消批注后，输入恢复到普通会话。
+While you're browsing, the input at the bottom still sends to the agent conversation you're reading. If you've selected an earlier run, a regular message picks up from that run. Web annotations always go to the conversation's current work. Closing the browser, switching sidecards, or canceling annotation mode brings back the regular conversation input.
 
-报告里的网页链接也可在侧卡查看，那里只有浏览功能。若要对报告中的工作继续发消息，先切回 **关联执行** 并打开一条会话。[标签、报告与文件改动](reports-tags-and-changes.md)
+Web links in reports also open in a sidecard for browsing. To follow up on work in the report, switch back to **Related executions** and open a source conversation. [Tags, reports, and file changes](reports-tags-and-changes.md)
 
-[返回产品指南](README.md)
+[Back to the product guide](README.md)

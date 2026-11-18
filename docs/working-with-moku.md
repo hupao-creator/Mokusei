@@ -1,23 +1,23 @@
-# 与 Moku 协作
+# Working with Moku
 
-## 先看消息会发给谁
+## Check who will get your message
 
-在 **会话俯瞰**，点 Moku 的眼睛打开输入框，或按 **⌘⇧B**。输入框提示 **向 Moku 提问** 时，消息发给 Moku。你可以让它回答问题、交代工作，或请它查找已有任务。发送时说明要完成的事、要用哪些材料，以及你希望拿到的结果。
+In **Overview**, click Moku's eyes or press **⌘⇧B** to open its input box. When the box says **Ask Moku…** or names a folder after **Ask Moku about**, you're writing to Moku. You can ask a question, give Moku a task to assign, or ask it to find work you already started. Say what you want done, what materials to use, and what you'd like back.
 
-打开普通 Agent 会话后，底部输入框显示会话名称和所用 Agent 的图标，消息发给该会话。选择了一次历史执行时，输入会从你正在看的那次工作接续。查看 Super Thread 报告时，先打开一条关联执行，才可以向那条会话继续发消息。[Agent 会话](task-conversations.md)
+In an agent conversation, the input at the bottom shows the conversation name and the agent's icon. Messages there go to that conversation. If you've selected an earlier run, your message picks up from the run you're reading. In a Super Thread report, open a card in **Related executions** before sending a follow-up to the source conversation. [Agent conversations](task-conversations.md)
 
-## 指定要用的目录与材料
+## Choose project folders and attach files
 
-输入 `@` 后选中建议中的目录，确认它出现在输入框里，再发送。可以选多个目录，并在消息里说明分别要看什么。在俯瞰中已选目录时，Moku 也会参考当前目录，消息中明确选中的目录优先。没有固定目录的任务归入 Inbox，其标签出现在俯瞰的顶层。
+Type `@` and choose a folder from the suggestions. Check that it appears in the input box before you send. You can choose more than one folder and tell Moku what to look at in each. Moku also takes the selected folder in Overview into account, and folders you explicitly add to the message take priority. Tasks without a project folder go into Inbox, whose tags appear in the main filter bar in Overview.
 
-用输入框旁的 **+** 选图片或文件，也可以拖入文件。文件和目录可随文字一起发送。文件还在准备时，等它就绪再发送。若附件显示需要重新添加，移除该项并重新选择原文件。
+Click **+** beside the input box to add an image or file, or drag a file into the box. You can send text, files, and folders together. Wait for any files to finish preparing before you send. If an attachment needs to be added again, remove it and select the original file again.
 
-## 找答复、笔记和以往对话
+## Find replies, notes, and past messages
 
-- **即时答复**会出现在 Moku 的输入栏位置。可以选中文字，较长的答复可以滚动阅读。显示答复时，点眼睛重新输入。分派提示成功表示任务已交给 Agent，可以打开会话卡片继续跟进。
-- **Moku 笔记**适合重看 Moku 留下的信息。回到俯瞰，按 **⌘⇧N**，或在 Moku 上用触控板双指向上轻扫。笔记可以滚动和选取文字。点击笔记里的任务链接可以打开对应内容。
-- **Moku 历史**在笔记下方，也可按 **⌘B** 打开。这里能读当前 Moku 会话的以往消息，并在下方继续发给 Moku。更换负责协调的 Agent 后，此前的会话仍保留，历史面板显示新会话。
+- When Moku replies directly, the reply appears where you typed your request. You can select the text and scroll through longer replies. Click Moku's eyes to type again. When Moku confirms it has assigned the task, open the conversation card to follow the work.
+- To read Moku's notes, return to Overview and press **⌘⇧N**, or swipe up with two fingers on the trackpad over Moku. You can scroll, select text, and open task links in the note.
+- Open **Moku history** below the note or press **⌘B**. You can read past messages in the current Moku conversation and use the input below them to keep talking to Moku. If you switch the coordinating agent, Mokusei keeps the previous conversation and shows the new one in the history panel.
 
-如果发送失败，输入框会保留发出时的内容，并显示失败原因。处理提示后，可以在原输入框核对内容，再点 **发送**。若提示仍在确认上一次发送，按提示保留原内容，等待确认。如果 Moku 已经分派了任务，请先打开会话看该次执行的结果。
+If a message fails to send, Mokusei keeps what you entered in the input box and shows the reason. Follow the prompt, check the message in the same box, and click **Send** again. If Mokusei is still checking whether the previous message went through, leave the original content in place and wait for confirmation. If Moku has already assigned the task, open its conversation first to see what happened.
 
-[返回产品指南](README.md)
+[Back to the product guide](README.md)

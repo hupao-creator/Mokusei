@@ -2,9 +2,10 @@
 
 Mokusei (木犀) is a native workspace for coordinating AI agents. Moku is its coordinating assistant.
 
-The [first-use guide](docs/getting-started.md) walks invited Mac users through
-installing Mokusei Alpha, choosing an Agent and sending a first request. The
-[产品指南](docs/README.md) covers tracking work, reading reports and changing settings.
+The [getting started guide](docs/getting-started.md) walks invited Mac users
+through installing Mokusei Alpha, choosing an agent, and sending a first request.
+The [Mokusei Product Guide](docs/README.md) covers tracking work, reading reports,
+and changing settings.
 
 ## Developer guide
 

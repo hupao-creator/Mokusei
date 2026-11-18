@@ -1,31 +1,33 @@
-# 调整 Mokusei 设置
+# Change Mokusei settings
 
-## 打开并保存设置
+## Open and save Settings
 
-首次使用时按引导逐页设置。点 **继续** 时会保存本页有效选项，最后点 **开始使用 Moku** 完成设置。日常在 **会话俯瞰** 按 **⌘,**，或从 Mokusei 菜单点 **设置…**。**通用 → 界面偏好**中的外观和语言可直接保存，Agent 暂不可用时也能调整。
+During setup, **Continue** saves the choices you've made on the current page. Click **Start using Moku** on the last page to finish. After setup, press **⌘,** in **Overview** or choose **Settings…** from the Mokusei menu. Under **General → Interface preferences**, changes to **Appearance** and **Interface language** save right away, even when agents are temporarily unavailable.
 
-在 **Moku**、**Tag** 和 **Report** 页改完后，关闭设置会一起提交这些修改。关不掉时，先看上方提示并补全必填选项。如果关闭后收到保存失败提示，重新打开设置，点 **重试保存**。若设置已被别处更新，可以选 **保留我的修改并重试**，也可以选 **放弃草稿并载入最新设置**。
+Under **Interface language**, you can choose **English** or **Simplified Chinese**.
 
-在 **通用 → 本地 Agent** 点 Agent 图标可查看状态。提示 **安装失败 · 点击重试** 时，可以点图标再试。提示检测失败时，应用会自动重试。若 Agent 已安装但配置读取失败，在它的详情里按错误提示重试。
+Changes on the **Moku**, **Tag**, and **Report** pages are saved together when you close Settings. If the window stays open, check the message at the top and fill in any required choices. If you see a save error after closing Settings, reopen it and click **Retry saving**. If the settings changed elsewhere, choose **Keep my changes and retry** or **Discard draft and load latest settings**.
 
-## 决定谁负责协调，谁可以接任务
+Under **General → Local Agents**, click an agent icon to check its status. If you see **Installation failed · Click to retry**, click the icon to try the installation again. If detection fails, Mokusei retries automatically. If the agent is installed but Mokusei couldn't load its settings, follow the retry instructions in the agent's details.
 
-在 **Moku → 协调与派发**，先选与你对话和安排工作的 Agent，再选至少一位它可以派去做任务的 Agent。Moku 或普通 Agent 会话还有工作在运行、等待确认或等待发送时，需要先处理完，再更换负责协调的 Agent。更换后，Moku 会开始一段新的对话，并保留笔记。
+## Choose who coordinates and who can take tasks
 
-**模型选择偏好**影响 Moku 给后续任务挑选模型时的取舍。可以选 **经济**、**平衡** 或 **性能**，也可以用 **自定义** 写下自己的偏好。切回其他选项后，自定义文字仍保留。模型选择还取决于你已配置、实际可用的 Agent 和模型。
+Under **Moku → Coordination and dispatch**, choose the agent that talks with you and assigns work. Then choose at least one agent it can assign tasks to. Before switching the coordinating agent, finish any work in Moku or a task conversation that's still running, waiting for your response, or waiting to be sent. After the switch, Moku starts a new conversation and keeps your notes.
 
-## 配置标签和报告助手
+Use **Model selection preferences** to guide Moku's choices for future tasks. Pick **Economy**, **Balanced**, or **Performance**, or choose **Custom** and describe your preferences. Mokusei keeps your custom text if you switch to another option. Moku's choices also depend on the agents and models you've set up and what's available when it assigns the task.
 
-在 **Tag** 页设置标签助手，在 **Report** 页设置 Super Thread Agent。每个角色有三个选项。
+## Set up the tag and report agents
 
-- **不启用**会暂停该角色的工作，保留已有的标签、报告及保存过的设置。
-- **跟随 Moku**会使用 Moku 的配置。改动在后续工作中生效。
-- **单独配置**可以为该角色选择自己的 Agent 和模型。切回 **跟随 Moku** 或 **不启用** 后，下次仍可用回这份单独配置。
+Use **Tag** to set up Tag Agent and **Report** to set up Super Thread Agent. Each has three options.
 
-两个角色独立设置。可以只开标签或只开报告。[标签、报告与文件改动](reports-tags-and-changes.md)
+- **Agent off** pauses the agent's work and keeps existing tags, reports, and saved settings.
+- **Use Moku** uses Moku's settings. Changes apply to future work.
+- **Configure separately** lets you choose an agent and model for this role. If you switch to **Use Moku** or **Agent off**, you can come back to your separate settings later.
 
-## 清空本机历史
+The roles are independent, so you can turn on either one by itself. [Tags, reports, and file changes](reports-tags-and-changes.md)
 
-在 **通用 → 清空历史数据** 选择 **清空全部历史数据**，再点 **确认永久删除**，会停止正在运行的任务，并删除本机保存的会话、报告和 Moku 对话。只想让卡片离开俯瞰时，可以查看[归档条件](overview.md#归档不再需要展示的会话)。
+## Clear history on this Mac
 
-[返回产品指南](README.md)
+Under **General → Clear history**, click **Clear all history**, then **Confirm permanent deletion**. Mokusei stops running tasks and deletes the task conversations, reports, and Moku conversations saved on this Mac. If you only want to hide a card from Overview, see [how to archive a conversation](overview.md#archive-a-conversation).
+
+[Back to the product guide](README.md)

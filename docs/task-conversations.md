@@ -1,21 +1,21 @@
-# 查看和继续 Agent 会话
+# Read and continue agent conversations
 
-## 看结果或处理待确认事项
+## Read the result or respond to a request
 
-在会话俯瞰点任务卡片。会话显示 Agent 已经完成的回复，也保留失败说明。Agent 还在写的一条回复会在写完后显示全文。一次执行结束后，阅读区通常单独显示最后一条答复，较早的普通回复会和该次工作一起收起。可以点 **显示执行过程** 查看推理和工具使用摘要。[会话俯瞰](overview.md)
+In Overview, click a task card. The conversation shows replies the agent has finished and keeps any failure messages. The full text of a reply appears when the agent finishes writing it. When a run ends, the reading area usually shows the final answer on its own and folds earlier replies into the details of that run. Click **Show work** to see a summary of the agent's reasoning and tool use. [Overview](overview.md)
 
-Agent 询问选择或等待权限时，按提示回答或批准。可用选项取决于 Agent 和本次请求。当前执行还在进行且底部没有待发内容时，会显示 **停止此 Thread** 按钮。点它会中止当前执行，之后仍可发送新消息继续工作。折叠侧卡或关闭会话，任务会继续。
+If the agent asks you to make a choice or grant permission, respond to the prompt. The options depend on the agent and its request. While a run is active and the input box has nothing waiting to send, the **Stop this thread** button is available. Click it to stop the current run. You can send a new message to continue later. The task keeps running if you close the conversation or collapse its sidecard.
 
-## 发补充消息和附件
+## Send follow-ups and attachments
 
-在会话下方输入补充要求，点 **发送**。当前执行允许接收补充时，消息会进入该次工作。结束后发送会在同一会话开始下一次执行。遇到待确认事项时，先按提示处理。发送失败会显示原因并保留未发出的内容，可按提示从原输入框重试。
+Type your follow-up at the bottom of the conversation and click **Send**. If the current run accepts follow-ups, your message goes to that run. If the run has ended, your message starts a new run in the same conversation. Respond to any pending request first. If your message fails to send, Mokusei shows the reason and keeps your input so you can retry from the same box.
 
-点 **+** 添加图片或文件。不同 Agent 能接收的附件类型有所不同。如果 Agent 提示拒收某种附件，移除该项，换成它支持的类型或补充文字说明。切换会话时，可以回到原会话继续编辑未发出的内容。
+Click **+** to add an image or file. Supported attachments vary by agent. If an agent rejects an attachment type, remove the attachment and try a supported type or describe it in text. If you switch conversations, you can come back to finish editing your unsent message.
 
-## 回看某次执行
+## Revisit an earlier run
 
-有多次执行或继承的历史时，可在阅读区的 **对话目录** 选择要读的记录。把指针停在目录条目上，可以看到标题。没有标题时，可用原指令或时间辨认。通过阅读区的返回按钮退出历史详情。
+When the conversation has multiple runs or includes history from an earlier conversation, use **Conversation contents** in the reading area to choose a run. Hover over an entry to see its title. If it has no title, look for the original request or the time. Use the back button in the reading area to leave the earlier run.
 
-在最新一次执行下发送，会继续原会话。在较早一次执行下发送，会尝试从当时的进度另起会话，原会话继续保留。只有当前正在运行的那次执行可以从它自己的输入栏停止，阅读旧记录时不会停止较新的工作。
+Sending from the latest run continues the same conversation. Sending from an earlier run tries to start a separate conversation from that point and keeps the original conversation. You can stop an active run only from its own input bar. Reading an earlier run leaves newer work running.
 
-[返回产品指南](README.md)
+[Back to the product guide](README.md)

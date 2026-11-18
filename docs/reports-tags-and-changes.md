@@ -1,21 +1,23 @@
-# 找标签、报告与文件改动
+# Tags, reports, and file changes
 
-## 用标签整理同类工作
+## Group related work with tags
 
-开启 **Tag Agent** 后，它按会话标题为同一目录下未归档的普通 Agent 会话归类。每个目录最多有五种标签，Inbox 也有自己的标签。选择俯瞰的目录或顶层标签可以筛选会话。关闭 Tag Agent 后，现有标签和筛选仍能用。重新开启后，它可以继续处理尚未整理的工作。[设置](settings.md)
+When **Tag Agent** is on, it uses conversation titles to group unarchived task conversations in the same project folder. Each folder can have up to five tags, and Inbox has its own set. In Overview, choose a folder or narrow it further by tag. You can also pick an Inbox tag from the main filter bar. You can still use existing tags and filters while Tag Agent is off. When you turn it back on, it can pick up work it hasn't sorted yet. [Settings](settings.md)
 
-## 从 Super Thread 找到报告依据
+## See the work behind a Super Thread
 
-**Super Thread** 是 **Super Thread Agent** 根据同一目录的工作整理的报告。点报告卡片可看正文和旁边的关联列表。如果列表已收起，点 **关联执行** 展开。报告最多引用每条会话的一次执行。卡片上的标题、回复摘要和用时属于报告引用的那次，状态标记反映这条会话目前的进展。
+A **Super Thread** is a report that **Super Thread Agent** puts together from work in the same project folder. Click the report card to read the report. If the list beside it is closed, click **Related executions** to open it.
 
-点关联卡片，打开的是该会话最新一次执行，可能仍在运行。若报告引用较早一次，而来源会话仍能从俯瞰打开，可回到会话的 **对话目录**，用关联卡片上的标题找对应记录。如果打开失败，可再次点同一张卡片重试。会话或执行已不可用时，列表会提示。
+A report can cite up to one run from each source conversation. Each card in **Related executions** shows the title, reply excerpt, and duration of the run the report cites. Its status shows how the source conversation is doing now.
 
-报告正文和关联列表没有可发送消息的输入框。打开关联执行后，可以从下方输入框向这条会话继续交代工作。用 **返回关联执行** 回到列表。
+Clicking a related card opens the source conversation's latest run beside the report. That run may still be in progress. To read the exact run cited by the report, use the title on the related card to find it in **Conversation contents**, if you can still open the source conversation from Overview. If a related card fails to open, click it again to retry. The list tells you if a conversation or run is no longer available.
 
-右键点报告卡片，选 **归档 Super Thread**。报告和它关联的普通会话会一起从俯瞰隐藏，运行中的工作会继续，正文和任务记录仍保留。
+The report and its list are for reading. To send a follow-up, open one of the related cards and use the input box below the source conversation. Use the back arrow labeled **Back to related executions** to return to the list.
 
-## 在任务卡片看 Git 改动概况
+To hide a report, right-click its card and choose **Archive Super Thread**. This hides the report and its linked task conversations from Overview. Work in progress keeps running, and the report and conversation records stay saved.
 
-对使用 Git 的项目，部分任务卡片显示分支、改动文件数、增加和删除的行数。已知增删行数都为零时，这块概况会隐藏。暂时无法统计时，卡片会注明。点击任务卡片会打开会话。改动概况只供查看。
+## Check Git changes on a task card
 
-[返回产品指南](README.md)
+For projects that use Git, some task cards show the branch, how many files changed, and how many lines were added or removed. The summary is hidden when Mokusei knows that both line counts are zero. If the counts are temporarily unavailable, the card says so. The summary is for reference. Clicking the task card opens its conversation.
+
+[Back to the product guide](README.md)
