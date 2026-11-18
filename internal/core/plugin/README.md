@@ -66,7 +66,7 @@ avoiding unrelated record-body reads. They add no database or cross-plugin acces
 The interfaces and generated-metadata policy above are implemented contracts.
 No metadata or complete native-Harness interaction replay is configured here.
 The Codex terminal-state property covers only its declared reducer domain.
-See the [verification index](../../../docs/facts.md).
+See the [verification index](../../../tools/verification/facts.md).
 
 `MokuDelivery` represents either a wake-producing terminal fact or a lazy internal
 system notification. `Lazy` forbids starting an execution solely for that delivery;

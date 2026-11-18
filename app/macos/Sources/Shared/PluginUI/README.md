@@ -343,7 +343,7 @@ Inventory and integration boundaries:
 
 | Owner | Scrollable surfaces | Integration |
 | --- | --- | --- |
-| Shared conversation / execution Sidecard | Timeline, activities, Markdown code and tables | SwiftUI wrapper; timeline diagnostics remain timeline-owned |
+| Shared conversation / execution Sidecard | Timeline, activities, Markdown code and tables | SwiftUI wrapper; the timeline owns scroll position, follow behavior and cursor deferral |
 | Shared composer | Native multiline editor, attachment strip, host file picker | AppKit subclass and control-scoped List adapter; attachment indicators remain hidden |
 | Settings and shared selects | Main form, section strip, agent/error detail, native textareas, option and model menus | Wrapper/subclass only; bindings, validation and menu focus unchanged |
 | Moku | Note (including short viewport), directory completion, Talk and interaction bodies | Wrapper; completion uses native drag/accessibility instead of its old custom thumb |
@@ -1380,14 +1380,6 @@ visit, that placeholder builds `NativeThreadOpeningContent`, itself a conversati
 causing recursive mounting before the initial `onChange` can run. The outer
 surface retains title/emoji loading presentation; the internal admission gate
 remains a leaf. The production thread-panel fixture above exercises this path.
-
-Panel diagnostics use existing `reading.prepare` and `reading.transition` spans
-with `panel: 1` and `closing: 0/1`. Preparation covers native configuration through
-animation installation; transition covers installation through delegate completion.
-`reading.prepare` events with `anchorsReady: 1` and `layoutReady: 1` separate
-anchor publication from native layout resolution and subsequent ink construction.
-A `reading.transition` event with `started: 1` marks the native start callback.
-These are process observations, not display-frame timestamps.
 
 ### Width-driven Markdown layout
 

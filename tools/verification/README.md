@@ -1,5 +1,9 @@
 # Verification and native build tools
 
+The [fact and verification index](facts.md) connects current contracts to their
+owners and evidence. The [documentation coverage map](coverage.md) shows the
+reviewed entries and the limits of that evidence.
+
 [Property checks](pbt/README.md) generate runtime/state-machine histories with
 explicit seeds, budgets and failure evidence. Independent measurements and shared
 native packaging are available through:
@@ -16,6 +20,5 @@ The performance tools do not establish property or interaction correctness.
 Each property result applies only to its generated input domain. Measurements
 retain source/artifact identity and do not certify another revision. Behavioral
 ownership is PBT for Moku runtime, e2e for interaction and benchmarks for user
-experience; see the [policy](../../scripts/ci/verification-policy.md) and
-[fact index](../../docs/facts.md). Build/static and routine PBT checks are
-specified in the [CI guide](../../scripts/ci/README.md).
+experience. See the [verification policy](../../scripts/ci/verification-policy.md).
+Build/static and routine PBT checks are specified in the [CI guide](../../scripts/ci/README.md).

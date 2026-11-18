@@ -9,7 +9,7 @@ domains, oracles and limited exceptions. Ordinary example/table unit-test suites
 are absent.
 
 Use the [document-driven workflow](../../AGENTS.md#文档驱动) and
-[fact index](../../docs/facts.md): each property, scenario or budget identifies
+[fact index](../../tools/verification/facts.md): each property, scenario or budget identifies
 its current owning document, implemented boundary, evidence and decision rule.
 The document describes implemented state, configuration and capability limits;
 Git retains change history. An unexplained code result is not permission to
