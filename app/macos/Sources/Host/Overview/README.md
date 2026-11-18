@@ -540,8 +540,9 @@ collection cover.
 
 The upper-right page count opens a scrollable, adaptive grid of the exact ordered
 collection members, using the ordinary Super Thread cards and their open actions.
-Its text, internal padding and glass capsule scale together by 1.2 around the
-top-right anchor, preserving the existing 14pt outer inset and cover layout.
+The glass capsule is sized by the padded label and inset 14pt from the top and
+trailing edges of the cover. A vertical offset centers the visible digits and
+slash within the capsule.
 The panel preserves the filtered collection order (creation time, stable ties),
 including members outside the carousel's four-cover preload window. Its cards keep
 the ordinary opaque surfaces, archive actions and native trackless scrolling.
