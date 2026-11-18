@@ -138,6 +138,12 @@ struct NativeReportCollection: View {
                                 .glassEffect(.regular.interactive(), in: Capsule())
                         }
                         Spacer()
+                    }
+                    .padding(14)
+                    .frame(width: geometry.size.width, height: coverHeight)
+                    .overlay(alignment: .bottom) {
+                        // The navigation row's intrinsic width must not size the
+                        // cover stack or move the top-trailing count.
                         // Native Liquid Glass can draw outside a transparent SwiftUI
                         // mask. Retire the whole control surface when not hovered,
                         // including its native hit targets and accessibility children.
@@ -184,9 +190,11 @@ struct NativeReportCollection: View {
                                     .focused($focusedControl, equals: .next)
                                     .accessibilityFocused($accessibilityFocusedControl, equals: .next)
                             }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
+                                .padding(.bottom, 14)
                                 .transition(.identity)
                         }
-                    }.foregroundStyle(.primary).padding(14).frame(height: coverHeight)
+                    }
+                    .foregroundStyle(.primary)
                 }.zIndex(4)
             }
             .background {

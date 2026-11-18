@@ -71,8 +71,9 @@ motion. Neighbor preloads stay at the beginning. Theme is source-keyed and live.
 
 Carousel travel and metadata ink share 460ms easing; backward motion mirrors the
 shared ink mask. Open/archive recheck the actual selection and motion owner,
-including actions from an already-open native menu. Hover alone reveals the
-bottom capsule over 160ms; retained focus/menu tracking does not extend hover
+including actions from an already-open native menu. Hover mounts the bottom
+capsule over the fixed cover viewport without shifting the cover, metadata or
+upper-right count. Retained focus and menu tracking do not extend hover
 visibility. The hovered controls retain native keyboard/accessibility operation; on exit
 the entire bottom control surface unmounts, including hit/AX children. Menu
 tracking pauses automatic paging. Stale removed-member actions are rejected.

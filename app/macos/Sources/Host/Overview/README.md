@@ -559,7 +559,10 @@ The count and navigation glass inherit the workspace color scheme; selected
 page markers use primary ink and unselected markers use secondary ink, retaining
 the capsule/dot shape distinction in both light and dark appearances.
 The entire lower navigation capsule mounts only while the pointer hovers this
-active, visible collection. A transparent SwiftUI mask cannot reliably suppress
+active, visible collection. It is centered in an overlay at the bottom of the
+fixed cover viewport, so mounting it leaves the cover, metadata and upper-right
+count in place, including when all seven page markers are visible.
+A transparent SwiftUI mask cannot reliably suppress
 the native Liquid Glass surface; removing the surface also removes its invisible
 hit targets and accessibility children. The upper-right count stays available
 for keyboard/accessibility member navigation. Opening/closing the member panel,
