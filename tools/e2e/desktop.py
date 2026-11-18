@@ -62,23 +62,25 @@ class Desktop:
             return (state["page"] == "overview" and state["runtimeAvailable"]
                     and camera["initialized"] and camera["manual"] is manual
                     and not any(camera[key] for key in ("animating", "motionPending", "automaticFitPending"))
-                    and not overview["layingOut"] and len(overview["placements"]) == 1
+                    and not overview["layingOut"] and bool(overview["placements"])
                     and any(card.get("ref", {}).get("threadId") == thread
-                            and card["id"] == overview["placements"][0]["id"]
                             and card["id"] in overview["mountedCardIds"] for card in overview["cards"]))
 
         state = self.stable(lambda s: settled(s, False))
         save(self.session.output / "overview-automatic.json", state)
         initial = state["overview"]["camera"]
         viewport = initial["viewport"]
-        card = state["overview"]["placements"][0]
+        placements = state["overview"]["placements"]
+        assert {p["id"] for p in placements} == {c["id"] for c in state["overview"]["cards"]}
         gap = 16
         column_pitch, row_pitch = 320 + gap, 196 + gap
-        width = card["columns"] * column_pitch - gap
-        height = card["rows"] * row_pitch - gap
+        left = min(p["column"] for p in placements) * column_pitch
+        right = max(p["column"] + p["columns"] for p in placements) * column_pitch - gap
+        top = min(p["row"] for p in placements) * row_pitch
+        bottom = max(p["row"] + p["rows"] for p in placements) * row_pitch - gap
         center_y = (viewport["height"] + max(0, viewport["toolbarBottom"] - viewport["bottomReservedHeight"])) / 2
-        expected_x = viewport["width"] / 2 - width / 2 - card["column"] * column_pitch
-        expected_y = center_y - height / 2 - card["row"] * row_pitch
+        expected_x = (viewport["width"] - left - right) / 2
+        expected_y = center_y - (top + bottom) / 2
 
         def check_pose(camera, x, y):
             assert (camera["scale"] == 1 and math.isclose(camera["x"], x, abs_tol=.01)

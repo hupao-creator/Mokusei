@@ -242,9 +242,9 @@ The expanded Collection panel shows an icon-only Archive Super Thread button
 over the upper-right cover corner (or the equivalent corner without a cover),
 separate from its open action. The existing card context menu uses
 the same capability. Pending actions prevent duplicate activation; failures stay
-visible and retryable. Catalog changes refresh member counts and selection; when
-fewer than two members remain, normal Overview grouping retires the Collection
-and its panel, leaving a surviving report as an individual card.
+visible and retryable. Catalog changes refresh member counts and selection. If
+the updated projection has enough space or can no longer form a space-saving
+Collection, the panel closes and surviving reports appear individually.
 
 ## Explicit user unlink
 
@@ -349,7 +349,8 @@ control remains separate. During carousel travel controls/actions recheck the
 current selection and motion owner. Menu tracking pauses automatic paging.
 Deactivation, viewport exit and unmount clear hover. Page numbers follow the
 surviving selected member; stale actions for removed members are ignored.
-Grouping requires at least two eligible members.
+The Overview Host selects the oldest eligible prefix under the current filter's
+12-cell soft budget. Each collection needs at least two members and positive cell savings.
 
 ## Updated collection members
 

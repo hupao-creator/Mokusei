@@ -2,6 +2,12 @@ name: Desktop interaction e2e
 
 "on":
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Mounted interaction suite
+        type: choice
+        default: supported
+        options: [supported, collection]
 
 permissions:
   contents: read
@@ -14,7 +20,7 @@ concurrency:
 
 jobs:
   interactions:
-    name: Overview, reading and settings
+    name: Mounted desktop interactions
     runs-on: macos-26
     timeout-minutes: 45
     env:
@@ -43,13 +49,15 @@ jobs:
       - name: Build current production sources with receipts
         run: python3 tools/e2e/build.py --with-app
       - name: Run serial mounted-control journeys
+        env:
+          E2E_SUITE: ${{ inputs.suite }}
         run: |
           python3 tools/e2e/run.py run \
             --runtime .build/e2e/mokusei-runtime \
             --app app/macos/.build/debug/Mokusei \
             --desktop-lease "$RUNNER_TEMP/mokusei-desktop-interaction.lock" \
             --desktop-owner "github-${{ github.run_id }}-${{ github.run_attempt }}" \
-            --output output/e2e/ci --timeout 240
+            --output output/e2e/ci --suite "$E2E_SUITE"
       - name: Check evidence and report outcome
         if: always()
         run: |

@@ -7,17 +7,48 @@ import hashlib
 import json
 import threading
 
-from provider import Provider
+from provider import Provider, declared_tools, find_tool
 
 
 class Peer(Provider):
     def __init__(self, directory, nonce):
         self.nonce = nonce
         self.holds, self.input_cancellations = [], []
+        self.collection_projects = []
         self.request_context = threading.local()
         super().__init__(directory, 1)
 
+    def prepare_collection(self):
+        self.collection_projects = [self.directory / name for name in ("Library", "Studio")]
+        self.count = len(self.collection_projects)
+        for project in self.collection_projects:
+            project.mkdir()
+
+    def creation_arguments(self, index):
+        args = super().creation_arguments(index)
+        if self.collection_projects:
+            args["cwd"] = str(self.collection_projects[index - 1])
+        return args
+
     def respond(self, request):
+        if self.collection_projects and (create := find_tool(declared_tools(request), "create_report")):
+            if request.get("model") != self.model or request.get("stream") is not True:
+                raise ValueError("unexpected collection peer request")
+            self.request_count += 1
+            # Each directory's real Report Agent receives its own completion batch.
+            # Native tool results drive the next call and the public catalog
+            # independently establishes the six document identities.
+            done = {item.get("call_id") for item in request.get("input", [])
+                    if item.get("type") == "function_call_output"}
+            for index in range(1, 4):
+                call_id = f"collection_report_{index}"
+                if call_id not in done:
+                    title = f"Collection report {index}"
+                    args = {"title": title, "emoji": "📚", "shortDescription": "Collection budget fixture",
+                            "html": f"<p>{title}</p>", "coverHTML": f"<div>{title}</div>", "relatedExecutions": []}
+                    return self.response_events("", {"type": "function_call", "call_id": call_id, "name": create[0],
+                        "namespace": create[1], "arguments": json.dumps(args)})
+            return self.response_events("Reports complete.", None)
         events = super().respond(request)
         # A real model-service stream remains active until the UI cancels it.
         # No Runtime operation or internal state is used to hold execution.

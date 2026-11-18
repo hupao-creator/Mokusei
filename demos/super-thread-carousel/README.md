@@ -14,9 +14,10 @@ profile preferences in a temporary profile. Data export is not an assertion suit
 
 The visible app reuses production collection, card, cover and member panel views.
 Its close records, time advancement, read sheets, tags and document bodies are
-fixtures. Production policy groups at least two eligible Super Threads after
-strictly more than 300s since close; a foreground read over 120s clears retained
-eligibility, while a short read can retain it. Carousel selection is not opening.
+fixtures. The preview uses the Host's 12-cell collection budget. The initial
+All fixture has eight two-cell reports, three of which are eligible. A real
+close qualifies after strictly more than 300s. A foreground
+revisit over 120s clears retained eligibility, while a short revisit can retain it.
 The [Overview guide](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
 owns that policy and its fingerprint/close ownership.
 

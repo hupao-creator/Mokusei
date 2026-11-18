@@ -84,8 +84,14 @@ entities. Close/read eligibility and report content fingerprints belong to
 profile-local reading state. Selection alone is not a read event. A content
 fingerprint change revokes old eligibility; source status/tag propagation alone
 does not. The member panel's archive control is icon-only at the upper-right
-corner and invokes the same atomic archive operation as the card menu. Fewer
-than two visible members dissolves a collection without deleting its survivor.
+corner and invokes the same atomic archive operation as the card menu. If the
+updated projection cannot form a collection, surviving reports appear individually.
+
+Each browsing filter budgets 12 cells from its expanded card footprints after
+execution coverage. Over budget, the Host groups only as many of the oldest
+eligible reports as are needed, charging two cells for the collection. A grouping
+must save space. Unavoidable overflow stays reachable by pan.
+[Algorithm and examples](research/collection-space-budget.md)
 
 Source: [collection](../app/macos/Sources/Plugins/Applications/Report/NativeReportCollection.swift),
 [members](../app/macos/Sources/Plugins/Applications/Report/NativeReportCollectionMembers.swift),

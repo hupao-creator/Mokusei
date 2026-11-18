@@ -1,7 +1,7 @@
 # Desktop interaction verification
 
 This runner checks **interaction input → real system → user-observable state**.
-Overview, Reading and Settings use the opt-in
+Overview, Reading, Settings and Collection use the opt-in
 [native automation protocol](../native-interaction/README.md), with real Swift
 UI, Runtime, authenticated HTTP/NDJSON, persistence and native Codex processes.
 Composer uses an explicit operator-assisted system Accessibility/input path; the
@@ -20,19 +20,21 @@ contains every requested ID, including blocked and unreached entries.
 
 | ID | Implemented interaction and criterion | Prerequisite / evidence | Coverage boundary |
 | --- | --- | --- | --- |
-| `E2E-OVERVIEW-001` | Observe a single mounted task at 1×, pan by (+48, −90)pt, and restore its automatic center. The card span and window clearances determine the expected coordinates. | Fresh profile with one completed task. The automatic, panned and recentered snapshots and UI requests record the three poses. | Semantic camera actions and mounted identity. Pointer hit testing and drawn pixels need separate evidence. |
+| `E2E-OVERVIEW-001` | Observe a mounted task at 1×, pan by (+48, −90)pt, and restore the center of all card placements. Cell spans and window clearances determine the expected coordinates. | One task in the default suite, two tasks and six reports in the Collection suite. The automatic, panned and recentered snapshots record the three poses. | Semantic camera actions and mounted identity. Pointer hit testing and drawn pixels need separate evidence. |
 | `E2E-READ-001` | Open the prepared Agent from Overview; observe its ready, nonempty mounted turn; deliver an external follow-up; observe its mounted successor; activate the first history entry; Back returns to the successor; Overview closes the reader | Fresh profile, real Codex directory, settled source reply; `creation.json`, scoped content, `ui-initial/current/history/return/overview.json`, `ui-events.jsonl` | Navigation callbacks, content acquisition and mounted turn identity; HTTP follow-up input, not composer submission. Semantic readiness is not proof of exact rendered pixels or text layout |
 | `E2E-SETTINGS-001` | Open Settings/Moku; activate an unselected `routingPreset` capsule; observe selection; close through the save gate; read the exact saved preset through public Runtime state; reopen and observe it selected | Same isolated connected workspace; `settings-before/edited/persisted/reopened.json`, UI operations and public API receipts | Real binding/draft/transport/persistence/reopen path for one preset; not IME, keyboard, pointer hit-testing, errors/conflicts or all settings |
+| `E2E-COLLECTION-001` | Open and close three Super Threads, observe the five-minute deadline, visit their directory, then reopen a grouped member. Archive and restore an unrelated report through the public Runtime while All remains mounted. | Two isolated directories, two completed tasks and six reports created by the Report Agent using a deterministic peer. Saves the catalog and seven Overview observations. | A 14-cell All folds the oldest two to 12. Their 7-cell directory unfolds all three eligible reports. Removing two cells from All expands the group at exactly 12 and restoring them folds the same pair again. The archive command supplies the catalog change. |
 | `E2E-COMPOSER-001` | Type a follow-up and activate the actual Send button; observe accepted draft clearing and completed output; send a held task, observe Stop in the empty action seat, activate it and observe interruption and an editable empty composer without navigating away | Exclusive desktop, accessible isolated bundle, external operator; `operator-send/stop.json` AX observations, exact persisted prompts, `composer-send-content/oracle/ui.json`, `composer-running/stopped/stop-content/stop-ui.json` | Operator-assisted OS input, not unattended CI; current ordinary Thread text input and cancellation only, not pause/resume, historical forks, IME or uncertain receipt recovery |
 
 The implemented desktop scenarios require execution evidence before they can be
 called verified. Source inspection and a successful preparation do not certify
 them. The runner emits the actual status, revision and evidence for each attempt;
 there is no repository-wide "covered" flag. Current implementation supports
-Codex only, deterministic text without attachments and one ordinary Thread.
+Codex only and deterministic text without attachments. The collection scenario
+uses two ordinary Threads, the other scenarios one.
 Reading uses two completed executions; Composer adds one completed follow-up and
 one interrupted execution. Real provider behavior/authentication, other Harnesses,
-forks, archives, reconnect/restart recovery and cancellation invariants are not
+forks, archive button input, reconnect/restart recovery and cancellation invariants are not
 certified by these scenarios.
 
 ## Fact sources
@@ -81,8 +83,10 @@ python3 tools/e2e/run.py verify output/e2e/interaction
 ```
 
 Output directories must be new; no rerun overwrites evidence. The default
-`supported` suite requests Overview, reading and settings. `all` additionally requests
-Composer, which remains blocked without `--operator-composer` and real external
+`supported` suite requests Overview, Reading and Settings. Use `--suite collection` on the
+same run command to check the populated camera and the report budget under its real clock. It enables
+the isolated Report Agent and waits for actual closes on mounted reports.
+`all` additionally requests collection and Composer. Composer requires `--operator-composer` and real external
 input receipts. `--suite composer` selects just that scenario. No scenario is
 silently skipped. The desktop lease uses atomic directory creation, records
 threadId/pid/start/nonce, and refuses any existing lock (including an unresolved
@@ -134,7 +138,8 @@ all emitted evidence. Offline `verify` checks completeness/integrity and the
 reported exit code; it neither reruns the product nor authenticates the author.
 Missing files, unknown states and an empty result cannot earn a pass.
 
-The whole run defaults to 240 seconds; calls also have bounded local deadlines.
+The whole run defaults to 600 seconds for `collection` and `all`, and 240 seconds
+otherwise. Calls also have bounded local deadlines.
 SIGINT/SIGTERM/total timeout revoke execution and enter cleanup. The runner first
 requests graceful termination, then fences fallback signals to OS process
 identities observed before teardown, including descendants in separate groups.
@@ -148,7 +153,9 @@ owned processes are confirmed stopped. CI retains only the evidence directory.
 
 [Desktop interaction e2e](../../.github/workflows/e2e.yml) is an independent manual
 workflow on one hosted macOS runner. Build, interaction and cleanup are serial;
-dispatches queue. Native Codex is explicitly installed at `0.167.0`; the actual
+dispatches queue. Choose `collection` for changes to reading eligibility or
+collection projection. The default `supported` choice exercises OVERVIEW, READ and SETTINGS.
+Native Codex is explicitly installed at `0.167.0`; the actual
 selected executable is still recorded. Environment/version differences from a
 local run remain visible. No signing credentials or self-hosted shared desktop
 are needed for this development-artifact protocol check. A GUI prerequisite

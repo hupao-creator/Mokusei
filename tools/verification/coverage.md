@@ -134,7 +134,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [tools/benchmarks/baselines/2026-11-13.md](../benchmarks/baselines/2026-11-13.md) | 测量制品/来源/限制核对；[2026-11-13.json](../benchmarks/baselines/2026-11-13.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [tools/benchmarks/baselines/2026-11-14-emoji-badge-glass.md](../benchmarks/baselines/2026-11-14-emoji-badge-glass.md) | 测量制品/来源/限制核对；[2026-11-14-emoji-badge-glass.json](../benchmarks/baselines/2026-11-14-emoji-badge-glass.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [tools/benchmarks/reading/README.md](../benchmarks/reading/README.md) | CLI/采集口径静态核对；[__init__.py](../benchmarks/reading/__init__.py)、[analysis.py](../benchmarks/reading/analysis.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
-| [tools/e2e/README.md](../e2e/README.md) | 真实交互/证据/退出码静态核对；[scenarios.json](../e2e/scenarios.json)、[run.py](../e2e/run.py)、[e2e.yml](../../.github/workflows/e2e.yml) | OVERVIEW/READ/SETTINGS 自动语义驱动，COMPOSER 人工系统 AX 辅助；真实 native CLI 与 deterministic peer；制品校验不认证组合版本 GUI 已运行 |
+| [tools/e2e/README.md](../e2e/README.md) | 真实交互/证据/退出码静态核对；[scenarios.json](../e2e/scenarios.json)、[run.py](../e2e/run.py)、[e2e.yml](../../.github/workflows/e2e.yml) | OVERVIEW/READ/SETTINGS 和可单选的 COLLECTION 使用挂载控件，COMPOSER 由人工系统 AX 辅助。真实 native CLI 连接 deterministic peer。GUI 结果归属于运行制品的提交 |
 | [tools/native-interaction/README.md](../native-interaction/README.md) | CLI/采集口径静态核对；[client.py](../native-interaction/client.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/verification/README.md](README.md) | CLI/采集口径静态核对；[native_replay.py](native_replay.py) | 限当前参数/生产边界；不认证 live/GUI/当前性能 |
 | [tools/verification/coverage.md](coverage.md) | 文档入口、链接与数量静态核对；[facts.md](facts.md) | 限文档映射与已列证据 |

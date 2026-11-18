@@ -12,7 +12,7 @@ generated invalid inputs, witnessed corpus execution and injected/fixed oracle
 failure. Replay mechanism checks are separate from the property inventory count.
 macOS 26 arm64 builds all Go packages and the
 Swift production products with warnings as errors and the Metal build plugin,
-then runs 480 generated geometry cases with seed 1. Native work is serial on one
+then runs 480 geometry cases and 480 collection-budget cases with seed 1. Native work is serial on one
 runner. Mounted Canvas and real Codex system properties are opt-in local/CI
 commands; they are not part of this workflow's required coverage.
 CGO/system SQLite and the exact Go toolchain in `go.mod` remain enabled.
@@ -59,7 +59,8 @@ configure remote required checks. Signed optical UX suites have no hosted job.
 ## Product interaction boundaries
 
 [Desktop e2e](../../.github/workflows/e2e.yml) is an independent manual, serial
-hosted workflow for OVERVIEW, READ and SETTINGS. The [scenario inventory](../../tools/e2e/scenarios.json)
+hosted workflow for OVERVIEW, READ and SETTINGS by default. Dispatch with `suite=collection`
+for the real five-minute close and per-directory budget journey. The [scenario inventory](../../tools/e2e/scenarios.json)
 records the additional operator-assisted Composer boundary; no unattended
 Composer job is configured. Real Runtime/native Codex/UI runs use deterministic
 external model responses, not real provider availability or quality. Evidence

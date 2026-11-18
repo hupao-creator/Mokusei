@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import MokuseiPluginAPI
+@testable import MokuseiUI
 
 struct ReportSample: Identifiable {
     let id: String
@@ -30,7 +31,11 @@ struct ReportSample: Identifiable {
         .init(id: "unread", title: "细节里的原生体验", emoji: "✨",
               summary: "从键盘路径到触控板手势，整理尚待查看的原生交互提案。", tags: ["原生", "未读"],
               color: "#5c5871", symbol: "✳", caption: "Small things, considered.", minutesSinceClose: nil)
-    ]
+    ] + (1...3).map { index in
+        .init(id: "new-\(index)", title: "新报告 \(index)", emoji: "📄",
+              summary: "尚未访问的报告保留在画布中。", tags: ["工程"],
+              color: "#494f78", symbol: "▤", caption: "New report \(index)", minutesSinceClose: nil)
+    }
     static let panelSamples: [Self] = (4...9).map { index in
         .init(id: "panel-\(index)", title: "面板成员 \(index)", emoji: "📚",
               summary: "用于检查完整成员、长列表滚动和无封面卡片。", tags: ["产品"],
@@ -45,12 +50,12 @@ struct CollectionProjection {
 
     init(reports: [ReportSample], tag: String, closedAt: [String: Date], now: Date) {
         let visible = reports.filter { tag == "全部" || $0.tags.contains(tag) }
-        let eligible = visible.filter { report in
-            ApplicationOverviewCollectionPolicy(closedBefore: 300, footprint: .init(columns: 1, rows: 2))
-                .includes(lastClosed: closedAt[report.id], now: now)
-        }
-        // Collection is a projection of this view, never a new report identity.
-        members = eligible.count > 1 ? eligible : []
+        let policy = ApplicationOverviewCollectionPolicy(closedBefore: 300, footprint: .init(columns: 1, rows: 2))
+        let eligible = visible.filter { policy.includes(lastClosed: closedAt[$0.id], now: now) }
+        var budget = NativeOverviewCollectionBudget(expandedCells: visible.reduce(0) { $0 + ($1.hasCover ? 2 : 1) })
+        let count = budget.memberCount(eligible: eligible.map { .init(columns: 1, rows: $0.hasCover ? 2 : 1) },
+                                       collection: policy.footprint)
+        members = Array(eligible.prefix(count))
         let collected = Set(members.map(\.id))
         individual = visible.filter { !collected.contains($0.id) }
     }

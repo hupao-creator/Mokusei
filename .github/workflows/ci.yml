@@ -131,7 +131,7 @@ jobs:
       - name: Build current Swift products
         run: python3 scripts/ci/deadline.py xcrun swift build --package-path app/macos -Xswiftc -warnings-as-errors
 
-      - name: Generated geometry properties
+      - name: Generated Overview geometry and collection properties
         run: python3 tools/verification/pbt/run.py --suite native --artifacts "${{ runner.temp }}/pbt-native"
 
       - uses: actions/upload-artifact@v4

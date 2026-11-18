@@ -80,8 +80,8 @@ Collection diagnostics are read-only: individual application cards expose
 references. Values contain `lastClosedAt` (Unix milliseconds or null), `retainsEligibility`,
 `intervalSeconds`, the time-condition `eligible` flag, a `reason`
 (`no-close-record`, `future-close-record`, `within-close-interval`, `eligible`) and
-current `collected` membership. Time eligibility alone does not establish two
-eligible members in the same browsing view. During
+current `collected` membership. An eligible report can remain individual when
+the current view fits its 12-cell budget or an older prefix frees enough space. During
 reading travel the retained collection can temporarily differ from live
 eligibility. These observations neither create opens nor migrate unknown history.
 

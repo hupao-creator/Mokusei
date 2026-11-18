@@ -432,17 +432,31 @@ Ordinary browsing ignores retired agent-authored visibility markers. Archive, ex
 ## Viewed application collections
 
 Application plugins can opt into `ApplicationOverviewCollectionPolicy`; Super
-Thread opts in with a 300-second last-close interval and a 1×2 footprint. After
-normal scope/tag filtering and report coverage, two or more eligible reports
-become one view-only card. At exactly 300 seconds a report remains individual;
-reports without close evidence and future-dated closes are ineligible. All is its own view. Canonical filters/counts and
-report execution coverage still describe underlying documents.
+Thread opts in with a 300-second last-close interval and a 1×2 collection footprint.
+A close qualifies strictly after 300 seconds. An absent or future close supplies
+no elapsed-time evidence. Short visits can independently retain prior eligibility.
+
+After scope/tag selection and exact execution coverage, the Host sums the
+individual projected footprints (columns × rows) of **all** selected cards. A
+Report with a cover costs two cells, a coverless Report one, and a Harness contributes
+its composed footprint. Each view (All, a directory or a semantic tag) has its
+own **4×3 soft budget of 12 cells**. The [collection budget](NativeOverviewCollectionBudget.swift)
+keeps all cards individual at or below 12. Above 12 it folds the shortest
+oldest-first prefix of eligible reports that reaches the target, charging the
+collection's own footprint once. Creation ties retain catalog order. At least
+two members and positive savings are required. If the target is unreachable,
+the Host takes all eligible members that together save space and allows overflow.
+For multiple opted-in types the first eligible member determines type order,
+with one shared budget. Canonical filters/counts and execution coverage describe
+the underlying documents. Resizing or panning can change the framing while
+keeping the same collection membership.
+See the [worked examples](../../../../../design/research/collection-space-budget.md).
 
 The collection has a reserved canvas identity per type/filter, never a Runtime
 record. Its snapshot retains the exact member projections. Content changes to a
 collected member refresh the selected projection (including that collection);
 unrelated deltas keep the ordinary incremental path. Selection changes within
-the card do not create layout revisions. Only the nearest eligibility deadline
+the card do not create layout revisions. Only the nearest relevant eligibility deadline
 owns a cancellable timer; read-hidden or inactive canvas presentation cancels it and
 return recomputes eligibility and rearms the deadline. No one-second catalog poll.
 
@@ -514,12 +528,12 @@ without a fingerprint cannot detect edits predating that first baseline. Unvisit
 documents acquire their first reading entry only when opened. Failed persistence
 keeps the same session-only fallback as close evidence. Content invalidation does
 not alter canonical counts, report coverage, creation ordering or other members;
-a collection with one survivor dissolves under the existing minimum-two rule.
+the selected space can admit another eligible member or dissolve the collection.
 
 Opening captures the collection's displayed geometry and keeps its backdrop
-through travel. Prepared return samples the refreshed collection for a short
-visit, or the member's individual card after a long visit. One remaining
-candidate dissolves the collection. Semantic interaction targets include every
+through travel. Prepared return samples the refreshed collection if it still
+contains the report, or its individual card after a long visit or a reduction
+in space pressure. One remaining candidate dissolves the collection. Semantic interaction targets include every
 real member, never the synthetic ID; snapshots expose membership and selection.
 
 The Report plugin owns `NativeReportCollection`: a cover preserving its 360:308
@@ -630,8 +644,8 @@ Both invoke the same atomic
 application archive command: hide the report and its persisted associated ordinary
 Threads. UI membership and counts follow the authoritative catalog, not optimistic
 per-card removals. A surviving selection is retained; removal of that selection
-chooses a remaining member. Fewer than two visible members dissolve the Collection
-and dismiss its panel, leaving any survivor as an ordinary Report card. Archive
+chooses a remaining member. If the new projection selects fewer than two eligible
+members, the panel closes and each remaining report appears individually. Archive
 changes no execution, background task, history or binding;
 explicit archived reading and actions remain available. Errors retain the member
 with retryable feedback. The panel and carousel keep their existing close, hover,
@@ -642,6 +656,15 @@ card-local `showingMembers` State value: it can still hold the pre-opening value
 and leave archive disabled. Closing, inactive and removed-member guards remain.
 
 ## Property boundaries
+
+**PBT-OVERVIEW-COLLECTION** checks the production budget against all legal prefix
+lengths, including leaving every report individual. Across 0–16 fixed cells,
+one or two ordered types with 0–10 eligible one- or two-cell reports each, and
+two-cell collection cards, the minimum is ranked by remaining overflow then
+number of reports collected. This headless mathematical property catches
+incorrect savings and over-collection independently of native interactions.
+The [mounted collection journey](../../../../../tools/e2e/README.md#current-scenario-contract)
+exercises actual reading and per-directory projection.
 
 **PBT-OVERVIEW-GEOMETRY** calls the production pure layout solver with 0–18
 unique product-ordered cards (1–3 columns, 1–2 rows), usable viewport widths
@@ -680,20 +703,21 @@ retained as property corpus. Failures print original/reduced event traces and
 only shrink to the same failure category. This checks mounted convergence, not
 physical gestures, captured appearance or frame pacing.
 
-Both properties live in the dedicated `MokuseiProperties` SwiftPM target; ordinary
-Swift tests are absent. `make pbt-native` runs geometry with explicit seed/case
+These properties live in the dedicated `MokuseiProperties` SwiftPM target.
+`make pbt-native` runs geometry and collection budgets with explicit seed/case
 budgets. `make pbt-native-state` separately runs mounted convergence and requires
 macOS 26 with a WindowServer; missing display fails. Its 3s bound is a hang guard,
-not a user-experience latency threshold. Both write original/reduced JSON for
-failure replay and bound shrinking by elapsed time. These are scoped mathematical
+not a user-experience latency threshold. Failures retain original/reduced JSON for
+replay. These are scoped mathematical
 and state-convergence properties; interaction coverage belongs to e2e and
 experience measurements to benchmarks. See [PBT commands/evidence](../../../../../tools/verification/pbt/README.md).
 
 ## Camera interaction e2e
 
-`E2E-OVERVIEW-001` opens an isolated workspace at Overview with one completed
-task. The runner observes the mounted card, its cell span, the viewport and
-both control clearances. At 1× it checks the automatic center, requests a
+`E2E-OVERVIEW-001` opens an isolated workspace at Overview. The default
+suite has one completed task. The Collection suite adds a second task and six
+reports. The runner observes the mounted task, all card placements, the viewport
+and both control clearances. At 1× it checks the automatic center, requests a
 manual pan, checks both displacement axes, and returns to automatic framing.
 The settled return must recover the original center. The three snapshots and
 socket transcript certify semantic camera behavior. Physical input, clipping

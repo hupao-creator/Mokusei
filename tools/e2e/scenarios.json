@@ -40,6 +40,15 @@
       ]
     },
     {
+      "id": "E2E-COLLECTION-001",
+      "implementation": "implemented",
+      "title": "Read reports, collect the oldest under space pressure and unfold them in their directory",
+      "doc": "app/macos/Sources/Host/Overview/README.md#viewed-application-collections",
+      "evidence": ["collection-catalog.json", "collection-initial.json", "collection-closed.json",
+                   "collection-grouped.json", "collection-directory.json", "collection-return.json",
+                   "collection-at-budget.json", "collection-restored.json"]
+    },
+    {
       "id": "E2E-COMPOSER-001",
       "implementation": "operator-assisted",
       "title": "Send through the composer and stop its current execution",

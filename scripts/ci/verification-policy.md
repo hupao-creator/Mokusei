@@ -17,7 +17,8 @@ redefine a bug as correct behavior. Missing evidence is not a zero or a pass.
 
 
 Routine [CI](README.md) runs formatting, architecture/import and registration
-checks, Go vet/build, runtime PBT and Swift production build/geometry PBT. Locally
+checks, Go vet/build, runtime PBT, the Swift production build and the native
+geometry and Collection budget properties. Locally
 run affected checks and use larger sample counts or `--race` to investigate a
 specific concern. `make check` combines routine checks; do not run an equivalent
 local full suite merely to repeat required hosted validation.
@@ -50,9 +51,9 @@ measurement validity and result. `blocked`, `skipped`, unrun and another
 revision's results are not passes. Calibration establishes measurement
 capability, not product correctness.
 
-The [product e2e runner](../../tools/e2e/README.md) implements semantic Overview
-camera actions, mounted READ and SETTINGS journeys, and an operator-assisted Composer
-journey. Its independent manual hosted workflow excludes Composer. A deterministic
+The [product e2e runner](../../tools/e2e/README.md) implements Overview camera actions, mounted Reading,
+Settings and Collection journeys plus an operator-assisted system-input Composer
+journey. The manual hosted workflow offers OVERVIEW/READ/SETTINGS or COLLECTION. A deterministic
 external peer is not real-model/network coverage; offline artifact verification
 does not rerun the product. During signed UX sampling, defer heavy builds and
 property runs through the shared desktop/resource lease without stealing it.
