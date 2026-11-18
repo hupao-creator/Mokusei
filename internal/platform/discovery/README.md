@@ -11,6 +11,9 @@ refreshes join. Superseded readers may finish, but only the current flight can
 publish. Failed, cancelled and timed-out probes cannot overwrite the last success;
 a failed refresh does not renew its freshness. The cache retains at most 64
 successful keys. This cache is not an execution or authentication authority.
+A strict reader may supply an external write time as a freshness hint. A completed
+snapshot whose probe started before that write is read again under the same key.
+Readers still share an in-flight probe and its normal publication rules.
 
 `Identity` hashes the native environment and metadata of adapter-selected files.
 It never reads file contents, logs environment values, or writes snapshots to disk.

@@ -10,8 +10,9 @@ import (
 )
 
 type entry[T any] struct {
-	value T
-	at    time.Time
+	value   T
+	at      time.Time
+	started time.Time
 }
 type flight[T any] struct {
 	done       chan struct{}
@@ -60,17 +61,23 @@ func (c *Cache[T]) RefreshFailed(key string) bool {
 }
 
 func (c *Cache[T]) Get(ctx context.Context, key string, refresh bool, ttl, timeout time.Duration, probe func(context.Context) (T, error)) (T, error) {
-	return c.get(ctx, key, refresh, false, ttl, timeout, probe)
+	return c.GetFreshAfter(ctx, key, refresh, ttl, timeout, time.Time{}, probe)
+}
+
+// GetFreshAfter bypasses a cached result if an external freshness hint is newer
+// than the start of its acquisition. The hint does not change the source key.
+func (c *Cache[T]) GetFreshAfter(ctx context.Context, key string, refresh bool, ttl, timeout time.Duration, updatedAt time.Time, probe func(context.Context) (T, error)) (T, error) {
+	return c.get(ctx, key, refresh, false, ttl, timeout, updatedAt, probe)
 }
 
 // GetStale returns a successful same-key snapshot immediately, even during an
 // explicit refresh. Expired snapshots start one cache-owned refresh; failures
 // retain the last success. Cold readers still wait and can cancel independently.
 func (c *Cache[T]) GetStale(ctx context.Context, key string, ttl, timeout time.Duration, probe func(context.Context) (T, error)) (T, error) {
-	return c.get(ctx, key, false, true, ttl, timeout, probe)
+	return c.get(ctx, key, false, true, ttl, timeout, time.Time{}, probe)
 }
 
-func (c *Cache[T]) get(ctx context.Context, key string, refresh, allowStale bool, ttl, timeout time.Duration, probe func(context.Context) (T, error)) (T, error) {
+func (c *Cache[T]) get(ctx context.Context, key string, refresh, allowStale bool, ttl, timeout time.Duration, updatedAt time.Time, probe func(context.Context) (T, error)) (T, error) {
 	var zero T
 	if err := ctx.Err(); err != nil {
 		return zero, err
@@ -100,7 +107,7 @@ func (c *Cache[T]) get(ctx context.Context, key string, refresh, allowStale bool
 	f := c.pending[key]
 	// Ordinary readers join an explicit refresh instead of accepting older facts.
 	if !refresh && f == nil {
-		if cached, ok := c.entries[key]; ok && time.Since(cached.at) < ttl {
+		if haveCached && time.Since(cached.at) < ttl && !updatedAt.After(cached.started) {
 			c.mu.Unlock()
 			return cached.value, nil
 		}
@@ -114,6 +121,7 @@ func (c *Cache[T]) get(ctx context.Context, key string, refresh, allowStale bool
 		}
 		shared, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
 		f = &flight[T]{done: make(chan struct{}), cancel: cancel, refresh: refresh, background: background}
+		started := time.Now()
 		c.pending[key] = f
 		c.active[f] = true
 		go func(f *flight[T]) {
@@ -135,7 +143,7 @@ func (c *Cache[T]) get(ctx context.Context, key string, refresh, allowStale bool
 					delete(c.retryAfter, key)
 				}
 				if err == nil && !c.closed {
-					c.entries[key] = entry[T]{value, time.Now()}
+					c.entries[key] = entry[T]{value: value, at: time.Now(), started: started}
 					if len(c.entries) > 64 {
 						oldest := key
 						for candidate, entry := range c.entries {

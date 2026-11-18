@@ -78,7 +78,11 @@ func New(host plugin.HostContext) *Adapter {
 			}
 			return StartAppServer(probeCtx, prepared)
 		}
-		return catalogSource{factory: open, identity: identity, current: current}, nil
+		var cacheUpdatedAt time.Time
+		if !routing {
+			cacheUpdatedAt = matchingNativeCatalogWrite(home, target.Version)
+		}
+		return catalogSource{factory: open, identity: identity, current: current, cacheUpdatedAt: cacheUpdatedAt}, nil
 	}
 	return a
 }

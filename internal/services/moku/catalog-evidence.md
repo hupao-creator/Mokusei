@@ -39,8 +39,9 @@ execution admission. Cached catalog presence is not current availability.
 Owned probe work budgets are Codex 60s, Claude 45s, OpenCode 55s (30s native
 cancellation timer), Pi 30s, plus joined cleanup. These are code budgets, not
 measured startup times. Ordinary defaults/settings use strict reads; Moku routing
-alone uses stale complete snapshots. No sleep/stable-list heuristic establishes
-remote completeness.
+alone uses stale complete snapshots. Codex strict reads also expire a completed
+observation early after a compatible native cache write. No sleep/stable-list
+heuristic establishes remote completeness.
 
 Source: [shared cache](../../platform/discovery/cache.go),
 [source identity](../../platform/discovery/source.go),

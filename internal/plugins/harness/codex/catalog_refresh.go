@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/platform/discovery"
@@ -50,21 +51,55 @@ func refreshRoutingModels(ctx context.Context, server *AppServer, started time.T
 }
 
 func nativeCatalogRefreshed(path string, started time.Time) bool {
+	stamp := readNativeCatalogStamp(path)
+	return !stamp.fetchedAt.IsZero() && !stamp.fetchedAt.Before(started)
+}
+
+// A different client version can overwrite the shared cache even when our
+// last enumeration is usable. Only a compatible write prompts a fresh read.
+func matchingNativeCatalogWrite(home, version string) time.Time {
+	parsed := ceParseVersion(version)
+	if parsed == nil {
+		return time.Time{}
+	}
+	stamp := readNativeCatalogStamp(filepath.Join(home, "models_cache.json"))
+	if stamp.clientVersion != strings.Join(parsed.numbers[:], ".") {
+		return time.Time{}
+	}
+	return stamp.modifiedAt
+}
+
+type nativeCatalogStamp struct {
+	clientVersion string
+	fetchedAt     time.Time
+	modifiedAt    time.Time
+}
+
+func readNativeCatalogStamp(path string) nativeCatalogStamp {
+	const limit = 8 * 1024 * 1024
 	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() || info.Size() > 8*1024*1024 {
-		return false
+	if err != nil || !info.Mode().IsRegular() || info.Size() > limit {
+		return nativeCatalogStamp{}
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return false
+		return nativeCatalogStamp{}
 	}
 	defer file.Close()
-	var stamp struct {
-		FetchedAt string `json:"fetched_at"`
+	info, err = file.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > limit {
+		return nativeCatalogStamp{}
 	}
-	if json.NewDecoder(io.LimitReader(file, 8*1024*1024)).Decode(&stamp) != nil {
-		return false
+	var stamp struct {
+		FetchedAt     string `json:"fetched_at"`
+		ClientVersion string `json:"client_version"`
+	}
+	if json.NewDecoder(io.LimitReader(file, limit)).Decode(&stamp) != nil {
+		return nativeCatalogStamp{}
 	}
 	at, err := time.Parse(time.RFC3339Nano, stamp.FetchedAt)
-	return err == nil && !at.Before(started)
+	if err != nil {
+		return nativeCatalogStamp{}
+	}
+	return nativeCatalogStamp{clientVersion: stamp.ClientVersion, fetchedAt: at, modifiedAt: info.ModTime()}
 }

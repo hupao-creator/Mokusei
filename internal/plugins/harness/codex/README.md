@@ -169,6 +169,14 @@ shutdown joining use [discovery](../../../platform/discovery/README.md). A faile
 partial observation can describe its own failure but earns no successful TTL.
 No credential snapshot is written to disk.
 
+For settings and execution defaults, a newer write to `models_cache.json` for the
+selected Codex client version expires a completed observation early. This lets
+the next catalog acquisition recover from a bundled fallback after the native
+cache is refreshed. A write from a different client version leaves the cached
+observation's ordinary lifetime in effect. The file supplies only a freshness
+hint. A fresh app-server still enumerates under its captured configuration and
+account, and the returned list alone supplies model choices and capabilities.
+
 No settings-performance replay for this Harness is configured in this source tree.
 
 Turn-scoped reader projections omit plan steps, explanations and timeline markers
