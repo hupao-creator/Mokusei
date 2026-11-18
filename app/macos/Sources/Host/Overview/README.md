@@ -182,12 +182,25 @@ layouts overflow the viewport and remain reachable by pan.
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) is a pure function. Its inputs are the latest members in product order, the usable viewport and an explicit geometry policy; its output is placements, bounds and the automatic camera. Previous placements, old cameras, animation progress, pauses and revision history are not inputs.
 
-The solver evaluates a bounded, deterministic candidate set: a uniform grid for every column count `1...N` using the largest measured span as its cell, horizontal and vertical shelf packs, and horizontal product-order shelf packs. Candidates are ranked by unclamped FitAll scale, then world area, width and a stable enumeration ordinal. The uniform-grid pass also supplies the independent quality floor: for any input, the selected arrangement can never fit worse than the best regular grid built from the largest card. Shelf target ranges use the packing axis: columns for horizontal shelves and rows for vertical shelves. Enumeration samples at most 65 targets, including both endpoints, with a step of `ceil((count - 1) / 64)` for larger ranges. The grid pass is `O(N²)` in the visible card count; each shelf pass is `O(65N)` after sorting, with `O(N)` memory. Every valid nonempty input still returns legal geometry when quality enumeration is truncated.
+The solver scores each regular grid by dimensions and builds the best one's rows
+using the cards' actual spans. This guarantees a raw fit at least as good as the
+best largest-card grid. Equal-sized cards take this linear path. For mixed spans,
+the solver also packs horizontal and vertical bands, trying product order and
+then larger cross-axis spans first. Short cards can occupy openings left beside
+or beneath earlier cards. Each pass samples up to 65 strip sizes and retains up
+to 64 disjoint openings. Storage scales with card count, independently of span
+magnitude. With these limits, sorting dominates asymptotic time at `O(N log N)`.
+Candidates compete on raw FitAll scale, then smaller world area and width.
+The first equally ranked layout wins. Returned placements follow product order.
+
+One 2×1, one 1×2 and two 1×1 cards tile six cells. The better fitting of the
+3×2 and 2×3 rectangles is available in any product order. Other mixed
+collections use bounded packing and can retain unused space.
 
 Card sizes remain their measured spans. A card may compose up to
 `HarnessOverviewCapacity.maximumColumns` (three) grid columns; that is a card
 capability, not an Overview viewport column count or a layout mode. A 3×2 card
-is centered by the same solver at 1× even in the minimum window. Gaps are world-space; screen gaps are `scale × gap`. The solver never clips, stretches or equalizes cards. Empty input returns empty bounds and no camera; a zero/negative usable viewport returns legal positions without a camera; malformed spans, duplicate IDs and invalid limits throw a typed input error. A later valid input always plans normally.
+is centered by the same solver at 1× even in the minimum window. Gaps are world-space; screen gaps are `scale × gap`. The solver never clips, stretches or equalizes cards. Empty input returns empty bounds and no camera; a zero-area usable viewport returns legal positions without a camera; negative viewport dimensions, malformed spans, duplicate IDs and invalid limits throw a typed input error. A later valid input always plans normally.
 
 Same-scene structural slot changes with identical members and viewport reuse geometry. Reuse still cancels any obsolete worker waiting for the spatial stage, so an A→B→A membership or viewport update cannot later publish B over A. Content-only updates do not enqueue layout. A viewport size change re-evaluates candidates because aspect can change the chosen arrangement. `layoutSolveCount` and `geometryReuseCount` expose these paths.
 
@@ -624,7 +637,10 @@ checks exact membership/order/spans, finite positive nonoverlapping card frames
 with world gaps, bounds equal to the card union, bounded FitAll scale with its
 1× floor, centered projection and viewport containment when raw fit permits it.
 It independently enumerates largest-card regular grids to check the documented
-quality floor. Empty membership has no camera. No oracle calls the solver's
+quality floor. Every fourth seed shuffles the six-cell tiling with base spans of
+1–3 columns and 1–2 rows per tile. An independent area and aspect check catches
+empty cells or a poorer orientation even when the regular-grid floor passes.
+Empty membership has no camera. No oracle calls the solver's
 placement/fit helpers. Failures shrink membership/spans/viewport while retaining
 the first violation and print seed plus minimized JSON. The generated positive
 viewport domain does not claim invalid-input, zero-viewport, large-collection,

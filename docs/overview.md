@@ -10,6 +10,8 @@ When a Super Thread in the same view cites a task's latest run, Overview may sho
 
 ## Check progress and see what needs your attention
 
+Wide and tall cards can share a row with smaller cards filling the space beside or below them. If the cards extend beyond the window, pan to reach them. Click an empty part of the canvas to center the cards again.
+
 Click a task card to open its conversation. Task cards show statuses such as **Running**, **Completed**, and **Interrupted**. If a card shows a question or a permission request, you can respond there or open the conversation for context first. **Background work is still running** means work is continuing, even if you already have a reply.
 
 Overview hides a conversation if its latest run failed or Moku interrupted it. If a Moku note or report already links to the work, you can use that link to see what's still available. To send a follow-up on a task, use the input box at the bottom of its conversation.
