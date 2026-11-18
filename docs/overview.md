@@ -8,6 +8,12 @@ Folders with the same name are listed separately. If a folder has just one tag a
 
 When a Super Thread in the same view cites a task's latest run, Overview may show just the report card. Once the task has a newer run, it can appear again as its own card. The report still cites the original run. [Tags, reports, and file changes](reports-tags-and-changes.md)
 
+### Find reports in a busy view
+
+Overview keeps reports separate when the cards in the selected view occupy up to 12 grid cells. A report with a cover takes two cells. In a busier view, Overview collects the oldest eligible reports together until enough space is free. A newly visited report becomes eligible more than five minutes after you close it. A change to a report's content or linked runs brings it back to its own card.
+
+For example, six single-cell tasks and four eligible reports with covers take 14 cells. The oldest two reports share one two-cell collection. Click its page count to see both reports, or open the displayed report directly. Choose a narrower folder or tag and those same reports may each have their own card. When very little can be collected, pan to reach the remaining cards.
+
 ## Check progress and see what needs your attention
 
 Wide and tall cards can share a row with smaller cards filling the space beside or below them. If the cards extend beyond the window, pan to reach them. Click an empty part of the canvas to center the cards again.

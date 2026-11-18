@@ -162,8 +162,8 @@ separate from current Thread state. Bounded native previews remain exact-ID-only
 ### Application overview collections
 
 `ApplicationThreadPlugin.overviewCollection` is optional native presentation
-policy: an elapsed last-close interval and a footprint. The Host computes one
-collection per opted-in type in the current browsing filter; it does not publish
+policy: an elapsed last-close interval and a footprint. The Host computes up to one
+collection per opted-in type under the [current filter's cell budget](../../Host/Overview/README.md#viewed-application-collections); it does not publish
 or persist a collection entity. `collectionCard` receives the exact member
 snapshots, each with its own scoped capabilities/context, initial selection,
 visibility/foreground gate, selection callback and real-reference open callback.

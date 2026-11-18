@@ -47,6 +47,12 @@ class Provider:
     def answer(self, index, request):
         return self.body(index)
 
+    def creation_arguments(self, index):
+        return {"prompt": f"BENCH ITEM {index:02d}: return the fixed completed task evidence.",
+                "worktree": False, "target": {"codex": {
+                    "model": self.model, "thinking": {"mode": "effort", "effort": self.effort},
+                    "serviceTier": "default"}}}
+
     def initial_result(self, index, thread):
         execution = thread.get('observation', {}).get('latestExecution') or {}
         return (thread.get('title') == self.title(index) and execution.get('status') == 'completed'
@@ -180,12 +186,8 @@ class Provider:
                 for n in range(1, self.count + 1):
                     call_id = f"bench_create_{n:02d}"
                     if call_id not in self.receipts:
-                        arguments = {"prompt": f"BENCH ITEM {n:02d}: return the fixed completed task evidence.",
-                                     "worktree": False, "target": {"codex": {
-                                         "model": self.model, "thinking": {"mode": "effort", "effort": self.effort},
-                                         "serviceTier": "default"}}}
                         call = {"type": "function_call", "call_id": call_id, "name": create[0],
-                                "namespace": create[1], "arguments": json.dumps(arguments)}
+                                "namespace": create[1], "arguments": json.dumps(self.creation_arguments(n))}
                         break
         elif index is not None:
             stream = re.findall(r"BENCH STREAM (\d{2}) ([a-f0-9]{32})", payload)
@@ -195,6 +197,9 @@ class Provider:
             answer = self.answer(index, request)
         else:
             raise ValueError("unrecognized model request role")
+        return self.response_events(answer, call)
+
+    def response_events(self, answer, call):
         sequence = self.request_count
         rid, iid = f"resp_bench_{sequence}", f"item_bench_{sequence}"
         initial = {"id": rid, "object": "response", "status": "in_progress", "model": self.model, "output": []}

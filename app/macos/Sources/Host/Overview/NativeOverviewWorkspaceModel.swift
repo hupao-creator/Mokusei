@@ -700,9 +700,11 @@ public final class NativeOverviewWorkspaceModel {
 
     func containsGlobalThread(_ id: JSONText) -> Bool { globalThreadIDs.contains(id) }
 
+    private typealias CardEntry = (created: Double, index: Int, item: NativeOverviewItem)
+
     private func project(_ collection: NativeOverviewCollection, groupCollections: Bool = true) throws -> [NativeOverviewItem] {
         projectionVisitCount += collection.count
-        var entries: [(created: Double, index: Int, item: NativeOverviewItem)] = []
+        var entries: [CardEntry] = []
         for thread in collection.threads {
             let input = HarnessThreadInput(thread: thread, git: applicationFactories.gitStatus(thread))
             let projection: HarnessOverviewSnapshot
@@ -735,52 +737,79 @@ public final class NativeOverviewWorkspaceModel {
                 structureKey: projection.envelope.structureKey.string, presentationID: token)))
         }
         if groupCollections {
-            collectionSources.removeAll()
-            collectionExpiryTask?.cancel(); collectionExpiryTask = nil
-            let now = Date()
-            var candidates: [JSONText: (AnyApplicationThreadPlugin, ApplicationOverviewCollectionPolicy, [ApplicationOverviewSnapshot])] = [:]
-            var nextExpiry: Date?
-            for application in collection.applications {
-                let entry = application.entry
-                let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
-                guard let policy = plugin.overviewCollection else { continue }
-                if collectionEligible(entry.ref, policy: policy, at: now) {
-                    if candidates[plugin.id] == nil { candidates[plugin.id] = (plugin, policy, []) }
-                    candidates[plugin.id]!.2.append(applicationCache[entry.ref.threadID]!.1)
-                } else if applicationVisit?.reference != entry.ref, let closed = reading(entry.ref)?.lastClosedAt {
-                    let expiry = Date(timeIntervalSince1970: closed).addingTimeInterval(policy.closedBefore + 0.01)
-                    nextExpiry = min(nextExpiry ?? expiry, expiry)
-                }
-            }
-            for (_, (plugin, policy, members)) in candidates where members.count > 1 {
-                let id = "\u{0}application-collection:\(plugin.id.string):\(browseSceneKey)"
-                let ids = Set(members.map { $0.entry.ref.threadID.string })
-                let origin = entries.filter { ids.contains($0.item.id) }.min {
-                    $0.created == $1.created ? $0.index < $1.index : $0.created < $1.created
-                }!
-                let token = id + ":" + members.map { String(describing: ObjectIdentifier($0)) }.joined(separator: ",")
-                snapshots[token] = .collection(plugin, members)
-                for member in members { collectionSources[member.entry.ref] = id }
-                entries.removeAll { ids.contains($0.item.id) }
-                entries.append((origin.created, origin.index, .init(id: id, columns: policy.footprint.columns,
-                    rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token,
-                    providesCardSurface: policy.providesCardSurface)))
-            }
-            if let expiry = nextExpiry, facts.overviewVisible, presentationActive {
-                collectionExpiryTask = Task { [weak self] in
-                    do {
-                        try await Task.sleep(for: .seconds(min(86_400, max(0.01, expiry.timeIntervalSinceNow))))
-                        try Task.checkCancellation()
-                        guard let self, self.active else { return }
-                        self.reconcile(captureMutation: true)
-                    } catch { }
-                }
-            }
+            try groupApplications(collection.applications, in: &entries)
         }
         let ordered = entries.sorted { a, b in
             return a.created == b.created ? a.index < b.index : a.created < b.created
         }.map(\.item)
         return ordered
+    }
+
+    private func groupApplications(_ applications: [NativeOverviewApplicationEntry], in entries: inout [CardEntry]) throws {
+        collectionSources.removeAll()
+        collectionExpiryTask?.cancel(); collectionExpiryTask = nil
+        guard applications.count >= 2 else { return }
+
+        // Harness cards cannot be collected. Once they fill the budget, every
+        // space-saving group is needed regardless of the remaining Harness spans.
+        let target = NativeOverviewCollectionBudget.targetCells
+        let taskCount = entries.count - applications.count
+        var expandedCells = 0
+        for entry in entries.prefix(taskCount) {
+            expandedCells += entry.item.columns * min(target, entry.item.rows)
+            if expandedCells >= target { expandedCells = target; break }
+        }
+        for entry in entries.dropFirst(taskCount) { expandedCells += entry.item.columns * entry.item.rows }
+        guard expandedCells > target else { return }
+
+        let now = Date()
+        var candidates: [JSONText: (AnyApplicationThreadPlugin, ApplicationOverviewCollectionPolicy, [ApplicationOverviewSnapshot])] = [:]
+        var typeOrder: [JSONText] = []
+        var nextExpiry: Date?
+        for application in applications {
+            let entry = application.entry
+            let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
+            guard let policy = plugin.overviewCollection else { continue }
+            if collectionEligible(entry.ref, policy: policy, at: now) {
+                if candidates[plugin.id] == nil {
+                    typeOrder.append(plugin.id)
+                    candidates[plugin.id] = (plugin, policy, [])
+                }
+                candidates[plugin.id]!.2.append(applicationCache[entry.ref.threadID]!.1)
+            } else if applicationVisit?.reference != entry.ref, let closed = reading(entry.ref)?.lastClosedAt {
+                let expiry = Date(timeIntervalSince1970: closed).addingTimeInterval(policy.closedBefore + 0.01)
+                nextExpiry = min(nextExpiry ?? expiry, expiry)
+            }
+        }
+        var budget = NativeOverviewCollectionBudget(expandedCells: expandedCells)
+        for typeID in typeOrder {
+            let (plugin, policy, eligible) = candidates[typeID]!
+            let count = budget.memberCount(eligible: eligible.lazy.map(\.envelope.footprint), collection: policy.footprint)
+            guard count > 0 else { continue }
+            let members = Array(eligible.prefix(count))
+            let id = "\u{0}application-collection:\(plugin.id.string):\(browseSceneKey)"
+            let ids = Set(members.map { $0.entry.ref.threadID.string })
+            let origin = entries.filter { ids.contains($0.item.id) }.min {
+                $0.created == $1.created ? $0.index < $1.index : $0.created < $1.created
+            }!
+            let token = id + ":" + members.map { String(describing: ObjectIdentifier($0)) }.joined(separator: ",")
+            snapshots[token] = .collection(plugin, members)
+            for member in members { collectionSources[member.entry.ref] = id }
+            entries.removeAll { ids.contains($0.item.id) }
+            entries.append((origin.created, origin.index, .init(id: id, columns: policy.footprint.columns,
+                rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token,
+                providesCardSurface: policy.providesCardSurface)))
+        }
+        if let expiry = nextExpiry, facts.overviewVisible, presentationActive {
+            collectionExpiryTask = Task { [weak self] in
+                do {
+                    try await Task.sleep(for: .seconds(min(86_400, max(0.01, expiry.timeIntervalSinceNow))))
+                    try Task.checkCancellation()
+                    guard let self, self.active else { return }
+                    self.reconcile(captureMutation: true)
+                } catch { }
+            }
+        }
     }
 
     private func pruneSnapshots() {

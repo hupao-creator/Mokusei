@@ -230,10 +230,11 @@ admission. See the [animation contract](../../design/overview.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
 
-Super Thread browsing groups documents closed more than five minutes ago into
-one collection per tag view, when at least two qualify. Eligible documents retain
-their place across short reopened visits; more than two minutes of foreground
-reading in one visit clears that eligibility. Collections are native view
+Super Thread browsing gives each tag view a 12-cell soft budget. When expanded
+cards exceed it, the oldest eligible reports share one collection for as much
+space as needed. At least two reports must save space together. A close older
+than five minutes qualifies. Documents retain eligibility across short reopened
+visits. More than two minutes of foreground reading in one visit clears it. Collections are native view
 projections; close evidence and retained eligibility are profile-local desktop
 state. The Report renderer keeps a sliding cover, fading
 metadata and stationary Liquid Glass navigation. Collections also provide a

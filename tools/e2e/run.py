@@ -25,6 +25,7 @@ from desktop import Desktop
 from build import validate
 from peer import digest
 from lease import DesktopLease
+import collection
 import operator_input
 from report import save, sha256, finish, verify
 
@@ -50,7 +51,7 @@ def source_identity():
         "tools/e2e/README.md", ".github/workflows/e2e.yml",
         "app/macos/Sources/Host/Interaction/README.md", "app/macos/Sources/Host/Settings/README.md",
         "internal/services/moku/README.md", "internal/core/runtime/README.md",
-        "app/macos/Sources/Host/MokuScene/README.md")]
+        "app/macos/Sources/Host/MokuScene/README.md", "app/macos/Sources/Host/Overview/README.md")]
     return {"commit": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain")),
             "diffSHA256": digest(git("diff", "HEAD")),
             "files": {str(p.relative_to(ROOT)): sha256(p) for p in paths},
@@ -88,8 +89,10 @@ def run(args):
     output = args.output.resolve()
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     specs = json.loads((Path(__file__).parent / "scenarios.json").read_text())["scenarios"]
-    specs = [s for s in specs if args.suite == "all" or
-             (s["id"] == "E2E-COMPOSER-001") == (args.suite == "composer")]
+    suites = {"supported": {"E2E-READ-001", "E2E-SETTINGS-001"}, "composer": {"E2E-COMPOSER-001"},
+              "collection": {"E2E-COLLECTION-001"}}
+    specs = [s for s in specs if args.suite == "all" or s["id"] in suites[args.suite]]
+    requested = {s["id"] for s in specs}
     save(output / "scenario-contract.json", specs)
     source = source_identity()
     save(output / "source.json", source)
@@ -144,16 +147,21 @@ def run(args):
         session.prepare()
         session.start()
         session.configure()
+        if "E2E-COLLECTION-001" in requested:
+            session.peer.prepare_collection()
+            collection.enable_reports(session, True)
         report["validity"] = "valid"
         event("prepare-thread")
         receipt = session.runtime.invoke("moku:submit", [{"input": {"parts": [{"kind": "text", "text":
-            "BENCHMARK CREATE 1 completed tasks. E2E " + session.peer.nonce}]}}])
-        wait_for(lambda: session.peer.receipts, lambda v: len(v) == 1, 60)
+            f"BENCHMARK CREATE {session.peer.count} completed tasks. E2E " + session.peer.nonce}]}}])
+        wait_for(lambda: session.peer.receipts, lambda v: len(v) == session.peer.count, 60)
         thread = session.peer.receipts["bench_create_01"]["threadId"]
         row = completed(session, thread)
         initial = row["observation"]["latestExecution"]["executionId"]
         save(output / "creation.json", {"receipt": receipt, "thread": row})
         save(output / "initial-oracle.json", read_turn(session, thread, initial, session.peer.body(1), "initial-content.json"))
+        if "E2E-COLLECTION-001" in requested:
+            reports = collection.prepare(session)
         event("prepared", thread=thread, execution=initial)
         report["preparation"] = "ready"
         if args.prepare_only:
@@ -191,7 +199,11 @@ def run(args):
             save(output / "followup-oracle.json", read_turn(session, thread, latest, session.peer.followup_body(), "followup-content.json"))
             return latest
 
-        if args.suite != "composer":
+        if "E2E-COLLECTION-001" in requested:
+            execute("E2E-COLLECTION-001", lambda: collection.journey(desktop, reports))
+            if args.suite == "all":
+                collection.enable_reports(session, False)
+        if "E2E-READ-001" in requested:
             execute("E2E-READ-001", lambda: desktop.read(thread, initial, followup))
             execute("E2E-SETTINGS-001", desktop.settings)
         if args.suite in ("all", "composer"):
@@ -256,8 +268,8 @@ def main():
     execute = sub.add_parser("run")
     execute.add_argument("--runtime", type=Path, required=True)
     execute.add_argument("--output", type=Path, required=True, help="new evidence directory; never overwrite")
-    execute.add_argument("--suite", choices=("supported", "all", "composer"), default="supported")
-    execute.add_argument("--timeout", type=int, default=240)
+    execute.add_argument("--suite", choices=("supported", "all", "composer", "collection"), default="supported")
+    execute.add_argument("--timeout", type=int)
     execute.add_argument("--prepare-only", action="store_true", help="do not launch GUI; exits 2 because interactions remain uncovered")
     execute.add_argument("--app", type=Path)
     execute.add_argument("--desktop-lease", type=Path, help="shared atomic lock directory")
@@ -269,6 +281,8 @@ def main():
         return 0
     if args.command == "verify":
         return verify(args.directory)
+    if args.timeout is None:
+        args.timeout = 600 if args.suite in ("collection", "all") else 240
     if not 1 <= args.timeout <= 900:
         parser.error("timeout must be 1..900 seconds")
     return run(args)

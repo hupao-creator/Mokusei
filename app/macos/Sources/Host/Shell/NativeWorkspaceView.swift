@@ -296,9 +296,8 @@ public final class NativeWorkspacePresentation {
         let route = navigationRouteID, target = selected
         await canvas.prepareForPresentation()
         guard !Task.isCancelled, navigationRouteID == route, selected == target else { return }
-        // A recently opened collection member returns as an individual card.
-        // Resolve its current visual slot after reflow, rather than shrinking the
-        // reader into a different report now showing in the old collection.
+        // A change in reading eligibility, content or space can move an open
+        // report between a collection and its individual card.
         if let target, target.typeID != "agent", readingPanelSourceCardID != nil,
            (try? workspace.plugins.applications.requireThread(target.typeID).overviewCollection) != nil {
             let id = overview.sourceCardID(for: target) ?? target.threadID.string

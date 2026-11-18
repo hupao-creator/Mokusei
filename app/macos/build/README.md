@@ -248,7 +248,7 @@ These checks do not prove first-launch behavior, downloaded-file Gatekeeper
 acceptance or compatibility on another Mac.
 
 `make check` runs Go formatting/static checks, Go/Swift production builds and
-routine Go/native geometry PBT. Mounted state and system properties are opt-in.
+routine Go, native geometry and Collection budget PBT. Mounted state and system properties are opt-in.
 
 This is a locally signed direct-distribution build. Notarization, public release,
 automatic updates and App Store submission require a separate release workflow.
