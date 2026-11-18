@@ -31,7 +31,7 @@ selects only these entries and requires evidence that they actually ran.
 | PBT-REPORT-PREVIEW | [Report](../../../internal/plugins/applications/report/README.md): Go fuzz over bounded arbitrary HTML | Parser safety and preview code-point bound |
 | PBT-OVERVIEW-GEOMETRY | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): 0–18 cards, generated footprints/viewports/caps | Independent geometry constraints, regular-grid lower bound and exact area/fit of shuffled six-tile rectangles |
 | PBT-OVERVIEW-STATE | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): generated clearances, sparse and crowded starts, 18 event attempts plus reduced corpus | Mounted membership, scale and rendered frame center after returning to automatic |
-| PBT-SYSTEM-COMBINATION | [Runtime](../../../internal/core/runtime/README.md#property-boundaries): 1–3 scopes, role-wise HTTP/SSE faults, action sequence and restart | Real Codex + composition + loopback provider; command receipts, scoped effects and retained facts |
+| PBT-SYSTEM-COMBINATION | [Runtime](../../../internal/core/runtime/README.md#property-boundaries): 1–3 scopes, role-wise HTTP/SSE faults, action sequence and restart | Real Codex, composition and loopback provider. Checks scoped effects including visibility immediately after each Report archive or restore, plus retained facts. |
 
 The limited cross-boundary properties have distinct value: Codex's absorbing
 terminal state supplies Runtime execution facts. Codex cache writes can occur

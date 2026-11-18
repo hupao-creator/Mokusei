@@ -343,7 +343,11 @@ Moku, Report, Tag and SQLite. The retained native system property exercises
 idempotent command receipts, scoped consumer effects, exact execution references,
 settings CAS, source-preserving reads/forks, interrupt fencing, deletion/clear and
 restart retention through these production boundaries. Archive is display-only:
-reads, follow-up and fork remain available. The scenario checks native history content from an assistant reply,
+reads, follow-up and fork remain available. Generated archive/restore actions
+read public state after each report command and before issuing any individual
+Thread command. Archiving hides the report and its cited Threads. Restoring
+only shows the requested report. Other records keep their visibility and all
+identities remain present. The scenario checks native history content from an assistant reply,
 not merely a token in user input. A scripted loopback model provider is the
 external peer; it does not implement admission, tool handlers or domain writes.
 

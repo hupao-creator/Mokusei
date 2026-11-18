@@ -60,16 +60,12 @@ func exerciseActions(ctx context.Context, invoke systemInvoke, host actionHost, 
 			}
 		case "archive", "unarchive":
 			archived := action == "archive"
+			if err := exerciseReportVisibility(invoke, before, archived); err != nil {
+				return state, err
+			}
 			for _, child := range children {
 				if err := invoke("thread:set-archived", []any{child.ID, archived}, nil); err != nil {
 					return state, err
-				}
-			}
-			for _, report := range before.ApplicationThreads {
-				if report.Ref.TypeID == "report.document" {
-					if err := invoke("application:archive", []any{report.Ref, archived}, nil); err != nil {
-						return state, err
-					}
 				}
 			}
 		case "settings":

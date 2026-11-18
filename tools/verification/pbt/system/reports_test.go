@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"maps"
 	"strings"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
@@ -101,6 +102,55 @@ func reportForThread(state model.AppState, threadID string) (model.ApplicationTh
 		}
 	}
 	return owner, ownerView, nil
+}
+
+// Observe each report command before an independent Thread archive can mask a
+// missing cascade. Restore only changes the selected document's visibility.
+func exerciseReportVisibility(invoke systemInvoke, before model.AppState, archived bool) error {
+	for _, document := range before.ApplicationThreads {
+		if document.Ref.TypeID != "report.document" {
+			continue
+		}
+		var view report.View
+		if err := json.Unmarshal(document.View, &view); err != nil {
+			return err
+		}
+		wantThreads, wantDocuments := catalogVisibility(before)
+		if archived {
+			for _, source := range view.RelatedExecutions {
+				if _, exists := wantThreads[source.Thread.ThreadID]; exists {
+					wantThreads[source.Thread.ThreadID] = true
+				}
+			}
+		}
+		wantDocuments[document.Ref] = archived
+		if err := invoke("application:archive", []any{document.Ref, archived}, nil); err != nil {
+			return err
+		}
+		var after model.AppState
+		if err := invoke("state:load", []any{}, &after); err != nil {
+			return err
+		}
+		threads, documents := catalogVisibility(after)
+		if !maps.Equal(threads, wantThreads) || !maps.Equal(documents, wantDocuments) {
+			return fmt.Errorf("Report %s archive=%t: Threads %v want %v, documents %v want %v",
+				document.ID, archived, threads, wantThreads, documents, wantDocuments)
+		}
+		before = after
+	}
+	return nil
+}
+
+func catalogVisibility(state model.AppState) (map[string]bool, map[model.ThreadRef]bool) {
+	threads := make(map[string]bool, len(state.Threads))
+	for _, thread := range state.Threads {
+		threads[thread.ID] = thread.Archived != nil && *thread.Archived
+	}
+	documents := make(map[model.ThreadRef]bool, len(state.ApplicationThreads))
+	for _, item := range state.ApplicationThreads {
+		documents[item.Ref] = item.Archived
+	}
+	return threads, documents
 }
 
 // Source deletion can update directory tags and record revisions. It must not
