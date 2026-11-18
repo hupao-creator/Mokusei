@@ -27,7 +27,7 @@ Source: [commands.go](commands.go), [command_validation.go](command_validation.g
 
 The parsers and validators above are production boundaries. No executable
 command-boundary replay is configured in this source tree; see the
-[verification index](../../../docs/facts.md).
+[verification index](../../../tools/verification/facts.md).
 
 `ThreadNote` carries `readingRevision` and one server-owned `lastExposure` snapshot.
 An exposure is evidence that the exact nonempty revision completed foreground

@@ -2,6 +2,12 @@
 
 Mokusei (木犀) is a native workspace for coordinating AI agents. Moku is its coordinating assistant.
 
+The [first-use guide](docs/getting-started.md) walks invited Mac users through
+installing Mokusei Alpha, choosing an Agent and sending a first request. The
+[产品指南](docs/README.md) covers tracking work, reading reports and changing settings.
+
+## Developer guide
+
 Source repository and Go module: [`github.com/hupao-creator/Mokusei`](https://github.com/hupao-creator/Mokusei).
 
 Mokusei uses a Go background service and a native SwiftUI/AppKit macOS application. Development, builds and packaging do not require Node. External Harnesses manage their own runtimes; Pi and OpenCode retain small JavaScript resources executed inside those external tools.
@@ -86,11 +92,12 @@ they do not establish interaction correctness.
 Mermaid fences display as source code. The built-in [Git application](internal/plugins/applications/git/README.md) supplies read-only worktree facts on task cards and on-demand file/diff query APIs. Managed Git worktrees are owned by the [workspace service](internal/services/workspaces/README.md).
 
 Current behavior, constraints, limits and runnable commands live with their owning
-modules. The [fact index](docs/facts.md) connects those documents to implementation
-and validation boundaries; the [coverage map](docs/coverage.md) lists every
-first-party document and its evidence limits. Documentation describes implemented
-state. Git retains design and change history. Measurement reports retain source,
-collector and artifact identities so results remain attributable.
+modules. The [fact index](tools/verification/facts.md) connects those documents
+to implementation and validation boundaries. The
+[coverage map](tools/verification/coverage.md) lists every first-party document
+and its evidence limits. Documentation describes implemented state. Git retains
+design and change history. Measurement reports retain source, collector and
+artifact identities so results remain attributable.
 
 Before/after measurements require the named baseline revision to be available
 locally. A report for another revision does not certify the current build.
@@ -105,4 +112,4 @@ Automated correctness checks use the declared [PBT inventory](tools/verification
 There are no ordinary example/table unit-test suites. Behavioral verification
 assigns Moku runtime to PBT, interaction to e2e and user experience to benchmarks;
 implemented checks and unverified domains remain explicit in the
-[contributor guide](.agents/linting.md) and [fact index](docs/facts.md).
+[contributor guide](.agents/linting.md) and [fact index](tools/verification/facts.md).

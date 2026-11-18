@@ -229,7 +229,7 @@ History clearing stops participants, restores sessions that require cleanup, dra
 
 The [property boundaries](#property-boundaries) define Runtime admission, outbox
 and optional system coverage. [E2E observation](#e2e-observation) describes the
-selected mounted Settings/read journeys. The [verification index](../../../docs/facts.md)
+selected mounted Settings/read journeys. The [verification index](../../../tools/verification/facts.md)
 separates implemented contracts, generated domains and actual run evidence.
 
 Automatic installation discovery uses `harness:detect-installation` with one

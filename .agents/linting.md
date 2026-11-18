@@ -17,7 +17,7 @@ Follow the [document-driven workflow](../AGENTS.md#文档驱动): read the ownin
 check its facts against implementation, document implemented behavior and
 constraints, then derive PBT properties, e2e scenarios or benchmark metrics and
 criteria from those facts. Link the guide and actual evidence in the
-[fact/verification index](../docs/facts.md). Keep gaps and blocked/skipped results
+[fact/verification index](../tools/verification/facts.md). Keep gaps and blocked/skipped results
 explicit. The index is not a second specification or a claim of test coverage.
 e2e owns interactions, PBT owns Moku runtime, and benchmarks own user experience.
 Extra PBT coverage needs a concrete reason and does not replace that ownership.

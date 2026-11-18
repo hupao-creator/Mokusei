@@ -28,4 +28,4 @@
 | `thread-card-glass-timeline/` | 构建不可用：build.py 引用缺失的 NativeContentHost.swift；不提供验证覆盖 |
 | [thread-panel-transition](thread-panel-transition/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |
 
-当前产品事实归属见[索引](../docs/facts.md)，验证分工见[策略](../scripts/ci/verification-policy.md)。
+当前产品事实归属见[索引](../tools/verification/facts.md)，验证分工见[策略](../scripts/ci/verification-policy.md)。
