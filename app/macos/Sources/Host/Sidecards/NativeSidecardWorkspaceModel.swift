@@ -35,7 +35,8 @@ struct NativeSidecardWorkspaceCard: Identifiable {
 struct NativeSidecardWorkspaceSnapshot {
     let input: HarnessThreadInput
     let cards: [NativeSidecardWorkspaceCard]
-    let selected: JSONText?
+    let layoutSelection: JSONText?
+    var selected: JSONText? { entranceReady ? layoutSelection : nil }
     let lastSelected: JSONText?
     let selectionRevision: Int
     let transitioning: Bool
@@ -409,10 +410,10 @@ final class NativeSidecardWorkspaceModel {
                 _ = choose(nil)
             }
         } while needsReconciliation && passes < 16
-        // Keep plugin intent and execution ownership live, but publish folded
-        // geometry until the primary entrance and its first layout have committed.
+        // Size the main reader for the reconciled selection before its first
+        // visible document. The entrance gate still owns the card aperture.
         snapshot = NativeSidecardWorkspaceSnapshot(input: configuration.input, cards: cards,
-            selected: configuration.entranceReady ? selected : nil, lastSelected: lastSelected, selectionRevision: selectionRevision,
+            layoutSelection: selected, lastSelected: lastSelected, selectionRevision: selectionRevision,
             transitioning: transitioning, dragging: dragging, widths: widths,
             executionDisabled: configuration.executionDisabled,
             suppressed: configuration.suppressed || !configuration.entranceReady,

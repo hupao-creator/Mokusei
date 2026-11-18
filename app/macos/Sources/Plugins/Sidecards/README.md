@@ -79,7 +79,9 @@ only paint, hit aperture, opacity and the native aperture marker, with travel ap
 offset outside the document layout. Execution promotion also keeps each native
 document at a fixed width while its shell moves.
 The common opening uses a 380ms cubic Bézier `(0.22, 1, 0.36, 1)` for
-aperture, offset and opacity, with one host selection transaction. The
+aperture, offset and opacity. The Agent workspace keeps each shell mounted
+while the launcher rail publishes its measured frames. Each shell animates
+its own change in expanded state. The
 [shared opening-path audit](../../Shared/PluginUI/README.md) also covers Report
 references, HTML link/new-window entry, retained Browser reopening and the
 separate native/WebKit content gates. Divider dragging
@@ -91,14 +93,23 @@ reader into the main panel.
 See the [fold performance contract](../../../../../design/reading.md)
 for the current content admission boundaries.
 
-Existing production
-Conversation/Browser toggle, Dock and handoff cases run beside it.
+To check active entry in a native window, open an Agent card from Overview
+with a completed reply and a second execution still running. Watch the
+previous reply’s heading and left edge from its first readable frame through
+the opening of Execution. Both should hold their column position as the
+right aperture grows from its launcher. Fold and reopen Execution, reverse
+the toggle during travel, and resize across the stacking threshold. After each
+settled choice the visible card and launcher value must agree. Returning to
+Overview and reopening repeats the entry with the same running execution.
 
 ## Conversation
 
-Initial Host presentation is the third entrance stage: the main panel finishes
-its actual travel and the main document is ready, then the folded workspace
-commits and admits the requested Sidecard. The resident Agent composer's input gate releases through
+On entry, the Harness index establishes which execution belongs in the Sidecard.
+The main document lays out at its selected column width while the outer shell
+fills the workspace and the Sidecard stays folded. After the panel and heading
+arrive and the main document is ready, a native layout commit admits the
+Sidecard. Its aperture opens from the launcher as the main shell gives up
+space. The resident Agent composer's input gate releases through
 the same visit check after the compact Dock's horizontal travel completes,
 then starts its 420ms expansion. Without an owning execution Sidecard, input is
 admitted at the layout commit. The card keeps its existing 380ms animation.

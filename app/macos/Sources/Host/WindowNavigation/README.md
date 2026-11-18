@@ -84,9 +84,10 @@ gate. Panel opening pauses display projection immediately. Ordinary Agent card
 entries preload the primary reader after native animation-start delivery; drawing,
 input, accessibility and secondary surfaces wait for arrival. Other panel entries
 retain their arrival mounting gate. Card identity flights first mount
-a lightweight workspace layout with a row-free conversation heading; this fixes
-the destination before travel without mounting Harness documents. The real
-reader takes over without a second title movement. The outer Agent route starts
+a lightweight workspace layout with a row-free conversation heading. Its
+anchors supply the initial destination. If preloading selects an Execution
+Sidecard, the compositor follows the measured heading in the main column
+through handoff. The outer Agent route starts
 data-only manifest/target-row prefetch during travel, owned by the route visit
 and target execution; cancellation cannot publish into a replacement reader.
 Data-only prefetch itself mounts no TextKit or conversation view; the separate

@@ -46,7 +46,11 @@ admits hidden preparation of an ordinary Agent reader while travel continues.
 Drawing, input, accessibility, text entrance and secondary surfaces wait for
 arrival and their own readiness. Source-less and non-Agent entries retain their
 own mount gate. The same reader survives arrival. Both title anchors must exist;
-coalesced native layout freezes actual geometry before the identity handoff.
+coalesced native layout supplies the opening geometry. If reserving an Execution
+Sidecard changes the horizontal landing during entry, the compositor can
+redirect the flying title and emoji once from their presented positions to
+the measured main-column anchors. Live window resizing admits the handoff
+when panel travel finishes.
 
 Direct historical/result requests select their destination before the page stack
 mounts. A never-visited current page need not acquire and construct its body
@@ -116,6 +120,13 @@ same-execution steer keeps reader and scroll. The Back button stays outside the
 carrier and returns to the list. Exact forks and uncertain receipts retain the
 [Runtime](../internal/core/runtime/README.md) and [client](../app/macos/Sources/Core/README.md)
 authority boundaries. No guessed resend follows an uncertain outcome.
+
+When an ordinary Agent opens with an eligible active execution, the selected
+Sidecard reserves space for the previous execution in main during preparation.
+The shell still fills the reader and the Sidecard aperture stays folded. Once
+the main document and heading are ready, the first body fades in at its
+prepared width while the main shell contracts and Execution unfolds from its
+launcher. Later toggles use the current selection and retained document.
 
 On ordinary execution completion, the active Sidecard folds to its real launcher
 using the shared 380ms fold. Fold completion and destination-content readiness
