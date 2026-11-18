@@ -175,97 +175,90 @@ public enum NativeOverviewLayout {
 
     // MARK: - Candidate selection
 
-    private struct Candidate {
-        let placements: [NativeOverviewPlacement]
-        let bounds: NativeOverviewBounds
-        let fitScale: Double
+    private struct Score {
+        let fit: Double
         let area: Double
-        let seed: Int
+        let width: Double
+
+        init(columns: Int, rows: Int, viewport: NativeOverviewContentRect, metrics: NativeOverviewGridMetrics) {
+            width = metrics.width(columns: columns)
+            let height = metrics.height(rows: rows)
+            fit = min(viewport.width / width, viewport.height / height)
+            area = width * height
+        }
+
+        func improves(on other: Self) -> Bool {
+            if fit != other.fit { return fit > other.fit }
+            if area != other.area { return area < other.area }
+            return width < other.width
+        }
     }
 
     private static func choosePlacement(members: [NativeOverviewMember],
                                         viewport: NativeOverviewContentRect,
                                         metrics: NativeOverviewGridMetrics) -> [NativeOverviewPlacement] {
-        var best: Candidate?
-        var nextOrdinal = 0
-        func consider(_ candidate: Candidate) {
-            guard let current = best else { best = candidate; return }
-            if isBetter(candidate, current) { best = candidate }
-        }
-        func makeCandidate(_ placements: [NativeOverviewPlacement]) -> Candidate {
-            defer { nextOrdinal += 1 }
-            return candidate(placements, viewport: viewport, metrics: metrics, seed: nextOrdinal)
-        }
-
         let maxColumns = members.map(\.columns).max()!
         let maxRows = members.map(\.rows).max()!
-        for columns in 1...members.count {
-            let placements = members.enumerated().map { index, member in
-                NativeOverviewPlacement(member: member,
-                                        column: index % columns * maxColumns,
-                                        row: index / columns * maxRows)
-            }
-            consider(makeCandidate(placements))
+        func gridScore(_ across: Int) -> Score {
+            Score(columns: across * maxColumns, rows: (1 + (members.count - 1) / across) * maxRows,
+                  viewport: viewport, metrics: metrics)
         }
 
-        for vertical in [false, true] {
-            let sorted = members.enumerated().sorted { lhs, rhs in
-                let a = lhs.element, b = rhs.element
-                let primaryA = vertical ? a.columns : a.rows
-                let primaryB = vertical ? b.columns : b.rows
-                if primaryA != primaryB { return primaryA > primaryB }
-                let secondaryA = vertical ? a.rows : a.columns
-                let secondaryB = vertical ? b.rows : b.columns
-                if secondaryA != secondaryB { return secondaryA > secondaryB }
-                return lhs.offset < rhs.offset
-            }.map(\.element)
-            let total = members.reduce(0) { $0 + (vertical ? $1.rows : $1.columns) }
-            let minimum = members.map { vertical ? $0.rows : $0.columns }.max()!
-            for target in shelfTargets(minimum: minimum, maximum: total) {
-                consider(makeCandidate(shelf(sorted, target: target, vertical: vertical)))
+        // Score regular grids by dimensions alone. Packing each winning row to
+        // its members' actual width and height can only improve its raw fit.
+        var across = 1
+        var bestScore = gridScore(1)
+        for count in members.indices.dropFirst() {
+            let score = gridScore(count + 1)
+            if score.improves(on: bestScore) {
+                across = count + 1
+                bestScore = score
             }
         }
-
-        let totalColumns = members.reduce(0) { $0 + $1.columns }
-        let minimumColumns = members.map(\.columns).max()!
-        for target in shelfTargets(minimum: minimumColumns, maximum: totalColumns) {
-            consider(makeCandidate(shelf(members, target: target, vertical: false)))
+        var x = 0, y = 0, band = 0
+        var best = members.enumerated().map { index, member in
+            if index > 0 && index.isMultiple(of: across) {
+                y += band
+                x = 0
+                band = 0
+            }
+            let placement = NativeOverviewPlacement(member: member, column: x, row: y)
+            x += member.columns
+            band = max(band, member.rows)
+            return placement
         }
+        guard members.contains(where: { $0.columns != maxColumns || $0.rows != maxRows }) else { return best }
 
-        return best?.placements ?? members.map {
-            NativeOverviewPlacement(member: $0, column: 0, row: 0)
+        func score(_ placements: [NativeOverviewPlacement]) -> Score {
+            let bounds = summarize(placements, metrics: metrics)
+            return Score(columns: bounds.columns, rows: bounds.rows, viewport: viewport, metrics: metrics)
         }
+        bestScore = score(best)
+        // Prefer the product-order packing on ties, across both orientations.
+        for sizeFirst in [false, true] {
+            for vertical in [false, true] {
+                var order = members
+                if sizeFirst {
+                    order.sort { a, b in
+                        vertical ? (a.columns, a.rows) > (b.columns, b.rows) : (a.rows, a.columns) > (b.rows, b.columns)
+                    }
+                    if order == members { continue }
+                }
+                let minimum = vertical ? maxRows : maxColumns
+                let total = members.reduce(0) { $0 + (vertical ? $1.rows : $1.columns) }
+                for target in shelfTargets(minimum: minimum, maximum: total) {
+                    let placements = pack(order, target: target, vertical: vertical)
+                    let candidate = score(placements)
+                    if candidate.improves(on: bestScore) {
+                        best = placements
+                        bestScore = candidate
+                    }
+                }
+            }
+        }
+        return best
     }
 
-    private static func isBetter(_ lhs: Candidate, _ rhs: Candidate) -> Bool {
-        if lhs.fitScale != rhs.fitScale { return lhs.fitScale > rhs.fitScale }
-        if lhs.area != rhs.area { return lhs.area < rhs.area }
-        if lhs.bounds.width != rhs.bounds.width { return lhs.bounds.width < rhs.bounds.width }
-        return lhs.seed < rhs.seed
-    }
-
-    private static func candidate(_ placements: [NativeOverviewPlacement],
-                                  viewport: NativeOverviewContentRect,
-                                  metrics: NativeOverviewGridMetrics,
-                                  seed: Int) -> Candidate {
-        let bounds = summarize(placements, metrics: metrics)
-        let fitScale: Double
-        if viewport.width > 0, viewport.height > 0, bounds.width > 0, bounds.height > 0 {
-            fitScale = min(viewport.width / bounds.width, viewport.height / bounds.height)
-        } else {
-            fitScale = 0
-        }
-        return Candidate(placements: placements, bounds: bounds, fitScale: fitScale,
-                         area: bounds.width * bounds.height, seed: seed)
-    }
-
-    /// The grid pass in `choosePlacement` uses each card's actual span in a
-    /// max-span cell for every column count; it includes the independent
-    /// regular-grid quality baseline, so the selected result cannot be worse.
-    /// Shelf outcomes change only at target boundaries, but a pathological
-    /// span can make every integer expensive. Sample a deterministic bounded
-    /// set of at most 65 targets; the uniform-grid candidates still guarantee
-    /// the quality floor.
     private static func shelfTargets(minimum: Int, maximum: Int) -> [Int] {
         let count = maximum - minimum + 1
         guard count > 64 else { return Array(minimum...maximum) }
@@ -275,24 +268,42 @@ public enum NativeOverviewLayout {
         return targets
     }
 
-    private static func shelf(_ members: [NativeOverviewMember], target: Int,
-                              vertical: Bool) -> [NativeOverviewPlacement] {
+    private struct Opening {
+        let x, y, width, height: Int
+    }
+
+    /// Work in strip coordinates and transpose the result for vertical bands.
+    /// Each opening is disjoint. Splitting it retains both reusable pieces,
+    /// including the space directly underneath a shorter card.
+    private static func pack(_ members: [NativeOverviewMember], target: Int,
+                             vertical: Bool) -> [NativeOverviewPlacement] {
+        var openings = [Opening]()
+        var end = 0
         var placements = [NativeOverviewPlacement]()
         placements.reserveCapacity(members.count)
-        var x = 0, y = 0, band = 0
         for member in members {
-            let extent = vertical ? member.rows : member.columns
-            let cross = vertical ? member.columns : member.rows
-            if x > 0, x + extent > target {
-                y += band
-                x = 0
-                band = 0
+            let width = vertical ? member.rows : member.columns
+            let height = vertical ? member.columns : member.rows
+            let slot: Opening
+            if let index = openings.firstIndex(where: { width <= $0.width && height <= $0.height }) {
+                slot = openings.remove(at: index)
+            } else {
+                slot = Opening(x: 0, y: end, width: target, height: height)
+                end += height
             }
-            placements.append(.init(member: member,
-                                    column: vertical ? y : x,
-                                    row: vertical ? x : y))
-            x += extent
-            band = max(band, cross)
+            placements.append(.init(member: member, column: vertical ? slot.y : slot.x,
+                                    row: vertical ? slot.x : slot.y))
+            if width < slot.width {
+                openings.append(.init(x: slot.x + width, y: slot.y,
+                                      width: slot.width - width, height: slot.height))
+            }
+            if height < slot.height {
+                openings.append(.init(x: slot.x, y: slot.y + height,
+                                      width: width, height: slot.height - height))
+            }
+            // Bound search cost even when every span is distinct. Forgetting
+            // an opening leaves it empty and can never admit an overlap.
+            if openings.count > 64 { openings.removeFirst(openings.count - 64) }
         }
         return placements
     }

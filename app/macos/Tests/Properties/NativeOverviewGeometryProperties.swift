@@ -43,14 +43,21 @@ private func frame(of placement: NativeOverviewPlacement) -> CGRect {
            height: metrics.height(rows: placement.rows))
 }
 
-private func generate(seed: UInt64, count: Int? = nil) -> LayoutCase {
+private func generate(seed: UInt64) -> LayoutCase {
     var random = SplitMix64(seed: seed)
-    let cardCount = count ?? random.integer(0...18)
     var members = [NativeOverviewMember]()
-    for index in 0..<cardCount {
-        members.append(.init(id: "card-\(index)",
-                             columns: random.integer(1...3),
-                             rows: random.integer(1...2)))
+    if seed.isMultiple(of: 4) {
+        // A six-tile rectangle with a known optimum, in different units and orders.
+        let w = random.integer(1...3), h = random.integer(1...2)
+        let spans = [(2 * w, h), (w, 2 * h), (w, h), (w, h)].shuffled(using: &random)
+        members = spans.enumerated().map { index, span in
+            .init(id: "card-\(index)", columns: span.0, rows: span.1)
+        }
+    } else {
+        for index in 0..<random.integer(0...18) {
+            members.append(.init(id: "card-\(index)",
+                                 columns: random.integer(1...3), rows: random.integer(1...2)))
+        }
     }
     let width = random.double(240...2600)
     let height = random.double(240...1600)
@@ -169,6 +176,22 @@ private func violations(_ input: LayoutCase) -> [String] {
     let productionFit = min(input.usable.width / result.bounds.width,
                             input.usable.height / result.bounds.height)
     if productionFit + 1e-9 < baseline { issues.append("worse than the regular-grid baseline") }
+    if input.members.count == 4, let w = input.members.map(\.columns).min(), let h = input.members.map(\.rows).min(),
+       input.members.filter({ $0.columns == w && $0.rows == h }).count == 2,
+       input.members.contains(where: { $0.columns == 2 * w && $0.rows == h }),
+       input.members.contains(where: { $0.columns == w && $0.rows == 2 * h }) {
+        // Both six-cell rectangles admit a tiling. Any wider or taller strip
+        // still needs at least two rows and two columns for the two long cards.
+        let landscape = min(input.usable.width / metrics.width(columns: 3 * w),
+                            input.usable.height / metrics.height(rows: 2 * h))
+        let portrait = min(input.usable.width / metrics.width(columns: 2 * w),
+                           input.usable.height / metrics.height(rows: 3 * h))
+        let fullRectangle = (result.bounds.columns, result.bounds.rows) == (3 * w, 2 * h)
+            || (result.bounds.columns, result.bounds.rows) == (2 * w, 3 * h)
+        if !fullRectangle || fit + tolerance < max(landscape, portrait) {
+            issues.append("mixed four-card tiling wastes space or misses the better orientation")
+        }
+    }
     return issues
 }
 

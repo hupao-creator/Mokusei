@@ -8,9 +8,11 @@ owns documents, exact execution references, binding and cover admission.
 
 The logical 1×1 grid cell is 414×253pt with 16pt gaps; 1×2 is 414×522pt and
 2×1 is 844pt wide. The pure solver returns placements and bounds from one input.
-FitAll contains and centers the complete scene within the configured cap;
-capacity/quality claims are defined by the production solver, not a separate
-UI score. Layout and camera targets are latest-wins, fenced by identity and
+Mixed spans can fill gaps within horizontal or vertical bands. The four-card
+mix of a wide card, a tall card and two single cells fills a 3×2 or 2×3
+rectangle according to the usable viewport. FitAll centers the card union at
+the configured floor and cap. Overflow remains reachable by panning.
+Layout and camera targets are latest-wins, fenced by identity and
 revision. Content-only updates do not restart structural motion. Interrupted
 travel samples current poses; hidden work coalesces to the latest target.
 Automatic focus can refit after membership shrinks, including increasing scale;

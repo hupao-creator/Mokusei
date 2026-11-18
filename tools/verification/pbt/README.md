@@ -28,7 +28,7 @@ selects only these entries and requires evidence that they actually ran.
 | PBT-STORE-LIFECYCLE | [Store](../../../internal/core/store/README.md): 1–60 append/batch/receipt/settle/rollback/reopen actions, three scopes/consumers | Independent fact/acknowledgement model; effect idempotency, rollback isolation, pending/history and durable work |
 | PBT-CODEX-TERMINAL | [Codex](../../../internal/plugins/harness/codex/README.md): generated start/event/follow-up/reject/settle histories | Durable state decodes; first terminal is absorbing; rejection notice retained |
 | PBT-REPORT-PREVIEW | [Report](../../../internal/plugins/applications/report/README.md): Go fuzz over bounded arbitrary HTML | Parser safety and preview code-point bound |
-| PBT-OVERVIEW-GEOMETRY | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): 0–18 cards, generated footprints/viewports/caps | Independent geometry constraints and regular-grid lower bound |
+| PBT-OVERVIEW-GEOMETRY | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): 0–18 cards, generated footprints/viewports/caps | Independent geometry constraints, regular-grid lower bound and exact area/fit of shuffled six-tile rectangles |
 | PBT-OVERVIEW-STATE | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): generated 18-event schedule plus reduced corpus | Production-mounted latest-state convergence; no physical input, screenshot or frame pacing |
 | PBT-SYSTEM-COMBINATION | [Runtime](../../../internal/core/runtime/README.md#property-boundaries): 1–3 scopes, role-wise HTTP/SSE faults, action sequence and restart | Real Codex + composition + loopback provider; command receipts, scoped effects and retained facts |
 
