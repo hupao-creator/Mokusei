@@ -68,10 +68,6 @@
 
 修改前阅读所属模块 README；行为、契约或验证方式变化时同步更新文档。
 
-# 最终反馈
-
-当你认为最终给用户提供的反馈预计阅读时间超过 5 分钟时，使用 [ELI5 skill](https://github.com/anthropics/claude-plugins-community/blob/main/eli5/skills/eli5/SKILL.md)，按照其要求以 HTML 页面形式组织回答，并在最终回复中提供该页面的访问或打开链接。
-
 # 本地审查与验证
 
 实现后在本地 review 当前改动，处理发现的问题并复核，直至可以合并。
