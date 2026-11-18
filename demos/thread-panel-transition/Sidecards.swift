@@ -38,7 +38,7 @@ import MokuseiSidecardBrowser
         }
     }
     var snapshot: NativeSidecardWorkspaceSnapshot {
-        .init(input: .init(thread: thread), cards: cards, selected: selected, lastSelected: lastSelected,
+        .init(input: .init(thread: thread), cards: cards, layoutSelection: selected, lastSelected: lastSelected,
             selectionRevision: revision, transitioning: transitioning, dragging: dragging, widths: widths,
             executionDisabled: false, suppressed: false, entranceReady: true, handoff: nil, focusLauncherOnClose: true)
     }

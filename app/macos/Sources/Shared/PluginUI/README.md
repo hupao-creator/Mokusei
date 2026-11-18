@@ -181,12 +181,11 @@ shared progress on display callbacks. Returning refreshes the retained Overview
 before starting a settled panel's close.
 
 The stack publishes `nativeReadingEntranceReady` from that actual completion
-boundary and, when present, the existing title/emoji ink handoff. Secondary
-layout cannot move the heading destination before the live reader owns it.
-`NativeReadingEntranceStage` additionally waits for a newly mounted
-folded layout to commit before auxiliary motion is admitted; its queued callback
-is invalidated on disable, detach or replacement. This prevents an initially
-selected execution Sidecard from first rendering at expanded width. Agent detail
+boundary and, when present, the existing title/emoji ink handoff. An execution
+selected during preparation reserves its column in the main document. The
+full-width shell and folded aperture commit before auxiliary motion begins.
+`NativeReadingEntranceStage` invalidates its queued callback on disable,
+detach or replacement. Agent detail
 also waits for `NativeReadingContentStatusKey`: only the active main document
 contributes readiness, and pending Markdown parsing or loading placeholders
 keep the gate closed. Loaded empty/error states can finish without Markdown.
@@ -1347,9 +1346,10 @@ font fallback, glyph baselines, tracking and two-line truncation at handoff;
 matching layout anchors alone does not align `CATextLayer` ink with SwiftUI `Text`.
 Opening waits for both native heading anchors, coalesces their publication, then
 resolves the current native layout before freezing their actual geometry; it does
-not use a trailing 48ms debounce. The panel's real completion and visible host,
-not an independent duration timer, admit the title handoff. Loaded content only takes ownership at that position; there is no
-post-opening title animation or data-loading timeout. The bridge never retains
+not use a trailing 48ms debounce. The panel's completion and visible host admit the title handoff. If reserving an
+execution column shifts the live heading horizontally, the compositor continues
+from its presented position to the measured reader anchors before handing
+painting to the live heading. The bridge never retains
 card/reader/plugin instances; replacement and close retire its layers. Direct result
 navigation and entries without a visible source card retain their ordinary entry.
 See the [reading admission contract](../../../../../design/reading.md).

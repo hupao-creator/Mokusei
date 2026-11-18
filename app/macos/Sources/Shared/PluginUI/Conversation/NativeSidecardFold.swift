@@ -71,7 +71,7 @@ private struct NativeSidecardFoldPresentation: ViewModifier {
             // modifier on each tick also resizes its AppKit frame marker and
             // repeatedly enters layout around the retained native document.
             content
-                .mask(NativeSidecardAnimatedAperture(rect: rect))
+                .clipShape(NativeSidecardAnimatedAperture(rect: rect))
                 .contentShape(.interaction, NativeSidecardAnimatedAperture(rect: rect))
                 .modifier(NativeSidecardFoldOpacity(progress: progress))
                 .overlay(alignment: .topLeading) {

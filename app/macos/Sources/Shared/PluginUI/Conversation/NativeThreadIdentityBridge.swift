@@ -11,6 +11,7 @@ public extension EnvironmentValues {
     /// Only timeline bodies consume this visit-owned entrance; heading ink has
     /// already arrived through the independent title/emoji handoff.
     @Entry var nativeThreadBodyEntranceHidden = false
+    @Entry var nativeThreadReservesSidecardColumn = false
     @Entry var nativeThreadReservesHistoryRail = false
     @Entry var nativeThreadIdentityVisit: NativeThreadIdentityVisit? = nil
 }
@@ -45,6 +46,7 @@ public final class NativeThreadIdentityVisit {
         let text: String
         let frame: CGRect
         let localSize: CGSize
+        let reservesSidecardColumn: Bool
         weak var window: NSWindow?
     }
     private final class WeakTarget {
@@ -53,7 +55,12 @@ public final class NativeThreadIdentityVisit {
     }
     @ObservationIgnored private var openingAnchors: [String: WeakTarget] = [:]
     @ObservationIgnored private var targetAnchors: [String: WeakTarget] = [:]
-    var measuredTargets: [String: Leaf] { targetAnchors.compactMapValues { $0.view?.snapshot() } }
+    var measuredTargets: [String: Leaf] {
+        targetAnchors.compactMapValues {
+            guard let view = $0.view, view.visit === self, !view.preparing else { return nil }
+            return view.snapshot()
+        }
+    }
     func freezeOpeningTargets() { openingTarget = openingAnchors.compactMapValues { $0.view?.snapshot() } }
     let source: [String: Leaf]
     private(set) var pending = true
@@ -71,7 +78,7 @@ public final class NativeThreadIdentityVisit {
         else { targetAnchors[element] = WeakTarget(anchor) }
         let previousTarget = anchor.preparing ? openingTarget : target
         if let previous = previousTarget[element], previous.frame == value.frame, previous.text == value.text,
-           previous.window === value.window { return }
+           previous.window === value.window, previous.reservesSidecardColumn == value.reservesSidecardColumn { return }
         if anchor.preparing { openingTarget[element] = value; onOpeningTargetsChange?() }
         else { target[element] = value; onTargetsChange?() }
     }
@@ -113,6 +120,7 @@ private struct ThreadIdentityAnchor: NSViewRepresentable {
         view.detach()
         view.registry = registry; view.key = key; view.visit = visit
         view.element = element; view.text = text; view.preparing = preparing
+        view.reservesSidecardColumn = context.environment.nativeThreadReservesSidecardColumn
         if let registry, let key { registry.register(view, key: key, element: element) }
         view.publish()
     }
@@ -126,13 +134,14 @@ private final class ThreadIdentityAnchorView: NSView {
     var element = ""
     var text = ""
     var preparing = false
+    var reservesSidecardColumn = false
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); publish() }
     override func layout() { super.layout(); publish() }
     override func setFrameOrigin(_ newOrigin: NSPoint) { super.setFrameOrigin(newOrigin); publish() }
     func snapshot() -> NativeThreadIdentityVisit.Leaf? {
         guard let window, bounds.width > 0, bounds.height > 0 else { return nil }
-        return .init(text: text, frame: convert(bounds, to: nil), localSize: bounds.size, window: window)
+        return .init(text: text, frame: convert(bounds, to: nil), localSize: bounds.size, reservesSidecardColumn: reservesSidecardColumn, window: window)
     }
     func publish() {
         guard visit != nil else { return }
@@ -149,7 +158,7 @@ private final class ThreadIdentityAnchorView: NSView {
 
 /// Separate native ink keeps opening smooth while the heavyweight reader is
 /// deferred. A row-free production heading supplies the destination before
-/// travel. Loaded content takes ownership without a second movement.
+/// travel. Live anchors can refine that destination before ownership transfers.
 @MainActor
 final class NativeThreadIdentityFlight {
     private let visit: NativeThreadIdentityVisit
@@ -157,9 +166,14 @@ final class NativeThreadIdentityFlight {
     private let overlay = ThreadIdentityInkHost()
     private var layers: [String: CALayer] = [:]
     private var task: Task<Void, Never>?
+    private let openingDeadline: CFTimeInterval
+    private enum ColumnCorrection { case available, moving, finished }
+    private var correction = ColumnCorrection.available
+
     init(visit: NativeThreadIdentityVisit, surface: NSView, source: CGRect, environment: EnvironmentValues,
          duration: TimeInterval, timing: CAMediaTimingFunction) {
         self.visit = visit; self.surface = surface
+        openingDeadline = CACurrentMediaTime() + duration
         overlay.wantsLayer = true; overlay.frame = surface.bounds
         overlay.layer?.masksToBounds = true
         overlay.autoresizingMask = [.width, .height]
@@ -192,8 +206,8 @@ final class NativeThreadIdentityFlight {
         }
         CATransaction.commit()
         visit.onTargetsChange = { [weak self] in self?.scheduleHandoff() }
-        // Both ink and paper use the same duration and curve. The reader may
-        // arrive much later; arrival only swaps ownership, never moves ink.
+        // Ink starts with the paper's duration and curve. A loaded reader
+        // at the same position can take ownership as soon as travel completes.
         CATransaction.begin(); CATransaction.setDisableActions(true)
         for (element, layer) in layers {
             guard let leaf = visit.openingTarget[element] else { continue }
@@ -220,19 +234,59 @@ final class NativeThreadIdentityFlight {
     }
 
     private func scheduleHandoff() {
-        guard visit.pending, visit.openingFinished,
+        guard visit.pending, task == nil,
               visit.target["title"] != nil, visit.target["emoji"] != nil else { return }
-        task?.cancel()
         task = Task { @MainActor [weak self] in
             await Task.yield()
-            guard !Task.isCancelled, let self, let surface else { return }
-            for (element, layer) in layers {
-                guard let leaf = visit.measuredTargets[element], leaf.window === surface.window else { continue }
-                let destination = surface.convert(leaf.frame, from: nil)
-                visit.recordHandoffDistance(hypot(destination.minX - layer.position.x, destination.minY - layer.position.y))
+            guard !Task.isCancelled, let self else { return }
+            task = nil
+            guard let surface, let window = surface.window else { retire(); return }
+            let targets = visit.measuredTargets.filter { $0.value.window === window }
+            let positions = targets.mapValues { surface.convert($0.frame, from: nil).origin }
+            let pixel = 1 / window.backingScaleFactor
+            // Only a confirmed side column can change the horizontal landing.
+            // Correct once per flight, so scrolling, rewrapping or live resize
+            // cannot keep postponing the handoff.
+            if correction == .available, !window.inLiveResize,
+               targets["title"]?.reservesSidecardColumn == true,
+               let title = positions["title"], let titleLayer = layers["title"],
+               abs(title.x - titleLayer.position.x) >= pixel,
+               positions["emoji"] != nil {
+                correctColumnLanding(positions)
+            } else if visit.openingFinished && (correction != .moving || window.inLiveResize) {
+                for (element, layer) in layers {
+                    guard let position = positions[element] else { continue }
+                    let presented = layer.presentation()?.position ?? layer.position
+                    visit.recordHandoffDistance(hypot(position.x - presented.x, position.y - presented.y))
+                }
+                retire(measured: positions["title"] != nil && positions["emoji"] != nil
+                    && layers["title"] != nil && layers["emoji"] != nil)
             }
-            retire(measured: true)
         }
+    }
+
+    private func correctColumnLanding(_ positions: [String: CGPoint]) {
+        correction = .moving
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        CATransaction.setCompletionBlock { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, visit.pending else { return }
+                correction = .finished
+                scheduleHandoff()
+            }
+        }
+        for (element, layer) in layers {
+            guard let position = positions[element] else { continue }
+            let travel = CABasicAnimation(keyPath: "position")
+            travel.fromValue = NSValue(point: layer.presentation()?.position ?? layer.position)
+            travel.toValue = NSValue(point: position)
+            travel.duration = max(0.2, openingDeadline - CACurrentMediaTime())
+            travel.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            layer.position = position
+            layer.add(travel, forKey: "identity.position")
+        }
+        CATransaction.commit()
     }
 
     func retire(measured: Bool = false) {
@@ -299,8 +353,12 @@ public struct NativeThreadPreparedReader<Content: View>: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var contentReady = false
     @State private var revealed = false
+    private let bodyLayoutReady: Bool
     private let content: () -> Content
-    public init(@ViewBuilder content: @escaping () -> Content) { self.content = content }
+    public init(bodyLayoutReady: Bool = true, @ViewBuilder content: @escaping () -> Content) {
+        self.bodyLayoutReady = bodyLayoutReady
+        self.content = content
+    }
     private var entranceHidden: Bool {
         contentReady && !preparing && !revealed && scenePhase == .active
     }
@@ -321,7 +379,7 @@ public struct NativeThreadPreparedReader<Content: View>: View {
                 .background {
                     // Reuse the layout-commit gate so the transparent pose is
                     // rendered before admission, including warm reader opens.
-                    NativeReadingEntranceStage(enabled: !preparing && contentReady && !revealed) {
+                    NativeReadingEntranceStage(enabled: !preparing && bodyLayoutReady && contentReady && !revealed) {
                         withAnimation(scenePhase != .active ? nil : .easeOut(duration: 0.2)) {
                             revealed = true
                         }
