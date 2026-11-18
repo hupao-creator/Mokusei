@@ -18,7 +18,7 @@ To hide a report, right-click its card and choose **Archive Super Thread**. This
 
 ## Browse reports in a collection
 
-A collection shows one report at a time. Move the pointer over its cover to show the arrows and page controls. The cover, page count, and report text stay in place as the controls appear. Use an arrow to turn one page, or open **Select Super Thread** to choose a report by title. Click the cover to read the displayed report.
+A collection shows one report at a time. Move the pointer over its cover to show the arrows and page controls. The cover, page count, and report text stay in place as the controls appear. Use an arrow to turn one page, or open the page menu between the arrows to choose a report by title. Collections of up to seven reports also have a clickable marker for each page. Click the cover to read the displayed report.
 
 Click the page count in the upper-right corner to see all the reports together. The count is available even when the pointer is outside the card. Click a report to read it, or use its upper-right **Archive Super Thread** button to archive it and hide its linked conversations. Press **Esc** to close the collection panel.
 
