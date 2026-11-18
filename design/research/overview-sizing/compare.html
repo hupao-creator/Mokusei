@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Mokusei · Overview 尺寸对照</title>
+<style>
+:root{color-scheme:light;--paper:#f7f7f2;--ink:#242d2a;--muted:#53615b;--line:#c7cdc5;--accent:#29594c}
+*{box-sizing:border-box}body{margin:0 auto;max-width:1500px;padding:clamp(16px,3vw,50px);background:var(--paper);color:var(--ink);font:15px/1.55 Inter,-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}h1{font-size:clamp(27px,4vw,46px);letter-spacing:-.04em;margin:0}h2{font-size:20px;margin:1.5em 0 .45em}p{margin:.4em 0;color:var(--muted)}select,button{font:inherit;padding:5px 8px;border:1px solid #aeb6ae;border-radius:5px;background:white;color:var(--ink)}button{cursor:pointer}.inputs{display:flex;gap:12px 24px;flex-wrap:wrap;margin:20px 0;padding:14px 0;border-block:1px solid var(--line)}label{display:grid;gap:3px;font-size:13px}#plots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}figure{margin:0}figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:6px;flex-wrap:wrap}figcaption strong{font-weight:650}svg{width:100%;display:block;margin-top:5px;background:#e5e9e3}small{color:var(--muted)}.tablebox{overflow-x:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}th{font-size:13px;color:var(--muted)}.samplebox{overflow:auto}.sample{padding:12px 18px;margin:.7em 0;background:white;border-left:3px solid var(--accent);line-height:1.55}.sample span{display:block}.tools{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}@media(max-width:690px){#plots{grid-template-columns:1fr}}
+</style>
+<main>
+<h1>Overview 尺寸对照</h1>
+<p>选择窗口与同一组卡片，比较固定基格与随窗口变化的 5×4 基格。每个字母代表一张卡。12 张混排与 20 张单卡都可以填满 5×4。所有尺寸来自几何计算。下图按比例缩略，字号样张单独显示。</p>
+<div class="inputs">
+<label>客户区窗口（pt）<select id="windowSize"></select></label>
+<label>混排样本<select id="fixture"></select></label>
+<label>窗口内容倍率<select id="appZoom"><option>1</option><option>1.2</option><option>1.44</option><option>2.0736</option></select></label>
+<label>相机比较方式<select id="mode"><option value="auto">各方案自动取景</option><option value=".7">统一假设 0.70×</option><option value=".85">统一假设 0.85×</option><option value=".92">统一假设 0.92×</option><option value="1">统一假设 1.00×</option><option value="1.25">统一假设 1.25×</option><option value="1.5">统一假设 1.50×</option></select></label>
+</div>
+<p id="region"></p>
+<p>灰色为窗口，虚线内为取景区。浅绿卡完整落在取景区，琥珀色卡越过取景边距，仍可能部分或全部露在窗口内。顶部和底部的短线标出常驻控件预留边界。</p>
+<h2>同一构图下的画布</h2><div id="plots"></div>
+<div class="tools"><h2>可见尺寸与容量</h2><button id="download" type="button">导出全部窗口的自动取景 CSV</button></div>
+<div class="tablebox"><table><thead><tr><th>方案</th><th>未钳制 fit</th><th>相机倍率</th><th>1×1 卡（窗口 pt）</th><th>可排单卡列 × 行</th><th>标题 / 摘要 / 元数据（pt）</th><th>超出取景宽 / 高（pt）</th></tr></thead><tbody id="rows"></tbody></table></div>
+<h2>字号样张</h2><p>按 1 个 CSS px 代表 1 个窗口 pt 排字。请在浏览器 100% 下相对比较。字体回退、屏幕缩放和观看距离会影响实物观感。</p>
+<div id="samples" class="samplebox"></div>
+<h2>原生卡片证据</h2><p>单独打开本页即可计算；随报告附带的图片展示生产组件的渲染结果。<a href="density-demo/comparison.png">普通卡原字号</a> · <a href="density-demo/grid-before.png">20 卡现行取景</a> · <a href="density-demo/grid-after.png">20 卡自适应取景</a> · <a href="native-cards.png">带权限操作的 2×1 卡</a></p>
+<h2>进入会话并打开 Sidecard</h2><p id="panels"></p>
+</main>
+<script id="calculator">
+const gap = 16;
+const windows = [
+  ["最小窗口",860,600], ["初始窗口",1180,780], ["中等非全屏",1320,820],
+  ["14 英寸近铺满",1512,900], ["16 英寸近铺满",1728,1035],
+  ["1080p 工作区近铺满",1920,998], ["1440p 工作区近铺满",2560,1358],
+  ["外屏并排窗口",1240,1280], ["四卡原生记录窗口",1632,961]
+];
+// Fixed coordinates isolate footprint and zoom. Matching letters are one card.
+const fixtures = [
+  ["3 张 · 3×2",["ABB","AC."]],
+  ["6 张 · 4×2",["ABBC","ADEF"]],
+  ["6 张 · 3×3",["ABB","ACD","EF."]],
+  ["10 张 · 4×4",["AABB","AACD","EECF","GHIJ"]],
+  ["12 张 · 填满 5×4",["AABBK","AACDK","EECFL","GHIJL"]],
+  ["20 张单卡 · 填满 5×4",["ABCDE","FGHIJ","KLMNO","PQRST"]],
+  ["4 张 · 填满 3×2",["ABB","ACD"]]
+];
+const plans = [
+  {name:"现行",w:414,h:253,floor:1},
+  {name:"原卡 · 下限 0.92",w:414,h:253,floor:.92},
+  {name:"紧凑 · 下限 0.92",w:384,h:240,floor:.92},
+  {name:"紧凑 · 下限 0.875",w:384,h:240,floor:.875},
+  {name:"紧凑 · 下限 0.70",w:384,h:240,floor:.7},
+  {name:"窗口 5×4 · 原字号",adaptive:true,floor:1}
+];
+const span = (count, cell) => count * cell + (count - 1) * gap;
+function rectangles(grid) {
+  const cards = new Map();
+  grid.forEach((line,y) => Array.from(line).forEach((id,x) => {
+    if (id === ".") return;
+    if (!cards.has(id)) cards.set(id,{id,x,y,cols:1,rows:1});
+    const card = cards.get(id);
+    card.cols = Math.max(card.cols,x-card.x+1);
+    card.rows = Math.max(card.rows,y-card.y+1);
+  }));
+  return [...cards.values()];
+}
+function viewport(window,app) {
+  const w = window[1]/app, h = window[2]/app;
+  const compact = w <= 620;
+  const margin = compact ? 32 : 64;
+  const toolbar = compact ? 120 : 60;
+  const dock = Math.min(h,44 + Math.max(24,Math.min(36,h*.05)));
+  const freeHeight = Math.max(0,h-toolbar-dock);
+  const vertical = Math.min(freeHeight/2,Math.max(0,margin-dock/2));
+  return {w,h,toolbar,dock,x:margin,y:toolbar+vertical,
+          width:w-2*margin,height:freeHeight-2*vertical};
+}
+function measure(window,fixture,plan,app,mode) {
+  const v = viewport(window,app), grid = fixture[1];
+  if (plan.adaptive) plan = {...plan,w:(v.width-4*gap)/5,h:(v.height-3*gap)/4};
+  const bw = span(grid[0].length,plan.w), bh = span(grid.length,plan.h);
+  const fit = Math.min(v.width/bw,v.height/bh);
+  const z = mode === "auto" ? Math.max(plan.floor,Math.min(1,fit)) : Number(mode);
+  const left = v.x + (v.width-bw*z)/2, top = v.y + (v.height-bh*z)/2;
+  const cards = rectangles(grid).map(card => {
+    const x = left+card.x*(plan.w+gap)*z, y = top+card.y*(plan.h+gap)*z;
+    const width = span(card.cols,plan.w)*z, height = span(card.rows,plan.h)*z;
+    const epsilon = 1e-8;
+    const inside = x>=v.x-epsilon && y>=v.y-epsilon &&
+      x+width<=v.x+v.width+epsilon && y+height<=v.y+v.height+epsilon;
+    return {...card,x,y,width,height,inside};
+  });
+  const capacity = (room,cell) => Math.floor((room/z+gap)/(cell+gap)+1e-10);
+  return {v,plan,fit,z,k:z*app,cards,cols:capacity(v.width,plan.w),rows:capacity(v.height,plan.h),
+    excessW:Math.max(0,bw*z-v.width)*app,excessH:Math.max(0,bh*z-v.height)*app};
+}
+function sidecard(v,fraction) {
+  const side = Math.min(76,Math.max(12,(v.w-320)/2));
+  const panel = Math.max(1,v.w-2*side);
+  const height = v.h-Math.min(58,Math.max(12,v.h*.1))-Math.min(88,Math.max(12,v.h*.15));
+  if (panel<760) return {stack:true,main:panel,side:panel,height:(height-16)/2};
+  const room = panel-16;
+  const width = Math.min(Math.max(320,room-360),Math.max(320,Math.round(room*fraction)));
+  return {stack:false,main:room-width,side:width,height};
+}
+</script>
+<script>
+const el = id => document.getElementById(id);
+const fmt = (n,places=1) => Number(n.toFixed(places));
+function options(id,data,selected) {
+  data.forEach((row,i) => el(id).add(new Option(row.length===3 ? row[0]+" · "+row[1]+"×"+row[2] : row[0],i)));
+  el(id).selectedIndex = selected;
+}
+options("windowSize",windows,3);
+options("fixture",fixtures,4);
+function draw(result) {
+  const {v,cards} = result;
+  const ink = cards.map(c => {
+    const fill = c.inside ? "#c0ddcb" : "#efcf9e";
+    return '<rect x="'+c.x+'" y="'+c.y+'" width="'+c.width+'" height="'+c.height+'" rx="14" fill="'+fill+'" stroke="#596b60" stroke-width="2"/>'+
+      '<text x="'+(c.x+c.width/2)+'" y="'+(c.y+c.height/2)+'" text-anchor="middle" dominant-baseline="central" font-size="30" fill="#273c32">'+c.id+' · '+c.cols+'×'+c.rows+'</text>';
+  }).join("");
+  return '<svg aria-hidden="true" viewBox="0 0 '+v.w+' '+v.h+'">'+ink+
+    '<rect x="'+v.x+'" y="'+v.y+'" width="'+v.width+'" height="'+v.height+'" fill="none" stroke="#334a41" stroke-dasharray="10 7" stroke-width="3"/>'+
+    [v.toolbar,v.h-v.dock].map(y => '<path d="M '+(v.w*.42)+' '+y+' h '+v.w*.16+'" stroke="#52655c" stroke-width="4"/>').join("")+'</svg>';
+}
+function render() {
+  const win = windows[el("windowSize").value], fixture = fixtures[el("fixture").value];
+  const app = Number(el("appZoom").value), mode = el("mode").value;
+  const v = viewport(win,app);
+  el("region").textContent = '布局客户区 '+fmt(v.w)+' × '+fmt(v.h)+' pt，取景区 '+fmt(v.width)+' × '+fmt(v.height)+' pt。假设有标签和空闲 Moku Dock。此处单独比较相机钳制；窗口放大时仍沿用各列下限，便于观察倍率相乘的效果。';
+  el("plots").replaceChildren(); el("rows").replaceChildren(); el("samples").replaceChildren();
+  for (const plan of plans) {
+    const r = measure(win,fixture,plan,app,mode), k = r.k;
+    const full = r.cards.filter(c=>c.inside).length;
+    const figure = document.createElement("figure");
+    figure.innerHTML = '<figcaption><strong>'+plan.name+' · '+fmt(r.plan.w,2)+'×'+fmt(r.plan.h,2)+'</strong><small>'+fmt(r.z,3)+'× · 区内完整 '+full+' / '+r.cards.length+'</small></figcaption>'+draw(r);
+    el("plots").append(figure);
+    const tr = el("rows").insertRow();
+    [plan.name,fmt(r.fit,3),fmt(r.z,3),fmt(r.plan.w*k)+' × '+fmt(r.plan.h*k),r.cols+' × '+r.rows,
+      [15,11.5,11].map(f=>fmt(f*k,2)).join(' / '),fmt(r.excessW)+' / '+fmt(r.excessH)].forEach(value=>tr.insertCell().textContent=value);
+    const sample = document.createElement("div"); sample.className="sample";
+    sample.innerHTML = '<small>'+plan.name+'</small><span style="font-weight:620;font-size:'+15*k+'px">核对发布前的变更</span><span style="font-size:'+11.5*k+'px">还有两处引用需要核实。先检查来源，再更新摘要。</span><span style="color:#566259;font-size:'+11*k+'px">Codex · 运行中 · 02:18</span>';
+    el("samples").append(sample);
+  }
+  const panelText = (label,fraction) => {
+    const p = sidecard(v,fraction);
+    return label+'：'+(p.stack?'上下各 '+fmt(p.main)+' × '+fmt(p.height):'主栏 '+fmt(p.main)+'、侧栏 '+fmt(p.side)+'，共高 '+fmt(p.height))+' 布局 pt';
+  };
+  el("panels").textContent = [panelText("Execution",1/3),panelText("Browser",.5)].join('。')+'。采用默认分栏比例。打开阅读面板会覆盖 Overview，返回画布后使用上面的取景区。';
+}
+document.querySelectorAll("select").forEach(select=>select.addEventListener("change",render));
+el("download").addEventListener("click",()=>{
+  const app = Number(el("appZoom").value);
+  const csv = [["window","width_pt","height_pt","window_scale","fixture","plan","base_w","base_h","raw_fit","camera","cell_cols","cell_rows","complete_in_frame","overflow_w_pt","overflow_h_pt"]];
+  for (const win of windows) for (const fixture of fixtures) for (const plan of plans) {
+    const r = measure(win,fixture,plan,app,"auto");
+    csv.push([...win,app,fixture[0],plan.name,r.plan.w,r.plan.h,r.fit,r.z,r.cols,r.rows,r.cards.filter(c=>c.inside).length,r.excessW,r.excessH]);
+  }
+  const blob = new Blob(["\uFEFF"+csv.map(row=>row.join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob); link.download = "overview-sizing-"+app+"x.csv"; link.click();
+  setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+});
+render();
+</script>
+</html>
