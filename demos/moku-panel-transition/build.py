@@ -22,7 +22,7 @@ if not options.skip_build:
                     "--product", "Mokusei"], cwd=repo, check=True)
 replay = NativeReplay(repo, "MokuPanelPreview", "com.mokusei.moku-panel-preview")
 try:
-    replay.compile([source / "main.swift"])
+    replay.compile([source / "main.swift", source / "CollapseCapture.swift"])
     retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-panel-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     application = retained / replay.application.name

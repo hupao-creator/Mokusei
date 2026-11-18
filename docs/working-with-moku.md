@@ -6,6 +6,8 @@ In **Overview**, click Moku's eyes or press **⌘⇧B** to open its input box. W
 
 In an agent conversation, the input at the bottom shows the conversation name and the agent's icon. Messages there go to that conversation. If you've selected an earlier run, your message picks up from the run you're reading. In a Super Thread report, open a card in **Related executions** before sending a follow-up to the source conversation. [Agent conversations](task-conversations.md)
 
+When Moku is at the bottom of **Overview**, click outside its input box or press **Esc** to close it. Your unsent draft is there when you open the box again.
+
 ## Choose project folders and attach files
 
 Type `@` and choose a folder from the suggestions. Check that it appears in the input box before you send. You can choose more than one folder and tell Moku what to look at in each. Moku also takes the selected folder in Overview into account, and folders you explicitly add to the message take priority. Tasks without a project folder go into Inbox, whose tags appear in the main filter bar in Overview.

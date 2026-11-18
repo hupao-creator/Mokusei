@@ -8,11 +8,12 @@ import MokuseiPluginUI
 
 @MainActor @Observable private final class Preview {
     let scene = NativeMokuSceneState()
-    let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+    var draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var running = true
     var landing = false
     var transitionsDisabled = false
     var thread = true
+    var collapseCapture = false
     var status = "普通 Thread · 点击胶囊打开，Escape 或外部点击收起"
     var resize: (CGSize) -> Void = { _ in }
 }
@@ -34,7 +35,9 @@ private struct Surface: View {
             }
         } thread: { Color.white } dock: {
             NativeMokuDock(state: model.scene, draft: model.draft, cwd: "/fixture",
-                landing: model.landing, threadTitle: model.thread ? "修复历史执行工具消息泄漏" : nil,
+                landing: model.landing,
+                threadID: model.collapseCapture && model.thread ? "fixture-agent" : nil,
+                threadTitle: model.thread ? "修复历史执行工具消息泄漏" : nil,
                 mode: model.running ? .running : .idle, running: model.running,
                 loadMentionDirectories: { ["Mokusei", "Design", "Research"].map {
                     NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
@@ -42,8 +45,10 @@ private struct Surface: View {
                 onCancel: { model.running = false })
         } settings: { EmptyView() }
         .environment(\.locale, Locale(identifier: "zh-Hans"))
+        .environment(\.scenePhase, model.collapseCapture ? .active : scenePhase)
         .transaction { if model.transitionsDisabled { $0.animation = nil; $0.disablesAnimations = true } }
     }
+    @Environment(\.scenePhase) private var scenePhase
 }
 
 private struct Controls: View {
@@ -71,6 +76,29 @@ private struct Controls: View {
     var window: NSWindow!
     var controls: NSPanel!
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--capture-collapse") {
+            model.collapseCapture = true
+            window = NSPanel(contentRect: .init(x: 100, y: 100, width: 1024, height: 650),
+                styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.title = "Moku collapse replay"
+            window.contentView = NSHostingView(rootView: Surface(model: model))
+            window.orderBack(nil)
+            Task {
+                do {
+                    try await captureCollapse(window: window, scene: model.scene, agentDraft: model.draft) { draft in
+                        model.thread = false
+                        model.running = false
+                        model.draft = draft
+                    }
+                } catch {
+                    print("Collapse capture failed:", error)
+                    exit(EXIT_FAILURE)
+                }
+                NSApp.terminate(nil)
+            }
+            return
+        }
         window = NSWindow(contentRect: .init(x: 100, y: 100, width: 1024, height: 650),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "Moku panel · isolated production preview"
@@ -96,7 +124,11 @@ private struct Controls: View {
             }
         }
     }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // A nonactivating panel need not count as an open main window.
+        // Capture owns termination until the movie and observations are sealed.
+        !model.collapseCapture
+    }
 
     // A presentation reel, not a regression suite: no assertions or test runner.
     // It records the actual production views, including intermediate native pixels.
@@ -192,7 +224,7 @@ private struct Controls: View {
         try prepareIsolatedNativeReplay()
         NativeTypography.registerFonts()
         let app = NSApplication.shared
-        app.setActivationPolicy(.regular)
+        app.setActivationPolicy(CommandLine.arguments.contains("--capture-collapse") ? .accessory : .regular)
         let delegate = Delegate(); app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }

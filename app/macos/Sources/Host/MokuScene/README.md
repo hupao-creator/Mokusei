@@ -106,8 +106,14 @@ Its measured height changes the shell without replacing the editor or its
 selection owner through entry, exit and rapid reversal. No completion replay
 is configured in this source tree.
 
-Input collapse fades the retained editor within 120ms of the close intent, even
-while `inputLeaving` keeps its native lifetime for 420ms. The shell and the single
+Input collapse hides the composer immediately. The shell and eyes continue
+their motion while `inputLeaving` keeps the ordinary closing editor mounted for
+420ms. Returning from an Agent conversation to Overview closes the reading
+panel's input gate while the workspace still owns the outgoing draft. The
+composer and its directory suggestions hide at that point. When the route
+releases the row, it has no SwiftUI exit fade. Reopening
+restores the active draft and its selection. Talk has independent presentation
+and can become readable when input closes. The shell and the single
 identity seat share destination geometry in the same animation transaction; no
 delayed expansion fraction or intrinsic/fixed row switch moves the identity.
 The shell is positioned by its bottom edge so height changes cannot first move
@@ -115,8 +121,9 @@ AppKit text to a new row and then translate it back. Native editor internals lay
 out at their destination width while the shell reveals/clips them. Below 260pt
 of capsule width a persistent four-seat Layout gives text/attachment and
 identity/actions separate rows, preserving the same native editor through resize.
-The surface height stays within the available viewport. The [isolated panel preview](../../../../../demos/moku-panel-transition/README.md)
-records this repair's source-video evidence, local validation and limits.
+The surface height stays within the available viewport. The
+[isolated panel replay](../../../../../demos/moku-panel-transition/README.md#collapse-replay)
+captures intermediate frames and checks the retained editor and Talk handoff.
 
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least

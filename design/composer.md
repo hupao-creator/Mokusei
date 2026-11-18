@@ -52,8 +52,11 @@ The Dock uses one persistent character/eyes owner and one glass shell. The
 168×44pt resident capsule, expanded editor, directory suggestions and actions
 share production layout. Below 260pt available width, the editor and action
 seats form two rows without replacing the NSTextView. The editor remains
-scrollable and the shell stays within the viewport. Closing intent fades input
-ink in 120ms while retaining editor lifetime for the shell's 420ms travel.
+scrollable and the shell stays within the viewport. Closing input hides its ink
+immediately while retaining the native editor for the shell's 420ms travel.
+Returning to Overview hides the Agent composer as soon as the reading panel
+blocks input, including the interval before the workspace releases the draft.
+See the [Dock contract](../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer).
 
 Native horizontal travel retains the current position on retargeting and moves
 directly to the committed destination column. A route owns column markers;

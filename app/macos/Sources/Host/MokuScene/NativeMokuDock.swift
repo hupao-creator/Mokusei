@@ -290,7 +290,10 @@ public struct NativeMokuDock: View {
         threadTitle == nil && !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
         !submitting && !draft.submitting && interaction == nil && displayedMessage == nil
     }
-    private var completionVisible: Bool { inputPresent && !retaining && directoryMentions.isOpen }
+    // The workspace retains the selected Agent while its reader returns to
+    // Overview. Input is already closed to interaction during that motion.
+    private var composerVisible: Bool { inputPresent && state.inputOpen && state.inputInteractionReady }
+    private var completionVisible: Bool { composerVisible && !retaining && directoryMentions.isOpen }
     private var mentionsEnabled: Bool {
         sidecardComposer == nil && state.dockRouteVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
     }
@@ -724,7 +727,7 @@ public struct NativeMokuDock: View {
                          noteHeight: CGFloat, noteAvailableHeight: CGFloat, decorationPadding: CGFloat, settingsSize: CGSize) -> some View {
         let actionLayout = noteActions(width: surface.width)
         let historyBand = noteHistoryBand(width: surface.width)
-        let composerVisible = inputPresent && state.inputOpen
+        let composerEntrance = state.readingPanelVisible ? NativeReadingPageTiming.openingAnimation : .easeIn(duration: 0.42)
         let followsEditor = (inputPresent && displayedMessage == nil) || composerSeatHeld || continuationPresenting
         // Settings always settles the composer expansion at 1 and retires the
         // row above the face, so the seat it lands on is known without reading
@@ -762,17 +765,20 @@ public struct NativeMokuDock: View {
                     .transaction(value: width) { $0.animation = nil }
                     .geometryGroup()
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { capsuleHeight = max(58, $0) }
-                    // Let the eyes clear the text seat on expansion; fade prose
-                    // quickly before they cross it again during collapse. Scope
-                    // this curve to ink so it cannot retime native row placement.
-                    .animation((composerVisible
-                        ? (state.readingPanelVisible ? NativeReadingPageTiming.openingAnimation : .easeIn(duration: 0.42))
-                        : .easeOut(duration: 0.12))) { content in
+                    // Let the eyes clear the text seat on expansion. At close
+                    // the editor stays mounted for selection, but its ink must
+                    // disappear before the shell and eyes cross that seat.
+                    .animation(composerVisible ? composerEntrance : nil) { content in
                         content.opacity(composerVisible ? 1 : 0)
                     }
-                    .allowsHitTesting(composerVisible && state.inputInteractionReady)
+                    .allowsHitTesting(composerVisible)
                     .disabled(state.settingsOpen || !state.inputInteractionReady)
                     .accessibilityHidden(!composerVisible)
+                    // A route can replace the draft or unmount the entire row
+                    // before it receives the hidden state. An implicit removal
+                    // fade would keep the outgoing text in the shrinking shell.
+                    .id(ObjectIdentifier(draft))
+                    .transition(.identity)
             }
         }
         .onChange(of: completionVisible) { _, visible in
@@ -788,7 +794,7 @@ public struct NativeMokuDock: View {
                     // Resolve the menu's target height once. The shell animates;
                     // the editor and its persistent face share the bottom edge.
                     .transaction { $0.animation = nil }
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .opacity, removal: .identity))
             }
         }
         .overlay(alignment: .bottomLeading) {
@@ -994,7 +1000,6 @@ public struct NativeMokuDock: View {
                 if state.ownsComposer(draft), state.inputOpen { editorBottomInset = $0 }
             },
             onEscape: escapeInput, onSend: send)
-            .id(ObjectIdentifier(draft))
     }
 
     private func send() {
