@@ -141,7 +141,7 @@ public struct NativeOverviewWorkspaceView: View {
         return .init(width: size.width, height: size.height,
                      toolbarBottom: size.width <= CGFloat(NativeOverviewCameraGeometry.compactViewportWidth) && hasFilters
                         ? OverviewTagMetrics.narrowToolbarClearance : OverviewTagMetrics.wideToolbarClearance,
-                     bottomReservedHeight: hasDock ? size.height - dock.minY + 2 : 0)
+                     bottomReservedHeight: hasDock ? size.height - dock.minY : 0)
     }
 
     private var emptyDetail: String {

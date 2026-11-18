@@ -204,28 +204,20 @@ is centered by the same solver at 1× even in the minimum window. Gaps are world
 
 Same-scene structural slot changes with identical members and viewport reuse geometry. Reuse still cancels any obsolete worker waiting for the spatial stage, so an A→B→A membership or viewport update cannot later publish B over A. Content-only updates do not enqueue layout. A viewport size change re-evaluates candidates because aspect can change the chosen arrangement. `layoutSolveCount` and `geometryReuseCount` expose these paths.
 
-The card viewport insets both vertical edges by the larger of the persistent
-tag bar and idle Dock clearances. The tag bar uses `OverviewTagMetrics`;
-the canvas and fixtures share `NativeOverviewViewportDefaults.toolbarBottom`.
-If equal insets would consume all the height, the card viewport uses the
-actual space between the two controls. The framing region adds product margins
-inside that viewport and omits the vertical margin when it would consume all
-remaining height. The shell and semantic card planes clip to the card viewport
-in automatic and manual modes. Window dragging still uses the actual header.
+The tag bar and idle Dock reserve space for packing. The tag bar uses
+`OverviewTagMetrics` and the canvas and fixtures share
+`NativeOverviewViewportDefaults.toolbarBottom`. The shell and semantic planes
+draw across the full window. Controls float above cards during panning.
 
-For `B` = the union of the latest world card frames and `V` = the framing
-region, the solver computes `fitScale = min(V.width / B.width, V.height / B.height)`,
-`scale = max(1, min(explicitScaleCap, fitScale))` and
-`translation = V.center - scale × B.center`. The presentation camera raises the
-projected card top to the card viewport's top when the centered target would
-put the first row above it. Horizontally it stays centered. The 1× floor and
-explicit 1× cap are shared by automatic framing and manual zoom. Panning reaches
-overflowing cards. Without a cap the fit scale still respects the 1× floor.
-Window zoom independently ranges from 1× to 5×. Camera bookmarks normalize
-around the framing center before restoration or animation. Manual pan/zoom
-keeps its ownership through background layout work. An explicit return to
-automatic uses the latest target, including after pause, hiding or a failed
-or zero-viewport update. An empty collection disposes the camera.
+Automatic framing fits the union of card frames to the usable width and height
+with a 1× scale floor and the configured scale cap. It centers the union in
+that region, then moves the target down to the window midpoint if the usable
+center is above it. The same rule centers tall layouts at 1×. Panning can
+reach every card. Manual bookmarks and zoom use the original usable region.
+The window has a separate 1× to 5× zoom. Background layout preserves manual
+pan and zoom. Returning to automatic uses the latest complete snapshot,
+including after a pause, a hidden window or a failed or zero-area update.
+An empty collection disposes the camera.
 
 Geometry targets are latest-wins. Each new structural snapshot cancels the in-flight presentation, samples the current card poses and starts a new transition to the latest target; no FIFO of historical revisions is queued. A successful solve publishes placements, bounds and camera from the same input snapshot. An older task cannot publish after a newer token, cannot clear `isLayingOut` for a newer owner and cannot consume a newer revision. Content updates do not restart admitted work. Pausing settles the displayed sample and retains the latest pending target; hiding defers only the camera target. Resuming plans from the latest content rather than replaying omitted revisions.
 
@@ -270,9 +262,8 @@ with no persisted mode selector. Existing preferences and user data need no
 migration or cleanup.
 
 The workspace supplies the Dock reservation from the same idle capsule geometry
-used by the renderer (44pt height, its viewport-dependent bottom seat, and 2pt
-clearance above the capsule). Transient composer and note expansion stay in
-the interaction overlay and leave the card viewport fixed.
+used by the renderer (44pt height plus its viewport-dependent bottom seat). Transient composer/note expansion stays an interaction overlay and does not
+repack the scene. The reservation consumes the existing vertical padding budget when computing the usable size.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 

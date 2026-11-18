@@ -9,18 +9,19 @@ owns documents, exact execution references, binding and cover admission.
 The logical 1×1 grid cell is 320×196pt with 16pt gaps; 1×2 is 320×408pt and
 2×1 is 656pt wide. All window sizes share these metrics at the default 1× camera.
 In a 1512×900pt client area with filters and the idle Moku Dock, the framing
-region is 1384×690pt inside a card viewport with equal 82pt top and bottom
-insets. Twelve 1×1 cards occupy four columns and three rows (1328×620pt).
-At 1× the card envelope has 140pt above and below it, and card text keeps its
-declared point sizes.
+region is 1384×712pt. Twelve 1×1 cards occupy four columns and three rows
+(1328×620pt). Card text keeps its declared point sizes.
+
+At the default 1× camera, the card origins in this layout are x = 92, 428,
+764, 1100 and y = 140, 352, 564. The automatic target moves down by the
+distance from the usable center to the window center when the Dock leaves
+more clearance below. Cards draw across the full canvas during panning.
 
 The pure solver returns placements and bounds from one input.
 Mixed spans can fill gaps within horizontal or vertical bands. The four-card
 mix of a wide card, a tall card and two single cells fills a 3×2 or 2×3
 rectangle according to the usable viewport. FitAll centers the card union at
-the configured floor and cap. The presentation camera shows the first row
-at the top of the card viewport when the centered layout is too tall.
-Cards are clipped to the card viewport, and overflow is reachable by panning.
+the configured floor and cap. Overflow remains reachable by panning.
 Layout and camera targets are latest-wins, fenced by identity and
 revision. Content-only updates do not restart structural motion. Interrupted
 travel samples current poses; hidden work coalesces to the latest target.
