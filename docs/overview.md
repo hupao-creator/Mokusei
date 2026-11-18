@@ -10,7 +10,7 @@ When a Super Thread in the same view cites a task's latest run, Overview may sho
 
 ## Check progress and see what needs your attention
 
-Wide and tall cards can share a row with smaller cards filling the space beside or below them. If the cards extend beyond the window, pan to reach them. Click an empty part of the canvas to center the cards again.
+Wide and tall cards can share a row with smaller cards filling the space beside or below them. Click an empty part of the canvas to return to the default view. Cards are centered when they fit vertically. A taller layout starts at the first row, and you can pan to see the rest.
 
 Click a task card to open its conversation. Task cards show statuses such as **Running**, **Completed**, and **Interrupted**. If a card shows a question or a permission request, you can respond there or open the conversation for context first. **Background work is still running** means work is continuing, even if you already have a reply.
 

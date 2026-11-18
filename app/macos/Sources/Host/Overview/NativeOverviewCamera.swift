@@ -29,6 +29,8 @@ public struct NativeOverviewContentRect: Codable, Equatable, Sendable {
     }
 
     public static let zero = Self(left: 0, top: 0, width: 0, height: 0)
+
+    var frame: CGRect { CGRect(x: left, y: top, width: width, height: height) }
 }
 
 public struct NativeOverviewViewport: Equatable, Sendable {
@@ -109,6 +111,11 @@ public enum NativeOverviewCameraGeometry {
     public static func contentRegion(_ viewport: NativeOverviewViewport) -> NativeOverviewContentRect {
         let top = min(max(0, viewport.toolbarBottom), viewport.height)
         let bottom = max(top, viewport.height - max(0, viewport.bottomReservedHeight))
+        let inset = max(top, viewport.height - bottom)
+        if inset < viewport.height / 2 {
+            return .init(left: 0, top: inset, width: max(0, viewport.width), height: viewport.height - 2 * inset)
+        }
+        // At high window zoom the two controls may leave only an off-center strip.
         return .init(left: 0, top: top, width: max(0, viewport.width), height: bottom - top)
     }
 
@@ -118,7 +125,8 @@ public enum NativeOverviewCameraGeometry {
         let margin = viewport.width <= compactViewportWidth ? 32.0 : 64.0
         let left = min(margin, viewport.width / 2)
         let content = contentRegion(viewport)
-        let verticalMargin = min(content.height / 2, max(0, margin - viewport.bottomReservedHeight / 2))
+        let preferredVerticalMargin = max(0, margin - viewport.bottomReservedHeight / 2)
+        let verticalMargin = content.height > 2 * preferredVerticalMargin ? preferredVerticalMargin : 0
         let top = content.top + verticalMargin
         return .init(left: left, top: top, width: max(0, viewport.width - 2 * left),
                      height: max(0, content.height - 2 * verticalMargin))
@@ -146,7 +154,17 @@ public enum NativeOverviewCameraGeometry {
 
     public static func fit(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
                            scaleCap: Double? = NativeOverviewGeometryPolicy.standard.scaleCap) -> NativeOverviewTransform? {
-        centeredTransform(content: content, usable: framingRegion(viewport), scaleCap: scaleCap)
+        guard let centered = centeredTransform(content: content, usable: framingRegion(viewport), scaleCap: scaleCap)
+        else { return nil }
+        return keepingFirstRowVisible(centered, content: content, viewport: viewport)
+    }
+
+    static func keepingFirstRowVisible(_ transform: NativeOverviewTransform, content: NativeOverviewContentRect,
+                                       viewport: NativeOverviewViewport) -> NativeOverviewTransform {
+        // At the scale floor, keep the beginning of a tall layout in view.
+        var target = transform
+        target.y = max(target.y, contentRegion(viewport).top - content.top * target.scale)
+        return target
     }
 
     public static func zoom(_ transform: NativeOverviewTransform, cursor: CGPoint, nextScale: Double,
@@ -283,6 +301,9 @@ public final class NativeOverviewCamera {
     /// keeps its explicit transform.
     public func applyGeometry(content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
                               automatic: NativeOverviewTransform?) {
+        let automatic = automatic.map {
+            NativeOverviewCameraGeometry.keepingFirstRowVisible($0, content: content, viewport: viewport)
+        }
         geometry = .init(content: content, viewport: viewport, automatic: automatic)
         guard isInitialized else {
             guard !manual, content.width > 0, content.height > 0, let automatic else { return }

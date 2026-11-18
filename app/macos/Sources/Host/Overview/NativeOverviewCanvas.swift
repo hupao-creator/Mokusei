@@ -242,9 +242,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
         return GeometryReader { geometry in
             let viewport = NativeOverviewViewport(width: geometry.size.width, height: geometry.size.height,
                                                   toolbarBottom: toolbarBottom, bottomReservedHeight: bottomReservedHeight)
+            let cardViewport = NativeOverviewCameraGeometry.contentRegion(viewport).frame
+            let cardClip = OverviewCardClip(viewport: cardViewport)
             ZStack(alignment: .topLeading) {
                 // Window dragging must never enter the camera's manual pan gesture.
-                // Use the same header boundary as automatic camera framing.
+                // Use the actual header clearance even when the card viewport is inset further.
                 Color.clear.contentShape(Rectangle())
                     .frame(height: max(0, toolbarBottom))
                     .gesture(WindowDragGesture())
@@ -252,28 +254,33 @@ public struct NativeOverviewCanvas<Content: View>: View {
                     .onTapGesture { if state.allowsBackgroundAutoFocus() { state.camera.returnToAuto() } }
                     .gesture(pan)
                     .padding(.top, max(0, toolbarBottom))
-                OverviewCameraPlane(camera: state.camera, visible: visible, ignoreLayout: true) {
-                    ZStack(alignment: .topLeading) {
-                        ForEach(placements, id: \.id) { placement in
-                            if let item = records[placement.id] {
-                                cardShell(placement, slot: item)
+                ZStack(alignment: .topLeading) {
+                    OverviewCameraPlane(camera: state.camera, visible: visible, ignoreLayout: true) {
+                        ZStack(alignment: .topLeading) {
+                            ForEach(placements, id: \.id) { placement in
+                                if let item = records[placement.id] {
+                                    cardShell(placement, slot: item)
+                                }
                             }
                         }
+                        .frame(width: displayWidth, height: displayHeight, alignment: .topLeading)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                     }
-                    .frame(width: displayWidth, height: displayHeight, alignment: .topLeading)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                }
-                OverviewCameraPlane(camera: state.camera, visible: visible) {
-                    ZStack(alignment: .topLeading) {
-                        ForEach(placements, id: \.id) { placement in
-                            if let item = records[placement.id] {
-                                semanticCard(placement, slot: item, size: geometry.size)
+                    OverviewCameraPlane(camera: state.camera, visible: visible) {
+                        ZStack(alignment: .topLeading) {
+                            ForEach(placements, id: \.id) { placement in
+                                if let item = records[placement.id] {
+                                    semanticCard(placement, slot: item, viewport: cardViewport)
+                                }
                             }
                         }
+                        .frame(width: displayWidth, height: displayHeight, alignment: .topLeading)
                     }
-                    .frame(width: displayWidth, height: displayHeight, alignment: .topLeading)
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                .clipShape(cardClip)
+                .contentShape(cardClip)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background {
@@ -328,10 +335,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
     private func cardShell(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState) -> some View {
         return OverviewCardShell(slot: slot, pose: pose(placement), motion: cardMotions[placement.id], visible: visible).equatable()
     }
-    private func semanticCard(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState, size: CGSize) -> some View {
+    private func semanticCard(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState, viewport: CGRect) -> some View {
         return OverviewCardSemantic(
             slot: slot, pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
-            viewport: size, coordinateSpace: ownership,
+            viewport: viewport, coordinateSpace: ownership,
             cloudAnimationsEnabled: inheritedCloudAnimationsEnabled && cloudAnimationsEnabled,
             isLayingOut: state.isLayingOut, isActive: state.activeIDs.contains(slot.id),
             localeIdentifier: locale.identifier, contentIdentity: cardContentIdentity,
@@ -755,6 +762,14 @@ public struct NativeOverviewCanvas<Content: View>: View {
 
 }
 
+private struct OverviewCardClip: Shape {
+    let viewport: CGRect
+
+    func path(in rect: CGRect) -> Path {
+        Path(viewport.offsetBy(dx: rect.minX, dy: rect.minY))
+    }
+}
+
 /// Only this transform wrapper samples camera motion; card content keeps its identity.
 private struct OverviewCameraPlane<Content: View>: View {
     let camera: NativeOverviewCamera
@@ -831,7 +846,7 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     let pose: OverviewCardPose
     let motion: OverviewCardMotion?
     let visible: Bool
-    let viewport: CGSize
+    let viewport: CGRect
     let coordinateSpace: UUID
     let cloudAnimationsEnabled: Bool
     let isLayingOut: Bool
@@ -877,7 +892,7 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
 private struct OverviewSwiftUICard<Content: View>: View, Equatable {
     nonisolated let item: NativeOverviewItem
     nonisolated let visible: Bool
-    nonisolated let viewport: CGSize
+    nonisolated let viewport: CGRect
     nonisolated let coordinateSpace: UUID
     nonisolated let contentIdentity: ObjectIdentifier?
     let content: (NativeOverviewItem) -> Content
@@ -891,7 +906,7 @@ private struct OverviewSwiftUICard<Content: View>: View, Equatable {
         let coordinateSpace = coordinateSpace, viewport = viewport
         content(item).environment(\.threadCardAnimationVisibility, animationVisibility)
             .onGeometryChange(for: Bool.self) { proxy in
-                proxy.frame(in: .named(coordinateSpace)).intersects(CGRect(origin: .zero, size: viewport))
+                proxy.frame(in: .named(coordinateSpace)).intersects(viewport)
             } action: { value in inViewport = value; animationVisibility.isVisible = visible && value }
             .onAppear { animationVisibility.isVisible = visible && inViewport }
             .onChange(of: visible) { _, value in animationVisibility.isVisible = value && inViewport }
