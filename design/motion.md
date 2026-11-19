@@ -1,8 +1,9 @@
 # Native motion and admission
 
 In the [Super Thread member grid](../app/macos/Sources/Host/Overview/README.md#viewed-application-collections),
-macOS Reduce Motion switches directly to the ready reader when you open a
-member. It also settles member removals and the
+macOS Reduce Motion skips the member zoom and grid crossfade when you open a
+member. The reader can show its usual loading state while the report loads.
+Reduce Motion also settles member removals and the
 [final Overview card exit](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
 immediately. Other application-owned animations use their ordinary timing,
 curves and completion gates. Visibility, focus, occlusion,

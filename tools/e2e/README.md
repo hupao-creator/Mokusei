@@ -132,9 +132,9 @@ collection's page count, then activate the same visible member in separate runs
 with a pointer click and Accessibility Press. Record the window through reader
 arrival. Verify the report identity and title, and check that the cover grows
 toward the panel center across intermediate frames. Close the reader and check
-which cover is selected on Overview. Repeat with Reduce Motion and check for a
-direct switch. Record whether Reduce Motion came from the system setting or a
-replay-local environment override.
+which cover is selected on Overview. Repeat with Reduce Motion and check that
+the grid zoom and crossfade are absent. Record any reader loading state and
+whether Reduce Motion came from the system setting or a replay-local override.
 The [member panel contract](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
 owns the geometry and interaction gates.
 

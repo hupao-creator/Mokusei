@@ -569,8 +569,9 @@ frame. The count is behind the expanded surface, not a second floating control.
 Opening a member keeps the grid in place while the selected Report reader mounts.
 The grid zooms toward the activated card while fading into the reader. The visible
 card frame supplies the center and scale, keeping its cover in proportion.
-Reduce Motion switches directly to the mounted reader. Both surfaces gate
-input and accessibility during the handoff.
+Reduce Motion skips the grid zoom and crossfade. The reader layout can be
+mounted while the report content is still loading. Both surfaces gate input
+and accessibility during the handoff.
 Closing the reader returns to the current Overview card for that report.
 Outside a member handoff, inactive, offscreen and removed collections dismiss the
 panel. Dismissed card actions cannot open a second member. The lower page menu

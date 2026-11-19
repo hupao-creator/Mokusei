@@ -40,9 +40,11 @@ blank-margin dismissal and Escape arbitration to the existing reading stack.
 Explicit Close refreshes the carousel source frame. For a navigation accepted
 from a grid member, the host keeps the grid visible until the destination reader
 commits its layout. It zooms the outgoing grid from the measured member frame and
-crossfades to that reader. Reduce Motion admits the ready reader immediately. Covering routes
-retire the visit; source removal dismisses an unclaimed grid. Callers refresh the contents when
-member facts change and retain their own selection, playback and data lifetimes.
+crossfades to that reader. Reduce Motion skips the grid animation at layout
+admission. The report content has its own loading state. Covering routes retire
+the visit; source removal dismisses an unclaimed grid. Callers refresh the
+contents when member facts change and retain their own selection, playback and
+data lifetimes.
 The collection parent remains mounted for those updates while drawing, input and
 accessibility are suppressed. The shared compositor's auxiliary lane stays
 outside the collection's Liquid Glass panel. Close floats over the panel and
