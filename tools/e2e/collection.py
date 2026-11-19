@@ -1,5 +1,5 @@
 """Exercise pressure, return selection, promotion and the two-cell release margin."""
-import time
+import subprocess
 
 from adapter import wait_for
 from report import save
@@ -49,6 +49,10 @@ def journey(desktop, reports):
                    for group in groups for item in group["memberEligibility"])
         return state
 
+    # Activate only the unique isolated application. The control socket checks
+    # its PID on every observation, and reading must actually own the key window.
+    bundle = desktop.session.app.args[0]
+    subprocess.run(["/usr/bin/open", "-a", bundle.rsplit("/Contents/", 1)[0]], check=True, timeout=10)
     initial = observe("initial", 16, refs[:2])
     directory = next(f for f in initial["overview"]["filters"] if f["scope"] == reports[0]["scope"]
                      and f["kind"] == "directory")
@@ -57,20 +61,19 @@ def journey(desktop, reports):
     desktop.request({"name": "filter.select", "filterId": None})
     observe("grouped", 16, refs[:2])
 
-    def visit(seconds):
+    def visit(qualify):
         desktop.request({"name": "thread.open", **refs[1]})
-        desktop.stable(lambda s: s["page"] == "thread" and s["selectedThread"] == refs[1])
-        time.sleep(seconds)
-        desktop.reconnect()
+        desktop.stable(lambda s: s["page"] == "thread" and s["selectedThread"] == refs[1]
+                       and s["reading"]["foreground"])
+        if qualify:
+            wait_for(desktop.request, lambda s: s["reading"]["collectionEligibility"]["lastQualifiedAt"] is not None, 50)
         desktop.request({"name": "overview.show"})
 
-    visit(0.2)
+    visit(False)
     closed = observe("closed", 16, refs[:2])
     group = next(c for c in closed["overview"]["cards"] if "members" in c)
     assert group["ref"] == refs[1]
-    # Allow a full first-visit threshold even if the first brief route did
-    # not own foreground before departure.
-    visit(46)
+    visit(True)
     returned = observe("return", 16, [refs[0], refs[2]])
     promoted = next(c for c in returned["overview"]["cards"] if c.get("id") == refs[1]["threadId"])
     assert promoted["collectionEligibility"]["lastQualifiedAt"]

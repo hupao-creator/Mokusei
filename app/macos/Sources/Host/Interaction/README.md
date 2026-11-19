@@ -79,6 +79,9 @@ Individual report observations expose `collectionEligibility`. Collections expos
 the same fields per real member in `memberEligibility`. `lastClosedAt` and
 `lastQualifiedAt` use epoch milliseconds or null. `defaultsToCollection`
 describes the reading history and `collected` the current space's projection.
+The reading snapshot reports the actual foreground gate, window activity, scene
+focus and entrance admission. A selected report also exposes its reading evidence
+while the retained canvas is hidden.
 
 ## E2E contract
 

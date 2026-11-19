@@ -85,7 +85,7 @@ python3 tools/e2e/run.py verify output/e2e/interaction
 Output directories must be new; no rerun overwrites evidence. The default
 `supported` suite requests Overview, Reading and Settings. Use `--suite collection` on the
 same run command to check the populated camera and the report budget under its real clock. It enables
-the isolated Report Agent and waits for actual closes on mounted reports.
+the isolated Report Agent, activates the uniquely bundled test application and waits for the mounted reader to own foreground before timing visits.
 `all` additionally requests collection and Composer. Composer requires `--operator-composer` and real external
 input receipts. `--suite composer` selects just that scenario. No scenario is
 silently skipped. The desktop lease uses atomic directory creation, records
