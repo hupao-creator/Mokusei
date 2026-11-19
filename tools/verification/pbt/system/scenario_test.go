@@ -340,7 +340,7 @@ trace_exporter = "none"
 					}
 				}
 				receipts := map[string]bool{}
-				ids := []string{"system_note"}
+				ids := []string{"system_note", "system_stale_stop"}
 				for i := 0; i < scopes; i++ {
 					ids = append(ids, createCallID(i))
 				}
@@ -352,6 +352,11 @@ trace_exporter = "none"
 				for _, request := range mock.requests {
 					for _, id := range ids {
 						if hasResult(request["input"], id) {
+							if id == "system_stale_stop" && !receipts[id] {
+								if e := verifyStaleStop(request["input"]); e != nil {
+									failures = append(failures, e.Error())
+								}
+							}
 							receipts[id] = true
 						}
 					}

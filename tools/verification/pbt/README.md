@@ -20,7 +20,7 @@ selects only these entries and requires evidence that they actually ran.
 
 | Property ID | Contract and generated domain | Oracle / boundary |
 | --- | --- | --- |
-| PBT-RUNTIME-ADMISSION | [Runtime](../../../internal/core/runtime/README.md): 1–25 native accept/reject/end/failure/cancel actions | Exact retry permission, execution identity, one event per acknowledgement; real Runtime + SQLite |
+| PBT-RUNTIME-ADMISSION | [Runtime](../../../internal/core/runtime/README.md) with 1–25 native accept/reject/end/failure/cancel actions followed by two Moku stop requests | Exact retry permission, execution identity, one event per acknowledged input, acknowledged or stale stops and exact interruption provenance in real Runtime + SQLite |
 | PBT-MOKU-OUTBOX | [Runtime](../../../internal/core/runtime/README.md): 1–12 rounds of 1–10 lazy/waking arrivals, attempts, rejection/acknowledgement, reopen/reconcile | Stable order, atomic uncertainty fences, exact-batch removal, late arrivals retained; not scheduler wake behavior |
 | PBT-MOKU-SCOPE | [Moku](../../../internal/services/moku/README.md): two owners, 1–12 executions, permuted/duplicate callbacks and configuration installs | Highest observed owner revision controls tools; retired scopes cancel |
 | PBT-MOKU-QUEUE | [Moku](../../../internal/services/moku/README.md): 1–8 cohorts of 1–12 waiters and cancellation subsets | Cancelled waiters release behind held owner; surviving admission is exclusive; queue reusable |
@@ -32,7 +32,7 @@ selects only these entries and requires evidence that they actually ran.
 | PBT-OVERVIEW-GEOMETRY | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): 0–18 cards, generated footprints/viewports/caps | Independent geometry constraints, regular-grid lower bound and exact area/fit of shuffled six-tile rectangles |
 | PBT-OVERVIEW-COLLECTION | [Collection budget](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries), 0–20 fixed cells and 1–2 types of 0–10 ordered eligible reports | Exhaustive prefix scoring covers idle groups, pressure and the two-cell release margin. Generated visits check length-adjusted foreground dwell, pauses, 24-hour aging and repeated short visits. |
 | PBT-OVERVIEW-STATE | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): generated clearances, sparse and crowded starts, 18 event attempts plus reduced corpus | Mounted membership, scale and rendered frame center after returning to automatic |
-| PBT-SYSTEM-COMBINATION | [Runtime](../../../internal/core/runtime/README.md#property-boundaries): 1–3 scopes, role-wise HTTP/SSE faults, action sequence and restart | Real Codex, composition and loopback provider. Checks scoped effects including visibility immediately after each Report archive or restore, plus retained facts. |
+| PBT-SYSTEM-COMBINATION | [Runtime](../../../internal/core/runtime/README.md#property-boundaries) with 1–3 scopes, role-wise HTTP/SSE faults, action sequence and restart | Real Codex, composition and loopback provider. Checks ordered tool results for finished, missing and repeated stop targets, visibility immediately after each Report archive or restore, scoped effects and retained facts. |
 
 The limited cross-boundary properties have distinct value: Codex's absorbing
 terminal state supplies Runtime execution facts. Codex cache writes can occur

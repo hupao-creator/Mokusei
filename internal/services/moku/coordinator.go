@@ -462,7 +462,7 @@ func (c *Coordinator) CancelTarget(ctx context.Context, request model.Cancellati
 		return model.CancellationResult{}, err
 	}
 	if record.ID != request.ThreadID {
-		return model.CancellationResult{Status: "stale"}, nil
+		return model.CancellationResult{Status: model.CancellationStale}, nil
 	}
 	if c.config.InterruptThreadTarget == nil {
 		return model.CancellationResult{}, errors.New("Moku fenced interruption capability unavailable")

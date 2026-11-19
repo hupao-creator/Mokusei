@@ -198,7 +198,7 @@ func (p *provider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if tool == "" {
 			var err error
-			tool, call, args, err = mokuReadPlan(req["input"])
+			tool, call, args, err = mokuTerminalPlan(req["input"])
 			if err != nil {
 				p.mu.Lock()
 				p.failures = append(p.failures, err.Error())

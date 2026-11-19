@@ -8,8 +8,8 @@
 AsciiDoc、README、文本运行说明/生产 prompt、证据文本及 LICENSE，包含隐藏 `.agents/`
 和 `CLAUDE.md` 符号链接：共 **197** 个范围标识，其中 **190** 项自有/适用文档、
 **7** 项第三方原文/生成数据。范围标识数量不是当前文件数量。
-当前树有 **150** 个文档候选：下表 **143** 项自有/适用入口，另列 **7** 项第三方输入；
-其中 **23** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
+当前表覆盖 **151** 个文档候选，其中下表 **144** 项为自有/适用入口，另列 **7** 项第三方输入。
+其中 **24** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
 逐项映射到当前事实所有者；日志接口类标识明确映射到现有能力边界，不声明日志实现。
 
 第三方依赖源码、SwiftPM/Go 缓存、构建输出、图片/字体二进制、JSON/CSV 原始采样和
@@ -81,6 +81,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [design/note-exposure.md](../../design/note-exposure.md) | 主路径/符号/约束静态核对；[NativeMokuNote.swift](../../app/macos/Sources/Host/MokuScene/NativeMokuNote.swift)、[NativeMarkdownView.swift](../../app/macos/Sources/Shared/PluginUI/Reading/NativeMarkdownView.swift)、[moku.go](../../internal/core/runtime/moku.go) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
 | [design/overview.md](../../design/overview.md) | 主路径/符号/约束静态核对；[NativeOverviewLayout.swift](../../app/macos/Sources/Host/Overview/NativeOverviewLayout.swift)、[NativeOverviewCamera.swift](../../app/macos/Sources/Host/Overview/NativeOverviewCamera.swift)、[ThreadCardText.swift](../../app/macos/Sources/Shared/PluginUI/Cards/ThreadCardText.swift) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
 | [design/reading.md](../../design/reading.md) | 主路径/符号/约束静态核对；[ThreadConversation.swift](../../app/macos/Sources/Shared/PluginUI/Conversation/ThreadConversation.swift)、[ThreadExecutionGroups.swift](../../app/macos/Sources/Shared/PluginUI/Conversation/ThreadExecutionGroups.swift)、[NativeHarnessThreadSurface.swift](../../app/macos/Sources/Host/HarnessHost/NativeHarnessThreadSurface.swift) | 限源码与引用；异常/竞态/环境行为未经动态认证 |
+| [design/state-machines.md](../../design/state-machines.md) | 生产状态、转换与归属索引，链接到 Go 服务、原生宿主及插件实现 | 清单依据源码，各生成域与回放覆盖见[验证索引](facts.md) |
 | [design/thread-open-animation-profile/sampling-notes.txt](../../design/thread-open-animation-profile/sampling-notes.txt) | 测量制品/来源/限制核对；[closing-updates.json](../../design/thread-open-animation-profile/closing-updates.json)、[compositor-observation.json](../../design/thread-open-animation-profile/compositor-observation.json) | 仅记录的版本/制品；未重测、未重算全部统计，不认证当前源码 |
 | [docs/README.md](../../docs/README.md) | 产品导航与[文档约定](../../AGENTS.md#文档驱动) | 入口与主题静态核对 |
 | [docs/getting-started.md](../../docs/getting-started.md) | [Alpha 安装说明](../../app/macos/build/alpha-installation.txt)、[首次设置](../../app/macos/Sources/Host/Onboarding/NativeOnboardingSurface.swift)、[首次设置状态](../../app/macos/Sources/Host/Onboarding/NativeOnboardingState.swift) | 静态核对；未验证实际安装、登录和设置交互 |

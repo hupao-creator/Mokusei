@@ -87,6 +87,12 @@ remain owned by their existing boundaries. Moku tool operations do not decorate
 card borders; returning from a reader must not replay an operation-completion
 edge flash. The workspace-level running list-refresh indicator remains separate.
 
+Overview projects a finished `interrupt_thread` from its tool acknowledgement.
+The compact catalog carries just the batch `ok`. A detailed transcript can
+identify each target by its argument position and matching Thread ID, including
+duplicates. A missing or mismatched acknowledgement leaves the outcome unknown.
+Tool dispatch errors remain failures. [Operation projection](NativeOverviewMokuOperations.swift)
+
 ## Card update isolation
 
 [NativeOverviewContentStore](NativeOverviewContentStore.swift) separates the

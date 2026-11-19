@@ -114,7 +114,7 @@ func (p *provider) fanoutPlan(ctx context.Context, req object, declarations []an
 
 // Moku retains its independent native-history question capability. Read only
 // after an actual completion notification; this is evidence review, not polling.
-func mokuReadPlan(input any) (tool, call string, args object, err error) {
+func mokuTerminalPlan(input any) (tool, call string, args object, err error) {
 	const marker = "Mokusei Agent Thread terminal event:\n"
 	for _, raw := range list(input) {
 		message := record(raw)
@@ -151,6 +151,19 @@ func mokuReadPlan(input any) (tool, call string, args object, err error) {
 			if result["ok"] != true || result["threadId"] != id || result["answer"] != "SYSTEM_CHILD_DONE" {
 				return "", "", nil, fmt.Errorf("Moku native read evidence mismatch: %v", value)
 			}
+		}
+	}
+	// The history read follows a completed-child notification. The driver
+	// withholds successor inputs until the peer has received the stop results.
+	if hasResult(input, createCallID(0)) && !hasResult(input, "system_stale_stop") {
+		created, err := resultJSON(input, createCallID(0))
+		if err != nil {
+			return "", "", nil, err
+		}
+		child := record(created)
+		if hasResult(input, mokuReadCallID(text(child["executionId"]))) {
+			id := text(child["threadId"])
+			return "interrupt_thread", "system_stale_stop", object{"threadIds": []string{id, "missing-stop-target", id}}, nil
 		}
 	}
 	return "", "", nil, nil

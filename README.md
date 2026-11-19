@@ -42,6 +42,7 @@ demos/               Native interaction prototypes
 
 See [native build and packaging](app/macos/build/README.md) for Mac client development, signing and verification.
 The [demo inventory](demos/README.md) distinguishes production-component previews from independent visual experiments.
+Use the [state machine inventory](design/state-machines.md) to find which component owns a transition, what triggers it and where its outcome is observable.
 
 Directory groups organize existing modules. Swift target names and dependencies
 are declared in `app/macos/Package.swift`; Go package dependencies are checked by

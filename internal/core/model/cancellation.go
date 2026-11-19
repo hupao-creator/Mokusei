@@ -7,6 +7,15 @@ type CancellationRequest struct {
 	ExpectedCancellationID string `json:"expectedCancellationId"`
 }
 
+type CancellationStatus string
+
+const (
+	CancellationCancelled CancellationStatus = "cancelled"
+	CancellationStale     CancellationStatus = "stale"
+)
+
+// CancellationResult describes the stop request. The execution's final
+// status and interruption provenance belong to the Thread observation and record.
 type CancellationResult struct {
-	Status string `json:"status"`
+	Status CancellationStatus `json:"status"`
 }

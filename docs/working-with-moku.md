@@ -8,6 +8,8 @@ In an agent conversation, the input at the bottom shows the conversation name an
 
 When Moku is at the bottom of **Overview**, click outside its input box or press **Esc** to close it. Your unsent draft is there when you open the box again.
 
+To stop several tasks, name them in one message to Moku. Mokusei tries each task and tells Moku which stop requests succeeded. A task that has already finished and has no work left keeps its original result, and Mokusei still tries the other tasks you named.
+
 ## Choose project folders and attach files
 
 Type `@` and choose a folder from the suggestions. Check that it appears in the input box before you send. You can choose more than one folder and tell Moku what to look at in each. Moku also takes the selected folder in Overview into account, and folders you explicitly add to the message take priority. Tasks without a project folder go into Inbox, whose tags appear in the main filter bar in Overview.

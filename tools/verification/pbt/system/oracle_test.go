@@ -8,6 +8,37 @@ import (
 	"slices"
 )
 
+func verifyStaleStop(input any) error {
+	created, err := resultJSON(input, createCallID(0))
+	if err != nil {
+		return err
+	}
+	id := text(record(created)["threadId"])
+	value, err := resultJSON(input, "system_stale_stop")
+	if err != nil {
+		return err
+	}
+	batch := record(value)
+	items := list(batch["results"])
+	if batch["ok"] != false || len(items) != 3 {
+		return fmt.Errorf("expected three unsuccessful stop attempts, got %v", batch)
+	}
+	for i, target := range []string{id, "missing-stop-target", id} {
+		item := record(items[i])
+		if item["threadId"] != target || item["ok"] != false || text(item["error"]) == "" {
+			return fmt.Errorf("stop target %d has incorrect identity or outcome: %v", i, item)
+		}
+		var wantStatus any
+		if target == id {
+			wantStatus = "stale"
+		}
+		if item["status"] != wantStatus {
+			return fmt.Errorf("stop target %d has incorrect Runtime status: %v", i, item)
+		}
+	}
+	return nil
+}
+
 func verifyFanout(state model.AppState, workspaces []string) error {
 	children := map[string]model.ThreadRecord{}
 	for _, thread := range state.Threads {
