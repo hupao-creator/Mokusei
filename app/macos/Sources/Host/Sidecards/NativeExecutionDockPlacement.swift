@@ -1,5 +1,6 @@
 import AppKit
 import MokuseiCore
+import MokuseiPluginUI
 import Observation
 import SwiftUI
 
@@ -107,6 +108,7 @@ struct NativeExecutionDockRegion: NSViewRepresentable {
     var threadID: JSONText?
     var onSettled: () -> Void = {}
     var destination: CGRect?
+    @Environment(\.nativeReadingEntranceReady) private var readingReady
     @Environment(\.nativeExecutionDockRoute) private var route
 
     func destinationFrame(_ frame: CGRect?) -> some View {
@@ -122,7 +124,9 @@ struct NativeExecutionDockRegion: NSViewRepresentable {
     func updateNSView(_ view: RegionView, context: Context) {
         if view.placement !== placement { view.placement?.detach(view) }
         view.placement = placement; view.active = active; view.dragging = dragging; view.threadID = threadID
-        view.route = route; view.ready = ready
+        // A returning reader suppresses its Sidecards before releasing the
+        // route. That temporary absence cannot publish a full-window seat.
+        view.route = route; view.ready = ready && readingReady
         view.destination = destination
         view.onSettled = onSettled
         placement?.attach(view)

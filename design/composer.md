@@ -32,8 +32,9 @@ panel-margin click closes detail only after a completed press. Reader,
 Sidecards, capsule and directory candidates keep their normal actions. Press
 ownership survives AppKit committing marked text or dismissing a popup.
 TOC selection changes drafts without stealing focus. Initial input and explicit
-Browser annotation retain autofocus; a pending request waits for eligibility and
-runs once. Incoming-reader publication cannot be cleared by its outgoing owner.
+Browser annotation retain autofocus. The Dock requests automatic focus as the
+current editor's text becomes visible. Explicit focus can acquire the admitted
+editor earlier. Incoming-reader publication cannot be cleared by its outgoing owner.
 
 An unselected Super Thread document/list denies input expansion through the
 shared scene gate, including capsule, shortcut/menu and automation requests.
@@ -55,7 +56,8 @@ seats form two rows without replacing the NSTextView. The editor remains
 scrollable and the shell stays within the viewport. Closing input hides its ink
 immediately while retaining the native editor for the shell's 420ms travel.
 Returning to Overview hides the Agent composer as soon as the reading panel
-blocks input, including the interval before the workspace releases the draft.
+blocks input. The outgoing shell keeps its reading column until route release.
+The editor reveals its input ink at its settled position during expansion.
 See the [Dock contract](../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer).
 
 Native horizontal travel retains the current position on retargeting and moves

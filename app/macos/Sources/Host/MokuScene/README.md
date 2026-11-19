@@ -121,16 +121,17 @@ composer and its directory suggestions hide at that point. When the route
 releases the row, it has no SwiftUI exit fade. Reopening
 restores the active draft and its selection. Talk has independent presentation
 and can become readable when input closes. The shell and the single identity
-seat move in the same animation transaction. In the wide layout, the composer
-and identity share a persistent geometry group and horizontal offset.
-The attachment button and input ink fade in to the right of the moving eyes
-or Harness logo. The bottom-anchored editor lays out at its destination width
-while the expanding shell reveals it. Below 260pt of capsule width, the same
-editor and attachment button occupy a row above the identity and actions.
-Resizing preserves the native editor.
-The surface height stays within the available viewport. The
-[isolated panel replay](../../../../../demos/moku-panel-transition/README.md#collapse-replay)
-captures the Report execution entrance and checks the retained editor and Talk handoff.
+seat move in the same transaction. The editor overlay reserves its final width
+and height before the editor mounts. In the wide layout, input ink appears to
+the right of the Harness logo after the logo clears the final text seat. Below
+260pt of capsule width, text and attachments occupy the row above the identity
+and actions. The editor fades in during the last tenth of shell expansion.
+Returning reading panels retain their last admitted Dock column through the
+return. Resize preserves the native editor and the shell fits the viewport.
+The [Agent entrance replay](../../../../../demos/moku-panel-transition/README.md#agent-entrance-replay)
+checks the settled text origin, focus and return. The
+[Report replay](../../../../../demos/moku-panel-transition/README.md#collapse-replay)
+covers the wide and narrow logo clearance and execution-list input gate.
 
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least
@@ -535,9 +536,9 @@ a travel wait. Once input is admitted, later card choices move the retained edit
 without folding it. Direct resizing settles without a delay.
 Scene-level input admission also gates interaction restoration,
 input controls and focus; navigation cannot bypass it by reconfiguring the draft.
-Automatic focus uses its existing 180ms delay from input expansion, with
-draft/generation checks. That delay does not disable admitted native click/Tab
-focus. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,
+Automatic focus follows the current composer visit's ink reveal. The Dock
+requests focus when the reveal reaches 10% opacity. Admitted click and Tab
+focus remain available during opening. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,
 without changing its draft, send generation or suppressed automatic-focus policy;
 accepted Close also suspends input hit testing/focus through the panel's live
 motion state without folding the retained shell. The fitted Dock

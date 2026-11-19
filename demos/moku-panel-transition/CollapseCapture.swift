@@ -11,8 +11,6 @@ private struct CollapseCaptureError: Error, CustomStringConvertible {
 @MainActor func captureCollapse(window: NSWindow, scene: NativeMokuSceneState, selectExecution: () -> Void,
                                 returnToReportList: () -> Void,
                                 selectOverviewDraft: (NativeComposerDraft) -> Void) async throws {
-    let destination = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("collapse")
-    try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
     let overviewDraft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     let text = "草稿 🦉 stays in Overview.\nThe second line stays too."
     let selection = NSRange(location: 3, length: 2)
@@ -27,22 +25,8 @@ private struct CollapseCaptureError: Error, CustomStringConvertible {
     }
 
     try await pause(350)
-    let shareable = try await SCShareableContent.currentProcess
-    guard let ownWindow = shareable.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }),
-          let content = window.contentView else { throw CollapseCaptureError(description: "Replay window unavailable") }
-    let config = SCStreamConfiguration()
-    config.width = Int(window.frame.width * 2)
-    config.height = Int(window.frame.height * 2)
-    config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
-    config.showsCursor = false
-    config.ignoreShadowsSingleWindow = true
-    let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: ownWindow), configuration: config, delegate: nil)
-    let recordingConfig = SCRecordingOutputConfiguration()
-    recordingConfig.outputURL = destination.appendingPathComponent("window.mp4")
-    let recordingDelegate = CollapseRecordingDelegate()
-    let recording = SCRecordingOutput(configuration: recordingConfig, delegate: recordingDelegate)
-    try stream.addRecordingOutput(recording)
-    try await stream.startCapture()
+    guard let content = window.contentView else { throw CollapseCaptureError(description: "Replay content unavailable") }
+    let movie = try await DockMovieCapture(window: window, folder: "collapse")
     let start = ContinuousClock.now
     var events: [[String: Any]] = []
     func event(_ name: String) {
@@ -135,15 +119,48 @@ private struct CollapseCaptureError: Error, CustomStringConvertible {
     } catch {
         failure = String(describing: error)
     }
-    try stream.removeRecordingOutput(recording)
-    for try await _ in recordingDelegate.completion {}
-    try await stream.stopCapture()
+    try await movie.finish()
     let foregroundUnchanged = foreground == NSWorkspace.shared.frontmostApplication?.processIdentifier
     if failure == nil && !foregroundUnchanged { failure = "Foreground application changed during capture" }
     try JSONSerialization.data(withJSONObject: ["events": events, "foregroundUnchanged": foregroundUnchanged,
         "failure": failure as Any? ?? NSNull()], options: [.prettyPrinted, .sortedKeys])
-        .write(to: destination.appendingPathComponent("observations.json"), options: .atomic)
+        .write(to: movie.directory.appendingPathComponent("observations.json"), options: .atomic)
     if let failure { throw CollapseCaptureError(description: failure) }
+}
+
+@MainActor struct DockMovieCapture {
+    let directory: URL
+    private let stream: SCStream
+    private let recording: SCRecordingOutput
+    private let delegate: CollapseRecordingDelegate
+
+    init(window: NSWindow, folder: String) async throws {
+        directory = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent(folder)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        let shareable = try await SCShareableContent.currentProcess
+        guard let ownWindow = shareable.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
+            throw CollapseCaptureError(description: "Replay window unavailable")
+        }
+        let config = SCStreamConfiguration()
+        config.width = Int(window.frame.width * 2)
+        config.height = Int(window.frame.height * 2)
+        config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+        config.showsCursor = false
+        config.ignoreShadowsSingleWindow = true
+        stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: ownWindow), configuration: config, delegate: nil)
+        let output = SCRecordingOutputConfiguration()
+        output.outputURL = directory.appendingPathComponent("window.mp4")
+        delegate = CollapseRecordingDelegate()
+        recording = SCRecordingOutput(configuration: output, delegate: delegate)
+        try stream.addRecordingOutput(recording)
+        try await stream.startCapture()
+    }
+
+    func finish() async throws {
+        try stream.removeRecordingOutput(recording)
+        for try await _ in delegate.completion {}
+        try await stream.stopCapture()
+    }
 }
 
 private final class CollapseRecordingDelegate: NSObject, SCRecordingOutputDelegate, @unchecked Sendable {

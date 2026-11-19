@@ -10,78 +10,163 @@ import MokuseiPluginUI
 
 // A nonactivating panel can still take the user's keyboard independently of
 // the frontmost application. The replay drives its local first responder.
-private final class ComposerReplayPanel: NSPanel {
+class ComposerReplayPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
 
 @MainActor @Observable private final class Preview {
-    let scene = NativeMokuSceneState()
+    let readingMotion = NativeReadingPageMotion()
+    let scene: NativeMokuSceneState
     var draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var running = true
     var landing = false
     var transitionsDisabled = false
     var thread = true
     var collapseCapture = false
+    var agentEntranceCapture = false
+    var openingClock = CaptureOpeningClock.realtime
+    var title = "修复历史执行工具消息泄漏"
+    var readingRoute = UUID()
+    let overviewDraft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var sendReplay: PendingSendReplay?
-    var isolatedReplay: Bool { collapseCapture || sendReplay != nil }
+    var isolatedReplay: Bool { collapseCapture || agentEntranceCapture || sendReplay != nil }
     let route = UUID()
     let harness = AnyHarnessPlugin(CodexHarnessPlugin())
     var status = "普通 Thread · 点击胶囊打开，Escape 或外部点击收起"
     var resize: (CGSize) -> Void = { _ in }
+
+    init() { scene = NativeMokuSceneState(readingPanelMotion: readingMotion) }
+
+    func enterAgent(title: String, draft: NativeComposerDraft, openingClock: CaptureOpeningClock) {
+        self.openingClock = openingClock
+        self.title = title
+        thread = true
+        running = true
+        self.draft = draft
+        readingRoute = UUID()
+        scene.executionDockPlacement.beginRoute(readingRoute)
+        scene.readingPanelVisible = true
+        scene.overviewVisible = false
+        scene.setComposerContext(draft, opensInput: true, keepsInputOpen: true, inputAdmissionReady: false,
+                                 waitsForHarnessIdentity: true)
+    }
+
+    func finishReturn() {
+        thread = false
+        running = false
+        draft = overviewDraft
+        scene.executionDockPlacement.beginRoute(UUID())
+        scene.overviewVisible = true
+        scene.readingPanelVisible = false
+        scene.setComposerContext(draft, opensInput: false)
+    }
 }
 
 private struct Surface: View {
     let model: Preview
     var body: some View {
         NativeMokuScene(state: model.scene) {
-            Color(white: 0.91).overlay {
-                RoundedRectangle(cornerRadius: 18).fill(.white)
-                    .padding(.horizontal, 50).padding(.top, 54).padding(.bottom, 90)
-            }
-            .overlay(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("🔧  修复历史执行工具消息泄漏").font(.title2.bold())
-                    Text("仅内存 fixture · 复用生产 NativeMokuScene / Dock / 原生编辑器").foregroundStyle(.secondary)
-                    Text(model.status).font(.callout)
-                }.padding(.top, 90).padding(.leading, 85)
-            }
-            .background {
-                if model.collapseCapture {
-                    GeometryReader { geometry in
-                        NativeExecutionDockRegion(placement: model.scene.executionDockPlacement,
-                            active: model.thread, threadID: "fixture-agent",
-                            onSettled: {
-                                guard model.thread else { return }
-                                model.scene.setComposerContext(model.draft, opensInput: true, keepsInputOpen: true,
-                                    waitsForHarnessIdentity: true, autofocus: false)
-                            })
-                            .destinationFrame(CGRect(x: geometry.size.width / 2, y: 0,
-                                width: geometry.size.width / 2, height: geometry.size.height))
-                    }
+            if model.agentEntranceCapture {
+                NativeReadingPageStack(open: model.thread, identity: JSONText(model.readingRoute.uuidString),
+                    motion: model.readingMotion, stationaryParent: true, panel: true,
+                    threadPanelMotion: true, onClose: model.finishReturn) {
+                    Color(white: 0.91)
+                } front: {
+                    ColumnMarker(model: model)
+                        .environment(\.nativeExecutionDockRoute, model.readingRoute)
                 }
+            } else {
+                previewBackdrop
             }
         } thread: { Color.white } dock: {
-            NativeMokuDock(state: model.scene, draft: model.draft, cwd: "/fixture",
-                landing: model.landing,
-                threadID: model.isolatedReplay && model.thread ? "fixture-agent" : nil,
-                threadTitle: model.thread ? "修复历史执行工具消息泄漏" : nil,
-                threadHarness: model.collapseCapture ? model.harness : nil,
-                mode: model.running ? .running : .idle, running: model.running,
-                loadMentionDirectories: { ["Mokusei", "Design", "Research"].map {
-                    NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
-                } }, onSend: { submission in
-                    if let replay = model.sendReplay { try await replay.receive(submission) }
-                    else { model.status = "已模拟发送 · 未调用模型或 Runtime" }
-                },
-                onCancel: { model.running = false })
+            dock
         } settings: { EmptyView() }
         .environment(\.locale, Locale(identifier: "zh-Hans"))
         .environment(\.nativeExecutionDockRoute, model.route)
         .environment(\.scenePhase, model.isolatedReplay ? .active : scenePhase)
         .transaction { if model.transitionsDisabled { $0.animation = nil; $0.disablesAnimations = true } }
     }
+    private var previewBackdrop: some View {
+        Color(white: 0.91).overlay {
+            RoundedRectangle(cornerRadius: 18).fill(.white)
+                .padding(.horizontal, 50).padding(.top, 54).padding(.bottom, 90)
+        }
+        .overlay(alignment: .topLeading) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("🔧  修复历史执行工具消息泄漏").font(.title2.bold())
+                Text("仅内存 fixture · 复用生产 NativeMokuScene / Dock / 原生编辑器").foregroundStyle(.secondary)
+                Text(model.status).font(.callout)
+            }.padding(.top, 90).padding(.leading, 85)
+        }
+        .background {
+            if model.collapseCapture {
+                GeometryReader { geometry in
+                    NativeExecutionDockRegion(placement: model.scene.executionDockPlacement,
+                        active: model.thread, threadID: "fixture-agent",
+                        onSettled: {
+                            guard model.thread else { return }
+                            model.scene.setComposerContext(model.draft, opensInput: true, keepsInputOpen: true,
+                                waitsForHarnessIdentity: true, autofocus: false)
+                        })
+                        .destinationFrame(CGRect(x: geometry.size.width / 2, y: 0,
+                            width: geometry.size.width / 2, height: geometry.size.height))
+                }
+            }
+        }
+    }
+
+    private var dock: some View {
+        var dock = NativeMokuDock(state: model.scene, draft: model.draft, cwd: "/fixture",
+            landing: model.landing,
+            threadID: model.isolatedReplay && model.thread ? "fixture-agent" : nil,
+            threadTitle: model.thread ? model.title : nil,
+            threadHarness: model.collapseCapture || (model.agentEntranceCapture && model.thread) ? model.harness : nil,
+            mode: model.running ? .running : .idle, running: model.running,
+            loadMentionDirectories: { ["Mokusei", "Design", "Research"].map {
+                NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
+            } }, onSend: { submission in
+                if let replay = model.sendReplay { try await replay.receive(submission) }
+                else { model.status = "已模拟发送 · 未调用模型或 Runtime" }
+            },
+            onCancel: { model.running = false })
+        // Install the fixture clock before input admission in the nested Dock host.
+        if model.openingClock == .heldFrames {
+            dock.readingInputAnimation = Animation(HeldOpeningFrames())
+        }
+        return dock
+    }
+
     @Environment(\.scenePhase) private var scenePhase
+}
+
+// The workspace suppresses the selected Sidecard as soon as primary reading
+// motion starts. Keep its marker mounted through return, as the reader does.
+private struct ColumnMarker: View {
+    let model: Preview
+    @Environment(\.nativeReadingEntranceReady) private var entranceReady
+    @State private var columnMounted = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = min(404, proxy.size.width / 2)
+            let frame = CGRect(x: proxy.size.width - width, y: 0, width: width, height: proxy.size.height)
+            let active = columnMounted && !model.readingMotion.active
+            Color.white.background {
+                NativeExecutionDockRegion(placement: model.scene.executionDockPlacement,
+                    active: active, ready: columnMounted, threadID: "fixture-agent",
+                    onSettled: {
+                        guard model.thread, entranceReady, active else { return }
+                        model.scene.setComposerContext(model.draft, opensInput: true, keepsInputOpen: true,
+                            waitsForHarnessIdentity: true)
+                    })
+                    .destinationFrame(active ? frame : nil)
+            }
+            .onChange(of: entranceReady, initial: true) { _, ready in
+                if ready { columnMounted = true }
+            }
+        }
+    }
 }
 
 @MainActor func makePeerComposerPanel(draft: NativeComposerDraft, replay: PendingSendReplay) -> NSPanel {
@@ -125,6 +210,10 @@ private struct Controls: View {
     var window: NSWindow!
     var controls: NSPanel!
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--capture-agent-entrance") {
+            startAgentEntranceCapture()
+            return
+        }
         let replaySend = CommandLine.arguments.contains("--replay-send")
         model.collapseCapture = CommandLine.arguments.contains("--capture-collapse")
         if replaySend || model.collapseCapture {
@@ -144,11 +233,9 @@ private struct Controls: View {
             let width: CGFloat = CommandLine.arguments.contains("--narrow") ? 480 : 1024
             let frame = NSRect(x: 100, y: 100, width: width, height: 650)
             let style: NSWindow.StyleMask = [.titled, .nonactivatingPanel]
-            window = replaySend
-                ? ComposerReplayPanel(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
-                : NSPanel(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
+            window = ComposerReplayPanel(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
-            if replaySend { window.ignoresMouseEvents = true }
+            window.ignoresMouseEvents = true
             window.title = replaySend ? "Moku pending send replay" : "Moku collapse replay"
             window.contentView = NSHostingView(rootView: Surface(model: model))
             window.orderBack(nil)
@@ -202,6 +289,40 @@ private struct Controls: View {
             }
         }
     }
+    private func startAgentEntranceCapture() {
+        model.agentEntranceCapture = true
+        let replay = PendingSendReplay()
+        model.sendReplay = replay
+        model.thread = false
+        model.running = false
+        let panel = CollapseCapturePanel(contentRect: .init(x: 100, y: 100, width: 1024, height: 650),
+            styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false)
+        window = panel
+        panel.isReleasedWhenClosed = false
+        panel.title = "Moku Agent entrance replay"
+        panel.contentView = NSHostingView(rootView: Surface(model: model))
+        panel.installCaptureMarkers()
+        // Leave only a click-through edge on screen. A fully occluded
+        // window can deliver static endpoints even to current-process capture.
+        window.ignoresMouseEvents = true
+        if let screen = NSScreen.screens.max(by: { $0.frame.maxX < $1.frame.maxX }) {
+            window.setFrameOrigin(.init(x: screen.frame.maxX - 2, y: screen.visibleFrame.minY))
+        }
+        window.orderFrontRegardless()
+        Task {
+            do {
+                try await captureAgentEntrance(window: panel, scene: model.scene, overviewDraft: model.overviewDraft,
+                    enterAgent: model.enterAgent, closeAgent: model.readingMotion.close)
+                try await replay.verifyHandoff(window: panel, scene: model.scene, agent: model.draft,
+                    overview: model.overviewDraft, closeAgent: model.readingMotion.close)
+            } catch {
+                print("Agent entrance replay failed:", error)
+                exit(EXIT_FAILURE)
+            }
+            NSApp.terminate(nil)
+        }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         // A nonactivating panel need not count as an open main window.
         // Capture owns termination until the movie and observations are sealed.
@@ -302,7 +423,7 @@ private struct Controls: View {
         try prepareIsolatedNativeReplay()
         NativeTypography.registerFonts()
         let app = NSApplication.shared
-        app.setActivationPolicy((CommandLine.arguments.contains("--capture-collapse") || CommandLine.arguments.contains("--replay-send")) ? .accessory : .regular)
+        app.setActivationPolicy((CommandLine.arguments.contains("--capture-collapse") || CommandLine.arguments.contains("--capture-agent-entrance") || CommandLine.arguments.contains("--replay-send")) ? .accessory : .regular)
         let delegate = Delegate(); app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }

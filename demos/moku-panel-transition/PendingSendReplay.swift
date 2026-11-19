@@ -35,6 +35,46 @@ private struct ReplayFailure: Error, CustomStringConvertible {
         guard process.terminationStatus == 0 else { throw ReplayFailure(description: "Failed child " + phase) }
     }
 
+    /// Continue from the capture's focused Agent to test a receipt across the recorded route handoff.
+    func verifyHandoff(window: NSWindow, scene: NativeMokuSceneState, agent: NativeComposerDraft,
+                       overview: NativeComposerDraft, closeAgent: () -> Void) async throws {
+        guard !window.canBecomeKey, window.ignoresMouseEvents, !NSApp.isActive,
+              scene.ownsComposer(agent), let editor = window.firstResponder as? NSTextView,
+              editor.isEditable else { throw ReplayFailure(description: "Missing focused Agent input") }
+        let overviewText = overview.text
+        let insertion = NSRange(location: NSNotFound, length: 0)
+        editor.insertText("A", replacementRange: insertion)
+        let send = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r",
+            isARepeat: false, keyCode: 36)!
+        editor.keyDown(with: send)
+        editor.insertText("B", replacementRange: insertion)
+        editor.setMarkedText("pin", selectedRange: NSRange(location: 3, length: 0), replacementRange: insertion)
+        guard sent.map(\.text) == ["A"], receipt != nil, agent.submitting, editor.hasMarkedText(),
+              editor.string == "Bpin", window.firstResponder === editor else {
+            throw ReplayFailure(description: "Pending send interrupted the Agent's next edit")
+        }
+        editor.insertText("拼", replacementRange: insertion)
+        guard !editor.hasMarkedText(), agent.text == "B拼" else {
+            throw ReplayFailure(description: "Agent composition failed to commit during send")
+        }
+        closeAgent()
+        let deadline = ContinuousClock.now + .seconds(4)
+        while !scene.overviewVisible && .now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        guard scene.overviewVisible, scene.ownsComposer(overview), !scene.inputOpen,
+              let pending = receipt else { throw ReplayFailure(description: "Pending send lost on return to Overview") }
+        receipt = nil
+        pending.resume(throwing: ReplayFailure(description: "late fixture rejection"))
+        let settlementDeadline = ContinuousClock.now + .seconds(4)
+        while agent.submitting && .now < settlementDeadline { try await Task.sleep(for: .milliseconds(10)) }
+        guard !agent.submitting, agent.error != nil, agent.text == "A\n\nB拼", sent.map(\.text) == ["A"],
+              !scene.inputOpen, scene.ownsComposer(overview), overview.text == overviewText,
+              !(window.firstResponder is NSTextView), !NSApp.isActive else {
+            throw ReplayFailure(description: "Late rejection changed the replacement input or lost the Agent draft")
+        }
+        print("Passed Agent Return, continued typing and composition, Overview return and late rejection with preserved focus and drafts.")
+    }
+
     func run(window: NSWindow, scene: NativeMokuSceneState, draft: NativeComposerDraft) async throws {
         try require(!window.canBecomeKey && window.ignoresMouseEvents, "Replay panel accepts session input")
         let foreground = NSWorkspace.shared.frontmostApplication?.processIdentifier
