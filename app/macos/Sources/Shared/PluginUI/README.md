@@ -1410,16 +1410,20 @@ and placement share those results. List markers, quote rules and footnote number
 use a fixed leading slot, so horizontal flexibility negotiation does not probe
 their paragraph at one-point width. SwiftUI owns right-to-left mirroring.
 
-Completed replies in a reading viewport mount top-level blocks near the visible
-area through a lazy vertical stack. Nested list/quote content and atomic tables
-or code blocks retain their width-driven layout. Documents with footnotes keep
-all native anchors mounted; exposure-tracked notes and streaming pages retain
-their exact geometry and existing admission policy. No cross-document height
-cache or cross-block selection registry remains.
+Completed replies use the width-driven column in both the main timeline and
+Super Thread's related-execution reader. For long documents,
+[reading sections](Reading/NativeMarkdownReadingSections.swift) reserve
+offscreen space from the block metrics at the actual reading width. Approaching
+a section mounts its blocks once for the visit. Reversing direction keeps those
+views, their measured heights and their native selections. Reading more of a
+document can therefore increase the number of mounted views. Short replies,
+footnote anchors and exposure-tracked notes use measured blocks throughout.
+See the [Markdown layout contract](../../../../../design/markdown.md) for the
+section sizes and streaming boundary.
 
-No native Markdown growth/resize/selection/table/footnote correctness replay is
-configured in this source tree. Image failure hints use the native text view's tooltip and
-accessibility help; ordinary text adds no SwiftUI help responder.
+The [local related-execution replay](../../../../../tools/e2e/README.md#super-thread-reading-regression)
+checks scroll direction changes, native selection and resize. Image failure
+hints use the native text view's tooltip and accessibility help.
 
 Markdown publishes the complete parsed document and acknowledges its token in
 the same update. A newer revision supersedes pending parse results, including

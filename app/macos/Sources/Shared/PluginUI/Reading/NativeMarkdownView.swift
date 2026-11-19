@@ -62,13 +62,6 @@ public struct NativeMarkdownView: View {
             fontSize: fontSize, muted: muted,
             openLink: actions.open, resolveMedia: media,
             anchorPrefix: model.anchorPrefix, actions: actions, executionLinkHarnesses: executionLinkHarnesses)
-        // Footnotes resolve through mounted native anchors; the parser appends
-        // their definitions at the document root. Exposure-tracked notes also
-        // retain exact document geometry rather than a lazy height estimate.
-        let deferBlocks = pageCapacity != nil && onDocumentApplied == nil && !model.blocks.contains {
-            if case .footnote = $0 { return true }
-            return false
-        }
         return Group {
             if pageCapacity != nil, streaming || hasStreamed {
                 // Page-level streaming keeps the open page invisible until it
@@ -82,8 +75,10 @@ public struct NativeMarkdownView: View {
                 // parsing Markdown, constructing blocks or resolving media.
                 MarkdownSelectableText(spans: [MarkdownSpan(text: text)], fontSize: fontSize,
                     muted: muted, openLink: actions.open)
+            } else if defersDistantSections {
+                MarkdownReadingSections(blocks: model.blocks, options: options)
             } else {
-                MarkdownContent(blocks: model.blocks, options: options, defersOffscreenBlocks: deferBlocks)
+                MarkdownContent(blocks: model.blocks, options: options)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,6 +111,17 @@ public struct NativeMarkdownView: View {
         .onDisappear {
             handoffPreparation?.remove(preparationID)
             model.cancel()
+        }
+    }
+
+    private var defersDistantSections: Bool {
+        // Notes report exposure against the whole document. Footnote links
+        // resolve by finding their destination or return anchor in the window.
+        guard pageCapacity != nil, onDocumentApplied == nil,
+              model.blocks.count > 2 * MarkdownReadingSections.blocksPerSection else { return false }
+        return !model.blocks.contains { block in
+            if case .footnote = block { return true }
+            return false
         }
     }
 }
@@ -222,7 +228,6 @@ struct MarkdownContent: View {
     let blocks: [MarkdownBlock]
     let options: MarkdownViewOptions
     var compact = false
-    var defersOffscreenBlocks = false
     /// The block immediately before this page in the same document. A page
     /// that starts with a heading needs it to preserve the document's seam.
     var precedingBlock: MarkdownBlock?
@@ -230,20 +235,14 @@ struct MarkdownContent: View {
     var isFinal = true
 
     var body: some View {
-        if defersOffscreenBlocks {
-            LazyVStack(alignment: .leading, spacing: 0) { renderedBlocks }
-        } else {
-            NativeMarkdownColumn { renderedBlocks }
-        }
-    }
-
-    private var renderedBlocks: some View {
-        ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-            MarkdownBlockView(block: block, options: options)
-                .equatable()
-                .padding(.top, headingMargin(block, index: index))
-                .padding(.bottom, index == blocks.count - 1 && isFinal ? 0
-                    : NativeStreamingPageMetrics.bottomMargin(block, fontSize: options.fontSize, compact: compact))
+        NativeMarkdownColumn {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                MarkdownBlockView(block: block, options: options)
+                    .equatable()
+                    .padding(.top, headingMargin(block, index: index))
+                    .padding(.bottom, index == blocks.count - 1 && isFinal ? 0
+                        : NativeStreamingPageMetrics.bottomMargin(block, fontSize: options.fontSize, compact: compact))
+            }
         }
     }
 

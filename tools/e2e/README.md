@@ -37,6 +37,34 @@ one interrupted execution. Real provider behavior/authentication, other Harnesse
 forks, archive button input, reconnect/restart recovery and cancellation invariants are not
 certified by these scenarios.
 
+### Super Thread reading regression
+
+The [Markdown layout contract](../../design/markdown.md) also applies to the
+related-execution sidebar. This local desktop replay needs the native Report
+reader and system scroll input. The `supported` suite covers navigation in the
+ordinary Thread reader.
+
+In a private profile, prepare two completed Threads in one directory and link
+both from one Super Thread. Open that report from Overview and activate the
+target row in **Related executions**. Verify the selected execution against
+its public scoped reply. Direct the input into the right-hand text column
+while the report stays open. Include downward scrolling and a reversal with
+momentum. Record the timeline offset, content height, viewport and time for
+the next UI request after each gesture. A five-second request timeout fails
+this replay. For a short, settled text fixture, the extent at a fixed width
+must stay constant and the offset must travel in both directions.
+
+For a long fixture, the [128 KiB mixed Markdown corpus](../benchmarks/reading/corpus.py)
+provides identifiable first and last blocks. Check first entry, scrolling to
+the final marker, scrolling back through visited sections, native text
+selection after leaving a section and returning, narrow-window reflow, Back
+to the related list and re-entry. First visits can refine the reserved heights.
+After traversing the full document at one width, reversing through it should
+retain the measured extent. Record the app and fixture digests, each input,
+the original timeout and sample when present, and the isolated cleanup receipt.
+Mounted readiness and UI request times measure different events from display
+frame times.
+
 ## Fact sources
 
 Expectations follow these current production contracts, not removed replays:
