@@ -47,7 +47,7 @@ from your inviter.
 1. Drag **Mokusei Alpha.app** from the disk image into **Applications**, then open it. The alpha is not notarized; a trusted download may need the per-app **Open Anyway** exception in **System Settings → Privacy & Security**.
 2. Install and configure at least one supported agent on your Mac: Codex, Claude, Pi Agent, or OpenCode. Mokusei checks which are ready during setup. Each service determines model access and costs.
 3. Choose the agent that will serve as Moku and the agents it can assign work to. Finish the tag and report agent setup, then click **Start using Moku**.
-4. Describe your task in **Ask Moku…**. Type `@` to choose a project folder, send the request, and open the task card when Moku creates one.
+4. Describe your task in **Type a message…**. Type `@` to choose a project folder, send the request, and open the task card when Moku creates one.
 
 No Go, Xcode, or Apple developer membership is needed to use the alpha.
 Updates are manual, and alpha app data may be incompatible between versions.
