@@ -345,13 +345,11 @@ full-width label and 32-point minimum hit height. Title, chevron and trailing sp
 disclosure; native keyboard activation, localized expanded state, disabled gates
 and the semantic interaction binding remain available. Collapsing retains values.
 
-`DesktopPreferences` retains profile-local `applicationCollectionReading` close
-facts, retained eligibility and optional plugin content fingerprints for application collections. Unix-second close
-timestamps are separate from historical `applicationLastOpened`, which remains
-preserved but cannot establish a close. Appearance, locale, selection and
-onboarding writes preserve both dictionaries. This is reading state rather than
-a configurable setting; collection membership and carousel selection are not
-written to disk. See the [reading contract](../Overview/README.md#viewed-application-collections).
+DesktopPreferences stores report close times, the latest foreground close,
+qualified visit and default collection preference in the local profile. Appearance,
+locale and onboarding writes preserve these records. Current space membership
+and carousel selection are session presentation state. See the
+[reading contract](../Overview/README.md#viewed-application-collections).
 
 ## E2E contract
 

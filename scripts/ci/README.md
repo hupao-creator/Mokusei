@@ -60,7 +60,7 @@ configure remote required checks. Signed optical UX suites have no hosted job.
 
 [Desktop e2e](../../.github/workflows/e2e.yml) is an independent manual, serial
 hosted workflow for OVERVIEW, READ and SETTINGS by default. Dispatch with `suite=collection`
-for the real five-minute close and per-directory budget journey. The [scenario inventory](../../tools/e2e/scenarios.json)
+for the report reading and per-directory budget journey. The [scenario inventory](../../tools/e2e/scenarios.json)
 records the additional operator-assisted Composer boundary; no unattended
 Composer job is configured. Real Runtime/native Codex/UI runs use deterministic
 external model responses, not real provider availability or quality. Evidence

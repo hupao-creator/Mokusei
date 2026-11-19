@@ -47,7 +47,7 @@ import MokuseiHarnessClaude
         ])
         let view = try! NativeReportView(json: .object([
             "coverRevision": .text(showsCover ? "cover-preview" : ""),
-            "emoji": .text(sample.emoji), "shortDescription": .text(sample.shortDescription), "previewText": .text(sample.shortDescription),
+            "emoji": .text(sample.emoji), "shortDescription": .text(sample.shortDescription), "readingSeconds": .integer(40), "previewText": .text(sample.shortDescription),
             "contentRevision": .text("preview"), "relatedExecutions": .array(refs.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })
         ]))
         return .init(entry: .init(ref: reference, revision: 1, createdAt: 0, updatedAt: Date().addingTimeInterval(-46800).timeIntervalSince1970 * 1000,

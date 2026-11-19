@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -24,7 +25,16 @@ func FuzzReportHTMLProjections(f *testing.F) {
 		if len(source) > 8192 {
 			source = source[:8192]
 		}
-		preview := HTMLPreview(source, "")
+		// Generate a body with known counts independent of the parser. Inline
+		// markup splits a word while head, template and cover-style ink add none.
+		han, words := len(source)%601, utf8.RuneCountInString(source)%503
+		body := fmt.Sprintf("<head><title>Hidden title</title></head><body>%s%s<p hidden>hidden text</p><template>hidden words</template><style>p{color:red}</style></body>",
+			strings.Repeat("讀", han), strings.Repeat("re<b>ad</b> ", words))
+		_, seconds := projectReaderText(body, "")
+		if 20*seconds < 4*han+5*words || 20*seconds >= 4*han+5*words+20 {
+			t.Fatalf("incorrect estimate for %d characters and %d words: %d", han, words, seconds)
+		}
+		preview, _ := projectReaderText(source, "")
 		if utf8.RuneCountInString(preview) > MaxPreviewLength {
 			t.Fatal("oversized preview")
 		}

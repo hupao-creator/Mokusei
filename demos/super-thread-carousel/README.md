@@ -14,12 +14,10 @@ profile preferences in a temporary profile. Data export is not an assertion suit
 
 The visible app reuses production collection, card, cover and member panel views.
 Its close records, time advancement, read sheets, tags and document bodies are
-fixtures. The preview uses the Host's 16-cell collection budget. The initial
-All fixture has nine two-cell reports. Three are eligible, so the oldest two share one card. A real
-close qualifies after strictly more than 300s. A foreground
-revisit over 120s clears retained eligibility, while a short revisit can retain it.
-The [Overview guide](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
-owns that policy and its fingerprint/close ownership.
+fixtures. The local fixture uses the Host's 16-cell budget and simulated close dates.
+The production export exercises a qualified visit, profile reopen and observations
+around the 24-hour boundary. The [Overview guide](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+owns the reading and grouping policy.
 
 Cover playback, 360:308 logical viewport scaling and the 320×408pt grid footprint
 come from production. Bottom navigation mounts only while actually hovered and

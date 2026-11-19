@@ -75,15 +75,10 @@ uses the same source/return geometry resolution and profile-local reading fact
 as native card activation. Selecting a carousel page is not a reading event.
 
 
-Collection diagnostics are read-only: individual application cards expose
-`collectionEligibility`; collections expose `memberEligibility` keyed by real
-references. Values contain `lastClosedAt` (Unix milliseconds or null), `retainsEligibility`,
-`intervalSeconds`, the time-condition `eligible` flag, a `reason`
-(`no-close-record`, `future-close-record`, `within-close-interval`, `eligible`) and
-current `collected` membership. An eligible report can remain individual when
-the current view fits its 16-cell budget or an older prefix frees enough space. During
-reading travel the retained collection can temporarily differ from live
-eligibility. These observations neither create opens nor migrate unknown history.
+Individual report observations expose `collectionEligibility`. Collections expose
+the same fields per real member in `memberEligibility`. `lastClosedAt` and
+`lastQualifiedAt` use epoch milliseconds or null. `defaultsToCollection`
+describes the reading history and `collected` the current space's projection.
 
 ## E2E contract
 

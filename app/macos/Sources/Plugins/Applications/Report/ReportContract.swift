@@ -7,15 +7,17 @@ struct NativeReportView: Hashable, Sendable {
     var hasCover: Bool { !coverRevision.string.isEmpty }
     let emoji: JSONText
     let shortDescription: JSONText
+    let readingSeconds: Int
     let previewText: JSONText
     let contentRevision: JSONText
     let relatedExecutions: [ApplicationExecutionRef]
     init(json: JSONValue) throws {
-        let r = try NativeApplicationRecord(json, path: "report view", keys: ["coverRevision", "emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"])
+        let r = try NativeApplicationRecord(json, path: "report view", keys: ["coverRevision", "emoji", "shortDescription", "previewText", "readingSeconds", "contentRevision", "relatedExecutions"])
         coverRevision = r.fields["coverRevision"] == nil ? "" : try r.text("coverRevision")
         if !coverRevision.string.isEmpty { _ = try r.identifier("coverRevision") }
         emoji = try r.text("emoji"); shortDescription = try r.text("shortDescription")
         guard SemanticTagLabel.isValidEmoji(emoji.string), !shortDescription.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, shortDescription.string.unicodeScalars.count <= 220 else { throw PluginContractError("Invalid report card metadata") }
+        readingSeconds = try r.integer("readingSeconds")
         previewText = try r.text("previewText"); contentRevision = try r.identifier("contentRevision")
         relatedExecutions = try r.array("relatedExecutions").map { value in
             let reference = try NativeApplicationRecord(value, path: "report execution", keys: ["thread", "executionId"])
@@ -28,7 +30,7 @@ struct NativeReportView: Hashable, Sendable {
         }
     }
     var json: JSONValue {
-        .object(["coverRevision": .string(coverRevision), "emoji": .string(emoji), "shortDescription": .string(shortDescription), "previewText": .string(previewText), "contentRevision": .string(contentRevision),
+        .object(["coverRevision": .string(coverRevision), "emoji": .string(emoji), "shortDescription": .string(shortDescription), "readingSeconds": .integer(readingSeconds), "previewText": .string(previewText), "contentRevision": .string(contentRevision),
                  "relatedExecutions": .array(relatedExecutions.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })])
     }
 }

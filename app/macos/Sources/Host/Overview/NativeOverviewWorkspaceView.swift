@@ -263,14 +263,14 @@ private struct NativeOverviewWorkspaceCard: View {
                 ApplicationThreadProps(entry: snapshot.entry,
                     context: try model.applicationFactories.rendererContext(plugin, snapshot.entry, lifetime))
             }
-            return try plugin.collectionCard(props: props, initialSelection: model.selectedCollectionMember(for: item),
+            return AnyView(try plugin.collectionCard(props: props, initialSelection: model.selectedCollectionMember(for: item),
                 active: model.presentationActive && model.facts.overviewVisible && model.facts.focused
                     && model.facts.documentVisible && !model.facts.settingsOpen,
                 onSelection: { model.selectCollectionMember($0, cardID: item.id) }, openThread: { reference in
                     guard plugin.hasDetail, model.canvasState.allowsActivation(cardID: item.id),
                           members.contains(where: { $0.entry.ref == reference }) else { return }
                     callbacks.current.openApplication(reference, nil)
-                })
+                }).environment(\.collectionReturnMember, model.returnMember))
         } catch {
             return AnyView(Text(error.localizedDescription).font(NativeTypography.inter(size: 11))
                 .foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18)

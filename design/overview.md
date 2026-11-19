@@ -79,19 +79,10 @@ visibility. The hovered controls retain native keyboard/accessibility operation;
 the entire bottom control surface unmounts, including hit/AX children. Menu
 tracking pauses automatic paging. Stale removed-member actions are rejected.
 
-Collections are a native presentation of real Report identities, not Runtime
-entities. Close/read eligibility and report content fingerprints belong to
-profile-local reading state. Selection alone is not a read event. A content
-fingerprint change revokes old eligibility; source status/tag propagation alone
-does not. The member panel's archive control is icon-only at the upper-right
-corner and invokes the same atomic archive operation as the card menu. If the
-updated projection cannot form a collection, surviving reports appear individually.
-
-Each browsing filter budgets 16 cells from its expanded card footprints after
-execution coverage. Over budget, the Host groups only as many of the oldest
-eligible reports as are needed, charging two cells for the collection. A grouping
-must save space. Unavoidable overflow stays reachable by pan.
-[Algorithm and examples](research/collection-space-budget.md)
+The collection is a native presentation of real Report identities. Returning
+to a collected report holds its cover for direct reopening. Archive operates on
+the real member. The current space determines its remaining membership.
+[Collection budget and reading ownership](research/collection-space-budget.md)
 
 Source: [collection](../app/macos/Sources/Plugins/Applications/Report/NativeReportCollection.swift),
 [members](../app/macos/Sources/Plugins/Applications/Report/NativeReportCollectionMembers.swift),

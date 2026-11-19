@@ -10,6 +10,7 @@ struct NativeReportCollection: View {
     let slow: Bool
     let onSelection: (ApplicationThreadRef) -> Void
     let openThread: (ApplicationThreadRef) -> Void
+    @Environment(\.collectionReturnMember) private var returnMember
     @State private var selection: ApplicationThreadRef
     @State private var currentMembers: Set<ApplicationThreadRef>
     @State private var direction = 1
@@ -67,7 +68,7 @@ struct NativeReportCollection: View {
     private var clockKey: ClockKey {
         let member = props[page], cover = identity(member)
         return .init(selection: selected, members: members,
-            playing: playing && outgoingID == nil && (!member.entry.view.hasCover
+            playing: playing && selected != returnMember && outgoingID == nil && (!member.entry.view.hasCover
                 || (readyCovers.contains(cover) && (playbackStarted == cover))), cover: cover)
     }
     private var locale: JSONText { props[0].context.locale }
@@ -224,7 +225,7 @@ struct NativeReportCollection: View {
             trackingMenus.remove(ObjectIdentifier(menu))
         }
         .onDisappear { hovered = false; showingMembers = false; memberPresentation?.dismiss(owner: panelOwner); trackingMenus.removeAll() }
-        .onAppear { onSelection(selected) }
+        .onChange(of: returnMember, initial: true) { _, ref in restoreReturnMember(ref) }
         .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
         .onChange(of: playing) { _, value in
             if !value { playbackStarted = nil }
@@ -233,10 +234,11 @@ struct NativeReportCollection: View {
             currentMembers = Set(next)
             settle()
             if !next.contains(selection) { selection = next[0] }
-            onSelection(selected)
+            restoreReturnMember(returnMember)
         }
         .onChange(of: active) { _, value in
             if !value { hovered = false; showingMembers = false; settle() }
+            else { restoreReturnMember(returnMember) }
         }
         .onChange(of: visibility?.isVisible) { _, visible in
             if visible == false { hovered = false; showingMembers = false; settle() }
@@ -262,6 +264,13 @@ struct NativeReportCollection: View {
             } catch { /* Leaving the view or manual input cancels this page's dwell. */ }
         }
     }
+    private func restoreReturnMember(_ ref: ApplicationThreadRef?) {
+        guard let ref, members.contains(ref) else { return }
+        settle()
+        selection = ref
+        onSelection(ref)
+    }
+
     private func toggleMembers() {
         guard let memberPresentation else { return }
         if showingMembers { memberPresentation.close(owner: panelOwner); return }

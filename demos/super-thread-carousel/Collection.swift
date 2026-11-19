@@ -50,12 +50,15 @@ struct CollectionProjection {
 
     init(reports: [ReportSample], tag: String, closedAt: [String: Date], now: Date) {
         let visible = reports.filter { tag == "全部" || $0.tags.contains(tag) }
-        let policy = ApplicationOverviewCollectionPolicy(closedBefore: 300, footprint: .init(columns: 1, rows: 2))
-        let eligible = visible.filter { policy.includes(lastClosed: closedAt[$0.id], now: now) }
+        let ranked = visible.sorted { (closedAt[$0.id] ?? now) < (closedAt[$1.id] ?? now) }
+        let idle = ranked.prefix { report in
+            ApplicationCollectionReading(lastClosedAt: closedAt[report.id]?.timeIntervalSince1970).isIdle(
+                createdAt: now.timeIntervalSince1970, now: now.timeIntervalSince1970)
+        }.count
         var budget = NativeOverviewCollectionBudget(expandedCells: visible.reduce(0) { $0 + ($1.hasCover ? 2 : 1) })
-        let count = budget.memberCount(eligible: eligible.map { .init(columns: 1, rows: $0.hasCover ? 2 : 1) },
-                                       collection: policy.footprint)
-        members = Array(eligible.prefix(count))
+        let count = budget.memberCount(eligible: ranked.map { .init(columns: 1, rows: $0.hasCover ? 2 : 1) },
+                                       collection: .init(columns: 1, rows: 2), idle: idle)
+        members = Array(ranked.prefix(count))
         let collected = Set(members.map(\.id))
         individual = visible.filter { !collected.contains($0.id) }
     }
@@ -100,7 +103,7 @@ struct CarouselSelection {
     // exported by ProductionProjection through the production Host.
     func closeAfterLongRead(_ report: ReportSample) { closedAt[report.id] = now }
     func tick(at date: Date = .now) { now = date.addingTimeInterval(offset) }
-    func advanceDemoTime() { offset += 600; tick() }
+    func advanceDemoTime() { offset += 86_400; tick() }
 
     // A windowless data export uses the same projection and selection as the UI.
     // It does not mount AppKit/WebKit or claim to verify gestures or pixels.
@@ -121,15 +124,12 @@ struct CarouselSelection {
         rows.append(["scenario": "carousel-forward-wrap", "pages": pages])
         selection.step(-1, members: model.projection.members)
         rows.append(["scenario": "carousel-backward-wrap", "page": selection.id])
-        model.closedAt["delivery"] = instant.addingTimeInterval(-300)
-        rows.append(snapshot("exactly-five-minutes"))
-        model.now = instant.addingTimeInterval(0.001)
-        rows.append(snapshot("over-five-minutes"))
-        model.reset(at: instant); model.closeAfterLongRead(model.reports[0]); rows.append(snapshot("long-read-close-first"))
-        selection.select("navigation"); selection.reconcile(members: model.projection.members)
-        rows.append(["scenario": "removed-selection", "page": selection.id])
-        model.closeAfterLongRead(model.reports[1]); rows.append(snapshot("long-read-close-second-dissolves-collection"))
-        model.now = instant.addingTimeInterval(301); rows.append(snapshot("later-rejoins-never-opened-stays-out"))
+        model.offset = 86_400
+        model.tick(at: instant)
+        rows.append(snapshot("one-day-later"))
+        model.reset(at: instant)
+        model.closeAfterLongRead(model.reports[0])
+        rows.append(snapshot("engaged-member"))
         let data = try JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys])
         print(String(decoding: data, as: UTF8.self))
     }

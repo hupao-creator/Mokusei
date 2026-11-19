@@ -46,7 +46,7 @@
       "doc": "app/macos/Sources/Host/Overview/README.md#viewed-application-collections",
       "evidence": ["collection-catalog.json", "collection-initial.json", "collection-closed.json",
                    "collection-grouped.json", "collection-directory.json", "collection-return.json",
-                   "collection-at-budget.json", "collection-restored.json"]
+                   "collection-at-budget.json", "collection-released.json", "collection-restored.json"]
     },
     {
       "id": "E2E-COMPOSER-001",

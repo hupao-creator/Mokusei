@@ -431,110 +431,45 @@ Ordinary browsing ignores retired agent-authored visibility markers. Archive, ex
 
 ## Viewed application collections
 
-Application plugins can opt into `ApplicationOverviewCollectionPolicy`; Super
-Thread opts in with a 300-second last-close interval and a 1×2 collection footprint.
-A close qualifies strictly after 300 seconds. An absent or future close supplies
-no elapsed-time evidence. Short visits can independently retain prior eligibility.
+Report opts into one two-cell collection per selected space. The Host first applies
+visibility, archive, directory/tag selection and exact execution coverage. It
+uses the full individual footprints, including offscreen cards. A report with a
+cover costs two cells and a coverless report costs one.
 
-After scope/tag selection and exact execution coverage, the Host sums the
-individual projected footprints (columns × rows) of **all** selected cards. A
-Report with a cover costs two cells, a coverless Report one, and a Harness contributes
-its composed footprint. Each view (All, a directory or a semantic tag) has its
-own **4×4 soft budget of 16 cells**. The [collection budget](NativeOverviewCollectionBudget.swift)
-keeps all cards individual at or below 16. Above 16 it folds the shortest
-oldest-first prefix of eligible reports that reaches the target, charging the
-collection's own footprint once. Creation ties retain catalog order. At least
-two members and positive savings are required. If the target is unreachable,
-the Host takes all eligible members that together save space and allows overflow.
-For multiple opted-in types the first eligible member determines type order,
-with one shared budget. Canonical filters/counts and execution coverage describe
-the underlying documents. Resizing or panning can change the framing while
-keeping the same collection membership.
-See the [worked examples](../../../../../design/research/collection-space-budget.md).
+The [profile-local reading record](NativeOverviewCollectionReading.swift) determines
+default membership across views. At **24 hours** from the end of the last visit
+(or creation for an unvisited report), a report defaults to collection. Overview
+samples age on presentation and space changes. Idle time alone does not schedule a
+live canvas move. Two idle reports can share a collection even below budget. A
+lone idle report stays individual until there is another member to group with it.
 
-The collection has a reserved canvas identity per type/filter, never a Runtime
-record. Its snapshot retains the exact member projections. Content changes to a
-collected member refresh the selected projection (including that collection);
-unrelated deltas keep the ordinary incremental path. Selection changes within
-the card do not create layout revisions. Only the nearest relevant eligibility deadline
-owns a cancellable timer; read-hidden or inactive canvas presentation cancels it and
-return recomputes eligibility and rearms the deadline. No one-second catalog poll.
+Opening a report and reading its uniquely associated Agent Threads share one
+visit. Ownership follows catalog Thread identity across execution changes and
+updates on rebinding. Ambiguous standalone Agent routes have no owner. With the
+reader admitted, focused, visible and connected, monotonic foreground seconds
+accumulate once across the visit. Covering or losing focus pauses the clock.
+Qualification occurs at 25% of the report's full static body reading estimate,
+clamped to 5–45 seconds, inclusive. A second distinct visit with positive
+foreground time also qualifies if it begins less than 24 hours after the
+previous foreground visit closed. Page selection and report updates do not
+create visits. Each visit samples its estimate on open.
 
-Admitted detail navigation is validated against `NativeWorkspaceCatalog`, even
-before the first Overview projection. Each actual route departure (Close, Back,
-replacement or orderly release) records a wall-clock close time. Opening clears
-the previous close deadline, so time spent reading cannot age into a collection.
-Every new close restarts the strict five-minute interval unless a short visit
-retains eligibility that was already established at opening.
+Qualification restores the default individual presentation. Under pressure the
+[budget](NativeOverviewCollectionBudget.swift) selects idle members first, then
+members without qualified visits, then qualified members. Within each class,
+creation or the latest qualified visit orders candidates, with stable ties.
+Take the shortest prefix meeting the 16-cell target, the idle-member minimum
+and, for an already grouped prefix in the same space, a two-cell release margin.
+A fresh qualification can use all 16 cells. Pressure grouping requires at least
+two members and positive savings. When the target is unreachable, take the
+largest saving available and allow pan. Display order follows the original
+creation order, with the collection at its oldest member's position.
 
-Reading an associated ordinary Thread uses the same Super Thread reading owner,
-whether opened in the Report sidecard, through an execution link or
-as a restored Agent route. Ownership comes from the full catalog's declared
-execution coverage, independently of filters, collection membership and archive
-visibility. It matches Thread identity even when reading a newer/current or older
-execution than the report cites. Ordinary execution updates never edit the report
-or reset its reading evidence. Unassociated Threads have no collection owner.
-
-Moving between a Report and its associated Threads (or between its associated
-Threads) continues one visit; loading/admission pauses its foreground clock.
-Closing the route or moving to another owner records the close. Covers, previews,
-carousel rotation and data prefetch do not open visits. Catalog binding changes
-reconcile the active route: departure from the old owner closes that visit, and
-the new owner starts a fresh visit with no transferred dwell. Unlinking leaves no
-owner. A newly generated report can become the current associated reading owner,
-but gains no eligibility until an actual departure and the normal close interval.
-The reverse ownership index updates with application deltas, without a full scan
-for ordinary execution/status events. Ambiguous ownership earns no read credit.
-
-A document eligible at opening retains that eligibility through a short visit,
-independently of tag projection or whether a second candidate is present.
-Only **more than 120 seconds** of cumulative foreground reading in that visit
-clears it. Exactly 120 seconds retains it. Focus loss, covering by Moku/Settings,
-missing reader admission, inactive window and disconnection pause reading time;
-resuming the same route accumulates time using monotonic uptime. Reopening the
-same admitted route does not reset dwell. Actual close then reopen starts a new
-visit, so separate short visits do not add up to a long read. One cancellable
-deadline clears retained eligibility during uninterrupted reading. After a long
-read, closing starts a fresh five-minute wait. Cover rotation is never a visit.
-
-`desktop-preferences.json` stores profile-local `applicationCollectionReading`
-entries (`lastClosedAt` in Unix seconds and `retainsEligibility`). Open writes a
-marker without a close timestamp; a crash cannot invent a close. A retained
-eligibility marker survives restart, but foreground duration does not. Orderly
-release records its actual close. Ordinary preference writes preserve both the
-new state and historical `applicationLastOpened`; the latter supplies **no close
-evidence**. Old profiles therefore start unknown until a real open/close, without
-inferring anything from creation, update or execution times. Invalid new reading
-state reports a preferences read error. Failed writes report errors and preserve
-session evidence without claiming disk recovery. These facts are local to the
-client, not cross-device state; collection membership and selection remain
-unpersisted view projections.
-
-The Report plugin supplies a stable content fingerprint covering title, document
-and cover revisions, emoji, introduction and the set of exact execution bindings.
-A changed fingerprint clears both the old close and retained eligibility, so an
-updated member appears individually until another actual visit closes and the
-normal five-minute interval elapses. Updates during a short visit also revoke
-retention; closing that visit starts a new interval. Tags, archive state, catalog
-timestamps/revisions, source execution status and reference reordering do not
-change this fingerprint. Runtime no-op writes retain document/cover revisions.
-
-The fingerprint is saved as optional `contentRevision` in the same reading entry.
-Both full snapshots/reconnects and incremental catalog changes compare it before
-projection, including hidden presentation and other browsing filters. Unknown
-fingerprints establish a baseline without claiming an update; initial generation
-never counts as a revision of previously read content. Existing reading entries
-without a fingerprint cannot detect edits predating that first baseline. Unvisited
-documents acquire their first reading entry only when opened. Failed persistence
-keeps the same session-only fallback as close evidence. Content invalidation does
-not alter canonical counts, report coverage, creation ordering or other members;
-the selected space can admit another eligible member or dissolve the collection.
-
-Opening captures the collection's displayed geometry and keeps its backdrop
-through travel. Prepared return samples the refreshed collection if it still
-contains the report, or its individual card after a long visit or a reduction
-in space pressure. One remaining candidate dissolves the collection. Semantic interaction targets include every
-real member, never the synthetic ID; snapshots expose membership and selection.
+Opening uses the real report identity and the current source card. Prepared
+return resolves the latest placement. A returned member that remains collected
+occupies the cover until the user selects another page. Diagnostics distinguish
+the profile's default from actual membership in the current space. Persistence
+errors are reported and the session continues with its in-memory reading facts.
 
 The Report plugin owns `NativeReportCollection`: a cover preserving its 360:308
 logical viewport ratio slides horizontally while the remaining metadata region
@@ -657,14 +592,12 @@ and leave archive disabled. Closing, inactive and removed-member guards remain.
 
 ## Property boundaries
 
-**PBT-OVERVIEW-COLLECTION** checks the production budget against all legal prefix
-lengths, including leaving every report individual. Across 0–20 fixed cells,
-one or two ordered types with 0–10 eligible one- or two-cell reports each, and
-two-cell collection cards, generated cases target 15–17 expanded cells as well as wider totals.
-The oracle minimizes remaining overflow, then the number of reports collected. This headless mathematical property catches
-incorrect savings and over-collection independently of native interactions.
-The [mounted collection journey](../../../../../tools/e2e/README.md#current-scenario-contract)
-exercises actual reading and per-directory projection.
+**PBT-OVERVIEW-COLLECTION** compares the production budget with exhaustive legal
+prefix scores across mixed one- and two-cell reports, idle floors, retained
+prefixes and up to two types. Generated foreground spans straddle qualification
+and one-day boundaries and exercise pause/resume and distinct short visits.
+The [mounted journey](../../../../../tools/e2e/README.md#current-scenario-contract)
+checks return selection, promotion and the two-cell release margin.
 
 **PBT-OVERVIEW-GEOMETRY** calls the production pure layout solver with 0–18
 unique product-ordered cards (1–3 columns, 1–2 rows), usable viewport widths

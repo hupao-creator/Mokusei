@@ -77,13 +77,13 @@ private struct DemoView: View {
             }
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("关闭后超过 5 分钟的报告按当前标签归组；已归组报告短读后仍保留资格。")
-                    Text("至少 2 篇才成组；单次前台阅读超过 2 分钟才移出。切换轮播页不计为阅读。")
+                    Text("空间超过 16 格时收纳报告，闲置满一天的报告默认收纳。")
+                    Text("至少两份报告成组。阅读正文和关联任务都能让报告优先单列。")
                         .foregroundStyle(.tertiary)
                 }.font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
                 if model.offset > 0 { Text("+\(Int(model.offset / 60)) 分钟").font(.system(size: 11)).monospacedDigit() }
-                Button("时间 +10 分钟") { model.advanceDemoTime() }
+                Button("时间 +1 天") { model.advanceDemoTime() }
                 Button("重置") { model.reset() }
             }.buttonStyle(.bordered).controlSize(.small)
         }.padding(30)
@@ -105,7 +105,7 @@ private struct DemoView: View {
                     Text(report.title).font(NativeTypography.inter(size: 26, weight: 620))
                     Text(report.summary).font(.system(size: 16)).lineSpacing(7)
                     Divider()
-                    Text("这是轮播内容预览，不模拟真实阅读计时。生产中，已归组报告单次前台阅读超过 2 分钟才移出；关闭后重新计时 5 分钟。")
+                    Text("这是轮播内容预览。实际阅读门槛随正文长度变化，从 5 秒到 45 秒。")
                         .font(.system(size: 13)).foregroundStyle(.secondary)
                     Text("此处为演示阅读页，未连接真实报告或 Agent。")
                         .font(.system(size: 11)).foregroundStyle(.tertiary)
