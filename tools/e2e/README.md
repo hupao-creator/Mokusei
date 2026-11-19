@@ -124,6 +124,20 @@ manual shared-desktop scheduling remains necessary. The App's existing explicit
 `--benchmark-scenario overview` prepares onboarding in the fresh profile; it
 does not certify first-run onboarding.
 
+### Collection member opening
+
+The automated Collection journey opens a member by semantic target. To check
+the mounted grid, use the journey's populated, isolated workspace. Open the
+collection's page count, then activate the same visible member in separate runs
+with a pointer click and Accessibility Press. Record the window through reader
+arrival. Verify the report identity and title, and check that the cover grows
+toward the panel center across intermediate frames. Close the reader and check
+which cover is selected on Overview. Repeat with Reduce Motion and check for a
+direct switch. Record whether Reduce Motion came from the system setting or a
+replay-local environment override.
+The [member panel contract](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+owns the geometry and interaction gates.
+
 ## External input and isolation
 
 The runner reuses the benchmark's external `Provider`, HTTP adapter and public

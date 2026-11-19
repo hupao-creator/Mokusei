@@ -566,10 +566,15 @@ reading surface matched to the current appearance.
 The carousel pauses through opening and return; closing starts a fresh dwell.
 Escape, Close and blank-margin clicks reverse the panel into the current card
 frame. The count is behind the expanded surface, not a second floating control.
-Opening a member retires the collection panel before invoking existing navigation. Inactive,
-offscreen and removed collections dismiss the panel. Dismissed card actions cannot
-open a second member. The existing lower page menu and navigation controls
-continue to select carousel pages.
+Opening a member keeps the grid in place while the selected Report reader mounts.
+The grid zooms toward the activated card while fading into the reader. The visible
+card frame supplies the center and scale, keeping its cover in proportion.
+Reduce Motion switches directly to the mounted reader. Both surfaces gate
+input and accessibility during the handoff.
+Closing the reader returns to the current Overview card for that report.
+Outside a member handoff, inactive, offscreen and removed collections dismiss the
+panel. Dismissed card actions cannot open a second member. The lower page menu
+and navigation controls continue to select carousel pages.
 
 The selected ID is shared by cover, metadata, opening and semantic navigation.
 Automatic advance follows an 11-second dwell while foreground, visible and not in

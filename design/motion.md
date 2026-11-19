@@ -1,10 +1,11 @@
 # Native motion and admission
 
-The [Super Thread member grid](../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
-and the [Overview canvas when it gives way to the landing composer](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
-use macOS Reduce Motion to settle card removals immediately. Other
-application-owned animation uses its ordinary timing, curves and completion
-gates. Visibility, focus, occlusion,
+In the [Super Thread member grid](../app/macos/Sources/Host/Overview/README.md#viewed-application-collections),
+macOS Reduce Motion switches directly to the ready reader when you open a
+member. It also settles member removals and the
+[final Overview card exit](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
+immediately. Other application-owned animations use their ordinary timing,
+curves and completion gates. Visibility, focus, occlusion,
 offscreen state, explicit pause, drag/resize and performance gates remain active.
 Reduce Transparency, Increase Contrast, keyboard navigation and accessibility
 semantics remain separate supported boundaries.

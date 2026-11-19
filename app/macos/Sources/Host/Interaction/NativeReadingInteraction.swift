@@ -5,7 +5,7 @@ import MokuseiPluginUI
 @MainActor
 public extension NativeWorkspacePresentation {
     var readingInteractionActions: [String] {
-        interactionPage == "thread" && selected != nil && mountedReadingThread == selected ? ["reading.control"] : []
+        interactionPage == "thread" && !openingCollectionMember && selected != nil && mountedReadingThread == selected ? ["reading.control"] : []
     }
 
     func readingInteractionSnapshot() -> JSONValue {

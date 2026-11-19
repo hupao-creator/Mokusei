@@ -71,8 +71,11 @@ blocked throughout setup and the morph.
 Super Thread collections expose every real member as a `thread.open` target.
 Overview card observations include `members` and the currently displayed member's
 `ref`/`title`; the synthetic collection identity is only a canvas slot. Opening
-uses the same source/return geometry resolution and profile-local reading fact
-as native card activation. Selecting a carousel page is not a reading event.
+by semantic target uses the Overview card as its source. Opening from the mounted
+member grid uses its visible member instead. Both paths use the same return
+geometry and profile-local reading fact. During the grid-to-reader transition,
+the snapshot reports `transitioning`, withholds reading controls and excludes
+that time from foreground reading. Selecting a carousel page is not a reading event.
 
 
 Individual report observations expose `collectionEligibility`. Collections expose

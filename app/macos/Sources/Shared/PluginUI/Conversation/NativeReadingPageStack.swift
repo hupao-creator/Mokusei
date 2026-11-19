@@ -35,6 +35,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var panelFrontIdentity: JSONText?
     public var reportPanelMotion: Bool
     public var threadPanelMotion: Bool
+    public var animatesOpening: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
     public var axis: Axis
@@ -64,7 +65,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
-                emphasizedOpening: Bool = false, panel: Bool = false, panelUsesGlass: Bool = false,
+                emphasizedOpening: Bool = false, animatesOpening: Bool = true, panel: Bool = false, panelUsesGlass: Bool = false,
                 isolatesParent: Bool = false, panelSource: CGRect? = nil,
                 panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
@@ -76,6 +77,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 @ViewBuilder parent: () -> Parent, @ViewBuilder front: () -> Front) {
         self.open = open; self.identity = identity; self.motion = motion; self.enabled = enabled
         self.focusBlur = focusBlur; self.stationaryParent = stationaryParent
+        self.animatesOpening = animatesOpening
         self.emphasizedOpening = emphasizedOpening; self.duration = duration
         self.panel = panel; self.panelSource = panelSource
         self.panelUsesGlass = panelUsesGlass
@@ -204,7 +206,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         }
         .onChange(of: open) { _, value in
             bindActions()
-            if value && enabled { mountedIdentity = identity; animate(closing: false) }
+            if value { mountedIdentity = identity }
+            if value && enabled && animatesOpening { animate(closing: false) }
             else { settle() }
         }
         .onChange(of: identity) { _, _ in

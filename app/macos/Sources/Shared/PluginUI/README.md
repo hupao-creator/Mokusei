@@ -37,8 +37,11 @@ surface without creating a route or a native child window. Its environment
 presentation owns one UUID-scoped visit, uses native source/viewport anchors to
 convert camera geometry, and delegates travel, resize settling,
 blank-margin dismissal and Escape arbitration to the existing reading stack.
-Explicit Close refreshes the source frame; member navigation, source removal and
-covering routes retire the visit immediately. Callers refresh the contents when
+Explicit Close refreshes the carousel source frame. For a navigation accepted
+from a grid member, the host keeps the grid visible until the destination reader
+commits its layout. It zooms the outgoing grid from the measured member frame and
+crossfades to that reader. Reduce Motion admits the ready reader immediately. Covering routes
+retire the visit; source removal dismisses an unclaimed grid. Callers refresh the contents when
 member facts change and retain their own selection, playback and data lifetimes.
 The collection parent remains mounted for those updates while drawing, input and
 accessibility are suppressed. The shared compositor's auxiliary lane stays
@@ -1000,10 +1003,11 @@ the same window and local width changes retain the current visual identity.
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display. Hiding, backgrounding or detaching cancels that owner and settles the latest title. Cancelling an active transition replaces only its stateless animated text leaf,
 so an in-flight fade-in is retired even when its model phase is already settled;
-the transition owner and card keep their identity. Disabling cloud effects does not freeze text content. Shared PluginUI animations use their ordinary timing.
-The [motion contract](../../../../../design/motion.md) describes card removal
-under Reduce Motion. Native framework defaults and external Report HTML/CSS
-remain renderer-owned.
+the transition owner and card keep their identity. Disabling cloud effects does
+not freeze text content. Title and excerpt animations use their ordinary timing
+under Reduce Motion. The [motion contract](../../../../../design/motion.md)
+describes Collection member opening and card removal. Native framework defaults
+and external Report HTML/CSS remain renderer-owned.
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity.
 

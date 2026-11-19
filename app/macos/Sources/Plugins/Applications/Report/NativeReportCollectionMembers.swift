@@ -127,6 +127,7 @@ private struct CollectionMemberCard: View {
     let allowsActions: () -> Bool
     let openThread: () -> Void
     @State private var visible = false
+    @State private var source = NativeCollectionPanelSource()
 
     var body: some View {
         NativeReportCard(props: member,
@@ -135,8 +136,9 @@ private struct CollectionMemberCard: View {
             openThread: openThread, coverPlayback: visible && !exiting ? .playingOnce : .paused,
             coverReplayID: replayID, coverInitiallyFinished: initiallyFinished,
             onCoverPlaybackCompleted: onPlaybackCompleted,
-            showsArchiveAction: true, allowsActions: allowsActions)
+            showsArchiveAction: true, allowsActions: allowsActions, memberSource: source)
             .frame(height: member.entry.view.hasCover ? NativeReportCoverLayout.height(for: width) + 160 : 208)
+            .background(NativeCollectionPanelAnchor(source))
             .background(NativePalette.overview.surface.swiftUI, in: RoundedRectangle(cornerRadius: 22))
             .overlay { RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI) }
             .onAppear { visible = true }

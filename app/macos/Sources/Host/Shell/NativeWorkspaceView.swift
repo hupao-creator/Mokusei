@@ -10,6 +10,8 @@ public final class NativeWorkspacePresentation {
     public let workspace: NativeWorkspaceModel
     public let settingsNavigation = NativeSettingsNavigation()
     public let canvas = NativeOverviewCanvasState()
+    fileprivate let collectionPanel = NativeCollectionPanelPresentation()
+    var openingCollectionMember: Bool { collectionPanel.openingMember != nil }
     public let messageMotion = NativeReadingPageMotion()
     public let threadIdentityRegistry = NativeThreadIdentityRegistry()
     public private(set) var threadIdentityVisit: NativeThreadIdentityVisit?
@@ -235,6 +237,7 @@ public final class NativeWorkspacePresentation {
             threadIdentityVisit = ref.typeID == "agent" && target == nil
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
         }
+        if selected == nil { collectionPanel.acceptOpening(ref) }
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
         publishPresence()
@@ -370,7 +373,7 @@ public final class NativeWorkspacePresentation {
 
     var readingForeground: Bool {
         focused && documentVisible && readingWindowActive && workspace.connection == .connected
-            && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen
+            && readingEntranceAdmitted && !openingCollectionMember && !scene.mokuOpen && !scene.settingsOpen
     }
 
     public func publishPresence() {
@@ -778,9 +781,10 @@ public struct NativeWorkspaceView: View {
             onScroll: { presentation.scene.setShellScrollOffset($0) },
             onDismiss: { model.dismissOperationError() }) {
             workspaceScene
-                .nativeCollectionPanelHost(enabled: presentation.selected == nil
+                .nativeCollectionPanelHost(enabled: presentation.selected == presentation.collectionPanel.openingMember
                     && !presentation.scene.settingsOpen && !presentation.scene.mokuOpen
-                    && !presentation.scene.cameraActive && !presentation.onboarding.blocksWorkspace)
+                    && !presentation.scene.cameraActive && !presentation.onboarding.blocksWorkspace,
+                    presentation: presentation.collectionPanel, readerReady: presentation.readingEntranceAdmitted)
         }
         .overlay(alignment: .top) {
             NativeRuntimeConnectionNotice(model: model).padding(.top, 12)
@@ -808,6 +812,7 @@ public struct NativeWorkspaceView: View {
         .onChange(of: model.preferences.appearance) { _, value in
             presentation.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
         }
+        .onChange(of: presentation.openingCollectionMember) { _, _ in presentation.publishPresence() }
         .onChange(of: presentation.scene.cameraActive) { _, _ in presentation.publishPresence() }
         .onChange(of: model.stopping) { _, _ in presentation.publishPresence() }
         .onChange(of: presentation.onboarding.blocksWorkspace) { _, _ in presentation.publishPresence() }
@@ -944,6 +949,7 @@ public struct NativeWorkspaceView: View {
                 identity: readingIdentity, motion: presentation.messageMotion,
                 enabled: !presentation.scene.settingsOpen && !presentation.scene.mokuOpen && !presentation.scene.cameraActive,
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true,
+                animatesOpening: !presentation.openingCollectionMember,
                 panel: presentation.usesReadingPanel, isolatesParent: true, panelSource: presentation.readingPanelSource,
                 panelIdentity: presentation.selected?.typeID == "agent" ? presentation.threadIdentityVisit : nil,
                 panelFrontIdentity: "workspace-reading-front",
@@ -1007,6 +1013,9 @@ public struct NativeWorkspaceView: View {
                     presentation.updateReportExecution(reference, ready: ready, onBack: onBack, route: routeID)
                 })
                 .environment(\.nativeReadingNavigation, presentation.usesReadingPanel ? nil : presentation.readingNavigation)
+                .transformEnvironment(\.nativeReadingEntranceReady) {
+                    if presentation.openingCollectionMember { $0 = false }
+                }
                 .background {
                     NativeWorkspaceApplicationEntrance(admitted: presentation.readingEntranceAdmitted) {
                         _ = presentation.admitReadingEntrance(routeID: routeID, reference: selected)

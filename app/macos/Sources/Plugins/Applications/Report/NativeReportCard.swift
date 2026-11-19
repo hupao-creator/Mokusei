@@ -16,6 +16,8 @@ import SwiftUI
     var usesGlassBadge = false
     var showsArchiveAction = false
     var allowsActions: () -> Bool = { true }
+    var memberSource: NativeCollectionPanelSource?
+    @Environment(\.nativeCollectionPanel) private var collectionPanel
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
     @State private var failure: String?
@@ -58,7 +60,10 @@ import SwiftUI
     }
     private var card: some View {
         Button {
-            if allowsActions(), !archivePending { openThread() }
+            guard allowsActions(), !archivePending else { return }
+            if let memberSource, let collectionPanel {
+                collectionPanel.openMember(props.entry.ref, source: memberSource, navigate: openThread)
+            } else { openThread() }
         } label: {
             GeometryReader { geometry in
                 VStack(spacing: 4) {

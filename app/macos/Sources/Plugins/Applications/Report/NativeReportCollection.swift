@@ -276,9 +276,10 @@ struct NativeReportCollection: View {
         if showingMembers { memberPresentation.close(owner: panelOwner); return }
         hovered = false
         showingMembers = true
-        memberPresentation.present(owner: panelOwner, source: panelSource, content: AnyView(memberPanel)) {
+        memberPresentation.present(owner: panelOwner, source: panelSource, content: AnyView(memberPanel)) { restoreFocus in
             hovered = false
             showingMembers = false
+            guard restoreFocus else { return }
             focusedControl = .allMembers
             accessibilityFocusedControl = .allMembers
         }
@@ -298,8 +299,9 @@ struct NativeReportCollection: View {
             allowsActions: { memberPresentation?.owner == panelOwner && active && memberPresentation?.closing != true && currentMembers.contains($0) },
             openThread: { reference in
                 guard memberPresentation?.owner == panelOwner, active, currentMembers.contains(reference), memberPresentation?.closing != true else { return }
-                memberPresentation?.dismiss(owner: panelOwner)
                 openThread(reference)
+                // A host without a reader handoff still releases its member grid.
+                memberPresentation?.dismiss(owner: panelOwner)
             })
             .environment(\.nativeReportCoverCache, coverCache)
     }

@@ -82,7 +82,7 @@ public extension NativeWorkspacePresentation {
             ])
         return .object([
             "page": .text(interactionPage), "mounted": .bool(interactionReady && pageMounted),
-            "transitioning": .bool(messageMotion.active || scene.historyMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
+            "transitioning": .bool(openingCollectionMember || messageMotion.active || scene.historyMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
                 || (onboarding.blocksWorkspace && onboarding.step == .landing)),
             "onboarding": .object(["step": .integer(onboarding.step.rawValue), "canContinue": .bool(onboarding.canAdvance),
                 "editorReady": .bool(onboarding.editorReady), "admitted": .bool(onboarding.admitted),
