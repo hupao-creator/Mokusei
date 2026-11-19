@@ -79,7 +79,7 @@ struct NativeMokuComposerInput: View {
     let draft: NativeComposerDraft
     var cwd: JSONText = ""
     var disabled = false
-    var busy = false
+    var submissionPending = false
     var threadTitle: String?
     var superThreadContext = false
     var sidecardComposer: SidecardComposerRequest?
@@ -114,10 +114,14 @@ struct NativeMokuComposerInput: View {
     @State private var inputHeight: CGFloat = 58
     @State private var editorRowHeight: CGFloat = 58
     @State private var errorHeight: CGFloat = 0
+    @State private var editorID = UUID()
+    @State private var composingDraft: NativeComposerDraft?
     @State private var hostPicker: NativeComposerHostFilePicker.Mode?
 
     private var completionVisible: Bool { mentions?.isOpen == true && !readOnly }
-    private var unavailable: Bool { disabled || draft.clearing || draft.isDisposed }
+    private var actionsUnavailable: Bool {
+        disabled || (submissionPending && sidecardComposer == nil) || draft.clearing || draft.isDisposed
+    }
     private var editingUnavailable: Bool { (disabled && !offlineDraftEditing) || draft.clearing || draft.isDisposed }
 
     private var hasInput: Bool {
@@ -161,7 +165,10 @@ struct NativeMokuComposerInput: View {
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { inputHeight = $0 }
         }.foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
             .animation(.smooth(duration: 0.42, extraBounce: 0), value: includesCompletion && completionVisible)
-            .onDisappear { onMentionFrame(nil) }
+            .onChange(of: ObjectIdentifier(draft)) { _, _ in
+                if composingDraft !== draft { updateComposition(false) }
+            }
+            .onDisappear { updateComposition(false); onMentionFrame(nil) }
             .sheet(item: $hostPicker) { mode in NativeComposerHostFilePicker(draft: draft, mode: mode) }
     }
     private var input: some View {
@@ -170,7 +177,7 @@ struct NativeMokuComposerInput: View {
                 directories: retainedDirectories ?? draft.inputDirectories,
                 containerRadius: NativeMokuCapsuleLayout.cornerRadius,
                 onRemove: { id in Task { await draft.removeAttachment(id) } }, onRemoveDirectory: draft.removeDirectory)
-                .disabled(unavailable || readOnly)
+                .disabled(actionsUnavailable || readOnly)
             NativeMokuComposerRowLayout(compact: compact) {
                 eyeSeat
                 if let sidecardComposer {
@@ -185,6 +192,30 @@ struct NativeMokuComposerInput: View {
                 HStack(spacing: 0) { actions }
             }.padding(.leading, 6).padding(.trailing, 13)
                 .onGeometryChange(for: CGFloat.self) { compact ? 34 : $0.size.height } action: { editorRowHeight = $0 }
+            if let previous = draft.interruptedInput {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(draft.requiresForkReview
+                        ? localize("分支已创建，消息未发送。选择如何保留草稿后，可在该分支继续。", "The fork exists and the message was not sent. Choose what to keep, then continue in that branch.")
+                        : localize("请核对会话中是否已收到上一条消息。", "Check the conversation for this interrupted send."))
+                    Text(([previous.text] + previous.directories.map { $0.name.string }
+                        + previous.attachments.map { $0.name.string }).joined(separator: " ")).lineLimit(3).textSelection(.enabled)
+                    if draft.hasTrackedReceipt {
+                        Button(localize("查询上一条回执", "Check previous receipt")) {
+                            Task { await draft.checkPendingReceipt() }
+                        }
+                    } else {
+                        HStack {
+                            Button(localize("恢复到草稿", "Restore to draft")) { Task { await draft.reviewInterruptedSend(restore: true) } }
+                            Button(localize("仅保留下一条草稿", "Keep next draft")) { Task { await draft.reviewInterruptedSend(restore: false) } }
+                        }
+                    }
+                }.font(.caption).padding(.bottom, 8)
+            }
+            if draft.cleanupReceipt != nil && !draft.submitting {
+                Button(localize("完成上一条回执清理", "Finish previous receipt cleanup")) {
+                    Task { await draft.checkPendingReceipt() }
+                }
+            }
             if let error = draft.error {
                 Text(sidecardComposer == nil ? composerLocalized(error, locale: locale)
                     : NativePluginLocalization.localize(error, locale: locale))
@@ -215,8 +246,8 @@ struct NativeMokuComposerInput: View {
     }
     private var editor: some View {
         NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.inputText }, set: { draft.inputText = $0 }),
-            placeholder: placeholder, placeholderIcon: placeholderIcon, placeholderLineLimit: 1,
-            disabled: editingUnavailable || busy, readOnly: readOnly || busy,
+            draft: draft, placeholder: placeholder, placeholderIcon: placeholderIcon, placeholderLineLimit: 1,
+            disabled: editingUnavailable, readOnly: readOnly || (submissionPending && sidecardComposer != nil),
             focusEnabled: focusEnabled, automaticFocus: automaticFocus,
             focusRequestKey: focusRequestKey, focusContext: "moku-dock",
             suppressInitialFocus: suppressInitialFocus,
@@ -224,16 +255,25 @@ struct NativeMokuComposerInput: View {
             fontSize: landing ? 16 : 14, lineHeight: landing ? 24 : 20,
             insets: .init(top: compact ? 6 : (landing ? 26 : 19), left: 6,
                          bottom: compact ? 6 : (landing ? 26 : 19), right: 6),
-            onSubmit: { if !unavailable && (sidecardComposer?.ready ?? true) { onSend() } }, onEscape: onEscape,
+            onSubmit: { if !disabled && draft.canSubmit && (sidecardComposer?.ready ?? true) { onSend() } }, onEscape: onEscape,
             onFiles: importFiles, preparePaste: preparePaste,
             selectionRequest: selectionRequest, initialSelection: initialSelection, preservesSelection: true, onEditorStateChange: { state in
+                updateComposition(state.composing)
                 onEditorStateChange?(state)
             }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
             .help(editorHelp)
     }
+    private func updateComposition(_ active: Bool) {
+        let owner = active ? draft : nil
+        guard composingDraft !== owner else { return }
+        composingDraft?.setComposing(false, editor: editorID)
+        composingDraft = owner
+        owner?.setComposing(true, editor: editorID)
+    }
+
     private var importFiles: (([NativeComposerFile]) async -> Void)? {
         guard sidecardComposer == nil else { return nil }
-        return { files in if !unavailable { await draft.importFiles(files) } }
+        return { files in if !actionsUnavailable { await draft.importFiles(files) } }
     }
     private var preparePaste: (() -> NativeComposerPastePreparation?)? {
         guard sidecardComposer == nil else { return nil }
@@ -252,12 +292,15 @@ struct NativeMokuComposerInput: View {
         // Retain the editor's width as the draft and its action change.
         ZStack {
             if hasInput {
-                Button(action: onSend) {
-                    NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
-                        .background(Color.primary.opacity(0.18), in: Circle())
-                }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly || !(sidecardComposer?.ready ?? true))
-                    .opacity(!unavailable && draft.canSubmit && (sidecardComposer?.ready ?? true) ? 1 : 0.3)
-                    .accessibilityLabel(sidecardComposer == nil ? localize("发送", "Send") : localize("发送批注", "Send annotation")).accessibilityIdentifier("moku-send")
+                let label = sidecardComposer == nil ? localize("发送", "Send") : localize("发送批注", "Send annotation")
+                NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
+                    .background(Color.primary.opacity(0.18), in: Circle())
+                    .accessibilityHidden(true)
+                    .overlay {
+                        NativeMokuSendButton(draft: draft, label: label, send: onSend)
+                            .disabled(actionsUnavailable || !draft.canSubmit || readOnly || !(sidecardComposer?.ready ?? true))
+                    }
+                    .opacity(!actionsUnavailable && draft.canSubmit && (sidecardComposer?.ready ?? true) ? 1 : 0.3)
             } else if running && threadTitle != nil {
                 stopButton
             }
@@ -267,7 +310,7 @@ struct NativeMokuComposerInput: View {
         Button(action: onCancel) {
             RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
                 .frame(width: 32, height: 32).contentShape(Circle())
-        }.buttonStyle(.plain).disabled(unavailable || readOnly)
+        }.buttonStyle(.plain).disabled(actionsUnavailable || readOnly)
             .help(stopLabel)
             .accessibilityLabel(stopLabel)
             .accessibilityIdentifier("moku-stop")
@@ -287,7 +330,7 @@ struct NativeMokuComposerInput: View {
                 Button { Task { await draft.chooseFiles(cwd: cwd) } } label: { attachmentIcon }
             }
         }
-        .buttonStyle(.plain).disabled(unavailable || draft.importing || readOnly)
+        .buttonStyle(.plain).disabled(actionsUnavailable || draft.importing || readOnly)
         .help(localize("添加图片或文件", "Add images or files"))
         .accessibilityLabel(localize("添加图片或文件", "Add images or files"))
         .accessibilityIdentifier("moku-add-attachment")
@@ -302,7 +345,56 @@ struct NativeMokuComposerInput: View {
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
 }
 
-/// History owns no outside-Dock state: sending, Escape, focus changes cannot collapse this capsule or change its supplied send route.
+private struct NativeMokuSendButton: NSViewRepresentable {
+    let draft: NativeComposerDraft
+    let label: String
+    let send: () -> Void
+    @Environment(\.isEnabled) private var enabled
+
+    final class Control: NSButton {
+        weak var draft: NativeComposerDraft?
+        var send: (() -> Void)?
+        override var acceptsFirstResponder: Bool {
+            NSApp.currentEvent?.type == .leftMouseDown ? false : super.acceptsFirstResponder
+        }
+        @objc func submit() {
+            guard isEnabled, draft?.canSubmit == true else { return }
+            send?()
+        }
+        override func mouseDown(with event: NSEvent) {
+            // Tracking can end an input method session. Reject the press while
+            // the marked buffer still belongs to the input method.
+            guard event.clickCount == 1, draft?.canSubmit == true else { return }
+            super.mouseDown(with: event)
+        }
+    }
+
+    func makeNSView(context: Context) -> Control {
+        let button = Control()
+        button.title = ""
+        button.isBordered = false
+        button.isTransparent = true
+        button.setButtonType(.momentaryPushIn)
+        button.identifier = .init("moku-send")
+        button.setAccessibilityIdentifier("moku-send")
+        button.target = button
+        button.action = #selector(Control.submit)
+        return button
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: Control, context: Context) -> CGSize? {
+        CGSize(width: 32, height: 32)
+    }
+
+    func updateNSView(_ button: Control, context: Context) {
+        button.isEnabled = enabled
+        button.setAccessibilityLabel(label)
+        button.draft = draft
+        button.send = send
+    }
+}
+
+/// History owns its permanent input seat and its supplied send route.
 public struct NativeMokuHistoryComposer: View {
     public let draft: NativeComposerDraft
     public let cwd: JSONText
@@ -340,7 +432,7 @@ public struct NativeMokuHistoryComposer: View {
             onSend: {
                 guard !disabled else { return }
                 let sendingDraft = draft, send = onSend, consumed = onSendConsumed
-                Task { await sendingDraft.submit(send, optimisticallyClear: true, didConsume: consumed) }
+                Task.immediate { await sendingDraft.submit(send, optimisticallyClear: true, didConsume: consumed) }
             })
             .fixedSize(horizontal: false, vertical: true)
             .background { NativeMokuCapsuleGlass() }

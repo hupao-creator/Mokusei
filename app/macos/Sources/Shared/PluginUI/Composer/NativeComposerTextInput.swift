@@ -43,6 +43,7 @@ public struct NativeComposerKeyEvent: Sendable {
 /// The platform editor owns marked text and selection; SwiftUI owns the draft.
 public struct NativeComposerTextInput: View {
     @Binding private var value: String
+    private let draft: NativeComposerDraft?
     private let placeholder: String
     private let placeholderIcon: AnyView?
     private let placeholderLineLimit: Int?
@@ -80,7 +81,7 @@ public struct NativeComposerTextInput: View {
     @Environment(\.isEnabled) private var environmentEnabled
     private var unavailable: Bool { disabled || readOnly || !environmentEnabled }
 
-    public init(value: Binding<String>, placeholder: String, placeholderIcon: AnyView? = nil,
+    public init(value: Binding<String>, draft: NativeComposerDraft? = nil, placeholder: String, placeholderIcon: AnyView? = nil,
                 placeholderLineLimit: Int? = nil,
                 disabled: Bool = false, readOnly: Bool = false,
                 focusEnabled: Bool = true, automaticFocus: Bool = true,
@@ -96,7 +97,7 @@ public struct NativeComposerTextInput: View {
                 onEditorStateChange: ((NativeComposerEditorState) -> Void)? = nil,
                 onKeyDown: ((NativeComposerKeyEvent) -> Bool)? = nil,
                 submitOnReturn: Bool = false, emphasizedInsertionPoint: Bool = false) {
-        _value = value; self.placeholder = placeholder; self.disabled = disabled; self.readOnly = readOnly
+        _value = value; self.draft = draft; self.placeholder = placeholder; self.disabled = disabled; self.readOnly = readOnly
         self.placeholderIcon = placeholderIcon
         self.placeholderLineLimit = placeholderLineLimit
         self.focusEnabled = focusEnabled
@@ -117,7 +118,7 @@ public struct NativeComposerTextInput: View {
 
     public var body: some View {
         let placeholderCapHeight = CTFontGetCapHeight(nativeFont)
-        NativeComposerEditor(value: $value, selection: $selection, focused: $focused,
+        NativeComposerEditor(value: $value, draft: draft, selection: $selection, focused: $focused,
             pasteOwnerID: pasteOwnerID,
             selectionRequest: selectionRequest, initialSelection: initialSelection, preservesSelection: preservesSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,

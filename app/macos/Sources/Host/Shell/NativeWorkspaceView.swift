@@ -26,8 +26,8 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored private var agentInputOwner: UUID?
     private var reportInputReady = false
     @ObservationIgnored private var executionDrafts: [ApplicationExecutionRef: NativeComposerDraft] = [:]
-    @ObservationIgnored private lazy var executionContinuation = NativeExecutionContinuation(workspace: workspace)
-    @ObservationIgnored private lazy var mokuSubmission = NativeMokuSubmission(workspace: workspace)
+    private let executionContinuation: NativeExecutionContinuation
+    private let mokuSubmission: NativeMokuSubmission
     @ObservationIgnored private var reportInputBack: (() -> Void)?
     private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef, reportSelection: UUID?, text: String)?
     var awaitingExecutionContinuation: Bool {
@@ -89,7 +89,9 @@ public final class NativeWorkspacePresentation {
 
     public init(workspace: NativeWorkspaceModel) {
         self.workspace = workspace
-        draft = NativeComposerDraft(services: workspace.services.composer(),
+        executionContinuation = NativeExecutionContinuation(workspace: workspace)
+        mokuSubmission = NativeMokuSubmission(workspace: workspace)
+        draft = NativeComposerDraft(services: workspace.services.composer(receipts: mokuSubmission.receipts),
             persistence: NativeComposerDraftPersistence(storageDirectory: workspace.client.storageDirectory, scope: "moku"))
         dockDraft = draft
         // Reload retains the current catalog. Restore the route before the
@@ -411,14 +413,10 @@ public final class NativeWorkspacePresentation {
               var request = source.objectValue else { throw CancellationError() }
         request["input"] = submission.input
         workspace.dismissOperationError()
-        try await mokuSubmission.send(input: submission.input, source: source) {
+        try await mokuSubmission.send(input: submission.input, source: source, commandID: submission.commandID) {
             await overview.recordUserAction(kind: "moku-input", text: JSONText(submission.text))
             return .object(request)
         }
-    }
-
-    func didConsumeMokuDraft(_ submission: NativeComposerSubmission, source: JSONValue) async {
-        await mokuSubmission.didConsumeDraft(input: submission.input, source: source)
     }
 
     /// A selected execution keeps the existing direct Agent route. The report
@@ -573,20 +571,20 @@ public final class NativeWorkspacePresentation {
                 // a Report draft to Agent history does not discard unsent input.
                 let scope = JSONText(codeUnits: JSONText("report-execution:\(thread.id.codeUnits.count):").codeUnits
                     + thread.id.codeUnits + reference.executionID.codeUnits)
-                executionDrafts[reference] = NativeComposerDraft(services: workspace.services.composer(),
+                executionDrafts[reference] = NativeComposerDraft(services: workspace.services.composer(receipts: executionContinuation.receipts),
                     persistence: NativeComposerDraftPersistence(storageDirectory: workspace.client.storageDirectory, scope: scope))
             }
             normalDraft = executionDrafts[reference]!
         } else if let thread {
             if threadDrafts[thread.id] == nil {
                 let scope = JSONText(codeUnits: Array("thread-detail:".utf16) + thread.id.codeUnits)
-                threadDrafts[thread.id] = NativeComposerDraft(services: workspace.services.composer(),
+                threadDrafts[thread.id] = NativeComposerDraft(services: workspace.services.composer(receipts: executionContinuation.receipts),
                     persistence: NativeComposerDraftPersistence(storageDirectory: workspace.client.storageDirectory, scope: scope))
             }
             normalDraft = threadDrafts[thread.id]!
         } else if let superThread {
             if superThreadDrafts[superThread] == nil {
-                superThreadDrafts[superThread] = NativeComposerDraft(services: workspace.services.composer(),
+                superThreadDrafts[superThread] = NativeComposerDraft(services: workspace.services.composer(receipts: mokuSubmission.receipts),
                     persistence: NativeComposerDraftPersistence(storageDirectory: workspace.client.storageDirectory,
                         scope: JSONText("super-thread-moku:\(superThread.string)")))
             }
@@ -634,7 +632,7 @@ public final class NativeWorkspacePresentation {
         await overview.recordUserAction(kind: "thread-input",
             thread: ApplicationThreadRef(threadID: id, typeID: "agent"), text: JSONText(submission.text))
         do {
-            let accepted = try await executionContinuation.send(threadID: id, executionID: executionID, input: submission.input)
+            let accepted = try await executionContinuation.send(threadID: id, executionID: executionID, input: submission.input, commandID: submission.commandID)
             // Runtime admission belongs to the submitted draft. Presentation
             // authority belongs only to the still-current reading visit.
             if navigationRouteID == route, scene.composerGeneration == generation,
@@ -652,10 +650,6 @@ public final class NativeWorkspacePresentation {
             if threadExecutionReveal?.id == request { threadExecutionReveal = nil }
             throw error
         }
-    }
-
-    func didConsumeThreadDraft(_ submission: NativeComposerSubmission, threadID: JSONText, executionID: JSONText?) async {
-        await executionContinuation.didConsumeDraft(threadID: threadID, executionID: executionID, input: submission.input)
     }
 
     public func cancelMoku(observed thread: HarnessThread) {
@@ -844,7 +838,6 @@ public struct NativeWorkspaceView: View {
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
                     onBack: { presentation.scene.closeHistory() },
                     onSend: { try await presentation.sendMoku($0) },
-                    onSendConsumed: { await presentation.didConsumeMokuDraft($0, source: .object([:])) },
                     onCancel: { presentation.cancelMoku(observed: thread) })
                     .environment(\.nativeReadingNavigation, nil)
             }
@@ -909,13 +902,6 @@ public struct NativeWorkspaceView: View {
                             guard presentation.navigationRouteID == routeID,
                                   presentation.mokuSuperThreadID == superThreadID else { throw CancellationError() }
                             try await presentation.sendMoku(submission, source: mokuSource)
-                        }
-                    }, onSendConsumed: { submission in
-                        guard sidecardComposer == nil else { return }
-                        if let detail {
-                            await presentation.didConsumeThreadDraft(submission, threadID: detail.id, executionID: execution?.executionID)
-                        } else {
-                            await presentation.didConsumeMokuDraft(submission, source: mokuSource)
                         }
                     }, onCancel: {
                         if let detail {

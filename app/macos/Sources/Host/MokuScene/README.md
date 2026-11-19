@@ -92,19 +92,26 @@ while reading/content readiness still gates input. See the
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
 Dock and history clear submitted text, directory mentions and ready attachment
-chips immediately through the shared draft's optimistic editor projection. The
+chips in the mounted editor as soon as the draft captures the send. The
 retiring Dock capsule also clears its sealed ink snapshot before collapse.
+The pinned Thread editor remains editable and keeps its native first responder
+while the send awaits confirmation. A reopened ordinary Dock can also edit its
+next draft. The draft blocks further submissions until the pending send settles.
+Browser annotation retains its own read-only submission interval.
 Admission still owns persistence consumption and staged-file release. Failure
 reveals the retained draft, preserving any new text after the failed message;
-no automatic retry occurs. Ready image chips use system Quick Look with the
+no automatic retry occurs. **Check previous receipt** checks the saved command
+ID. A missing receipt permits local review after checking the conversation.
+Local recovery offers **Restore to draft** or **Keep next draft**. Both choices
+are local and preserve the editable successor. Ready image chips use system Quick Look with the
 shared strip's local managed-file URLs and independent preview/remove actions.
 No current e2e evidence is supplied for Quick Look focus or pointer behavior.
 
 The identity seat retains the last open editor position while the composer
 retires. Directory completion stays above the same bottom-anchored native editor.
 Its measured height changes the shell without replacing the editor or its
-selection owner through entry, exit and rapid reversal. No completion replay
-is configured in this source tree.
+selection owner through entry, exit and rapid reversal. The pending-send replay
+selects the same directory in two consecutive drafts using Return.
 
 Input collapse hides the composer immediately. The shell and eyes continue
 their motion while `inputLeaving` keeps the ordinary closing editor mounted for
@@ -167,12 +174,10 @@ Directory completion opens above the editor within the same capsule. The editor 
 Moku submission through admission, receipt recovery and persisted draft
 consumption. An uncertain retry queries that same receipt;
 changed input or a different Report/directory cannot consume the original
-submission. Dock, Report and history capture the source with their send and consumption
-callbacks. A successful response retains its receipt until `didConsume` confirms
-the accepted draft revision was consumed without a storage error, including a
-late or disposed owner. Reopening without the original in-memory association
-keeps the durable receipt as a barrier; it never guesses that restored text is
-new work.
+submission. Dock, Report and history capture the source when sending. A
+successful response retains its receipt until the settled draft and its cleanup
+ID are durable. An owner that reopens the draft can finish the matching
+acknowledgement even if the original window closed.
 
 An empty or whitespace-only draft without attachments/directories mounts no Send
 button or circular background, including in accessibility. Its empty layout seat
@@ -623,8 +628,7 @@ editor Escape follows Report's auxiliary Back. Only the viewed current active
 execution exposes Stop; historical input cannot stop a newer execution. The shared sender uses the existing expected-execution admission fence. An
 explicit pre-admission `EXECUTION_CHANGED` rejection takes the historical fork
 path once; uncertain writes are never automatically resent. A failed follow-up
-retains both the exact draft and its admitted fork for retry across these readers
-within the window. Successful exact sends open the accepted Agent execution
+retains both the exact draft and its admitted fork for review across these readers. Successful exact sends open the accepted Agent execution
 after catalog admission, fenced to the owning route/composer visit. Ordinary
 current sends keep their existing visit-scoped execution reveal. TOC selection changes drafts without acquiring editor focus. Initial input,
 explicit Browser annotation mode and Moku retain their existing autofocus. Pending focus requests wait for editor eligibility and are applied once, so an
@@ -635,17 +639,15 @@ seat. The retained outgoing reader cannot overwrite or clear that target, and
 canceling a handoff republishes the restored reader's target. The workspace
 withdraws its input owner when it leaves, independently of either reader's
 teardown. Each continuation phase retains its original source, input, destination and
-command ID. An uncertain retry queries that receipt before any routing decision;
-a confirmed fork can then proceed to its first follow-up, while a confirmed
-follow-up consumes the original draft without sending it again. Changed input
-cannot replace an uncertain phase. A fork's durable receipt transfers to its
-follow-up in one journal transaction before dispatch. If that follow-up is
-definitively rejected, its receipt still retains the fork association: the
-original sender can accept corrected input for that same branch, while a
-reopened owner without the phase context blocks new work and identifies the
-protected receipt. Successful follow-up receipts remain protected until the
-captured draft consumption callback, including late/disposed owners. A receipt
-release callback is identity-fenced against a newer operation. This policy is
+command ID. During Send, a confirmed fork transfers its durable receipt to
+the first follow-up in one journal transaction before dispatch. After a lost
+response, Check previous receipt only reads the identified command. If the
+fork exists and its input was never accepted, the composer keeps its protected
+receipt until the user chooses Restore to draft or Keep next draft. Either
+decision releases the barrier and lets the user continue in the created branch.
+A confirmed final send consumes its own draft and leaves the successor intact.
+The saved successor records the receipt until journal cleanup has completed,
+including when the original owner closes. This policy is
 shared by Report and Agent input; there is no force-resend button. See [Execution continuation](../../../../../design/reading.md)
 for native constraints and evidence limits.
 
@@ -679,7 +681,8 @@ settle travel directly. This preserves the existing draft,
 receipt, input-readiness and late-callback fences. See the
 [composer geometry contract](../../../../../design/composer.md).
 
-No Runtime send/receipt e2e is configured in this source tree.
+The [Host receipt replay](../../../../../demos/moku-panel-transition/README.md#host-receipt-replay)
+exercises the production client transport and journal with fixture outcomes.
 The [composer ownership guide](../../../../../design/composer.md) describes
 the implemented admission and cancellation boundaries.
 

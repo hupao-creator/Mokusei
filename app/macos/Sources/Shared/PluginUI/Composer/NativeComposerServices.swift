@@ -3,6 +3,17 @@ import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
 
+/// Inspect the captured command and release its receipt after durable draft settlement.
+@MainActor public struct NativeComposerReceiptActions {
+    public let check: (String) async throws -> RuntimeComposerReceipt
+    public let consume: (String) async throws -> Void
+
+    public init(check: @escaping (String) async throws -> RuntimeComposerReceipt, consume: @escaping (String) async throws -> Void) {
+        self.check = check
+        self.consume = consume
+    }
+}
+
 /// Capability injection for a particular draft/thread. The composer never owns
 /// a general runtime client or chooses another thread's authority.
 @MainActor
@@ -14,6 +25,7 @@ public struct NativeComposerServices {
     public typealias PreviewAttachment = (NativeComposerStoredAttachment, PluginLifetime) async throws -> Data?
     public typealias OpenHostFile = (RuntimeHostFileReference, PluginLifetime) async throws -> Void
     public typealias RetainAttachments = ([JSONText]) throws -> RuntimeAttachmentOwner
+    public let receipts: NativeComposerReceiptActions?
     public let chooseFiles: ChooseFiles
     public let stageFiles: StageFiles
     public let discardAttachments: ([JSONText]) async throws -> Void
@@ -26,8 +38,9 @@ public struct NativeComposerServices {
     public init(chooseFiles: ChooseFiles? = nil, stageFiles: @escaping StageFiles,
                 attachmentPolicy: AttachmentPolicy? = nil, hostDirectory: HostDirectory? = nil,
                 previewAttachment: PreviewAttachment? = nil, openHostFile: OpenHostFile? = nil,
-                retainAttachments: RetainAttachments? = nil,
+                retainAttachments: RetainAttachments? = nil, receipts: NativeComposerReceiptActions? = nil,
                 discardAttachments: @escaping ([JSONText]) async throws -> Void) {
+        self.receipts = receipts
         self.stageFiles = stageFiles
         self.attachmentPolicy = attachmentPolicy; self.hostDirectory = hostDirectory; self.previewAttachment = previewAttachment
         self.openHostFile = openHostFile

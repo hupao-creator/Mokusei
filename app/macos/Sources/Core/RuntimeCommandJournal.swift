@@ -35,6 +35,28 @@ struct RuntimeCommandJournal: Sendable {
         }
     }
 
+    static func composerRecord(_ id: String, channel: String, in records: Records) throws -> RuntimeCommandRecord? {
+        // The draft writes its root ID before the first suspension. A historical
+        // continuation can transfer the journal entry before the draft learns its phase ID.
+        let keys = channel == "thread:follow-up"
+            ? [id, id + "-fork", id + "-followup", id + "-fork-followup"] : [id]
+        guard let record = keys.compactMap({ records[$0] }).first else { return nil }
+        guard record.channel == channel || (channel == "thread:follow-up" && record.channel == "thread:fork") else {
+            throw RuntimeError("COMPOSER_RECEIPT_UNAVAILABLE", "The saved receipt belongs to another command.")
+        }
+        return record
+    }
+
+    func consumeComposerReceipt(_ id: String, channel: String, active: Set<String>) throws -> Records {
+        try transaction { records in
+            guard let record = try Self.composerRecord(id, channel: channel, in: records) else { return }
+            guard !active.contains(record.key), record.status == .accepted || record.status == .rejected else {
+                throw RuntimeError.uncertain(record.id)
+            }
+            records.removeValue(forKey: record.id)
+        }
+    }
+
     func updateStatus(of expected: RuntimeCommandRecord, to status: RuntimeCommandOutcome.Status) throws -> Records {
         try transaction { records in
             // Another client may have consumed this receipt during HTTP I/O.

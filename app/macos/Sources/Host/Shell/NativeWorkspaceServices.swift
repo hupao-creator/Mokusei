@@ -12,7 +12,7 @@ public final class NativeWorkspaceServices {
     private weak var workspace: NativeWorkspaceModel?
     public init(workspace: NativeWorkspaceModel) { self.workspace = workspace }
 
-    public func composer() -> NativeComposerServices {
+    public func composer(receipts: NativeComposerReceiptActions? = nil) -> NativeComposerServices {
         NativeComposerServices(stageFiles: { [weak self] files, lifetime in
             guard let self else { throw CancellationError() }
             let attachments = try await within(lifetime) { try await self.stage(files) }
@@ -45,7 +45,7 @@ public final class NativeWorkspaceServices {
         }, retainAttachments: { [weak self] ids in
             guard let self else { throw CancellationError() }
             return try RuntimeDraftStore.retainAttachments(ids, storageDirectory: self.requireWorkspace().client.storageDirectory)
-        }, discardAttachments: { [weak self] ids in
+        }, receipts: receipts, discardAttachments: { [weak self] ids in
             guard let self else { throw CancellationError() }
             try await self.discard(ids)
         })

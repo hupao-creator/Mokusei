@@ -41,14 +41,14 @@ Dead process lock files are removed only while their kernel lock is acquired.
 No timer or socket-disconnect heuristic decides that a persistent draft expired.
 
 The permanent `ownership.lock` serializes collection with short client ownership
-updates. Draft read-and-pin and atomic draft/reference writes hold shared locks;
-collection and journal delta read-modify-write hold exclusive locks. No client
+updates. Draft read-and-pin takes a shared lock. Atomic draft/reference writes,
+collection and journal delta read-modify-write take exclusive locks. No client
 network call or async suspension occurs under this gate. Collection classifies
 live staging leases before reading durable references, so process exit during a
 Stage-to-draft handoff cannot create a gap between those two owners. Collection
 also removes unowned payload-only and metadata-only crash remnants.
 
-No attachment lifecycle or Swift-files correctness replay is configured in
-this source tree. The ownership, admission and collection rules above describe
-the production implementation; build success does not establish their runtime
-coverage.
+The [Composer receipt replay](../../../demos/moku-panel-transition/README.md#host-receipt-replay)
+checks staged file bytes during a pending send, collector lock contention and
+post-exit collection against the durable successor. Runtime execution and
+Thread attachment retention are outside that fixture.

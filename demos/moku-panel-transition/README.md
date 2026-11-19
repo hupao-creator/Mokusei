@@ -55,3 +55,59 @@ at the start of closing and that the reopened draft and Talk reply are readable.
 The replay uses real rendering and native editor state with synthetic routes
 and no Runtime or system input. Pixel review is manual. A reused output
 directory, missing window capture or failed semantic check cannot establish a pass.
+
+## Pending send replay
+
+Build the preview as above and run the executable with `--replay-send` under
+the shared desktop verification lease. Its panel cannot become key or main and ignores system pointer input. It mounts the pinned
+Thread composer with the editor's normal text input settings. The fixture
+delivers local AppKit mouse events to Send, Return to the native editor, and
+marked text and commits through the NSTextInputClient interface. It supplies
+the admission result. It never opens a Runtime connection.
+
+Send, the next insertion, rejection and another insertion can all occur on the
+same event stack. Assertions compare the native text, the saved draft and the
+peer's captured payloads, including duplicate presses, equal successive text,
+composition and reselecting the same directory through `@` completion. For
+delayed receipts the fixture waits only for the send operation to settle.
+Two mounted native editors share a saved scope. While the first holds marked
+`pin`, the second inherits it and adds only a directory, adds only a fixture
+attachment, or selects the body and replaces it with `B` or the same `pin`.
+Each case runs with acceptance and rejection. The first editor commits `拼`
+and inserts `C` on the same event stack. Assertions cover native text, model,
+reopened draft, chips and the exact payload of the next explicit Return. An
+additional acceptance case finishes composition with AppKit’s `unmarkText`.
+Separate writer and reader processes share a temporary draft scope: the writer
+exits before admission, and each local recovery choice must yield the expected
+text with zero deliveries in the reader.
+
+The executable prints the results and exits nonzero on a failed condition.
+System input-source candidate selection, system-wide mouse routing and actual
+Runtime delivery require separate verification. The
+[operator-assisted Composer journey](../../tools/e2e/README.md#composer-system-input-boundary)
+covers system input and persisted Runtime results.
+
+
+## Host receipt replay
+
+With the debug production build available, run
+`python3 demos/moku-panel-transition/receipt_replay.py` under the shared
+verification lease. The windowless replay attaches the production RuntimeClient
+through a loopback fault proxy to the production Go transport in a temporary,
+exclusively owned profile. The proxy disconnects after the Go ReceiptStore
+reports pending. The Go Host fixture counts actual handler entries. A baseline
+bare UUID must fail admission, and a duplicate of an admitted ID must return
+the recorded result with no additional handler entry. The execution-change
+path checks both derived fork and follow-up IDs. Both the live and reconstructed Host check the captured ID.
+Assertions cover a pending result, final acceptance and rejection, a different
+draft with identical text, and a subsequent explicit send. The replay also
+makes the temporary draft directory read-only for one edit, restores its
+permissions and checks the durable successor and acknowledgement. A fresh process
+finishes cleanup after a disk error on either side of journal acknowledgement.
+Historical fork and follow-up phases cover explicit local recovery, with the
+peer counting each mutation. A new send from the same historical checkpoint
+must fork from that checkpoint again after late acceptance. A competing process tests the scope lock. The Go
+attachment repository stages two real files, contends for the ownership lock,
+and collects again after the editors exit. The replay checks the surviving bytes
+and the released file's removal. The fixture supplies service bootstrap and
+command outcomes.

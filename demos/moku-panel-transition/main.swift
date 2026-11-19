@@ -8,6 +8,13 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 @testable import MokuseiUI
 
+// A nonactivating panel can still take the user's keyboard independently of
+// the frontmost application. The replay drives its local first responder.
+private final class ComposerReplayPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+}
+
 @MainActor @Observable private final class Preview {
     let scene = NativeMokuSceneState()
     var draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
@@ -16,6 +23,8 @@ import MokuseiPluginUI
     var transitionsDisabled = false
     var thread = true
     var collapseCapture = false
+    var sendReplay: PendingSendReplay?
+    var isolatedReplay: Bool { collapseCapture || sendReplay != nil }
     let route = UUID()
     let harness = AnyHarnessPlugin(CodexHarnessPlugin())
     var status = "普通 Thread · 点击胶囊打开，Escape 或外部点击收起"
@@ -55,21 +64,40 @@ private struct Surface: View {
         } thread: { Color.white } dock: {
             NativeMokuDock(state: model.scene, draft: model.draft, cwd: "/fixture",
                 landing: model.landing,
-                threadID: model.collapseCapture && model.thread ? "fixture-agent" : nil,
+                threadID: model.isolatedReplay && model.thread ? "fixture-agent" : nil,
                 threadTitle: model.thread ? "修复历史执行工具消息泄漏" : nil,
                 threadHarness: model.collapseCapture ? model.harness : nil,
                 mode: model.running ? .running : .idle, running: model.running,
                 loadMentionDirectories: { ["Mokusei", "Design", "Research"].map {
                     NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
-                } }, onSend: { _ in model.status = "已模拟发送 · 未调用模型或 Runtime" },
+                } }, onSend: { submission in
+                    if let replay = model.sendReplay { try await replay.receive(submission) }
+                    else { model.status = "已模拟发送 · 未调用模型或 Runtime" }
+                },
                 onCancel: { model.running = false })
         } settings: { EmptyView() }
         .environment(\.locale, Locale(identifier: "zh-Hans"))
         .environment(\.nativeExecutionDockRoute, model.route)
-        .environment(\.scenePhase, model.collapseCapture ? .active : scenePhase)
+        .environment(\.scenePhase, model.isolatedReplay ? .active : scenePhase)
         .transaction { if model.transitionsDisabled { $0.animation = nil; $0.disablesAnimations = true } }
     }
     @Environment(\.scenePhase) private var scenePhase
+}
+
+@MainActor func makePeerComposerPanel(draft: NativeComposerDraft, replay: PendingSendReplay) -> NSPanel {
+    let model = Preview()
+    model.sendReplay = replay
+    model.draft = draft
+    model.scene.readingPanelVisible = true
+    model.scene.overviewVisible = false
+    model.scene.setComposerContext(draft, opensInput: true, keepsInputOpen: true, autofocus: false)
+    let panel = ComposerReplayPanel(contentRect: .init(x: 100, y: 100, width: 1024, height: 650),
+        styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false)
+    panel.isReleasedWhenClosed = false
+    panel.ignoresMouseEvents = true
+    panel.contentView = NSHostingView(rootView: Surface(model: model))
+    panel.orderBack(nil)
+    return panel
 }
 
 private struct Controls: View {
@@ -97,36 +125,52 @@ private struct Controls: View {
     var window: NSWindow!
     var controls: NSPanel!
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if CommandLine.arguments.contains("--capture-collapse") {
-            model.collapseCapture = true
-            model.thread = false
-            model.running = false
-            model.scene.readingPanelVisible = true
-            model.scene.overviewVisible = false
-            model.scene.executionDockPlacement.beginRoute(model.route)
-            model.scene.setComposerContext(model.draft, opensInput: false, inputAdmissionReady: false)
+        let replaySend = CommandLine.arguments.contains("--replay-send")
+        model.collapseCapture = CommandLine.arguments.contains("--capture-collapse")
+        if replaySend || model.collapseCapture {
+            if replaySend {
+                let replay = PendingSendReplay()
+                model.sendReplay = replay
+                model.draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }),
+                    persistence: replay.persistence)
+            } else {
+                model.thread = false
+                model.running = false
+                model.scene.readingPanelVisible = true
+                model.scene.overviewVisible = false
+                model.scene.executionDockPlacement.beginRoute(model.route)
+                model.scene.setComposerContext(model.draft, opensInput: false, inputAdmissionReady: false)
+            }
             let width: CGFloat = CommandLine.arguments.contains("--narrow") ? 480 : 1024
-            window = NSPanel(contentRect: .init(x: 100, y: 100, width: width, height: 650),
-                styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false)
+            let frame = NSRect(x: 100, y: 100, width: width, height: 650)
+            let style: NSWindow.StyleMask = [.titled, .nonactivatingPanel]
+            window = replaySend
+                ? ComposerReplayPanel(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
+                : NSPanel(contentRect: frame, styleMask: style, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
-            window.title = "Moku collapse replay"
+            if replaySend { window.ignoresMouseEvents = true }
+            window.title = replaySend ? "Moku pending send replay" : "Moku collapse replay"
             window.contentView = NSHostingView(rootView: Surface(model: model))
             window.orderBack(nil)
             Task {
                 do {
-                    try await captureCollapse(window: window, scene: model.scene, selectExecution: {
-                        model.scene.setComposerContext(model.draft, opensInput: true, keepsInputOpen: true,
-                            inputAdmissionReady: false, waitsForHarnessIdentity: true, autofocus: false)
-                        model.thread = true
-                    }, returnToReportList: {
-                        model.thread = false
-                        model.scene.setComposerContext(model.draft, opensInput: false, inputAdmissionReady: false)
-                    }, selectOverviewDraft: { draft in
-                        model.thread = false
-                        model.draft = draft
-                    })
+                    if let replay = model.sendReplay {
+                        try await replay.run(window: window, scene: model.scene, draft: model.draft)
+                    } else {
+                        try await captureCollapse(window: window, scene: model.scene, selectExecution: {
+                            model.scene.setComposerContext(model.draft, opensInput: true, keepsInputOpen: true,
+                                inputAdmissionReady: false, waitsForHarnessIdentity: true, autofocus: false)
+                            model.thread = true
+                        }, returnToReportList: {
+                            model.thread = false
+                            model.scene.setComposerContext(model.draft, opensInput: false, inputAdmissionReady: false)
+                        }, selectOverviewDraft: { draft in
+                            model.thread = false
+                            model.draft = draft
+                        })
+                    }
                 } catch {
-                    print("Collapse capture failed:", error)
+                    print("Isolated replay failed:", error)
                     exit(EXIT_FAILURE)
                 }
                 NSApp.terminate(nil)
@@ -161,7 +205,7 @@ private struct Controls: View {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         // A nonactivating panel need not count as an open main window.
         // Capture owns termination until the movie and observations are sealed.
-        !model.collapseCapture
+        !model.isolatedReplay
     }
 
     // A presentation reel, not a regression suite: no assertions or test runner.
@@ -258,7 +302,7 @@ private struct Controls: View {
         try prepareIsolatedNativeReplay()
         NativeTypography.registerFonts()
         let app = NSApplication.shared
-        app.setActivationPolicy(CommandLine.arguments.contains("--capture-collapse") ? .accessory : .regular)
+        app.setActivationPolicy((CommandLine.arguments.contains("--capture-collapse") || CommandLine.arguments.contains("--replay-send")) ? .accessory : .regular)
         let delegate = Delegate(); app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }

@@ -78,15 +78,13 @@ entry temporarily excluded into the active Sidecard. Row-only renders and
 execution Sidecards do not publish another input owner. Unavailable or aggregate
 history without an execution identity cannot silently become current input.
 
-`NativeComposerDraft.submit` optionally notifies its owner through `didConsume`
-after the captured accepted revision has been consumed without a storage error.
-The resident Dock and Moku history composer capture this callback with the
-original send, so closing or replacing their views cannot acknowledge another
-draft. Execution continuation and Moku submission use it to release a retained
-accepted receipt; failed/uncertain sends never call it. Moku's Host also captures
-the original Report/directory source for that callback, independently of the
-currently visible route. Existing callers without retained receipts keep their
-ordinary behavior.
+The resident Dock and Moku history capture the submitted draft and its route
+together. The shared draft persists each pending send under its initial
+command ID. Settlement writes the editable successor and its cleanup marker
+before the Host acknowledges the retained receipt. A reopened owner can
+retry that acknowledgement without sending the successor. The optional
+`didConsume` observer reports completed consumption to callers such as the
+receipt replay.
 
 `NativeComposerTextInput` keeps an unconsumed focus request pending while the
 editor is unavailable or focus is suspended. Eligibility changes retry that
@@ -819,17 +817,36 @@ animate the content stack independently of the shorter scroll clip; that briefly
 cuts off the surviving chips. Attachment status/type changes use the same atomic
 layout update. The surrounding Dock retains its own shell transitions.
 
-Moku opts into `NativeComposerDraft.submit(optimisticallyClear:)`. Its
-`inputText`, `inputAttachments` and `inputDirectories` project an empty editor
-immediately while the original draft, captured send payload and attachment leases
-remain owned until admission. Other composer callers retain receipt-time clearing.
-The existing submitting fence blocks duplicate sends. New text/imports retain
-their revision/identity and survive success. On failure the original chips return;
-new text is preserved after the failed text, separated by a blank line. Recovery
-never retries a send. A retired owner's text recovery compares its last saved
-revision so a replacement owner's edits or consumption win, and preserves raw
-pending imports. Accepted sends never enter failure recovery, including when
-subsequent persistence consumption fails.
+Moku opts into `NativeComposerDraft.submit(optimisticallyClear:)`. Before
+dispatch, persistent drafts atomically save the submitted text, directory
+mentions and ready chips under a send ID alongside a fresh editable draft.
+Acceptance consumes that ID. Rejection prepends the failed text to the latest
+draft with a blank line and restores its chips. Selecting the same directory
+in the next draft gives that draft its own mention. A reopened owner can
+check the original receipt when the send lock is free. A prior command blocking
+a different draft cannot claim that draft, even when both messages have the
+same text. Local recovery is available when there is no retained receipt.
+Storage errors belong to the failed write and clear when persistence succeeds.
+Resolving a tracked handoff saves a cleanup ID atomically with the successor.
+Cleanup can finish after reopening, even if the journal already released the
+receipt. Querying a historical phase never submits input. An existing fork with
+unsent input keeps its protected receipt until the user decides what to keep. A writer that loses a revision conflict keeps its unsaved
+buffer and an error until it reopens the durable draft. Its stale revision
+cannot overwrite the winning draft or prevent that draft from consuming a send.
+
+A mounted editor receives these changes synchronously on the main actor.
+Send and Return capture only committed input. While a failed send is being
+restored during composition, the input method keeps its marked range. The
+draft saves the recovered prefix and the composing text, then installs the
+prefix and adjusts the native selection when composition finishes. The saved
+draft records the identity of its last body edit. A second editor that only
+changes directory or attachment chips keeps the inherited body identity. The
+first editor can then commit its candidate once alongside those chips. If the
+second editor replaces the body, even with identical text, its edit survives
+as a separate paragraph above the committed candidate. Rejection also restores
+the submitted text above both edits. The caret stays with the committed text. A held
+Return or double-click cannot retry the previous send. Other composer callers
+retain receipt-time clearing.
 
 Attachment paste shortcuts bind to the exact mounted native composer through a
 shared editor identity. Common window ancestry and overlapping geometry cannot
@@ -844,7 +861,7 @@ Visible defaults populate the editor; optional absence remains valid. Hidden
 defaults participate in conditions without becoming steps, and inactive drafts
 stay local. Core retains schema validation and native answer conversion.
 
-Accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
+For receipt-time clearing, accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
 
 Each draft write publishes its ready staged-file IDs in the Core ownership
 envelope together with its contents. A successful send releases its staging

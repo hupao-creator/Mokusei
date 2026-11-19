@@ -85,7 +85,6 @@ public struct NativeMokuDock: View {
     @AccessibilityFocusState private var stopAccessibilityFocused: Bool
     @State private var capsuleHeight: CGFloat = 58
     @State private var completionHeight: CGFloat = 0
-    @State private var submissionDraft: NativeComposerDraft?
     @State private var focusGeneration: UUID?
     @State private var explicitFocusGeneration: UUID?
     @State private var focusRequest = 0
@@ -144,7 +143,6 @@ public struct NativeMokuDock: View {
         self.loadMentionDirectories = loadMentionDirectories
     }
     private var retaining: Bool { state.inputLeaving || state.capsuleSealed }
-    private var submitting: Bool { submissionDraft === draft || draft.submitting }
     private var inputPresent: Bool {
         !state.settingsOpen && !state.notePanelOpen && (state.inputOpen || state.inputLeaving) && interaction == nil
             && (state.inputOpen || displayedMessage == nil)
@@ -167,7 +165,7 @@ public struct NativeMokuDock: View {
     }
     private var visibleTalk: NativeMokuTalkMessage? {
         guard threadTitle == nil, !state.inputOpen, interaction == nil, !state.dockCovered, state.dockRouteVisible,
-              state.windowVisible, !disabled, !submitting, !draft.submitting else { return nil }
+              state.windowVisible, !disabled, !draft.submitting else { return nil }
         return state.talkPresentation.message
     }
 
@@ -290,7 +288,7 @@ public struct NativeMokuDock: View {
     }
     private var residentPresenting: Bool {
         threadTitle == nil && !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
-        !submitting && !draft.submitting && interaction == nil && displayedMessage == nil
+        !draft.submitting && interaction == nil && displayedMessage == nil
     }
     // The workspace retains the selected Agent while its reader returns to
     // Overview. Input is already closed to interaction during that motion.
@@ -318,7 +316,7 @@ public struct NativeMokuDock: View {
             // Stop authority nor permission to consume the captured draft.
             // Closing input admits feedback immediately, even while the
             // retiring editor remains mounted. Open input owns its own controls.
-            return (submitting && draft.error == nil) || continuationPresenting || (!disabled && running && draft.error == nil)
+            return (draft.submitting && draft.error == nil) || continuationPresenting || (!disabled && running && draft.error == nil)
         }
         return running && (mode == .running || incomingReasoning != nil)
             && !expanded && !state.notePanelOpen && !noteMounted && !inputPresent && interaction == nil
@@ -345,7 +343,7 @@ public struct NativeMokuDock: View {
     private var eyeExpression: MokuExpression {
         if state.settingsOpen || state.inputOpen { return .focus }
         if interaction != nil { return .curious }
-        if submitting || draft.submitting || running { return .deliberating }
+        if draft.submitting || running { return .deliberating }
         if reminder != nil { return .happy }
         return .idle
     }
@@ -595,7 +593,7 @@ public struct NativeMokuDock: View {
         .onChange(of: sidecardComposer?.ready) { _, ready in
             if ready == true { focusRequest += 1 }
         }
-        .onChange(of: submitting) { _, busy in
+        .onChange(of: draft.submitting) { _, busy in
             if !busy, sidecardComposer?.ready == true { focusRequest += 1 }
         }
         .onChange(of: draft.directories) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
@@ -971,8 +969,8 @@ public struct NativeMokuDock: View {
     private func composer(room: CGFloat, compact: Bool) -> some View {
         // The entrance delay owns only automatic acquisition. An admitted
         // editor must accept clicks/Tab without a delayed update blurring it.
-        NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || (submitting && sidecardComposer == nil),
-            busy: submitting && sidecardComposer != nil,
+        NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
+            submissionPending: draft.submitting,
             threadTitle: threadTitle, superThreadContext: superThreadContext, sidecardComposer: sidecardComposer,
             readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && (sidecardComposer?.ready ?? true),
             automaticFocus: false,
@@ -1007,7 +1005,7 @@ public struct NativeMokuDock: View {
     }
 
     private func send() {
-        guard state.ownsComposer(draft), !state.settingsOpen, !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
+        guard state.ownsComposer(draft), !state.settingsOpen, !disabled, state.inputOpen, draft.canSubmit else { return }
         guard sidecardComposer?.ready ?? true else { return }
         state.retainDraft(draft, seal: !state.inputPinnedOpen)
         // The retiring capsule is a sealed projection, independent of the live
@@ -1015,13 +1013,11 @@ public struct NativeMokuDock: View {
         state.retainedText = ""; state.retainedAttachments = []; state.retainedDirectories = []
         if threadTitle == nil { state.dismissTalk() }
         let sendingDraft = draft, send = onSend, consumed = onSendConsumed, generation = state.composerGeneration
-        submissionDraft = sendingDraft
         state.setInputOpen(false)
-        Task {
-            // Capture both the draft and route before yielding. A late receipt
-            // consumes only this draft and cannot reopen a replacement visit.
+        // Capture and project the submitted input in this event, before another
+        // keystroke can change the payload. The receipt can arrive on a later visit.
+        Task.immediate {
             await sendingDraft.submit(send, optimisticallyClear: true, didConsume: consumed)
-            if submissionDraft === sendingDraft { submissionDraft = nil }
             if state.composerGeneration == generation, sendingDraft.error != nil, !state.mokuOpen {
                 state.setInputOpen(true)
             }

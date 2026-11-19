@@ -14,6 +14,13 @@ lease; native staging rejects a client storage directory outside the host profil
 
 [receipts.go](receipts.go) and [receipt_query.go](receipt_query.go) retain command identity and results. A lost mutation response is resolved by querying its original command ID. Reconnecting does not blindly resend uncertain work. Disconnecting a presentation lease does not cancel work that the service has already accepted.
 
+New command IDs contain Unix milliseconds, an underscore and 16–80 characters
+from the ASCII letter, digit, underscore and hyphen alphabet. The admission
+window allows five minutes of age and 30 seconds of future clock skew. A
+retained receipt is checked before new-ID admission. The [Composer receipt
+replay](../../../demos/moku-panel-transition/README.md#host-receipt-replay)
+exercises native IDs through the HTTP executor and receipt store.
+
 Service revocation cancels every admitted Host call before drain, including reads
 whose HTTP clients remain connected. Reads also follow their request cancellation;
 writes follow only the service lifetime. Drain waits for those calls and their

@@ -43,7 +43,7 @@ struct RuntimeCommandRecord: Sendable, Equatable {
     }
     init?(_ value: JSONValue) {
         guard let key = value["key"]?.stringValue, key.count <= 256,
-              let id = value["id"]?.stringValue, Self.validID(id),
+              let id = value["id"]?.stringValue, RuntimeProtocol.isReceiptID(id),
               let fingerprint = value["fingerprint"]?.stringValue, fingerprint.count == 64,
               fingerprint.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }),
               let channel = value["channel"]?.stringValue, !channel.isEmpty, channel.count <= 128,
@@ -52,7 +52,7 @@ struct RuntimeCommandRecord: Sendable, Equatable {
         let attachmentIDs = references.compactMap(Self.attachmentID)
         guard attachmentIDs.count == references.count else { return nil }
         if let fork = value["forkReceiptID"] {
-            guard let forkID = fork.stringValue, Self.validID(forkID), forkID != id, channel == "thread:follow-up" else { return nil }
+            guard let forkID = fork.stringValue, RuntimeProtocol.isReceiptID(forkID), forkID != id, channel == "thread:follow-up" else { return nil }
             forkReceiptID = forkID
         }
         self.key = key; self.id = id; self.fingerprint = fingerprint; self.channel = channel; self.status = status
@@ -80,11 +80,6 @@ struct RuntimeCommandRecord: Sendable, Equatable {
               uuid.uuidString.lowercased() == id,
               (1...5).contains(uuid.uuid.6 >> 4), uuid.uuid.8 & 0xc0 == 0x80 else { return nil }
         return id
-    }
-
-    private static func validID(_ value: String) -> Bool {
-        (16...128).contains(value.count)
-            && value.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 || $0 == 95 }
     }
 }
 
@@ -132,7 +127,7 @@ extension RuntimeClient {
         try transactCommandJournal { try $0.updateStatus(of: record, to: status) }
     }
 
-    private func transactCommandJournal(_ operation: (RuntimeCommandJournal) throws -> RuntimeCommandJournal.Records) throws {
+    func transactCommandJournal(retryableCleanup: Bool = false, _ operation: (RuntimeCommandJournal) throws -> RuntimeCommandJournal.Records) throws {
         if let commandJournalFailure { throw commandJournalFailure }
         do {
             let records = try operation(commandJournal)
@@ -145,7 +140,11 @@ extension RuntimeClient {
             for (id, fingerprint) in activeReceipts { explicitReceipts[id] = fingerprint }
         } catch {
             if let failure = error as? RuntimeError,
-               ["COMMAND_JOURNAL_INVALID", "COMMAND_JOURNAL_UNAVAILABLE", "COMMAND_RECEIPT_CONFLICT"].contains(failure.code) {
+               ["COMMAND_JOURNAL_INVALID", "COMMAND_JOURNAL_UNAVAILABLE", "COMMAND_RECEIPT_CONFLICT"].contains(failure.code),
+               !(retryableCleanup && failure.code == "COMMAND_JOURNAL_UNAVAILABLE") {
+                // Composer cleanup has a separate durable retry marker. Its
+                // idempotent removal can reread the journal after a transient
+                // I/O error. Admission and integrity failures stay latched.
                 // A failed durable write may have published before fsync failed.
                 // Keep the previous local snapshot and stop new admission; an
                 // in-memory rollback cannot establish what survived on disk.

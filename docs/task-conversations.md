@@ -8,7 +8,13 @@ If the agent asks you to make a choice or grant permission, respond to the promp
 
 ## Send follow-ups and attachments
 
-Type your follow-up at the bottom of the conversation and click **Send**. If the current run accepts follow-ups, your message goes to that run. If the run has ended, your message starts a new run in the same conversation. Respond to any pending request first. If your message fails to send, Mokusei shows the reason and keeps your input so you can retry from the same box.
+Type your follow-up at the bottom of the conversation and click **Send**. If the current run accepts follow-ups, your message goes to that run. If the run has ended, your message starts a new run in the same conversation. Respond to any pending request first.
+
+After you send, you can immediately type your next message in the same box. **Send** becomes available again when the previous send finishes. Your next message stays in the box until you send it. If a send fails, Mokusei shows the reason and restores the failed message above any new text. Review the draft before sending it again.
+
+If you reopen a conversation and see **Check the conversation for this interrupted send**, click **Check previous receipt** if it is available. While the host is still confirming the message, your next draft stays editable. Confirmation keeps the next draft. A rejection restores the earlier message above it. If Mokusei offers local recovery, look for the earlier message in the conversation. Choose **Keep next draft** if it arrived, or **Restore to draft** to put the earlier message above what you typed next. Both choices leave the text in the input box for you to review. Only **Send** or Return submits it.
+
+If Mokusei says the fork exists and the message was not sent, choose what to keep and open the created branch to continue there. If **Finish previous receipt cleanup** appears, click it to release the settled receipt and send your next draft.
 
 Click **+** to add an image or file. Supported attachments vary by agent. If an agent rejects an attachment type, remove the attachment and try a supported type or describe it in text. If you switch conversations, you can come back to finish editing your unsent message.
 

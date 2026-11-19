@@ -16,7 +16,15 @@ public final class NativeComposerDraft {
     nonisolated public static let maximumAttachments = 20
     nonisolated public static let maximumDirectories = 50
     nonisolated public static let maximumClipboardBytes = 20 * 1024 * 1024
-    public var text = "" { didSet { editRevision &+= 1; persist() } }
+    public var text = "" {
+        didSet {
+            editRevision &+= 1
+            guard !restoring else { return }
+            textEditID = UUID()
+            persist()
+            synchronizeEditors()
+        }
+    }
     public private(set) var directories: [NativeComposerDirectory] = [] { didSet { persist(semanticChange: directories != oldValue) } }
     public private(set) var attachments: [NativeComposerAttachment] = [] {
         didSet {
@@ -24,31 +32,49 @@ public final class NativeComposerDraft {
             persist(semanticChange: attachments != oldValue)
         }
     }
-    private struct OptimisticInput {
-        let revision: UInt64
-        let text: String
-        let attachmentIDs: Set<JSONText>
-        let directories: [JSONText: UUID]
-    }
-    private var optimisticInput: OptimisticInput?
+    private typealias Contents = NativeComposerDraftPersistence.Contents
+    private typealias Pending = NativeComposerDraftPersistence.Pending
+    private var pending: Pending?
+    public private(set) var cleanupReceipt: String?
+    private var composingEditor: UUID?
+    private var compositionRecovery: (prefix: String, markedDraft: String)?
+    @ObservationIgnored let editors = NSHashTable<NativeComposerEditor.Coordinator>.weakObjects()
 
-    /// The pending command keeps its durable draft and attachment leases until
-    /// admission. Clearing the editor projection does not release files or
-    /// consume persistence. Later edits keep their own revision.
-    public var inputText: String {
-        get {
-            let current = text
-            return optimisticInput?.revision == editRevision ? "" : current
+    private func synchronizeEditors() {
+        for editor in editors.allObjects { editor.applyDraft(self) }
+    }
+
+    public func setComposing(_ active: Bool, editor: UUID) {
+        if active { composingEditor = editor }
+        else if composingEditor == editor {
+            composingEditor = nil
+            if let recovery = compositionRecovery {
+                compositionRecovery = nil
+                let merged = Contents.recoveredText(submitted: recovery.prefix, next: recovery.markedDraft)
+                if text.utf16.elementsEqual(merged.utf16) { synchronizeEditors() }
+                else { text = merged }
+            }
         }
-        set { text = newValue }
     }
-    public var inputAttachments: [NativeComposerAttachment] {
-        guard let optimisticInput else { return attachments }
-        return attachments.filter { !optimisticInput.attachmentIDs.contains($0.id) }
+
+    public var inputText: String {
+        get { compositionRecovery?.markedDraft ?? text }
+        set {
+            if let recovery = compositionRecovery {
+                compositionRecovery = (recovery.prefix, newValue)
+                text = Contents.recoveredText(submitted: recovery.prefix, next: newValue)
+            } else { text = newValue }
+        }
     }
-    public var inputDirectories: [NativeComposerDirectory] {
-        guard let optimisticInput else { return directories }
-        return directories.filter { optimisticInput.directories[$0.path] != directoryRevisions[$0.path] }
+    public var inputAttachments: [NativeComposerAttachment] { attachments }
+    public var inputDirectories: [NativeComposerDirectory] { directories }
+
+    public var hasInterruptedSend: Bool { pending != nil && !submitting }
+    public var interruptedInput: NativeComposerSubmission? {
+        guard hasInterruptedSend, let pending else { return nil }
+        let original = pending.original
+        return NativeComposerSubmission(text: original.text, directories: original.directories,
+            attachments: original.attachments.compactMap(\.attachment), commandID: pending.id)
     }
 
     public var importing: Bool { staging || pastePreparation != nil }
@@ -56,7 +82,9 @@ public final class NativeComposerDraft {
     private var pastePreparation: NativeComposerPastePreparation?
     public private(set) var submitting = false
     public private(set) var clearing = false
-    public private(set) var error: String?
+    public var error: String? { saveError ?? operationError }
+    private var operationError: String?
+    private var saveError: String?
     public private(set) var isDisposed = false
     @ObservationIgnored private var editRevision: UInt64 = 0
     @ObservationIgnored private var activeImport: AttachmentImport?
@@ -65,6 +93,8 @@ public final class NativeComposerDraft {
     @ObservationIgnored private let persistence: NativeComposerDraftPersistence?
     @ObservationIgnored private var attachmentOwner: RuntimeAttachmentOwner?
     @ObservationIgnored private var restoring = false
+    private var saveFailed: Bool { saveError != nil }
+    @ObservationIgnored private var textEditID = UUID()
     @ObservationIgnored private var savedRevision: String?
     @ObservationIgnored private var protectedAttachmentIDs: Set<JSONText> = []
     @ObservationIgnored private var retiredAttachmentIDs: Set<JSONText> = []
@@ -79,22 +109,25 @@ public final class NativeComposerDraft {
             if let retained { attachmentOwner = retained.owner }
             else { attachmentOwner = try services.retainAttachments?([]) }
             if let saved = retained?.snapshot {
+                textEditID = saved.contents.textEditID
                 text = saved.text; directories = saved.directories; attachments = saved.attachments
-                savedRevision = saved.revision
+                savedRevision = saved.revision; pending = saved.pending; cleanupReceipt = saved.cleanupReceipt
                 directoryRevisions = Dictionary(uniqueKeysWithValues: directories.map { ($0.path, UUID()) })
             }
         } catch let failure as RuntimeError where failure.code == "DRAFT_STORAGE_INVALID" {
             // Leave the saved record alone and keep the editor available.
-        } catch { self.error = error.localizedDescription }
+        } catch { self.operationError = error.localizedDescription }
         restoring = false
         Self.owners.removeAll { $0.value == nil }
         Self.owners.append(WeakDraft(self))
         loadPreviews(attachments)
     }
     public var canSubmit: Bool {
-        !isDisposed && !importing && !submitting && !clearing && NativeComposerSubmissionPolicy.canSubmit(text: text, attachments: attachments, directories: directories)
+        !isDisposed && !importing && !submitting && !clearing && pending == nil && cleanupReceipt == nil && composingEditor == nil
+            && !editors.allObjects.contains { $0.active == true && $0.editor?.hasMarkedText() == true }
+            && NativeComposerSubmissionPolicy.canSubmit(text: text, attachments: attachments, directories: directories)
     }
-    public func clearError() { error = nil }
+    public func clearError() { operationError = nil }
 
     public var supportsHostFiles: Bool { services.hostDirectory != nil }
     public var canPreviewHostFiles: Bool { services.openHostFile != nil }
@@ -109,7 +142,7 @@ public final class NativeComposerDraft {
         return try await browse(reference, lifetime)
     }
     public func chooseHostFiles(_ entries: [RuntimeHostFileEntry]) async {
-        guard entries.allSatisfy({ !$0.isDirectory }) else { error = "请选择文件"; return }
+        guard entries.allSatisfy({ !$0.isDirectory }) else { operationError = "请选择文件"; return }
         await importFiles(entries.map { .init(hostFile: $0.reference, name: $0.name, size: $0.size, mimeType: $0.mimeType) })
     }
 
@@ -117,7 +150,8 @@ public final class NativeComposerDraft {
     public func insertDirectory(_ directory: NativeComposerDirectory) -> Bool {
         guard !isDisposed, !directory.path.codeUnits.isEmpty else { return false }
         if directories.contains(where: { $0.path == directory.path }) { return true }
-        guard directories.count < Self.maximumDirectories else { return false }
+        let used = Set(directories.map(\.path)).union(pending?.original.directories.map(\.path) ?? [])
+        guard used.contains(directory.path) || used.count < Self.maximumDirectories else { return false }
         directories.append(directory)
         directoryRevisions[directory.path] = UUID()
         return true
@@ -159,11 +193,11 @@ public final class NativeComposerDraft {
         guard let operation = beginImport(count: nil) else { return }
         defer { finishImport(operation) }
         do {
-            let selected = try await services.chooseFiles(cwd, Self.maximumAttachments - attachments.count, lifetime)
+            let selected = try await services.chooseFiles(cwd, Self.maximumAttachments - reservedAttachmentCount, lifetime)
             guard !isDisposed, !operation.retired else { await discard(selected.map(\.id), from: operation); return }
             let existing = Set(attachments.compactMap(\.attachment).map(\.id))
             let additions = selected.filter { !existing.contains($0.id) }
-            guard attachments.count + additions.count <= Self.maximumAttachments else {
+            guard reservedAttachmentCount + additions.count <= Self.maximumAttachments else {
                 await discard(additions.map(\.id), from: operation)
                 throw PluginContractError("附件数量不能超过 20 个")
             }
@@ -194,7 +228,7 @@ public final class NativeComposerDraft {
             guard !isDisposed, !operation.retired else { return }
             let prepared = results.compactMap { $0 }
             guard !prepared.isEmpty else { return }
-            guard attachments.count + prepared.count <= Self.maximumAttachments else {
+            guard reservedAttachmentCount + prepared.count <= Self.maximumAttachments else {
                 throw PluginContractError("附件数量不能超过 20 个")
             }
             try validateFiles(prepared, policy: policy, excluding: [])
@@ -257,33 +291,56 @@ public final class NativeComposerDraft {
                 ?? services.retainAttachments?(submission.attachments.map(\.id))
         } catch { record(error); return }
         defer { try? submissionOwner?.release() }
-        submitting = true; error = nil
+        submitting = true; operationError = nil
         protectedAttachmentIDs = Set(submission.attachments.map(\.id))
-        if optimisticallyClear {
-            optimisticInput = OptimisticInput(revision: revision, text: submission.text,
-                attachmentIDs: Set(sentAttachments.map(\.id)), directories: mentionedRevisions)
-        }
-        defer { optimisticInput = nil; submitting = false }
+        defer { submitting = false }
         var accepted = false
         var consumed = false
+        let handoff = Pending(id: submission.commandID, original: Contents(textValue: JSONText(submission.text),
+            textEditID: textEditID, directories: sentDirectories, attachments: sentAttachments),
+            receiptID: services.receipts == nil ? nil : submission.commandID)
+        let lease: RuntimeDraftSubmissionLease?
+        do {
+            lease = optimisticallyClear ? try persistence?.acquireSubmissionLease() : nil
+            if optimisticallyClear {
+                let next = Contents(textValue: "", textEditID: UUID(), directories: [],
+                                    attachments: attachments.filter { $0.attachment == nil })
+                let revision = try persistence?.save(next, pending: handoff,
+                    expectedRevision: savedRevision, revision: UUID().uuidString)
+                install(next, pending: handoff, revision: revision)
+            }
+        } catch {
+            protectedAttachmentIDs = []
+            record(error)
+            return
+        }
+        defer { withExtendedLifetime(lease) {} }
         do {
             try await send(submission)
             accepted = true
-            if !isDisposed {
+            if optimisticallyClear {
+                try finish(handoff, restore: false, cleanup: handoff.receiptID)
+                if let id = handoff.receiptID { try await completeCleanup(id) }
+            } else if !isDisposed {
                 _ = clearSubmitted(revision: revision, attachments: sentAttachments, directories: mentionedRevisions)
             } else {
                 try consumePersisted(revision: persistedRevision, attachments: sentAttachments, directories: Set(mentionedRevisions.keys))
                 try consumeAcceptedAttachments(sentAttachments)
             }
-            consumed = error == nil
-        } catch {
-            // A transport success followed by a storage failure must never
-            // restore an already accepted send or make it available to retry.
-            if !accepted, let optimisticInput {
-                do { try restoreOptimisticText(optimisticInput) }
-                catch { record(error) }
+            consumed = !saveFailed || optimisticallyClear
+        } catch let sendError {
+            record(sendError)
+            let uncertain = (sendError as? RuntimeError)?.kind == .uncertain && persistence != nil
+            if !accepted, optimisticallyClear, uncertain, let id = (sendError as? RuntimeError)?.receiptID {
+                do { try bindReceipt(id, to: handoff) } catch { record(error) }
+            } else if !accepted, optimisticallyClear {
+                let failure = sendError as? RuntimeError
+                let cleanup = services.receipts != nil && failure?.kind == .commandRejected ? failure?.receiptID : nil
+                do {
+                    try finish(handoff, restore: true, cleanup: cleanup)
+                    if let cleanup { try await completeCleanup(cleanup) }
+                } catch { record(error) }
             }
-            record(error)
         }
         // Retained command receipts outlive transport success. Release them
         // only after this revision has been consumed without a storage error.
@@ -302,11 +359,11 @@ public final class NativeComposerDraft {
     }
 
     public func clear(_ clearSession: () async throws -> Void) async {
-        guard !isDisposed, !clearing, !submitting else { return }
+        guard !isDisposed, !clearing, !submitting, pending == nil else { return }
         let revision = editRevision, discarded = attachments, mentioned = directoryRevisions
         let importAtStart = activeImport
         let pasteAtStart = pastePreparation
-        clearing = true; error = nil
+        clearing = true; operationError = nil
         defer { clearing = false }
         do {
             try await clearSession()
@@ -342,7 +399,7 @@ public final class NativeComposerDraft {
         guard !isDisposed else { return }
         persist(semanticChange: false)
         isDisposed = true; pastePreparation?.finish(); lifetime.cancel()
-        if persistence != nil, savedRevision == nil { attachmentOwner?.preserveUntilProcessExit() }
+        if persistence != nil, saveFailed { attachmentOwner?.preserveUntilProcessExit() }
         else { try? attachmentOwner?.release() }
         attachmentOwner = nil
         // A host switch or app exit retires the view, not the unsent draft.
@@ -360,39 +417,161 @@ public final class NativeComposerDraft {
         await discard(unused)
     }
 
-    private func restoreOptimisticText(_ input: OptimisticInput) throws {
-        // Attachments/directories were only hidden, so their current identities
-        // and any new imports already survive failure. Text edited in the empty
-        // editor is preserved after the failed message rather than overwritten.
-        func recovered(_ current: String) -> String {
-            if current.isEmpty || current == input.text { return input.text }
-            if input.text.isEmpty { return current }
-            return input.text + "\n\n" + current
+    private var contents: Contents {
+        Contents(textValue: JSONText(text), textEditID: textEditID, directories: directories, attachments: attachments)
+    }
+
+    private func install(_ next: Contents, pending: Pending?, revision: String?, restoredPrefix: String? = nil) {
+        if composingEditor != nil {
+            // Chip edits carry the same body across document revisions. Only
+            // independently edited text belongs alongside the native IME buffer.
+            if next.textEditID != textEditID { compositionRecovery = (next.text, inputText) }
+            else if let restoredPrefix { compositionRecovery = (restoredPrefix, inputText) }
+            else if let original = self.pending?.original, pending == nil,
+                    !text.utf16.elementsEqual(next.text.utf16) {
+                // Another process settled the same body before we refreshed.
+                compositionRecovery = (original.text, inputText)
+            }
         }
-        if !isDisposed {
-            if editRevision != input.revision { text = recovered(text) }
-            return
-        }
-        // A replacement view may now own the same persisted draft. Load and
-        // patch synchronously on the main actor, then update matching live
-        // owners; never resurrect the disposed object or overwrite newer text.
-        guard let persistence,
-              let restored = try persistence.recoverText(expectedRevision: savedRevision, recovered) else { return }
-        for owner in Self.owners.compactMap(\.value) where !owner.isDisposed
-            && owner.persistence?.identity == persistence.identity && owner.savedRevision == restored.previousRevision {
-            owner.restoring = true
-            owner.text = restored.text
-            owner.savedRevision = restored.revision
-            owner.restoring = false
+        restoring = true
+        textEditID = next.textEditID
+        self.pending = pending
+        text = next.text
+        directories = next.directories
+        directoryRevisions = Dictionary(uniqueKeysWithValues: directories.map { ($0.path, UUID()) })
+        attachments = next.attachments
+        savedRevision = revision
+        saveError = nil
+        restoring = false
+        synchronizeEditors()
+    }
+
+    public var hasTrackedReceipt: Bool { pending?.receiptID != nil && !requiresForkReview }
+    public var requiresForkReview: Bool { pending?.reviewFork == true }
+
+    private func bindReceipt(_ id: String?, to handoff: Pending, reviewFork: Bool = false) throws {
+        try persistence?.bindReceipt(id, to: handoff.id, reviewFork: reviewFork)
+        for owner in Self.owners.compactMap(\.value) where owner.pending?.id == handoff.id {
+            owner.pending?.receiptID = id
+            owner.pending?.reviewFork = reviewFork
         }
     }
 
+    /// This action can only inspect the captured receipt, never submit editor text.
+    public func checkPendingReceipt() async {
+        guard !submitting, !isDisposed, let persistence, let actions = services.receipts else { return }
+        submitting = true
+        defer { submitting = false }
+        do {
+            let lease = try persistence.acquireSubmissionLease()
+            defer { withExtendedLifetime(lease) {} }
+            guard let saved = try persistence.load() else { throw PluginContractError("The saved draft is unavailable.") }
+            cleanupReceipt = saved.cleanupReceipt
+            if let id = cleanupReceipt {
+                if saveFailed { pending = saved.pending }
+                else if savedRevision != saved.revision { install(saved.contents, pending: saved.pending, revision: saved.revision) }
+                try await completeCleanup(id)
+            } else if let handoff = saved.pending, handoff.id == pending?.id,
+                      let id = handoff.receiptID, !handoff.reviewFork {
+                switch try await actions.check(id) {
+                case .absent:
+                    try bindReceipt(nil, to: handoff)
+                case .unfinishedFork(let terminal):
+                    try bindReceipt(terminal, to: handoff, reviewFork: true)
+                case .rejected(let terminal):
+                    try finish(handoff, restore: true, cleanup: terminal)
+                    try await completeCleanup(terminal)
+                case .accepted(let terminal):
+                    try finish(handoff, restore: false, cleanup: terminal)
+                    try await completeCleanup(terminal)
+                    await discard(handoff.original.attachments.compactMap(\.attachment).map(\.id))
+                }
+            } else if saveFailed { pending = saved.pending }
+            else { install(saved.contents, pending: saved.pending, revision: saved.revision) }
+            operationError = nil
+        } catch { record(error) }
+    }
+
+    // finish writes this marker atomically with the successor. Either side of
+    // journal acknowledgement can be interrupted and retried after reopening.
+    private func completeCleanup(_ id: String) async throws {
+        guard let actions = services.receipts else { throw PluginContractError("Receipt cleanup is unavailable.") }
+        try await actions.consume(id)
+        try persistence?.completeCleanup(id)
+        for owner in Self.owners.compactMap(\.value) where owner.cleanupReceipt == id {
+            owner.cleanupReceipt = nil
+        }
+    }
+
+    /// An admission receipt can arrive after a replacement editor has edited
+    /// the successor. Resolve by send ID, retaining that editor's live imports.
+    private func finish(_ handoff: Pending, restore: Bool, cleanup: String? = nil) throws {
+        let owners = Self.owners.compactMap(\.value).filter { !$0.isDisposed && $0.pending?.id == handoff.id }
+        // A failed edit write still belongs to its editor. Keep the handoff
+        // recoverable if the latest in-memory successor cannot be made durable.
+        var divergent = Set<ObjectIdentifier>()
+        for owner in owners where owner.saveFailed {
+            if try persistence?.load()?.revision != owner.savedRevision {
+                // Keep the losing editor's unsaved buffer and file owner. Its
+                // stale revision cannot publish over the durable successor.
+                divergent.insert(ObjectIdentifier(owner))
+                continue
+            }
+            owner.savedRevision = try persistence?.save(owner.contents, pending: handoff,
+                expectedRevision: owner.savedRevision, revision: UUID().uuidString)
+            owner.saveError = nil
+        }
+        let saved = try persistence?.finish(handoff.id, restore: restore, cleanupReceipt: cleanup)
+        for owner in owners {
+            owner.cleanupReceipt = cleanup
+            if divergent.contains(ObjectIdentifier(owner)) {
+                owner.pending = nil
+                continue
+            }
+            let next: Contents
+            if let saved, owner.savedRevision != saved.previousRevision { next = saved.snapshot.contents }
+            else { next = restore ? owner.contents.restoring(handoff.original) : owner.contents }
+            owner.install(next, pending: nil, revision: saved?.snapshot.revision,
+                          restoredPrefix: restore ? handoff.original.text : nil)
+        }
+    }
+
+    /// Reopening only offers a local review. Neither choice invokes a command.
+    public func reviewInterruptedSend(restore: Bool) async {
+        guard !isDisposed, !submitting, let pending, pending.receiptID == nil || pending.reviewFork, let persistence else { return }
+        submitting = true
+        defer { submitting = false }
+        do {
+            let lease = try persistence.acquireSubmissionLease()
+            defer { withExtendedLifetime(lease) {} }
+            let latest = try persistence.load()
+            if let tracked = latest?.pending, tracked.id == pending.id, tracked.receiptID != nil, !tracked.reviewFork {
+                self.pending = tracked
+                return
+            }
+            if let saved = latest, saved.pending?.id != pending.id {
+                // A different process may already have received the receipt.
+                // Refresh this view without resolving its successor's send.
+                guard !saveFailed else { throw PluginContractError("Reopen the saved draft after copying your unsaved edits.") }
+                cleanupReceipt = saved.cleanupReceipt
+                install(saved.contents, pending: saved.pending, revision: saved.revision)
+            } else {
+                let cleanup = latest?.pending?.receiptID
+                try finish(pending, restore: restore, cleanup: cleanup)
+                if let cleanup { try await completeCleanup(cleanup) }
+            }
+            operationError = nil
+        } catch { record(error) }
+    }
+
+    private var reservedAttachmentCount: Int { attachments.count + (pending?.original.attachments.count ?? 0) }
+
     private func beginImport(count: Int?) -> AttachmentImport? {
         guard !isDisposed else { return nil }
-        guard !staging else { error = "附件正在处理中，请稍候"; return nil }
-        let remaining = Self.maximumAttachments - attachments.count
-        guard remaining > 0, (count ?? 0) <= remaining else { error = "附件数量不能超过 20 个"; return nil }
-        staging = true; error = nil
+        guard !staging else { operationError = "附件正在处理中，请稍候"; return nil }
+        let remaining = Self.maximumAttachments - reservedAttachmentCount
+        guard remaining > 0, (count ?? 0) <= remaining else { operationError = "附件数量不能超过 20 个"; return nil }
+        staging = true; operationError = nil
         let operation = AttachmentImport()
         activeImport = operation
         return operation
@@ -403,7 +582,10 @@ public final class NativeComposerDraft {
         staging = false
     }
     private func clearSubmitted(revision: UInt64, attachments sent: [NativeComposerAttachment], directories mentioned: [JSONText: UUID]) -> [JSONText] {
-        if editRevision == revision { text = "" }
+        if editRevision == revision {
+            compositionRecovery = nil
+            text = ""
+        }
         // Match by identity, not value equality. A preview can decode while the
         // send awaits its admission receipt, and a pending import can turn ready
         // while a clear awaits its receipt; a structural comparison would miss
@@ -430,20 +612,22 @@ public final class NativeComposerDraft {
     }
     private func record(_ cause: Error) {
         guard !isDisposed, !(cause is CancellationError) else { return }
-        error = cause.localizedDescription
+        operationError = cause.localizedDescription
     }
 
     private func persist(semanticChange: Bool = true) {
         guard !restoring, !isDisposed, let persistence else { return }
         let revision = semanticChange ? UUID().uuidString : savedRevision ?? UUID().uuidString
-        do { savedRevision = try persistence.save(text: text, directories: directories, attachments: attachments, revision: revision) }
-        catch { savedRevision = nil; self.error = "草稿未能保存到设备：\(error.localizedDescription)" }
+        do {
+            savedRevision = try persistence.save(contents, pending: pending, expectedRevision: savedRevision, revision: revision)
+            saveError = nil
+        } catch { saveError = "草稿未能保存到设备：\(error.localizedDescription)" }
     }
 
     private func updateAttachmentOwner() {
         guard !isDisposed else { return }
         do { try attachmentOwner?.replace(attachments.compactMap(\.attachment).map(\.id)) }
-        catch { self.error = "草稿附件归属未能保存：\(error.localizedDescription)" }
+        catch { self.operationError = "草稿附件归属未能保存：\(error.localizedDescription)" }
     }
 
     private func consumePersisted(revision: String?, attachments: [NativeComposerAttachment], directories: Set<JSONText>, clearText: Bool = true) throws {
@@ -452,11 +636,7 @@ public final class NativeComposerDraft {
                   attachmentIDs: Set(attachments.map(\.id)), directoryPaths: directories, clearText: clearText) else { return }
         for owner in Self.owners.compactMap(\.value) where !owner.isDisposed
             && owner.persistence?.identity == persistence.identity && owner.savedRevision == revision {
-            owner.restoring = true
-            owner.text = consumed.text; owner.directories = consumed.directories; owner.attachments = consumed.attachments
-            owner.savedRevision = consumed.revision
-            owner.directoryRevisions = Dictionary(uniqueKeysWithValues: consumed.directories.map { ($0.path, UUID()) })
-            owner.restoring = false
+            owner.install(consumed.contents, pending: nil, revision: consumed.revision)
         }
     }
 

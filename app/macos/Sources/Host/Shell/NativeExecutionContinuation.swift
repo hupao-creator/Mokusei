@@ -1,6 +1,7 @@
 import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 
 /// Once a phase has a command identity, retries observe that phase; catalog
 /// changes cannot choose a different write. The client journal survives windows.
@@ -16,14 +17,13 @@ final class NativeExecutionContinuation {
         let input: JSONValue
         let phase: Phase
         let predecessorReceiptID: String?
-        let receiptID = "\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.lowercased())"
+        let receiptID: String
         var attempted = false
         var result: JSONValue?
         var accepted: ApplicationExecutionRef?
-        var draftConsumed = false
-        var retryPredecessorReceiptID: String?
         init(threadID: JSONText, executionID: JSONText?, input: JSONValue, phase: Phase,
-             predecessorReceiptID: String? = nil) {
+             receiptID: String, predecessorReceiptID: String? = nil) {
+            self.receiptID = receiptID
             self.threadID = threadID; self.executionID = executionID; self.input = input; self.phase = phase
             self.predecessorReceiptID = predecessorReceiptID
         }
@@ -32,36 +32,25 @@ final class NativeExecutionContinuation {
         }
     }
     private let workspace: NativeWorkspaceModel
-    private var forks: [ApplicationExecutionRef: JSONText] = [:]
     private var operation: Operation?
     private var sending = false
     init(workspace: NativeWorkspaceModel) { self.workspace = workspace }
 
-    func send(threadID: JSONText, executionID: JSONText?, input: JSONValue) async throws -> ApplicationExecutionRef {
+    func send(threadID: JSONText, executionID: JSONText?, input: JSONValue, commandID: String) async throws -> ApplicationExecutionRef {
         guard !sending else { throw PluginContractError(workspace.preferences.locale.text(
             "上一发送仍在确认，请稍候；草稿已保留。", "The previous send is still being confirmed. Please wait; your draft has been kept.")) }
         sending = true
         defer { sending = false }
+        // A reopened owner may have settled and consumed this receipt.
+        if let previous = operation, previous.attempted,
+           try await !workspace.client.retainsCommandReceipt(previous.receiptID) {
+            operation = nil
+        }
         if let previous = operation {
-            if previous.draftConsumed {
-                try await release(previous)
-                operation = nil
-            } else if let predecessor = previous.retryPredecessorReceiptID {
-                // A definite failure did not consume input. The branch already
-                // exists, so edited input may retry only this same destination.
-                guard previous.threadID == threadID, previous.executionID == executionID else {
-                    throw blocked(predecessor)
-                }
-                return try await advance(Operation(threadID: threadID, executionID: executionID,
-                    input: input, phase: previous.phase, predecessorReceiptID: predecessor))
-            } else {
-                guard previous.matches(threadID: threadID, executionID: executionID, input: input) else {
-                    throw blocked(previous.receiptID, detail: workspace.preferences.locale.text(
-                        "请返回原提交内容后再次点击发送，以查询原回执；修改后的草稿已保留。",
-                        "Return to the original submitted content and press Send to query its receipt. Your edited draft has been kept."))
-                }
-                return try await advance(previous)
+            guard previous.receiptID == commandID, previous.matches(threadID: threadID, executionID: executionID, input: input) else {
+                throw blocked(previous.receiptID)
             }
+            return try await advance(previous)
         }
         // After relaunch, a receipt without its original source/input/phase is
         // a barrier, not permission to infer a new fork or input destination.
@@ -79,10 +68,9 @@ final class NativeExecutionContinuation {
         }
         let reference = executionID.map { ApplicationExecutionRef(thread: .init(threadID: threadID, typeID: "agent"), executionID: $0) }
         let phase: Phase
-        if let reference, let destination = forks[reference] { phase = .followUp(threadID: destination, expected: nil) }
-        else if let reference, source.observation.latestExecution?.executionID != reference.executionID { phase = .fork(reference) }
+        if let reference, source.observation.latestExecution?.executionID != reference.executionID { phase = .fork(reference) }
         else { phase = .followUp(threadID: threadID, expected: executionID) }
-        return try await advance(Operation(threadID: threadID, executionID: executionID, input: input, phase: phase))
+        return try await advance(Operation(threadID: threadID, executionID: executionID, input: input, phase: phase, receiptID: commandID))
     }
 
     private func advance(_ current: Operation) async throws -> ApplicationExecutionRef {
@@ -93,37 +81,36 @@ final class NativeExecutionContinuation {
         catch let error as RuntimeError where error.kind == .commandRejected
             || (error.kind == .requestRejected && current.predecessorReceiptID != nil) {
             if current.predecessorReceiptID != nil {
-                current.retryPredecessorReceiptID = current.receiptID
-                throw error
+                // The input was rejected, but the fork already exists. Keep its
+                // receipt attached until the user reviews the unsent input.
+                throw blocked(current.receiptID, kind: .uncertain, detail: error.localizedDescription)
             }
-            // Only a definite rejection releases a phase. Unknown, pending and
-            // indeterminate receipts never reach this branch.
-            try await release(current)
-            operation = nil
+            guard current.attempted else { operation = nil; throw error }
+            let rejection = RuntimeError(error.code, error.message, kind: .commandRejected, receiptID: current.receiptID)
             if error.code == "EXECUTION_CHANGED", let executionID = current.executionID,
                case .followUp(_, let expected) = current.phase, expected != nil {
+                // Only the original Send can transition this definitive rejection
+                // to a fork. If cleanup fails, let the draft retain the rejected ID.
+                do { try await workspace.client.consumeComposerReceipt(current.receiptID, channel: "thread:follow-up") }
+                catch { throw rejection }
                 let reference = ApplicationExecutionRef(thread: .init(threadID: current.threadID, typeID: "agent"), executionID: executionID)
                 return try await advance(Operation(threadID: current.threadID, executionID: executionID,
-                    input: current.input, phase: .fork(reference)))
+                    input: current.input, phase: .fork(reference), receiptID: current.receiptID + "-fork"))
             }
-            throw error
+            throw rejection
         }
         switch current.phase {
-        case .fork(let reference):
-            guard case .string(let id) = result["threadId"], !id.codeUnits.isEmpty else { throw blocked(current.receiptID) }
-            forks[reference] = id
+        case .fork:
+            guard case .string(let id) = result["threadId"], !id.codeUnits.isEmpty else { throw blocked(current.receiptID, kind: .uncertain) }
             // invoke transfers the durable barrier atomically when it registers
             // the follow-up. Releasing here would orphan the fork after a crash.
             return try await advance(Operation(threadID: current.threadID, executionID: current.executionID,
                 input: current.input, phase: .followUp(threadID: id, expected: nil),
-                predecessorReceiptID: current.receiptID))
+                receiptID: current.receiptID + "-followup", predecessorReceiptID: current.receiptID))
         case .followUp(let threadID, _):
-            guard case .string(let id) = result["executionId"], !id.codeUnits.isEmpty else { throw blocked(current.receiptID) }
+            guard case .string(let id) = result["executionId"], !id.codeUnits.isEmpty else { throw blocked(current.receiptID, kind: .uncertain) }
             let accepted = ApplicationExecutionRef(thread: .init(threadID: threadID, typeID: "agent"), executionID: id)
             current.accepted = accepted
-            if let executionID = current.executionID {
-                forks[.init(thread: .init(threadID: current.threadID, typeID: "agent"), executionID: executionID)] = nil
-            }
             // Keep the accepted receipt until the draft's captured revision is
             // consumed. Closing the reader cannot discard that durable barrier.
             return accepted
@@ -165,14 +152,13 @@ final class NativeExecutionContinuation {
                tracked?.forkReceiptID != nil, tracked?.status == .rejected {
                 throw failure
             }
-            if recovering || tracked != nil { throw blocked(current.receiptID) }
+            if recovering || tracked != nil { throw blocked(current.receiptID, kind: .uncertain) }
             if let predecessor = current.predecessorReceiptID,
                outcomes.contains(where: { $0.commandID == predecessor }) {
                 // Preparation or journal admission failed before dispatch. The
                 // original fork still owns the barrier; retry this handoff only.
-                current.attempted = false
-                current.retryPredecessorReceiptID = predecessor
-                throw blocked(predecessor)
+                operation = nil
+                throw blocked(predecessor, kind: .uncertain)
             }
             // The client persists admission before HTTP and retains every
             // ambiguous outcome. No entry on a first attempt means no admission
@@ -185,39 +171,22 @@ final class NativeExecutionContinuation {
         }
     }
 
-    func didConsumeDraft(threadID: JSONText, executionID: JSONText?, input: JSONValue) async {
-        guard let current = operation, current.accepted != nil,
-              current.matches(threadID: threadID, executionID: executionID, input: input) else { return }
-        current.draftConsumed = true
-        do { try await release(current) }
-        catch {
-            // Sending already succeeded. Retain the operation and durable barrier
-            // for send() to release before admitting new input, without turning
-            // post-send housekeeping into a visible send failure.
-            return
-        }
-        // A newly mounted draft may already be finalizing this same receipt
-        // and starting another operation while the acknowledgement is awaited.
-        if operation === current { operation = nil }
+    var receipts: NativeComposerReceiptActions {
+        NativeComposerReceiptActions(check: { [self] id in
+            guard !sending else { throw blocked(id) }
+            return try await workspace.client.checkSavedComposerReceipt(id, channel: "thread:follow-up")
+        }, consume: { [self] id in
+            try await workspace.client.consumeComposerReceipt(id, channel: "thread:follow-up")
+        })
     }
 
-    private func release(_ current: Operation) async throws {
-        do { try await workspace.client.acknowledgeCommandOutcome(current.receiptID, allowResubmission: true) }
-        catch { throw blocked(current.receiptID, detail: error.localizedDescription, draftConsumed: current.draftConsumed) }
-        if await workspace.client.commandOutcomes().contains(where: { $0.commandID == current.receiptID }) {
-            throw blocked(current.receiptID, draftConsumed: current.draftConsumed)
-        }
-    }
-
-    private func blocked(_ id: String, detail: String? = nil, draftConsumed: Bool = false) -> RuntimeError {
-        let message = draftConsumed ? workspace.preferences.locale.text(
-            "发送已确认且原草稿已消费，但回执保护尚未释放，新发送暂时暂停。回执：\(id)。",
-            "The send is confirmed and its original draft has been consumed, but receipt protection has not been released. New sends are paused. Receipt: \(id).") : workspace.preferences.locale.text(
+    private func blocked(_ id: String, kind: RuntimeError.Kind = .protocolFailure, detail: String? = nil) -> RuntimeError {
+        let message = workspace.preferences.locale.text(
             "上一操作可能已经成功，已阻止新的分叉或重发，草稿已保留。回执：\(id)。",
             "The previous operation may already have succeeded. New forks and resends are blocked; your draft has been kept. Receipt: \(id).")
         return RuntimeError("EXECUTION_CONTINUATION_UNRESOLVED", message
             + (detail.map { " " + $0 } ?? workspace.preferences.locale.text(
-                "再次点击发送会先查询原回执，未能确认结果时不会重发；请先核对原 Thread。",
-                "Pressing Send again checks the original receipt first and never resends an unconfirmed operation. Check the original thread.")), receiptID: id)
+                "请在原草稿中查询上一条回执并核对原 Thread。",
+                "Use Check previous receipt in the original draft and check the original thread.")), kind: kind, receiptID: id)
     }
 }

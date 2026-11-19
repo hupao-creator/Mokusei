@@ -81,6 +81,18 @@ Source: [Dock](../app/macos/Sources/Host/MokuScene/NativeMokuDock.swift),
 
 ## Send identity and ownership
 
+A persistent Composer keeps the submitted payload and the editable next draft
+under the same scope before dispatch. A receipt resolves the captured send ID.
+The initial command and draft handoff share a timestamped Runtime command ID
+before dispatch. Historical phases append their phase suffix to the captured ID. Check previous
+receipt follows that identity while the next draft stays editable. A confirmed
+final command consumes the handoff. A definite rejection restores the original.
+The settled draft retains the receipt ID until acknowledgement completes.
+Checking a receipt cannot create a fork or deliver a follow-up. An existing
+fork with unsent input requires an explicit decision to restore or keep the draft.
+With no retained receipt, local review can restore the original above the next
+draft or keep just the next draft.
+
 Latest sends follow up on their original Thread. Exact historical continuation
 forks at a verified native execution checkpoint before following up on the
 accepted branch. Runtime's `expectedExecutionId` rejects a changed target before

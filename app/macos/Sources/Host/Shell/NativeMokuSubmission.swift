@@ -1,6 +1,7 @@
 import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 
 /// The captured input owns its receipt until its persisted draft is consumed.
 /// Retrying an uncertain send observes that receipt, including its original
@@ -11,12 +12,12 @@ final class NativeMokuSubmission {
         let source: JSONValue
         let input: JSONValue
         let request: JSONValue
-        let receiptID = "\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.lowercased())"
+        let receiptID: String
         var attempted = false
         var accepted = false
-        var draftConsumed = false
 
-        init(source: JSONValue, input: JSONValue, request: JSONValue) {
+        init(source: JSONValue, input: JSONValue, request: JSONValue, commandID: String) {
+            receiptID = commandID
             self.source = source; self.input = input; self.request = request
         }
 
@@ -31,24 +32,22 @@ final class NativeMokuSubmission {
 
     init(workspace: NativeWorkspaceModel) { self.workspace = workspace }
 
-    func send(input: JSONValue, source: JSONValue, request: @MainActor () async throws -> JSONValue) async throws {
+    func send(input: JSONValue, source: JSONValue, commandID: String, request: @MainActor () async throws -> JSONValue) async throws {
         guard !sending else { throw PluginContractError(workspace.preferences.locale.text(
             "上一发送仍在确认，请稍候；草稿已保留。", "The previous send is still being confirmed. Please wait; your draft has been kept.")) }
         sending = true
         defer { sending = false }
+        // A reopened owner may have settled and consumed this receipt.
+        if let previous = operation, previous.attempted,
+           try await !workspace.client.retainsCommandReceipt(previous.receiptID) {
+            operation = nil
+        }
         if let previous = operation {
-            if previous.draftConsumed {
-                try await release(previous)
-                if operation === previous { operation = nil }
-            } else {
-                guard previous.matches(source: source, input: input) else {
-                    throw blocked(previous.receiptID, detail: workspace.preferences.locale.text(
-                        "请返回原草稿和提交内容后再次点击发送，以查询原回执；修改后的草稿已保留。",
-                        "Return to the original draft and submitted content to query its receipt. Your edited draft has been kept."))
-                }
-                try await advance(previous)
-                return
+            guard previous.receiptID == commandID, previous.matches(source: source, input: input) else {
+                throw blocked(previous.receiptID)
             }
+            try await advance(previous)
+            return
         }
         // A reopened owner lacks the submitted draft/source association. Its
         // durable receipt is a barrier, not permission to infer another input.
@@ -62,7 +61,7 @@ final class NativeMokuSubmission {
         }
         try await workspace.prepareCommand()
         let captured = try await request()
-        let next = Operation(source: source, input: input, request: captured)
+        let next = Operation(source: source, input: input, request: captured, commandID: commandID)
         operation = next
         try await advance(next)
     }
@@ -80,12 +79,10 @@ final class NativeMokuSubmission {
             }
             current.accepted = true
         } catch let error as RuntimeError where error.kind == .commandRejected {
-            try await release(current)
-            if operation === current { operation = nil }
-            throw error
+            throw RuntimeError(error.code, error.message, kind: .commandRejected, receiptID: current.receiptID)
         } catch {
             let tracked = await workspace.client.commandOutcomes().contains { $0.commandID == current.receiptID }
-            if recovering || tracked { throw blocked(current.receiptID) }
+            if recovering || tracked { throw blocked(current.receiptID, kind: .uncertain) }
             // A first attempt with no record was never admitted or was
             // definitely rejected. Preparation failures must not strand input.
             if operation === current { operation = nil }
@@ -96,34 +93,21 @@ final class NativeMokuSubmission {
         }
     }
 
-    func didConsumeDraft(input: JSONValue, source: JSONValue) async {
-        guard let current = operation, current.accepted,
-              current.matches(source: source, input: input) else { return }
-        current.draftConsumed = true
-        do { try await release(current) }
-        catch {
-            // The accepted revision is already gone. Keep the operation and
-            // receipt until cleanup succeeds, without turning success into a
-            // send error or letting another draft replace the protected input.
-            return
-        }
-        if operation === current { operation = nil }
+    var receipts: NativeComposerReceiptActions {
+        NativeComposerReceiptActions(check: { [self] id in
+            guard !sending else { throw blocked(id) }
+            return try await workspace.client.checkSavedComposerReceipt(id, channel: "moku:submit")
+        }, consume: { [self] id in
+            try await workspace.client.consumeComposerReceipt(id, channel: "moku:submit")
+        })
     }
 
-    private func release(_ current: Operation) async throws {
-        do { try await workspace.client.acknowledgeCommandOutcome(current.receiptID, allowResubmission: true) }
-        catch { throw blocked(current.receiptID, detail: error.localizedDescription) }
-        if await workspace.client.commandOutcomes().contains(where: { $0.commandID == current.receiptID }) {
-            throw blocked(current.receiptID)
-        }
-    }
-
-    private func blocked(_ id: String, detail: String? = nil) -> RuntimeError {
+    private func blocked(_ id: String, kind: RuntimeError.Kind = .protocolFailure, detail: String? = nil) -> RuntimeError {
         RuntimeError("MOKU_SUBMISSION_UNRESOLVED", workspace.preferences.locale.text(
             "上一输入可能已经成功，已阻止重新发送，草稿已保留。回执：\(id)。",
             "The previous input may already have succeeded. Resending is blocked and your draft has been kept. Receipt: \(id).")
             + (detail.map { " " + $0 } ?? workspace.preferences.locale.text(
-                "再次发送原草稿会先查询原回执；未确认结果时不会重发。",
-                "Sending the original draft again checks its receipt first and never resends an unconfirmed input.")), receiptID: id)
+                "请在原草稿中查询上一条回执。",
+                "Use Check previous receipt in the original draft.")), kind: kind, receiptID: id)
     }
 }

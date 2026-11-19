@@ -89,16 +89,13 @@ import SwiftUI
 
     public func choose(_ directory: NativeComposerDirectory, draft: NativeComposerDraft) {
         guard enabled, !editor.composing, !draft.isDisposed, draft.text == editor.text, let query else { return }
-        let exists = draft.directories.contains { $0.path == directory.path }
-        guard exists || draft.directories.count < NativeComposerDraft.maximumDirectories else {
-            rejected = key
-            return
-        }
         let source = editor.text as NSString
         guard NSMaxRange(query.range) <= source.length else { return }
         let previousKey = key
-        draft.insertDirectory(directory)
-        guard draft.directories.contains(where: { $0.path == directory.path }) else { return }
+        guard draft.insertDirectory(directory) else {
+            rejected = key
+            return
+        }
         draft.text = source.replacingCharacters(in: query.range, with: "")
         let selection = NSRange(location: query.range.location, length: 0)
         editor = .init(text: draft.text, selection: selection, focused: true, composing: false)
