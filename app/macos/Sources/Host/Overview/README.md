@@ -440,8 +440,8 @@ After scope/tag selection and exact execution coverage, the Host sums the
 individual projected footprints (columns × rows) of **all** selected cards. A
 Report with a cover costs two cells, a coverless Report one, and a Harness contributes
 its composed footprint. Each view (All, a directory or a semantic tag) has its
-own **4×3 soft budget of 12 cells**. The [collection budget](NativeOverviewCollectionBudget.swift)
-keeps all cards individual at or below 12. Above 12 it folds the shortest
+own **4×4 soft budget of 16 cells**. The [collection budget](NativeOverviewCollectionBudget.swift)
+keeps all cards individual at or below 16. Above 16 it folds the shortest
 oldest-first prefix of eligible reports that reaches the target, charging the
 collection's own footprint once. Creation ties retain catalog order. At least
 two members and positive savings are required. If the target is unreachable,
@@ -658,10 +658,10 @@ and leave archive disabled. Closing, inactive and removed-member guards remain.
 ## Property boundaries
 
 **PBT-OVERVIEW-COLLECTION** checks the production budget against all legal prefix
-lengths, including leaving every report individual. Across 0–16 fixed cells,
+lengths, including leaving every report individual. Across 0–20 fixed cells,
 one or two ordered types with 0–10 eligible one- or two-cell reports each, and
-two-cell collection cards, the minimum is ranked by remaining overflow then
-number of reports collected. This headless mathematical property catches
+two-cell collection cards, generated cases target 15–17 expanded cells as well as wider totals.
+The oracle minimizes remaining overflow, then the number of reports collected. This headless mathematical property catches
 incorrect savings and over-collection independently of native interactions.
 The [mounted collection journey](../../../../../tools/e2e/README.md#current-scenario-contract)
 exercises actual reading and per-directory projection.

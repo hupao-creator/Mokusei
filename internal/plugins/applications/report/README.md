@@ -350,7 +350,7 @@ current selection and motion owner. Menu tracking pauses automatic paging.
 Deactivation, viewport exit and unmount clear hover. Page numbers follow the
 surviving selected member; stale actions for removed members are ignored.
 The Overview Host selects the oldest eligible prefix under the current filter's
-12-cell soft budget. Each collection needs at least two members and positive cell savings.
+16-cell soft budget. Each collection needs at least two members and positive cell savings.
 
 ## Updated collection members
 

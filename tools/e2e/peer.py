@@ -37,10 +37,10 @@ class Peer(Provider):
             self.request_count += 1
             # Each directory's real Report Agent receives its own completion batch.
             # Native tool results drive the next call and the public catalog
-            # independently establishes the six document identities.
+            # independently establishes the eight document identities.
             done = {item.get("call_id") for item in request.get("input", [])
                     if item.get("type") == "function_call_output"}
-            for index in range(1, 4):
+            for index in range(1, 5):
                 call_id = f"collection_report_{index}"
                 if call_id not in done:
                     title = f"Collection report {index}"

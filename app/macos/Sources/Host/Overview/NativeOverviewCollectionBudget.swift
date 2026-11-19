@@ -3,7 +3,7 @@ import MokuseiPluginAPI
 /// One budget per complete, ungrouped filter projection. Each type spends only
 /// the excess left by earlier types, in the order their first candidate appears.
 struct NativeOverviewCollectionBudget {
-    static let targetCells = 4 * 3
+    static let targetCells = 4 * 4
     private var excess: Int
 
     init(expandedCells: Int) { excess = expandedCells - Self.targetCells }

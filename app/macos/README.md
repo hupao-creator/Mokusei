@@ -230,7 +230,7 @@ admission. See the [animation contract](../../design/overview.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
 
-Super Thread browsing gives each tag view a 12-cell soft budget. When expanded
+Super Thread browsing gives each tag view a 16-cell soft budget. When expanded
 cards exceed it, the oldest eligible reports share one collection for as much
 space as needed. At least two reports must save space together. A close older
 than five minutes qualifies. Documents retain eligibility across short reopened

@@ -81,7 +81,7 @@ references. Values contain `lastClosedAt` (Unix milliseconds or null), `retainsE
 `intervalSeconds`, the time-condition `eligible` flag, a `reason`
 (`no-close-record`, `future-close-record`, `within-close-interval`, `eligible`) and
 current `collected` membership. An eligible report can remain individual when
-the current view fits its 12-cell budget or an older prefix frees enough space. During
+the current view fits its 16-cell budget or an older prefix frees enough space. During
 reading travel the retained collection can temporarily differ from live
 eligibility. These observations neither create opens nor migrate unknown history.
 

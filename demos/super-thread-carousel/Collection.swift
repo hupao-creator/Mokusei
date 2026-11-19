@@ -31,7 +31,7 @@ struct ReportSample: Identifiable {
         .init(id: "unread", title: "细节里的原生体验", emoji: "✨",
               summary: "从键盘路径到触控板手势，整理尚待查看的原生交互提案。", tags: ["原生", "未读"],
               color: "#5c5871", symbol: "✳", caption: "Small things, considered.", minutesSinceClose: nil)
-    ] + (1...3).map { index in
+    ] + (1...4).map { index in
         .init(id: "new-\(index)", title: "新报告 \(index)", emoji: "📄",
               summary: "尚未访问的报告保留在画布中。", tags: ["工程"],
               color: "#494f78", symbol: "▤", caption: "New report \(index)", minutesSinceClose: nil)

@@ -14,8 +14,8 @@ profile preferences in a temporary profile. Data export is not an assertion suit
 
 The visible app reuses production collection, card, cover and member panel views.
 Its close records, time advancement, read sheets, tags and document bodies are
-fixtures. The preview uses the Host's 12-cell collection budget. The initial
-All fixture has eight two-cell reports, three of which are eligible. A real
+fixtures. The preview uses the Host's 16-cell collection budget. The initial
+All fixture has nine two-cell reports. Three are eligible, so the oldest two share one card. A real
 close qualifies after strictly more than 300s. A foreground
 revisit over 120s clears retained eligibility, while a short revisit can retain it.
 The [Overview guide](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)

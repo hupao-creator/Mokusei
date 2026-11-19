@@ -11,9 +11,16 @@ private struct CollectionCase: Codable {
     init(seed: UInt64) {
         var random = SplitMix64(seed: seed)
         self.seed = seed
-        fixedCells = random.integer(0...16)
         groups = (0..<random.integer(1...2)).map { _ in
             (0..<random.integer(0...10)).map { _ in random.integer(1...2) }
+        }
+        // Sample both sides of the cutoff as well as views far beyond it.
+        let boundaryCells = 15 + Int(seed % 3)
+        let eligibleCells = groups.joined().reduce(0, +)
+        if seed.isMultiple(of: 2) && eligibleCells <= boundaryCells {
+            fixedCells = boundaryCells - eligibleCells
+        } else {
+            fixedCells = random.integer(0...20)
         }
     }
 
@@ -27,7 +34,7 @@ private struct CollectionCase: Codable {
             // Prefer least overflow, then the fewest reports behind the collection.
             let options = (0...areas.count).filter { $0 != 1 }.map { size in
                 let cells = displayed - areas.prefix(size).reduce(0, +) + (size == 0 ? 0 : 2)
-                return (overflow: max(0, cells - 12), size: size, cells: cells)
+                return (overflow: max(0, cells - 16), size: size, cells: cells)
             }
             let best = options.min { ($0.overflow, $0.size) < ($1.overflow, $1.size) }!
             guard count == best.size else { return "selected \(count) members, expected \(best.size) at \(displayed) cells" }

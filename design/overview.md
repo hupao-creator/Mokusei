@@ -87,7 +87,7 @@ does not. The member panel's archive control is icon-only at the upper-right
 corner and invokes the same atomic archive operation as the card menu. If the
 updated projection cannot form a collection, surviving reports appear individually.
 
-Each browsing filter budgets 12 cells from its expanded card footprints after
+Each browsing filter budgets 16 cells from its expanded card footprints after
 execution coverage. Over budget, the Host groups only as many of the oldest
 eligible reports as are needed, charging two cells for the collection. A grouping
 must save space. Unavoidable overflow stays reachable by pan.

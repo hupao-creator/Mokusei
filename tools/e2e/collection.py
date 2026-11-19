@@ -24,10 +24,10 @@ def prepare(session):
             raise RuntimeError(f"report fixture failed: {session.peer.failures}")
         return [r for r in session.runtime.state()["applicationThreads"] if r["ref"]["typeId"] == "report.document"]
 
-    reports = wait_for(catalog, lambda rows: len(rows) >= 6, 90)
-    assert len(reports) == 6 and all(sum(r["scope"] == p for r in reports) == 3 for p in projects)
+    reports = wait_for(catalog, lambda rows: len(rows) >= 8, 90)
+    assert len(reports) == 8 and all(sum(r["scope"] == p for r in reports) == 4 for p in projects)
     save(session.output / "collection-catalog.json", reports)
-    return sorted((r for r in reports if r["scope"] == projects[0]), key=lambda r: r["createdAt"])
+    return sorted((r for r in reports if r["scope"] == projects[0]), key=lambda r: r["createdAt"])[:3]
 
 
 def journey(desktop, reports):
@@ -52,24 +52,24 @@ def journey(desktop, reports):
     def check_grouped(state):
         cards = state["overview"]["cards"]
         groups = [c for c in cards if "members" in c]
-        assert len(groups) == 1 and groups[0]["members"] == refs[:2] and cells(cards) == 12
+        assert len(groups) == 1 and groups[0]["members"] == refs[:2] and cells(cards) == 16
         assert all(item["eligibility"]["eligible"] and item["eligibility"]["collected"]
                    for item in groups[0]["memberEligibility"])
         third = next(c for c in cards if c["id"] == ids[2])["collectionEligibility"]
         assert third["eligible"] and not third["collected"]
         unread = [c["collectionEligibility"] for c in cards if "collectionEligibility" in c and c["id"] not in ids]
-        assert len(unread) == 3 and all(not c["eligible"] and c["lastClosedAt"] is None for c in unread)
+        assert len(unread) == 5 and all(not c["eligible"] and c["lastClosedAt"] is None for c in unread)
         assert {r["threadId"] for r in state["threads"]} == initial_ids
 
     initial = overview()
     save(output / "collection-initial.json", initial)
     cards = initial["overview"]["cards"]
     initial_ids = {c["id"] for c in cards}
-    assert len(cards) == 8 and cells(cards) == 14 and all("members" not in c for c in cards)
+    assert len(cards) == 10 and cells(cards) == 18 and all("members" not in c for c in cards)
     unrelated = next(c["ref"] for c in cards if c.get("ref", {}).get("typeId") == "report.document"
                      and c["ref"] not in refs)
     directory = next(f for f in initial["overview"]["filters"] if f["scope"] == reports[0]["scope"] and f["kind"] == "directory")
-    assert directory["count"] == 4
+    assert directory["count"] == 5
     for ref in refs:
         state = open_and_close(ref)
     save(output / "collection-closed.json", state)
@@ -89,9 +89,10 @@ def journey(desktop, reports):
     narrow = overview(directory["id"])
     save(output / "collection-directory.json", narrow)
     cards = narrow["overview"]["cards"]
-    assert len(cards) == 4 and cells(cards) == 7
+    assert len(cards) == 5 and cells(cards) == 9
     singles = {c["id"]: c["collectionEligibility"] for c in cards if "collectionEligibility" in c}
-    assert set(singles) == set(ids) and all(c["eligible"] and not c["collected"] for c in singles.values())
+    assert len(singles) == 4 and {key for key, value in singles.items() if value["eligible"]} == set(ids)
+    assert all(not value["collected"] for value in singles.values())
 
     desktop.request({"name": "filter.select", "filterId": None})
     check_grouped(overview())
@@ -115,7 +116,7 @@ def journey(desktop, reports):
     at_budget = change_archive(True)
     save(output / "collection-at-budget.json", at_budget)
     visible = at_budget["overview"]["cards"]
-    assert cells(visible) == 12 and {c["id"] for c in visible} == initial_ids - {unrelated["threadId"]}
+    assert cells(visible) == 16 and {c["id"] for c in visible} == initial_ids - {unrelated["threadId"]}
     assert all("members" not in c for c in visible)
     assert all(c["collectionEligibility"]["eligible"] and not c["collectionEligibility"]["collected"]
                for c in visible if c["id"] in ids)
