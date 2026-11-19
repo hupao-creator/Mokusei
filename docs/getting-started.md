@@ -10,7 +10,7 @@ You'll need a Mac with Apple silicon running macOS 26 or later.
 
 ## Connect an agent
 
-On a fresh install, Chief opens in Simplified Chinese. This guide uses the English labels. After setup, press **⌘,** in Overview and choose **通用 → 界面偏好 → 界面语言 → 英语** to switch to English. [Settings](settings.md)
+On a fresh install, Chief opens in Simplified Chinese. This guide uses the English labels. After setup, press **⌘,** in Overview and choose **通用 → 界面偏好 → 界面语言 → 英语** to switch to English. [Open Settings and save changes](settings.md#open-settings-and-save-changes)
 
 Chief checks for Codex, Claude, Pi Agent, and OpenCode on your Mac. To set up a missing agent, click **Install** on the first setup page to open its installation instructions. Follow those instructions and sign in or set up a model as needed. Model access and costs depend on the service you use.
 
