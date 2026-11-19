@@ -75,7 +75,7 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored public lazy var moku = NativeMokuWorkspacePresentation(workspace: workspace, overview: overview)
     private var focused = false
     private var documentVisible = true
-    private var readingWindowActive = false
+    private(set) var readingWindowActive = false
 
     fileprivate func setReadingWindowActive(_ active: Bool) {
         readingWindowActive = active
@@ -366,7 +366,7 @@ public final class NativeWorkspacePresentation {
 
     public func setFollowUpVisible(_ value: Bool) { followUpVisible = value; publishPresence() }
 
-    private var readingForeground: Bool {
+    var readingForeground: Bool {
         focused && documentVisible && readingWindowActive && workspace.connection == .connected
             && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen
     }

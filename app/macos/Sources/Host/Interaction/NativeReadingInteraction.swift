@@ -9,7 +9,11 @@ public extension NativeWorkspacePresentation {
     }
 
     func readingInteractionSnapshot() -> JSONValue {
-        .object(["controls": .array(readingInteractionActions.isEmpty
+        .object(["foreground": .bool(selected != nil && readingForeground),
+                 "windowActive": .bool(readingWindowActive), "sceneFocused": .bool(overview.facts.focused),
+                 "entranceAdmitted": .bool(readingEntranceAdmitted),
+                 "collectionEligibility": selected.flatMap { overview.collectionEligibility($0) } ?? .null,
+                 "controls": .array(readingInteractionActions.isEmpty
             ? [] : readingInteractions.snapshot(visit: navigationRouteID))])
     }
 

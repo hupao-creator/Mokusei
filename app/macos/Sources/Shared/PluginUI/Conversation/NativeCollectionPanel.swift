@@ -1,5 +1,6 @@
 import AppKit
 import MokuseiCore
+import MokuseiPluginAPI
 import Observation
 import SwiftUI
 
@@ -53,6 +54,7 @@ import SwiftUI
 }
 
 public extension EnvironmentValues {
+    @Entry var collectionReturnMember: ApplicationThreadRef? = nil
     @Entry var nativeCollectionPanel: NativeCollectionPanelPresentation? = nil
 }
 

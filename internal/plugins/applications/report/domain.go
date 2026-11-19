@@ -440,12 +440,13 @@ func RegisterDomain(registry plugin.Registry) error {
 		return err
 	}
 	extensions := threadExtensions{}
-	return registry.ThreadType(plugin.ThreadTypeDefinition{ID: ThreadTypeID, OwnerPluginID: "report", DisplayName: "Super Thread", CollectionID: CollectionID, Contract: typedContract[View]("report.view", []string{"emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"}, nil), Project: func(record model.ApplicationThreadRecord) (plugin.ThreadProjection, error) {
+	return registry.ThreadType(plugin.ThreadTypeDefinition{ID: ThreadTypeID, OwnerPluginID: "report", DisplayName: "Super Thread", CollectionID: CollectionID, Contract: typedContract[View]("report.view", []string{"emoji", "shortDescription", "previewText", "readingSeconds", "contentRevision", "relatedExecutions"}, nil), Project: func(record model.ApplicationThreadRecord) (plugin.ThreadProjection, error) {
 		value, err := ParseData(record.Value)
 		if err != nil {
 			return plugin.ThreadProjection{}, err
 		}
-		view, err := json.Marshal(View{CoverRevision: value.CoverRevision, Emoji: value.Emoji, ShortDescription: value.ShortDescription, PreviewText: HTMLPreview(value.HTML, value.Title), ContentRevision: value.ContentRevision, RelatedExecutions: value.RelatedExecutions})
+		preview, seconds := projectReaderText(value.HTML, value.Title)
+		view, err := json.Marshal(View{ReadingSeconds: seconds, CoverRevision: value.CoverRevision, Emoji: value.Emoji, ShortDescription: value.ShortDescription, PreviewText: preview, ContentRevision: value.ContentRevision, RelatedExecutions: value.RelatedExecutions})
 		return plugin.ThreadProjection{Scope: value.Scope, Title: value.Title, View: view}, err
 	}, Tags: extensions, Archive: extensions, Overview: extensions})
 }

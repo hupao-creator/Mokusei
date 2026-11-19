@@ -10,9 +10,9 @@ When a Super Thread in the same view cites a task's latest run, Overview may sho
 
 ### Find reports in a busy view
 
-Overview keeps reports separate when the cards in the selected view occupy up to 16 grid cells. A report with a cover takes two cells. In a busier view, Overview collects the oldest eligible reports together until enough space is free. A newly visited report becomes eligible more than five minutes after you close it. A change to a report's content or linked runs brings it back to its own card.
+A busy view collects reports to keep the canvas near 16 grid cells. A report with a cover and a collection each take two cells. Choose a smaller folder or tag to see more individual cards. Reports you haven't visited for a full day can also share a collection in a quiet view.
 
-For example, nine single-cell tasks and four eligible reports with covers take 17 cells. The oldest two reports share one two-cell collection, leaving 15 cells on the canvas. Click its page count to see both reports, or open the displayed report directly. Choose a narrower folder or tag and those same reports may each have their own card. When very little can be collected, pan to reach the remaining cards.
+Click a collection's page count to choose a report. After a quick look, its cover stays selected so you can click it again. Spending time reading a report or its linked conversations gives its individual card priority when you return. Shorter reports need less reading time. Returning for another look within a day also gives the report priority. If the other cards already fill the space, the report stays on the collection cover.
 
 ## Check progress and see what needs your attention
 

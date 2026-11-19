@@ -54,6 +54,7 @@ type View struct {
 	CoverRevision     string               `json:"coverRevision"`
 	Emoji             string               `json:"emoji"`
 	ShortDescription  string               `json:"shortDescription"`
+	ReadingSeconds    int                  `json:"readingSeconds"`
 	PreviewText       string               `json:"previewText"`
 	ContentRevision   string               `json:"contentRevision"`
 	RelatedExecutions []model.ExecutionRef `json:"relatedExecutions"`
@@ -298,8 +299,13 @@ func summarize(record model.VersionedRecord, value Data) Summary {
 
 var hiddenTags = map[string]bool{"head": true, "script": true, "style": true, "template": true, "noscript": true, "svg": true}
 
-// HTMLPreview parses static reader text without executing or rewriting the document.
-func HTMLPreview(source, title string) string {
+// Project both catalog fields from a single static body traversal.
+func projectReaderText(source, title string) (preview string, seconds int) {
+	text := readerText(source, title)
+	return truncatePreview(text), readingSeconds(text)
+}
+
+func readerText(source, title string) string {
 	var visible strings.Builder
 	// The tree builder owns namespace changes, HTML integration points and
 	// raw-text/RCDATA state. A tokenizer alone treats SVG <style/> as an
@@ -310,8 +316,15 @@ func HTMLPreview(source, title string) string {
 	}
 	var visit func(*htmlnode.Node)
 	visit = func(node *htmlnode.Node) {
-		if node.Type == htmlnode.ElementNode && hiddenTags[node.Data] {
-			return
+		if node.Type == htmlnode.ElementNode {
+			if hiddenTags[node.Data] {
+				return
+			}
+			for _, attr := range node.Attr {
+				if attr.Namespace == "" && attr.Key == "hidden" {
+					return
+				}
+			}
 		}
 		block := node.Type == htmlnode.ElementNode && node.Namespace == "" && readerBlockTags[node.Data]
 		if block {
@@ -336,6 +349,29 @@ func HTMLPreview(source, title string) string {
 			text = strings.TrimLeftFunc(rest, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune(":：|·—–-", r) })
 		}
 	}
+	return text
+}
+
+// Estimate full-body reading at 300 Han characters or 240 words per minute.
+func readingSeconds(text string) int {
+	han, words := 0, 0
+	inWord := false
+	for _, r := range text {
+		if unicode.Is(unicode.Han, r) {
+			han++
+			inWord = false
+			continue
+		}
+		word := unicode.IsLetter(r) || unicode.IsDigit(r) || (inWord && unicode.IsMark(r))
+		if word && !inWord {
+			words++
+		}
+		inWord = word
+	}
+	return (4*han + 5*words + 19) / 20
+}
+
+func truncatePreview(text string) string {
 	characters := []rune(text)
 	if len(characters) > MaxPreviewLength {
 		return strings.TrimRightFunc(string(characters[:MaxPreviewLength-1]), unicode.IsSpace) + "…"

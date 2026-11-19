@@ -54,7 +54,7 @@ public protocol ApplicationThreadPlugin {
     var hasDetail: Bool { get }
     var allowsManualArchiving: Bool { get }
     var overviewCollection: ApplicationOverviewCollectionPolicy? { get }
-    func collectionContentRevision(entry: ApplicationThreadCatalogEntry<Value>) throws -> String?
+    func estimatedReadingSeconds(entry: ApplicationThreadCatalogEntry<Value>) -> TimeInterval
     func collectionCard(props: [ApplicationThreadProps<Value>], initialSelection: ApplicationThreadRef?, active: Bool,
                         onSelection: @escaping (ApplicationThreadRef) -> Void,
                         openThread: @escaping (ApplicationThreadRef) -> Void) -> AnyView
@@ -68,7 +68,7 @@ extension ApplicationThreadPlugin {
     public var hasDetail: Bool { true }
     public var allowsManualArchiving: Bool { true }
     public var overviewCollection: ApplicationOverviewCollectionPolicy? { nil }
-    public func collectionContentRevision(entry: ApplicationThreadCatalogEntry<Value>) throws -> String? { nil }
+    public func estimatedReadingSeconds(entry: ApplicationThreadCatalogEntry<Value>) -> TimeInterval { 0 }
     public func collectionCard(props: [ApplicationThreadProps<Value>], initialSelection: ApplicationThreadRef?, active: Bool,
                                onSelection: @escaping (ApplicationThreadRef) -> Void,
                                openThread: @escaping (ApplicationThreadRef) -> Void) -> AnyView { AnyView(EmptyView()) }
@@ -115,7 +115,7 @@ public struct AnyApplicationThreadPlugin {
     public let hasDetail: Bool
     public let allowsManualArchiving: Bool
     public let overviewCollection: ApplicationOverviewCollectionPolicy?
-    public let collectionContentRevision: (ApplicationThreadCatalogEntry<JSONValue>) throws -> String?
+    public let estimatedReadingSeconds: (ApplicationThreadCatalogEntry<JSONValue>) throws -> TimeInterval
     private let collectionBody: ([ApplicationThreadProps<JSONValue>], ApplicationThreadRef?, Bool,
                                 @escaping (ApplicationThreadRef) -> Void, @escaping (ApplicationThreadRef) -> Void) throws -> AnyView
     private let project: (ApplicationThreadCatalogEntry<JSONValue>, Int, ApplicationCapabilityAccess<ApplicationProjectionPhase>) throws -> ApplicationOverviewSnapshot
@@ -124,13 +124,9 @@ public struct AnyApplicationThreadPlugin {
         id = plugin.type.id; ownerPluginID = plugin.type.ownerPluginID; requires = plugin.requires; hasDetail = plugin.hasDetail
         allowsManualArchiving = plugin.allowsManualArchiving
         overviewCollection = plugin.overviewCollection
-        collectionContentRevision = { entry in
+        estimatedReadingSeconds = { entry in
             guard entry.ref.typeID == plugin.type.id else { throw PluginContractError("Application collection type mismatch") }
-            let revision = try plugin.collectionContentRevision(entry: entry.mapView(plugin.type.codec.decode))
-            guard revision.map({ !$0.isEmpty && $0.utf16.count <= 512 }) ?? true else {
-                throw PluginContractError("Invalid application collection content revision")
-            }
-            return revision
+            return try plugin.estimatedReadingSeconds(entry: entry.mapView(plugin.type.codec.decode))
         }
         collectionBody = { props, initial, active, selection, open in
             guard plugin.overviewCollection != nil, props.count > 1 else { throw PluginContractError("Application collection requires at least two members") }

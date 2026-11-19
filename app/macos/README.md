@@ -230,13 +230,9 @@ admission. See the [animation contract](../../design/overview.md), the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
 
-Super Thread browsing gives each tag view a 16-cell soft budget. When expanded
-cards exceed it, the oldest eligible reports share one collection for as much
-space as needed. At least two reports must save space together. A close older
-than five minutes qualifies. Documents retain eligibility across short reopened
-visits. More than two minutes of foreground reading in one visit clears it. Collections are native view
-projections; close evidence and retained eligibility are profile-local desktop
-state. The Report renderer keeps a sliding cover, fading
+Super Thread browsing combines profile-local reading activity with a 16-cell
+budget per space. Reading a report or a uniquely associated Thread can promote
+the report. The Report renderer keeps a sliding cover, fading
 metadata and stationary Liquid Glass navigation. Collections also provide a
 continuous regular-glass backdrop and regular-glass emoji badges at the existing
 metadata seat; the Host omits only their opaque shell. The 4pt internal spacing

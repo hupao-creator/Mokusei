@@ -179,7 +179,7 @@ def run(args):
         except (OSError, ValueError) as error:
             raise Blocked(str(error)) from error
         save(output / "ui-artifact.json", ui_artifact)
-        if args.operator_composer:
+        if args.operator_composer or "E2E-COLLECTION-001" in requested:
             app = operator_input.bundle(app, session)
         session.app = session.spawn([app, "--runtime", session.binary, "--data-dir", session.profile,
             "--automation-socket", session.root / "ui.sock", "--benchmark-scenario", "overview"], "app")

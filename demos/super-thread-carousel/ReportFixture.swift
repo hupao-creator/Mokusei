@@ -35,7 +35,7 @@ import SwiftUI
             ])
         let view = try NativeReportView(json: .object([
             "coverRevision": .text(sample.hasCover ? "cover-\(sample.id)" : ""), "contentRevision": .text("demo-v1"),
-            "emoji": .text(sample.emoji), "shortDescription": .text(sample.summary), "previewText": .text(sample.summary),
+            "emoji": .text(sample.emoji), "shortDescription": .text(sample.summary), "readingSeconds": .integer(40), "previewText": .text(sample.summary),
             "relatedExecutions": .array(refs.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })
         ]))
         let cardProps = ApplicationThreadProps(entry: .init(ref: reference, revision: 1, createdAt: 0,

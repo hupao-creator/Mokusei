@@ -349,30 +349,23 @@ control remains separate. During carousel travel controls/actions recheck the
 current selection and motion owner. Menu tracking pauses automatic paging.
 Deactivation, viewport exit and unmount clear hover. Page numbers follow the
 surviving selected member; stale actions for removed members are ignored.
-The Overview Host selects the oldest eligible prefix under the current filter's
-16-cell soft budget. Each collection needs at least two members and positive cell savings.
-
-## Updated collection members
-
-The native plugin exposes a stable reading fingerprint for title, emoji,
-introduction, document/cover revisions and the set of exact execution references.
-The desktop Host persists this fingerprint with its close/retained-reading facts;
-a change revokes the old collection eligibility even across reconnect/restart.
-Tag propagation, archive/restore, source status, record timestamps/revisions and
-reference order alone do not split a collection. Initial observation establishes
-a baseline rather than an edit. No report record, write receipt or CAS changes.
-See the [desktop reading contract](../../../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
-for close/dwell rules and the limit of reading evidence without a prior fingerprint.
+The catalog view includes `readingSeconds` for the complete static reader text
+before preview truncation. Subtrees marked `hidden` are excluded. Each Han character contributes 1/5 second and each
+other sequence of letters or digits contributes 1/4 second. The sum rounds up
+to whole seconds. This static estimate shares the preview's HTML parser and
+bounded-prefix recovery. External CSS, scripted layout and images are outside
+its measurement. The [Host](../../../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+owns reading qualification and space budgeting.
 
 ## Property boundary: PBT-REPORT-PREVIEW
 
-`HTMLPreview` projects text through the non-executing parser and bounded-prefix
+`projectReaderText` projects text through the non-executing parser and bounded-prefix
 recovery described above. Its final Unicode-scalar clipping retains at most
 `MaxPreviewLength` (220) runes, including an ellipsis when clipped.
 
 [PBT-REPORT-PREVIEW](html_property_test.go) uses Go fuzzing over arbitrary HTML strings bounded to 8,192 bytes, including malformed
 UTF-8, deep nesting, templates and foreign content in its seed corpus. Every
-projected preview must have at most 220 runes and projection must not panic.
+projected preview must have at most 220 runes and projection must not panic. Generated mixed-script bodies also check the full estimate across inline markup and hidden subtrees.
 This property checks the output bound and parser safety; it does not establish
 semantic text equivalence, CSS visibility, script isolation or full accepted
 report-size coverage. `make pbt-go` actively fuzzes this target with an execution
