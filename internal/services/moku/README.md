@@ -347,11 +347,16 @@ from thread lifecycle reports; this capability adds no query tool or reason to
 query proactively. Capability guidance leaves link selection to the model. The
 full Markdown URL counts toward the existing 1200-code-point limit.
 
-The `interrupt_thread` tool uses the dedicated `InterruptThreadFromMokuTool`
-capability so Runtime can retain exact execution provenance after successful
-interruption. `CancelTarget` (user Stop) and `Cancel` (lifecycle teardown) retain
-their separate capabilities and never supply tool provenance. Batch attempts and
-ordered per-thread success/error results retain their existing semantics.
+The `interrupt_thread` tool attempts every supplied Thread ID in order, including
+repetitions. Each result carries `threadId` and `ok`. Runtime's acknowledged
+stop yields `ok: true` and `status: "cancelled"`. A finished target with no
+remaining work, or a stop already in progress, yields `ok: false`,
+`status: "stale"` and an explanation. A missing or ineligible Thread and a
+native error yield `ok: false` and an error. Batch `ok` is true only when all
+attempts succeed. The compact catalog carries this batch acknowledgement.
+The dedicated `InterruptThreadFromMokuTool` capability also lets Runtime
+retain the exact interrupted execution when observed. User Stop and lifecycle
+teardown have their own entry points. [Runtime cancellation](../../core/runtime/README.md)
 
 `grep_threads` is an admitted, audited deterministic read, distinct from the
 model-based `ask_thread`. Runtime limits it to current-profile ordinary Agent

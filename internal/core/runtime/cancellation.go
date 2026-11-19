@@ -170,9 +170,8 @@ func (r *Runtime) InterruptThreadTarget(ctx context.Context, id, expected string
 
 // InterruptThreadFromMokuTool captures the current target under the admission
 // gate. Lifecycle teardown and user cancellation must not use this capability.
-func (r *Runtime) InterruptThreadFromMokuTool(ctx context.Context, id string) error {
-	_, err := r.interruptThreadTarget(ctx, id, "", true)
-	return err
+func (r *Runtime) InterruptThreadFromMokuTool(ctx context.Context, id string) (model.CancellationResult, error) {
+	return r.interruptThreadTarget(ctx, id, "", true)
 }
 
 func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string, mokuTool bool) (model.CancellationResult, error) {
@@ -196,9 +195,10 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 		expected = thread.CancellationID
 	}
 	active := thread.Observation.LatestExecution != nil && !thread.Observation.LatestExecution.Terminal()
-	if thread.CancellationID != expected || !active && !thread.PendingInput && thread.Observation.BackgroundWork == nil || state.cancelling {
+	hasWork := active || thread.PendingInput || thread.Observation.BackgroundWork != nil
+	if thread.CancellationID != expected || !hasWork || state.cancelling {
 		state.mu.Unlock()
-		return model.CancellationResult{Status: "stale"}, nil
+		return model.CancellationResult{Status: model.CancellationStale}, nil
 	}
 	// Capture the execution before cancelling claims: their cancellation can
 	// synchronously settle it. A pending reservation may not be projected yet;
@@ -270,5 +270,5 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 			return model.CancellationResult{}, err
 		}
 	}
-	return model.CancellationResult{Status: "cancelled"}, nil
+	return model.CancellationResult{Status: model.CancellationCancelled}, nil
 }

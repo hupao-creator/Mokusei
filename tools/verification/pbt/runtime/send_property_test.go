@@ -206,5 +206,36 @@ func TestSendAdmissionProperties(t *testing.T) {
 				t.Fatal("input acknowledgement duplicated or lost")
 			}
 		}
+		before, err := r.Thread(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result, err := r.InterruptThreadFromMokuTool(context.Background(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		after, err := r.Thread(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := before.Observation.LatestExecution
+		if old.Status == "running" {
+			now := after.Observation.LatestExecution
+			if result.Status != "cancelled" || now.Status != "interrupted" || now.ExecutionID != old.ExecutionID || after.MokuInterruptedExecutionID != old.ExecutionID {
+				t.Logf("request=%q before=%+v after=%+v mokuInterruptedExecutionId=%q", result.Status, old, now, after.MokuInterruptedExecutionID)
+				t.Fatal("acknowledged stop lost its execution or provenance")
+			}
+		} else if result.Status != "stale" || after.Revision != before.Revision {
+			t.Logf("request=%q before revision=%d after revision=%d", result.Status, before.Revision, after.Revision)
+			t.Fatal("stop claimed or changed an already settled execution")
+		}
+		repeated, err := r.InterruptThreadFromMokuTool(context.Background(), id)
+		if err != nil || repeated.Status != "stale" {
+			t.Fatalf("duplicate stop returned %q, error %v", repeated.Status, err)
+		}
+		settled, err := r.Thread(id)
+		if err != nil || settled.Revision != after.Revision {
+			t.Fatalf("duplicate stop changed the settled record or it became unreadable: %v", err)
+		}
 	})
 }

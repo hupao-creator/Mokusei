@@ -84,8 +84,8 @@ type Configuration struct {
 	CollectContext            func(context.Context, string, model.Settings) ([]plugin.ContextEntry, error)
 	SuperThreadContext        func(context.Context, string) (json.RawMessage, error)
 	Ledger                    func(string) plugin.TelemetryLedger
-	// Tool interruption carries provenance; user cancellation and teardown do not.
-	InterruptThreadFromMokuTool func(context.Context, string) error
+	// Runtime captures the current ordinary Thread target and owns stop provenance.
+	InterruptThreadFromMokuTool func(context.Context, string) (model.CancellationResult, error)
 }
 type SubmitRequest struct {
 	Input            model.AgentInput `json:"input"`

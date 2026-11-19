@@ -16,6 +16,6 @@ Click **+** to add an image or file. Supported attachments vary by agent. If an 
 
 When the conversation has multiple runs or includes history from an earlier conversation, use **Conversation contents** in the reading area to choose a run. Hover over an entry to see its title. If it has no title, look for the original request or the time. Use the back button in the reading area to leave the earlier run.
 
-Sending from the latest run continues the same conversation. Sending from an earlier run tries to start a separate conversation from that point and keeps the original conversation. You can stop an active run only from its own input bar. Reading an earlier run leaves newer work running.
+Sending from the latest run continues the same conversation. Sending from an earlier run tries to start a separate conversation from that point and keeps the original conversation. Reading an earlier run leaves newer work running. To use **Stop this thread**, return to the active run. You can also ask Moku to stop tasks by name. [Working with Moku](working-with-moku.md)
 
 [Back to the product guide](README.md)

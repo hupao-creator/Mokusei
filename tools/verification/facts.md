@@ -3,6 +3,7 @@
 本索引连接事实的所属文档、生产边界和验证证据；规格正文仍在所属文档。
 实现证据指向当前仓库的产品与基建源码，不包含外部工作树或未落地能力。
 完整入口和证据界限见[逐文档覆盖表](coverage.md)。Git 保存变更与设计历史。
+跨模块查找状态、转换条件与观察入口见[状态机清单](../../design/state-machines.md)。
 
 ## 验证主责与当前能力
 
@@ -27,7 +28,7 @@
 | ID | 所属文档与当前事实边界 | 实现证据 | 验证关系 / 当前缺口 |
 | --- | --- | --- | --- |
 | `moku-admission` | [Moku](../../internal/services/moku/README.md)、[Runtime](../../internal/core/runtime/README.md)：配置、执行准入、lazy delivery、确定未消费的重试 | [coordinator.go](../../internal/services/moku/coordinator.go)、[threads.go](../../internal/core/runtime/threads.go)、[moku_delivery.go](../../internal/core/runtime/moku_delivery.go) | PBT-RUNTIME-ADMISSION / MOKU-OUTBOX；PBT-MOKU-SCOPE / QUEUE 约束协调生命周期；native system 可选；仅生成域，不认证任意竞态或 wake scheduler |
-| `moku-tools` | [Moku 工具](../../internal/services/moku/README.md#tools-and-creation)：真实 schema、`ask_thread`、Talk/Timer/Note 边界 | [tools.go](../../internal/services/moku/tools.go)、[tool_schema.go](../../internal/services/moku/tool_schema.go)、[prompt.go](../../internal/services/moku/prompt.go) | PBT-MOKU-SCOPE 约束工具取消权；PBT-SYSTEM-COMBINATION 约束有限业务组合；模型遵守指令不由属性或 schema 保证 |
+| `moku-tools` | [Moku 工具](../../internal/services/moku/README.md#tools-and-creation)、[Runtime](../../internal/core/runtime/README.md)、[Overview](../../app/macos/Sources/Host/Overview/README.md) | [tools.go](../../internal/services/moku/tools.go)、[tool_schema.go](../../internal/services/moku/tool_schema.go)、[取消](../../internal/core/runtime/cancellation.go)、[操作投影](../../app/macos/Sources/Host/Overview/NativeOverviewMokuOperations.swift)、[prompt.go](../../internal/services/moku/prompt.go) | PBT-MOKU-SCOPE 约束工具权限，PBT-RUNTIME-ADMISSION 覆盖停止回执与来源，PBT-SYSTEM-COMBINATION 读取原生工具的逐项目标结果。模型遵守指令需另外验证 |
 | `native-catalog` | [目录准入](../../internal/services/moku/catalog-evidence.md)：非空完整原生枚举、未知来源、缓存与再次准入 | [discovery](../../internal/platform/discovery/)、[tool_schema.go](../../internal/services/moku/tool_schema.go) | PBT-CODEX-CATALOG 验证 Codex 兼容写入与严格读取的缓存边界。桌面 e2e 准备使用隔离 native CLI。真实账户目录另需证据 |
 | `store-lifecycle` | [Store](../../internal/core/store/README.md)：事务、快照、事件、receipt、drain | [store.go](../../internal/core/store/store.go)、[sqlite.go](../../internal/core/store/sqlite.go)、[snapshot.go](../../internal/core/store/snapshot.go)、[lifecycle.go](../../internal/core/store/lifecycle.go) | PBT-STORE-SNAPSHOT / LIFECYCLE；独立 map/fact/ack oracle；不认证 power-loss、多个 writer 或性能预算 |
 | `transport-client` | [transport](../../internal/platform/transport/README.md)、[Core](../../app/macos/Sources/Core/README.md)：版本、帧、租约、delta、命令回执 | [protocol.go](../../internal/platform/transport/protocol.go)、[content.go](../../internal/platform/transport/content.go)、[RuntimeProtocol.swift](../../app/macos/Sources/Core/RuntimeProtocol.swift)、[RuntimeCommandJournal.swift](../../app/macos/Sources/Core/RuntimeCommandJournal.swift) | PBT-SYSTEM-COMBINATION 包含 Go HTTP 命令/receipt；没有完整 Go/Swift 互操作或 delta 断言 gate |

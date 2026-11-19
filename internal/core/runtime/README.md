@@ -107,6 +107,12 @@ teardown cannot supply tool provenance. A background-only stop does not relabel
 an older foreground outcome; reopening a session may settle abandoned work and
 that recovery is not attributed to the tool.
 
+The gate returns `stale` when the requested cancellation identity has changed,
+there is no active foreground execution, pending input or background work to stop, or
+a stop already owns the gate. A successful stop request returns `cancelled`.
+Both user Stop and Moku receive this decision. The committed execution outcome
+and its interruption source are separate facts.
+
 The field survives catalog projection, refresh and restart. Missing historical
 or unknown provenance stays absent, with no status-based backfill. Forks clear
 it. Native failure or uncertain acknowledgement does not add it, even if a
@@ -334,8 +340,11 @@ drives real Runtime and SQLite with a scripted native peer. Each case has 1–25
 accept/reject/end/end-reject/end-failure/end-cancel/invalid-retry/admitted-failure
 actions and generated completed/failed/interrupted native outcomes. The oracle
 checks acknowledgements, execution identity/status, native attempt count and
-event count after every action; closing the scripted owner joins workers before
-observation. It covers the send-return/terminal/cancellation seam, not real
+event count after every action. After each history, a Moku stop must either
+interrupt the still-running execution with exact provenance or report a stale
+target and preserve the settled record revision. An immediate repeat is stale.
+Closing the scripted owner joins send workers before observation. The property
+covers the send-return/terminal/cancellation seam, not real
 native processes, arbitrary concurrent clients or physical input.
 
 **PBT-SYSTEM-COMBINATION.** Composition connects Runtime, authenticated HTTP,
@@ -347,7 +356,10 @@ reads, follow-up and fork remain available. Generated archive/restore actions
 read public state after each report command and before issuing any individual
 Thread command. Archiving hides the report and its cited Threads. Restoring
 only shows the requested report. Other records keep their visibility and all
-identities remain present. The scenario checks native history content from an assistant reply,
+identities remain present. After reading the first completed child, Moku requests
+a batch stop for that child, a missing target and the same child again. The peer
+checks aggregate failure, ordered identities, both stale acknowledgements and
+the missing-target error on the actual tool result. The scenario checks native history content from an assistant reply,
 not merely a token in user input. A scripted loopback model provider is the
 external peer; it does not implement admission, tool handlers or domain writes.
 

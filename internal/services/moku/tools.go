@@ -229,29 +229,32 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			return nil, err
 		}
 		type interruptResult struct {
-			ThreadID string `json:"threadId"`
-			OK       bool   `json:"ok"`
-			Error    string `json:"error,omitempty"`
+			ThreadID string                   `json:"threadId"`
+			OK       bool                     `json:"ok"`
+			Status   model.CancellationStatus `json:"status,omitempty"`
+			Error    string                   `json:"error,omitempty"`
 		}
 		results := make([]interruptResult, 0, len(request.ThreadIDs))
 		ok := true
 		for _, id := range request.ThreadIDs {
-			record, interruptErr := c.config.Thread(id)
-			if interruptErr == nil {
+			item := interruptResult{ThreadID: id}
+			if interrupt := c.config.InterruptThreadFromMokuTool; interrupt != nil {
+				result, err := interrupt(ctx, id)
 				switch {
-				case record.Moku || record.MokuHistory:
-					interruptErr = errors.New("Moku tools may only target ordinary Agent Threads")
-				case c.config.InterruptThreadFromMokuTool == nil:
-					interruptErr = errors.New("Thread interrupt unavailable")
+				case err != nil:
+					item.Error = err.Error()
+				case result.Status == model.CancellationCancelled:
+					item.Status, item.OK = result.Status, true
+				case result.Status == model.CancellationStale:
+					item.Status = result.Status
+					item.Error = "There is no work to stop or a stop is already in progress."
 				default:
-					interruptErr = c.config.InterruptThreadFromMokuTool(ctx, id)
+					item.Error = "Runtime returned an unknown stop outcome."
 				}
+			} else {
+				item.Error = "Thread interrupt unavailable"
 			}
-			item := interruptResult{ThreadID: id, OK: interruptErr == nil}
-			if interruptErr != nil {
-				item.Error = interruptErr.Error()
-				ok = false
-			}
+			ok = ok && item.OK
 			results = append(results, item)
 		}
 		return encode(map[string]any{"ok": ok, "results": results})

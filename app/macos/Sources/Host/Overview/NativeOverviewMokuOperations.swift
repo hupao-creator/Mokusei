@@ -5,7 +5,7 @@ import MokuseiPluginAPI
 /// Public Moku tool audit projection. No owning Harness state is interpreted.
 public struct NativeOverviewMokuOperation: Equatable, Sendable, Identifiable {
     public enum Kind: String, Sendable { case list, start, send, status, interrupt }
-    public enum Phase: String, Sendable { case running, completed, failed }
+    public enum Phase: String, Sendable { case running, completed, failed, unknown }
     public let id: String
     public let kind: Kind
     public let phase: Phase
@@ -30,13 +30,22 @@ public struct NativeOverviewMokuOperation: Equatable, Sendable, Identifiable {
             }
             let arguments = item["arguments"], result = item["result"]
             let phase: Phase = item["completedAt"] == nil ? .running : item["isError"]?.boolValue == true ? .failed : .completed
-            if kind == .interrupt, let threadIDs = arguments?["threadIds"]?.arrayValue {
+            if kind == .interrupt {
+                func stopPhase(acknowledged: Bool?) -> Phase {
+                    guard phase == .completed else { return phase }
+                    guard let acknowledged else { return .unknown }
+                    return acknowledged ? .completed : .failed
+                }
+                // The bounded catalog carries only the batch acknowledgement.
+                guard let threadIDs = arguments?["threadIds"]?.arrayValue else {
+                    return [Self(id: id, kind: kind, phase: stopPhase(acknowledged: result?["ok"]?.boolValue))]
+                }
                 let results = result?["results"]?.arrayValue ?? []
                 return threadIDs.enumerated().compactMap { index, value in
                     guard let threadID = text(value) else { return nil }
                     let outcome = results.indices.contains(index) ? results[index] : nil
-                    let targetPhase: Phase = phase == .completed && outcome?["ok"]?.boolValue == false ? .failed : phase
-                    return Self(id: "\(id):\(index)", kind: kind, phase: targetPhase, threadID: threadID)
+                    let acknowledged = text(outcome?["threadId"]) == threadID ? outcome?["ok"]?.boolValue : nil
+                    return Self(id: "\(id):\(index)", kind: kind, phase: stopPhase(acknowledged: acknowledged), threadID: threadID)
                 }
             }
             return [Self(id: id, kind: kind, phase: phase,
