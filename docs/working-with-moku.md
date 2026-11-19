@@ -1,27 +1,34 @@
-# Working with Chief
+# Work with Chief
 
-## Check who will get your message
+## Send a request
 
-In **Overview**, click Chief's eyes or press **⌘⇧B** to open the **Type a message…** box. Messages you send from Overview go to Chief. You can ask a question, give Chief a task to assign, or ask it to find work you already started. Say what you want done, what materials to use, and what you'd like back.
+From **Overview**, click Chief's eyes or press **⌘⇧B** to open **Type a message…**. Ask a question, describe a task for Chief to assign, or ask it to find work you already started. Say what you want back and which materials to use.
 
-In an agent conversation, the **Type a message…** box at the bottom shows the agent's icon. Messages there go to that conversation. If you've selected an earlier run, your message picks up from the run you're reading. In a Super Thread report, open a card in **Related executions** before sending a follow-up to the source conversation. [Agent conversations](task-conversations.md)
+In a task conversation, the same input box shows the agent's icon and sends to that conversation. A report sends follow-ups only after you open a source conversation in **Related executions**. [Agent conversations](task-conversations.md) · [Super Threads](reports-tags-and-changes.md#see-the-work-behind-a-super-thread)
 
-When Chief is at the bottom of **Overview**, click outside its input box or press **Esc** to close it. Your unsent draft is there when you open the box again.
+When Chief's input is at the bottom of Overview, click outside it or press **Esc** to close it. Your unsent draft is there when you reopen the box.
 
-To stop several tasks, name them in one message to Chief. Chief tries each stop request and can tell you which ones succeeded. A task that has already finished and has no work left keeps its original result.
+## Point Chief to the right files
 
-## Choose project folders and attach files
+Type `@` and select a project folder from the suggestions. You can select several and say what to use each one for. The menu shows folders Chief already knows about from your work or your agents. If your folder isn't listed, include its full path in the request.
 
-Type `@` and choose a folder from the suggestions. Check that it appears in the input box before you send. You can choose more than one folder and tell Chief what to look at in each. Chief also takes the selected folder in Overview into account, and folders you explicitly add to the message take priority. Tasks without a project folder go into Inbox, whose tags appear in the main filter bar in Overview.
+If you send without selecting a folder in the message, Chief takes the current Overview folder into account. A folder you select in the message takes priority. Tasks created without a project folder go into Inbox.
 
-Click **+** beside the input box to add an image or file, or drag a file into the box. You can send text, files, and folders together. Wait for any files to finish preparing before you send. If an attachment needs to be added again, remove it and select the original file again.
+Click **+** to add an image or file, or drag it into the input box. Wait for attachments to finish preparing before you send. If one needs to be added again, remove it and select the original file again.
 
-## Find replies, notes, and past messages
+## Find Chief's replies and notes
 
-- When Chief replies directly, the reply appears where you typed your request. You can select the text and scroll through longer replies. Click Chief's eyes to type again. When Chief confirms it has assigned the task, open the conversation card to follow the work.
-- To read Chief's notes, return to Overview and press **⌘⇧N**, or swipe up with two fingers on the trackpad over Chief. You can scroll, select text, and open task links in the note.
-- Open **Chief history** below the note or press **⌘B**. You can read past messages in the current Chief conversation and use the input below them to keep talking to Chief. If you switch the coordinating agent, Chief keeps the previous conversation and shows the new one in the history panel.
+- **Replies.** A direct reply appears where you typed your request. You can select the text and scroll through a longer reply. The reply closes on its own, so ask Chief to put anything you want to keep in its note.
+- **Task updates.** A dispatch message tells you that Chief handed off your request. Open the task card in Overview to see how the work is going.
+- **Notes.** From Overview, press **⌘⇧N** or swipe up with two fingers over Chief to open **Chief Note**. You can scroll the note and open links to specific task runs.
+- **Conversation history.** Press **⌘B** or click **Chief history** below the note. Use the input below the current conversation to keep talking to Chief. When a different agent takes over as Chief, a new conversation starts and the note carries over.
 
-If a message fails to send, Chief keeps what you entered in the input box and shows the reason. Follow the prompt, check the message in the same box, and click **Send** again. If Chief is still checking whether the previous message went through, leave the original content in place and wait for confirmation. If Chief has already assigned the task, open its conversation first to see what happened.
+## Stop work or acknowledge an alert
+
+To stop Chief's current response, click **Stop Chief** when the square stop button appears. To stop one or more delegated tasks, name them in a message to Chief. Chief tries each request separately. You can also stop a task yourself from its conversation. [Stop a run](task-conversations.md#respond-to-a-request-or-stop-a-run)
+
+Chief can send an immediate alert that rings until you click **Received**. If another alert is waiting, it appears next. Alerts are kept while Chief is open and are cleared when you quit.
+
+If a message fails to send, review the error and the text in the input box before retrying. If Chief is still checking the previous send, wait for confirmation or use **Check previous receipt** if shown. Open any task card Chief already created to see what happened.
 
 [Back to the product guide](README.md)

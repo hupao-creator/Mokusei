@@ -1,27 +1,33 @@
-# Read and continue agent conversations
+# Read and continue a task conversation
 
-## Read the result or respond to a request
+## Read a result
 
-In Overview, click a task card. The conversation shows replies the agent has finished and keeps any failure messages. The full text of a reply appears when the agent finishes writing it. When a run ends, the reading area usually shows the final answer on its own and folds earlier replies into the details of that run. Click **Show work** to see a summary of the agent's reasoning and tool use. [Overview](overview.md)
+Click the task card in [Overview](overview.md). The conversation keeps finished replies and failure messages. When a run ends, the reading area usually shows its final answer on its own. Click **Show work** when it appears to see the reasoning and tools behind the answer. If you scroll up during a live run, use **Jump to latest** when it appears to return to the newest output.
 
-If the agent asks you to make a choice or grant permission, respond to the prompt. The options depend on the agent and its request. While a run is active and the input box has nothing waiting to send, the **Stop this thread** button is available. Click it to stop the current run. You can send a new message to continue later. The task keeps running if you close the conversation or collapse its sidecard.
+## Respond to a request or stop a run
 
-## Send follow-ups and attachments
+If the agent asks a question or requests permission, respond to the prompt. The choices depend on the agent and its request.
 
-Type your follow-up at the bottom of the conversation and click **Send**. If the current run accepts follow-ups, your message goes to that run. If the run has ended, your message starts a new run in the same conversation. Respond to any pending request first.
+To stop the current run, click **Stop this thread**. The button shares the **Send** position and appears when the run is active and the input box is empty. Keep any unsent draft you want before clearing the box. You can send a new message to continue later. Closing the conversation or its **Execution** sidecard leaves the task running. [Watch a live run](sidecards.md#watch-a-run-in-progress)
 
-After you send, you can immediately type your next message in the same box. **Send** becomes available again when the previous send finishes. Your next message stays in the box until you send it. If a send fails, Chief shows the reason and restores the failed message above any new text. Review the draft before sending it again.
+## Send a follow-up or attachment
 
-If you reopen a conversation and see **Check the conversation for this interrupted send**, click **Check previous receipt** if it is available. While the host is still confirming the message, your next draft stays editable. Confirmation keeps the next draft. A rejection restores the earlier message above it. If Chief offers local recovery, look for the earlier message in the conversation. Choose **Keep next draft** if it arrived, or **Restore to draft** to put the earlier message above what you typed next. Both choices leave the text in the input box for you to review. Only **Send** or Return submits it.
+Type your follow-up in **Type a message…** and click **Send** or press Return. Use Shift+Return for a new line. If the current run accepts follow-ups, your message goes to that run. If it has ended, sending starts a new run in the same conversation. Answer any pending question or permission request first.
 
-If Chief says the fork exists and the message was not sent, choose what to keep and open the created branch to continue there. If **Finish previous receipt cleanup** appears, click it to release the settled receipt and send your next draft.
+Click **+** to add an image or file. Supported attachments vary by agent. If the agent rejects an attachment, remove it and try a supported type or describe it in text. You can return to finish an unsent draft after opening a different conversation.
 
-Click **+** to add an image or file. Supported attachments vary by agent. If an agent rejects an attachment type, remove the attachment and try a supported type or describe it in text. If you switch conversations, you can come back to finish editing your unsent message.
+You can start writing the next message while Chief confirms the previous send. Once the send succeeds, the next draft stays in the box. If the send is rejected, Chief puts the earlier message above your new text so you can review both before sending.
 
-## Revisit an earlier run
+## Revisit or branch from an earlier run
 
-When the conversation has multiple runs or includes history from an earlier conversation, use **Conversation contents** in the reading area to choose a run. Hover over an entry to see its title. If it has no title, look for the original request or the time. Use the back button in the reading area to leave the earlier run.
+Open **Conversation contents** to choose an earlier run. Hover over an entry to see its title, or use its original request or time to recognize it. Use the back arrow to return to the current run. Any newer work keeps going while you read.
 
-Sending from the latest run continues the same conversation. Sending from an earlier run tries to start a separate conversation from that point and keeps the original conversation. Reading an earlier run leaves newer work running. To use **Stop this thread**, return to the active run. You can also ask Chief to stop tasks by name. [Working with Chief](working-with-moku.md)
+If you send a message from an earlier run, Chief tries to start a separate conversation from that point. The original stays intact. Branching depends on whether the agent can recover the selected run's history.
+
+## Recover an interrupted send
+
+If you see **Check the conversation for this interrupted send**, use **Check previous receipt** when available. If Chief asks you to check the conversation yourself, look for the earlier message. Choose **Keep next draft** if it arrived or **Restore to draft** to put it back above the new text. Review the draft before sending again.
+
+If Chief says a branch was created but the message didn't send, choose what to keep and continue in that branch. If you see **Finish previous receipt cleanup**, click it before trying to send again.
 
 [Back to the product guide](README.md)

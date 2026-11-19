@@ -1,33 +1,35 @@
 # Change Chief settings
 
-## Open and save Settings
+## Open Settings and save changes
 
-During setup, **Continue** saves the choices you've made on the current page. Click **Start using Chief** on the last page to finish. After setup, press **⌘,** in **Overview** or choose **Settings…** from the Chief menu. Under **General → Interface preferences**, changes to **Appearance** and **Interface language** save right away, even when agents are temporarily unavailable.
+From **Overview**, click the **Settings** gear, press **⌘,**, or choose **Settings…** from the Chief menu. If you're reading a conversation or a report, press **⌘K** to return to Overview first.
 
-Under **Interface language**, you can choose **English** or **Simplified Chinese**.
+Under **General → Interface preferences**, choose **System**, **Light**, or **Dark** in **Appearance**. Under **Interface language**, choose **English** or **Simplified Chinese**. These choices save immediately, even when your agents are unavailable.
 
-Changes on the **Chief**, **Tag**, and **Report** pages are saved together when you close Settings. If the window stays open, check the message at the top and fill in any required choices. If you see a save error after closing Settings, reopen it and click **Retry saving**. If the settings changed elsewhere, choose **Keep my changes and retry** or **Discard draft and load latest settings**.
+Agent changes save when you close Settings. If the panel stays open, check the message and complete any required choices. If a save error appears after the panel closes, reopen Settings and click **Retry saving**. If the saved settings changed elsewhere, choose **Keep my changes and retry** to apply your choices or **Discard draft and load latest settings** to use the saved ones.
 
-Under **General → Local Agents**, click an agent icon to check its status. If you see **Installation failed · Click to retry**, click the icon to try the installation again. If detection fails, Chief retries automatically. If the agent is installed but Chief couldn't load its settings, follow the retry instructions in the agent's details.
+## Check or install a local agent
+
+Under **General → Local Agents**, point to an agent icon to check its status. Click a missing agent's icon to install it. If you see **Installation failed · Click to retry**, click the icon to try again. Chief automatically retries failed detection. If it finds the agent but can't load its settings, follow the retry instructions in the agent's details.
 
 ## Choose who coordinates and who can take tasks
 
-Under **Chief → Coordination and dispatch**, choose the agent that talks with you and assigns work. Then choose at least one agent it can assign tasks to. Before switching the coordinating agent, finish any work in Chief or a task conversation that's still running, waiting for your response, or waiting to be sent. After the switch, Chief starts a new conversation and keeps your notes.
+In **Chief → Coordination and dispatch**, choose the coordinating agent at the top and at least one agent it can assign tasks to below. Complete any required model choices. Before switching the coordinating agent, finish work that's running, waiting for a response, or waiting to send. Switching to a different agent starts a new Chief conversation and keeps your note.
 
-Use **Model selection preferences** to guide Chief's choices for future tasks. Pick **Economy**, **Balanced**, or **Performance**, or choose **Custom** and describe your preferences. Chief keeps your custom text if you switch to another option. Chief's choices also depend on the agents and models you've set up and what's available when it assigns the task.
+Use **Model selection preferences** to guide Chief's choices for future tasks. Pick **Economy**, **Balanced**, or **Performance**, or select **Custom** and describe what you prefer. Chief keeps your custom text if you switch presets. Chief chooses from the agents you've enabled and the models available when it assigns the work.
 
 ## Set up the tag and report agents
 
-Use **Tag** to set up Tag Agent and **Report** to set up Super Thread Agent. Each has three options.
+Use **Tag** to set up Tag Agent and **Report** to set up Super Thread Agent. You can turn either one on independently.
 
-- **Agent off** pauses the agent's work and keeps existing tags, reports, and saved settings.
-- **Use Chief** uses Chief's settings. Changes apply to future work.
-- **Configure separately** lets you choose an agent and model for this role. If you switch to **Use Chief** or **Agent off**, you can come back to your separate settings later.
+- **Agent off** stops automatic work for that role and keeps its existing tags or reports and saved choices.
+- **Use Chief** uses Chief's agent and model settings for future work.
+- **Configure separately** lets you choose an agent and model for the role. Chief keeps those choices if you later switch to **Use Chief** or **Agent off**.
 
-The roles are independent, so you can turn on either one by itself. [Tags, reports, and file changes](reports-tags-and-changes.md)
+[Find tags and reports](reports-tags-and-changes.md)
 
 ## Clear history on this Mac
 
-Under **General → Clear history**, click **Clear all history**, then **Confirm permanent deletion**. Chief stops running tasks and deletes the task conversations, reports, and Chief conversations saved on this Mac. If you only want to hide a card from Overview, see [how to archive a conversation](overview.md#archive-a-conversation).
+Under **General → Clear history**, click **Clear all history**, then **Confirm permanent deletion**. Chief stops running tasks and deletes saved task conversations, reports, and Chief conversations on this Mac. To hide a conversation from Overview while keeping its record, [archive it](overview.md#archive-a-conversation).
 
 [Back to the product guide](README.md)

@@ -2,22 +2,24 @@
 
 ## Watch a run in progress
 
-In an agent conversation, click **Execution** on the right to keep reading earlier messages while you watch the current run. The button appears when the conversation already has some history and the current run is active or waiting for your response. The first run stays in the main reading area. When a run ends, you can read the result there.
+When you open a task conversation with earlier runs, an active run or one waiting for you opens in the **Execution** sidecard. Click **Execution** to hide it or bring it back. A first run appears in the main reading area. When a run ends, read its result there.
 
-When **Execution** opens beside the conversation, the text you are reading settles at the narrower width as the sidecard unfolds. Click the same button to close a sidecard, or another button to switch sidecards. The task keeps running when you close or switch them. Drag the divider to change the width of the two panels. In a narrow window, the panels stack vertically.
+Drag the divider to adjust the panels in a side-by-side layout. In a narrow window, the panels stack. Closing a sidecard or switching to another leaves the task running.
 
-## Browse a web page and send feedback
+## Open a web page or local HTML file
 
-Click a web link in the conversation to open it in a sidecard. To reopen the sidecard, click **Web page** on the right. You can enter a different address, go back or forward, or reload the page. If a page fails to load, click **Retry** in the sidecard. You can also open a local HTML file from a conversation. You can annotate pages opened from a web address.
+Click a web or local HTML link in an agent conversation to open it beside the conversation. Use **Web page** to reopen the sidecard. In **Address**, you can enter a web address or the full path of a local HTML file. Use the toolbar to go back, go forward, or reload. If a site shows an error page, you can still read it. If loading fails and you see **Retry**, click it to try loading again.
 
-1. Click **Annotate page** in the toolbar, then click an element or drag to select an area. Press **Esc** to cancel the selection.
-2. Write your feedback in the input box below the web page and press Return. Chief sends the screenshot and your comment together to the current agent conversation.
-3. If sending fails, open the pending annotations at the bottom of the sidecard. You can edit comments, preview screenshots, remove individual annotations, or add a note. Then click **Send annotations**. If **Send text only** is available, you can send just the comments. Pending annotations stay with the conversation if you close the sidecard or go back to Overview. They last until you quit Chief.
+Reports also open web links in a sidecard. To talk to an agent from a report, switch back to **Related executions** and open a source conversation. [Super Threads](reports-tags-and-changes.md#see-the-work-behind-a-super-thread)
 
-## See where your message goes
+## Mark up a web page and send feedback
 
-While you're browsing, the input at the bottom still sends to the agent conversation you're reading. If you've selected an earlier run, a regular message picks up from that run. Web annotations always go to the conversation's current work. Closing the browser, switching sidecards, or canceling annotation mode brings back the regular conversation input.
+1. In an agent conversation, open the web page and click **Annotate page**. Annotations are available for web addresses. Click an element or drag to select an area. Press **Esc** to cancel the selection.
+2. When **Describe the changes…** appears, write your feedback and press Return. Chief sends a screenshot of the selection with your comment to that agent conversation. If the agent is waiting on a question or permission request, answer it before sending.
+3. If the annotation comes back after a failed send or run, open the annotation count at the bottom of the sidecard. You can edit comments, preview screenshots, remove annotations, and add **Additional notes…**. Click **Send annotations** to try again, or **Send text only** if you want to retry without screenshots.
 
-Web links in reports also open in a sidecard for browsing. To follow up on work in the report, switch back to **Related executions** and open a source conversation. [Tags, reports, and file changes](reports-tags-and-changes.md)
+Pending annotations stay with the conversation if you close the sidecard or return to Overview. They last until you quit Chief.
+
+The regular message box follows the run you're reading, so sending from an earlier run can start a branch. Annotations go to the conversation's current work. Closing the page or canceling annotation mode brings back the regular message box. [Branch from an earlier run](task-conversations.md#revisit-or-branch-from-an-earlier-run)
 
 [Back to the product guide](README.md)

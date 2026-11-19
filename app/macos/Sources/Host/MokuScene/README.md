@@ -371,7 +371,7 @@ The [Note transition preview](../../../../../demos/moku-note-transition/README.m
 records the production Dock with synthetic notes, including intermediate frames,
 rapid reversals, narrow/centered layouts and a local no-animation fixture.
 
-Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The history selector opens those sessions through their original Harness reader; the current composer belongs only to the current session. Runtime prevents archive reactivation, fork and execution, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
+Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The desktop history panel opens the current session. Runtime prevents archive reactivation, fork and execution of previous sessions, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
 
 Note Markdown accepts app-internal execution links in the form
 `[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`. The note

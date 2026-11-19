@@ -1,31 +1,39 @@
-# Tags, reports, and file changes
+# Find related work and check file changes
 
-## Group related work with tags
+## Group tasks with tags
 
-When **Tag Agent** is on, it uses conversation titles to group unarchived task conversations in the same project folder. Each folder can have up to five tags, and Inbox has its own set. In Overview, choose a folder or narrow it further by tag. You can also pick an Inbox tag from the main filter bar. You can still use existing tags and filters while Tag Agent is off. When you turn it back on, it can pick up work it hasn't sorted yet. [Settings](settings.md)
+**Tag Agent** uses conversation titles to group unarchived tasks within each project folder. Each folder can have up to five tags, and Inbox has its own set. Select a folder or tag in [Overview](overview.md#find-a-task-by-folder-or-tag). Existing tags stay available while Tag Agent is off, and sorting resumes when you turn it back on. [Set up Tag Agent](settings.md#set-up-the-tag-and-report-agents)
 
 ## See the work behind a Super Thread
 
-A **Super Thread** is a report that **Super Thread Agent** puts together from work in the same project folder. Click the report card to read the report. If the list beside it is closed, click **Related executions** to open it.
+A **Super Thread** is a report that **Super Thread Agent** puts together from completed work in the same project folder. Click the report card, then open **Related executions** if the list is closed.
 
-A report can cite up to one run from each source conversation. Each card in **Related executions** shows the title, reply excerpt, and duration of the run the report cites. Its status shows how the source conversation is doing now.
+A report can cite one run per source conversation. Each related card shows that run's title, a reply excerpt, and its duration when available. The status tells you how the source conversation is doing now.
 
-Clicking a related card opens the source conversation's latest run beside the report. That run may still be in progress. To read the exact run cited by the report, use the title on the related card to find it in **Conversation contents**, if you can still open the source conversation from Overview. If a related card fails to open, click it again to retry. The list tells you if a conversation or run is no longer available.
+Click the related card to open the source conversation's latest run beside the report. It may be newer than the cited run or still in progress. To look up the cited run, use its title in **Conversation contents** in the source conversation when you can open it from Overview. If a related card fails to open, click it again to retry. The list shows when a conversation or run is unavailable.
 
-The report and its list are for reading. To send a follow-up, open one of the related cards and use the input box below the source conversation. Use the back arrow labeled **Back to related executions** to return to the list.
-
-To hide a report, right-click its card and choose **Archive Super Thread**. This hides the report and its linked task conversations from Overview. Work in progress keeps running, and the report and conversation records stay saved.
+To send a follow-up, use the input below the source conversation. Click **Back to related executions** to return to the list.
 
 ## Browse reports in a collection
 
-A collection shows one report at a time. Move the pointer over its cover to show the arrows and page controls. The cover, page count, and report text stay in place as the controls appear. Use an arrow to turn one page, or open the page menu between the arrows to choose a report by title. Collections of up to seven reports also have a clickable marker for each page. Click the cover to read the displayed report.
+A collection shows one report at a time and can turn pages automatically. To choose a report, move the pointer over the card and use the arrows or the page menu between them. Collections of up to seven reports also show a clickable marker for each page. Click the card to read the displayed report.
 
-Click the page count in the upper-right corner to see all the reports together. The count is available even when the pointer is outside the card. Click a report to read it, or use its upper-right **Archive Super Thread** button to archive it and hide its linked conversations. Press **Esc** to close the collection panel.
+To see all the reports together, click the page count in the upper-right corner. Scroll the members and click a report to read it. **Close** stays in the upper-left corner as you scroll. At high window zoom, the cards fit in one column below **Close**. Click **Close** or press **Esc** to return to Overview.
+
+After a quick look at a report, its cover stays selected if the report is still in the collection. Spending time reading a report or its source conversations, or returning to it within a day, gives it a better chance of appearing as an individual card. The available space also affects which reports stay grouped.
+
+## Archive a Super Thread
+
+Right-click a report card and choose **Archive Super Thread**. In the list of all reports in a collection, you can also click the archive button on the report's upper-right corner.
+
+The report and its linked task conversations disappear from Overview. Their records stay saved and any work already running continues.
 
 When archiving leaves the collection open, the archived card briefly fades away. With macOS **Reduce motion** enabled, it disappears immediately. If fewer than two reports remain in the collection, the panel closes and any remaining reports appear as individual cards in Overview.
 
 ## Check Git changes on a task card
 
-For projects that use Git, some task cards show the branch, how many files changed, and how many lines were added or removed. The summary is hidden when Chief knows that both line counts are zero. If the counts are temporarily unavailable, the card says so. The summary is for reference. Clicking the task card opens its conversation.
+For tasks in projects that use Git, the card can show the branch, number of changed files, and lines added or removed. These figures describe the working folder the task uses. Several tasks using the same folder can show the same changes. The summary is hidden when both line counts are zero. If files changed but Chief couldn't count the lines, the card shows that the count is unavailable.
+
+Click the card to open the conversation and ask the agent about its changes.
 
 [Back to the product guide](README.md)
