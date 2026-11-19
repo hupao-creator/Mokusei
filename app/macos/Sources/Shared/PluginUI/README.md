@@ -991,45 +991,37 @@ Window visibility, detachment, cancellation and explicit pause are separate life
 
 ### Native Overview decorations
 
-`threadCardNativeDecorationsEnabled` defaults to false; only the production
-Overview card closure opts in. Its cloud uses
-[NativeOverviewCloudView](Design/NativeOverviewCloudView.swift), a stable native
-view with a screen-rate-capped serial render timer and transparent Metal layer, instead of a SwiftUI
-timeline or nested hosting graph. The existing seeded, point-space
-`NativeCloudField` and the shader's `cloudField` function serve both renderers.
-Palette colors resolve from the current SwiftUI environment into premultiplied
-linear components; the native drawable declares the same linear working space.
+`threadCardNativeDecorationsEnabled` opts production Overview into the
+[native cloud view](Design/NativeOverviewCloudView.swift). Each view owns its
+seed, epoch, resolved premultiplied linear palette and 0.4-second intensity
+fade, including reversals. The shared SwiftUI renderer serves other consumers
+and systems without the native Metal pipeline. Both paths use the
+same point-space `NativeCloudField` and radial shader.
 
-The soft cloud field renders at half the backing-pixel width and height, then
-scales to the same layer bounds. The shader maps actual drawable pixels back to
-logical points, preserving positions, radii and the live motion path. Text and
-card borders keep their own original resolution. The existing maximum-rate
-driver is unchanged; this reduces spatial samples, not animation frequency.
-The tradeoff is softer cloud detail, particularly under magnification. The
-[candidate measurements](../../../../../tools/benchmarks/baselines/2026-11-13-live-cloud-candidates.md)
-record the observed GPU/memory benefit and the absence of body-update CPU gains.
+The [Overview cloud canvas](Design/NativeOverviewCloudCanvas.swift) combines
+visible, running, animated backgrounds from settled, nonoverlapping cards on the
+same canvas. One Metal pass draws each independent field into its card's
+viewport. A mask built from the card's rounded rectangle clips the combined
+surface. The drawable covers their bounding rectangle in the camera's coordinate
+space. At half backing resolution its area is capped at 4,194,304 pixels, its
+longest side at 4,096 pixels, and the bounds at twice the occupied area.
+Single fields, sparse or oversized groups, moving cards, and cards with their
+own surfaces use their local renderer. A completing card finishes its fade
+locally. Newly grouped cards keep their local drawing until the first shared
+frame is ready. The canvas releases the shared target when grouping ends.
 
-The native view retains its seed and epoch across running, palette and visibility
-updates. It interpolates light intensity over 0.4 seconds, including reversals,
-without publishing per-frame SwiftUI state; fading final layer opacity would not
-preserve the field's additive energy. Geometry and semantic updates remain inputs
-from the surrounding card. Inactive completed views do not request drawables;
-bounded rendering work runs off the UI thread and removal retires its driver.
-The existing shared SwiftUI renderer remains the capability fallback and the
-renderer for other cloud consumers.
+Both paths sample live motion on a serial render queue at the screen's preferred
+rate, capped at 120 Hz. Each drawable uses linear RGBA16F at half the backing
+width and height. The shader maps each viewport back to card-local points; text
+and borders retain their own resolution. Magnification can soften cloud detail.
+The render queue reuses each field's Metal buffers for the lifetime of the
+admitted input and waits for the previous submission to finish before writing
+new geometry. Reveal and terminal draws receive completion callbacks. A static
+field stops after its successful draw and the final zero-energy frame ends a
+fade-out. Visibility and window occlusion suspend production. A covered canvas
+can retain its last group image during its outgoing transition. Detachment
+retires outstanding work. These decorations consume neither input nor accessibility.
 
-The render queue samples immutable inputs independently of the main run loop.
-Each tick generates the moving geometry. The GPU palette buffer is reused
-until the colors resolved by AppKit change.
-The queue checks the previous GPU command buffer before reusing its storage.
-Only the first draw and the final static or fade draw need completion callbacks.
-First-frame reveal returns to main. Missing drawables retry, and generation
-and revision fences retire stale work.
-Static fields stop after a successful draw; a zero-energy terminal frame finishes
-fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
-the last image and cancels sampling; detach/removal retires the generation.
-The timer is not a display-link or a physical-FPS guarantee. Main-thread blockage
-still delays newly requested state, layout, visibility and interaction changes.
 [NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
 Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;
 resolved colors, line width and size retain the original geometry. Background

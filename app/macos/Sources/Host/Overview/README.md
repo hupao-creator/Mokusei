@@ -143,15 +143,20 @@ The body counter is an observation-boundary diagnostic, not a CPU/FPS
 measurement.
 
 The production card closure alone enables `threadCardNativeDecorationsEnabled`.
-Clouds use an independently sampled native Metal view with the existing seeded field;
-derived scans use a compositor-owned gradient animation. Neither decoration
-publishes a SwiftUI frame value. Card semantics, duration, spatial wrappers and
-surfaces remain with their existing owners. The native views fill the supplied
-bounds, preserve pause/visibility behavior, and cannot own input or accessibility.
+Settled Harness cards supply their full world-space frame to a shared cloud
+plane behind the semantic content. Nearby visible running cards can present
+their independently seeded live fields together. Card motion, completion fades
+and self-surfaced cards retain local rendering. The shell and semantic planes
+apply the camera transform as a group so mounted contents share their position.
+Derived scans use a compositor-owned gradient animation. The decorations leave
+card semantics, duration, input and accessibility with the existing card owners.
 See the shared [native decoration contract](../../Shared/PluginUI/README.md#native-overview-decorations)
 for color, lifetime and native-composition acceptance. Standalone card fixtures
 default to the shared renderer, so Overview performance verification must mount
 this production workspace path and confirm that its native renderer is active.
+The optional [fixed-camera probe](../../../../../tools/verification/overview-ci-performance/README.md)
+expects a 0.85× camera and counts four individual active Metal layers. Its
+preflight cannot certify the current 1× camera floor or a grouped drawable.
 
 ## Accessibility gesture ownership
 

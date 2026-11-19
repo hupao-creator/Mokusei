@@ -34,7 +34,9 @@ struct NativeOverviewCloudView: NSViewRepresentable {
 
 @MainActor
 final class NativeOverviewCloudSurface: NSView {
-    private let metal = CAMetalLayer()
+    private let metal = makeMetalLayer()
+    private var placement: NativeOverviewCloudPlacement?
+    private weak var drawingCanvas: NativeOverviewCloudCanvas?
     private var renderer: NativeOverviewCloudRenderer?
     private var palette: NativeCloudPalette
     private var colors: [SIMD4<Float16>]
@@ -56,6 +58,7 @@ final class NativeOverviewCloudSurface: NSView {
 
     init(palette: NativeCloudPalette, running: Bool, isAnimating: Bool, isVisible: Bool, environment: EnvironmentValues) {
         self.palette = palette
+        placement = environment.nativeOverviewCloudPlacement
         colors = Self.resolveColors(palette, in: environment)
         colorScheme = environment.colorScheme
         animates = isAnimating
@@ -64,15 +67,6 @@ final class NativeOverviewCloudSurface: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
-        metal.pixelFormat = .rgba16Float
-        metal.colorspace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
-        metal.wantsExtendedDynamicRangeContent = false
-        metal.isOpaque = false
-        metal.backgroundColor = NSColor.clear.cgColor
-        metal.framebufferOnly = true
-        metal.maximumDrawableCount = 2
-        metal.allowsNextDrawableTimeout = true
-        metal.presentsWithTransaction = false
         // The existing SwiftUI RoundedRectangle remains the clipping authority.
         // Do not add a second native corner curve with potentially different ink.
         metal.isHidden = true
@@ -82,6 +76,20 @@ final class NativeOverviewCloudSurface: NSView {
         }
         layer?.addSublayer(metal)
         setAccessibilityElement(false)
+    }
+
+    static func makeMetalLayer() -> CAMetalLayer {
+        let metal = CAMetalLayer()
+        metal.pixelFormat = .rgba16Float
+        metal.colorspace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+        metal.wantsExtendedDynamicRangeContent = false
+        metal.isOpaque = false
+        metal.backgroundColor = NSColor.clear.cgColor
+        metal.framebufferOnly = true
+        metal.maximumDrawableCount = 2
+        metal.allowsNextDrawableTimeout = true
+        metal.presentsWithTransaction = false
+        return metal
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -101,9 +109,15 @@ final class NativeOverviewCloudSurface: NSView {
         guard !dismantled else { return }
         let nextColors = Self.resolveColors(palette, in: environment)
         let target: Double = running ? 1 : 0
-        guard !Self.samePalette(self.palette, palette) || colors != nextColors
+        let nextPlacement = environment.nativeOverviewCloudPlacement
+        guard placement != nextPlacement || !Self.samePalette(self.palette, palette) || colors != nextColors
             || colorScheme != environment.colorScheme || target != targetIntensity
             || animates != isAnimating || visible != isVisible else { return }
+        if placement != nextPlacement {
+            placement?.canvas.withdraw(self)
+            placement = nextPlacement
+            drawingCanvas = nil
+        }
         if animates && !isAnimating { frozenMotionTime = Date().timeIntervalSince(startedAt) }
         if target != targetIntensity {
             let now = CACurrentMediaTime(), current = intensity(at: now)
@@ -211,16 +225,24 @@ final class NativeOverviewCloudSurface: NSView {
         // Overview transition still exposes part of its outgoing contents.
         guard canRenderCloud else { suspendSurface(); renderer?.pause(); return }
         suspended = false
+        let input = NativeOverviewCloudInput(
+            palette: palette, colors: colors, colorScheme: colorScheme, size: bounds.size,
+            seed: seed, startedAt: startedAt, frozenMotionTime: frozenMotionTime,
+            animates: animates, targetIntensity: targetIntensity,
+            fadeFrom: fade?.from, fadeStartedAt: fade?.startedAt)
+        if let placement, animates, targetIntensity > 0, bounds.size == placement.frame.size {
+            placement.canvas.offer(self, frame: placement.frame, input: input)
+            if drawingCanvas != nil { return }
+        } else {
+            placement?.canvas.withdraw(self)
+            drawingCanvas = nil
+        }
         let generation = frameGeneration
         let version = redrawVersion
         nextFrameID &+= 1
         let frameID = nextFrameID
         awaitingFrame = frameID
-        renderer?.drive(NativeOverviewCloudInput(
-            palette: palette, colors: colors, colorScheme: colorScheme, size: bounds.size,
-            seed: seed, startedAt: startedAt, frozenMotionTime: frozenMotionTime,
-            animates: animates, targetIntensity: targetIntensity,
-            fadeFrom: fade?.from, fadeStartedAt: fade?.startedAt),
+        renderer?.drive([.init(origin: .zero, input: input)], size: bounds.size,
             generation: generation,
             interval: 1 / Double(NativeFrameRate.preferredRange(for: window?.screen).maximum)
         ) { [weak self] succeeded in
@@ -231,7 +253,7 @@ final class NativeOverviewCloudSurface: NSView {
     }
 
     private func completedFrame(_ succeeded: Bool, generation: UInt64, version: UInt64, id: UInt64) {
-        guard !dismantled, generation == frameGeneration, awaitingFrame == id else { return }
+        guard !dismantled, drawingCanvas == nil, generation == frameGeneration, awaitingFrame == id else { return }
         awaitingFrame = nil
         if succeeded && version == redrawVersion && canRenderCloud && intensity(at: CACurrentMediaTime()) > 0 {
             if metal.isHidden {
@@ -243,11 +265,30 @@ final class NativeOverviewCloudSurface: NSView {
         if !succeeded { refreshDriver() }
     }
 
+    func useCanvas(_ owner: NativeOverviewCloudCanvas, enabled: Bool) {
+        guard !dismantled else { return }
+        if enabled {
+            guard drawingCanvas !== owner, placement?.canvas === owner, canRenderCloud else { return }
+            drawingCanvas = owner
+            frameGeneration = renderer?.retireFrames() ?? frameGeneration
+            awaitingFrame = nil
+            renderer?.pause()
+            metal.isHidden = true
+        } else {
+            guard drawingCanvas === owner else { return }
+            drawingCanvas = nil
+            requestFrame()
+            refreshDriver()
+        }
+    }
+
     private func requestFrame() {
         redrawVersion &+= 1
     }
 
     private func suspendSurface() {
+        placement?.canvas.withdraw(self)
+        drawingCanvas = nil
         if !suspended {
             frameGeneration = renderer?.retireFrames() ?? frameGeneration
             suspended = true

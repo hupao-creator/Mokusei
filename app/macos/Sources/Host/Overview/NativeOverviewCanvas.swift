@@ -188,6 +188,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var renderedRecords: [String: OverviewCardContentState] = [:]
     @State private var retiringPresentationIDs = Set<String>()
     @State private var outgoingPlacements: [NativeOverviewPlacement] = []
+    @State private var cloudCanvas = NativeOverviewCloudCanvas()
     @State private var cardPoses: [String: OverviewCardPose] = [:]
     @State private var cardMotions: [String: OverviewCardMotion] = [:]
     @State private var consumedRevision: UInt64 = 0
@@ -263,6 +264,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 }
                 OverviewCameraPlane(camera: state.camera, visible: visible) {
                     ZStack(alignment: .topLeading) {
+                        NativeOverviewCloudPlane(canvas: cloudCanvas, visible: visible)
+                            .frame(width: displayWidth, height: displayHeight)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                         ForEach(placements, id: \.id) { placement in
                             if let item = records[placement.id] {
                                 semanticCard(placement, slot: item, size: geometry.size)
@@ -332,7 +337,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
             cloudAnimationsEnabled: inheritedCloudAnimationsEnabled && cloudAnimationsEnabled,
             isLayingOut: state.isLayingOut, isActive: state.activeIDs.contains(slot.id),
             localeIdentifier: locale.identifier, contentIdentity: cardContentIdentity,
-            stateIdentity: ObjectIdentifier(state),
+            stateIdentity: ObjectIdentifier(state), cloudCanvas: cloudCanvas,
             onAppear: { state.cardAppeared($0) }, onDisappear: { state.cardDisappeared($0) },
             content: card).equatable()
     }
@@ -791,11 +796,13 @@ private struct OverviewCameraPlane<Content: View>: View {
         let magnification = max(1, peakScale * windowScale)
         let textResolution = min(32, pow(2, ceil(log2(magnification))))
         let delay = camera.animationFrames.dropFirst().first?.at ?? 0
+        // Pan and zoom move each plane as one object, including its native descendants.
+        let plane = content.geometryGroup()
         Group {
             if ignoreLayout {
-                content.modifier(OverviewCameraAffineEffect(scale: transform.scale, x: transform.x, y: transform.y).ignoredByLayout())
+                plane.modifier(OverviewCameraAffineEffect(scale: transform.scale, x: transform.x, y: transform.y).ignoredByLayout())
             } else {
-                content.scaleEffect(transform.scale, anchor: .topLeading)
+                plane.scaleEffect(transform.scale, anchor: .topLeading)
                     .offset(x: transform.x, y: transform.y)
             }
         }
@@ -850,6 +857,7 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     let localeIdentifier: String
     let contentIdentity: ObjectIdentifier?
     let stateIdentity: ObjectIdentifier
+    let cloudCanvas: NativeOverviewCloudCanvas
     let onAppear: (String) -> Void
     let onDisappear: (String) -> Void
     let content: (NativeOverviewItem) -> Content
@@ -862,7 +870,7 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
             && lhs.isLayingOut == rhs.isLayingOut && lhs.isActive == rhs.isActive
             && lhs.localeIdentifier == rhs.localeIdentifier
             && lhs.contentIdentity == rhs.contentIdentity
-            && lhs.stateIdentity == rhs.stateIdentity
+            && lhs.stateIdentity == rhs.stateIdentity && lhs.cloudCanvas === rhs.cloudCanvas
     }
 
     var body: some View {
@@ -872,6 +880,9 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
             // effects must not freeze the duration of a visible card.
             OverviewSwiftUICard(item: item, visible: visible,
                 viewport: viewport, coordinateSpace: coordinateSpace, contentIdentity: contentIdentity, content: content).equatable()
+                .environment(\.nativeOverviewCloudPlacement,
+                    isActive && visible && !isLayingOut && motion == nil && pose.opacity == 1 && !item.providesCardSurface
+                        ? NativeOverviewCloudPlacement(canvas: cloudCanvas, frame: pose.frame) : nil)
                 .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled)
                 .environment(\.threadCardUsesFlatMaterials, true)
                 .onAppear { onAppear(item.id) }

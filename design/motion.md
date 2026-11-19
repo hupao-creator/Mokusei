@@ -13,7 +13,9 @@ preparation, mounting and callback delivery. A scheduled tick, display-link
 callback or GPU submission is not evidence of physical presentation or FPS.
 
 The Overview Metal renderer receives immutable inputs and encodes on its serial
-queue. Visibility retirement stops production; unchanged static fields stop
+queue. Settled neighboring card fields share a drawable in their camera plane.
+Each keeps its own seed, palette and point-space origin. Spatial transitions use
+local card layers. Visibility retirement stops production; unchanged static fields stop
 requesting work. Native status decorations use their own admitted motion clock.
 Their completion/lifetime owners are distinct from task execution. Bounded
 resource caches invalidate on actual input changes, not arbitrary redraws.
