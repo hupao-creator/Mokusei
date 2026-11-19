@@ -106,15 +106,15 @@ final class OverviewCardContentState {
     nonisolated let id: String
     nonisolated let structuralIdentity: String
     private(set) var item: NativeOverviewItem
-    private(set) var completed: Bool
+    private(set) var providesCardSurface: Bool
 
     init(_ item: NativeOverviewItem) {
         id = item.id; structuralIdentity = item.structuralIdentity
-        self.item = item; completed = item.completed
+        self.item = item; providesCardSurface = item.providesCardSurface
     }
 
     func install(_ next: NativeOverviewItem) {
         if item != next { item = next }
-        if completed != next.completed { completed = next.completed }
+        if providesCardSurface != next.providesCardSurface { providesCardSurface = next.providesCardSurface }
     }
 }

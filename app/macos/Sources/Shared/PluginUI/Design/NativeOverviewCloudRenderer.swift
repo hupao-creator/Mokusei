@@ -42,10 +42,10 @@ final class NativeOverviewCloudPipeline: @unchecked Sendable {
     private enum PipelineError: Error { case noDevice, missingFunctions }
 }
 
-struct NativeOverviewCloudFrame: Sendable {
-    let geometry: [Float]
-    let colors: [SIMD4<Float16>]
-    let pointSize: SIMD2<Float>
+/// The field keeps its card-local coordinates when several cards share a drawable.
+struct NativeOverviewCloudTile: Sendable {
+    let origin: CGPoint
+    let input: NativeOverviewCloudInput
 }
 
 /// Value-only input admitted on the main actor. No view or environment lookup is
@@ -63,38 +63,34 @@ struct NativeOverviewCloudInput: Sendable {
     let fadeFrom: Double?
     let fadeStartedAt: TimeInterval?
 
-    func sample() -> (frame: NativeOverviewCloudFrame, continues: Bool) {
+    func sample() -> (geometry: [Float], continues: Bool) {
         let progress = fadeStartedAt.map { min(1, max(0, (CACurrentMediaTime() - $0) / 0.4)) } ?? 1
         let value = fadeFrom.map { $0 + (targetIntensity - $0) * UnitCurve.easeInOut.value(at: progress) }
             ?? targetIntensity
         let time = animates ? Date().timeIntervalSince(startedAt) : frozenMotionTime
         // A zero-energy terminal frame clears the Metal surface without waiting
         // for a main-actor callback to hide it after a fade-out.
-        var lights = NativeCloudField(palette: palette, intensity: max(value, 0.000001),
-            time: time * 1.4 + palette.phase, seed: seed).lights(in: size, colorScheme: colorScheme)
+        var geometry = NativeCloudField(palette: palette, intensity: max(value, 0.000001),
+            time: time * 1.4 + palette.phase, seed: seed).geometry(in: size, colorScheme: colorScheme)
         if value <= 0 {
-            for index in stride(from: 4, to: lights.geometry.count, by: 5) { lights.geometry[index] = 0 }
+            for index in stride(from: 4, to: geometry.count, by: 5) { geometry[index] = 0 }
         }
-        return (NativeOverviewCloudFrame(geometry: lights.geometry, colors: colors,
-            pointSize: SIMD2(Float(size.width), Float(size.height))),
-            progress < 1 || (animates && value > 0))
+        return (geometry, progress < 1 || (animates && value > 0))
     }
 }
 
 /// The main actor owns the layer's geometry/visibility; this serial queue alone
 /// requests drawables and encodes commands. Mutable buffers belong to that queue.
-/// A locked generation retires queued work, and one permit bounds submitted work
+/// A locked generation retires queued work, and one command buffer bounds submitted work
 /// without blocking the main actor or building a backlog of stale animation frames.
 final class NativeOverviewCloudRenderer: @unchecked Sendable {
     private let layer: CAMetalLayer
     private let pipeline: NativeOverviewCloudPipeline
     private let queue = DispatchQueue(label: "com.mokusei.overview.cloud-render", qos: .userInteractive)
-    private let permit = DispatchSemaphore(value: 1)
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var stopped = false
-    private var geometryBuffer: MTLBuffer?
-    private var colorBuffer: MTLBuffer?
+    private var inFlight: MTLCommandBuffer?
     // Timer and immutable input are owned exclusively by queue.
     private var timer: DispatchSourceTimer?
     private var driverRevision: UInt64 = 0
@@ -127,13 +123,16 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
         }
     }
 
-    /// Independent, screen-rate-capped sampling; nextDrawable and the one-frame
-    /// permit provide backpressure. This is not a display-link/FPS guarantee.
-    func drive(_ input: NativeOverviewCloudInput, generation: UInt64, interval: Double,
+    /// Independent, screen-rate-capped sampling with at most one GPU frame in flight.
+    func drive(_ tiles: [NativeOverviewCloudTile], size: CGSize, generation: UInt64, interval: Double,
                completion: @escaping @Sendable (Bool) -> Void) {
         queue.async { [weak self] in
             guard let self, self.accepts(generation) else { return }
             self.timer?.cancel()
+            // Inputs are immutable for this revision. Palette and geometry storage
+            // stay alive until the GPU has finished even if the driver is retargeted.
+            let fields = tiles.compactMap { Field($0, device: self.pipeline.device) }
+            guard !fields.isEmpty, fields.count == tiles.count else { completion(false); return }
             self.driverRevision &+= 1
             let revision = self.driverRevision
             let timer = DispatchSource.makeTimerSource(queue: self.queue)
@@ -144,23 +143,29 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
                 guard self.accepts(generation) else {
                     self.timer?.cancel(); self.timer = nil; return
                 }
-                guard self.permit.wait(timeout: .now()) == .success else { return }
+                // This tick already runs on the buffers' owning queue. A steady
+                // frame needs no separate completion wakeup to admit the next one.
+                self.releaseFinishedFrame()
+                guard self.inFlight == nil else { return }
                 autoreleasepool {
-                    let sample = input.sample()
-                    // Static draws and terminal fade frames stop only after success;
-                    // a missing drawable must remain retryable without main ticks.
+                    var continues = false
+                    for field in fields {
+                        if field.sample() { continues = true }
+                    }
+                    if !first && continues {
+                        self.encode(fields, size: size, generation: generation, completion: nil)
+                        return
+                    }
                     let notify = first
-                    first = false
-                    self.encode(sample.frame, generation: generation) { [weak self] succeeded in
+                    self.encode(fields, size: size, generation: generation) { [weak self, continues] succeeded in
                         if notify { completion(succeeded) }
-                        if succeeded && !sample.continues {
-                            self?.queue.async { [weak self] in
-                                guard let self, self.driverRevision == revision else { return }
-                                self.timer?.cancel()
-                                self.timer = nil
-                            }
+                        if succeeded && !continues {
+                            guard let self, self.driverRevision == revision else { return }
+                            self.timer?.cancel()
+                            self.timer = nil
                         }
                     }
+                    first = false
                 }
             }
             timer.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(1))
@@ -174,31 +179,19 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
         return !stopped && generation == value
     }
 
-    private func encode(_ frame: NativeOverviewCloudFrame, generation: UInt64,
+    private func releaseFinishedFrame() {
+        switch inFlight?.status {
+        case .completed, .error: inFlight = nil
+        default: break
+        }
+    }
+
+    /// A render pass draws the disjoint card rectangles into a single transparent target.
+    private func encode(_ fields: [Field], size: CGSize, generation: UInt64,
                         completion: (@Sendable (Bool) -> Void)?) {
-        // nextDrawable can block until its timeout. It never runs on the main
-        // actor, and detached/hidden generations are checked on either side.
-        guard accepts(generation), !frame.geometry.isEmpty, !frame.colors.isEmpty,
-              let drawable = layer.nextDrawable(), accepts(generation),
+        guard accepts(generation), let drawable = layer.nextDrawable(), accepts(generation),
               let commands = pipeline.commandQueue.makeCommandBuffer() else {
-            permit.signal(); completion?(false); return
-        }
-        let geometryBytes = frame.geometry.count * MemoryLayout<Float>.stride
-        let colorBytes = frame.colors.count * MemoryLayout<SIMD4<Float16>>.stride
-        if (geometryBuffer?.length ?? 0) < geometryBytes {
-            geometryBuffer = pipeline.device.makeBuffer(length: geometryBytes, options: .storageModeShared)
-        }
-        if (colorBuffer?.length ?? 0) < colorBytes {
-            colorBuffer = pipeline.device.makeBuffer(length: colorBytes, options: .storageModeShared)
-        }
-        guard let geometryBuffer, let colorBuffer else {
-            permit.signal(); completion?(false); return
-        }
-        frame.geometry.withUnsafeBytes { bytes in
-            if let base = bytes.baseAddress { memcpy(geometryBuffer.contents(), base, bytes.count) }
-        }
-        frame.colors.withUnsafeBytes { bytes in
-            if let base = bytes.baseAddress { memcpy(colorBuffer.contents(), base, bytes.count) }
+            completion?(false); return
         }
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = drawable.texture
@@ -206,29 +199,82 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
         pass.colorAttachments[0].storeAction = .store
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         guard let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else {
-            permit.signal(); completion?(false); return
+            completion?(false); return
         }
-        var uniforms = Uniforms(pointsPerPixel: frame.pointSize / SIMD2(Float(drawable.texture.width), Float(drawable.texture.height)),
-                                geometryCount: UInt32(frame.geometry.count), colorCount: UInt32(frame.colors.count))
+        let scale = CGSize(width: Double(drawable.texture.width) / size.width,
+                           height: Double(drawable.texture.height) / size.height)
         encoder.setRenderPipelineState(pipeline.state)
-        encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
-        encoder.setFragmentBuffer(geometryBuffer, offset: 0, index: 1)
-        encoder.setFragmentBuffer(colorBuffer, offset: 0, index: 2)
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-        encoder.endEncoding()
-        guard accepts(generation) else { permit.signal(); completion?(false); return }
-        commands.addCompletedHandler { [self] commands in
-            let succeeded = commands.status == .completed
-            permit.signal()
-            completion?(succeeded && accepts(generation))
+        for field in fields {
+            field.draw(into: encoder, scale: scale, target: drawable.texture)
         }
+        encoder.endEncoding()
+        guard accepts(generation) else { completion?(false); return }
+        if let completion {
+            commands.addCompletedHandler { [self] finished in
+                let succeeded = finished.status == .completed
+                queue.async { [self] in
+                    releaseFinishedFrame()
+                    completion(succeeded && accepts(generation))
+                }
+            }
+        }
+        inFlight = commands
         commands.present(drawable)
         commands.commit()
     }
 
-    /// Matches NativeCloudUniforms in CloudLoading.metal (16 bytes).
+    /// Accessed only by the render queue, after its previous submission completes.
+    private final class Field {
+        let tile: NativeOverviewCloudTile
+        let geometry: MTLBuffer
+        let colors: MTLBuffer
+
+        init?(_ tile: NativeOverviewCloudTile, device: MTLDevice) {
+            let palette = tile.input.colors
+            let colorBuffer = palette.withUnsafeBytes { bytes -> MTLBuffer? in
+                guard let address = bytes.baseAddress, !bytes.isEmpty else { return nil }
+                return device.makeBuffer(bytes: address, length: bytes.count, options: .storageModeShared)
+            }
+            guard let colors = colorBuffer,
+                  let geometry = device.makeBuffer(length: palette.count * 5 * MemoryLayout<Float>.stride,
+                                                   options: .storageModeShared) else { return nil }
+            self.tile = tile
+            self.geometry = geometry
+            self.colors = colors
+        }
+
+        func sample() -> Bool {
+            let sample = tile.input.sample()
+            sample.geometry.withUnsafeBytes { bytes in
+                if let base = bytes.baseAddress { memcpy(geometry.contents(), base, bytes.count) }
+            }
+            return sample.continues
+        }
+
+        func draw(into encoder: MTLRenderCommandEncoder, scale: CGSize, target: MTLTexture) {
+            let x = tile.origin.x * scale.width, y = tile.origin.y * scale.height
+            let width = tile.input.size.width * scale.width, height = tile.input.size.height * scale.height
+            // Clip the full-screen triangle to this tile, including fractional raster scales.
+            let left = max(0, Int(floor(x))), top = max(0, Int(floor(y)))
+            let right = min(target.width, Int(ceil(x + width))), bottom = min(target.height, Int(ceil(y + height)))
+            guard right > left, bottom > top else { return }
+            encoder.setScissorRect(.init(x: left, y: top, width: right - left, height: bottom - top))
+            encoder.setViewport(.init(originX: x, originY: y, width: width, height: height, znear: 0, zfar: 1))
+            var uniforms = Uniforms(pointsPerPixel: SIMD2(Float(1 / scale.width), Float(1 / scale.height)),
+                                    pixelOrigin: SIMD2(Float(x), Float(y)),
+                                    geometryCount: UInt32(tile.input.colors.count * 5),
+                                    colorCount: UInt32(tile.input.colors.count))
+            encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
+            encoder.setFragmentBuffer(geometry, offset: 0, index: 1)
+            encoder.setFragmentBuffer(colors, offset: 0, index: 2)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        }
+    }
+
+    /// Matches NativeCloudUniforms in CloudLoading.metal.
     private struct Uniforms {
         let pointsPerPixel: SIMD2<Float>
+        let pixelOrigin: SIMD2<Float>
         let geometryCount: UInt32
         let colorCount: UInt32
     }

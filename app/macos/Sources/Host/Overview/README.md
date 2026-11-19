@@ -106,8 +106,9 @@ structural changes retain the full selected-layout transaction. Array-based
 fixture hosts feed the same store and layout state machine.
 
 Each card retains separate Equatable shell and semantic boundaries outside its
-spatial frame. The shell keeps a neutral palette surface;
-the semantic wrapper observes its current item, including completion. Geometry, motion,
+spatial frame. The shell observes only whether the card supplies its own surface.
+Self-surfaced cards draw in the semantic plane and omit the decorative frame.
+The semantic wrapper observes the current item, including streamed content and completion. Geometry, motion,
 visibility, viewport, locale, decorative policy, activation and explicit
 renderer/state identities still invalidate the appropriate wrappers. Completion
 changes reach the badge through the semantic wrapper's observed item.
@@ -142,15 +143,20 @@ The body counter is an observation-boundary diagnostic, not a CPU/FPS
 measurement.
 
 The production card closure alone enables `threadCardNativeDecorationsEnabled`.
-Clouds use an independently sampled native Metal view with the existing seeded field;
-derived scans use a compositor-owned gradient animation. Neither decoration
-publishes a SwiftUI frame value. Card semantics, duration, spatial wrappers and
-surfaces remain with their existing owners. The native views fill the supplied
-bounds, preserve pause/visibility behavior, and cannot own input or accessibility.
+Settled Harness cards supply their full world-space frame to a shared cloud
+plane behind the semantic content. Nearby visible running cards can present
+their independently seeded live fields together. Card motion, completion fades
+and self-surfaced cards retain local rendering. The shell and semantic planes
+apply the camera transform as a group so mounted contents share their position.
+Derived scans use a compositor-owned gradient animation. The decorations leave
+card semantics, duration, input and accessibility with the existing card owners.
 See the shared [native decoration contract](../../Shared/PluginUI/README.md#native-overview-decorations)
 for color, lifetime and native-composition acceptance. Standalone card fixtures
 default to the shared renderer, so Overview performance verification must mount
 this production workspace path and confirm that its native renderer is active.
+The optional [fixed-camera probe](../../../../../tools/verification/overview-ci-performance/README.md)
+expects a 0.85× camera and counts four individual active Metal layers. Its
+preflight cannot certify the current 1× camera floor or a grouped drawable.
 
 ## Accessibility gesture ownership
 
@@ -272,6 +278,10 @@ used by the renderer (44pt height plus its viewport-dependent bottom seat). Tran
 repack the scene. The reservation consumes the existing vertical padding budget when computing the usable size.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
+
+The background input view owns each mouse drag. It samples the displayed camera
+when the drag first moves, then applies cumulative translation in canvas coordinates.
+Ending or cancelling the gesture releases its origin locally.
 
 The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Closing a covering surface can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
 

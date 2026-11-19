@@ -188,6 +188,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var renderedRecords: [String: OverviewCardContentState] = [:]
     @State private var retiringPresentationIDs = Set<String>()
     @State private var outgoingPlacements: [NativeOverviewPlacement] = []
+    @State private var cloudCanvas = NativeOverviewCloudCanvas()
     @State private var cardPoses: [String: OverviewCardPose] = [:]
     @State private var cardMotions: [String: OverviewCardMotion] = [:]
     @State private var consumedRevision: UInt64 = 0
@@ -201,7 +202,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var layoutToken = UUID()
     @State private var presentationToken = UUID()
     @State private var preparedPresentationToken: UUID?
-    @GestureState private var dragOrigin: NativeOverviewTransform?
     @GestureState private var zoomActive = false
     @State private var navigationInput: NativeOverviewNavigationInput
 
@@ -248,9 +248,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 Color.clear.contentShape(Rectangle())
                     .frame(height: max(0, toolbarBottom))
                     .gesture(WindowDragGesture())
-                Color.clear.contentShape(Rectangle())
-                    .onTapGesture { if state.allowsBackgroundAutoFocus() { state.camera.returnToAuto() } }
-                    .gesture(pan)
+                OverviewBackgroundInput(state: state, navigation: navigationInput, coordinateSpace: ownership)
                     .padding(.top, max(0, toolbarBottom))
                 OverviewCameraPlane(camera: state.camera, visible: visible, ignoreLayout: true) {
                     ZStack(alignment: .topLeading) {
@@ -266,6 +264,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 }
                 OverviewCameraPlane(camera: state.camera, visible: visible) {
                     ZStack(alignment: .topLeading) {
+                        NativeOverviewCloudPlane(canvas: cloudCanvas, visible: visible)
+                            .frame(width: displayWidth, height: displayHeight)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                         ForEach(placements, id: \.id) { placement in
                             if let item = records[placement.id] {
                                 semanticCard(placement, slot: item, size: geometry.size)
@@ -335,7 +337,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
             cloudAnimationsEnabled: inheritedCloudAnimationsEnabled && cloudAnimationsEnabled,
             isLayingOut: state.isLayingOut, isActive: state.activeIDs.contains(slot.id),
             localeIdentifier: locale.identifier, contentIdentity: cardContentIdentity,
-            stateIdentity: ObjectIdentifier(state),
+            stateIdentity: ObjectIdentifier(state), cloudCanvas: cloudCanvas,
             onAppear: { state.cardAppeared($0) }, onDisappear: { state.cardDisappeared($0) },
             content: card).equatable()
     }
@@ -344,16 +346,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
     private func livePose(_ placement: NativeOverviewPlacement, at now: TimeInterval) -> OverviewCardPose {
         cardMotions[placement.id]?.sample(at: now) ?? pose(placement)
-    }
-    private var pan: some Gesture {
-        DragGesture(minimumDistance: 4)
-            .updating($dragOrigin) { _, origin, _ in if origin == nil { origin = state.camera.liveTransform } }
-            .onChanged { value in
-                navigationInput.cancel()
-                guard state.visible, !state.isLayingOut, !state.externalInteractionPaused, let origin = dragOrigin else { return }
-                state.camera.setManualTransform(.init(scale: origin.scale, x: origin.x + value.translation.width,
-                                                       y: origin.y + value.translation.height))
-            }
     }
     private func magnification(in size: CGSize) -> some Gesture {
         MagnifyGesture()
@@ -755,6 +747,33 @@ public struct NativeOverviewCanvas<Content: View>: View {
 
 }
 
+/// Own the drag lifetime on the input surface so a gesture does not invalidate the card grid.
+private struct OverviewBackgroundInput: View {
+    let state: NativeOverviewCanvasState
+    let navigation: NativeOverviewNavigationInput
+    let coordinateSpace: UUID
+    @GestureState private var dragging = false
+    @State private var origin: NativeOverviewTransform?
+
+    var body: some View {
+        Color.clear.contentShape(Rectangle())
+            .onTapGesture { if state.allowsBackgroundAutoFocus() { state.camera.returnToAuto() } }
+            .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(coordinateSpace))
+                .updating($dragging) { _, dragging, _ in dragging = true }
+                .onChanged { value in
+                    navigation.cancel()
+                    guard state.visible, !state.isLayingOut, !state.externalInteractionPaused else { return }
+                    // Capture before the first manual transform, including gestures that interrupt auto-framing.
+                    let start = origin ?? state.camera.liveTransform
+                    if origin == nil { origin = start }
+                    state.camera.setManualTransform(NativeOverviewCameraGeometry.pan(start,
+                        deltaX: value.translation.width, deltaY: value.translation.height))
+                }
+                .onEnded { _ in origin = nil })
+            .onChange(of: dragging) { _, dragging in if !dragging { origin = nil } }
+    }
+}
+
 /// Only this transform wrapper samples camera motion; card content keeps its identity.
 private struct OverviewCameraPlane<Content: View>: View {
     let camera: NativeOverviewCamera
@@ -777,11 +796,13 @@ private struct OverviewCameraPlane<Content: View>: View {
         let magnification = max(1, peakScale * windowScale)
         let textResolution = min(32, pow(2, ceil(log2(magnification))))
         let delay = camera.animationFrames.dropFirst().first?.at ?? 0
+        // Pan and zoom move each plane as one object, including its native descendants.
+        let plane = content.geometryGroup()
         Group {
             if ignoreLayout {
-                content.modifier(OverviewCameraAffineEffect(scale: transform.scale, x: transform.x, y: transform.y).ignoredByLayout())
+                plane.modifier(OverviewCameraAffineEffect(scale: transform.scale, x: transform.x, y: transform.y).ignoredByLayout())
             } else {
-                content.scaleEffect(transform.scale, anchor: .topLeading)
+                plane.scaleEffect(transform.scale, anchor: .topLeading)
                     .offset(x: transform.x, y: transform.y)
             }
         }
@@ -804,18 +825,15 @@ private struct OverviewCardShell: View, Equatable {
     }
 
     var body: some View {
-        OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
-            if slot.item.providesCardSurface {
-                // Glass belongs in the semantic camera plane so backdrop geometry
-                // tracks pan/zoom; a flat decorative shell would occlude its sample.
-                Color.clear
-            } else {
+        // A card that draws its own surface needs only its semantic camera plane.
+        if !slot.providesCardSurface {
+            OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
                 RoundedRectangle(cornerRadius: 22)
-                .fill(NativePalette.overview.surface.swiftUI)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 22)
-                        .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
-                }
+                    .fill(NativePalette.overview.surface.swiftUI)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
+                    }
             }
         }
     }
@@ -839,6 +857,7 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     let localeIdentifier: String
     let contentIdentity: ObjectIdentifier?
     let stateIdentity: ObjectIdentifier
+    let cloudCanvas: NativeOverviewCloudCanvas
     let onAppear: (String) -> Void
     let onDisappear: (String) -> Void
     let content: (NativeOverviewItem) -> Content
@@ -851,7 +870,7 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
             && lhs.isLayingOut == rhs.isLayingOut && lhs.isActive == rhs.isActive
             && lhs.localeIdentifier == rhs.localeIdentifier
             && lhs.contentIdentity == rhs.contentIdentity
-            && lhs.stateIdentity == rhs.stateIdentity
+            && lhs.stateIdentity == rhs.stateIdentity && lhs.cloudCanvas === rhs.cloudCanvas
     }
 
     var body: some View {
@@ -861,6 +880,9 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
             // effects must not freeze the duration of a visible card.
             OverviewSwiftUICard(item: item, visible: visible,
                 viewport: viewport, coordinateSpace: coordinateSpace, contentIdentity: contentIdentity, content: content).equatable()
+                .environment(\.nativeOverviewCloudPlacement,
+                    isActive && visible && !isLayingOut && motion == nil && pose.opacity == 1 && !item.providesCardSurface
+                        ? NativeOverviewCloudPlacement(canvas: cloudCanvas, frame: pose.frame) : nil)
                 .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled)
                 .environment(\.threadCardUsesFlatMaterials, true)
                 .onAppear { onAppear(item.id) }

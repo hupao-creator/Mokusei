@@ -41,6 +41,7 @@ static half4 cloudField(float2 position, device const float *lights, int count,
 // and converts drawable pixel centers back into the field's logical points.
 struct NativeCloudUniforms {
     float2 pointsPerPixel;
+    float2 pixelOrigin;
     uint geometryCount;
     uint colorCount;
 };
@@ -54,6 +55,6 @@ fragment half4 nativeCloudFragment(float4 position [[position]],
                                    constant NativeCloudUniforms &uniforms [[buffer(0)]],
                                    device const float *lights [[buffer(1)]],
                                    device const half4 *colors [[buffer(2)]]) {
-    return cloudField(position.xy * uniforms.pointsPerPixel, lights,
+    return cloudField((position.xy - uniforms.pixelOrigin) * uniforms.pointsPerPixel, lights,
                       int(uniforms.geometryCount), colors, int(uniforms.colorCount));
 }
