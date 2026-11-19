@@ -1,7 +1,10 @@
 # Native motion and admission
 
-Application-owned animation does not read or observe macOS Reduce Motion. It
-uses its ordinary timing/curve/completion gates. Visibility, focus, occlusion,
+The [Super Thread member grid](../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+and the [Overview canvas when it gives way to the landing composer](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
+use macOS Reduce Motion to settle card removals immediately. Other
+application-owned animation uses its ordinary timing, curves and completion
+gates. Visibility, focus, occlusion,
 offscreen state, explicit pause, drag/resize and performance gates remain active.
 Reduce Transparency, Increase Contrast, keyboard navigation and accessibility
 semantics remain separate supported boundaries.

@@ -28,4 +28,6 @@ You can archive a task conversation after you stop it yourself, once it has no u
 
 Reports have their own archive action. It hides the report and its linked task conversations. Any work already in progress keeps running. [Tags, reports, and file changes](reports-tags-and-changes.md)
 
+When the workspace has no cards left, Moku opens its starting composer immediately as the last card fades away. With macOS **Reduce motion** enabled, the card disappears immediately.
+
 [Back to the product guide](README.md)

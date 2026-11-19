@@ -42,6 +42,7 @@ public struct NativeOverviewWorkspaceView: View {
     public var clickExclusions: NativeClickExclusions
     public var chromeVisible: Bool
     public var landing: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
     @State private var callbackStore: NativeOverviewWorkspaceCallbackStore
@@ -61,15 +62,22 @@ public struct NativeOverviewWorkspaceView: View {
                                          hasDock: model.workspace.catalog.hasMoku)
             let filters = landing ? [] : model.visibleFilters
             let headerBottom = OverviewTagMetrics.headerBottom(in: geometry.size, hasFilters: !filters.isEmpty)
+            // The last card can make the Dock switch to landing before the
+            // canvas admits its empty layout. Keep that exit drawable while
+            // landing and its input take over immediately.
+            let retiringToLanding = landing && !reduceMotion && !model.facts.settingsOpen
+                && model.content.isEmpty
+                && (!model.canvasState.presentedPlacements.isEmpty || model.canvasState.isLayingOut)
+            let canvasVisible = !landing || retiringToLanding
             ZStack {
                 NativeOverviewCanvas(contentSource: model.content, sceneKey: model.sceneKey, state: model.canvasState,
                     selectionID: selectionID,
                     toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
                     headerInputBottom: headerBottom,
-                    visible: model.facts.overviewVisible && model.facts.documentVisible && !landing,
+                    visible: model.facts.overviewVisible && model.facts.documentVisible && canvasVisible,
                     layoutPaused: !model.presentationActive,
                     cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
-                    interactionPaused: interactionPaused, resetEpoch: model.recoveryEpoch,
+                    interactionPaused: interactionPaused || landing, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },
                     onRetainedPresentationIDsChanged: { model.retainPresentations($0) },
                     cardContentIdentity: ObjectIdentifier(model),
@@ -78,7 +86,7 @@ public struct NativeOverviewWorkspaceView: View {
                             .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
                             .environment(\.threadCardNativeDecorationsEnabled, true)
                     }
-                    .opacity(landing ? 0 : 1)
+                    .opacity(canvasVisible ? 1 : 0)
                     .allowsHitTesting(!landing)
                     .accessibilityHidden(landing)
                 if !landing && model.content.isEmpty && model.error == nil {

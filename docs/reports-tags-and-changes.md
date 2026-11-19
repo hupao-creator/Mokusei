@@ -22,6 +22,8 @@ A collection shows one report at a time. Move the pointer over its cover to show
 
 Click the page count in the upper-right corner to see all the reports together. The count is available even when the pointer is outside the card. Click a report to read it, or use its upper-right **Archive Super Thread** button to archive it and hide its linked conversations. Press **Esc** to close the collection panel.
 
+When archiving leaves the collection open, the archived card briefly fades away. With macOS **Reduce motion** enabled, it disappears immediately. If fewer than two reports remain in the collection, the panel closes and any remaining reports appear as individual cards in Overview.
+
 ## Check Git changes on a task card
 
 For projects that use Git, some task cards show the branch, how many files changed, and how many lines were added or removed. The summary is hidden when Mokusei knows that both line counts are zero. If the counts are temporarily unavailable, the card says so. The summary is for reference. Clicking the task card opens its conversation.

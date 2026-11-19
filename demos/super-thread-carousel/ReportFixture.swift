@@ -9,7 +9,7 @@ import SwiftUI
 @MainActor final class ReportFixture {
     let props: ApplicationThreadProps<NativeReportView>
 
-    init(_ sample: ReportSample, now: Date) throws {
+    init(_ sample: ReportSample, now: Date, setArchived: @escaping (Bool) -> Void) throws {
         let reference = ApplicationThreadRef(threadID: JSONText(sample.id), typeID: "report.document")
         let refs = ["codex", "claude"].map { harness in
             ApplicationExecutionRef(thread: .init(threadID: JSONText("\(sample.id)-\(harness)"), typeID: "agent"),
@@ -21,7 +21,7 @@ import SwiftUI
                 ApplicationCapabilities.threadUserActions.requirement
             ], registrations: [
                 .init(ApplicationCapabilities.threadUserActions, value: ApplicationThreadUserActions(
-                    setArchived: { _, _, _ in throw PluginContractError("Demo does not archive reports") },
+                    setArchived: { archived, _, _ in setArchived(archived) },
                     initializeConversation: { _, _ in throw PluginContractError("Demo has no conversation") })),
                 .init(ApplicationCapabilities.executionReferencesUI, value: ApplicationExecutionReferencesUI(
                     read: { requested in requested.map { ref in

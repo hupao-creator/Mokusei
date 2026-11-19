@@ -251,6 +251,17 @@ cancel the old owner and retarget those samples. An empty destination retains th
 camera through the exit before disposing it; switching from an empty scene still
 animates entry.
 
+Within a visible canvas selection, authoritative catalog changes use the
+160ms upward shrink and fade when a card leaves. This includes eligible Agent
+Thread and Report archive, linked Threads hidden by Report archive, and
+visibility or coverage changes that remove a placement. Status and content
+updates that preserve membership keep the mounted card. When the final
+workspace card leaves, the Dock's landing composer takes input immediately
+while the empty canvas layout finishes the card's exit. Reduce Motion hides
+the canvas immediately on that handoff. **Clear all history**
+is a workspace reset under Settings, where the covered canvas coalesces
+catalog changes and resumes from the latest projection.
+
 Card motion starts, interruption samples and display samples all use
 `ProcessInfo.systemUptime`. A MainActor clock shares one uptime sample for each
 exact SwiftUI timeline date across the shell and semantic planes. Dates are only
@@ -368,6 +379,12 @@ commands are defined in [Property boundaries](#property-boundaries).
 The [performance tools](../../../../../tools/verification/overview-performance/README.md)
 measure internal CPU paths; the [external benchmark](../../../../../tools/benchmarks/README.md)
 observes fixed-count app rendering with explicit measurement limits.
+
+For a native check of the empty-workspace handoff, use an isolated profile
+with one ordinary Thread and Moku. Stop that Thread, then use its Overview
+archive button. The card leaves while the Moku composer becomes available.
+Repeat with Reduce Motion enabled and verify the immediate removal. Mounted
+geometry properties do not exercise this handoff.
 
 ## Agent reading panels
 
@@ -590,8 +607,14 @@ its accessible label and help announce that work is in progress.
 Both invoke the same atomic
 application archive command: hide the report and its persisted associated ordinary
 Threads. UI membership and counts follow the authoritative catalog, not optimistic
-per-card removals. A surviving selection is retained; removal of that selection
-chooses a remaining member. If the new projection selects fewer than two eligible
+per-card removals. While the member panel remains open, an outgoing card keeps
+its last content and grid seat for a 160ms fade and slight shrink. It immediately
+stops accepting input, leaves the accessibility tree and pauses cover playback.
+Other members and Close remain available. Each exit has its own deadline.
+A returning reference resumes in the same mounted card with the current data.
+macOS Reduce Motion settles removals immediately, including in-progress exits.
+A surviving selection is retained; removal of that selection chooses a
+remaining member. If the new projection selects fewer than two eligible
 members, the panel closes and each remaining report appears individually. Archive
 changes no execution, background task, history or binding;
 explicit archived reading and actions remain available. Errors retain the member

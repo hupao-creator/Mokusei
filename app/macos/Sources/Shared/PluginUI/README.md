@@ -1000,9 +1000,10 @@ the same window and local width changes retain the current visual identity.
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display. Hiding, backgrounding or detaching cancels that owner and settles the latest title. Cancelling an active transition replaces only its stateless animated text leaf,
 so an in-flight fade-in is retired even when its model phase is already settled;
-the transition owner and card keep their identity. Disabling cloud effects does not freeze text content. Application-owned animations use ordinary motion without reading, observing
-or propagating system Reduce Motion. Native framework defaults and external
-Report HTML/CSS remain renderer-owned. See the [motion contract](../../../../../design/motion.md).
+the transition owner and card keep their identity. Disabling cloud effects does not freeze text content. Shared PluginUI animations use their ordinary timing.
+The [motion contract](../../../../../design/motion.md) describes card removal
+under Reduce Motion. Native framework defaults and external Report HTML/CSS
+remain renderer-owned.
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity.
 
