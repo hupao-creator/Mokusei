@@ -80,8 +80,7 @@ struct NativeMokuComposerInput: View {
     var cwd: JSONText = ""
     var disabled = false
     var submissionPending = false
-    var threadTitle: String?
-    var superThreadContext = false
+    var targetsThread = false
     var sidecardComposer: SidecardComposerRequest?
     var placeholderIcon: AnyView?
     var readOnly = false
@@ -130,29 +129,7 @@ struct NativeMokuComposerInput: View {
             || !(retainedDirectories ?? draft.inputDirectories).isEmpty
     }
     private var placeholder: String {
-        if let sidecardComposer { return sidecardComposer.placeholder }
-        if let threadTitle {
-            return localize("发送给「\(threadTitle)」…", "Message \(threadTitle)…")
-        }
-        if superThreadContext {
-            return localize("向 Moku 提问，附带当前 Super Thread…", "Ask Moku with this Super Thread…")
-        }
-        let directories = retainedDirectories ?? draft.inputDirectories
-        guard let first = directories.first else {
-            return localize("向 Moku 提问…", "Ask Moku…")
-        }
-        let name = first.name.string
-        let subject: String
-        switch directories.count {
-        case 1:
-            subject = name
-        case 2:
-            let second = directories[1].name.string
-            subject = localize("\(name) 和 \(second)", "\(name) and \(second)")
-        default:
-            subject = localize("\(name) 等 \(directories.count) 个目录", "\(name) and \(directories.count - 1) other directories")
-        }
-        return localize("向 Moku 询问关于 \(subject) 的问题…", "Ask Moku about \(subject)…")
+        sidecardComposer?.placeholder ?? localize("输入消息…", "Type a message…")
     }
     var body: some View {
         VStack(spacing: 0) {
@@ -283,12 +260,12 @@ struct NativeMokuComposerInput: View {
         if sidecardComposer != nil {
             return localize("描述当前网页选区；Return 发送，Shift+Return 换行，Esc 取消标注", "Describe the selected page area; Return sends, Shift+Return adds a line, Escape cancels annotation")
         }
-        return threadTitle == nil
-            ? localize("输入内容将发送给 Moku", "Input is sent to Moku")
-            : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread")
+        return targetsThread
+            ? localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread")
+            : localize("输入内容将发送给 Moku", "Input is sent to Moku")
     }
     @ViewBuilder private var actions: some View {
-        if running && threadTitle == nil { stopButton }
+        if running && !targetsThread { stopButton }
         // Retain the editor's width as the draft and its action change.
         ZStack {
             if hasInput {
@@ -301,7 +278,7 @@ struct NativeMokuComposerInput: View {
                             .disabled(actionsUnavailable || !draft.canSubmit || readOnly || !(sidecardComposer?.ready ?? true))
                     }
                     .opacity(!actionsUnavailable && draft.canSubmit && (sidecardComposer?.ready ?? true) ? 1 : 0.3)
-            } else if running && threadTitle != nil {
+            } else if running && targetsThread {
                 stopButton
             }
         }.frame(width: 32, height: 32)
@@ -340,7 +317,7 @@ struct NativeMokuComposerInput: View {
             .contentShape(Rectangle())
     }
     private var stopLabel: String {
-        threadTitle == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread")
+        targetsThread ? localize("停止此 Thread", "Stop this thread") : localize("停止 Moku", "Stop Moku")
     }
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
 }

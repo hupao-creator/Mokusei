@@ -853,17 +853,9 @@ public struct NativeWorkspaceView: View {
                     presentation.dockInputAvailable && $0.observation.isExecutionActive
                         && (execution == nil || execution?.executionID == $0.observation.latestExecution?.executionID)
                 }
-                let detailTitle = detail.map { thread in
-                    if let execution {
-                        return thread.executionTitles[execution.executionID]?.string ?? model.preferences.locale.text("当前执行", "Selected execution")
-                    }
-                    return thread.title.string.isEmpty ? model.preferences.locale.text("当前 Thread", "Current thread") : thread.title.string
-                }
                 NativeMokuDock(state: presentation.scene, draft: presentation.dockDraft, cwd: detail?.cwd ?? JSONText(model.catalog.defaultCwd),
                     landing: detail == nil && superThreadID == nil && presentation.moku.landing,
                     threadID: detail?.id,
-                    threadTitle: detailTitle,
-                    superThreadContext: superThreadID != nil,
                     threadHarness: detail.flatMap { try? model.plugins.harnesses.require($0.harnessID) },
                     onThreadClose: {
                         if superThreadID != nil {

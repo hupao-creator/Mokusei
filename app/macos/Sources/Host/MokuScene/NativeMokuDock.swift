@@ -71,8 +71,6 @@ public struct NativeMokuDock: View {
     public let draft: NativeComposerDraft
     public let cwd: JSONText
     public var threadID: JSONText?
-    public var threadTitle: String?
-    public var superThreadContext: Bool
     public var threadHarness: AnyHarnessPlugin?
     public var onThreadClose: (() -> Void)?
     public var sidecardComposer: SidecardComposerRequest?
@@ -129,8 +127,7 @@ public struct NativeMokuDock: View {
     @State private var retainedReasoningGlyphs: [MokuReasoningGlyph] = []
 
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
-                landing: Bool = false, threadID: JSONText? = nil, threadTitle: String? = nil,
-                superThreadContext: Bool = false,
+                landing: Bool = false, threadID: JSONText? = nil,
                 threadHarness: AnyHarnessPlugin? = nil, onThreadClose: (() -> Void)? = nil,
                 sidecardComposer: SidecardComposerRequest? = nil,
                 awaitingContinuation: Bool = false,
@@ -151,8 +148,6 @@ public struct NativeMokuDock: View {
         self.reasoning = reasoning
         self.landing = landing
         self.threadID = threadID
-        self.threadTitle = threadTitle
-        self.superThreadContext = superThreadContext
         self.threadHarness = threadHarness; self.onThreadClose = onThreadClose
         self.sidecardComposer = sidecardComposer
         self.talk = talk; self.reply = reply; self.disabled = disabled; self.interaction = interaction
@@ -184,7 +179,7 @@ public struct NativeMokuDock: View {
         return NativeMokuTalkMessage(id: JSONText(talk), text: talk)
     }
     private var visibleTalk: NativeMokuTalkMessage? {
-        guard threadTitle == nil, !state.inputOpen, interaction == nil, !state.dockCovered, state.dockRouteVisible,
+        guard threadID == nil, !state.inputOpen, interaction == nil, !state.dockCovered, state.dockRouteVisible,
               state.windowVisible, !disabled, !draft.submitting else { return nil }
         return state.talkPresentation.message
     }
@@ -308,7 +303,7 @@ public struct NativeMokuDock: View {
             maximumHeight: maximumHeight, scrollbarStyle: talkScrollbarStyle))
     }
     private var residentPresenting: Bool {
-        threadTitle == nil && !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
+        threadID == nil && !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
         !draft.submitting && interaction == nil && displayedMessage == nil
     }
     // The workspace retains the selected Agent while its reader returns to
@@ -352,7 +347,7 @@ public struct NativeMokuDock: View {
             && !disabled && (presentation?.workspace.runtimeAvailable ?? true)
     }
     private var incomingReasoning: MokuReasoningContent? {
-        guard threadTitle == nil, running else { return nil }
+        guard threadID == nil, running else { return nil }
         if let presentation { return presentation.reasoning }
         return reasoning
     }
@@ -490,7 +485,7 @@ public struct NativeMokuDock: View {
             .onChange(of: interaction != nil, initial: true) { _, visible in
                 state.setDockInteractionVisible(state.dockRouteVisible && visible, question: interactionIsQuestion)
                 if visible && state.dockRouteVisible && !state.settingsOpen { state.setInputOpen(false) }
-                else if !visible, threadTitle != nil, !state.dockCovered { state.setInputOpen(true) }
+                else if !visible, threadID != nil, !state.dockCovered { state.setInputOpen(true) }
             }
             .onChange(of: interactionIsQuestion) { _, value in
                 state.setDockInteractionVisible(state.dockRouteVisible && interaction != nil, question: value)
@@ -509,7 +504,7 @@ public struct NativeMokuDock: View {
             guard state.updateLanding(active) else { return }
             if active {
                 if landingInputAvailable && !running && incomingTalk == nil { state.setInputOpen(true) }
-            } else if threadTitle == nil {
+            } else if threadID == nil {
                 state.retainDraft(draft)
                 state.setInputOpen(false)
             }
@@ -898,7 +893,7 @@ public struct NativeMokuDock: View {
             // eyes a layout pass after the glass has already changed size.
             let generation = state.composerGeneration
             NativeMokuDockIdentity(harness: threadHarness,
-                showsHarness: threadTitle != nil && !state.settingsOpen,
+                showsHarness: threadID != nil && !state.settingsOpen,
                 entranceReady: state.inputAdmissionReady,
                 generation: generation, motion: state.windowVisible,
                 onSettled: { state.completeInputIdentity(generation: generation) }) {
@@ -933,8 +928,8 @@ public struct NativeMokuDock: View {
                         .focused($stopFocused)
                         .accessibilityFocused($stopAccessibilityFocused)
                         .allowsHitTesting(stopVisible)
-                        .help(threadTitle == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
-                        .accessibilityLabel(threadTitle == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
+                        .help(threadID == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
+                        .accessibilityLabel(threadID == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
                         .accessibilityIdentifier("moku-stop")
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { stopControlsFrame = $0 }
                 }
@@ -996,7 +991,7 @@ public struct NativeMokuDock: View {
         // editor must accept clicks/Tab without a delayed update blurring it.
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             submissionPending: draft.submitting,
-            threadTitle: threadTitle, superThreadContext: superThreadContext, sidecardComposer: sidecardComposer,
+            targetsThread: threadID != nil, sidecardComposer: sidecardComposer,
             readOnly: state.inputLeaving, focusEnabled: composerCanFocus && (sidecardComposer?.ready ?? true),
             automaticFocus: false,
             focusRequestKey: focusGeneration == state.composerGeneration ? focusRequest : 0,
@@ -1035,7 +1030,7 @@ public struct NativeMokuDock: View {
         // The retiring capsule is a sealed projection, independent of the live
         // draft. Clear it too so collapse never keeps the submitted ink visible.
         state.retainedText = ""; state.retainedAttachments = []; state.retainedDirectories = []
-        if threadTitle == nil { state.dismissTalk() }
+        if threadID == nil { state.dismissTalk() }
         let sendingDraft = draft, send = onSend, consumed = onSendConsumed, generation = state.composerGeneration
         state.setInputOpen(false)
         // Capture and project the submitted input in this event, before another

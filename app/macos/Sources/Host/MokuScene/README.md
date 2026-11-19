@@ -40,8 +40,8 @@ layout/closing motion, scrollbar policy and Agent composer motion are independen
 
 ## Dock and composer
 
-Dock and history composer placeholders stay on one line and truncate at the tail,
-including the Agent-target title. The native draft editor remains multiline.
+Dock and history composer placeholders stay on one line and truncate at the tail.
+The native draft editor remains multiline.
 The composer layout reserves attachment/action seats and the resident eye seat
 (the actual Harness logo in Agent detail) before giving
 the remaining width to the editor; long placeholder text cannot displace Stop.
@@ -198,13 +198,12 @@ Same-line movement remains 120ms and interruptible. IME composition uses the
 native caret; line changes stay immediate. Selection and focus/visibility loss
 remove the layer and animations.
 
-The Dock and history input placeholder follows the displayed directory tags,
-including the retained draft during Dock dismissal. With no directory it reads
-`Ask Moku…` (Chinese `向 Moku 提问…`). With a directory it reads
-`Ask Moku about <name>…` (Chinese `向 Moku 询问关于 <name> 的问题…`).
-Two directories show both names joined by `and` / `和`. Three or more show the
-first name and a count (`<name> and N other directories` / `<name> 等 N 个目录`,
-with the Chinese count including all selected directories).
+The empty message editor reads `Type a message…` (Chinese `输入消息…`) across
+Overview, landing, Git, Moku history, Agent details and Report execution details.
+The placeholder also supplies the editor's accessibility label. Editor help
+describes whether the message goes to Moku or directly to the current Thread.
+Selected directories are shown as chips. Browser annotation mode supplies its
+own editor instructions based on whether a page region is selected.
 
 On macOS, clicking the collapsed Moku row opens input; when a message is visible, only the eyes are the input target so prose remains selectable and controls retain their actions. Clicking the eyes beneath an open note switches to input. Physical two-finger upward swipe opens the note; horizontal swipes do not open input. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/interaction ownership. Its AppKit monitor routes trackpad scroll events; the shared target checks exclude microphone controls and note-reading content. The click entry uses the existing composer focus and draft-restoration path. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
 
@@ -554,9 +553,9 @@ Thread, Report or Git detail is presented in a reading panel. `dockRouteVisible`
 reading-panel eligibility without admitting Settings or Note on a reading route.
 The composer, Talk and pending interventions use that shared eligibility; other
 application pages and covering routes still hide the Dock. Returning to Overview publishes eligibility in an order that retains native
-input/hit-region ownership. Agent detail keeps its input expanded, with a localized
-placeholder naming that Thread. Its leading identity seat reveals the
-actual Harness plugin's native logo, which remains visible while typing.
+input/hit-region ownership. Agent detail keeps its input expanded. Its leading
+identity seat reveals the actual Harness plugin's native logo, which remains
+visible while typing.
 The host resolves the current target's `harnessID` on each render, including target
 changes; unknown/empty IDs use a neutral terminal mark, never Moku's Harness.
 Registered custom Harnesses supply their own mark through the same registry.
@@ -622,9 +621,9 @@ See the [composer routing contract](../../../../../design/composer.md).
 
 Report execution details borrow that same Agent composer and native column
 placement. Exact-execution drafts are shared with Agent history/result readers
-for the same Thread/execution pair. The placeholder uses the exact
-execution title (neutral fallback), never a newer execution's Thread title. The editor opens after its horizontal travel settles. Returning to the list,
-folding, Browser selection or departure restores Moku and retains the draft;
+for the same Thread/execution pair. The editor opens after its horizontal travel
+settles. Returning to the list, folding, Browser selection or departure
+restores Moku and retains the draft;
 editor Escape follows Report's auxiliary Back. Only the viewed current active
 execution exposes Stop; historical input cannot stop a newer execution. The shared sender uses the existing expected-execution admission fence. An
 explicit pre-admission `EXECUTION_CHANGED` rejection takes the historical fork

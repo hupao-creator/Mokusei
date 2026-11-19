@@ -2,9 +2,9 @@
 
 ## Check who will get your message
 
-In **Overview**, click Moku's eyes or press **⌘⇧B** to open its input box. When the box says **Ask Moku…** or names a folder after **Ask Moku about**, you're writing to Moku. You can ask a question, give Moku a task to assign, or ask it to find work you already started. Say what you want done, what materials to use, and what you'd like back.
+In **Overview**, click Moku's eyes or press **⌘⇧B** to open the **Type a message…** box. Messages you send from Overview go to Moku. You can ask a question, give Moku a task to assign, or ask it to find work you already started. Say what you want done, what materials to use, and what you'd like back.
 
-In an agent conversation, the input at the bottom shows the conversation name and the agent's icon. Messages there go to that conversation. If you've selected an earlier run, your message picks up from the run you're reading. In a Super Thread report, open a card in **Related executions** before sending a follow-up to the source conversation. [Agent conversations](task-conversations.md)
+In an agent conversation, the **Type a message…** box at the bottom shows the agent's icon. Messages there go to that conversation. If you've selected an earlier run, your message picks up from the run you're reading. In a Super Thread report, open a card in **Related executions** before sending a follow-up to the source conversation. [Agent conversations](task-conversations.md)
 
 When Moku is at the bottom of **Overview**, click outside its input box or press **Esc** to close it. Your unsent draft is there when you open the box again.
 

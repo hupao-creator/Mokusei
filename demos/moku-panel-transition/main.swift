@@ -94,7 +94,7 @@ private struct Surface: View {
         }
         .overlay(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 12) {
-                Text("🔧  修复历史执行工具消息泄漏").font(.title2.bold())
+                Text("🔧  \(model.title)").font(.title2.bold())
                 Text("仅内存 fixture · 复用生产 NativeMokuScene / Dock / 原生编辑器").foregroundStyle(.secondary)
                 Text(model.status).font(.callout)
             }.padding(.top, 90).padding(.leading, 85)
@@ -119,8 +119,7 @@ private struct Surface: View {
     private var dock: some View {
         var dock = NativeMokuDock(state: model.scene, draft: model.draft, cwd: "/fixture",
             landing: model.landing,
-            threadID: model.isolatedReplay && model.thread ? "fixture-agent" : nil,
-            threadTitle: model.thread ? model.title : nil,
+            threadID: model.thread ? "fixture-agent" : nil,
             threadHarness: model.collapseCapture || (model.agentEntranceCapture && model.thread) ? model.harness : nil,
             mode: model.running ? .running : .idle, running: model.running,
             loadMentionDirectories: { ["Mokusei", "Design", "Research"].map {
@@ -152,7 +151,9 @@ private struct ColumnMarker: View {
             let width = min(404, proxy.size.width / 2)
             let frame = CGRect(x: proxy.size.width - width, y: 0, width: width, height: proxy.size.height)
             let active = columnMounted && !model.readingMotion.active
-            Color.white.background {
+            Color.white.overlay(alignment: .topLeading) {
+                Text(model.title).font(.title2.bold()).padding(48)
+            }.background {
                 NativeExecutionDockRegion(placement: model.scene.executionDockPlacement,
                     active: active, ready: columnMounted, threadID: "fixture-agent",
                     onSettled: {

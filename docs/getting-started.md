@@ -26,7 +26,7 @@ If a setup page couldn't load or save your settings, click **Retry** next to the
 
 ## Send your first request
 
-In the **Ask Moku…** box, describe what you want done and what you'd like to get back. If the work belongs to a project folder, type `@` and choose the folder before sending.
+In the **Type a message…** box, describe what you want done and what you'd like to get back. If the work belongs to a project folder, type `@` and choose the folder before sending.
 
 Moku can answer you directly or create an agent conversation to handle the task. Once the conversation is created, its card appears in **Overview** and Moku moves to the bottom of the window. Click the card to check progress, read the result, or respond to a request from the agent. [Working with Moku](working-with-moku.md)
 

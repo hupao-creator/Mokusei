@@ -115,7 +115,7 @@ real-time visits for focus timing at normal speed.
 
 For each geometry visit the check matches the first placeholder glyphs against their
 settled pixels and measures each returning glass silhouette against both the
-open width and the narrowest frame so far. The title must disappear during
+open width and the narrowest frame so far. The placeholder must disappear during
 contraction and the shell must reach its initial idle width. The check allows one point of glyph displacement and
 two points of silhouette variation for rasterization, compression and the changing glass backdrop.
 Each direction must supply intermediate widths. The JSON result reports the
