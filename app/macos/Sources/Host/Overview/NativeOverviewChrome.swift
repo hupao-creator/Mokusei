@@ -41,6 +41,8 @@ public struct NativeOverviewFilter: Identifiable, Equatable, Sendable {
 
 /// Floating Liquid Glass controls. The host owns collection filtering.
 public struct NativeOverviewChrome: View {
+    private let viewportHeight: CGFloat?
+    private let alignsWindowControls: Bool
     public var filters: [NativeOverviewFilter]
     public var allHasActiveTasks: Bool
     public var selectedTag: String
@@ -77,7 +79,7 @@ public struct NativeOverviewChrome: View {
     @State private var hoverClearTask: Task<Void, Never>?
     @State private var interactionOwner = UUID()
 
-    public init(filters: [NativeOverviewFilter], selectedTag: String = "", selectedScope: String = "", selectedKind: NativeOverviewTagKind? = nil,
+    public init(filters: [NativeOverviewFilter], viewportHeight: CGFloat? = nil, alignsWindowControls: Bool = true, selectedTag: String = "", selectedScope: String = "", selectedKind: NativeOverviewTagKind? = nil,
                 allHasActiveTasks: Bool = false,
                 cameraManual: Bool = false, focusFilterRequestKey: Int = 0,
                 strings: NativeOverviewChromeStrings = .init(),
@@ -88,6 +90,8 @@ public struct NativeOverviewChrome: View {
                 onSettingsWithOrigin: ((CGRect) -> Void)? = nil,
                 onSettingsFrameChange: ((CGRect?) -> Void)? = nil,
                 clickExclusions: NativeClickExclusions? = nil, interactions: NativeOverviewChromeInteractions? = nil) {
+        self.viewportHeight = viewportHeight
+        self.alignsWindowControls = alignsWindowControls
         self.filters = filters; self.selectedTag = selectedTag; self.selectedScope = selectedScope; self.selectedKind = selectedKind
         self.allHasActiveTasks = allHasActiveTasks
         let selection = selectedKind.map { NativeOverviewTagSelection(tag: selectedTag, kind: $0, scope: selectedScope) }
@@ -106,32 +110,36 @@ public struct NativeOverviewChrome: View {
     }
 
     public var body: some View {
+        let topInset = viewportHeight.map(NativeMokuCapsuleLayout.restingInset(forHeight:)) ?? NativeWindowNavigationGeometry.top
+        let rowOffset = OverviewTagMetrics.secondRowOffset(viewportHeight: viewportHeight ?? .infinity, topInset: topInset)
         GeometryReader { geometry in
             let narrow = geometry.size.width <= CGFloat(NativeOverviewCameraGeometry.compactViewportWidth)
             let inset: CGFloat = narrow ? 14 : 18
-            // The bar is centered, so reserve the action envelope on both sides.
-            // Narrow windows already place actions on a separate row.
-            let actionClearance = actionWidth > 0 ? 2 * (actionWidth + 16) : 0
-            let maximumFilterWidth = max(0, geometry.size.width - inset * 2 - (narrow ? 0 : actionClearance))
+            let stacked = OverviewTagMetrics.stacksFilters(in: geometry.size.width)
+            let sideSeat = max(actionWidth + inset, NativeWindowNavigationGeometry.closedWidth) + 16
+            let maximumFilterWidth = max(0, geometry.size.width - 2 * (stacked ? inset : sideSeat))
             ZStack(alignment: .top) {
                 HStack {
                     Spacer(minLength: 0)
                     actions
+                }
+                .background {
+                    if alignsWindowControls { NativeWindowControlPlacement.OverviewRow().accessibilityHidden(true) }
                 }
                 .padding(.horizontal, inset)
                 // Retain the scroll/container identities through an empty result so
                 // outgoing surfaces can finish, while hiding the empty bar as before.
                 filtersBar(maximumWidth: maximumFilterWidth)
                     .frame(width: min(naturalFilterWidth, maximumFilterWidth), height: OverviewTagMetrics.barHeight)
-                    .padding(.top, narrow ? OverviewTagMetrics.narrowFilterTop - 10 : 0)
+                    .padding(.top, stacked ? rowOffset : 0)
                     .opacity(presentedFilters.isEmpty ? 0 : 1)
                     .allowsHitTesting(!presentedFilters.isEmpty)
                     .disabled(presentedFilters.isEmpty)
                     .accessibilityHidden(presentedFilters.isEmpty)
             }
-            .padding(.top, narrow ? 10 : 16)
+            .padding(.top, topInset)
         }
-        .frame(height: OverviewTagMetrics.chromeHeight)
+        .frame(height: topInset + rowOffset + OverviewTagMetrics.chipHeight)
         .onChange(of: cameraManual) { _, manual in
             withAnimation(.smooth(duration: 0.32)) { returnToAutoVisible = manual }
         }
@@ -679,13 +687,27 @@ enum OverviewTagMetrics {
     /// Tag filters, traffic-light capsules and circular actions share one height.
     static let actionDiameter = NativeWindowNavigationGeometry.height
     static let barHeight = chipHeight
-    /// Always reserve a caption band below the narrow action row, including
-    /// when no child is selected. Its appearance cannot move the filter bar.
-    static let narrowFilterTop: CGFloat = 76
-    static let chromeHeight = narrowFilterTop + chipHeight + 4
-    /// Card clearance keeps the previous 2pt gap under the tag bar.
+    private static let headerClearance: CGFloat = 2
+    private static let minimumCanvasStrip: CGFloat = 8
+
+    /// Shorten the inter-row gap at high zoom so both rows and the canvas input strip fit.
+    static func secondRowOffset(viewportHeight: CGFloat, topInset: CGFloat) -> CGFloat {
+        let available = viewportHeight - topInset - chipHeight - headerClearance - minimumCanvasStrip
+        return min(66, max(chipHeight, available))
+    }
+    static func stacksFilters(in width: CGFloat) -> Bool {
+        // Two action envelopes (up to three buttons) and a 96pt central filter viewport.
+        width < 2 * (3 * actionDiameter + 2 * spacing + 14 + 16) + 96
+    }
+
+    static func headerBottom(in size: CGSize, hasFilters: Bool) -> CGFloat {
+        let top = NativeMokuCapsuleLayout.restingInset(forHeight: size.height)
+        let rowOffset = hasFilters && stacksFilters(in: size.width) ? secondRowOffset(viewportHeight: size.height, topInset: top) : 0
+        return top + rowOffset + chipHeight + headerClearance
+    }
+    /// Packing and camera framing are independent of the floating input regions.
     static let wideToolbarClearance = 18 + chipHeight
-    static let narrowToolbarClearance = narrowFilterTop + chipHeight + 2
+    static let narrowToolbarClearance: CGFloat = 120
 }
 
 /// One persistent source surface per directory anchors its child menu. The

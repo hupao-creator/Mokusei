@@ -109,6 +109,10 @@ struct NativeOverviewScrollInput: NSViewRepresentable {
     var enabled: () -> Bool
     var pan: (CGSize) -> Void
 
+    // At high workspace zoom, a card can make the canvas stack larger than the
+    // viewport. Window-to-canvas conversion must use the viewport-sized anchor.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: MonitorView, context: Context) -> CGSize? { size }
+
     func makeNSView(context: Context) -> MonitorView { MonitorView() }
     func updateNSView(_ view: MonitorView, context: Context) {
         let geometry = Configuration(size: size, toolbarBottom: toolbarBottom, identity: identity, contentScale: contentScale)

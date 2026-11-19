@@ -18,15 +18,15 @@ only to Overview and cannot cover a Thread or application reading route.
 window/back controls. The workspace hides its Back control for Agent, Report and
 Moku history panels; those surfaces use their own production panel Close.
 [NativeWindowControlPlacement](NativeWindowControlPlacement.swift) retains native
-Mac traffic-light positions and actions through resize and workspace zoom.
-The real button group has a sibling `NSGlassEffectView` with native `.clear`
-style and no tint, padded 12pt horizontally around its native frames and
-vertically centered at the shared 42pt chrome height, with a 21pt corner radius.
-Existing glass wrappers own SwiftUI surfaces with different material/ink policies; this AppKit decoration leaves the
-buttons in their original titlebar hierarchy, preserving actions, accessibility
-and grouped hover. It returns no hit target, so empty capsule space keeps the
-existing titlebar dragging behavior. The capsule follows reading offsets and
-resize, hides from fullscreen entry until exit, and detaches with its owner.
+Mac traffic-light actions through resize and workspace zoom. In Overview, AppKit
+converts the mounted action row's bounds from its nested reading host to the
+window content view. The real buttons follow that center at their native size. Reading navigation uses its own placement.
+The untinted, 42pt-high clear glass capsule extends 12pt beyond either end of
+the group. It sits above the content view so hits within a button's moved frame
+reach that original AppKit button even below the titlebar's bounds. The buttons
+stay in the system titlebar hierarchy. Empty capsule space passes input to the
+underlying window drag region. The capsule follows reading offsets and resize,
+hides for fullscreen, and detaches with its owner.
 The macOS 26 minimum supports clear directly; there is no regular-glass fallback.
 Reduce Transparency explicitly replaces glass with an opaque system window
 background, without changing system preferences or button behavior.

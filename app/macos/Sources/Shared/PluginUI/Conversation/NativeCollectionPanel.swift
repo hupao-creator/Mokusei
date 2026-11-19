@@ -96,7 +96,7 @@ private struct NativeCollectionPanelHost: ViewModifier {
     func body(content: Content) -> some View {
         NativeReadingPageStack(open: presentation.owner != nil,
             identity: "collection-members", motion: presentation.motion,
-            stationaryParent: true, emphasizedOpening: true, panel: true,
+            stationaryParent: true, emphasizedOpening: true, panel: true, panelUsesGlass: true,
             panelSource: presentation.source, threadPanelMotion: true,
             onParentPresentationChange: { parentVisible = $0 },
             onPanelOutsideClick: { close() },

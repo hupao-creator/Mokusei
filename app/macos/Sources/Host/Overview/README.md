@@ -210,8 +210,8 @@ is centered by the same solver at 1× even in the minimum window. Gaps are world
 
 Same-scene structural slot changes with identical members and viewport reuse geometry. Reuse still cancels any obsolete worker waiting for the spatial stage, so an A→B→A membership or viewport update cannot later publish B over A. Content-only updates do not enqueue layout. A viewport size change re-evaluates candidates because aspect can change the chosen arrangement. `layoutSolveCount` and `geometryReuseCount` expose these paths.
 
-The tag bar and idle Dock reserve space for packing. The tag bar uses
-`OverviewTagMetrics` and the canvas and fixtures share
+Packing reserves a header allowance and the idle Dock footprint.
+The canvas and fixtures share
 `NativeOverviewViewportDefaults.toolbarBottom`. The shell and semantic planes
 draw across the full window. Controls float above cards during panning.
 
@@ -223,6 +223,9 @@ reach every card. Manual bookmarks and zoom use the original usable region.
 The window has a separate 1× to 5× zoom. Background layout preserves manual
 pan and zoom. Returning to automatic uses the latest complete snapshot,
 including after a pause, a hidden window or a failed or zero-area update.
+If the header, Dock and framing margins exhaust the vertical packing area at
+high workspace zoom, the automatic camera centers the packed cards using the
+window's full logical height. This also initializes navigation on a cold open.
 An empty collection disposes the camera.
 
 Geometry targets are latest-wins. Each new structural snapshot cancels the in-flight presentation, samples the current card poses and starts a new transition to the latest target; no FIFO of historical revisions is queued. A successful solve publishes placements, bounds and camera from the same input snapshot. An older task cannot publish after a newer token, cannot clear `isLayingOut` for a newer owner and cannot consume a newer revision. Content updates do not restart admitted work. Pausing settles the displayed sample and retains the latest pending target; hiding defers only the camera target. Resuming plans from the latest content rather than replaying omitted revisions.
@@ -271,7 +274,7 @@ The workspace supplies the Dock reservation from the same idle capsule geometry
 used by the renderer (44pt height plus its viewport-dependent bottom seat). Transient composer/note expansion stays an interaction overlay and does not
 repack the scene. The reservation consumes the existing vertical padding budget when computing the usable size.
 
-[NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
+[NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. The input monitor follows the top-left of the logical viewport at its exact size, including when the card stack overflows it. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
 The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Closing a covering surface can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
 
@@ -319,9 +322,9 @@ chip after its material and the row have already shrunk. Only this source leaf
 clears the geometry animation; the directory group's position, child-menu target
 and independent opening/closing progress keep their existing ownership.
 
-Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar reserves the actual action envelope plus 16pt clearance on both sides; at 620pt and narrower the actions occupy a separate row. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Selected All, directory and semantic chips use the overview accent with 22% tint alpha, or 34% with Increased Contrast; unselected chips have no tint. Selected directory chips replace their folder or child emoji prefix with a check icon. Selected semantic chips replace their emoji prefix with the same check, including in child menus; All remains prefix-free. Accessibility labels retain the original tag names and emoji. Label font weights remain unchanged; the shared selected check uses a 2-unit Lucide stroke instead of the default 1.5-unit stroke. Names only truncate when their individual viewport cannot hold them. Presentation does not change tag identity or membership.
+Tag widths have no fixed point cap. Each top-level chip may use the scroll viewport left after All and bar insets; sibling chips remain horizontally scrollable. The centered bar leaves room on both sides for the window controls and actions, plus 16pt clearance. Below 424 logical points of viewport width, filters move to a second row so the scroller remains usable at high workspace zoom. Child chips may use the full available bar width, and overflowing child rows scroll within that width. Their glass container stays inside the scroll viewport so captured labels cannot bypass clipping. Chips use shadowless `.clear` glass over a view-layer material fill rather than `.regular` glass: the regular variant's system-drawn shadow is composited outside the SwiftUI layer, so neither a per-chip `clipShape` nor the bar's capsule clip can trim it, and the 4pt gaps let neighboring shadows overlap into a visible band. The material fill supplies the frosted face and follows the pill shape, while selection tint and interactive feedback remain on the glass. Selected All, directory and semantic chips use the overview accent with 22% tint alpha, or 34% with Increased Contrast; unselected chips have no tint. Selected directory chips replace their folder or child emoji prefix with a check icon. Selected semantic chips replace their emoji prefix with the same check, including in child menus; All remains prefix-free. Accessibility labels retain the original tag names and emoji. Label font weights remain unchanged; the shared selected check uses a 2-unit Lucide stroke instead of the default 1.5-unit stroke. Names only truncate when their individual viewport cannot hold them. Presentation does not change tag identity or membership.
 
-All, directory and semantic capsules (including child menus) retain the 1.1× enlarged label and prefix metrics. Their height shares `NativeWindowNavigationGeometry.height` (42pt) with the traffic-light capsule and right-side circular actions. Measured frames, hit areas and canvas clearance follow that shared height. Semantic labels always lay out the emoji separately from the plain title, in both selection states. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets.
+All, directory and semantic capsules (including child menus) retain the 1.1× enlarged label and prefix metrics. Their height shares `NativeWindowNavigationGeometry.height` (42pt) with the traffic-light capsule and right-side circular actions. At actual size, all three groups share a centerline, and the first row's top inset mirrors the resting Moku capsule's bottom inset (5% of viewport height, clamped to 24–36pt). The native buttons keep their system size at workspace zoom and follow the action row's center. Header dragging and scroll exclusion end 2pt below the last visible row. In short two-row viewports, the gap between rows shrinks to leave at least 8 logical points for starting canvas scrolling and pinching at supported window sizes and zoom levels. Card packing and camera framing retain their independent 60pt header allowance (120pt at widths up to 620pt with filters). Semantic labels always lay out the emoji separately from the plain title, in both selection states. The shared prefix retains both its unselected glyph and centered check as opacity-switched layout participants, reserving the same natural width and height across selection changes. This stability applies to a fixed title/child; choosing a different directory child can still change the title width. The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder and selected check use the same icon size; emoji do not use per-glyph offsets.
 
 ## Tag activity
 
@@ -532,14 +535,17 @@ panel, using `NativeCollectionPanelPresentation`, the same `NativeReadingPageSta
 compositor, window-relative margins and emphasized 420ms opening as Agent/Report
 readers. Overview and Dock fade out and reject input/accessibility while the panel
 is open; this is not a screen-sized popover or a zoomed canvas child. The panel
-has no gallery heading or total count. The grid reserves only 48pt above its
-scroll viewport for the floating shared upper-left Close; only the centered
-member grid scrolls.
-Columns adapt to the logical window viewport (including window zoom), with up to
-360pt cards, 20pt gaps, and a single shrinking column in narrow windows. Cover
+uses a rounded regular Liquid Glass backdrop throughout opening, scrolling and
+return. Close floats in the upper-left corner and stays fixed as rows scroll.
+At logical panel widths of 320pt and above, the scroll viewport reaches the top
+edge and the centered grid leaves 54pt on each side for the 32pt Close button
+and its 14pt inset. Columns adapt up to 360pt per card with 20pt gaps.
+In narrower panels, the single column uses the space below Close, with 14pt
+side margins. The 320pt layout scales to fit the panel width, including its
+scroll viewport and hit targets, so the cover, title and badge fit together. Cover
 height preserves 360:308, with a separate metadata region. No panel dimension can
-extend beyond the host viewport. The opaque reading surface also works with
-Reduce Transparency.
+extend beyond the host viewport. Reduce Transparency gives the panel an opaque
+reading surface matched to the current appearance.
 The carousel pauses through opening and return; closing starts a fresh dwell.
 Escape, Close and blank-margin clicks reverse the panel into the current card
 frame. The count is behind the expanded surface, not a second floating control.

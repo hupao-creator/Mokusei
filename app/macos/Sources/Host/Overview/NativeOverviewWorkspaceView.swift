@@ -59,10 +59,13 @@ public struct NativeOverviewWorkspaceView: View {
         return GeometryReader { geometry in
             let viewport = Self.viewport(in: geometry.size, hasFilters: !model.filters.isEmpty,
                                          hasDock: model.workspace.catalog.hasMoku)
+            let filters = landing ? [] : model.visibleFilters
+            let headerBottom = OverviewTagMetrics.headerBottom(in: geometry.size, hasFilters: !filters.isEmpty)
             ZStack {
                 NativeOverviewCanvas(contentSource: model.content, sceneKey: model.sceneKey, state: model.canvasState,
                     selectionID: selectionID,
                     toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
+                    headerInputBottom: headerBottom,
                     visible: model.facts.overviewVisible && model.facts.documentVisible && !landing,
                     layoutPaused: !model.presentationActive,
                     cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
@@ -110,7 +113,9 @@ public struct NativeOverviewWorkspaceView: View {
                     visible: model.facts.overviewVisible && model.facts.documentVisible && !landing).allowsHitTesting(false)
             }
             .overlay(alignment: .top) {
-                NativeOverviewChrome(filters: landing ? [] : model.visibleFilters, selectedTag: model.selectedTag,
+                NativeOverviewChrome(filters: filters, viewportHeight: geometry.size.height,
+                    alignsWindowControls: chromeVisible && model.facts.overviewVisible && !model.facts.mokuOpen && !model.facts.settingsOpen,
+                    selectedTag: model.selectedTag,
                     selectedScope: model.selectedScope, selectedKind: model.tagSelection?.kind,
                     allHasActiveTasks: model.allHasActiveTasks,
                     cameraManual: model.canvasState.camera.manual,
@@ -124,7 +129,9 @@ public struct NativeOverviewWorkspaceView: View {
                     .opacity(chromeVisible ? 1 : 0)
                     // Translate the retained chrome without compressing its labels or
                     // changing the canvas clearance, including the narrow two-row layout.
-                    .offset(y: chromeVisible ? 0 : -OverviewTagMetrics.chromeHeight)
+                    .visualEffect { [chromeVisible] chrome, geometry in
+                        chrome.offset(y: chromeVisible ? 0 : -geometry.size.height)
+                    }
                     .allowsHitTesting(chromeVisible).accessibilityHidden(!chromeVisible)
                     .animation(NativeReadingPageTiming.openingAnimation, value: chromeVisible)
             }

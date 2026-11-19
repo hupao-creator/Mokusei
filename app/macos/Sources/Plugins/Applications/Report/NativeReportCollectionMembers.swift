@@ -15,8 +15,13 @@ struct NativeReportCollectionMembers: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let inset: CGFloat = geometry.size.width < 500 ? 16 : 28
-            let available = max(1, min(1160, geometry.size.width - 2 * inset))
+            // At high window zoom the panel can be narrower than a single
+            // Overview card. Fit the card layout and its hit targets together.
+            let compact = geometry.size.width < NativeGeometry.overviewCard.width
+            let layoutWidth = max(geometry.size.width, NativeGeometry.overviewCard.width)
+            let scale = max(1, geometry.size.width) / layoutWidth
+            let inset: CGFloat = compact ? 14 : 54
+            let available = min(1160, layoutWidth - 2 * inset)
             let columns = max(1, Int((available + 20) / 300))
             let width = min(360, (available - CGFloat(columns - 1) * 20) / CGFloat(columns))
             NativeScrollView {
@@ -35,16 +40,19 @@ struct NativeReportCollectionMembers: View {
                             openThread: { openThread(member.entry.ref) })
                     }
                 }.frame(maxWidth: .infinity)
-                    .padding(.horizontal, inset).padding(.bottom, 28)
+                    .padding(.horizontal, inset).padding(.top, compact ? 0 : 14).padding(.bottom, 28)
             }
-            .padding(.top, 48)
+            // In a single compact column, clear Close vertically for every
+            // scroll position. The overlay still owns only the button.
+            .padding(.top, compact ? 54 : 0)
             .overlay(alignment: .topLeading) {
                 NativeReadingPanelCloseButton(label: applicationText(locale, "关闭", "Close"), onClose: close)
                     .keyboardShortcut(.cancelAction)
                     .padding(14)
             }
+            .frame(width: layoutWidth, height: geometry.size.height / scale)
+            .scaleEffect(scale, anchor: .topLeading)
         }
-        .background(NativePalette.thread.canvas.swiftUI)
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .background(NativeReadingPanelFrame(identifier: "collection-members-panel"))
     }

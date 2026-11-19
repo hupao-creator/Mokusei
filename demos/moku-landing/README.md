@@ -11,3 +11,21 @@ python3 demos/moku-landing/build.py --open
 Command-1/2/3/4 分别重置、演示成功、失败及归档。
 独立 app 路径写入 `.build/moku-landing/app-path.txt`。
 预览不配置自动断言、截图验收或验证报告，也不启动 Runtime 或真实模型。
+
+## Nested workspace header replay
+
+Build the current Debug package and use a new output directory.
+
+```sh
+xcrun swift build --package-path app/macos
+python3 demos/moku-landing/verify_header.py --capture --output .build/nested-header-replay
+```
+
+The replay mounts the production workspace and its nested reading host with
+a temporary fixture catalog. It starts at 5×, visits 1× and 1.44×, and returns
+to 5× at two window heights. The JSON records native button hit targets,
+rendered filter bounds, header exclusion and whether a window-local wheel
+sample pans the canvas. It exercises the camera pinch path with an injected
+magnification. Optional captures show the fixture's offline workspace.
+Physical dragging, trackpad delivery and system fullscreen are outside this
+replay.

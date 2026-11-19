@@ -154,7 +154,14 @@ public enum NativeOverviewCameraGeometry {
 
     public static func fit(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
                            scaleCap: Double? = NativeOverviewGeometryPolicy.standard.scaleCap) -> NativeOverviewTransform? {
-        centeredTransform(content: content, usable: automaticFramingRegion(viewport), scaleCap: scaleCap)
+        var usable = automaticFramingRegion(viewport)
+        // At maximum workspace zoom the header and Dock can exhaust the packing
+        // height. Frame the cards on the visible canvas so navigation can start.
+        if usable.height == 0 {
+            usable.top = 0
+            usable.height = viewport.height
+        }
+        return centeredTransform(content: content, usable: usable, scaleCap: scaleCap)
     }
 
     public static func zoom(_ transform: NativeOverviewTransform, cursor: CGPoint, nextScale: Double,

@@ -12,7 +12,7 @@ When a Super Thread in the same view cites a task's latest run, Overview may sho
 
 A busy view collects reports to keep the canvas near 16 grid cells. A report with a cover and a collection each take two cells. Choose a smaller folder or tag to see more individual cards. Reports you haven't visited for a full day can also share a collection in a quiet view.
 
-Click a collection's page count to choose a report. After a quick look, its cover stays selected so you can click it again. Spending time reading a report or its linked conversations gives its individual card priority when you return. Shorter reports need less reading time. Returning for another look within a day also gives the report priority. If the other cards already fill the space, the report stays on the collection cover.
+Click a collection's page count to open its member panel. Scroll the cards and click a report to read it. **Close** stays in the upper-left corner while you scroll. At high window zoom, the cards fit in a single column below **Close**. After a quick look, the report's cover stays selected so you can click it again. Spending time reading a report or its linked conversations gives its individual card priority when you return. Shorter reports need less reading time. Returning for another look within a day also gives the report priority. If the other cards already fill the space, the report stays on the collection cover.
 
 ## Check progress and see what needs your attention
 
