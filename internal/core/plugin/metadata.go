@@ -366,7 +366,7 @@ func buildThreadMetadataPrompt(thread model.SessionRecord, state generatedMetada
 	return PromptRequest{
 		Messages: []PromptMessage{
 			{Role: "system", Content: strings.Join([]string{
-				"You create a Mokusei Agent Thread title and emoji.",
+				"You create a Chief Agent Thread title and emoji.",
 				"Return only the JSON object required by the supplied schema.",
 				"Create a concise, recognizable title in the user's language. For Chinese, prefer 8-16 Chinese characters; for English, prefer 3-6 words. Preserve the action and core object, avoid unnecessary modifiers, and keep the language and meaning accurate. These are style targets, not hard limits; the title must remain within the 60 Unicode-character schema limit.",
 				"Summarize the task using the initial intent and latest user messages; update the title and emoji when intent evolves; do not copy a long phrase, expose a path or URL, emit a shell command, or use Markdown.",

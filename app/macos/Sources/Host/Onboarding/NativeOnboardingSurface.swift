@@ -133,7 +133,7 @@ struct NativeOnboardingSurface: View {
                     Button { Task { await state.advance() } } label: {
                         HStack(spacing: 15) {
                             if state.busy { ProgressView().controlSize(.small) }
-                            Text(panelStep == .report ? locale.text("开始使用 Moku", "Start using Moku") : locale.text("继续", "Continue"))
+                            Text(panelStep == .report ? locale.text("开始使用 Chief", "Start using Chief") : locale.text("继续", "Continue"))
                             Image(systemName: "arrow.right")
                         }.font(.system(size: 12, weight: .medium)).frame(minWidth: 116, minHeight: 24)
                     }.buttonStyle(.glass).keyboardShortcut(.defaultAction)

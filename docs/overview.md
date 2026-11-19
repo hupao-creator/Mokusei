@@ -20,7 +20,7 @@ Cards keep the same size as more tasks appear. For example, twelve single cards 
 
 Click a task card to open its conversation. Task cards show statuses such as **Running**, **Completed**, and **Interrupted**. If a card shows a question or a permission request, you can respond there or open the conversation for context first. **Background work is still running** means work is continuing, even if you already have a reply.
 
-Overview hides a conversation if its latest run failed or Moku interrupted it. If a Moku note or report already links to the work, you can use that link to see what's still available. To send a follow-up on a task, use the input box at the bottom of its conversation.
+Overview hides a conversation if its latest run failed or Chief interrupted it. If a Chief note or report already links to the work, you can use that link to see what's still available. To send a follow-up on a task, use the input box at the bottom of its conversation.
 
 ## Archive a conversation
 
@@ -28,6 +28,6 @@ You can archive a task conversation after you stop it yourself, once it has no u
 
 Reports have their own archive action. It hides the report and its linked task conversations. Any work already in progress keeps running. [Tags, reports, and file changes](reports-tags-and-changes.md)
 
-When the workspace has no cards left, Moku opens its starting composer immediately as the last card fades away. With macOS **Reduce motion** enabled, the card disappears immediately.
+When the workspace has no cards left, Chief opens its input box as the last card fades away. With macOS **Reduce motion** enabled, the card disappears immediately.
 
 [Back to the product guide](README.md)

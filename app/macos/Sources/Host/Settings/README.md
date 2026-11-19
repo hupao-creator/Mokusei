@@ -13,11 +13,11 @@ selection, Undo, label activation and the draft close/save gate.
 | --- | --- |
 | General | Appearance/language popups, Agent/install buttons, cancel and destructive clear buttons |
 | Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons (Claude Code omits its local-detail refresh button; acquisition and load-error recovery remain) |
-| Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing preset capsules and custom text editor |
+| Chief | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing preset capsules and custom text editor |
 | Report and Tag | Off/inherited/independent filled choices, Harness seats, native execution fields and live capability animations |
 
 Report and Tag each expose three mutually exclusive choices: Agent off, Use
-Moku and Configure separately, in both Settings and onboarding. A contextual
+Chief and Configure separately, in both Settings and onboarding. A contextual
 explanation remains visible below the choices. Off hides execution fields and
 preserves both the underlying source mode and retained independent settings.
 Selecting either enabled choice updates enablement and source in one draft

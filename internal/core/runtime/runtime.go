@@ -292,10 +292,10 @@ func (r *Runtime) operational() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.closed {
-		return errors.New("Mokusei runtime is shutting down")
+		return errors.New("Chief runtime is shutting down")
 	}
 	if r.resetting {
-		return errors.New("Mokusei history is being cleared")
+		return errors.New("Chief history is being cleared")
 	}
 	return r.ctx.Err()
 }
@@ -303,7 +303,7 @@ func (r *Runtime) begin() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.closed || r.resetting {
-		return errors.New("Mokusei runtime is unavailable")
+		return errors.New("Chief runtime is unavailable")
 	}
 	if err := r.ctx.Err(); err != nil {
 		return err

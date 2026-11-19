@@ -17,8 +17,8 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 | [Sources/Composition](Sources/Composition/NativePlugins.swift) | Shared static Harness, Application and Sidecard registration |
 | [Sources/Core](Sources/Core/README.md) | Protocol, connections, public state, host files and offline recovery |
 | [Sources/Host/Overview](Sources/Host/Overview/README.md) | Layout, camera, selection and filtering |
-| [Sources/Host/MokuScene](Sources/Host/MokuScene/README.md) | Moku Dock, history composer, Talk, dispatch and notes |
-| [Sources/Host/Onboarding](Sources/Host/Onboarding/README.md) | First-run admission, role configuration and handoff into the Moku Dock |
+| [Sources/Host/MokuScene](Sources/Host/MokuScene/README.md) | Chief Dock, history composer, Talk, dispatch and notes |
+| [Sources/Host/Onboarding](Sources/Host/Onboarding/README.md) | First-run admission, role configuration and handoff into the Chief Dock |
 | [Sources/Host/Settings](Sources/Host/Settings/README.md) | Settings drafts, validation and autosave |
 | [Sources/Host/WindowNavigation](Sources/Host/WindowNavigation/README.md) | Window controls and reading navigation |
 | [Sources/Host/Interaction](Sources/Host/Interaction/README.md) | Typed workspace actions and observable state for script-driven interaction |

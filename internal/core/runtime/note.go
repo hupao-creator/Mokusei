@@ -34,7 +34,7 @@ func (r *Runtime) UpdateMokuNote(ctx context.Context, ownerID, text string, expe
 			return err
 		}
 		if !found || thread.ID != ownerID {
-			return errors.New("Moku note owner was replaced")
+			return errors.New("Chief note owner was replaced")
 		}
 		result.State = model.SnapshotNote(thread.Note)
 		if !sameNoteBasis(result.State.Basis, expected) {

@@ -57,12 +57,12 @@ public struct NativeApplicationBackgroundEditor: View {
             locale.text("停止当前 Agent 并暂停自动处理。保留已有数据、待处理任务和运行配置，重新开启后继续处理。",
                         "Stops this Agent and pauses automatic processing. Existing data, pending work and execution settings are kept; enabling resumes pending work.")
         case .inherit:
-            editorDrafts != nil ? locale.text("使用此设置页中的 Moku 配置，关闭设置时一并保存；保留已有的单独配置。",
-                        "Uses Moku’s configuration in this Settings draft. Both are saved when Settings closes; your separate settings are kept.") : locale.text("使用下方 Moku 当前保存的配置。修改 Moku 后，从下个任务开始采用新配置；保留已有的单独配置。",
-                        "Uses Moku’s saved settings shown below. Changes to Moku apply to the next task. Your separate settings are kept.")
+            editorDrafts != nil ? locale.text("使用此设置页中的 Chief 配置，关闭设置时一并保存；保留已有的单独配置。",
+                        "Uses Chief’s configuration in this Settings draft. Both are saved when Settings closes; your separate settings are kept.") : locale.text("使用下方 Chief 当前保存的配置。修改 Chief 后，从下个任务开始采用新配置；保留已有的单独配置。",
+                        "Uses Chief’s saved settings shown below. Changes to Chief apply to the next task. Your separate settings are kept.")
         case .independent:
-            locale.text("独立保存运行配置，修改从下个任务开始生效。切换到跟随 Moku 或关闭 Agent 后，仍保留此配置。",
-                        "Saves execution settings independently. Changes apply to the next task. These settings are kept when using Moku or turning the Agent off.")
+            locale.text("独立保存运行配置，修改从下个任务开始生效。切换到跟随 Chief 或关闭 Agent 后，仍保留此配置。",
+                        "Saves execution settings independently. Changes apply to the next task. These settings are kept when using Chief or turning the Agent off.")
         }
     }
 
@@ -71,7 +71,7 @@ public struct NativeApplicationBackgroundEditor: View {
             GlassEffectContainer {
                 HStack(spacing: 12) {
                     modeChoice(locale.text("不启用", "Agent off"), choice: .off)
-                    modeChoice(locale.text("跟随 Moku", "Use Moku"), choice: .inherit)
+                    modeChoice(locale.text("跟随 Chief", "Use Chief"), choice: .inherit)
                     modeChoice(locale.text("单独配置", "Configure separately"), choice: .independent)
                 }
             }
@@ -124,15 +124,15 @@ public struct NativeApplicationBackgroundEditor: View {
                     }.frame(height: 32).padding(.top, rowPadding)
                     VStack(alignment: .leading, spacing: 8) {
                         if !harnesses.contains(where: { $0.descriptor.id == host.descriptor.id }) {
-                            NativeSettingsNotice(message: locale.text("Moku 当前选择的 Agent 不可用，请先检查 Moku 配置。",
-                                "Moku’s selected Agent is unavailable. Check Moku configuration first."), kind: .warning)
+                            NativeSettingsNotice(message: locale.text("Chief 当前选择的 Agent 不可用，请先检查 Chief 配置。",
+                                "Chief’s selected Agent is unavailable. Check Chief configuration first."), kind: .warning)
                         }
                         harnessFields(host, effective: effective)
                     }.frame(maxWidth: .infinity)
                 }.padding(.vertical, 8)
                     .nativeSettingsEditorReady(harnesses.contains { $0.descriptor.id == host.descriptor.id })
             } else {
-                NativeSettingsNotice(message: locale.text("请先完成 Moku 配置。", "Complete Moku configuration first."))
+                NativeSettingsNotice(message: locale.text("请先完成 Chief 配置。", "Complete Chief configuration first."))
                     .nativeSettingsEditorReady(false)
             }
         } else {
@@ -173,8 +173,8 @@ public struct NativeApplicationBackgroundEditor: View {
             if let host = workspace.plugins.harnesses.modules.first(where: { $0.descriptor.id == effective.harnessPreference }) {
                 harnessFields(host, effective: effective)
             } else {
-                NativeSettingsNotice(message: locale.text("请先选择 Moku 的协调 Agent 并固定运行配置。",
-                    "Choose Moku’s coordinating Agent and save its execution settings first."))
+                NativeSettingsNotice(message: locale.text("请先选择 Chief 的协调 Agent 并固定运行配置。",
+                    "Choose Chief’s coordinating Agent and save its execution settings first."))
             }
         }
     }
@@ -224,7 +224,7 @@ public struct NativeApplicationBackgroundEditor: View {
     private func mokuSettings(_ source: JSONValue) throws -> ApplicationBackgroundExecutionSettings.Overrides {
         guard case .string(let preference) = source["moku"]?["hostHarnessPreference"],
               case .object(let harnesses) = source["moku"]?["executionHarnesses"] else {
-            throw PluginContractError("Invalid saved Moku execution settings")
+            throw PluginContractError("Invalid saved Chief execution settings")
         }
         return try .init(harnessPreference: preference, harnesses: harnesses)
     }

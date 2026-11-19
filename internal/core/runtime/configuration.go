@@ -94,7 +94,7 @@ func (r *Runtime) ReadMokuConfiguration() (MokuConfiguration, error) {
 		}
 	}
 	if thread == nil {
-		return MokuConfiguration{}, errors.New("Moku session is not initialized")
+		return MokuConfiguration{}, errors.New("Chief session is not initialized")
 	}
 	settings, revision, err := r.Settings()
 	if err != nil {
@@ -416,7 +416,7 @@ func (r *Runtime) captureExecutionProfiles(ctx context.Context, settings model.S
 						if e == nil && available.Available {
 							selectedPreference = current
 						} else if e == nil && available.RequiresExplicitSelection {
-							return settings, fmt.Errorf("current Moku host requires explicit compatible selection: %s", available.Reason)
+							return settings, fmt.Errorf("current Chief host requires explicit compatible selection: %s", available.Reason)
 						}
 					}
 				}

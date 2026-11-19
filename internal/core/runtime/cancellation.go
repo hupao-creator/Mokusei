@@ -190,7 +190,7 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 	if mokuTool {
 		if thread.Moku || thread.MokuHistory {
 			state.mu.Unlock()
-			return model.CancellationResult{}, errors.New("Moku tools may only target ordinary Agent Threads")
+			return model.CancellationResult{}, errors.New("Chief tools may only target ordinary Agent Threads")
 		}
 		expected = thread.CancellationID
 	}

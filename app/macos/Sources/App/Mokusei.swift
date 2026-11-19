@@ -29,7 +29,7 @@ struct Mokusei {
 private struct WorkspaceApp: App {
     @State private var session = WorkspaceSession()
     var body: some Scene {
-        Window("Mokusei", id: "workspace") {
+        Window("Chief", id: "workspace") {
             WorkspaceWindow(session: session)
                 .frame(minWidth: NativeGeometry.minimumWindow.width, minHeight: NativeGeometry.minimumWindow.height)
         }
@@ -247,7 +247,7 @@ private struct WorkspaceWindow: View {
                 if let model = session.model, let presentation = session.presentation {
                     NativeWorkspaceView(model: model, presentation: presentation).id(session.generation)
                         .environment(\.agentThreadEmojiUsesLiquidGlass, session.benchmarkEmojiGlass)
-                } else { ContentUnavailableView("无法打开 Mokusei", systemImage: "exclamationmark.triangle", description: Text(session.error ?? "")) }
+                } else { ContentUnavailableView("无法打开 Chief", systemImage: "exclamationmark.triangle", description: Text(session.error ?? "")) }
             }
             .frame(width: geometry.size.width / session.scale, height: geometry.size.height / session.scale)
             .environment(\.nativeWindowContentScale, CGFloat(session.scale))
@@ -257,7 +257,7 @@ private struct WorkspaceWindow: View {
         .modifier(NativeWorkspaceWindowSurface())
         .onAppear { session.start() }
         .onDisappear { session.quit() }
-        .alert("Mokusei", isPresented: Binding(get: { session.error != nil && session.model != nil }, set: { if !$0 { session.error = nil } })) {
+        .alert("Chief", isPresented: Binding(get: { session.error != nil && session.model != nil }, set: { if !$0 { session.error = nil } })) {
             if session.quitSettingsBlocked {
                 Button(session.model?.preferences.locale.text("继续编辑", "Keep Editing") ?? "Keep Editing", role: .cancel) {
                     session.error = nil; session.quitSettingsBlocked = false

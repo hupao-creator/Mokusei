@@ -38,7 +38,7 @@ struct NativeModelRoutingPreferences: View {
         case "economy": locale.text("仅使用高性价比模型。", "Use only cost-effective models.")
         case "balanced": locale.text("常规任务用高性价比模型，复杂任务用前沿模型。", "Use cost-effective models for routine tasks and frontier models for complex tasks.")
         case "performance": locale.text("仅使用前沿模型。", "Use only frontier models.")
-        default: locale.text("按你的偏好选择；留空由 Moku 决定。", "Use your preferences; leave blank to let Moku choose.")
+        default: locale.text("按你的偏好选择；留空由 Chief 决定。", "Use your preferences; leave blank to let Chief choose.")
         }
     }
     private func choose(_ id: String) {

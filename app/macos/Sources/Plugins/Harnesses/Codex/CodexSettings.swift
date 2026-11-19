@@ -475,7 +475,7 @@ private struct CodexProfileFields: View {
     private var permissionOptions: [NativeSettingsOption] {
         var options: [NativeSettingsOption] = []
         if !executionSnapshot || value.text("permissionMode") == nil {
-            options.append(.init(id: "", label: t(executionSnapshot ? "请选择权限模式" : value.nativePermissionsConfigured ? "Mokusei 默认" : "Mokusei 默认（approve-for-me）"),
+            options.append(.init(id: "", label: t(executionSnapshot ? "请选择权限模式" : value.nativePermissionsConfigured ? "Chief 默认" : "Chief 默认（approve-for-me）"),
                                  disabled: executionSnapshot))
         }
         return options + [
@@ -771,7 +771,7 @@ private let codexSettingsEnglish: [String: String] = [
     "用于新建 Thread 的原生配置默认值。": "Native defaults for new threads.",
     "跟随 Codex 默认模型": "Use the Codex default model", "请选择模型": "Select a model", "请选择 Thinking": "Select thinking",
     "Thinking 能力未知，无法执行": "Thinking capability is unknown; execution is unavailable", "服务层级": "Service tier",
-    "Mokusei 默认": "Mokusei default", "Mokusei 默认（approve-for-me）": "Mokusei default (approve-for-me)",
+    "Chief 默认": "Chief default", "Chief 默认（approve-for-me）": "Chief default (approve-for-me)",
     "ask-for-approval · 按需询问用户": "ask-for-approval · ask the user as needed", "approve-for-me · 原生自动审批": "approve-for-me · native auto review",
     "full-access · 完全访问": "full-access · full access", "正在读取 Codex 环境…": "Loading the Codex environment…",
     "已读取 Codex 环境": "Codex environment loaded", "Codex CLI 不可用": "Codex CLI unavailable",

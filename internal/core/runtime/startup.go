@@ -29,7 +29,7 @@ func (r *Runtime) settleStaleMokuTranscript(ctx context.Context) error {
 			for i, raw := range thread.Transcript {
 				var item map[string]any
 				if err := json.Unmarshal(raw, &item); err != nil {
-					return fmt.Errorf("invalid Moku transcript: %w", err)
+					return fmt.Errorf("invalid Chief transcript: %w", err)
 				}
 				dirty := false
 				if item["type"] == "message" && item["role"] == "assistant" && item["status"] == "streaming" {
@@ -39,7 +39,7 @@ func (r *Runtime) settleStaleMokuTranscript(ctx context.Context) error {
 				}
 				if item["type"] == "tool-operation" {
 					if _, complete := item["completedAt"]; !complete {
-						item["result"] = map[string]any{"error": "Moku runtime restarted before the tool completed"}
+						item["result"] = map[string]any{"error": "Chief runtime restarted before the tool completed"}
 						item["isError"] = true
 						item["completedAt"] = at
 						dirty = true

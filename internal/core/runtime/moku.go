@@ -119,7 +119,7 @@ func (r *Runtime) ReplaceConfiguredMokuThread(ctx context.Context, oldID string,
 }
 func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, settings json.RawMessage, cwd string, applied *MokuConfiguration, preserveNote, preserveHistory bool) (model.ThreadRecord, error) {
 	if r.config.Harnesses[harnessID] == nil {
-		return model.ThreadRecord{}, fmt.Errorf("unknown Moku harness: %s", harnessID)
+		return model.ThreadRecord{}, fmt.Errorf("unknown Chief harness: %s", harnessID)
 	}
 	if len(settings) == 0 {
 		settings = json.RawMessage(`{}`)
@@ -132,7 +132,7 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 		return model.ThreadRecord{}, err
 	}
 	now := time.Now().UnixMilli()
-	thread := model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: harnessID, SessionState: json.RawMessage("null"), Settings: settings, Cwd: cwd, CreatedAt: now, UpdatedAt: now}, Moku: true, Title: "Moku", Tags: []string{}, TagEmojis: map[string]string{}, Transcript: []json.RawMessage{}}
+	thread := model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: harnessID, SessionState: json.RawMessage("null"), Settings: settings, Cwd: cwd, CreatedAt: now, UpdatedAt: now}, Moku: true, Title: "Chief", Tags: []string{}, TagEmojis: map[string]string{}, Transcript: []json.RawMessage{}}
 	retiredOwners := []string{}
 	_, err = r.config.Store.Update(ctx, func(tx *store.Tx) error {
 		if applied != nil {
@@ -153,7 +153,7 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 				return e
 			}
 			if !ok || !old.Moku {
-				return errors.New("Moku session changed during replacement")
+				return errors.New("Chief session changed during replacement")
 			}
 			if preserveNote && old.Note != nil {
 				note := *old.Note
@@ -172,7 +172,7 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 				archived := true
 				archive.Archived = &archived
 				archive.Note = nil
-				archive.Title = "Moku history · " + old.HarnessID
+				archive.Title = "Chief history · " + old.HarnessID
 				archive.UpdatedAt = now
 				archive.Revision++
 				if err := tx.Put("thread:"+oldID, archive); err != nil {
@@ -227,7 +227,7 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 					return e
 				}
 				if current.Moku {
-					return errors.New("Moku session already exists")
+					return errors.New("Chief session already exists")
 				}
 			}
 		}
@@ -264,22 +264,22 @@ func (r *Runtime) ConfigureMokuThread(ctx context.Context, id string, expected i
 			return err
 		}
 		if !ok || !thread.Moku {
-			return errors.New("Moku session no longer exists")
+			return errors.New("Chief session no longer exists")
 		}
 		if thread.Revision != expected {
-			return model.NewError("REVISION_CONFLICT", "Moku configuration source changed")
+			return model.NewError("REVISION_CONFLICT", "Chief configuration source changed")
 		}
 		if e := thread.Observation.LatestExecution; e != nil && !e.Terminal() {
-			return errors.New("cannot replace active Moku configuration")
+			return errors.New("cannot replace active Chief configuration")
 		}
 		if thread.Observation.BackgroundWork != nil {
-			return errors.New("cannot replace Moku configuration with native background work")
+			return errors.New("cannot replace Chief configuration with native background work")
 		}
 		if err := r.assertAppliedConfiguration(tx, MokuConfiguration{AppliedSettings: applied, SettingsRevision: settingsRevision}); err != nil {
 			return err
 		}
 		if thread.HarnessID != harnessID && !model.IsNull(thread.SessionState) {
-			return errors.New("replace Moku session before changing its harness")
+			return errors.New("replace Chief session before changing its harness")
 		}
 		before := thread
 		thread.HarnessID = harnessID
@@ -328,7 +328,7 @@ func (r *Runtime) OpenMokuThread(ctx context.Context, id string, injection *plug
 		return err
 	}
 	if !t.Moku {
-		return errors.New("not a Moku session")
+		return errors.New("not a Chief session")
 	}
 	_, err = r.openThread(ctx, t, injection)
 	return err
@@ -383,7 +383,7 @@ func (r *Runtime) SendMokuThread(ctx context.Context, id string, input model.Age
 		return SendResult{}, err
 	}
 	if !t.Moku {
-		return SendResult{}, errors.New("not a Moku session")
+		return SendResult{}, errors.New("not a Chief session")
 	}
 	ctx, entries, batch, err := r.prepareMokuDeliveries(ctx, entries)
 	if err != nil {

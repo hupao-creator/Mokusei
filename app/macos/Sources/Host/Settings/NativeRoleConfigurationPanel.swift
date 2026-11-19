@@ -15,10 +15,10 @@ enum NativeSettingsRole: String {
         }
     }
 
-    var tabLabel: String { rawValue == "moku" ? "Moku" : rawValue.capitalized }
+    var tabLabel: String { rawValue == "moku" ? "Chief" : rawValue.capitalized }
     func title(_ locale: DesktopLocale) -> String {
         switch self {
-        case .moku: "Moku"
+        case .moku: "Chief"
         case .tag: locale.text("找到想找的会话", "Find your conversations")
         case .report: locale.text("从文字到图示", "From text to pictures")
         }

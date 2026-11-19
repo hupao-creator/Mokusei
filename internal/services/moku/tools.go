@@ -32,25 +32,25 @@ func (c *Coordinator) tools(owner string, description ThreadCreationDescription)
 			stale := c.generation != generation
 			c.mu.Unlock()
 			if stale {
-				return nil, errors.New("Moku tool belongs to a retired settings generation")
+				return nil, errors.New("Chief tool belongs to a retired settings generation")
 			}
 			record, err := c.current()
 			if err != nil {
 				return nil, err
 			}
 			if record.ID != owner {
-				return nil, errors.New("Moku tool belongs to a replaced Thread")
+				return nil, errors.New("Chief tool belongs to a replaced Thread")
 			}
 			execution := record.Observation.LatestExecution
 			if execution == nil || execution.Terminal() {
-				return nil, errors.New("Moku tool has no active execution")
+				return nil, errors.New("Chief tool has no active execution")
 			}
 			c.mu.Lock()
 			scope, ok := c.scopes[execution.ExecutionID]
 			stale = c.generation != generation
 			c.mu.Unlock()
 			if !ok || stale || scope.threadID != owner {
-				return nil, errors.New("Moku tool has no active execution scope")
+				return nil, errors.New("Chief tool has no active execution scope")
 			}
 			if err = scope.ctx.Err(); err != nil {
 				return nil, err
@@ -62,7 +62,7 @@ func (c *Coordinator) tools(owner string, description ThreadCreationDescription)
 				return nil, err
 			}
 			if len(call.Arguments) > 8*1024*1024 || !json.Valid(call.Arguments) {
-				return nil, errors.New("Moku tool arguments must be bounded JSON")
+				return nil, errors.New("Chief tool arguments must be bounded JSON")
 			}
 			arguments, err := normalizeToolArguments(binding.InputSchema, call.Arguments)
 			if err != nil {
@@ -80,7 +80,7 @@ func (c *Coordinator) tools(owner string, description ThreadCreationDescription)
 				result, invokeErr = c.executeTool(linked, owner, binding.Name, arguments, description)
 			}
 			if invokeErr == nil && (len(result) > 8*1024*1024 || !json.Valid(result)) {
-				invokeErr = errors.New("Moku tool result exceeds the JSON boundary")
+				invokeErr = errors.New("Chief tool result exceeds the JSON boundary")
 			}
 			if invokeErr != nil {
 				message := invokeErr.Error()
@@ -109,14 +109,14 @@ func toolInvocationFailure(invokeErr, recordErr error) error {
 	case invokeErr == nil:
 		return recordErr
 	default:
-		return fmt.Errorf("%v; Moku tool record failed: %w", invokeErr, recordErr)
+		return fmt.Errorf("%v; Chief tool record failed: %w", invokeErr, recordErr)
 	}
 }
 func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw json.RawMessage, description ThreadCreationDescription) (result json.RawMessage, err error) {
 	defer func() {
 		if recover() != nil {
 			result = nil
-			err = errors.New("Moku tool handler failed")
+			err = errors.New("Chief tool handler failed")
 		}
 	}()
 	if err := ctx.Err(); err != nil {
@@ -185,7 +185,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			return h.Settings().ResolveThread(ctx, plugin.ResolveSettingsRequest{Merged: defaults, Requested: options, Cwd: cwd})
 		}
 		if c.config.CreateThread == nil {
-			return nil, errors.New("Moku thread creation unavailable")
+			return nil, errors.New("Chief thread creation unavailable")
 		}
 		var worktree *model.WorktreeOptions
 		if target.Worktree != nil && *target.Worktree {
@@ -268,7 +268,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			return nil, err
 		}
 		if record.Moku || record.MokuHistory {
-			return nil, errors.New("Moku tools may only target ordinary Agent Threads")
+			return nil, errors.New("Chief tools may only target ordinary Agent Threads")
 		}
 		switch name {
 		case "get_thread_status":
@@ -306,7 +306,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			return nil, plugin.CallerError(err)
 		}
 		if c.config.UpdateNote == nil {
-			return nil, errors.New("Moku note update unavailable")
+			return nil, errors.New("Chief note update unavailable")
 		}
 		updated, err := c.config.UpdateNote(ctx, owner, text, expected)
 		if err != nil {
@@ -329,7 +329,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 		}
 		return encode(map[string]any{"ok": true})
 	}
-	return nil, errors.New("Unknown Moku tool")
+	return nil, errors.New("Unknown Chief tool")
 }
 
 // parseNoteUpdate is the protocol boundary for update_note. The whole note is
@@ -405,7 +405,7 @@ func (c *Coordinator) target(ctx context.Context, id string, description ThreadC
 		return nil, nil, plugin.CallerError(fmt.Errorf("Harness is absent from the current Thread creation schema: %s", id))
 	}
 	if c.config.HarnessEnabled != nil && !c.config.HarnessEnabled(id) {
-		return nil, nil, plugin.CallerError(errors.New("Moku Target Harness is disabled"))
+		return nil, nil, plugin.CallerError(errors.New("Chief Target Harness is disabled"))
 	}
 	harness := c.config.Harnesses[id]
 	if harness == nil {

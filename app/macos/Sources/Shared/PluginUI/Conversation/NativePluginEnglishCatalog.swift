@@ -92,7 +92,7 @@ enum NativePluginEnglishCatalog {
         "输入你的回答": "Enter your answer",
         "输入回答": "Enter an answer",
         "恢复默认": "Restore defaults",
-        "Moku Host": "Moku host",
+        "Chief Host": "Chief host",
         "提交": "Submit",
         "该请求已失效。": "This request has expired.",
         "补充": "Follow-up",

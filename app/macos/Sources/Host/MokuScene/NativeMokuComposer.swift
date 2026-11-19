@@ -262,7 +262,7 @@ struct NativeMokuComposerInput: View {
         }
         return targetsThread
             ? localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread")
-            : localize("输入内容将发送给 Moku", "Input is sent to Moku")
+            : localize("输入内容将发送给 Chief", "Input is sent to Chief")
     }
     @ViewBuilder private var actions: some View {
         if running && !targetsThread { stopButton }
@@ -317,7 +317,7 @@ struct NativeMokuComposerInput: View {
             .contentShape(Rectangle())
     }
     private var stopLabel: String {
-        targetsThread ? localize("停止此 Thread", "Stop this thread") : localize("停止 Moku", "Stop Moku")
+        targetsThread ? localize("停止此 Thread", "Stop this thread") : localize("停止 Chief", "Stop Chief")
     }
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
 }
@@ -422,7 +422,7 @@ public struct NativeMokuHistoryComposer: View {
             .task(id: focusEnabled && !disabled) {
                 await mentions.load(enabled: focusEnabled && !disabled, using: loadMentionDirectories)
             }
-            .accessibilityElement(children: .contain).accessibilityLabel("Moku")
+            .accessibilityElement(children: .contain).accessibilityLabel("Chief")
             .accessibilityIdentifier("moku-history-capsule")
             .environment(\.colorScheme, .dark)
     }

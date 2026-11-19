@@ -26,6 +26,6 @@ When archiving leaves the collection open, the archived card briefly fades away.
 
 ## Check Git changes on a task card
 
-For projects that use Git, some task cards show the branch, how many files changed, and how many lines were added or removed. The summary is hidden when Mokusei knows that both line counts are zero. If the counts are temporarily unavailable, the card says so. The summary is for reference. Clicking the task card opens its conversation.
+For projects that use Git, some task cards show the branch, how many files changed, and how many lines were added or removed. The summary is hidden when Chief knows that both line counts are zero. If the counts are temporarily unavailable, the card says so. The summary is for reference. Clicking the task card opens its conversation.
 
 [Back to the product guide](README.md)

@@ -311,7 +311,7 @@ private struct ClaudePermissionField: View {
     @Environment(\.locale) private var locale
     var body: some View {
         ClaudeSelectionField(label:claudeLocalized("权限模式",locale:locale),value:$value,
-            options:[NativeSettingsOption(id:"",label:claudeLocalized(required ? "请选择权限模式" : "Mokusei 默认（auto）",locale:locale),disabled:required)] + claudePermissions.map { NativeSettingsOption(id:JSONText($0),label:$0 + " · " + claudeLocalized(claudePermissionLabels[$0] ?? $0,locale:locale)) }).nativeSettingsControl("permissionMode").disabled(disabled)
+            options:[NativeSettingsOption(id:"",label:claudeLocalized(required ? "请选择权限模式" : "Chief 默认（auto）",locale:locale),disabled:required)] + claudePermissions.map { NativeSettingsOption(id:JSONText($0),label:$0 + " · " + claudeLocalized(claudePermissionLabels[$0] ?? $0,locale:locale)) }).nativeSettingsControl("permissionMode").disabled(disabled)
     }
 
 }

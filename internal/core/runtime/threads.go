@@ -155,7 +155,7 @@ func (r *Runtime) openThread(ctx context.Context, t model.ThreadRecord, injectio
 
 func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRecord, injection *plugin.Injection, before func(context.Context) error) (*threadHandle, error) {
 	if t.MokuHistory {
-		return nil, errors.New("Moku history is read-only and cannot reopen a native session")
+		return nil, errors.New("Chief history is read-only and cannot reopen a native session")
 	}
 	if err := r.operational(); err != nil {
 		return nil, err
@@ -275,7 +275,7 @@ func (r *Runtime) retireMokuRecoveryHandle(ctx context.Context, owner *threadHan
 		cancellation.mu.Lock()
 		defer cancellation.mu.Unlock()
 		if cancellation.cancelling {
-			return model.NewError("EXECUTION_CANCELLING", "Moku recovery is being stopped; retry after cancellation finishes")
+			return model.NewError("EXECUTION_CANCELLING", "Chief recovery is being stopped; retry after cancellation finishes")
 		}
 		owner.admissionMu.Lock()
 		defer owner.admissionMu.Unlock()
@@ -292,15 +292,15 @@ func (r *Runtime) retireMokuRecoveryHandle(ctx context.Context, owner *threadHan
 			return err
 		}
 		if e := current.Observation.LatestExecution; e != nil && !e.Terminal() {
-			return model.NewError("MOKU_RECOVERY_BUSY", "Moku recovery still has an active execution; stop or wait before preparing")
+			return model.NewError("MOKU_RECOVERY_BUSY", "Chief recovery still has an active execution; stop or wait before preparing")
 		}
 		if current.Observation.BackgroundWork != nil {
-			return model.NewError("MOKU_RECOVERY_BUSY", "Moku recovery still has native background work; stop or wait before preparing")
+			return model.NewError("MOKU_RECOVERY_BUSY", "Chief recovery still has native background work; stop or wait before preparing")
 		}
 		owner.mu.Lock()
 		defer owner.mu.Unlock()
 		if owner.activeSends != 0 || owner.admission != nil {
-			return model.NewError("MOKU_RECOVERY_BUSY", "Moku recovery still has pending native input")
+			return model.NewError("MOKU_RECOVERY_BUSY", "Chief recovery still has pending native input")
 		}
 		// Future native Accept observes closed before a new owner can open.
 		owner.closed = true
@@ -355,7 +355,7 @@ func (h *threadHandle) commit(ctx context.Context, state json.RawMessage, cancel
 	r := h.runtime
 	err = r.updateSessionThread(ctx, h.id, func(t *model.ThreadRecord) error {
 		if t.MokuHistory {
-			return errors.New("Moku history is read-only")
+			return errors.New("Chief history is read-only")
 		}
 		if err := h.ownsState(); err != nil {
 			return err
@@ -439,7 +439,7 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 			// Open can invoke native callbacks synchronously while the caller
 			// owns configuration admission. Never deadlock or start work before
 			// the prepared handle has been published.
-			return "", &plugin.MokuAdmissionRejectedError{Cause: errors.New("Moku native execution is blocked until session preparation completes")}
+			return "", &plugin.MokuAdmissionRejectedError{Cause: errors.New("Chief native execution is blocked until session preparation completes")}
 		}
 	}
 	// Moku's native starts must see one saved/applied configuration through
@@ -498,7 +498,7 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 		return "", err
 	}
 	if t.MokuHistory {
-		return "", errors.New("Moku history cannot admit native execution")
+		return "", errors.New("Chief history cannot admit native execution")
 	}
 	if e := t.Observation.LatestExecution; e != nil && !e.Terminal() {
 		return "", errors.New("another execution is already active")
@@ -859,7 +859,7 @@ func (r *Runtime) sendThread(ctx context.Context, id string, input model.AgentIn
 		return SendResult{}, err
 	}
 	if thread.Moku {
-		return SendResult{}, errors.New("Moku input must be routed through its coordinator")
+		return SendResult{}, errors.New("Chief input must be routed through its coordinator")
 	}
 	if err := r.begin(); err != nil {
 		return SendResult{}, err
@@ -903,7 +903,7 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 		return SendResult{}, err
 	}
 	if t.MokuHistory {
-		return SendResult{}, errors.New("Moku history is read-only")
+		return SendResult{}, errors.New("Chief history is read-only")
 	}
 	if _, err := validateCwd(effectiveCwd(t)); err != nil {
 		return SendResult{}, err
@@ -1339,7 +1339,7 @@ func (r *Runtime) ReadThread(ctx context.Context, id, question string) (string, 
 		return "", err
 	}
 	if t.Moku || t.MokuHistory {
-		return "", errors.New("Moku conversations cannot start a native history question")
+		return "", errors.New("Chief conversations cannot start a native history question")
 	}
 	owner, err := r.openThread(ctx, t, nil)
 	if err != nil {
@@ -1431,7 +1431,7 @@ func (r *Runtime) DeleteThread(ctx context.Context, id string) error {
 		return err
 	}
 	if initial.Moku {
-		return errors.New("use moku:clear to clear the Moku thread")
+		return errors.New("use moku:clear to clear the Chief thread")
 	}
 	if initial.Observation.BackgroundWork != nil {
 		return errors.New("thread has native background work")
@@ -1463,7 +1463,7 @@ func (r *Runtime) DeleteThread(ctx context.Context, id string) error {
 		return err
 	}
 	if t.Moku {
-		return errors.New("use moku:clear to clear the Moku thread")
+		return errors.New("use moku:clear to clear the Chief thread")
 	}
 	if t.Observation.BackgroundWork != nil {
 		return errors.New("thread has native background work")

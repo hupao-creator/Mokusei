@@ -254,13 +254,13 @@ func probeVersion(executable, cwd string, env []string) (string, error) {
 	version := strings.TrimSpace(stdout.String())
 	parts := stableVersion.FindStringSubmatch(version)
 	if len(parts) != 4 {
-		return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.99.0. Check pi --version")
+		return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Chief requires a stable Pi release >= 0.99.0. Check pi --version")
 	}
 	numbers := make([]int64, 3)
 	for i, part := range parts[1:] {
 		n, err := strconv.ParseInt(part, 10, 64)
 		if err != nil || n > 9007199254740991 {
-			return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.99.0. Check pi --version")
+			return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Chief requires a stable Pi release >= 0.99.0. Check pi --version")
 		}
 		numbers[i] = n
 	}

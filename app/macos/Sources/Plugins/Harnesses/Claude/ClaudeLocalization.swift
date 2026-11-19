@@ -48,7 +48,7 @@ let claudeEnglish: [String:String] = [
     "Claude Thread 状态不可用": "Claude thread state is unavailable",
     "Claude 执行活动": "Claude execution activity",
     "MCP Server：{serverName}": "MCP server: {serverName}",
-    "Mokusei 默认（auto）": "Mokusei default (auto)",
+    "Chief 默认（auto）": "Chief default (auto)",
     "保存后的配置会在下一次 Claude 操作时生效；Primary Native Session 不会被替换。": "Saved settings take effect on the next Claude operation; the primary native session is not replaced.",
     "此请求需要在 Claude 提供的外部页面中完成。": "Complete this request on the external page provided by Claude.",
     "打开 Claude Thread：{title}": "Open Claude thread: {title}",

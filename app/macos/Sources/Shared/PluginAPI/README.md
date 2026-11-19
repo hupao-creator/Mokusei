@@ -10,10 +10,13 @@ action contract; Sidecard and Runtime message capabilities are independent.
 
 Moku's `ThreadNote` projection includes a text revision, an independent `readingRevision` CAS counter and at most one server-authored `lastExposure` with the exact earlier text. The strict decoder rejects malformed or inconsistent evidence. An exposure means the UI completed eligible foreground viewport coverage; it is not user approval or proof of understanding. The Host derives its update indicator from this projection, never from a local seen file.
 
-`HarnessThread.mokuHistory` identifies a previous Moku conversation retained
+`HarnessThread.mokuHistory` identifies a previous Chief conversation retained
 after switching Harness. It requires an archived envelope without the current
 Moku flag or note. Hosts use this validated field for the read-only history
 selector; the Runtime rejects execution, settings changes and unarchive attempts.
+The client displays exact generated coordinator titles as Chief, including
+retained and offline records. The original JSON, ordinary thread titles and
+conversation content keep their stored values.
 
 [ApplicationContracts.swift](ApplicationContracts.swift), [ApplicationCapabilities.swift](ApplicationCapabilities.swift) and [ApplicationRegistry.swift](ApplicationRegistry.swift) describe native application surfaces and injected operations. Runtime transactions and background-agent authority remain in the [Go Application host](../../../../../internal/hosts/applicationhost/README.md).
 

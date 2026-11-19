@@ -263,7 +263,7 @@ func (b *hostBridge) read() {
 			if err != nil {
 				response["error"] = err.Error()
 			} else if !json.Valid(result) {
-				response["error"] = "Mokusei tool returned invalid JSON"
+				response["error"] = "Chief tool returned invalid JSON"
 			} else {
 				response["result"] = result
 			}
@@ -283,7 +283,7 @@ func executeHostTool(ctx context.Context, binding plugin.ToolBinding, call plugi
 	defer func() {
 		if recover() != nil {
 			result = nil
-			err = errors.New("Mokusei tool failed unexpectedly")
+			err = errors.New("Chief tool failed unexpectedly")
 		}
 	}()
 	if err := ctx.Err(); err != nil {

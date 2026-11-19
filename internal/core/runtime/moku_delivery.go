@@ -104,7 +104,7 @@ func (r *Runtime) prepareMokuDeliveries(ctx context.Context, entries []plugin.Co
 	return ctx, entries, batch, nil
 }
 
-var errMokuDeliveryUnavailable = errors.New("Moku delivery already consumed or awaiting reconciliation")
+var errMokuDeliveryUnavailable = errors.New("Chief delivery already consumed or awaiting reconciliation")
 
 func (b *mokuDeliveryBatch) attempt(ctx context.Context) error {
 	if len(b.deliveries) == 0 {
@@ -183,7 +183,7 @@ func (b *mokuDeliveryBatch) releaseUnconsumed(ctx context.Context, cause error) 
 				continue
 			}
 			if !delivery.Uncertain || delivery.AttemptEpoch != b.epoch {
-				return errors.New("Moku delivery attempt changed before retry")
+				return errors.New("Chief delivery attempt changed before retry")
 			}
 			delivery.Uncertain, delivery.AttemptEpoch = false, ""
 			if err := tx.Put(mokuDeliveryPrefix+delivery.ID, delivery); err != nil {

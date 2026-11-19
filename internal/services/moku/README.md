@@ -1,4 +1,7 @@
-# Moku coordination
+# Chief coordination
+
+Chief is the assistant’s display and prompt identity. The implementation uses
+`moku` for its module, tool namespace, persisted role fields and command names.
 
 [coordinator.go](coordinator.go) owns Moku's conversation, admission queue, saved/applied execution configuration and native handle. [ports.go](ports.go) declares injected Runtime capabilities. Ordinary tasks remain Runtime-owned; Moku coordinates them through admitted tools and lifecycle facts.
 
@@ -157,7 +160,7 @@ histories are not rewritten; updated guidance is injected on session preparation
 
 ## System prompt budget and injection boundary
 
-[DefaultSystemPrompt](prompt.go) contains exactly three English sentences covering
+[DefaultSystemPrompt](prompt.go) names the assistant Chief and covers
 coordination, invisible assistant replies and the distinction between information
 for Moku itself and information needed by delegated Agent Threads. Count the
 complete built-in string by sentence-ending periods, not Go string literals or

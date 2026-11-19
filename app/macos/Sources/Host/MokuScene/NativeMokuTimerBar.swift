@@ -17,7 +17,7 @@ struct NativeMokuTimerBar: View {
                         .fill(.primary).frame(width: 34, height: 38)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(localize("Moku 提醒", "Moku timer")).font(.caption.weight(.semibold))
+                        Text(localize("Chief 提醒", "Chief timer")).font(.caption.weight(.semibold))
                         NativeMokuTalkContent(message: .init(id: message.id, text: message.text))
                             .frame(height: min(NativeMokuTalkTypography.maximumHeight,
                                                NativeMokuTalkTypography.height(message.text, width: 180)))
@@ -43,7 +43,7 @@ struct NativeMokuTimerBar: View {
             .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.orange.opacity(0.6)))
             .background(NativeClickExclusionRegion(exclusions: exclusions))
             .accessibilityElement(children: .contain)
-            .accessibilityLabel(localize("Moku 提醒，等待确认", "Moku timer, awaiting acknowledgment"))
+            .accessibilityLabel(localize("Chief 提醒，等待确认", "Chief timer, awaiting acknowledgment"))
             .accessibilityIdentifier("moku-timer")
             .padding(.horizontal, 16).padding(.vertical, 8)
             // No timeout, Escape or outside-click dismissal.

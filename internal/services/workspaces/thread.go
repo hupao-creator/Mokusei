@@ -32,7 +32,7 @@ func (m *Manager) Validate(ctx context.Context, path string) (string, error) {
 			moku = filepath.Clean(m.paths.MokuCwd)
 		}
 		if within(moku, cwd) {
-			return "", errors.New("ordinary thread cannot use Moku workspace")
+			return "", errors.New("ordinary thread cannot use Chief workspace")
 		}
 	}
 	return cwd, ctx.Err()
@@ -43,7 +43,7 @@ func (m *Manager) validatePaths(ctx context.Context, t model.ThreadRecord) error
 			return err
 		}
 		if m.paths.MokuCwd == "" || t.Worktree != nil {
-			return errors.New("Moku requires its dedicated workspace without a managed worktree")
+			return errors.New("Chief requires its dedicated workspace without a managed worktree")
 		}
 		expected, err := canonical(m.paths.MokuCwd)
 		if err != nil {
@@ -54,14 +54,14 @@ func (m *Manager) validatePaths(ctx context.Context, t model.ThreadRecord) error
 			return err
 		}
 		if actual != t.Cwd || actual != expected {
-			return errors.New("Moku workspace canonical identity changed")
+			return errors.New("Chief workspace canonical identity changed")
 		}
 		info, err := os.Stat(actual)
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() {
-			return errors.New("Moku workspace is not a directory")
+			return errors.New("Chief workspace is not a directory")
 		}
 		return ctx.Err()
 	}

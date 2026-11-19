@@ -31,7 +31,7 @@ public enum MokuGeometry {
     static func colorComponents(_ color: NativePlatformColor) -> (red: Double, green: Double, blue: Double) {
         let space = CGColorSpace(name: CGColorSpace.sRGB)!
         guard let components = color.cgColor.converted(to: space, intent: .defaultIntent, options: nil)?.components,
-              components.count >= 3 else { preconditionFailure("Moku palette must contain sRGB colors") }
+              components.count >= 3 else { preconditionFailure("Chief palette must contain sRGB colors") }
         return (components[0], components[1], components[2])
     }
 

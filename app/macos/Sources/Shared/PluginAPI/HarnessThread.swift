@@ -52,7 +52,7 @@ public struct HarnessThread: Hashable, Sendable {
         pendingInput = try r.optionalBool("pendingInput") ?? false
         createdAt = try r.number("createdAt", minimum: 0)
         updatedAt = try r.number("updatedAt", minimum: createdAt)
-        title = try r.text("title")
+        let storedTitle = try r.text("title")
         var titles: [JSONText: JSONText] = [:]
         if let value = r.values["executionTitles"] {
             let entries = try ThreadContractReader(value, path: "thread.executionTitles")
@@ -72,22 +72,31 @@ public struct HarnessThread: Hashable, Sendable {
         archived = try r.optionalBool("archived")
         moku = try r.optionalBool("moku")
         mokuHistory = try r.optionalBool("mokuHistory") ?? false
+        // Built-in names can be present in retained or offline records. Match
+        // the role and exact generated title so ordinary titles stay literal.
+        if moku == true, storedTitle == "Moku" {
+            title = "Chief"
+        } else if mokuHistory, storedTitle == JSONText("Moku history · " + harnessID.string) {
+            title = JSONText("Chief history · " + harnessID.string)
+        } else {
+            title = storedTitle
+        }
         note = try r.values["note"].map { try ThreadNote(json: $0) }
         transcript = r.values["transcript"]
         // The note is Moku's own milestone recap; an ordinary thread must never
         // publish one, because only Moku may author it.
         if note != nil, moku != true {
-            throw PluginContractError("thread.note requires a Moku thread")
+            throw PluginContractError("thread.note requires a Chief thread")
         }
         if mokuHistory, moku == true || archived != true || note != nil {
-            throw PluginContractError("thread.mokuHistory requires a read-only archived conversation without a current Moku note")
+            throw PluginContractError("thread.mokuHistory requires a read-only archived conversation without a current Chief note")
         }
         if let moku {
             guard moku, archived == nil else {
                 throw PluginContractError("thread.moku must be true and cannot carry archived")
             }
             guard transcript?.isArray == true else {
-                throw PluginContractError("thread.transcript must be an array for Moku")
+                throw PluginContractError("thread.transcript must be an array for Chief")
             }
         }
         self.json = json

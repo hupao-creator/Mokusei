@@ -400,7 +400,7 @@ func bridgeFailureMessage(err error) string {
 		message = string(runes[:2000]) + "..."
 	}
 	if message == "" {
-		return "Mokusei bridge operation failed"
+		return "Chief bridge operation failed"
 	}
 	return message
 }

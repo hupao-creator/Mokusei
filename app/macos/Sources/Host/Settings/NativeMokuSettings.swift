@@ -89,7 +89,7 @@ import SwiftUI
                       selectedHost.flatMap({ model.installations[$0]?.status }) != .error {
                 SettingsNotice(selectedHost == nil
                     ? locale.text("当前值不可用，请选择", "The current value is unavailable. Please choose one.")
-                    : locale.text("当前 Moku provider 值不可用，请重新选择。", "The selected Moku provider is unavailable. Please choose another."), error: selectedHost != nil)
+                    : locale.text("当前 Chief provider 值不可用，请重新选择。", "The selected Chief provider is unavailable. Please choose another."), error: selectedHost != nil)
             }
             if includesRoutingGuidance, !(rosterReady && !rosterPending && host != nil) {
                 routingGuidance
@@ -130,7 +130,7 @@ import SwiftUI
             }), locale: locale)
             if NativeModelRoutingPreferences.selectedPreset(in: moku) == "custom" {
                 VStack(alignment: .leading, spacing: 12) {
-                    textArea(field: "routingGuidance", label: locale.text("告诉 Moku 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。", "Tell Moku how to choose models for delegated tasks, for example favor speed for simple tasks and reasoning ability for complex tasks."), height: 112)
+                    textArea(field: "routingGuidance", label: locale.text("告诉 Chief 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。", "Tell Chief how to choose models for delegated tasks, for example favor speed for simple tasks and reasoning ability for complex tasks."), height: 112)
                     if let error = model.draft.validationError("routingGuidance", locale: locale) {
                         SettingsNotice(error, error: true)
                     }
@@ -211,7 +211,7 @@ import SwiftUI
                             .disabled(!supported)
                             .focusable(supported && (selected || (host == nil && pickable.first(where: { $0.descriptor.threadCapabilities.canHostMoku })?.descriptor.id == harness.descriptor.id)))
                             .focused($focusedHost, equals: id)
-                            .accessibilityLabel(harness.descriptor.displayName.string + (supported ? " · " + hostStatusText(id) : locale.text("（不支持 Moku Host）", " (does not support Moku Host)")))
+                            .accessibilityLabel(harness.descriptor.displayName.string + (supported ? " · " + hostStatusText(id) : locale.text("（不支持 Chief Host）", " (does not support Chief Host)")))
                             .accessibilityAddTraits(selected ? .isSelected : [])
                             .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow, .home, .end]) { event in
                                 navigateHost(current: id, key: event.key); return .handled

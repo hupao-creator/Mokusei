@@ -14,7 +14,7 @@ func (r *Runtime) beginServiceAdmission(continuation bool) (func(), error) {
 	r.serviceMu.Lock()
 	if r.mokuHarnessChanging {
 		r.serviceMu.Unlock()
-		return nil, model.NewError("MOKU_HARNESS_CHANGING", "Moku's harness is changing; retry after the switch completes")
+		return nil, model.NewError("MOKU_HARNESS_CHANGING", "Chief's harness is changing; retry after the switch completes")
 	}
 	if r.serviceDraining && !continuation {
 		r.serviceMu.Unlock()
@@ -39,7 +39,7 @@ func (r *Runtime) beginServiceAdmission(continuation bool) (func(), error) {
 func (r *Runtime) beginMokuHarnessChange(allowMokuInput bool) (func(), error) {
 	r.serviceMu.Lock()
 	defer r.serviceMu.Unlock()
-	busy := model.NewError("MOKU_HARNESS_BUSY", "Finish active Agent Threads and Moku work before changing Moku's harness")
+	busy := model.NewError("MOKU_HARNESS_BUSY", "Finish active Agent Threads and Chief work before changing Chief's harness")
 	if r.mokuHarnessChanging || r.serviceAdmissions != 0 {
 		return nil, busy
 	}

@@ -46,15 +46,15 @@ type CreateRequest struct {
 func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCreationDescription, error) {
 	result := ThreadCreationDescription{CatalogIdentities: map[string]string{}}
 	if len(targets) == 0 {
-		return result, errors.New("Moku 至少需要一个 Target Harness")
+		return result, errors.New("Chief 至少需要一个 Target Harness")
 	}
 	seen := map[string]bool{}
 	for _, target := range targets {
 		if target.HarnessID == "" {
-			return result, errors.New("Moku Target Harness 不能为空")
+			return result, errors.New("Chief Target Harness 不能为空")
 		}
 		if seen[target.HarnessID] {
-			return result, errors.New("Moku Target Harness 不能重复")
+			return result, errors.New("Chief Target Harness 不能重复")
 		}
 		seen[target.HarnessID] = true
 		result.TargetHarnessIDs = append(result.TargetHarnessIDs, target.HarnessID)
@@ -65,7 +65,7 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 	// prompt to its first character. Length bounds stay, and ParseCreateRequest
 	// still rejects a trimmed-empty prompt.
 	promptSchema := map[string]any{"type": "string", "minLength": 1, "maxLength": ThreadCreationPromptMaxCharacters, "description": "A self-contained first task with all necessary context and expected results. " + threadTaskPromptGuidance}
-	cwdSchema := map[string]any{"type": "string", "minLength": 1, "maxLength": ThreadCreationCwdMaxCharacters, "description": fmt.Sprintf("An existing absolute directory only when the task requires that workspace. Otherwise use worktree:false and omit this field: Mokusei creates a unique temporary directory and returns its absolute path as workspace.cwd. Do not choose /tmp, /private/tmp, or invent a scratch path as a substitute for omission. Do not use the Moku workspace %s.", cwd)}
+	cwdSchema := map[string]any{"type": "string", "minLength": 1, "maxLength": ThreadCreationCwdMaxCharacters, "description": fmt.Sprintf("An existing absolute directory only when the task requires that workspace. Otherwise use worktree:false and omit this field: Chief creates a unique temporary directory and returns its absolute path as workspace.cwd. Do not choose /tmp, /private/tmp, or invent a scratch path as a substitute for omission. Do not use the Chief workspace %s.", cwd)}
 	worktreeSchema := map[string]any{"type": "boolean", "description": threadCreationWorktreeGuidance}
 	worktreeNameSchema := map[string]any{"type": "string", "maxLength": ThreadCreationWorktreeNameMaxCharacters, "not": map[string]any{"pattern": "\u0000"}, "description": "Optional human-readable name for the managed Git worktree directory when worktree:true. Unicode letters and digits are kept; path separators, control characters and every other character become '-'. Leading/trailing '.' and '-' are trimmed and the result is capped at 48 runes before any collision suffix. Blank is treated as absent and keeps the generated task-<id>-<random> name. Existing names get -2..-8, then a short random suffix, then the generated name. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs, so adjustments are never silent. Do not use this as a Thread title."}
 	targetProperties := map[string]any{}
@@ -272,9 +272,9 @@ func ToolSchemas(description ThreadCreationDescription) []plugin.ToolBinding {
 		"cursor":           map[string]any{"type": "string", "minLength": 1, "maxLength": 2048, "description": "Opaque nextCursor; preserve all query filters. Omit to refresh."},
 	}, "query")))
 	add("list_threads", "Discover a page of unarchived Agent Thread identities and task states, most recently updated first. Filter by tags and statuses (both groups must match) and follow nextCursor until null; count is this page and total is all matches. waiting-for-background means the latest execution completed but background work is still running. Pages read live state. Do not repeatedly refresh to report progress or decide whether delegated work is ready for review, validation, completion, or delivery; terminal events arrive automatically. Use get_thread_status for needed workspace and execution details, or ask_thread for a specific content question.", ThreadListInputSchema())
-	add("create_thread", "Create a normal Agent Thread using native Harness settings and dispatch its first task. Only prompt, target, cwd, worktree and worktreeName are accepted. target contains exactly one Harness key whose value is that Harness's explicit native settings. worktreeName is only valid with worktree:true and names the managed worktree directory; Unicode letters/digits are kept, other characters become '-', it is capped at 48 runes, collisions get numeric then random suffixes, and a blank value keeps the generated name. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs. Do not send title or name: titles are generated automatically. "+threadCreationWorktreeGuidance+" Omit cwd with worktree:false for a unique temporary workspace. Returns workspace.cwd and, for a Git worktree, workspace.worktreeCwd; use worktreeCwd when present as the execution directory. Returns a hint about automatic execution terminal notifications. If only delegated work remains, end your current Moku turn; the runtime resumes coordination on a terminal event. Do not query repeatedly for progress reports or readiness for review, validation, completion, or delivery.", description.InputSchema)
+	add("create_thread", "Create a normal Agent Thread using native Harness settings and dispatch its first task. Only prompt, target, cwd, worktree and worktreeName are accepted. target contains exactly one Harness key whose value is that Harness's explicit native settings. worktreeName is only valid with worktree:true and names the managed worktree directory; Unicode letters/digits are kept, other characters become '-', it is capped at 48 runes, collisions get numeric then random suffixes, and a blank value keeps the generated name. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs. Do not send title or name: titles are generated automatically. "+threadCreationWorktreeGuidance+" Omit cwd with worktree:false for a unique temporary workspace. Returns workspace.cwd and, for a Git worktree, workspace.worktreeCwd; use worktreeCwd when present as the execution directory. Returns a hint about automatic execution terminal notifications. If only delegated work remains, end your current Chief turn; the runtime resumes coordination on a terminal event. Do not query repeatedly for progress reports or readiness for review, validation, completion, or delivery.", description.InputSchema)
 	add("get_thread_status", "Read one committed Thread status snapshot for an explicit immediate progress request, blocked coordination, or fault diagnosis. Completion, failure, and interruption arrive automatically as terminal events. Do not repeatedly query to report progress or decide whether work is ready for review, validation, completion, or delivery; use facts already available.", mokuRaw(mokuObjectSchema(map[string]any{"threadId": idSchema}, "threadId")))
-	add("send_to_thread", "Send a follow-up through the Thread Handle without changing its Harness or model settings. Returns the same automatic terminal notification hint as create_thread, including when a new Execution starts. If only delegated work remains, end your current Moku turn and let the terminal event resume coordination; do not repeatedly query for progress reports or readiness for review, validation, completion, or delivery.", mokuRaw(mokuObjectSchema(map[string]any{"threadId": idSchema, "prompt": promptSchema}, "threadId", "prompt")))
+	add("send_to_thread", "Send a follow-up through the Thread Handle without changing its Harness or model settings. Returns the same automatic terminal notification hint as create_thread, including when a new Execution starts. If only delegated work remains, end your current Chief turn and let the terminal event resume coordination; do not repeatedly query for progress reports or readiness for review, validation, completion, or delivery.", mokuRaw(mokuObjectSchema(map[string]any{"threadId": idSchema, "prompt": promptSchema}, "threadId", "prompt")))
 	questionSchema := mokuCopyObject(textSchema)
 	questionSchema["description"] = "The specific content or diagnostic information needed now to answer the user, unblock a next action, diagnose a fault, or review finished results. Do not retrieve intermediate updates just to report progress or ask readiness questions to wait for delegated work."
 	add("ask_thread", "Ask a specific content question about an ordinary Agent Thread whose answer is needed now for an explicit user question, a next action otherwise blocked, fault diagnosis, or review of finished results. Specificity alone does not justify reading a running Thread or fetching an intermediate update for a progress report. This invokes an additional model request against a native history fork or captured snapshot; it is not a live status read, and the history may already be stale while the source runs. It does not return raw history, send a message to the source, create a source Execution, or mutate the source Thread state. Do not repeatedly query readiness for review, validation, completion, or delivery; automatic terminal events handle waiting.", mokuRaw(mokuObjectSchema(map[string]any{"threadId": idSchema, "question": questionSchema}, "threadId", "question")))
@@ -282,10 +282,10 @@ func ToolSchemas(description ThreadCreationDescription) []plugin.ToolBinding {
 	talkSchema := mokuCopyObject(textSchema)
 	talkSchema["maxLength"] = TalkTextMaxCharacters
 	talkSchema["description"] = TalkTextPolicy
-	add("talk", "Show a short answer, question, progress update, or confirmation inside Moku's bar in the Overview. "+TalkTextPolicy+" Showing a message does not end your turn or the task, or wait for a user response. Do not poll delegated Threads just to produce an update; base each update on facts already available.", mokuRaw(mokuObjectSchema(map[string]any{"text": talkSchema}, "text")))
+	add("talk", "Show a short answer, question, progress update, or confirmation inside Chief's bar in the Overview. "+TalkTextPolicy+" Showing a message does not end your turn or the task, or wait for a user response. Do not poll delegated Threads just to produce an update; base each update on facts already available.", mokuRaw(mokuObjectSchema(map[string]any{"text": talkSchema}, "text")))
 	timerSchema := mokuCopyObject(talkSchema)
 	timerSchema["description"] = TimerTextPolicy
-	add("timer", "Show an immediate, one-time Moku message that rings until the user acknowledges it. "+TimerTextPolicy,
+	add("timer", "Show an immediate, one-time Chief message that rings until the user acknowledges it. "+TimerTextPolicy,
 		mokuRaw(mokuObjectSchema(map[string]any{"text": timerSchema}, "text")))
 	// The note text has no pattern on purpose: update_note replaces the whole
 	// note, and a constrained decoder that stops at a pattern match would
@@ -296,7 +296,7 @@ func ToolSchemas(description ThreadCreationDescription) []plugin.ToolBinding {
 		"revision":        map[string]any{"type": "integer", "minimum": 1, "maximum": model.MaximumSafeInteger},
 		"readingRevision": map[string]any{"type": "integer", "minimum": 0, "maximum": model.MaximumSafeInteger},
 	}, "noteId", "revision", "readingRevision")
-	add("update_note", "Replace Moku's persistent milestone note. "+NoteTextPolicy+" "+NoteContentGuidance+" Pass the exact context basis as expected (null only before first creation). Returns the committed state, or note_state_changed with the latest state; reconsider before retrying.", mokuRaw(mokuObjectSchema(map[string]any{"text": noteSchema, "expected": map[string]any{"oneOf": []any{map[string]any{"type": "null"}, basisSchema}}}, "text", "expected")))
+	add("update_note", "Replace Chief's persistent milestone note. "+NoteTextPolicy+" "+NoteContentGuidance+" Pass the exact context basis as expected (null only before first creation). Returns the committed state, or note_state_changed with the latest state; reconsider before retrying.", mokuRaw(mokuObjectSchema(map[string]any{"text": noteSchema, "expected": map[string]any{"oneOf": []any{map[string]any{"type": "null"}, basisSchema}}}, "text", "expected")))
 	return bindings
 }
 

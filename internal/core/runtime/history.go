@@ -53,7 +53,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 		return "", err
 	}
 	if source.Moku || source.MokuHistory {
-		return "", errors.New("Moku thread cannot be forked")
+		return "", errors.New("Chief thread cannot be forked")
 	}
 	if source.Observation.BackgroundWork != nil {
 		return "", errors.New("thread is not available for fork")
@@ -175,10 +175,10 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 	// Archive only changes visibility; native execution owners stay live.
 	return r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
 		if t.Moku {
-			return errors.New("Moku thread cannot be archived")
+			return errors.New("Chief thread cannot be archived")
 		}
 		if t.MokuHistory && !value {
-			return errors.New("Moku history is read-only and cannot be unarchived")
+			return errors.New("Chief history is read-only and cannot be unarchived")
 		}
 		// Archived label decoration is frozen outside the active pool. Restoring
 		// starts a new classification instead of reviving a retired category.
@@ -347,7 +347,7 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 			cwd = r.config.DefaultCwd
 		}
 		at := time.Now().UnixMilli()
-		moku = model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: moku.HarnessID, SessionState: json.RawMessage("null"), Settings: settings, Cwd: cwd, CreatedAt: at, UpdatedAt: at}, Moku: true, Title: "Moku", Tags: []string{}, TagEmojis: map[string]string{}, Transcript: []json.RawMessage{}}
+		moku = model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: moku.HarnessID, SessionState: json.RawMessage("null"), Settings: settings, Cwd: cwd, CreatedAt: at, UpdatedAt: at}, Moku: true, Title: "Chief", Tags: []string{}, TagEmojis: map[string]string{}, Transcript: []json.RawMessage{}}
 	}
 	_, err = r.config.Store.Update(ctx, func(tx *store.Tx) error {
 		for _, prefix := range []string{mokuDeliveryPrefix, "directory-scope:", "thread:", "interaction-answer:", "telemetry:", "event:", "lifecycle-work:", "lifecycle-outcome:", "private-session:", "private-session-index:", "application-receipt:", "tag-receipt:", "semantic-tags:", "tag-redirects:", "tag-inventory-initialized:"} {

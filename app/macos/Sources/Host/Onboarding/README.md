@@ -65,7 +65,7 @@ and resource status. It waits for resource readiness rather than treating the
 presence of a saved profile as sufficient. Switching back to independent mode
 restores its own retained configuration.
 
-Tag and Report share Settings' Agent off, Use Moku and Configure separately
+Tag and Report share Settings' Agent off, Use Chief and Configure separately
 choices. Turning a role off keeps its source mode and retained independent
 profile, and bypasses that role's resource/availability gate. Selecting either
 enabled choice restores the ordinary readiness gate. Existing reports, tags and

@@ -11,8 +11,8 @@ When **Execution** opens beside the conversation, the text you are reading settl
 Click a web link in the conversation to open it in a sidecard. To reopen the sidecard, click **Web page** on the right. You can enter a different address, go back or forward, or reload the page. If a page fails to load, click **Retry** in the sidecard. You can also open a local HTML file from a conversation. You can annotate pages opened from a web address.
 
 1. Click **Annotate page** in the toolbar, then click an element or drag to select an area. Press **Esc** to cancel the selection.
-2. Write your feedback in the input box below the web page and press Return. Mokusei sends the screenshot and your comment together to the current agent conversation.
-3. If sending fails, open the pending annotations at the bottom of the sidecard. You can edit comments, preview screenshots, remove individual annotations, or add a note. Then click **Send annotations**. If **Send text only** is available, you can send just the comments. Pending annotations stay with the conversation if you close the sidecard or go back to Overview. They last until you quit Mokusei.
+2. Write your feedback in the input box below the web page and press Return. Chief sends the screenshot and your comment together to the current agent conversation.
+3. If sending fails, open the pending annotations at the bottom of the sidecard. You can edit comments, preview screenshots, remove individual annotations, or add a note. Then click **Send annotations**. If **Send text only** is available, you can send just the comments. Pending annotations stay with the conversation if you close the sidecard or go back to Overview. They last until you quit Chief.
 
 ## See where your message goes
 

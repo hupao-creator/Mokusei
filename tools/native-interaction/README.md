@@ -8,7 +8,7 @@ advertises that action. Launch success alone does not establish readiness.
 
 ```sh
 automation_root="$(mktemp -d /private/tmp/oa-interaction.XXXXXX)"
-open -n "/absolute/path/Mokusei.app" --args \
+open -n "/absolute/path/Chief.app" --args \
   --data-dir "$automation_root/profile" \
   --automation-socket "$automation_root/ui.sock"
 

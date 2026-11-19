@@ -353,7 +353,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             SettingsGroup(title: locale.text("本地 Agent", "Local Agents")) {
                 if model.runtimeAvailable { localAgents }
             }.disabled(!model.runtimeAvailable).zIndex(2)
-            SettingsGroup(title: locale.text("清空历史数据", "Clear history"), description: locale.text("停止正在运行的任务，并删除本机保存的 thread、报告和 Moku session。", "Stop running tasks and delete threads, reports, and Moku sessions saved on this machine.")) {
+            SettingsGroup(title: locale.text("清空历史数据", "Clear history"), description: locale.text("停止正在运行的任务，并删除本机保存的 thread、报告和 Chief session。", "Stop running tasks and delete threads, reports, and Chief sessions saved on this machine.")) {
                 HStack(spacing: 8) {
                     if model.confirmClear && !model.clearing {
                         Button(locale.text("取消清空", "Cancel")) { model.confirmClear = false }.buttonStyle(.bordered)
@@ -487,7 +487,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     private func sectionLabel(_ id: String) -> String {
         switch id {
         case "general": locale.text("通用", "General")
-        case "moku": "Moku"
+        case "moku": "Chief"
         default: NativeSettingsRole(section: id)?.tabLabel ?? activeApplications.first(where: { $0.id == id }).map { locale.text($0.label, $0.englishLabel) } ?? id
         }
     }

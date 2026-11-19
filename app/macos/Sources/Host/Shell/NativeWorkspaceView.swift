@@ -658,7 +658,7 @@ public final class NativeWorkspacePresentation {
             let result = try await self.workspace.invoke("moku:cancel", args: [.object([
                 "threadId": .string(thread.id), "expectedCancellationId": .string(target)
             ])])
-            if result["status"]?.stringValue == "stale" { throw PluginContractError("The observed Moku execution has ended or changed; refresh before stopping another execution") }
+            if result["status"]?.stringValue == "stale" { throw PluginContractError("The observed Chief execution has ended or changed; refresh before stopping another execution") }
         }
     }
 
@@ -1104,11 +1104,11 @@ public struct NativeWorkspaceCommands: Commands {
         CommandGroup(after: .sidebar) {
             Button(locale.text("会话俯瞰", "Overview")) { presentation?.showOverview(focusFilter: true) }.keyboardShortcut("k")
                 .disabled(presentation?.onboarding.blocksWorkspace == true)
-            Button("Moku") { presentation?.scene.toggleMoku() }.keyboardShortcut("b")
+            Button("Chief") { presentation?.scene.toggleMoku() }.keyboardShortcut("b")
                 .disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.settingsOpen == true)
             Button(locale.text("输入", "Compose")) { presentation?.scene.toggleInput() }
                 .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.dockRouteVisible != true || presentation?.scene.inputInteractionReady != true || presentation?.scene.settingsOpen == true)
-            Button(locale.text("Moku 笔记", "Moku Note")) { presentation?.toggleMokuNote() }
+            Button(locale.text("Chief 笔记", "Chief Note")) { presentation?.toggleMokuNote() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(presentation?.canToggleMokuNote != true)
         }

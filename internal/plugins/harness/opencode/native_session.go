@@ -116,7 +116,7 @@ func (r *Runtime) Descendants(ctx context.Context, root string) ([]string, error
 // deltas. A log.synced marker proves the finite reconciliation boundary.
 func (r *Runtime) ReplayLog(ctx context.Context, id string, after int64, consume func(Event) error) error {
 	if !r.bridge.Owns(id) {
-		return errors.New("OpenCode session is not owned by this Mokusei runtime")
+		return errors.New("OpenCode session is not owned by this Chief runtime")
 	}
 	query := url.Values{"follow": {"false"}}
 	if after >= 0 {

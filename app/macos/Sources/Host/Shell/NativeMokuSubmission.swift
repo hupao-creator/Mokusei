@@ -56,8 +56,8 @@ final class NativeMokuSubmission {
         }) {
             await workspace.client.reconcileCommandReceipts()
             throw blocked(held.commandID, detail: workspace.preferences.locale.text(
-                "先前提交的草稿上下文无法可靠还原，请核对 Moku 和原回执；不会重新发送。",
-                "The previous draft context cannot be restored reliably. Check Moku and the original receipt; no resend will be attempted."))
+                "先前提交的草稿上下文无法可靠还原，请核对 Chief 和原回执；不会重新发送。",
+                "The previous draft context cannot be restored reliably. Check Chief and the original receipt; no resend will be attempted."))
         }
         try await workspace.prepareCommand()
         let captured = try await request()

@@ -73,7 +73,7 @@ func ParseActivity(i Map) Map {
 		}
 	case "mcpToolCall", "dynamicToolCall":
 		r["kind"] = "tool"
-		r["label"] = first(str(i["tool"]), "调用 Mokusei 工具")
+		r["label"] = first(str(i["tool"]), "调用 Chief 工具")
 		r["toolName"] = str(i["tool"])
 		if i["type"] == "mcpToolCall" {
 			r["label"] = str(i["server"]) + " / " + str(i["tool"])

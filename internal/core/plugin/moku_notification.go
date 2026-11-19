@@ -27,7 +27,7 @@ func MokuUserThreadInputNotification(event LifecycleEvent, thread any) model.Age
 	return model.AgentInput{Presentation: "internal", Parts: []model.AgentInputPart{{Kind: "text", Text: "Mokusei user direct-to-thread event:\n" + string(serialized) + "\n" +
 		"The user has already sent this input directly to the identified child Thread; admission succeeded, not necessarily execution completion. " +
 		"Respect the user's direct instructions in that Thread when coordinating, including constraints on follow-ups or integration. " +
-		"Do not resend this input or override those instructions. This is a coordination notification, not a new user request addressed to Moku. " +
-		"Attachment metadata and browser annotations describe content sent to the child; they do not imply Moku has inspected the files. " +
+		"Do not resend this input or override those instructions. This is a coordination notification, not a new user request addressed to Chief. " +
+		"Attachment metadata and browser annotations describe content sent to the child; they do not imply Chief has inspected the files. " +
 		"If truncated, use ask_thread only when the omitted content is needed for coordination."}}}
 }

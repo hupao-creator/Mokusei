@@ -1,4 +1,4 @@
-# Mokusei
+# Chief
 
 <p align="center">
   <strong>A native Mac workspace for coordinating AI agents.</strong>
@@ -14,19 +14,11 @@
 
 ---
 
-<p align="center">
-  <img src="demos/moku-history-theme/evidence/light-1200.png" alt="Moku conversation reader in the light theme, with a separate dark input capsule below it" width="900" />
-</p>
-
-<p align="center">
-  <sub>Production-component preview with sample content. <a href="demos/moku-history-theme/README.md">About this preview</a></sub>
-</p>
-
-Mokusei (木犀) brings Codex, Claude, Pi Agent, and OpenCode into one workspace.
-Talk to **Moku**, its coordinating assistant, then open each task's conversation
+Chief brings Codex, Claude, Pi Agent, and OpenCode into one workspace.
+Talk to the **Chief** assistant to coordinate work, then open each task's conversation
 to follow the work and give it more direction.
 
-- **Ask once, coordinate across agents.** Give Moku a task, attach files, and choose project folders with `@`. Moku can answer directly or assign work to the agents you've enabled. [Working with Moku →](docs/working-with-moku.md)
+- **Ask once, coordinate across agents.** Give Chief a task, attach files, and choose project folders with `@`. Chief can answer directly or assign work to the agents you've enabled. [Working with Chief →](docs/working-with-moku.md)
 - **See what needs you.** Overview puts task status, questions, and permission requests on cards. Filter by folder or tag, then open a conversation to step in. [Overview →](docs/overview.md)
 - **Read results and keep going.** Read completed replies, revisit earlier runs, send a follow-up, or branch from an earlier run when the agent supports it. [Agent conversations →](docs/task-conversations.md)
 - **Connect the work.** Optional Tag Agent groups conversations within each project folder; Super Thread Agent prepares reports with links back to source conversations. Git task cards can show branch and change summaries. [Tags, reports, and file changes →](docs/reports-tags-and-changes.md)
@@ -40,14 +32,14 @@ credentials.
 
 ## Get started
 
-Mokusei is available as an **invited alpha** for Macs with Apple silicon and
-macOS 26 or later. Get the **Mokusei Alpha** disk image and installation guide
+Chief is available as an **invited alpha** for Macs with Apple silicon and
+macOS 26 or later. Get the **Chief Alpha** disk image and installation guide
 from your inviter.
 
-1. Drag **Mokusei Alpha.app** from the disk image into **Applications**, then open it. The alpha is not notarized; a trusted download may need the per-app **Open Anyway** exception in **System Settings → Privacy & Security**.
-2. Install and configure at least one supported agent on your Mac: Codex, Claude, Pi Agent, or OpenCode. Mokusei checks which are ready during setup. Each service determines model access and costs.
-3. Choose the agent that will serve as Moku and the agents it can assign work to. Finish the tag and report agent setup, then click **Start using Moku**.
-4. Describe your task in **Type a message…**. Type `@` to choose a project folder, send the request, and open the task card when Moku creates one.
+1. Drag **Chief Alpha.app** from the disk image into **Applications**, then open it. The alpha is not notarized; a trusted download may need the per-app **Open Anyway** exception in **System Settings → Privacy & Security**.
+2. Install and configure at least one supported agent on your Mac: Codex, Claude, Pi Agent, or OpenCode. Chief checks which are ready during setup. Each service determines model access and costs.
+3. Choose the agent that will serve as Chief and the agents it can assign work to. Finish the tag and report agent setup, then click **Start using Chief**.
+4. Describe your task in **Type a message…**. Type `@` to choose a project folder, send the request, and open the task card when Chief creates one.
 
 No Go, Xcode, or Apple developer membership is needed to use the alpha.
 Updates are manual, and alpha app data may be incompatible between versions.
@@ -58,7 +50,7 @@ in Simplified Chinese; English is available in Settings.
 
 ## Product guide
 
-[Working with Moku](docs/working-with-moku.md) ·
+[Working with Chief](docs/working-with-moku.md) ·
 [Overview](docs/overview.md) ·
 [Agent conversations](docs/task-conversations.md) ·
 [Tags, reports, and file changes](docs/reports-tags-and-changes.md) ·
@@ -70,7 +62,7 @@ in Simplified Chinese; English is available in Settings.
 You'll need Apple silicon, macOS 26+, Xcode with the macOS 26 SDK and command-line
 tools, and Git. `scripts/go.sh` locates or downloads the pinned Go toolchain and
 verifies the official archive checksum. SQLite uses the system C library through
-cgo. Mokusei development, builds, and packaging do not require Node; external
+cgo. Chief development, builds, and packaging do not require Node; external
 agent tools manage their own runtime dependencies.
 
 ```sh
@@ -95,7 +87,7 @@ make alpha ARGS='--build-number 1'
 ```
 
 This creates a local DMG, installation guide, and checksums under
-`app/macos/dist/alpha/`. **Mokusei Alpha.app** uses a separate app identity and data
+`app/macos/dist/alpha/`. **Chief Alpha.app** uses a separate app identity and data
 directory; project folders and external agent sign-ins are shared. The command
 does not upload a release. See [native build and packaging](app/macos/build/README.md)
 for signing, output paths, and distribution constraints.
@@ -112,9 +104,9 @@ make check                       # static checks, Go/Swift builds, and routine P
 make install-hooks               # repository-local pre-commit hook
 make pack                        # signed production bundle
 make dist                        # signed production bundle and zip
-make install                     # build/sign and install to ~/Applications/Mokusei.app
+make install                     # build/sign and install the production app
 make open                        # open the installed application
-make smoke ARGS='--app "/absolute/path/to/Mokusei.app"'
+make smoke ARGS='--app "/absolute/path/to/Chief.app"'
 ```
 
 `make install` refuses to replace a running installation and requires the signing
@@ -162,7 +154,7 @@ current build; before/after comparisons need the named baseline available locall
 
 ## License
 
-Mokusei is licensed under the [Apache License 2.0](LICENSE).
+Chief is licensed under the [Apache License 2.0](LICENSE).
 Copyright 2026 hupao-creator.
 
 Third-party materials retain their licenses and attribution notices, including

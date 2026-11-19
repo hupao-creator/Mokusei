@@ -1,6 +1,9 @@
-# Moku presentation
+# Chief presentation
 
 [NativeMokuWorkspacePresentation](NativeMokuWorkspacePresentation.swift) derives the current Moku execution's display from public transcript operations. [NativeMokuSceneState](NativeMokuSceneState.swift) owns transient presentation and dismissal. The [Go coordinator](../../../../../internal/services/moku/README.md) owns task admission, tool results, notes.
+
+The composer, conversation history, note and reminder use the Chief name in
+both interface languages, including their Accessibility labels.
 
 Question choices use the full visible rounded rectangle as their button hit
 shape, including padding and the empty space beside the answer text.

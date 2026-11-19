@@ -15,7 +15,7 @@ import (
 type localSchemaLoader struct{}
 
 func (localSchemaLoader) Load(string) (any, error) {
-	return nil, errors.New("Moku schemas cannot load external resources")
+	return nil, errors.New("Chief schemas cannot load external resources")
 }
 
 // The validator belongs to one immutable tool binding. Compile lazily so schema

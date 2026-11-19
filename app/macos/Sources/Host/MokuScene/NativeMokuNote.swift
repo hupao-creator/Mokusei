@@ -118,7 +118,7 @@ struct NativeMokuNoteContent: View {
     }
     private var header: some View {
         HStack(spacing: 12) {
-            Text(localize("Moku 笔记", "Moku Note"))
+            Text(localize("Chief 笔记", "Chief Note"))
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 0)
@@ -134,7 +134,7 @@ struct NativeMokuNoteContent: View {
                     .frame(width: 24, height: 24).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(localize("收起 Moku 笔记", "Close Moku note"))
+            .accessibilityLabel(localize("收起 Chief 笔记", "Close Chief note"))
             .accessibilityIdentifier("moku-note-close")
         }
         .frame(height: 24)
@@ -162,7 +162,7 @@ struct NativeMokuNoteContent: View {
                         routeEligible: routeEligible, claimOpenArm: claimOpenArm))
                     .accessibilityIdentifier("moku-note-content")
             } else {
-                Text(localize("Moku 还没有写笔记。", "Moku has not written a note yet."))
+                Text(localize("Chief 还没有写笔记。", "Chief has not written a note yet."))
                     .font(.system(size: 12))
                     .foregroundStyle(.white)
                     .accessibilityIdentifier("moku-note-empty")
@@ -409,7 +409,7 @@ struct NativeMokuNoteHistoryButton: View {
             HStack(spacing: 6) {
                 NativeIcon(name: "History", size: 13)
                 if !compact {
-                    Text(localize("Moku 历史", "Moku history"))
+                    Text(localize("Chief 历史", "Chief history"))
                         .font(.system(size: 12, weight: .medium))
                         .lineLimit(1)
                 }
@@ -419,8 +419,8 @@ struct NativeMokuNoteHistoryButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(localize("查看 Moku 历史详情", "View Moku conversation history"))
-        .accessibilityLabel(localize("查看 Moku 历史详情", "View Moku conversation history"))
+        .help(localize("查看 Chief 历史详情", "View Chief conversation history"))
+        .accessibilityLabel(localize("查看 Chief 历史详情", "View Chief conversation history"))
         .accessibilityIdentifier("moku-note-history")
     }
 }

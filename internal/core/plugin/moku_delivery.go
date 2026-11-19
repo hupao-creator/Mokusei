@@ -10,7 +10,7 @@ import (
 // execution when saved settings still need applying. No input was consumed;
 // the coordinator may prepare its configuration and context again before Send.
 // Native Harness errors and uncertain acknowledgements must never use it.
-var ErrMokuConfigurationPending = errors.New("Moku configuration must be applied before new execution admission")
+var ErrMokuConfigurationPending = errors.New("Chief configuration must be applied before new execution admission")
 
 // MokuAdmissionRejectedError is issued only by Core's final new-execution
 // boundary. Its exact, unwrapped value proves that input was not consumed.
@@ -21,7 +21,7 @@ func (e *MokuAdmissionRejectedError) Error() string { return e.Cause.Error() }
 func (e *MokuAdmissionRejectedError) Unwrap() error { return e.Cause }
 
 // ErrMokuIdle means a lazy notification was not consumed and must await another trigger.
-var ErrMokuIdle = errors.New("Moku is idle; notification remains queued")
+var ErrMokuIdle = errors.New("Chief is idle; notification remains queued")
 
 // MokuDelivery is a committed system notification awaiting coordinator admission.
 // Uncertain means native Send may have consumed it; automatic replay is unsafe.

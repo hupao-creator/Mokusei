@@ -18,7 +18,7 @@ struct ClaudeTimelineEntry: View {
         switch item.claudeKind {
         case "user-message": userMessage
         case "assistant": VStack(alignment:.leading,spacing:8) {
-            if turn == nil { Text("Mokusei").font(NativeTypography.inter(size:11)).foregroundStyle(NativePalette.thread.muted.swiftUI) }
+            if turn == nil { Text("Chief").font(NativeTypography.inter(size:11)).foregroundStyle(NativePalette.thread.muted.swiftUI) }
             markdown(item["content"]?.stringValue ?? "")
             if turn == nil, let status = item["status"]?.stringValue, ["failed","cancelled"].contains(status) { Text(t(claudeStatus(status))).font(NativeTypography.inter(size:11)).foregroundStyle(NativePalette.thread.muted.swiftUI) }
         }

@@ -42,7 +42,7 @@ func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry, ident
 		return nil, errors.New("native model catalog configuration identity is missing")
 	}
 	if len(models) == 0 {
-		return nil, errors.New("native model catalog is empty; Moku cannot start without a complete nonempty catalog")
+		return nil, errors.New("native model catalog is empty; Chief cannot start without a complete nonempty catalog")
 	}
 	seen := map[string]bool{}
 	for _, entry := range models {

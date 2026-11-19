@@ -95,7 +95,7 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		moku := r.config.Moku
 		r.mu.Unlock()
 		if moku == nil {
-			return nil, errors.New("Moku participant unavailable")
+			return nil, errors.New("Chief participant unavailable")
 		}
 		return moku.Invoke(ctx, channel, args)
 	case "history:clear":
@@ -141,7 +141,7 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, err
 		}
 		if thread.MokuHistory {
-			return nil, errors.New("Moku history is read-only")
+			return nil, errors.New("Chief history is read-only")
 		}
 		if thread.Moku {
 			r.mu.Lock()
@@ -151,7 +151,7 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 				Respond(context.Context, model.RespondRequest) error
 			})
 			if !ok {
-				return nil, errors.New("Moku interaction participant unavailable")
+				return nil, errors.New("Chief interaction participant unavailable")
 			}
 			return nil, responder.Respond(ctx, response)
 		}

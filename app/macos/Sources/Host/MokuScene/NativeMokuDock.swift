@@ -830,7 +830,7 @@ public struct NativeMokuDock: View {
                 // Leave selectable message prose and the later control overlays
                 // their own hit targets; only the eyes open input beside a message.
                 .padding(.leading, !state.notePanelOpen && !noteMounted && displayedMessage == nil ? 0 : max(0, faceCenter.x - 23))
-                .accessibilityLabel(localize("打开 Moku 输入框", "Open Moku input"))
+                .accessibilityLabel(localize("打开 Chief 输入框", "Open Chief input"))
                 .accessibilityIdentifier("moku-open-input")
             }
         }
@@ -928,8 +928,8 @@ public struct NativeMokuDock: View {
                         .focused($stopFocused)
                         .accessibilityFocused($stopAccessibilityFocused)
                         .allowsHitTesting(stopVisible)
-                        .help(threadID == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
-                        .accessibilityLabel(threadID == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
+                        .help(threadID == nil ? localize("停止 Chief", "Stop Chief") : localize("停止此 Thread", "Stop this thread"))
+                        .accessibilityLabel(threadID == nil ? localize("停止 Chief", "Stop Chief") : localize("停止此 Thread", "Stop this thread"))
                         .accessibilityIdentifier("moku-stop")
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { stopControlsFrame = $0 }
                 }
@@ -963,7 +963,7 @@ public struct NativeMokuDock: View {
         .nativeReadingEscape(perform: state.inputPinnedOpen && state.inputOpen && state.dockContentVisible && interaction == nil ? {
             escapeInput()
         } : nil)
-        .accessibilityElement(children: .contain).accessibilityLabel(state.settingsOpen ? localize("设置", "Settings") : "Moku")
+        .accessibilityElement(children: .contain).accessibilityLabel(state.settingsOpen ? localize("设置", "Settings") : "Chief")
         .accessibilityHint(state.settingsOpen || !state.inputInteractionReady ? "" : localize("点击打开输入框，鼠标悬停时在触控板上向上滑动打开笔记", "Click to type; while hovering, swipe up on the trackpad for notes"))
         .accessibilityValue(state.noteUnread(note) ? localize("笔记有尚未完整浏览的更新", "Note update not yet fully browsed") : "")
         .accessibilityIdentifier("moku-capsule")

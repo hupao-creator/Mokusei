@@ -1,14 +1,14 @@
-# Mokusei Product Guide
+# Chief Product Guide
 
-Mokusei brings work from different agents into one workspace on your Mac. Ask Moku to assign a task, then open the conversation to see the result, answer a question, or give the agent more direction.
+Chief brings work from different agents into one workspace on your Mac. Ask Chief to assign a task, then open the conversation to see the result, answer a question, or give the agent more direction.
 
 ## How do I get started?
 
-- Get Mokusei Alpha from your inviter, set up an agent, and send your first request. [Getting started](getting-started.md)
+- Get Chief Alpha from your inviter, set up an agent, and send your first request. [Getting started](getting-started.md)
 
 ## Where do I give instructions?
 
-- See where your message will go, choose the project folders Moku should use, and find Moku's replies and notes. [Working with Moku](working-with-moku.md)
+- See where your message will go, choose the project folders Chief should use, and find Chief's replies and notes. [Working with Chief](working-with-moku.md)
 - Send a follow-up, add an attachment, or start a separate conversation from an earlier run. [Agent conversations](task-conversations.md)
 
 ## How do I check progress or step in?
@@ -20,4 +20,4 @@ Mokusei brings work from different agents into one workspace on your Mac. Ask Mo
 ## How do I find past work or change who handles future tasks?
 
 - Filter by project folder or tag, trace a report back to its sources, and check file changes on a task card. [Tags, reports, and file changes](reports-tags-and-changes.md)
-- Choose which agents Moku can assign work to, set up the tag and report agents, and change the app's language or appearance. [Settings](settings.md)
+- Choose which agents Chief can assign work to, set up the tag and report agents, and change the app's language or appearance. [Settings](settings.md)

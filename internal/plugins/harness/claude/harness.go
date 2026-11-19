@@ -135,7 +135,7 @@ func (h *Harness) Open(ctx context.Context, open plugin.OpenContext) (plugin.Han
 	}
 	for _, turn := range state.Turns {
 		if turn.Status == "running" {
-			turn.fail("Mokusei restarted before this Claude execution reached terminal")
+			turn.fail("Chief restarted before this Claude execution reached terminal")
 			turn.settle("interrupted", time.Now().UnixMilli(), nil)
 		}
 	}

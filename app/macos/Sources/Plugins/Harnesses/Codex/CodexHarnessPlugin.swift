@@ -77,7 +77,7 @@ private let codexEnglish: [String: String] = [
     "用于新建 Thread 的原生配置默认值。": "Native defaults for new threads.",
     "跟随 Codex 默认模型": "Use the Codex default model", "请选择模型": "Select a model", "请选择 Thinking": "Select thinking",
     "Thinking 能力未知，无法执行": "Thinking capability is unknown; execution is unavailable", "未选择": "Not selected",
-    "服务层级": "Service tier", "Mokusei 默认": "Mokusei default", "Mokusei 默认（approve-for-me）": "Mokusei default (approve-for-me)",
+    "服务层级": "Service tier", "Chief 默认": "Chief default", "Chief 默认（approve-for-me）": "Chief default (approve-for-me)",
     "ask-for-approval · 按需询问用户": "ask-for-approval · ask the user as needed", "approve-for-me · 原生自动审批": "approve-for-me · native auto review",
     "full-access · 完全访问": "full-access · full access", "未知模型": "Unknown model", "内容必须是有效 JSON。": "Content must be valid JSON.",
     "内容必须是 JSON object。": "Content must be a JSON object.", "正在读取 Codex 环境…": "Loading the Codex environment…",
