@@ -201,7 +201,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var layoutToken = UUID()
     @State private var presentationToken = UUID()
     @State private var preparedPresentationToken: UUID?
-    @GestureState private var dragOrigin: NativeOverviewTransform?
     @GestureState private var zoomActive = false
     @State private var navigationInput: NativeOverviewNavigationInput
 
@@ -248,9 +247,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 Color.clear.contentShape(Rectangle())
                     .frame(height: max(0, toolbarBottom))
                     .gesture(WindowDragGesture())
-                Color.clear.contentShape(Rectangle())
-                    .onTapGesture { if state.allowsBackgroundAutoFocus() { state.camera.returnToAuto() } }
-                    .gesture(pan)
+                OverviewBackgroundInput(state: state, navigation: navigationInput, coordinateSpace: ownership)
                     .padding(.top, max(0, toolbarBottom))
                 OverviewCameraPlane(camera: state.camera, visible: visible, ignoreLayout: true) {
                     ZStack(alignment: .topLeading) {
@@ -344,16 +341,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
     private func livePose(_ placement: NativeOverviewPlacement, at now: TimeInterval) -> OverviewCardPose {
         cardMotions[placement.id]?.sample(at: now) ?? pose(placement)
-    }
-    private var pan: some Gesture {
-        DragGesture(minimumDistance: 4)
-            .updating($dragOrigin) { _, origin, _ in if origin == nil { origin = state.camera.liveTransform } }
-            .onChanged { value in
-                navigationInput.cancel()
-                guard state.visible, !state.isLayingOut, !state.externalInteractionPaused, let origin = dragOrigin else { return }
-                state.camera.setManualTransform(.init(scale: origin.scale, x: origin.x + value.translation.width,
-                                                       y: origin.y + value.translation.height))
-            }
     }
     private func magnification(in size: CGSize) -> some Gesture {
         MagnifyGesture()
@@ -755,6 +742,33 @@ public struct NativeOverviewCanvas<Content: View>: View {
 
 }
 
+/// Own the drag lifetime on the input surface so a gesture does not invalidate the card grid.
+private struct OverviewBackgroundInput: View {
+    let state: NativeOverviewCanvasState
+    let navigation: NativeOverviewNavigationInput
+    let coordinateSpace: UUID
+    @GestureState private var dragging = false
+    @State private var origin: NativeOverviewTransform?
+
+    var body: some View {
+        Color.clear.contentShape(Rectangle())
+            .onTapGesture { if state.allowsBackgroundAutoFocus() { state.camera.returnToAuto() } }
+            .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(coordinateSpace))
+                .updating($dragging) { _, dragging, _ in dragging = true }
+                .onChanged { value in
+                    navigation.cancel()
+                    guard state.visible, !state.isLayingOut, !state.externalInteractionPaused else { return }
+                    // Capture before the first manual transform, including gestures that interrupt auto-framing.
+                    let start = origin ?? state.camera.liveTransform
+                    if origin == nil { origin = start }
+                    state.camera.setManualTransform(NativeOverviewCameraGeometry.pan(start,
+                        deltaX: value.translation.width, deltaY: value.translation.height))
+                }
+                .onEnded { _ in origin = nil })
+            .onChange(of: dragging) { _, dragging in if !dragging { origin = nil } }
+    }
+}
+
 /// Only this transform wrapper samples camera motion; card content keeps its identity.
 private struct OverviewCameraPlane<Content: View>: View {
     let camera: NativeOverviewCamera
@@ -804,18 +818,15 @@ private struct OverviewCardShell: View, Equatable {
     }
 
     var body: some View {
-        OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
-            if slot.item.providesCardSurface {
-                // Glass belongs in the semantic camera plane so backdrop geometry
-                // tracks pan/zoom; a flat decorative shell would occlude its sample.
-                Color.clear
-            } else {
+        // A card that draws its own surface needs only its semantic camera plane.
+        if !slot.providesCardSurface {
+            OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
                 RoundedRectangle(cornerRadius: 22)
-                .fill(NativePalette.overview.surface.swiftUI)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 22)
-                        .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
-                }
+                    .fill(NativePalette.overview.surface.swiftUI)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
+                    }
             }
         }
     }

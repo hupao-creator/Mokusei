@@ -9,11 +9,19 @@ struct NativeCloudField {
     let seed: UInt64
 
     func lights(in size: CGSize, colorScheme: ColorScheme) -> NativeCloudLights {
-        guard intensity > 0, size.width > 0, size.height > 0 else { return NativeCloudLights() }
+        let geometry = geometry(in: size, colorScheme: colorScheme)
+        guard !geometry.isEmpty else { return NativeCloudLights() }
+        var colors: [Color] = []
+        colors.reserveCapacity(palette.channels.count * 6)
+        for channel in palette.channels { colors.append(contentsOf: repeatElement(channel.color, count: 6)) }
+        return NativeCloudLights(geometry: geometry, colors: colors)
+    }
+
+    func geometry(in size: CGSize, colorScheme: ColorScheme) -> [Float] {
+        guard intensity > 0, size.width > 0, size.height > 0 else { return [] }
         let exposure = max(0, min(intensity, 2)) * (colorScheme == .dark ? 0.30 : 0.72)
-        var lights = NativeCloudLights()
-        lights.geometry.reserveCapacity(palette.channels.count * 6 * 5)
-        lights.colors.reserveCapacity(palette.channels.count * 6)
+        var geometry: [Float] = []
+        geometry.reserveCapacity(palette.channels.count * 6 * 5)
         for channel in palette.channels {
             let motion = NativeCloudMotion(seed: seed &+ UInt64(truncatingIfNeeded: channel.seed))
             let drift = 160 * motion.value(at: time, lane: 0, duration: 6...10)
@@ -26,12 +34,15 @@ struct NativeCloudField {
                 let radiusY = (88 + 16 * motion.value(at: time, lane: lane + 3)) * palette.lobeScale.height
                 let energy = channel.energy * exposure * (lobe == 1 ? 1 : 0.78)
                 for (scaleX, scaleY, gain) in [(1.5, 1.7, 0.18), (1.0, 1.0, 1.0)] {
-                    lights.geometry += [Float(x), Float(y), Float(radiusX * scaleX), Float(radiusY * scaleY), Float(energy * gain)]
-                    lights.colors.append(channel.color)
+                    geometry.append(Float(x))
+                    geometry.append(Float(y))
+                    geometry.append(Float(radiusX * scaleX))
+                    geometry.append(Float(radiusY * scaleY))
+                    geometry.append(Float(energy * gain))
                 }
             }
         }
-        return lights
+        return geometry
     }
 }
 

@@ -106,8 +106,9 @@ structural changes retain the full selected-layout transaction. Array-based
 fixture hosts feed the same store and layout state machine.
 
 Each card retains separate Equatable shell and semantic boundaries outside its
-spatial frame. The shell keeps a neutral palette surface;
-the semantic wrapper observes its current item, including completion. Geometry, motion,
+spatial frame. The shell observes only whether the card supplies its own surface.
+Self-surfaced cards draw in the semantic plane and omit the decorative frame.
+The semantic wrapper observes the current item, including streamed content and completion. Geometry, motion,
 visibility, viewport, locale, decorative policy, activation and explicit
 renderer/state identities still invalidate the appropriate wrappers. Completion
 changes reach the badge through the semantic wrapper's observed item.
@@ -272,6 +273,10 @@ used by the renderer (44pt height plus its viewport-dependent bottom seat). Tran
 repack the scene. The reservation consumes the existing vertical padding budget when computing the usable size.
 
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
+
+The background input view owns each mouse drag. It samples the displayed camera
+when the drag first moves, then applies cumulative translation in canvas coordinates.
+Ending or cancelling the gesture releases its origin locally.
 
 The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Closing a covering surface can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
 

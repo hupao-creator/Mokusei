@@ -960,7 +960,10 @@ bounded raw excerpt, including first content that replaces loading while hidden.
 That semantic label does not report visual processing progress; the rendered
 text remains frozen until return. Visible excerpts keep their 600-character
 windows and 800ms hold policy. Their source buffer is not observed by SwiftUI:
-only changed display or hold-schedule facts are published. A proven append beyond a full window reuses its
+only changed display or hold-schedule facts are published. A window without
+link or strong-emphasis openers displays its literal text directly. Other windows
+use the bounded Markdown context to protect code and partial tokens.
+A proven append beyond a full window reuses its
 parsed preview; partial windows, rewrites, message replacement and transport-window
 shifts keep the ordinary preview path. Each resumed buffer has a new session so
 an obsolete reveal or hold cannot install a prior presentation.
@@ -1016,9 +1019,12 @@ The existing shared SwiftUI renderer remains the capability fallback and the
 renderer for other cloud consumers.
 
 The render queue samples immutable inputs independently of the main run loop.
-Only geometry, resolved colors, activity and visibility cross from AppKit;
-first-frame reveal still returns to main. One in-flight GPU frame bounds work,
-missing drawables retry, and generation/revision fences retire stale work.
+Each tick generates the moving geometry. The GPU palette buffer is reused
+until the colors resolved by AppKit change.
+The queue checks the previous GPU command buffer before reusing its storage.
+Only the first draw and the final static or fade draw need completion callbacks.
+First-frame reveal returns to main. Missing drawables retry, and generation
+and revision fences retire stale work.
 Static fields stop after a successful draw; a zero-energy terminal frame finishes
 fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
 the last image and cancels sampling; detach/removal retires the generation.

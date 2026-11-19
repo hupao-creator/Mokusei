@@ -275,6 +275,12 @@ private struct ExcerptFrame {
 
     private mutating func refresh(content: String) {
         let raw = !hasMessage ? content : initial ? snapshot : batch.text
+        // Only links and strong spans starting in this slice can be shortened.
+        // Code, escapes and tokens crossing the preceding boundary stay literal.
+        guard raw.utf8.contains(UInt8(ascii: "[")) || raw.utf8.contains(UInt8(ascii: "*")) else {
+            visible = raw
+            return
+        }
         var contextOffset = hasMessage ? offset : 0
         var tailMarker = false
         if hasMessage && initial {

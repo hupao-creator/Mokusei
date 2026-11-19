@@ -44,7 +44,6 @@ final class NativeOverviewCloudPipeline: @unchecked Sendable {
 
 struct NativeOverviewCloudFrame: Sendable {
     let geometry: [Float]
-    let colors: [SIMD4<Float16>]
     let pointSize: SIMD2<Float>
 }
 
@@ -70,12 +69,12 @@ struct NativeOverviewCloudInput: Sendable {
         let time = animates ? Date().timeIntervalSince(startedAt) : frozenMotionTime
         // A zero-energy terminal frame clears the Metal surface without waiting
         // for a main-actor callback to hide it after a fade-out.
-        var lights = NativeCloudField(palette: palette, intensity: max(value, 0.000001),
-            time: time * 1.4 + palette.phase, seed: seed).lights(in: size, colorScheme: colorScheme)
+        var geometry = NativeCloudField(palette: palette, intensity: max(value, 0.000001),
+            time: time * 1.4 + palette.phase, seed: seed).geometry(in: size, colorScheme: colorScheme)
         if value <= 0 {
-            for index in stride(from: 4, to: lights.geometry.count, by: 5) { lights.geometry[index] = 0 }
+            for index in stride(from: 4, to: geometry.count, by: 5) { geometry[index] = 0 }
         }
-        return (NativeOverviewCloudFrame(geometry: lights.geometry, colors: colors,
+        return (NativeOverviewCloudFrame(geometry: geometry,
             pointSize: SIMD2(Float(size.width), Float(size.height))),
             progress < 1 || (animates && value > 0))
     }
@@ -83,18 +82,19 @@ struct NativeOverviewCloudInput: Sendable {
 
 /// The main actor owns the layer's geometry/visibility; this serial queue alone
 /// requests drawables and encodes commands. Mutable buffers belong to that queue.
-/// A locked generation retires queued work, and one permit bounds submitted work
+/// A locked generation retires queued work, and one command buffer bounds submitted work
 /// without blocking the main actor or building a backlog of stale animation frames.
 final class NativeOverviewCloudRenderer: @unchecked Sendable {
     private let layer: CAMetalLayer
     private let pipeline: NativeOverviewCloudPipeline
     private let queue = DispatchQueue(label: "com.mokusei.overview.cloud-render", qos: .userInteractive)
-    private let permit = DispatchSemaphore(value: 1)
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var stopped = false
     private var geometryBuffer: MTLBuffer?
     private var colorBuffer: MTLBuffer?
+    private var colors: [SIMD4<Float16>] = []
+    private var inFlight: MTLCommandBuffer?
     // Timer and immutable input are owned exclusively by queue.
     private var timer: DispatchSourceTimer?
     private var driverRevision: UInt64 = 0
@@ -127,13 +127,16 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
         }
     }
 
-    /// Independent, screen-rate-capped sampling; nextDrawable and the one-frame
-    /// permit provide backpressure. This is not a display-link/FPS guarantee.
+    /// Independent, screen-rate-capped sampling with at most one GPU frame in flight.
     func drive(_ input: NativeOverviewCloudInput, generation: UInt64, interval: Double,
                completion: @escaping @Sendable (Bool) -> Void) {
         queue.async { [weak self] in
             guard let self, self.accepts(generation) else { return }
             self.timer?.cancel()
+            if self.colors != input.colors {
+                self.colors = input.colors
+                self.colorBuffer = nil
+            }
             self.driverRevision &+= 1
             let revision = self.driverRevision
             let timer = DispatchSource.makeTimerSource(queue: self.queue)
@@ -144,9 +147,16 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
                 guard self.accepts(generation) else {
                     self.timer?.cancel(); self.timer = nil; return
                 }
-                guard self.permit.wait(timeout: .now()) == .success else { return }
+                // This tick already runs on the buffers' owning queue. A steady
+                // frame needs no separate completion wakeup to admit the next one.
+                self.releaseFinishedFrame()
+                guard self.inFlight == nil else { return }
                 autoreleasepool {
                     let sample = input.sample()
+                    if !first && sample.continues {
+                        self.encode(sample.frame, generation: generation, completion: nil)
+                        return
+                    }
                     // Static draws and terminal fade frames stop only after success;
                     // a missing drawable must remain retryable without main ticks.
                     let notify = first
@@ -154,11 +164,9 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
                     self.encode(sample.frame, generation: generation) { [weak self] succeeded in
                         if notify { completion(succeeded) }
                         if succeeded && !sample.continues {
-                            self?.queue.async { [weak self] in
-                                guard let self, self.driverRevision == revision else { return }
-                                self.timer?.cancel()
-                                self.timer = nil
-                            }
+                            guard let self, self.driverRevision == revision else { return }
+                            self.timer?.cancel()
+                            self.timer = nil
                         }
                     }
                 }
@@ -174,31 +182,37 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
         return !stopped && generation == value
     }
 
+    private func releaseFinishedFrame() {
+        switch inFlight?.status {
+        case .completed, .error: inFlight = nil
+        default: break
+        }
+    }
+
     private func encode(_ frame: NativeOverviewCloudFrame, generation: UInt64,
                         completion: (@Sendable (Bool) -> Void)?) {
         // nextDrawable can block until its timeout. It never runs on the main
         // actor, and detached/hidden generations are checked on either side.
-        guard accepts(generation), !frame.geometry.isEmpty, !frame.colors.isEmpty,
+        guard accepts(generation), !frame.geometry.isEmpty, !colors.isEmpty,
               let drawable = layer.nextDrawable(), accepts(generation),
               let commands = pipeline.commandQueue.makeCommandBuffer() else {
-            permit.signal(); completion?(false); return
+            completion?(false); return
         }
         let geometryBytes = frame.geometry.count * MemoryLayout<Float>.stride
-        let colorBytes = frame.colors.count * MemoryLayout<SIMD4<Float16>>.stride
         if (geometryBuffer?.length ?? 0) < geometryBytes {
             geometryBuffer = pipeline.device.makeBuffer(length: geometryBytes, options: .storageModeShared)
         }
-        if (colorBuffer?.length ?? 0) < colorBytes {
-            colorBuffer = pipeline.device.makeBuffer(length: colorBytes, options: .storageModeShared)
+        if colorBuffer == nil {
+            colorBuffer = colors.withUnsafeBytes { bytes in
+                guard let base = bytes.baseAddress else { return nil }
+                return pipeline.device.makeBuffer(bytes: base, length: bytes.count, options: .storageModeShared)
+            }
         }
         guard let geometryBuffer, let colorBuffer else {
-            permit.signal(); completion?(false); return
+            completion?(false); return
         }
         frame.geometry.withUnsafeBytes { bytes in
             if let base = bytes.baseAddress { memcpy(geometryBuffer.contents(), base, bytes.count) }
-        }
-        frame.colors.withUnsafeBytes { bytes in
-            if let base = bytes.baseAddress { memcpy(colorBuffer.contents(), base, bytes.count) }
         }
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = drawable.texture
@@ -206,22 +220,27 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
         pass.colorAttachments[0].storeAction = .store
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         guard let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else {
-            permit.signal(); completion?(false); return
+            completion?(false); return
         }
         var uniforms = Uniforms(pointsPerPixel: frame.pointSize / SIMD2(Float(drawable.texture.width), Float(drawable.texture.height)),
-                                geometryCount: UInt32(frame.geometry.count), colorCount: UInt32(frame.colors.count))
+                                geometryCount: UInt32(frame.geometry.count), colorCount: UInt32(colors.count))
         encoder.setRenderPipelineState(pipeline.state)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
         encoder.setFragmentBuffer(geometryBuffer, offset: 0, index: 1)
         encoder.setFragmentBuffer(colorBuffer, offset: 0, index: 2)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
-        guard accepts(generation) else { permit.signal(); completion?(false); return }
-        commands.addCompletedHandler { [self] commands in
-            let succeeded = commands.status == .completed
-            permit.signal()
-            completion?(succeeded && accepts(generation))
+        guard accepts(generation) else { completion?(false); return }
+        if let completion {
+            commands.addCompletedHandler { [self] finished in
+                let succeeded = finished.status == .completed
+                queue.async { [self] in
+                    releaseFinishedFrame()
+                    completion(succeeded && accepts(generation))
+                }
+            }
         }
+        inFlight = commands
         commands.present(drawable)
         commands.commit()
     }
