@@ -29,9 +29,16 @@ replay_app="$(cat .build/moku-panel-evidence/app-path.txt)"
 "$replay_app/Contents/MacOS/MokuPanelPreview" --capture-collapse
 ```
 
-A nonactivating panel uses an in-memory Agent draft and a separate Overview
-draft. It drives the production scene's composer context change with continuous
-Dock eligibility, then closes and reopens the Overview editor during its
+A nonactivating panel starts with the Report list's input gate closed. Selecting
+a fixture execution publishes the right column through the production native
+marker and waits for Dock travel and the Codex identity flip before expanding
+the composer. The replay checks that the list and moving Dock have no editor,
+that the selected column admits one editor, and that returning to the list
+and reselecting releases and restores input. Pass `--narrow` to exercise the
+two-row layout in a 480-point window. Build a fresh bundle for each capture.
+
+The replay then switches to a separate in-memory Overview draft with continuous
+Dock eligibility, closes and reopens the Overview editor during its
 420ms retention window. It marks and commits text through the mounted
 `NSTextInputClient`, then types into the same editor. It checks the exact multiline
 draft and UTF-16 selection after reopening and checks that closing again
@@ -41,9 +48,10 @@ system-input verification. See the
 [Dock contract](../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer).
 
 The app exits and saves `collapse/window.mp4` and `collapse/observations.json`
-next to its temporary bundle. Check the closing frames for the outgoing Agent
-placeholder and Overview draft to disappear as soon as the shell starts
-shrinking, and check that the reopened draft and the Talk reply are readable.
+next to its temporary bundle. Inspect intermediate opening frames. The first
+visible placeholder glyph and the attachment button must clear the Codex logo.
+The compact editor must enter above the logo. Check that outgoing ink disappears
+at the start of closing and that the reopened draft and Talk reply are readable.
 The replay uses real rendering and native editor state with synthetic routes
 and no Runtime or system input. Pixel review is manual. A reused output
 directory, missing window capture or failed semantic check cannot establish a pass.

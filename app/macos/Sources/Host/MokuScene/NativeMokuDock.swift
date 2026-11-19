@@ -195,6 +195,8 @@ public struct NativeMokuDock: View {
         state.readingPanelVisible
             ? NativeReadingPageTiming.openingAnimation : .smooth(duration: 0.42, extraBounce: 0)
     }
+    private static let composerFaceCenterX = 15 + NativeMokuFaceLayout.seat.width / 2
+
     /// Centre of the resident face seat in shell-local points. The composer row
     /// carries the face with the editor; a retired composer keeps it on the row
     /// the shell's own layout reserves.
@@ -202,15 +204,15 @@ public struct NativeMokuDock: View {
                                        capsuleWidth: CGFloat, composerFraction: CGFloat,
                                        editorBottomInset: CGFloat, followsEditor: Bool) -> CGPoint {
         let idle = NativeMokuCapsuleLayout.idleSize
-        let leading = (min(idle.width, capsuleWidth) - NativeMokuFaceLayout.seat.width) / 2 * (1 - composerFraction)
-            + 15 * composerFraction
+        let centerX = min(idle.width, capsuleWidth) / 2 * (1 - composerFraction)
+            + composerFaceCenterX * composerFraction
         let bottom = followsEditor
             ? idle.height / 2 - 12.5 + (editorBottomInset - idle.height / 2) * composerFraction
             : historyBand
         let centerY = followsEditor
             ? shell.height - bottom - NativeMokuFaceLayout.seat.height / 2
             : shell.height - bottom - (rowHeight - historyBand) / 2
-        return CGPoint(x: leading + NativeMokuFaceLayout.seat.width / 2, y: centerY)
+        return CGPoint(x: centerX, y: centerY)
     }
 
     /// Moku's face keeps its layout seat for its whole lifetime. While Settings
@@ -745,6 +747,10 @@ public struct NativeMokuDock: View {
         let faceCenter = Self.faceSeatCenter(shell: surface.size, rowHeight: rowHeight,
             historyBand: historyBand, capsuleWidth: width, composerFraction: capsuleFraction,
             editorBottomInset: editorBottomInset, followsEditor: followsEditor)
+        let compactComposer = width < 260
+        // The wide row shares the face's horizontal motion. The compact editor
+        // is above the face and already has the whole width of its own row.
+        let rowTravel = compactComposer ? 0 : faceCenter.x - Self.composerFaceCenterX
         let characterInput = NativeMokuCharacterInput(expression: eyeExpression, focus: expanded ? 1 : 0,
             running: runningFeedback, reasoning: reasoningEligible ? incomingReasoning : nil,
             presentsReasoning: reasoningEligible && reasoningReady, executionKey: threadID?.string ?? presentation?.executionKey,
@@ -755,32 +761,6 @@ public struct NativeMokuDock: View {
             dark: true, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
-        .overlay(alignment: .bottomLeading) {
-            if composerMounted {
-                composer(room: room, compact: width < 260)
-                    // Reflow native text once at the destination width. Resolve
-                    // the shell's movement outside that discrete layout so its
-                    // editor cannot jump to the final scene-space position.
-                    .frame(width: width).fixedSize(horizontal: false, vertical: true)
-                    .transaction(value: width) { $0.animation = nil }
-                    .geometryGroup()
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { capsuleHeight = max(58, $0) }
-                    // Let the eyes clear the text seat on expansion. At close
-                    // the editor stays mounted for selection, but its ink must
-                    // disappear before the shell and eyes cross that seat.
-                    .animation(composerVisible ? composerEntrance : nil) { content in
-                        content.opacity(composerVisible ? 1 : 0)
-                    }
-                    .allowsHitTesting(composerVisible)
-                    .disabled(state.settingsOpen || !state.inputInteractionReady)
-                    .accessibilityHidden(!composerVisible)
-                    // A route can replace the draft or unmount the entire row
-                    // before it receives the hidden state. An implicit removal
-                    // fade would keep the outgoing text in the shrinking shell.
-                    .id(ObjectIdentifier(draft))
-                    .transition(.identity)
-            }
-        }
         .onChange(of: completionVisible) { _, visible in
             if !visible { state.dockMentionHitRect = nil }
         }
@@ -864,20 +844,44 @@ public struct NativeMokuDock: View {
                     .padding(.bottom, historyBand)
             }
         }
-        .overlay(alignment: .topLeading) {
-            // One numeric seat travels with the same transaction as the shell.
-            // Switching between an intrinsic-height row and a fixed-height row
-            // cannot interpolate, and a delayed expansion fraction starts the
-            // eyes a layout pass after the glass has already changed size.
+        .overlay {
             let generation = state.composerGeneration
-            NativeMokuDockIdentity(harness: threadHarness,
-                showsHarness: threadTitle != nil && !state.settingsOpen,
-                entranceReady: state.inputAdmissionReady,
-                generation: generation, motion: state.windowVisible,
-                onSettled: { state.completeInputIdentity(generation: generation) }) {
-                face(characterInput)
-            }
-                .position(x: faceCenter.x + faceShift.width, y: faceCenter.y + faceShift.height)
+            Color.clear
+                .overlay(alignment: .bottomLeading) {
+                    if composerMounted {
+                        composer(room: room, compact: compactComposer)
+                            // Lay out native text at its destination width once.
+                            // The moving shell clips the row as it is revealed.
+                            .frame(width: width).fixedSize(horizontal: false, vertical: true)
+                            .transaction(value: width) { $0.animation = nil }
+                            .geometryGroup()
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { capsuleHeight = max(58, $0) }
+                            .animation(composerVisible ? composerEntrance : nil) { content in
+                                content.opacity(composerVisible ? 1 : 0)
+                            }
+                            .allowsHitTesting(composerVisible)
+                            .disabled(state.settingsOpen || !state.inputInteractionReady)
+                            .accessibilityHidden(!composerVisible)
+                            // Closing or replacing a draft retires its ink immediately.
+                            .id(ObjectIdentifier(draft))
+                            .transition(.asymmetric(insertion: .opacity.animation(.easeIn(duration: 0.28)),
+                                removal: .identity))
+                    }
+                }
+                .overlay(alignment: .topLeading) {
+                    NativeMokuDockIdentity(harness: threadHarness,
+                        showsHarness: threadTitle != nil && !state.settingsOpen,
+                        entranceReady: state.inputAdmissionReady,
+                        generation: generation, motion: state.windowVisible,
+                        onSettled: { state.completeInputIdentity(generation: generation) }) {
+                        face(characterInput)
+                    }
+                    .position(x: faceCenter.x - rowTravel + faceShift.width, y: faceCenter.y + faceShift.height)
+                }
+                // This transform persists even when the editor first mounts.
+                // Both seats use the same sampled offset throughout expansion.
+                .geometryGroup()
+                .offset(x: rowTravel)
         }
         .overlay(alignment: .bottomTrailing) {
             NativeMokuNoteActionStack(stacked: noteExpanded && actionLayout.stacked,

@@ -113,17 +113,17 @@ panel's input gate while the workspace still owns the outgoing draft. The
 composer and its directory suggestions hide at that point. When the route
 releases the row, it has no SwiftUI exit fade. Reopening
 restores the active draft and its selection. Talk has independent presentation
-and can become readable when input closes. The shell and the single
-identity seat share destination geometry in the same animation transaction; no
-delayed expansion fraction or intrinsic/fixed row switch moves the identity.
-The shell is positioned by its bottom edge so height changes cannot first move
-AppKit text to a new row and then translate it back. Native editor internals lay
-out at their destination width while the shell reveals/clips them. Below 260pt
-of capsule width a persistent four-seat Layout gives text/attachment and
-identity/actions separate rows, preserving the same native editor through resize.
+and can become readable when input closes. The shell and the single identity
+seat move in the same animation transaction. In the wide layout, the composer
+and identity share a persistent geometry group and horizontal offset.
+The attachment button and input ink fade in to the right of the moving eyes
+or Harness logo. The bottom-anchored editor lays out at its destination width
+while the expanding shell reveals it. Below 260pt of capsule width, the same
+editor and attachment button occupy a row above the identity and actions.
+Resizing preserves the native editor.
 The surface height stays within the available viewport. The
 [isolated panel replay](../../../../../demos/moku-panel-transition/README.md#collapse-replay)
-captures intermediate frames and checks the retained editor and Talk handoff.
+captures the Report execution entrance and checks the retained editor and Talk handoff.
 
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least

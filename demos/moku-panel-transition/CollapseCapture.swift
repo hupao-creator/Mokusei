@@ -8,7 +8,8 @@ private struct CollapseCaptureError: Error, CustomStringConvertible {
     let description: String
 }
 
-@MainActor func captureCollapse(window: NSWindow, scene: NativeMokuSceneState, agentDraft: NativeComposerDraft,
+@MainActor func captureCollapse(window: NSWindow, scene: NativeMokuSceneState, selectExecution: () -> Void,
+                                returnToReportList: () -> Void,
                                 selectOverviewDraft: (NativeComposerDraft) -> Void) async throws {
     let destination = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("collapse")
     try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
@@ -25,10 +26,7 @@ private struct CollapseCaptureError: Error, CustomStringConvertible {
         guard condition else { throw CollapseCaptureError(description: failure) }
     }
 
-    scene.readingPanelVisible = true
-    scene.overviewVisible = false
-    scene.setComposerContext(agentDraft, opensInput: true, keepsInputOpen: true, autofocus: false)
-    try await pause(650)
+    try await pause(350)
     let shareable = try await SCShareableContent.currentProcess
     guard let ownWindow = shareable.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }),
           let content = window.contentView else { throw CollapseCaptureError(description: "Replay window unavailable") }
@@ -59,8 +57,28 @@ private struct CollapseCaptureError: Error, CustomStringConvertible {
     var failure: String?
     do {
         try await pause(350)
-        event("agent-open")
-        try require(scene.inputOpen && editors(in: content).count == 1, "Agent editor did not mount")
+        try require(!scene.inputOpen && editors(in: content).isEmpty, "Report list admitted an editor")
+        selectExecution()
+        event("report-execution-selected")
+        try await pause(160)
+        try require(!scene.inputOpen && editors(in: content).isEmpty, "Input opened during column travel")
+        event("report-execution-travel")
+        try await pause(1050)
+        event("report-execution-open")
+        let reportEditors = editors(in: content)
+        try require(scene.executionDockPlacement.threadID == "fixture-agent" && scene.inputOpen
+                    && reportEditors.count == 1
+                    && reportEditors.allSatisfy { $0.convert($0.bounds, to: content).midX > content.bounds.midX },
+                    "Report execution editor did not mount in its column")
+        returnToReportList()
+        event("return-to-report-list")
+        try await pause(650)
+        try require(scene.executionDockPlacement.threadID == nil && !scene.inputOpen && editors(in: content).isEmpty,
+                    "Returning to the list retained the execution input")
+        selectExecution()
+        event("report-execution-reselected")
+        try await pause(1210)
+        try require(scene.inputOpen && editors(in: content).count == 1, "Reselection did not restore execution input")
         scene.overviewVisible = true
         scene.readingPanelVisible = false
         selectOverviewDraft(overviewDraft)

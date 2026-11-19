@@ -3,6 +3,8 @@ import Observation
 import ScreenCaptureKit
 import SwiftUI
 import MokuseiCore
+import MokuseiHarnessCodex
+import MokuseiPluginAPI
 import MokuseiPluginUI
 @testable import MokuseiUI
 
@@ -14,6 +16,8 @@ import MokuseiPluginUI
     var transitionsDisabled = false
     var thread = true
     var collapseCapture = false
+    let route = UUID()
+    let harness = AnyHarnessPlugin(CodexHarnessPlugin())
     var status = "普通 Thread · 点击胶囊打开，Escape 或外部点击收起"
     var resize: (CGSize) -> Void = { _ in }
 }
@@ -33,11 +37,27 @@ private struct Surface: View {
                     Text(model.status).font(.callout)
                 }.padding(.top, 90).padding(.leading, 85)
             }
+            .background {
+                if model.collapseCapture {
+                    GeometryReader { geometry in
+                        NativeExecutionDockRegion(placement: model.scene.executionDockPlacement,
+                            active: model.thread, threadID: "fixture-agent",
+                            onSettled: {
+                                guard model.thread else { return }
+                                model.scene.setComposerContext(model.draft, opensInput: true, keepsInputOpen: true,
+                                    waitsForHarnessIdentity: true, autofocus: false)
+                            })
+                            .destinationFrame(CGRect(x: geometry.size.width / 2, y: 0,
+                                width: geometry.size.width / 2, height: geometry.size.height))
+                    }
+                }
+            }
         } thread: { Color.white } dock: {
             NativeMokuDock(state: model.scene, draft: model.draft, cwd: "/fixture",
                 landing: model.landing,
                 threadID: model.collapseCapture && model.thread ? "fixture-agent" : nil,
                 threadTitle: model.thread ? "修复历史执行工具消息泄漏" : nil,
+                threadHarness: model.collapseCapture ? model.harness : nil,
                 mode: model.running ? .running : .idle, running: model.running,
                 loadMentionDirectories: { ["Mokusei", "Design", "Research"].map {
                     NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
@@ -45,6 +65,7 @@ private struct Surface: View {
                 onCancel: { model.running = false })
         } settings: { EmptyView() }
         .environment(\.locale, Locale(identifier: "zh-Hans"))
+        .environment(\.nativeExecutionDockRoute, model.route)
         .environment(\.scenePhase, model.collapseCapture ? .active : scenePhase)
         .transaction { if model.transitionsDisabled { $0.animation = nil; $0.disablesAnimations = true } }
     }
@@ -78,7 +99,14 @@ private struct Controls: View {
     func applicationDidFinishLaunching(_ notification: Notification) {
         if CommandLine.arguments.contains("--capture-collapse") {
             model.collapseCapture = true
-            window = NSPanel(contentRect: .init(x: 100, y: 100, width: 1024, height: 650),
+            model.thread = false
+            model.running = false
+            model.scene.readingPanelVisible = true
+            model.scene.overviewVisible = false
+            model.scene.executionDockPlacement.beginRoute(model.route)
+            model.scene.setComposerContext(model.draft, opensInput: false, inputAdmissionReady: false)
+            let width: CGFloat = CommandLine.arguments.contains("--narrow") ? 480 : 1024
+            window = NSPanel(contentRect: .init(x: 100, y: 100, width: width, height: 650),
                 styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.title = "Moku collapse replay"
@@ -86,11 +114,17 @@ private struct Controls: View {
             window.orderBack(nil)
             Task {
                 do {
-                    try await captureCollapse(window: window, scene: model.scene, agentDraft: model.draft) { draft in
+                    try await captureCollapse(window: window, scene: model.scene, selectExecution: {
+                        model.scene.setComposerContext(model.draft, opensInput: true, keepsInputOpen: true,
+                            inputAdmissionReady: false, waitsForHarnessIdentity: true, autofocus: false)
+                        model.thread = true
+                    }, returnToReportList: {
                         model.thread = false
-                        model.running = false
+                        model.scene.setComposerContext(model.draft, opensInput: false, inputAdmissionReady: false)
+                    }, selectOverviewDraft: { draft in
+                        model.thread = false
                         model.draft = draft
-                    }
+                    })
                 } catch {
                     print("Collapse capture failed:", error)
                     exit(EXIT_FAILURE)
