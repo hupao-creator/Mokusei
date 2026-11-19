@@ -8,17 +8,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-const voiceFrameworkName = "LiveKitWebRTC.framework"
-const voiceFrameworkIdentifier = "io.livekit.LiveKitWebRTC"
-const voiceFrameworkDependency = "@rpath/LiveKitWebRTC.framework/LiveKitWebRTC"
-
 type signingIdentity struct{ Hash, Name, Team, Keychain string }
-type Signature struct{ Identifier, Team, Requirement string }
+type Signature struct{ Identifier, Team, Requirement, Mode string }
 
 func developmentIdentity(ctx context.Context) (signingIdentity, error) {
 	keychain := strings.TrimSpace(os.Getenv("CSC_KEYCHAIN"))
@@ -88,6 +83,12 @@ func sign(ctx context.Context, path string, identity signingIdentity, identifier
 	return err
 }
 func VerifySignature(ctx context.Context, path, identifier, expectedTeam string) (Signature, error) {
+	return verifySignature(ctx, path, identifier, expectedTeam, false)
+}
+
+// Ad-hoc acceptance is selected only by the explicit alpha product. In
+// particular, an unspecified expectedTeam still requires a development identity.
+func verifySignature(ctx context.Context, path, identifier, expectedTeam string, adHoc bool) (Signature, error) {
 	if _, err := run(ctx, "", nil, "/usr/bin/codesign", "--verify", "--deep", "--strict", path); err != nil {
 		return Signature{}, err
 	}
@@ -105,10 +106,19 @@ func VerifySignature(ctx context.Context, path, identifier, expectedTeam string)
 	}
 	team := first(`(?m)^TeamIdentifier=([^\n]+)$`)
 	requirement := first(`(?m)^(?:# )?(designated => .+)$`)
-	if !strings.Contains(out, "Identifier="+identifier+"\n") || !strings.Contains(out, "Authority=Apple Development: ") || team == "" || team == "not set" || (expectedTeam != "" && team != expectedTeam) || !strings.Contains(requirement, "anchor apple generic") || regexp.MustCompile(`\bcdhash\b`).MatchString(requirement) || !strings.Contains(out, "(runtime)") {
+	if !strings.Contains(out, "Identifier="+identifier+"\n") || !regexp.MustCompile(`(?m)^CodeDirectory [^\n]*flags=0x[0-9a-fA-F]+\([^)]*\bruntime\b[^)]*\)`).MatchString(out) {
+		return Signature{}, fmt.Errorf("bundle has an unexpected identifier or lacks hardened runtime: %s\n%s", path, out)
+	}
+	if adHoc {
+		if !strings.Contains(out, "Signature=adhoc\n") || (team != "" && team != "not set") || expectedTeam != "" || strings.Contains(out, "Authority=") {
+			return Signature{}, fmt.Errorf("alpha bundle has no ad-hoc signature: %s\n%s", path, out)
+		}
+		return Signature{Identifier: identifier, Requirement: requirement, Mode: "ad-hoc"}, nil
+	}
+	if !strings.Contains(out, "Authority=Apple Development: ") || team == "" || team == "not set" || (expectedTeam != "" && team != expectedTeam) || !strings.Contains(requirement, "anchor apple generic") || regexp.MustCompile(`\bcdhash\b`).MatchString(requirement) {
 		return Signature{}, fmt.Errorf("bundle has no stable hardened Apple Development signature: %s\n%s", path, out)
 	}
-	return Signature{Identifier: identifier, Team: team, Requirement: requirement}, nil
+	return Signature{Identifier: identifier, Team: team, Requirement: requirement, Mode: "apple-development"}, nil
 }
 func machORPaths(ctx context.Context, path string) ([]string, error) {
 	out, err := run(ctx, "", nil, "/usr/bin/otool", "-l", path)
@@ -124,7 +134,7 @@ func machORPaths(ctx context.Context, path string) ([]string, error) {
 func portableRPath(path string) bool {
 	return path == "@executable_path/../Frameworks" || path == "@loader_path" || path == "/usr/lib/swift"
 }
-func assertPortableMachO(ctx context.Context, path, frameworks string, allowUniversal bool) ([]string, error) {
+func assertPortableMachO(ctx context.Context, path string, allowUniversal bool) ([]string, error) {
 	out, err := run(ctx, "", nil, "/usr/bin/lipo", "-archs", path)
 	if err != nil {
 		return nil, err
@@ -171,20 +181,6 @@ func assertPortableMachO(ctx context.Context, path, frameworks string, allowUniv
 		dependencies = append(dependencies, dep)
 		if strings.HasPrefix(dep, "/usr/lib/") || strings.HasPrefix(dep, "/System/Library/") {
 			continue
-		}
-		if frameworks != "" && dep == voiceFrameworkDependency {
-			root, err := filepath.EvalSymlinks(frameworks)
-			if err != nil {
-				return nil, err
-			}
-			target, err := filepath.EvalSymlinks(filepath.Join(root, voiceFrameworkName, "LiveKitWebRTC"))
-			if err != nil {
-				return nil, err
-			}
-			rel, err := filepath.Rel(root, target)
-			if err == nil && rel != ".." && !strings.HasPrefix(rel, "../") && !filepath.IsAbs(rel) {
-				continue
-			}
 		}
 		return nil, fmt.Errorf("non-system dynamic dependency in %s: %s", path, dep)
 	}

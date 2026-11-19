@@ -21,35 +21,33 @@ import (
 const ledgerSchemaVersion = 2
 
 type LedgerOptions struct {
-	WriteSnapshot                func(context.Context, string, []byte) error
-	Now                          func() time.Time
-	FlushDebounce                time.Duration
-	OnBackgroundPersistenceError func(error)
+	WriteSnapshot func(context.Context, string, []byte) error
+	Now           func() time.Time
+	FlushDebounce time.Duration
 }
 
 // TelemetryLedger is scoped by composition to one Harness and one private file.
 // Neither samples nor persisted facts contain a provider identity; only the
 // owning Harness resolves native model names and opaque attribution keys.
 type TelemetryLedger struct {
-	Path           string
-	mu             sync.Mutex
-	windows        []ledgerWindow
-	recentIDs      []string
-	recentSet      map[string]struct{}
-	pending        []pendingUsage
-	pendingSet     map[string]struct{}
-	pendingBytes   int
-	dirty          bool
-	disposed       bool
-	timer          *time.Timer
-	timerVersion   uint64
-	flushGate      chan struct{}
-	closeDone      chan struct{}
-	closeErr       error
-	writeSnapshot  func(context.Context, string, []byte) error
-	now            func() time.Time
-	debounce       time.Duration
-	backgroundFail func(error)
+	Path          string
+	mu            sync.Mutex
+	windows       []ledgerWindow
+	recentIDs     []string
+	recentSet     map[string]struct{}
+	pending       []pendingUsage
+	pendingSet    map[string]struct{}
+	pendingBytes  int
+	dirty         bool
+	disposed      bool
+	timer         *time.Timer
+	timerVersion  uint64
+	flushGate     chan struct{}
+	closeDone     chan struct{}
+	closeErr      error
+	writeSnapshot func(context.Context, string, []byte) error
+	now           func() time.Time
+	debounce      time.Duration
 }
 
 var _ plugin.TelemetryLedger = (*TelemetryLedger)(nil)
@@ -84,7 +82,7 @@ func OpenTelemetryLedger(path string, options LedgerOptions) (*TelemetryLedger, 
 		Path: path, windows: []ledgerWindow{}, recentIDs: []string{}, pending: []pendingUsage{},
 		recentSet: make(map[string]struct{}), pendingSet: make(map[string]struct{}),
 		flushGate: make(chan struct{}, 1), now: options.Now, debounce: options.FlushDebounce,
-		writeSnapshot: options.WriteSnapshot, backgroundFail: options.OnBackgroundPersistenceError,
+		writeSnapshot: options.WriteSnapshot,
 	}
 	ledger.flushGate <- struct{}{}
 	if snapshot, err := loadLedgerSnapshot(path); err == nil {
@@ -414,12 +412,7 @@ func (l *TelemetryLedger) markDirtyLocked() {
 		}
 		l.timer = nil
 		l.mu.Unlock()
-		if err := l.Flush(context.Background()); err != nil && l.backgroundFail != nil {
-			func() {
-				defer func() { _ = recover() }()
-				l.backgroundFail(err)
-			}()
-		}
+		_ = l.Flush(context.Background())
 	})
 }
 

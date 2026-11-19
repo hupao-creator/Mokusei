@@ -1,3 +1,4 @@
+import AppKit
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
@@ -10,13 +11,25 @@ struct NativeReportCollection: View {
     let onSelection: (ApplicationThreadRef) -> Void
     let openThread: (ApplicationThreadRef) -> Void
     @State private var selection: ApplicationThreadRef
+    @State private var currentMembers: Set<ApplicationThreadRef>
     @State private var direction = 1
     @State private var interacting = false
+    @State private var hovered = false
+    @State private var showingMembers = false
+    @State private var panelOwner = UUID()
+    @State private var panelSource = NativeCollectionPanelSource()
+    @Environment(\.nativeCollectionPanel) private var memberPresentation
+    @Environment(\.nativeReportCoverCache) private var coverCache
+    @State private var trackingMenus: Set<ObjectIdentifier> = []
+    @FocusState private var focusedControl: Control?
+    @AccessibilityFocusState private var accessibilityFocusedControl: Control?
     @State private var outgoingID: ApplicationThreadRef?
     @State private var progress = 1.0
     @State private var motionEpoch = UUID()
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var readyCovers: Set<CoverIdentity> = []
+    @State private var playbackStarted: CoverIdentity?
     @Environment(\.threadCardAnimationVisibility) private var visibility
+    @Environment(\.colorScheme) private var colorScheme
 
     init(props: [ApplicationThreadProps<NativeReportView>], initialSelection: ApplicationThreadRef? = nil,
          active: Bool, slow: Bool = false, onSelection: @escaping (ApplicationThreadRef) -> Void,
@@ -24,17 +37,39 @@ struct NativeReportCollection: View {
         self.props = props; self.active = active; self.slow = slow
         self.onSelection = onSelection; self.openThread = openThread
         _selection = State(initialValue: initialSelection.flatMap { ref in props.contains { $0.entry.ref == ref } ? ref : nil } ?? props[0].entry.ref)
+        _currentMembers = State(initialValue: Set(props.map { $0.entry.ref }))
     }
     private var members: [ApplicationThreadRef] { props.map { $0.entry.ref } }
     private var selected: ApplicationThreadRef { members.contains(selection) ? selection : members[0] }
     private var page: Int { members.firstIndex(of: selected) ?? 0 }
-    private var playing: Bool { active && visibility?.isVisible != false && !interacting }
+    private var playing: Bool { active && visibility?.isVisible != false && !interacting && !showingMembers && trackingMenus.isEmpty }
+    private enum Control: Hashable {
+        case allMembers, previous, member(ApplicationThreadRef), menu, next
+    }
+    private var controlsVisible: Bool {
+        active && hovered && !showingMembers && visibility?.isVisible != false
+    }
+    private struct CoverIdentity: Hashable {
+        let reference: ApplicationThreadRef
+        let revision: JSONText
+        let dark: Bool
+    }
+    private func identity(_ member: ApplicationThreadProps<NativeReportView>) -> CoverIdentity {
+        .init(reference: member.entry.ref, revision: member.entry.view.coverRevision, dark: colorScheme == .dark)
+    }
+    private var renderedIdentities: Set<CoverIdentity> { Set(rendered.map(identity)) }
     private struct ClockKey: Hashable {
         let selection: ApplicationThreadRef
         let members: [ApplicationThreadRef]
         let playing: Bool
+        let cover: CoverIdentity
     }
-    private var clockKey: ClockKey { .init(selection: selected, members: members, playing: playing) }
+    private var clockKey: ClockKey {
+        let member = props[page], cover = identity(member)
+        return .init(selection: selected, members: members,
+            playing: playing && outgoingID == nil && (!member.entry.view.hasCover
+                || (readyCovers.contains(cover) && (playbackStarted == cover))), cover: cover)
+    }
     private var locale: JSONText { props[0].context.locale }
     // Keep at most four WebKit covers alive: visible, retiring, and neighbors.
     // An arbitrarily large collection must not mount one browser per report.
@@ -46,13 +81,15 @@ struct NativeReportCollection: View {
         select(members[(page + value + members.count) % members.count], direction: value)
     }
     private func select(_ id: ApplicationThreadRef, direction: Int) {
-        guard active, outgoingID == nil, id != selected else { return }
+        // Native menus can retain old View/action values across a collection update;
+        // read membership through State so those actions see the latest admission.
+        guard active, outgoingID == nil, currentMembers.contains(id), id != selected else { return }
         self.direction = direction
         // Cover and ink retain the old identity on one shared clock.
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
-            outgoingID = reduceMotion ? nil : selected
-            progress = reduceMotion ? 1 : 0
+            outgoingID = selected
+            progress = 0
             motionEpoch = UUID()
             selection = id
         }
@@ -61,6 +98,7 @@ struct NativeReportCollection: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let coverHeight = NativeReportCoverLayout.height(for: geometry.size.width)
             ZStack(alignment: .top) {
                 VStack(spacing: 4) {
                     // Preload covers in their own clipped viewport. Metadata never
@@ -68,63 +106,95 @@ struct NativeReportCollection: View {
                     ZStack {
                         ForEach(rendered, id: \.entry.ref) { member in
                             cover(member)
-                                .frame(width: geometry.size.width, height: 308)
+                                .frame(width: geometry.size.width, height: coverHeight)
                                 .modifier(NativeReportCollectionCoverOffset(direction: Double(direction), incoming: member.entry.ref != outgoingID,
                                     moving: outgoingID != nil, width: geometry.size.width, progress: progress))
                                 .opacity(member.entry.ref == selected || member.entry.ref == outgoingID ? 1 : 0)
                         }
-                    }.frame(height: 308).clipped().allowsHitTesting(false).accessibilityHidden(true)
+                    }.frame(height: coverHeight).clipped().allowsHitTesting(false).accessibilityHidden(true)
                     NativeReportCollectionBody(props: rendered, selected: selected, outgoingID: outgoingID,
                         direction: direction, progress: progress, visualEpoch: motionEpoch, active: active,
                         allowsActions: { active && outgoingID == nil && $0 == selected }, openThread: openThread)
                         .frame(maxHeight: .infinity).clipped()
                 }
                 NativeReportCarouselInput(step: step, open: { if active && outgoingID == nil { openThread(selected) } }, interacting: { interacting = $0 })
-                    .frame(height: 308).nativeCanvasNavigationRegion().accessibilityHidden(true).zIndex(3)
+                    .frame(height: coverHeight).nativeCanvasNavigationRegion().accessibilityHidden(true).zIndex(3)
                 GlassEffectContainer(spacing: 12) {
                     VStack {
                         HStack {
                             Spacer()
-                            Text(applicationText(locale, "\(members.count) 篇", "\(members.count) reports")).font(.system(size: 11, weight: .medium))
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .glassEffect(.regular, in: Capsule())
+                            Button { toggleMembers() } label: {
+                                Text("\(page + 1)/\(members.count)").font(.system(size: 13.2, weight: .medium)).monospacedDigit()
+                                    // Center the visible digit/slash ink within the font's line box.
+                                    .offset(y: -1.25)
+                                    .padding(.horizontal, 12).padding(.vertical, 7.2)
+                                    .contentShape(Capsule())
+                            }.buttonStyle(NativeReportCarouselButtonStyle())
+                                .focused($focusedControl, equals: .allMembers)
+                                .accessibilityFocused($accessibilityFocusedControl, equals: .allMembers)
+                                .accessibilityValue(applicationText(locale, showingMembers ? "已展开" : "已收起", showingMembers ? "Expanded" : "Collapsed"))
+                                .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，第 \(page + 1) 篇，共 \(members.count) 篇", "Show all Super Threads, report \(page + 1) of \(members.count)"))
+                                .disabled(!active || outgoingID != nil)
+                                .glassEffect(.regular.interactive(), in: Capsule())
                         }
                         Spacer()
-                        HStack(spacing: 12) {
-                            Button { step(-1) } label: {
-                                Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle())
-                            }.accessibilityLabel(applicationText(locale, "上一个 Super Thread", "Previous Super Thread"))
-                            if props.count <= 7 {
-                                HStack(spacing: 7) {
-                                    ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
-                                        Button { select(member.entry.ref, direction: index >= page ? 1 : -1) } label: {
-                                            Capsule().fill(member.entry.ref == selected
-                                                ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                                                .frame(width: member.entry.ref == selected ? 16 : 5, height: 5)
-                                                .frame(minWidth: 16, minHeight: 28).contentShape(Rectangle())
-                                        }.accessibilityLabel(member.entry.title.string)
-                                            .accessibilityAddTraits(member.entry.ref == selected ? .isSelected : [])
+                    }
+                    .padding(14)
+                    .frame(width: geometry.size.width, height: coverHeight)
+                    .overlay(alignment: .bottom) {
+                        // The navigation row's intrinsic width must not size the
+                        // cover stack or move the top-trailing count.
+                        // Native Liquid Glass can draw outside a transparent SwiftUI
+                        // mask. Retire the whole control surface when not hovered,
+                        // including its native hit targets and accessibility children.
+                        if controlsVisible {
+                            HStack(spacing: 12) {
+                                Button { step(-1) } label: {
+                                    Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle())
+                                }.accessibilityLabel(applicationText(locale, "上一个 Super Thread", "Previous Super Thread"))
+                                    .focused($focusedControl, equals: .previous)
+                                    .accessibilityFocused($accessibilityFocusedControl, equals: .previous)
+                                if props.count <= 7 {
+                                    HStack(spacing: 7) {
+                                        ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
+                                            Button { select(member.entry.ref, direction: index >= page ? 1 : -1) } label: {
+                                                Capsule().fill(member.entry.ref == selected
+                                                    ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                                                    .frame(width: member.entry.ref == selected ? 16 : 5, height: 5)
+                                                    .frame(minWidth: 16, minHeight: 28).contentShape(Rectangle())
+                                            }.accessibilityLabel(member.entry.title.string)
+                                                .accessibilityAddTraits(member.entry.ref == selected ? .isSelected : [])
+                                                .focused($focusedControl, equals: .member(member.entry.ref))
+                                                .accessibilityFocused($accessibilityFocusedControl, equals: .member(member.entry.ref))
+                                        }
                                     }
                                 }
-                            }
-                            Menu {
-                                ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
-                                    Button(member.entry.title.string) { select(member.entry.ref, direction: index >= page ? 1 : -1) }
-                                }
-                            } label: {
-                                // Keep the borderless menu's spacing and disclosure
-                                // while letting the chrome style own all its ink.
-                                HStack(spacing: 4) {
-                                    Text("\(page + 1) / \(members.count)").font(.system(size: 10, weight: .medium)).monospacedDigit()
-                                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
-                                }.padding(.leading, 3).padding(.trailing, 2)
-                            }.menuStyle(.button).fixedSize()
-                                .accessibilityLabel(applicationText(locale, "选择 Super Thread", "Select Super Thread"))
-                            Button { step(1) } label: {
-                                Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle())
-                            }.accessibilityLabel(applicationText(locale, "下一个 Super Thread", "Next Super Thread"))
-                        }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
-                    }.foregroundStyle(.primary).padding(14).frame(height: 308)
+                                Menu {
+                                    ForEach(Array(props.enumerated()), id: \.element.entry.ref) { index, member in
+                                        Button(member.entry.title.string) { select(member.entry.ref, direction: index >= page ? 1 : -1) }
+                                    }
+                                } label: {
+                                    // Keep the borderless menu's spacing and disclosure
+                                    // while letting the chrome style own all its ink.
+                                    HStack(spacing: 4) {
+                                        Text("\(page + 1) / \(members.count)").font(.system(size: 10, weight: .medium)).monospacedDigit()
+                                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                                    }.padding(.leading, 3).padding(.trailing, 2)
+                                }.menuStyle(.button).fixedSize()
+                                    .accessibilityLabel(applicationText(locale, "选择 Super Thread", "Select Super Thread"))
+                                    .focused($focusedControl, equals: .menu)
+                                    .accessibilityFocused($accessibilityFocusedControl, equals: .menu)
+                                Button { step(1) } label: {
+                                    Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle())
+                                }.accessibilityLabel(applicationText(locale, "下一个 Super Thread", "Next Super Thread"))
+                                    .focused($focusedControl, equals: .next)
+                                    .accessibilityFocused($accessibilityFocusedControl, equals: .next)
+                            }.modifier(NativeReportCarouselChrome(blocked: !active || outgoingID != nil))
+                                .padding(.bottom, 14)
+                                .transition(.identity)
+                        }
+                    }
+                    .foregroundStyle(.primary)
                 }.zIndex(4)
             }
             .background {
@@ -134,20 +204,42 @@ struct NativeReportCollection: View {
                     opaque: NativePalette.overview.surface.swiftUI)
             }
         }
+        .background(NativeCollectionPanelAnchor(panelSource))
+        .contentShape(RoundedRectangle(cornerRadius: 22))
+        .onChange(of: props.map(\.entry)) { _, _ in refreshMembers() }
+        .onChange(of: locale) { _, _ in refreshMembers() }
+        .onChange(of: showingMembers) { _, value in
+            if !value { memberPresentation?.dismiss(owner: panelOwner) }
+        }
+        .onHover { hovered = $0 && active && !showingMembers && visibility?.isVisible != false }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { notification in
+            // Pause auto-advance for native menu tracking, but never use it to
+            // keep the capsule visible after the pointer leaves the card.
+            guard active, hovered || focusedControl == .menu || accessibilityFocusedControl == .menu || !trackingMenus.isEmpty,
+                  let menu = notification.object as? NSMenu else { return }
+            trackingMenus.insert(ObjectIdentifier(menu))
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { notification in
+            guard let menu = notification.object as? NSMenu else { return }
+            trackingMenus.remove(ObjectIdentifier(menu))
+        }
+        .onDisappear { hovered = false; showingMembers = false; memberPresentation?.dismiss(owner: panelOwner); trackingMenus.removeAll() }
         .onAppear { onSelection(selected) }
+        .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
+        .onChange(of: playing) { _, value in
+            if !value { playbackStarted = nil }
+        }
         .onChange(of: members) { _, next in
+            currentMembers = Set(next)
             settle()
             if !next.contains(selection) { selection = next[0] }
             onSelection(selected)
         }
         .onChange(of: active) { _, value in
-            if !value { settle() }
-        }
-        .onChange(of: reduceMotion) { _, reduced in
-            if reduced { settle() }
+            if !value { hovered = false; showingMembers = false; settle() }
         }
         .onChange(of: visibility?.isVisible) { _, visible in
-            if visible == false { settle() }
+            if visible == false { hovered = false; showingMembers = false; settle() }
         }
         .task(id: motionEpoch) {
             guard outgoingID != nil else { return }
@@ -162,14 +254,47 @@ struct NativeReportCollection: View {
             } catch { /* View identity owns and cancels this transition. */ }
         }
         .task(id: clockKey) {
-            guard playing else { return }
+            guard clockKey.playing else { return }
             do {
-                try await Task.sleep(for: .seconds(8))
+                try await Task.sleep(for: .seconds(NativeReportCoverTiming.dwell))
                 try Task.checkCancellation()
                 step(1)
             } catch { /* Leaving the view or manual input cancels this page's dwell. */ }
         }
     }
+    private func toggleMembers() {
+        guard let memberPresentation else { return }
+        if showingMembers { memberPresentation.close(owner: panelOwner); return }
+        hovered = false
+        showingMembers = true
+        memberPresentation.present(owner: panelOwner, source: panelSource, content: AnyView(memberPanel)) {
+            hovered = false
+            showingMembers = false
+            focusedControl = .allMembers
+            accessibilityFocusedControl = .allMembers
+        }
+    }
+
+    private func refreshMembers() {
+        guard showingMembers else { return }
+        memberPresentation?.update(owner: panelOwner, content: AnyView(memberPanel))
+    }
+
+    private var memberPanel: some View {
+        // This content is retained outside the card's view updates. Its captured
+        // State value can still say showingMembers=false while drawing; the
+        // observable presentation is the live authority for this panel visit.
+        NativeReportCollectionMembers(props: props, locale: locale,
+            close: { memberPresentation?.close(owner: panelOwner) },
+            allowsActions: { memberPresentation?.owner == panelOwner && active && memberPresentation?.closing != true && currentMembers.contains($0) },
+            openThread: { reference in
+                guard memberPresentation?.owner == panelOwner, active, currentMembers.contains(reference), memberPresentation?.closing != true else { return }
+                memberPresentation?.dismiss(owner: panelOwner)
+                openThread(reference)
+            })
+            .environment(\.nativeReportCoverCache, coverCache)
+    }
+
     private func settle() {
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
@@ -178,13 +303,29 @@ struct NativeReportCollection: View {
         }
     }
     @ViewBuilder private func cover(_ member: ApplicationThreadProps<NativeReportView>) -> some View {
-        if member.entry.view.hasCover { NativeReportCover(props: member) }
+        if member.entry.view.hasCover {
+            let key = identity(member)
+            NativeReportCover(props: member, playback: coverPlayback(member.entry.ref),
+                onReady: { readyCovers.insert(key) }, onPlaybackStarted: {
+                    // Start dwell after WebKit acknowledges playback, not when a
+                    // SwiftUI update merely queues IPC to its content process.
+                    if playing && outgoingID == nil && identity(props[page]) == key { playbackStarted = key }
+                })
+        }
         else {
             ZStack {
                 NativePalette.overview.surface.swiftUI
                 Text(member.entry.view.emoji.string).font(.system(size: 72))
             }
         }
+    }
+
+    private func coverPlayback(_ reference: ApplicationThreadRef) -> NativeReportCoverPlayback {
+        if reference == outgoingID { return .paused }
+        // Incoming and preloaded documents stay on their first frame until the
+        // shared native entrance settles; outgoing pages keep their last pose.
+        guard reference == selected, outgoingID == nil else { return .reset }
+        return playing ? .playingOnce : .paused
     }
 
 }
@@ -228,7 +369,7 @@ struct NativeReportCollectionBody: View {
 }
 
 /// Keep WebKit identities mounted. A settled pose ignores any remaining
-/// interpolated progress, so Reduce Motion/reset cannot expose a retiring offset
+/// interpolated progress, so reset cannot expose a retiring offset
 /// and does not reload the cover merely to cancel its presentation animation.
 struct NativeReportCollectionCoverOffset: GeometryEffect {
     let direction: Double

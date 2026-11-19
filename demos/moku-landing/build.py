@@ -1,7 +1,6 @@
 """Build the production-component Moku landing demo in isolated temporary storage."""
 from pathlib import Path
 import argparse
-import json
 import shutil
 import subprocess
 import sys
@@ -14,7 +13,6 @@ from native_replay import NativeReplay
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--skip-build", action="store_true")
-parser.add_argument("--verify", action="store_true")
 parser.add_argument("--open", action="store_true")
 options = parser.parse_args()
 output = repo / ".build/moku-landing"
@@ -24,16 +22,6 @@ if not options.skip_build:
 replay = NativeReplay(repo, "MokuLandingDemo", "com.mokusei.moku-landing-demo")
 try:
     replay.compile([source / "LandingFixture.swift", source / "main.swift"])
-    if options.verify:
-        replay.acquire()
-        status = replay.run(["--verify"], timeout=90)
-        replay.export(output / "evidence")
-        report = json.loads((replay.root / "result.json").read_text())
-        if status or not report["ok"]:
-            raise RuntimeError(report["message"])
-        print(report["message"], flush=True)
-    # Keep only the standalone app and its private workspace for user review.
-    # NativeReplay's sources/link objects remain temporary and are cleaned up.
     retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-moku-landing-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     application = retained / replay.application.name

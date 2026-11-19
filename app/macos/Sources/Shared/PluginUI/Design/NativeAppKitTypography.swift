@@ -24,11 +24,6 @@ public extension NativeTypography {
         return NativePlatformFont.systemFont(ofSize: size, weight: systemWeight)
     }
 
-    // Compatibility spelling keeps existing shared components on one font path.
-    static func settingsNSFont(size: CGFloat, weight: CGFloat = 400) -> NativePlatformFont {
-        settingsPlatformFont(size: size, weight: weight)
-    }
-
     private static func variableFont(
         postScriptName: String,
         family: String,

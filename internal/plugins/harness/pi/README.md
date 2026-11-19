@@ -13,7 +13,7 @@ ordered native/public assistant sequence and linear JSONL ancestry before
 trimming to that execution's native prefix, then uses the existing independent
 snapshot fork. Missing/nonmatching/branched history or an execution without an
 assistant checkpoint fails without sending. Source idle/native-work gates stay
-in force. See [Report continuation](../../../../design/report-execution-continuation.md).
+in force. See [Report continuation](../../../../design/reading.md).
 
 `pi.New(plugin.HostContext)` is the Go implementation of the Pi Agent Harness.
 It uses the external `pi --mode rpc` process and requires a stable Pi release
@@ -23,7 +23,7 @@ separate JavaScript build for this adapter.
 
 The adapter implements `plugin.Harness`, `Forker`, `PromptCompleter`,
 `AvailabilityProbe`, `WorkspaceDiscoverer`, `ModelCatalogSource`,
-and `DiscussionPreparer`. Installation of the external
+and `MokuTargetDiscoverer`. Installation of the external
 Pi CLI is manual through the native client's installation guide; this adapter
 does not implement `plugin.Installer` or launch an installation subprocess.
 
@@ -37,6 +37,11 @@ to show conversation content. Reasoning and successful tool output remain
 deferred. Failed-tool payload retention does not authorize showing it in an
 Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
+
+Thinking content blocks join with newlines in the shared native message decoder.
+Delta-only updates accumulate by content index before using that same decoder,
+so chunk boundaries add no separators and completed/history snapshots retain
+the same text. Independent assistant messages remain separate rows.
 
 Failed or empty initial Pi catalogs block Moku task preparation. Unknown thinking
 capabilities restrict creation branches without omitting model identities. Discovery
@@ -127,40 +132,26 @@ request IDs, native call IDs, and returned JSON. The resource applies the
 system-prompt string chosen by Go at Pi's native hook boundary.
 
 Bridge shutdown stops new calls and cancels existing callbacks; Close waits for
-their cleanup before returning. Tool implementations must observe cancellation.
-A callback panic becomes a tool error without exposing its panic payload or
-terminating the runtime. Local package fixtures cover cleanup barriers, panic
-recovery and cancellation before native command dispatch.
+their cleanup before returning. Tool implementations must observe cancellation. A callback panic becomes a tool error without exposing its panic payload or
+terminating the runtime.
 
-Local shutdown tests use real child processes for EOF, SIGTERM/SIGKILL escalation,
-owner cancellation, concurrent Close results and final native JSONL publication.
-A blocked protocol reader exercises the incomplete-cleanup path; callback-driven
-Close cases ensure the application dispatcher is never asked to join itself.
-The adapter scenario crosses Open, Send, Close and the committed session-state
-projection. Existing deterministic runtime and native replays cover the wider
-storage and external-CLI boundaries.
+Session Close joins the native process and readers; application callbacks do
+not join their own dispatcher. No child-peer correctness replay is configured.
 
-`resources/read-guard.mjs` blocks all native tool calls during a history read.
-Its command registration lets Go verify the exact guard file loaded. Both
-resources are embedded by `go:embed`; neither requires Node or npm to build.
-The default Linux adapter replay imports the actual guard resource with Node
-and invokes its registered callback for native and custom tool calls, requiring
-`block: true` independently of the command marker. The installed-Pi replay
-retains responsibility for proving the native loader and tool boundary.
+`resources/read-guard.mjs` blocks all native tool calls during a history read. Its command registration lets Go verify the exact guard file loaded. Both
+resources are embedded by `go:embed`; neither requires Node or npm to build. The native loader and tool boundary have no installed-Pi replay configured
+in this source tree.
 
 ## Preserved native limits
 
-Pi Threads do not accept slash commands or historical fork selectors. Ordinary
+Pi Threads do not accept slash commands. Fork accepts the exact `executionId`
+selector described above; arbitrary historical checkpoint selectors are unavailable. Ordinary
 Threads require exact provider/model settings and an explicit thinking choice
 whose actual native application is checked before execution. Host tools support
 exclusive injection only. Native Responses thinking uses only explicit supported `thinkingLevelMap` values;
 missing mappings, disabled levels and request overrides remain unavailable.
 Unsupported or unconfirmed thinking dialects stay
 unavailable instead of silently selecting a different setting.
-
-Voice discussions use a private native JSONL fork with the exclusive Host extension
-and Core project read tools. Persisted source history and execution remain owned
-by the source Thread. See [discussion semantics](../../../services/threadvoice/README.md).
 
 ## Initial response cards
 
@@ -169,10 +160,6 @@ execution index and fork/history provenance before compaction. This fixed-size
 fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
 retains its existing precedence. Other scopes omit the field.
-
-The adapter replay also checks this boundary with shared production-renderer
-fixtures in `tools/verification/firstresponse`. The native cross-language replay
-is `python3 tools/verification/reading-presentation/run.py --initial-response`.
 
 Settings state and full-catalog readers share a native observation flight. The
 observation process uses `--offline`: discovery reads Pi's local configuration and
@@ -191,21 +178,10 @@ environment, executable and config/auth/model file metadata. Successful full
 observations retain five-minute freshness; incomplete observations keep the
 existing short retry interval. Native execution confirmation remains unchanged.
 
-The deterministic replay includes mixed state/catalog sharing. Add
-`-settings-performance` for isolated cold/warm measurements; see the
-[measurement scope](../../../../tools/verification/settings-performance/README.md).
-Closing the adapter cancels and joins all discovery flights, including those
-superseded by refresh. A failed native process cleanup remains observable and
-fences replacement discovery until a new adapter is constructed.
+Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding.
 
-Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding. The deterministic Pi replay covers child-process editor requests through default adoption and native reply.
-
-Interaction lifecycle fixtures run the production adapter and Session dispatcher
-against a child-process peer. A controlled pipe write pauses after the complete
-answer reaches native input, exposing immediate settlement and already fired
-expiry callbacks before local consumption. Separate partial-write cases require
-Interrupt and Close to unblock the pipe; the adapter replay covers a cancelled
-pre-write answer followed by a successful retry of the same interaction.
+Interaction answers and expiry callbacks serialize through the production
+event gate. No interaction lifecycle fixture runner is configured here.
 
 This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
 input protocol has no proven atomic active-only condition. Lazy Moku notices
@@ -264,10 +240,6 @@ immediately; failed refreshes retain it and add a retained-snapshot note. Cold
 acquisition failure still reports an error. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
 
-The Pi 1.3.0 SDK source audit distinguishes configured-provider errors,
-unconfigured credential skips, bundled/cache fallback and superseded publications.
-Neither an empty refresh error map nor a ModelsStore write is a completeness
-receipt. The [provider receipt investigation](catalog-receipts.md) documents the
-native outcomes needed for optional stronger source diagnostics. These receipts
-are not required for ordinary native-inventory routing.
-No bridge or source-completeness support is claimed by that investigation.
+Pi does not expose formal per-provider source/publication receipts through its
+RPC inventory. Successful offline inventory does not establish complete remote
+discovery. This limit does not reject an otherwise usable Moku routing snapshot.

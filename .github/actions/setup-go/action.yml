@@ -33,7 +33,7 @@ runs:
       with:
         go-version: ${{ steps.version.outputs.version }}
         cache: false
-    # A later test failure must not discard a successfully installed SDK.
+    # A later build failure must not discard a successfully installed SDK.
     - name: Save the installed Go SDK
       if: ${{ steps.sdk-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v4
@@ -55,7 +55,7 @@ runs:
         path: |
           ${{ steps.paths.outputs.modules }}
           ${{ steps.paths.outputs.build }}
-        key: go-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.cache-scope }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('cmd/**', 'internal/**', 'tools/verification/**', '.github/actions/setup-go/action.yml') }}
+        key: go-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.cache-scope }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('cmd/**', 'internal/**', 'tools/**', '.github/actions/setup-go/action.yml') }}
         restore-keys: |
           go-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.cache-scope }}-${{ hashFiles('go.mod', 'go.sum') }}-
           go-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.cache-scope }}-

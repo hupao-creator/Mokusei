@@ -8,13 +8,12 @@ import MokuseiPluginUI
 struct SetupConfigurationPanel: View {
     @Bindable var fixture: SetupFixture
     let step: SetupStep
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
     @Namespace private var selection
     private var ink: Color { colorScheme == .dark ? Color(white: 0.94) : Color(white: 0.14) }
     private var secondaryInk: Color { colorScheme == .dark ? Color(white: 0.73) : Color(white: 0.38) }
-    private var motion: Animation? { reduceMotion ? nil : .smooth(duration: 0.32) }
+    private var motion: Animation? { .smooth(duration: 0.32) }
 
     var body: some View {
         switch step {

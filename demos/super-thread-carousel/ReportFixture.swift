@@ -34,7 +34,7 @@ import SwiftUI
                     }, execution: { _ in throw PluginContractError("Demo has no live execution") }))
             ])
         let view = try NativeReportView(json: .object([
-            "coverRevision": .text("cover-\(sample.id)"), "contentRevision": .text("demo-v1"),
+            "coverRevision": .text(sample.hasCover ? "cover-\(sample.id)" : ""), "contentRevision": .text("demo-v1"),
             "emoji": .text(sample.emoji), "shortDescription": .text(sample.summary), "previewText": .text(sample.summary),
             "relatedExecutions": .array(refs.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })
         ]))
@@ -58,8 +58,12 @@ import SwiftUI
         <style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}
         body{background:\(sample.color);color:#f6efdd;font-family:Georgia,serif;padding:27px 28px}
         .label{font:10px -apple-system,sans-serif;letter-spacing:2.5px;opacity:.75}
-        .symbol{height:169px;display:flex;align-items:center;font-size:116px;letter-spacing:-9px}
-        .caption{font-size:19px;letter-spacing:-.4px}.line{height:1px;background:#ffffff35;margin:17px 0 14px}
+        .symbol{height:169px;display:flex;align-items:center;font-size:116px;letter-spacing:-9px;animation:resolve 4s ease both}
+        .caption{font-size:19px;letter-spacing:-.4px;animation:caption 1.2s 3s ease both}
+        .line{height:1px;background:#ffffff35;margin:17px 0 14px;transform-origin:left;animation:line 1s 4s ease both}
+        @keyframes resolve{from{transform:translateY(26px) scale(.8);opacity:.25}to{transform:none;opacity:1}}
+        @keyframes caption{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+        @keyframes line{from{transform:scaleX(0)}to{transform:scaleX(1)}}
         </style></head><body><div class="label">SUPER THREAD / FIELD NOTES</div>
         <div class="symbol">\(sample.symbol)</div><div class="caption">\(sample.caption)</div>
         <div class="line"></div></body></html>
@@ -73,6 +77,6 @@ struct ProductionCard: View {
     var body: some View {
         NativeReportCard(props: fixture.props,
             projection: .init(previewText: fixture.props.entry.view.shortDescription, relatedThreadCount: 2), openThread: open)
-            .frame(width: 360, height: 456)
+            .frame(width: NativeGeometry.overviewCard.width, height: NativeGeometry.overviewCard.height * 2 + NativeGeometry.overviewCardGap)
     }
 }

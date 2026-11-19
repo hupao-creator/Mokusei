@@ -3,13 +3,12 @@ package devtool
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -123,35 +122,23 @@ func withFreshRuntimeGuard(p profile.Profile, operation func() error) error {
 		return operation()
 	})
 	if !entered && err != nil {
-		return fmt.Errorf("cannot obtain exclusive access to development profile %q (ownership port %d); if the profile is in use, quit its clients and stop its runtime with ./scripts/go.sh run ./cmd/mokusei-runtime stop --data-dir %q; if shutdown fails, inspect runtime/process.log under this profile: %w", p.DataDir, profile.GuardPort(p), p.DataDir, err)
+		return fmt.Errorf("cannot obtain exclusive access to development profile %q (ownership port %d); if the profile is in use, quit its clients and stop its runtime with ./scripts/go.sh run ./cmd/mokusei-runtime stop --data-dir %q; if shutdown fails, retry the stop command to inspect its returned error: %w", p.DataDir, profile.GuardPort(p), p.DataDir, err)
 	}
 	return err
 }
 
-// LaunchDevelopment observes LaunchServices startup using logs outside TCC-protected checkouts.
-// Only its temporary `open -W` observer is stopped; the application remains running.
+// LaunchDevelopment waits for a one-shot readiness receipt outside protected
+// checkouts. Only the temporary open observer is stopped; the app stays running.
 func LaunchDevelopment(ctx context.Context, application string) (int, error) {
-	home, err := os.UserHomeDir()
+	directory, err := os.MkdirTemp("", "mokusei-native-launch-")
 	if err != nil {
 		return 0, err
 	}
-	root := filepath.Join(home, "Library/Logs/Mokusei Native Dev")
-	if err = os.MkdirAll(root, 0700); err != nil {
-		return 0, err
-	}
-	directory, err := os.MkdirTemp(root, "launch-")
-	if err != nil {
-		return 0, err
-	}
-	stdout, stderr := filepath.Join(directory, "stdout.log"), filepath.Join(directory, "stderr.log")
-	for _, path := range []string{stdout, stderr} {
-		if err = os.WriteFile(path, nil, 0600); err != nil {
-			return 0, err
-		}
-	}
-	cmd := exec.Command("/usr/bin/open", "-n", "-W", "--stdout", stdout, "--stderr", stderr, application)
-	var diagnostics bytes.Buffer
-	cmd.Stderr = &diagnostics
+	defer os.RemoveAll(directory)
+	receipt := filepath.Join(directory, "ready.json")
+	cmd := exec.Command("/usr/bin/open", "-n", "-W", application, "--args", "--launch-receipt", receipt)
+	var launchError bytes.Buffer
+	cmd.Stderr = &launchError
 	if err = cmd.Start(); err != nil {
 		return 0, err
 	}
@@ -164,40 +151,38 @@ func LaunchDevelopment(ctx context.Context, application string) (int, error) {
 			<-exited
 		}
 	}()
-	ready := regexp.MustCompile(`(?m)^\[native-launch\] ready pid=(\d+)$`)
 	deadline := time.NewTimer(30 * time.Second)
 	defer deadline.Stop()
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	var pid int
 	var readyAt time.Time
-	failure := func(reason string) (int, error) {
-		details, _ := os.ReadFile(stderr)
-		return 0, fmt.Errorf("%s\nLaunch logs: %s\n%s", reason, directory, strings.TrimSpace(string(details)))
-	}
 	for {
 		select {
 		case <-ctx.Done():
-			return failure("native application launch interrupted")
+			return 0, fmt.Errorf("native application launch interrupted: %w", ctx.Err())
 		case err := <-exited:
 			reaped = true
-			return failure(fmt.Sprintf("native application exited during startup (%v): %s", err, diagnostics.String()))
+			return 0, fmt.Errorf("native application exited during startup (%v): %s", err, strings.TrimSpace(launchError.String()))
 		case <-deadline.C:
-			return failure("native application did not finish startup within 30 seconds")
+			return 0, errors.New("native application did not finish startup within 30 seconds")
 		case <-ticker.C:
 			if pid == 0 {
-				data, _ := os.ReadFile(stdout)
-				if m := ready.FindSubmatch(data); len(m) > 0 {
-					pid, _ = strconv.Atoi(string(m[1]))
+				data, readErr := os.ReadFile(receipt)
+				var ready struct {
+					PID int `json:"pid"`
+				}
+				if readErr == nil && json.Unmarshal(data, &ready) == nil && ready.PID > 1 {
+					pid = ready.PID
 					readyAt = time.Now()
 				}
 			}
 			if pid > 1 {
 				if syscall.Kill(pid, 0) != nil {
-					return failure(fmt.Sprintf("native application %d exited during startup", pid))
+					return 0, fmt.Errorf("native application %d exited during startup", pid)
 				}
 				if time.Since(readyAt) >= 3*time.Second {
-					fmt.Printf("Native application running (PID %d); launch logs: %s\n", pid, directory)
+					fmt.Printf("Native application running (PID %d)\n", pid)
 					return pid, nil
 				}
 			}

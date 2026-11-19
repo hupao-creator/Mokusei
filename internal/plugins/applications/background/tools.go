@@ -240,5 +240,3 @@ func (c *snapshots) trim() {
 		c.remove(c.order[0])
 	}
 }
-
-var ThreadProperty = model.Object{"type": "object", "properties": model.Object{"threadId": model.Object{"type": "string", "minLength": 1}, "typeId": model.Object{"type": "string", "minLength": 1}}, "required": []string{"threadId", "typeId"}, "additionalProperties": false}

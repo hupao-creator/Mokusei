@@ -24,7 +24,6 @@ type ServeOptions struct {
 	Profile   profile.Profile
 	Bootstrap Bootstrap
 	Output    io.Writer
-	Log       func(error)
 	Overview  *transport.OverviewBroker
 }
 
@@ -45,11 +44,6 @@ func Serve(ctx context.Context, options ServeOptions) error {
 	initialized := make(chan struct{})
 	stopped := make(chan struct{})
 	var stopErr error
-	log := func(err error) {
-		if err != nil && options.Log != nil {
-			options.Log(err)
-		}
-	}
 	stop := func(stopContext context.Context) error {
 		closeOnce.Do(func() {
 			mu.Lock()
@@ -84,9 +78,6 @@ func Serve(ctx context.Context, options ServeOptions) error {
 				stopErr = errors.Join(stopErr, profile.RemoveConnection(options.Profile, owner.Epoch), owner.Release())
 				if current != nil {
 					stopErr = errors.Join(stopErr, current.Close(context.Background()))
-				}
-				if stopErr != nil {
-					log(errors.Join(errors.New("runtime shutdown completed with cleanup errors"), stopErr))
 				}
 				close(stopped)
 			}()
@@ -129,9 +120,7 @@ func Serve(ctx context.Context, options ServeOptions) error {
 			return openErr
 		}
 	} else if options.Output != nil {
-		if err = json.NewEncoder(options.Output).Encode(map[string]any{"status": "running", "pid": server.Connection.PID, "epoch": owner.Epoch, "dataDir": options.Profile.DataDir}); err != nil {
-			log(err)
-		}
+		_ = json.NewEncoder(options.Output).Encode(map[string]any{"status": "running", "pid": server.Connection.PID, "epoch": owner.Epoch, "dataDir": options.Profile.DataDir})
 	}
 	<-stopped
 	if server != nil {

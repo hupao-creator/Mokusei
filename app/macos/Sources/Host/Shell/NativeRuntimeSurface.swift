@@ -17,7 +17,7 @@ public struct NativeRuntimeSurface<Content: View>: View {
     public var body: some View {
         ZStack {
             if model.hasInitialContent {
-                content.onAppear { model.startupPerformance?.contentAppeared() }
+                content
             }
             else {
                 RuntimeStartupScreen(state: model.connection, error: model.connectionError ?? "",

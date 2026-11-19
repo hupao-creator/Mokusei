@@ -44,7 +44,7 @@ public struct HistoricalResidentPose {
     static func target(role: HistoricalResidentRole, time: Double, enteredAt: Double,
                        reading: HistoricalReadingTrack, readingAt: Double) -> Self {
         let elapsed = max(0, time - enteredAt)
-        let running = MokuRunningStory.sample(time: elapsed / MokuRunningStory.beatMS, still: false)
+        let running = MokuRunningStory.sample(time: elapsed / MokuRunningStory.beatMS)
         let readingElapsed = max(0, time - readingAt).truncatingRemainder(dividingBy: reading.duration)
         let read = reading.sample(time: readingElapsed)
         let thinking = role == .reasoning, tool = role == .tool, reply = role == .reply

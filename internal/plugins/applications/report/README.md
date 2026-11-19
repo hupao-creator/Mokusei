@@ -1,11 +1,5 @@
 # Super Thread application
 
-Production evidence/read/write callbacks use the shared
-[private invocation journal](../../../platform/diagnostics/README.md), with scoped
-owner, execution and batch/attempt identity. Bodies stay private and are never
-injected into report context or output. Retention/redaction is independent of
-documents, native history and mutation receipts.
-
 [plugin.go](plugin.go) declares the Super Thread application, its settings and a **per-directory-scope** background agent. Each instance receives an explicit owner and scope, including Inbox. It observes successful ordinary-task completion and reads only evidence allowed by that binding. Its private conversation is distinct from the report documents shown to the user.
 
 [domain.go](domain.go) and [model.go](model.go) define document commands, queries and projections. Mutations use the Application host's planned transaction scopes, CAS and batch receipts. Report source references and semantic tag/emoji snapshots are maintained with the document; a source deletion does not rewrite the report as an executing task. HTML and full document content are queried on demand rather than embedded in the overview catalog.
@@ -93,11 +87,9 @@ checks enablement inside the write transaction, rejecting late background writes
 Report writing and presentation use the complete, unmodified upstream
 [ELI5 skill](eli5-skill.md), embedded as a separate system-instruction entry after
 [the agent's operational and host-integration instructions](instructions.txt).
-Source: [anthropics/claude-plugins-community, eli5/skills/eli5/SKILL.md](https://github.com/anthropics/claude-plugins-community/blob/06ec7b6a0a82bdc4bec44bd82d4368c42f20d7c1/eli5/skills/eli5/SKILL.md),
-retrieved 2026-10-29 from `main` at commit
-`06ec7b6a0a82bdc4bec44bd82d4368c42f20d7c1`.
-The 321-byte snapshot includes its front matter and literal `$ARGUMENTS`;
-SHA-256: `3bb95cd13852051c5a1862e8b94da1de7cfba7415d418ab0ca4d762527d1b9a5`.
+Source: [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community/blob/06ec7b6a0a82bdc4bec44bd82d4368c42f20d7c1/eli5/skills/eli5/SKILL.md),
+revision `06ec7b6a0a82bdc4bec44bd82d4368c42f20d7c1`. The 321-byte local
+snapshot SHA-256 is `3bb95cd13852051c5a1862e8b94da1de7cfba7415d418ab0ca4d762527d1b9a5`.
 It is bundled locally; report generation does not fetch the skill at runtime.
 
 The skill fits the existing HTML storage/reader capability. Operational adaptation
@@ -108,27 +100,17 @@ file, command, video or artifact-generation service, and grants no extra capabil
 Scope, evidence integrity, permissions, batch steering, references and write
 receipts remain agent/runtime responsibilities. Complete raw HTML and isolated
 page execution remain tool/reader contracts. Safe-area geometry and live light/dark
-theme adaptation remain host integration requirements. Other writing rules,
-including application-output-language injection and tool-field language rules,
-are removed. The background environment capability is still required by the shared
-runner for session lifecycle; Report no longer reads its output locale.
+theme adaptation remain host integration requirements. Report does not inject application-output-language or tool-field language rules.
+The shared runner requires the background environment capability for session
+lifecycle; Report does not read its output locale.
 
 A settings save that races configuration discovery causes re-resolution within
 the same batch attempt, without failure backoff. Existing idle-session reuse
-passes the same saved-version check. The Runtime replay covers these boundaries
-through the production Tag/Report participants, active steering, next-batch
-adoption and independent profiles that remain unaffected by Moku edits.
+passes the same saved-version check.
 
 The Swift [Report application](../../../../app/macos/Sources/Plugins/Applications/Report/) supplies cards and a native HTML reading route using the shared navigation stack. Report documents have no ordinary task execution lifecycle. Their tags decorate the document and do not independently create Overview filter membership.
 
-Verification: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh run -race ./tools/verification/runtime` and `./scripts/go.sh test -race ./internal/plugins/applications/report` from the repository root.
-The headless Runtime replay checks the exact four-tool exclusive binding set,
-scoped completed-execution data delivery and the actual Report session's injected skill
-against the upstream SHA-256 and rejects the removed style/language guidance in
-system instructions, tool descriptions and initial/steering batch messages.
-
-
-Preview and search share a non-executing HTML tree parser. It decodes standard
+Preview uses a non-executing HTML tree parser. It decodes standard
 entities once, joins inline text without invented spaces, separates structural
 blocks, preserves textarea RCDATA, and excludes nested hidden regions including
 templates. The parser handles SVG/MathML namespaces, self-closing foreign
@@ -139,14 +121,13 @@ source text, not computed CSS visibility or live form state.
 
 If the tree parser rejects a document (notably its 512-open-element limit),
 projection reparses bounded UTF-8 prefixes and retains a successfully parsed
-prefix. Both preview and search use that same safe prefix; preview still applies
+prefix. Preview uses that same safe prefix and applies
 title removal and its length limit. Content at or after the rejected region can
-be absent from search/preview, and a document with no visible safe prefix has
+be absent from preview, and a document with no visible safe prefix has
 empty projected text. Recovery never scans an isolated suffix or exposes raw
 markup, since its template/foreign-content context would be unknown. The original
 HTML remains unchanged and available to the Reader; parser failure does not
 reject a report accepted by the input size contract.
-
 
 The native Report surface owns load failure and Retry state. Report detail does
 not retain a second error overlay after the surface recovers. Page alert,
@@ -167,7 +148,7 @@ hard validation boundary, not a target to fill. On report updates the agent
 revisits the introduction when new evidence changes the report or can make the
 card more useful. Existing descriptions are not rewritten in bulk; they change
 only when a report update supplies a replacement. Missing or invalid metadata is
-rejected; the rebrand leaves the existing document schema unchanged.
+rejected by the document schema.
 
 Overview uses the shared Agent card typography, excerpt renderer and upper-right
 emoji badge. The metadata row displays unique source Harness logos and update
@@ -191,15 +172,13 @@ Missing timing is explicit and empty excerpts remain empty. Existing one-click
 reader navigation is retained. Explicit report links also retain failed/interrupted
 ordinary Threads that normal Overview browsing hides.
 
-
 ## Identity, ownership and source context
 
-Super Thread Agent is the user-visible name of the existing private Report Agent.
+Super Thread Agent is the user-visible name of the private reporting agent.
 The `report` plugin ID, `report.agent`, `report.settings`, `report.document`,
 `report.records`, tool/operation names, session keys, batch receipts and execution
-references remain stable. No rename migration, history rewrite or configuration
-reset runs. The existing long prompt and verbatim ELI5 snapshot remain; the pending
-shortened prompt is not adopted, and the system prompt names no concrete tools.
+references use the report domain identities. The operational prompt and verbatim ELI5 snapshot are separate instruction
+entries. The operational prompt does not prescribe concrete tool invocation.
 
 Create and update enforce one Super Thread per ordinary Thread inside the host's
 serialized transaction, with the whole report collection in the mutation scope.
@@ -231,22 +210,41 @@ from the cited execution's timing; the cited state and ID remain out of the card
 Unknown historical facts never borrow current results. Queries coalesce streaming catalog invalidations; departure
 cancels the reader's request, and report revision/reference fences reject stale data.
 
-Unselected Super Thread input stays pinned open and sends to Moku. Its own persisted
-draft is separate from Overview and per-execution Agent drafts. Typed text,
-attachments and recorded input use `moku:submit.superThreadId`; the coordinator
-resolves full current report HTML, bounded exact-execution summaries, identity,
-workspace, current state and binding conflicts at admission. HTML is untrusted
-context and is not executed. Failed context resolution rejects the send rather
-than silently losing its source. Selecting an execution preserves the existing
-ordinary Agent send/fork/receipt route; folding or returning to the list restores
-Moku. Thread readers no longer offer voice calls; Overview retains global Moku
-voice without a Super Thread source (see [Moku](../../../services/moku/README.md)).
+The unselected Super Thread document/list keeps the resident Moku capsule
+compact and denies input expansion through the shared scene admission gate.
+Selecting an associated execution lends the pinned Agent composer to that exact
+reader; Back/fold retires it. The `moku:submit.superThreadId` backend contract
+remains available independently, with source context resolved by
+[Moku](../../../services/moku/README.md). The UI does not expose unselected input.
 
-Sprint validation: Go formatting, architecture lint, vet and builds, and the Swift
-application product build only. No tests, integration replays, CI, PR, push or merge
-are part of this change. Native focus/animation, accessibility, real voice,
-concurrent binding and legacy-data interactions require later validation.
+PBT-SYSTEM-COMBINATION covers bounded generated scope/binding effects; no native
+focus/animation or full binding-interaction correctness replay is configured
+in this source tree; production builds establish compilation only.
 
+## Archive visibility
+
+Archive only hides a Super Thread and all ordinary Agent Threads identified by
+its stored `relatedExecutions`. The referenced execution need not still be the
+latest; running successors and background tasks continue. The Host commits the
+document and source flags atomically, deduplicates Thread identities and skips
+already-hidden or deleted sources. A failure publishes no partial change. An
+explicit repeat archive re-hides independently restored sources. Other Super
+Threads (including historical conflicting owners) and Collections are not targets.
+
+HTML, covers, conversation history, persisted records and bindings remain intact.
+Explicit report queries, source reading/search, send/fork and sidecard actions
+remain available under their ordinary authority checks. Archive is not deletion,
+execution completion, cancellation, session close or unlink. Restore retains its
+existing behavior: restore the requested report only, without cascading to source
+Threads. A separately restored Thread keeps its report association.
+
+The expanded Collection panel shows an icon-only Archive Super Thread button
+over the upper-right cover corner (or the equivalent corner without a cover),
+separate from its open action. The existing card context menu uses
+the same capability. Pending actions prevent duplicate activation; failures stay
+visible and retryable. Catalog changes refresh member counts and selection. If
+the updated projection has enough space or can no longer form a space-saving
+Collection, the panel closes and surviving reports appear individually.
 
 ## Explicit user unlink
 
@@ -263,7 +261,6 @@ This operation releases one report's binding, not all other owners and not an
 automatic move. Remaining conflicts are still visible; users must unlink remaining
 owners before rebinding. It does not edit or erase claims in the report body. Rebind
 creation/update remains the background report author's existing authority.
-
 
 ## Background edit concurrency
 
@@ -283,32 +280,77 @@ reports remain readable, and create/new binding uses the existing authority.
 
 New Super Thread tool calls supply `coverHTML`; updates may replace it independently
 of the report document. The shared create/update field description specifies a
-standalone 360×308 HTML/CSS viewport: no host CSS, padding or safe-area styles are
-injected. The report body's host-integration rules and `--mokusei-*` variables do
+standalone 360×308 CSS-pixel logical HTML/CSS viewport: no host layout CSS, padding
+or safe-area styles are injected. The report body's host-integration rules and `--mokusei-*` variables do
 not apply to covers; the authored HTML must supply its own CSS and spacing.
-JavaScript and external resources are unavailable. No additional cover art-direction
-prompt is injected. The report introduction targets a concise two-line card.
+Author JavaScript and external resources are unavailable. The Agent instructions
+and both write tools require purposeful, evidence-grounded CSS keyframes rather
+than a static cover or a generic decorative template. The complete finite timeline,
+including delays and repetitions, is at most six seconds. Its final composition
+must remain readable on its own, and a title or recognizable key visual stays
+visible from time zero so a replay does not start with an empty background. The host holds that final frame for five seconds
+and then replays; authors must not include the hold, infinite loops, hover
+transitions or scroll timelines. Covers supply both light and dark palettes.
+This guidance is independent of the report body's ELI5/host-integration rules.
+The report introduction targets a concise two-line card.
 Cover markup is HTML/CSS, limited to 64,000 Unicode scalars; inline SVG, scripts
 and embedded documents are rejected at admission. See the
-[cropping investigation](../../../../design/super-thread-cover-top-space.md)
-for the prompt ambiguity and actual two-version evidence.
+[cover dimensions](../../../../design/overview.md)
+for the logical and native size boundaries.
 
 `coverHTML` and `coverRevision` persist with the report. Cover changes allocate a
 new cover revision without reloading the report HTML; unchanged updates retain the
 revision and existing CAS/receipt semantics. Full report reads expose the cover;
 the catalog exposes only its revision. `report.cover` loads markup on demand for
-mounted native cards. Covers are excluded from search text. Documents without a
+mounted native cards. Documents without a
 cover stay one grid row until authored cover content is supplied; no bulk generation
 or rewrite runs on startup.
 
 The production card uses one shell, one open action and its existing archive menu.
-A cover makes its Overview footprint 1×2 (360×456pt on the current grid): 308pt
-cover, 4pt gap and the original metadata/content region with a two-line introduction.
-The passive native WebKit surface uses a nonpersistent store, disabled JavaScript,
+A cover makes its Overview footprint 1×2 (320×408pt on the current grid).
+The native cover region preserves the logical viewport ratio: height = width ×
+308/360 (273.8pt at 320pt width), followed by the 4pt gap and remaining metadata
+region (130.2pt). WebKit and its cached poster both render at 360×308 and scale
+uniformly as one centered surface. Fixed-pixel existing covers and percentage
+layouts therefore use the same viewport without cropping or rewriting HTML.
+Narrower Report cards use the same ratio; coverless cards retain metadata only.
+Authored internal whitespace remains authored content, not an inferred crop.
+See the [cover viewport contract](../../../../design/overview.md).
+The passive native WebKit surface uses a nonpersistent store, disabled author JavaScript,
 a host-owned document response with a sandbox CSP blocking external resources.
 It neither navigates nor handles input; theme follows the native appearance.
 A failed cover leaves the native card usable with an unavailable label.
 
+An isolated host-owned WebKit content world controls the admitted CSS effects.
+It retains their final styles, treats an out-of-contract infinite effect as one
+iteration, and accelerates an oversized timeline as a whole to fit six seconds.
+Static covers remain readable. The host adds playback-only CSS to pause authored
+effects and suppress transitions, without injecting layout or safe-area styles.
+This does not enable document scripts or add an application API.
+
+Preloaded neighbors remain at their beginning. A selected cover starts after
+its native entrance; its eleven-second carousel dwell waits for actual WebKit
+playback acknowledgement. Collection covers play their complete admitted CSS
+timeline once, then hold its final frame until selection changes. Reselecting a
+cover grants a new run; hover chrome, focus, redraws and pause/resume do not.
+Leaving selection resets for the next visit; inactivity, hidden viewports and
+cover gestures pause the current motion. Standalone cards retain their existing
+animation/five-second-hold replay cycle and foreground/visibility controls.
+The bounded cache retains
+a final-frame poster beneath the live surface to bridge remounts without caching
+browser instances. See the [animation contract and verification](../../../../design/overview.md).
+
+Collection cards show current report/total in the upper-right badge. Bottom
+navigation mounts only while the active card is actually hovered, outside the
+member panel and inside its visible viewport. Leaving hover removes the whole
+native glass control surface, including hit targets and accessibility children;
+retained focus/menu tracking cannot keep it mounted. The upper-right member-panel
+control remains separate. During carousel travel controls/actions recheck the
+current selection and motion owner. Menu tracking pauses automatic paging.
+Deactivation, viewport exit and unmount clear hover. Page numbers follow the
+surviving selected member; stale actions for removed members are ignored.
+The Overview Host selects the oldest eligible prefix under the current filter's
+16-cell soft budget. Each collection needs at least two members and positive cell savings.
 
 ## Updated collection members
 
@@ -321,3 +363,18 @@ reference order alone do not split a collection. Initial observation establishes
 a baseline rather than an edit. No report record, write receipt or CAS changes.
 See the [desktop reading contract](../../../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
 for close/dwell rules and the limit of reading evidence without a prior fingerprint.
+
+## Property boundary: PBT-REPORT-PREVIEW
+
+`HTMLPreview` projects text through the non-executing parser and bounded-prefix
+recovery described above. Its final Unicode-scalar clipping retains at most
+`MaxPreviewLength` (220) runes, including an ellipsis when clipped.
+
+[PBT-REPORT-PREVIEW](html_property_test.go) uses Go fuzzing over arbitrary HTML strings bounded to 8,192 bytes, including malformed
+UTF-8, deep nesting, templates and foreign content in its seed corpus. Every
+projected preview must have at most 220 runes and projection must not panic.
+This property checks the output bound and parser safety; it does not establish
+semantic text equivalence, CSS visibility, script isolation or full accepted
+report-size coverage. `make pbt-go` actively fuzzes this target with an execution
+budget; merely running its fixed seed corpus is not the PBT gate. Failing corpus
+inputs and exact replay instructions are retained by the [runner](../../../../tools/verification/pbt/README.md).

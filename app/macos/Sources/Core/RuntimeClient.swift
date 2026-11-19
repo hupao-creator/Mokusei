@@ -37,8 +37,6 @@ public actor RuntimeClient {
     var receiptRecoveryTask: Task<Void, Never>?
     var readingStateDirty = false
     var readingContentDirty = Set<String>()
-    var settingsDiagnosticsQueue: [JSONValue] = []
-    var settingsDiagnosticsTask: Task<Void, Never>?
     var contentResources: [String: ContentResource] = [:]
     var idleContent: [String] = []
     var idleContentCosts: [String: Int] = [:]
@@ -401,7 +399,6 @@ public actor RuntimeClient {
     public func close() {
         guard !closed else { return }
         closed = true; generation += 1
-        settingsDiagnosticsTask?.cancel(); settingsDiagnosticsTask = nil; settingsDiagnosticsQueue.removeAll()
         setStatus(.disconnected)
         starting?.cancel(); reconnectTask?.cancel(); retireStream()
         for command in activeCommands.values { command.cancel() }

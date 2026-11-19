@@ -15,13 +15,6 @@ import SwiftUI
     private var glowHeight: CGFloat = 0
     private var glowScale: CGFloat = 0
     private var hasFrame = false
-    var reduceMotion = false {
-        didSet {
-            guard reduceMotion != oldValue else { return }
-            layer.removeAnimation(forKey: "typing")
-            updateBreathing()
-        }
-    }
 
     init() {
         layer.name = "composer-insertion-point"
@@ -50,7 +43,7 @@ import SwiftUI
         let width = rect.width, height = rect.height
         let previous = layer.presentation()?.position ?? layer.position
         let moved = hasFrame && rect.origin != layer.position
-        let animate = moved && !reduceMotion && abs(rect.midY - layer.frame.midY) < min(rect.height, layer.bounds.height) / 2
+        let animate = moved && abs(rect.midY - layer.frame.midY) < min(rect.height, layer.bounds.height) / 2
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         if layer.superlayer !== parent { parent.addSublayer(layer) }
@@ -89,7 +82,7 @@ import SwiftUI
 
     private func updateBreathing() {
         for part in [core, glow] {
-            if reduceMotion || !hasFrame {
+            if !hasFrame {
                 part.removeAnimation(forKey: "breathing")
             } else if part.animation(forKey: "breathing") == nil {
                 // Native blink callbacks and typing must not reset the cycle.

@@ -5,8 +5,7 @@ struct NativeMokuBlinkingEyes: View {
     var expression: MokuExpression
     var focus: Double
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var active: Bool { scenePhase == .active && !reduceMotion }
+    private var active: Bool { scenePhase == .active }
 
     var body: some View {
         TimelineView(.animation(paused: !active)) { context in

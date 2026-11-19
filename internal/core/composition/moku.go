@@ -35,7 +35,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 		ConfigureSession: func(ctx context.Context, id string, revision int64, value moku.SessionConfiguration) error {
 			return r.ConfigureMokuThread(ctx, id, revision, value.HarnessID, value.Settings, value.AppliedSettings, value.SettingsRevision, value.Cwd)
 		},
-		OpenSession: r.OpenMokuThread, SetNativeAdmission: r.SetMokuNativeAdmission, SyncNativeContext: r.SyncMokuVoiceContext, CloseSession: r.CloseMokuThread, SendSession: r.SendMokuThread,
+		OpenSession: r.OpenMokuThread, CloseSession: r.CloseMokuThread, SendSession: r.SendMokuThread,
 		PendingDeliveries: r.PendingMokuDeliveries, SendDelivery: r.SendMokuDelivery,
 		SubscribeCommitted: r.OnThreadCommitted, SubscribeDiagnostics: b.subscribeDiagnostics,
 		SubscribeUserThreadInputs: r.SubscribeUserThreadInputs,
@@ -43,7 +43,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 			result, err := r.CreateThread(ctx, core.CreateThreadRequest{ResolveSettings: request.ResolveSettings, HarnessID: request.HarnessID, Input: request.Input, Cwd: request.Cwd, Settings: request.Settings, Worktree: request.Worktree})
 			return moku.CreatedThread{Record: result.Record, Execution: result.Execution, Acknowledgement: result.Acknowledgement, WorktreeName: result.WorktreeName, WorktreeNameAdjusted: result.WorktreeNameAdjusted, WorktreeNameNotice: result.WorktreeNameNotice}, err
 		},
-		SendThread: r.SendThread, ReadThread: r.ReadThread, InterruptThread: r.InterruptThread, InterruptThreadFromMokuTool: r.InterruptThreadFromMokuTool, InterruptThreadTarget: r.InterruptThreadTarget, ClaimThreadInput: r.ClaimThreadInput, RespondThread: r.RespondThread,
+		SendThread: r.SendThread, AskThread: r.ReadThread, InterruptThread: r.InterruptThread, InterruptThreadFromMokuTool: r.InterruptThreadFromMokuTool, InterruptThreadTarget: r.InterruptThreadTarget, ClaimThreadInput: r.ClaimThreadInput, RespondThread: r.RespondThread,
 		CanonicalizeInput:  b.attachments.CanonicalizeInput,
 		SuperThreadContext: b.superThreadContext,
 		StageAttachments: func(ctx context.Context, raw json.RawMessage) (any, error) {
@@ -77,18 +77,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 			}
 			return b.contexts.CollectMokuContexts(ctx, phase, catalogs)
 		},
-		Ledger:             b.ledger,
-		PrepareNativeVoice: r.PrepareMokuVoice, CompletedReply: r.CompletedReply, ReportFailure: b.log,
-		VoicePreparationContext: r.VoicePreparationContext,
-	}
-	for _, id := range []string{"codex", "claude", "pi", "opencode"} {
-		if b.disabled[id] != "" {
-			continue
-		}
-		if voice, ok := b.harnesses[id].(plugin.VoiceCapability); ok {
-			config.Voice = voice
-			break
-		}
+		Ledger: b.ledger,
 	}
 	return config
 }

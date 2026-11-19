@@ -75,10 +75,8 @@ public struct NativeColor: Sendable {
 public enum NativeGeometry {
     public static let initialWindow = CGSize(width: 1180, height: 780)
     public static let minimumWindow = CGSize(width: 860, height: 600)
-    public static let overviewCard = CGSize(width: 360, height: 220)
+    public static let overviewCard = CGSize(width: 320, height: 196)
     public static let overviewCardGap: CGFloat = 16
     public static let overviewCardRadius: CGFloat = 22
     public static let readingWidth: CGFloat = 744
-    public static let settingsSidebarWidth: CGFloat = 220
-    public static let settingsHeaderHeight: CGFloat = 110
 }

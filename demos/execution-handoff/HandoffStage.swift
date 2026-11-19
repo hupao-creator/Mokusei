@@ -9,7 +9,7 @@ struct HandoffStage: NSViewRepresentable {
     func makeNSView(context: Context) -> HandoffStageView { HandoffStageView(model: model) }
     func updateNSView(_ view: HandoffStageView, context: Context) {
         view.configure(revision: model.revision, play: model.playRequested,
-            longResult: model.longResult, reduced: model.reduceMotion, slow: model.slow,
+            longResult: model.longResult, slow: model.slow,
             dark: model.dark)
     }
     static func dismantleNSView(_ view: HandoffStageView, coordinator: ()) { view.cancel() }
@@ -52,7 +52,6 @@ private struct ReaderSeat: View {
     private var revision = -1
     private var generation = UUID()
     private var longResult = false
-    private var reduced = false
     private var slow = false
     private var playing = false
     private var landed = false
@@ -80,7 +79,7 @@ private struct ReaderSeat: View {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(revision: Int, play: Bool, longResult: Bool, reduced: Bool, slow: Bool, dark: Bool) {
+    func configure(revision: Int, play: Bool, longResult: Bool, slow: Bool, dark: Bool) {
         appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         appearance?.performAsCurrentDrawingAppearance {
             for shell in [mainShell, sideShell] {
@@ -88,13 +87,8 @@ private struct ReaderSeat: View {
                 shell.layer?.borderColor = NSColor(NativePalette.thread.line.swiftUI).cgColor
             }
         }
-        // System Reduce Motion is never overridden by the preview switch.
-        let newlyReduced = reduced && !self.reduced
-        self.reduced = reduced; self.slow = slow
-        guard revision != self.revision else {
-            if newlyReduced && playing { settle() }
-            return
-        }
+        self.slow = slow
+        guard revision != self.revision else { return }
         let sameResult = self.longResult == longResult
         self.revision = revision; self.longResult = longResult
         if play && previous != nil && !playing && !landed && sameResult {
@@ -150,11 +144,11 @@ private struct ReaderSeat: View {
         preparation = Task { [weak self] in
             // A short completed-state hold makes the result legible before the
             // shared movement. Content readiness above remains the admission gate.
-            do { try await Task.sleep(for: .milliseconds(self?.reduced == true ? 0 : 220)) }
+            do { try await Task.sleep(for: .milliseconds(220)) }
             catch { return }
             guard let self, generation == visit, playing else { return }
             layoutSubtreeIfNeeded()
-            if reduced { settle() } else { absorbAndExpand(visit: visit) }
+            absorbAndExpand(visit: visit)
         }
     }
 
@@ -268,14 +262,14 @@ private struct ReaderSeat: View {
     }
 
     private func settle() {
-        // Readiness is checked even when Reduce Motion changes during loading.
+        // Readiness remains scoped to this visit during loading.
         guard ready.contains("latest") else { return }
         generation = UUID(); preparation?.cancel(); preparation = nil
         landed = true; playing = false
         updateAdmission()
         removeAnimations()
         geometrySize = .zero; needsLayout = true; layoutSubtreeIfNeeded()
-        report(reduced ? "最新结果已接住 · 减弱动态效果" : "最新结果已接住 · 可滚动阅读，或重播比较", busy: false)
+        report("最新结果已接住 · 可滚动阅读，或重播比较", busy: false)
     }
     private func removeAnimations() {
         for view in [mainShell, sideShell, previous, latest, side] { view?.layer?.removeAllAnimations() }

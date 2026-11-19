@@ -54,7 +54,7 @@ old state rather than waiting while holding another authority.
 
 App startup retains this lease through process exit, including asynchronous
 work and atexit cleanup. The exit helper and Probe acquire their own leases;
-failed helper admission writes only stderr, never profile diagnostics. All
+failed helper admission returns without profile-local writes. All
 retained paths come from the lease's canonical profile. Multiple clients may
 share a profile normally. Kernel descriptor locks release on abnormal exit;
 the lock files themselves are never removed or replaced during cleanup.
@@ -75,9 +75,7 @@ Token updates and draft persistence take the shared gate, while collection takes
 it exclusively. Normal disposal and send completion release their tokens;
 failed final persistence conservatively retains its token until process exit.
 
-[RuntimeOfflineStoreTests](../../Tests/Core/RuntimeOfflineStoreTests.swift) writes
-thread, turn and execution payloads, then reopens the disk cache and checks each
-scope independently. Equal keys in different scope kinds and different keys in
+Equal keys in different scope kinds and different keys in
 the same kind remain distinct; a missing scope stays absent.
 
 [RuntimeCommandJournal](RuntimeCommandJournal.swift) serializes command identity
@@ -153,29 +151,12 @@ so distinct symlinks to the same target retain stable labels after redraws.
 
 Client appearance and language preferences live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
 
-Verification: Core Swift tests, `./scripts/go.sh run -race ./tools/verification/transport -swift-deltas`,
-`transport -swift-files`, `runtime-helpers --swift-shutdown` and `runtime -swift-voice`
-from the repository root on macOS. The file interop replay uses the real Swift
-client without GUI: regular and symlink uploads, prompt FIFO rejection, and
-`.partial` downloads retain their validated bytes and basename.
-
-`RuntimeCommandJournalIntegrationTests` uses real clients and loopback HTTP to
-interleave shared-profile admission, completion, acknowledgement and recovery.
-It verifies that independent receipts survive, delayed recovery cannot revive a
-consumed receipt or downgrade acceptance, and a fork handoff always retains a
-receipt before HTTP, including a denied journal write.
 HTTP and command rejections after handoff retain the original fork identity;
 an explicit replacement preserves it until the accepted draft is consumed.
 Handoff and replacement publish their exact attachment references before HTTP,
 and replacing a rejected predecessor retains the successor's files with the
 original fork lineage.
 
-`NativePerformance.recordTextCache` accumulates hit/miss integers per surface in
-its current recorder, rather than allocating an event for every size proposal.
-At each existing 250ms writer drain, `text.cache` records carry `queries`, `hits`
-and `misses`; their timestamp is the drain time, not an individual probe time.
-Summary `count` remains the number of queries, with hit/miss totals alongside it.
-Pending counters are limited to 256 contexts and overflow increments the existing
-dropped counter. Reconfiguration and normal finish drain the owning recorder;
-counts never cross recording sessions. JSON encoding and file IO stay off the
-main actor. Other metrics retain their existing event/span semantics.
+No command-journal integration suite is configured in this source tree. Receipt
+identity, shared-profile admission and attachment handoff above are implemented
+constraints; no runtime coverage is implied by the production build.

@@ -7,7 +7,6 @@ struct NativeOnboardingSurface: View {
     @Bindable var state: NativeOnboardingState
     let scene: NativeMokuSceneState
     let applicationSections: [NativeApplicationSettingsSection]
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var mapMotion = NativeMokuSettingsAnimationState()
@@ -19,7 +18,7 @@ struct NativeOnboardingSurface: View {
     // stay dark even when the workspace window follows a light appearance.
     private var ink: Color { Color(white: 0.94) }
     private var secondary: Color { Color(white: 0.73) }
-    private var motion: Animation? { reduceMotion ? nil : .smooth(duration: 0.32) }
+    private var motion: Animation? { .smooth(duration: 0.32) }
     private var locale: DesktopLocale { state.locale }
 
     var body: some View {
@@ -53,7 +52,6 @@ struct NativeOnboardingSurface: View {
                 .allowsHitTesting(state.step != .landing)
                 .accessibilityHidden(state.step == .landing)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("onboarding")) } action: { state.panelFrame = $0 }
-                .nativeLayoutLog("onboarding.panel")
                 .animation(motion, value: panelSize)
         }
         .coordinateSpace(name: "onboarding")
@@ -65,6 +63,7 @@ struct NativeOnboardingSurface: View {
         .environment(\.nativeSettingsInteractions, state.interactions)
         .environment(\.nativeSettingsInteractionContext, state.context)
         .environment(\.nativeSettingsInteractionRefresh, state.interactions.refresh)
+        .environment(\.nativeOnboardingHarnessIDs, Set(state.installed.map(\.descriptor.id)))
         .nativeSettingsTextEditing(onComposition: { state.settings.draft.composing = $0 }, onBlur: { state.settings.draft.flushText() })
         .onAppear { state.mounted = true; state.admitIfNeeded() }
         .onDisappear { state.mounted = false }
@@ -75,7 +74,7 @@ struct NativeOnboardingSurface: View {
         let height: CGFloat
         switch panelStep {
         case .discovery: height = 430
-        case .moku: height = 590
+        case .moku: height = 650
         case .tag, .report: height = state.settings.draft.value["pluginSettings"]?.arrayValue?
             .first(where: { $0["id"] == panelStep.settingID.map(JSONValue.text) })?["value"]?["mode"] == .text("override") ? 740 : 640
         case .landing: height = 640
@@ -114,7 +113,7 @@ struct NativeOnboardingSurface: View {
                             }
                         }
                     }
-                    .id(panelStep).transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 10)))
+                    .id(panelStep).transition(.opacity.combined(with: .offset(y: 10)))
                     .frame(maxWidth: 560).padding(.horizontal, 30).padding(.bottom, 20).frame(maxWidth: .infinity)
                 }
             }.scrollIndicators(.never)
@@ -125,10 +124,10 @@ struct NativeOnboardingSurface: View {
                         .nativeSettingsAction("back", label: "Back") { state.back() }.disabled(state.busy)
                 }
                 Spacer()
-                if panelStep == .discovery, state.installed.isEmpty, !state.detecting {
-                    Button(locale.text("重新检测", "Check again")) { Task { await state.settings.refreshInstallations() } }
+                if panelStep == .discovery, state.installed.isEmpty, !state.detecting, !discoveryHasFailures, discoveryError == nil {
+                    Button(locale.text("重新检测", "Check again"), action: state.scan)
                         .buttonStyle(.glass)
-                        .nativeSettingsAction("scan", label: "Check for Agents") { Task { await state.settings.refreshInstallations() } }
+                        .nativeSettingsAction("scan", label: "Check for Agents", action: state.scan)
                         .disabled(state.settings.probing || !state.workspace.runtimeAvailable)
                 } else {
                     Button { Task { await state.advance() } } label: {
@@ -147,46 +146,71 @@ struct NativeOnboardingSurface: View {
     private var discoveryError: String? {
         guard panelStep == .discovery else { return nil }
         if case .failed(let message) = state.settings.installationLoadState { return message }
-        return state.harnesses.compactMap { state.settings.installations[$0.descriptor.id.string] }
-            .first(where: { $0.status == .error })?.message
+        return nil
+    }
+    private var discoveryHasFailures: Bool {
+        state.harnesses.contains { if case .failed = state.discoveryState($0) { return true }; return false }
     }
     private var discovery: some View {
-        VStack(spacing: 44) {
+        VStack(spacing: 24) {
             HStack(spacing: 10) {
                 if state.detecting { ProgressView().controlSize(.small) }
-                Text(state.detecting ? locale.text("正在发现 Agent", "Discovering Agents")
-                     : discoveryError != nil && state.installed.isEmpty ? locale.text("暂时无法发现 Agent", "Unable to discover Agents")
+                Text(state.detecting
+                     ? locale.text("正在发现 Agent · \(state.installed.count) 个已就绪", "Discovering Agents · \(state.installed.count) ready")
+                     : discoveryHasFailures || discoveryError != nil
+                        ? locale.text("\(state.installed.count) 个 Agent 已就绪，部分读取失败", "\(state.installed.count) Agents ready; some could not be loaded")
                      : state.installed.isEmpty ? locale.text("安装一个 Agent", "Install an Agent")
                      : locale.text("发现 \(state.installed.count) 个 Agent", "Found \(state.installed.count) Agents"))
                     .font(.system(size: 16, weight: .medium)).contentTransition(.numericText())
             }
-            if state.installed.isEmpty && !state.detecting && discoveryError == nil {
-                HStack(spacing: 24) {
-                    ForEach(state.harnesses, id: \.descriptor.id) { harness in
-                        VStack(spacing: 16) {
-                            harness.logo(size: 50).frame(height: 64)
-                            if let guide = harness.descriptor.installationGuide {
-                                Button { open(guide) } label: {
-                                    Label(harness.descriptor.displayName.string, systemImage: "arrow.up.right").font(.system(size: 12))
-                                }.buttonStyle(.plain)
-                            } else { Text(harness.descriptor.displayName.string).font(.system(size: 12)) }
-                        }.frame(maxWidth: .infinity)
-                    }
+            HStack(alignment: .top, spacing: 20) {
+                ForEach(state.harnesses, id: \.descriptor.id) { harness in
+                    discoveryAgent(harness)
                 }
+            }
+            ForEach(state.harnesses, id: \.descriptor.id) { harness in
+                if case .failed(let message) = state.discoveryState(harness) {
+                    NativeSettingsNotice(message: harness.descriptor.displayName.string + ": " + message, kind: .error,
+                        action: AnyView(Button(locale.text("重试", "Retry")) { state.retryDiscovery(harness) }
+                            .buttonStyle(.borderless).disabled(!state.workspace.runtimeAvailable)
+                            .nativeSettingsAction("retry." + harness.descriptor.id.string, label: "Retry " + harness.descriptor.displayName.string) {
+                                state.retryDiscovery(harness)
+                            }))
+                }
+            }
+            if state.installed.contains(where: { $0.descriptor.threadCapabilities.canHostMoku }), state.detecting || discoveryHasFailures {
+                Text(locale.text("可以先配置已就绪的 Agent；返回此页可查看其余 Agent。", "You can configure ready Agents now. Return here to check the others."))
+                    .font(.system(size: 12)).foregroundStyle(secondary)
+            } else if state.installed.isEmpty && !state.detecting && !discoveryHasFailures {
                 Text(locale.text("安装并登录后，重新检测。", "Install and sign in, then check again."))
                     .font(.system(size: 12)).foregroundStyle(secondary)
-            } else {
-                HStack(spacing: 28) {
-                    ForEach(state.installed, id: \.descriptor.id) { harness in
-                        VStack(spacing: 26) {
-                            harness.logo(size: 72).frame(width: 86, height: 90)
-                            Text(harness.descriptor.displayName.string).font(.system(size: 16, weight: .medium))
-                        }.frame(maxWidth: .infinity, minHeight: 168)
-                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 18)))
-                    }
-                }.frame(height: 190)
             }
         }.animation(motion, value: state.installed.map(\.descriptor.id))
+    }
+
+    private func discoveryAgent(_ harness: AnyHarnessPlugin) -> some View {
+        let status = state.discoveryState(harness)
+        return VStack(spacing: 12) {
+            harness.logo(size: status == .ready ? 72 : 32).frame(width: 86, height: 90)
+                .opacity(status == .ready ? 1 : 0.5)
+            Text(harness.descriptor.displayName.string).font(.system(size: status == .ready ? 16 : 12, weight: .medium))
+            Group {
+                switch status {
+                case .checking, .loading:
+                    HStack(spacing: 5) {
+                        ProgressView().controlSize(.mini)
+                        Text(status == .checking ? locale.text("检测中", "Checking") : locale.text("读取配置中", "Loading settings"))
+                    }
+                case .ready: Label(locale.text("已就绪", "Ready"), systemImage: "checkmark")
+                case .failed: Text(locale.text("读取失败", "Load failed"))
+                case .missing:
+                    if let guide = harness.descriptor.installationGuide {
+                        Button { open(guide) } label: { Label(locale.text("安装", "Install"), systemImage: "arrow.up.right") }
+                            .buttonStyle(.plain)
+                    } else { Text(locale.text("未安装", "Not installed")) }
+                }
+            }.font(.system(size: 11)).foregroundStyle(secondary)
+        }.frame(maxWidth: .infinity, minHeight: 168)
     }
 
     private func configurationForStep(_ step: NativeOnboardingStep) -> some View {
@@ -195,7 +219,7 @@ struct NativeOnboardingSurface: View {
 
     @ViewBuilder private var configuration: some View {
         if panelStep == .moku {
-            NativeMokuSettings(model: state.settings, harnesses: state.harnesses, locale: locale, focusRequest: 0, motion: mapMotion,
+            NativeMokuSettings(model: state.settings, harnesses: state.installed, locale: locale, focusRequest: 0, motion: mapMotion,
                 harnessSettings: { request in
                     AnyView(NativeHarnessSettingsView(host: state.workspace.harnessHost,
                         configuration: .init(harnessID: request.harnessID, cwd: JSONText(state.settings.defaultCwd),
@@ -221,21 +245,21 @@ struct NativeOnboardingSurface: View {
     @MainActor private func transition() async {
         guard state.step == .landing else { withAnimation(motion) { panelStep = state.step }; return }
         do {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.14)) { contentVisible = false }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 160))
+            withAnimation(.easeOut(duration: 0.14)) { contentVisible = false }
+            try await Task.sleep(for: .milliseconds(160))
             scene.disabled = !state.workspace.runtimeAvailable
             state.mountDock = true
             scene.setInputOpen(true)
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 50))
-            withAnimation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.78)) { collapsed = true }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 800))
+            try await Task.sleep(for: .milliseconds(50))
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.78)) { collapsed = true }
+            try await Task.sleep(for: .milliseconds(800))
             // Reveal the Dock behind the still-opaque panel first. Animating the
             // panel and the Dock against each other leaves both translucent over
             // the light workspace for a frame, which reads as a second flash.
             state.dockVisible = true
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 30))
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { panelVisible = false }
-            try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 200))
+            try await Task.sleep(for: .milliseconds(30))
+            withAnimation(.easeInOut(duration: 0.18)) { panelVisible = false }
+            try await Task.sleep(for: .milliseconds(200))
             state.finishHandoff()
         } catch { return }
     }

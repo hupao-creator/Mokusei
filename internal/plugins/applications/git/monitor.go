@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
@@ -40,9 +39,7 @@ func (m *monitor) Start(ctx context.Context, _ plugin.RuntimeStartContext) error
 	go func() {
 		defer close(done)
 		for {
-			if err := m.cycle(ctx); err != nil && ctx.Err() == nil {
-				m.environment.Log("warning", "sync.failed", model.Object{"error": err.Error()})
-			}
+			_ = m.cycle(ctx)
 			timer := time.NewTimer(5 * time.Second)
 			select {
 			case <-ctx.Done():

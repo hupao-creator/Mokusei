@@ -12,16 +12,14 @@ adapter resolves the native user-message client identity, requests `lastTurnId`
 on `thread/fork`, verifies the returned history boundary and trims public fork
 history to that execution. Missing/unsupported checkpoints fail closed; the
 source must satisfy the existing idle/native-work gates. See
-[Report continuation](../../../../design/report-execution-continuation.md).
+[Report continuation](../../../../design/reading.md).
 
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
-Installation owns the shell pipeline's process group and both output readers.
-Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
+Installation owns the shell pipeline's process group and both output readers. Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
 before returning; uncertain cleanup remains an error. Combined captured output
 is limited to 8 MiB, and cancellation, output-limit and nonzero-exit failures
-remain observable. The [installer replay](../../../../tools/verification/harness-install/README.md)
-checks the production installation path with local executable fixtures.
+remain observable.
 
 Moku rejects empty initial model catalogs and reports partial creation capabilities
 when thinking controls are unknown. Target discovery reads the catalog independently of the default
@@ -59,17 +57,11 @@ startup, so isolated configuration does not outlive a rejected launch.
 
 Thread Read uses a separate ephemeral native fork when source history is
 available. Missing history or a failed fork read uses a snapshot fallback in an
-isolated read-only session and temporary workspace.
-Each temporary session is registered with the Handle and releases its own exact
-registration on return, even when a fallback replaces the current session.
-Handle Close cancels and joins in-flight reads before returning. Read answers
+isolated read-only session and temporary workspace. Each temporary session is registered with the Handle and releases its own exact
+registration on return, even when a fallback replaces the current session. Handle Close cancels and joins in-flight reads before returning. Read answers
 are not projected into the source session; their native processes, temporary
-workspace and one-shot configuration homes are drained on successful cleanup.
-[adapter_read_test.go](adapter_read_test.go) exercises the real Open/Read/Close
-path against external JSONL peers, including repeated reads, fork/fallback
-success, launch/turn failure, cancellation and concurrent/repeated Close. It
-checks ownership release, process exit, temporary-file cleanup and source-state
-preservation without an installed Codex or model account.
+workspace and one-shot configuration homes are drained on successful cleanup. Ownership release, process exit, temporary-file cleanup and source-state
+preservation are implemented responsibilities of that read owner.
 
 Resume supplies tool definitions again while preserving native history in the same home. Tool schema changes do not themselves discard compacted context. Ordinary/extend modes share a home; exclusive mode uses isolated configuration. User-global Codex configuration is not rewritten.
 
@@ -118,7 +110,7 @@ that timeout still does not authorize a successor. Generic transport failures
 retain their input because native acceptance is unknown. Core can reserve a
 successor only after the existing durable-settlement gate and successful commit.
 No delivery status is added to the native text/time message UI. See the
-[identity correction record](../../../../design/steer-message-identity.md).
+[input identity contract](../../../../design/composer.md).
 
 Text and reasoning deltas commit in 50 ms batches, flushing earlier at 1,024
 events or 256 KiB. The first native reasoning status publishes immediately; repeated
@@ -128,53 +120,18 @@ The native adapter retains reasoning prefixes for completion reconciliation;
 assistant text comes from streamed deltas and authoritative completed items
 without a second unused accumulated copy.
 
+Reasoning prefixes are tracked per native item, source (summary/content) and
+part index. A part's first nonempty delta carries its paragraph boundary;
+subsequent chunks append without separators. Timeline, execution aggregate and
+live foreground insert a blank line at boundaries, preserving existing newlines.
+Completed items reconcile each part independently and repeated completions add
+nothing. The same retained text feeds Overview and restored/execution history;
+boundaries already lost in older retained text cannot be reconstructed.
+
 File-change activities retain their unique native paths through completion and
 renderer projection. The native execution summary counts distinct paths across
 activities, so one patch touching several files reports its actual file scope.
 A source without path facts uses a neutral changed-files label.
-
-## Voice
-
-[voice.go](voice.go) uses the unmodified app-server's V3 WebRTC/sideband protocol. Voice is not gated by CLI version or user-agent format: all three paths share the real `thread/realtime/start` request and subsequent protocol events to determine compatibility. There is no separate capability probe before microphone permission and SDP creation. Unsupported startup methods or V3 parameters (`-32601` / `-32602`) add a Chinese compatibility diagnostic while retaining the native RPC error, and end that media attempt without automatic retries or protocol downgrade. Native provider/login checks still apply.
-
-A Codex Moku attaches directly to its prepared native session. A Codex thread discussion attaches to a separate read-only ephemeral fork. Direct preparation failure is surfaced, never silently routed through another account. Non-Codex targets use a private relay fixed to `gpt-6-luna`, checked against catalog, prepared thread and model events; there is no fallback model. The relay's only application tool is `forward_to_target`, which forwards the captured handoff rather than model-written replacement text. It has no project execution tools or source-history writer.
-
-`clientManagedHandoffs` disables automatic result speech, not native execution. Native starts are adopted through Core admission, with tools gated on that boundary; upstream inference may already have begun. Results use stock `thread/realtime/appendSpeech`, which may paraphrase. The relay's own final answer is not used as a target answer.
-
-Owner, execution, delivery and accepted-input generation fence speech. Duplicate handoffs and unmappable native input fail rather than inventing ownership. VAD or caption fragments do not accept a task. A current append failure is a nonterminal `speech-error`; obsolete failures cannot terminate a newer media generation. Uncertain speech delivery is not retried. Closing Moku media does not cancel already admitted task work; closing a private discussion disposes its work.
-
-The [native Swift media client](../../../../app/macos/Sources/Voice/README.md) owns microphone, WebRTC and playback. [voice_feedback_test.go](voice_feedback_test.go) covers exact ASR/handoff/answer identity association; source text/generation must match uniquely, and a late final may complete only the candidate captured at handoff.
-
-Pending Moku settings reject a native start before Core/tool admission. Only
-this exact rejection can return the captured handoff for configuration recovery,
-after the old process, tool bridge and in-flight notification have drained.
-Other native failures remain uncertain. Complete model/instruction/tool changes
-rebuild the native owner; reconnect does not pretend an existing realtime peer
-supports an in-place rebind or prewarm the configuration being retired.
-
-Moku-native speech can request a playback-readiness receipt. The adapter emits
-`speech-ready` with the exact delivery/generation and waits up to ten seconds
-before appending audio. Input-generation changes, cancellation and Stop release
-the wait; repeated acknowledgements cannot append speech again. Relay and
-private-discussion speech do not require this receipt.
-
-Stopping media also cancels native admission still waiting for the settings
-gate. An exact cancellation before projection retires the unadmitted native
-turn through its interrupt acknowledgement, allowing normal realtime shutdown
-to finish. Failed interrupt acknowledgement remains a visible cleanup failure;
-generic, joined and possibly projected errors keep the ordinary fault path.
-
-When that fault has retired the app-server, stopping media joins the native
-process and tool bridge instead of requiring an RPC acknowledgement from the
-closed channel. A typed transport failure identifies this case without treating
-native RPC rejections or cancellation failures as successful cleanup. Process or
-bridge drain failures remain errors. Prewarming checks the native owner's and
-transport's existing retirement state and must itself win retirement of a live
-owner before launching its replacement; joining a concurrent fault's cleanup
-grants no replacement authority. This cleanup does not recover input, and the
-original voice error event is retained.
-
-Verification: [Codex runner](../../../../tools/verification/codex/README.md), `./scripts/go.sh test -race ./internal/plugins/harness/codex`, and the runtime/Moku replays. Protocol fixtures establish adapter behavior, not live account entitlement or audible playback.
 
 ## Initial response cards
 
@@ -184,14 +141,10 @@ fact is projection-only and never enters canonical session state. Native cards
 use it for ordinary threads with zero or one execution; eligible agent content
 retains its existing precedence. Other scopes omit the field.
 
-The adapter replay also checks this boundary with shared production-renderer
-fixtures in `tools/verification/firstresponse`. The native cross-language replay
-is `python3 tools/verification/reading-presentation/run.py --initial-response`.
-
 Settings directory, execution-default capture and auto-review capability reads
 share one bounded catalog acquisition. Configuration, model list, Computer Use
 and version facts are read concurrently from the same native process; default
-capture no longer starts a second server. Auto-review reuses that configuration,
+capture uses that same server. Auto-review reuses that configuration,
 while live admission still checks the owning execution session. The launch's
 already observed version is reused. Standalone successful version probes cache
 by binary metadata/environment for five minutes and drain their own subprocess.
@@ -216,14 +169,29 @@ shutdown joining use [discovery](../../../platform/discovery/README.md). A faile
 partial observation can describe its own failure but earns no successful TTL.
 No credential snapshot is written to disk.
 
-`./scripts/go.sh run ./tools/verification/codex -settings-performance` measures
-mixed catalog/defaults reads. See [measurement scope](../../../../tools/verification/settings-performance/README.md).
+For settings and execution defaults, a newer write to `models_cache.json` for the
+selected Codex client version expires a completed observation early. This lets
+the next catalog acquisition recover from a bundled fallback after the native
+cache is refreshed. A write from a different client version leaves the cached
+observation's ordinary lifetime in effect. The file supplies only a freshness
+hint. A fresh app-server still enumerates under its captured configuration and
+account, and the returned list alone supplies model choices and capabilities.
+
+The [catalog freshness property](catalog_property_test.go) generates client versions
+and private cache writes before, during, or after the first successful read.
+A readable timestamp and matching client version on a newer write must trigger
+one new enumeration. A strict read after that reuses the result. A different
+client version, malformed timestamp or older write preserves the first result.
+Virtual time distinguishes probe start from publication. The property exercises
+the native stamp reader and shared discovery cache with a counted probe. Real
+account enumeration and Settings refresh interactions require separate evidence.
+
+No settings-performance replay for this Harness is configured in this source tree.
 
 Turn-scoped reader projections omit plan steps, explanations and timeline markers
 before encoding and copying them to native clients. Canonical, overview, context
 and full/execution projections retain those facts. Empty required plan arrays
-preserve native decoding, and surviving timeline identities/order remain intact.
-Deferred turn projections retain failed activity labels and details so errors
+preserve native decoding, and surviving timeline identities/order remain intact. Deferred turn projections retain failed activity labels and details so errors
 remain readable without loading or showing ordinary execution work. Failed tools
 retain bounded completion diagnostics as well as command output. Diagnostics
 take priority over large partial results within the retained bound. Completion
@@ -233,8 +201,6 @@ frame carries enough activity identity to survive recovery without a start frame
 and a repeated start cannot erase a completed diagnostic. Existing stored
 diagnostics already discarded by earlier versions cannot be reconstructed by the
 reader; no history rewrite is performed.
-The [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
-checks active, terminal and inherited turns without a native CLI or model call.
 
 Lightweight deferred execution projections record meaningful activity `detail` by
 native activity ID before stripping its body. The native Agent reader uses that
@@ -273,13 +239,6 @@ assistant excerpt without acquiring full conversation content. Native
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
 
-
-Only native voice handoff admission uses `plugin.WithVoiceAdmission` with its exact
-VoiceSession ID. Background terminal follow-ups use their original, unmarked Core
-admission path. This allows Moku to reject a retired microphone owner without
-blocking non-voice continuation. Thread voice calling is disabled by Runtime;
-Overview global Moku still uses the native/relay media implementation described here.
-
 Moku requires the full nonempty native model inventory before task admission.
 Unknown thinking capabilities remain named in that inventory but cannot authorize
 creation. Moku routing returns complete same-configuration cached directories
@@ -311,5 +270,23 @@ failed second enumeration retains the first complete result. A matching warm
 snapshot returns immediately and failed refreshes preserve it with a failure
 note. First-page/later-page errors and empty initial inventories still reject a
 cold acquisition. No static candidate or failed page prefix is synthesized.
-See the [T3 source comparison and differences](t3-discovery.md) and
-[current admission contract](../../../services/moku/catalog-evidence.md).
+See the [catalog admission contract](../../../services/moku/catalog-evidence.md).
+
+## Property boundary: PBT-CODEX-TERMINAL
+
+`state.go` admits a new execution only when no retained turn is active;
+`ReduceEvent`, `AppendFollowUp` and `SettleExecution` edit only active turns.
+`RejectFollowUp` can append an audit notice to a terminal turn, but does not change
+its public execution result. `DecodeState` validates the durable state and
+`ResolveExecution` projects the canonical execution facts.
+
+[PBT-CODEX-TERMINAL](../../../../tools/verification/pbt/codex/terminal_property_test.go)
+generates start/event/follow-up/rejection/settle action sequences with up to 100
+retained executions, Unicode text from `a`, `中`, `🙂`, newline (0–32 runes),
+text-delta/text-final/status/done/error events and all three terminal outcomes.
+After every step the durable state must decode; once terminal, the public execution
+must remain deeply equal through later actions. Each rejected follow-up adds
+exactly one notice. The oracle reads production state/projections, not a second
+reducer. This covers reducer ordering and terminal retention, not native RPC,
+authentication, tools, all event kinds or process cleanup. Run `make pbt-go`;
+seed, budget and replay commands are in the [PBT guide](../../../../tools/verification/pbt/README.md).

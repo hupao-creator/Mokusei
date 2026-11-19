@@ -9,7 +9,6 @@ extension EnvironmentValues {
 /// Keep modal admission and the live page until the capsule finishes returning.
 struct NativeSettingsTransition: ViewModifier {
     let state: NativeMokuSceneState
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var generation = 0
     @State private var preparation: Task<Void, Never>?
@@ -22,11 +21,10 @@ struct NativeSettingsTransition: ViewModifier {
                 settle()
             }
             .onChange(of: state.settingsTransitionRequest) { _, _ in
-                if !state.settingsOpen || reduceMotion || scenePhase != .active { settle() }
+                if !state.settingsOpen || scenePhase != .active { settle() }
                 else { animate() }
             }
             .onChange(of: scenePhase) { _, phase in if phase != .active { settle() } }
-            .onChange(of: reduceMotion) { _, value in if value { settle() } }
             .onDisappear {
                 settle()
                 state.settingsSettle = nil

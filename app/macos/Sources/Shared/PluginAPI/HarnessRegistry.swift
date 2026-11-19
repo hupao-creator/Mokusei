@@ -36,13 +36,16 @@ public final class HarnessSettingsSession {
     public let sourceChanged: () -> Void
     private let ready: () -> Bool
     public var isReady: Bool { ready() }
+    private let issue: () -> String?
+    public var preparationError: String? { issue() }
     private let threadBody: (HarnessThreadInput, @escaping (JSONValue) async throws -> Void) throws -> AnyView
     private let harnessBody: (HarnessSettingsSection, Bool, Bool, JSONValue, HarnessSettingsHost?, @escaping (JSONValue) throws -> Void) throws -> AnyView
     fileprivate init(reload: @escaping (Bool) async throws -> Void, invalidate: @escaping () -> Void, sourceChanged: @escaping () -> Void,
-                     isReady: @escaping () -> Bool,
+                     isReady: @escaping () -> Bool, preparationError: @escaping () -> String?,
                      threadBody: @escaping (HarnessThreadInput, @escaping (JSONValue) async throws -> Void) throws -> AnyView,
                      harnessBody: @escaping (HarnessSettingsSection, Bool, Bool, JSONValue, HarnessSettingsHost?, @escaping (JSONValue) throws -> Void) throws -> AnyView) {
         self.reload = reload; self.invalidate = invalidate; ready = isReady
+        issue = preparationError
         self.sourceChanged = sourceChanged
         self.threadBody = threadBody; self.harnessBody = harnessBody
     }
@@ -122,6 +125,13 @@ public final class AnyHarnessPlugin {
             return HarnessSettingsSession(reload: { try await resource.reload(refresh: $0) }, invalidate: { resource.invalidate() },
                 sourceChanged: { resource.invalidate(keepingValue: true) },
                 isReady: { if case .ready = resource.state { return true }; return false },
+                preparationError: {
+                    switch resource.state {
+                    case .loading: nil
+                    case .error(let message): message
+                    case .ready(let value): plugin.settingsPresentationIssue(value)
+                    }
+                },
                 threadBody: { input, update in
                     guard input.thread.harnessID == plugin.descriptor.id else { throw PluginContractError("Thread settings belong to a different Harness") }
                     return AnyView(plugin.threadSettings(input: input, resource: resource) { value in

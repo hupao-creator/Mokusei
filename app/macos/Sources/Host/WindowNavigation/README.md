@@ -19,9 +19,19 @@ window/back controls. The workspace hides its Back control for Agent, Report and
 Moku history panels; those surfaces use their own production panel Close.
 [NativeWindowControlPlacement](NativeWindowControlPlacement.swift) retains native
 Mac traffic-light positions and actions through resize and workspace zoom.
+The real button group has a sibling `NSGlassEffectView` with native `.clear`
+style and no tint, padded 12pt horizontally around its native frames and
+vertically centered at the shared 42pt chrome height, with a 21pt corner radius.
+Existing glass wrappers own SwiftUI surfaces with different material/ink policies; this AppKit decoration leaves the
+buttons in their original titlebar hierarchy, preserving actions, accessibility
+and grouped hover. It returns no hit target, so empty capsule space keeps the
+existing titlebar dragging behavior. The capsule follows reading offsets and
+resize, hides from fullscreen entry until exit, and detaches with its owner.
+The macOS 26 minimum supports clear directly; there is no regular-glass fallback.
+Reduce Transparency explicitly replaces glass with an opaque system window
+background, without changing system preferences or button behavior.
 Current Report panels keep those controls visible while the HTML document
-scrolls, with document clearance owned by the panel Close. The retired full-window
-navigation portal and capsule expansion are excluded from product replays.
+scrolls, with document clearance owned by the panel Close. There is no full-window navigation portal or capsule-expansion replay.
 WebKit retains Option-Left
 for native word movement, including editors hidden inside closed Shadow DOM.
 Escape stays with native form inputs, actual editable elements in the composed
@@ -39,7 +49,7 @@ workspaces stack the two panels. Escape from the Report or linked webpage folds 
 before closing the Report; editable elements and dialogs retain key priority.
 Same-document anchors (including HTTP pages) and non-link navigations retain WebKit behavior.
 The linked Browser opens with the same `NativeSidecardFold` aperture and
-launcher travel as Agent Execution/Browser/Voice and Report related executions:
+launcher travel as Agent Execution/Browser and Report related executions:
 380ms with cubic Bézier `(0.22, 1, 0.36, 1)`. Its launcher is the lower 42pt
 right-rail control. The native document takes its destination size once while
 the shell unfolds. Closing retains the existing whole-shell fade and workspace
@@ -49,29 +59,23 @@ still starts only when a URL exists. Selection therefore drives opening in the
 same transaction as the main pane, without a second state, layout callback or
 completion/reset timer. The Report's HTML-ready 200ms admission delay is
 independent of this motion.
-Reduced Motion disables the workspace's folding and stacking animation.
 Outside a Report panel, new-window HTTP(S) GET links use the external browser.
 Non-GET new-window form requests are rejected with an in-document notice; the
 host never converts a request body into a URL-only GET.
-This restores the contract from `bfc2c9f4f`, whose synchronization calls were
-removed by the SwiftUI shell migration `310149f1d`; `ef0164c88` subsequently
-restored only fixed placement.
+
 
 The optional back-frame callback reports logical `workspace` coordinates for
-navigation geometry observers. Settings now owns a separate panel close button
-inside the resident Dock and no longer uses a window-wide return mask.
+navigation geometry observers. Settings owns a separate panel close button
+inside the resident Dock and does not use a window-wide return mask.
 Only actual controls own pointer regions; dragging the window header does not
 pan Overview. Hover is reconciled with current availability and pointer geometry
 rather than a stale enter event.
 
 The [workspace shell](../Shell/NativeWorkspaceView.swift) presents ordinary threads, Moku history and Report HTML reading routes. Their back actions close the owning route or nested history; a plugin does not replace the host's navigation state. Native document/HTML content keeps the shared navigation safe area and cannot cover the back target.
 
-Application reading pages retain their back action across redraws.
-Publishing navigation into the shell must not create a new action on the next
+Application reading pages retain their back action across redraws. Publishing navigation into the shell must not create a new action on the next
 render and feed another publication. A changed route or language refreshes the
 action; unmounting clears it and a new mount owns a new identity.
-Run `python3 tools/verification/reading-presentation/run.py --application-navigation`
-for the mounted production-page regression.
 
 [NativeReadingPageStack](../../Shared/PluginUI/Conversation/NativeReadingPageStack.swift) retains reading-page identity through transitions. [NativeReadingPageTiming](../../Shared/PluginUI/Conversation/NativeReadingPageTiming.swift) centralizes duration and curves: outer ordinary-detail opening uses the emphasized 420 ms curve, while nested/default navigation and closing retain their declared policies. Non-panel page offset, horizontal parent shade/blur and the clipped horizontal page shadow derive from shared progress. Panel position, aperture and closing fade use the independent native compositor driver in [NativeReadingPanelTransition](../../Shared/PluginUI/Conversation/NativeReadingPanelTransition.swift). Vertical conversation-history navigation uses equal full-height travel on a flat plane, without these depth effects; its retained document changes enabled state only offscreen to preserve the native scroller gutter during opening/return. History replacement keeps that hidden document disabled throughout, independently of the shared active-motion flag. The parent remains mounted through the return transition. Resize or an inactive scene completes an accepted Close for that same route visit; otherwise the animation simply settles. Identity replacement, explicit cancellation and disabled presentation still cancel the current generation without closing a replacement route.
 
@@ -80,9 +84,10 @@ gate. Panel opening pauses display projection immediately. Ordinary Agent card
 entries preload the primary reader after native animation-start delivery; drawing,
 input, accessibility and secondary surfaces wait for arrival. Other panel entries
 retain their arrival mounting gate. Card identity flights first mount
-a lightweight workspace layout with a row-free conversation heading; this fixes
-the destination before travel without mounting Harness documents. The real
-reader takes over without a second title movement. The outer Agent route starts
+a lightweight workspace layout with a row-free conversation heading. Its
+anchors supply the initial destination. If preloading selects an Execution
+Sidecard, the compositor follows the measured heading in the main column
+through handoff. The outer Agent route starts
 data-only manifest/target-row prefetch during travel, owned by the route visit
 and target execution; cancellation cannot publish into a replacement reader.
 Data-only prefetch itself mounts no TextKit or conversation view; the separate
@@ -95,22 +100,12 @@ cancellation cannot close another visit, and focus loss/disconnect completes an
 already accepted Close even while preparation is pending. Nested stacks retain
 their existing behavior unless a host supplies these optional hooks.
 
-Validation uses the existing navigation, sidecard and reading suites and the [Overview native input replay](../../../../../tools/verification/overview-input/README.md).
-
 Agent entry waits for the panel/title handoff and active main-document readiness
 before admitting Moku input and Sidecards. Markdown draws in full once parsed
 and the panel is admitted. Nested history, including an empty/error page, holds
 content readiness until its own travel finishes. Report admits its auxiliary
 card after primary travel and a committed folded layout. See the
-[admission contract](../../../../../design/reading-entrance-choreography.md).
-The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
-checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
-suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
-editable/dialog key ownership, non-GET new-window rejection and remote-page
-navigation resets with production views. Its panel-scale checks observe the
-existing 380ms responsive fold until the native frame reaches the unchanged
-one-point geometry tolerance. Panel Escape checks first observe WebKit's focused
-document frame for editing and for the subsequent non-editing key.
+[admission contract](../../../../../design/reading.md). No panel-scale or WebKit Escape assertion replay is configured in this tree.
 
 Direct execution requests enter through Report/application `openExecution`,
 explicit `openThread` reading targets, or Moku note `openNoteExecution`. All four
@@ -159,7 +154,7 @@ navigation portal; scrolling never moves the traffic lights. Opening an applicat
 Agent still restores that Agent and its reading target on Close. Overview entry
 remembers the actual source card, and refreshes
 its return frame after resize. These routes share panel margins, source-frame
-animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
+animation, rounded surfaces and the full-circle Close target.
 The shared Close sits at the panel's upper-left. Viewports normally reserve
 48pt below the top edge; the main Agent reader uses symmetric 22pt viewport
 insets and clears Close horizontally through its reserved 48pt history rail.
@@ -180,7 +175,7 @@ Moku, remain above it. The backdrop is inactive during reading motion or coverin
 Moku interactions, and native sheets/popovers keep their dismissing press.
 Outside dismissal uses the panel's existing Close route: an application opened
 from an Agent returns to that Agent rather than dropping its reading target.
-Escape in the current Agent document now has the same native fallback as history;
+Escape in the current Agent document has the same native fallback as history;
 nested history and Sidecards retain their existing cancellation order.
 Application panel chrome also accepts Escape while loaded WebKit content keeps
 its trusted DOM editor/dialog handling. Native editors, IME, menus, sheets,
@@ -191,9 +186,7 @@ with `finishingClose: true`: an already accepted Close completes its current
 visit even when the target was settled before the click. Ordinary updates do
 not stop the return. Explicit navigation/cancellation retains the default
 cancellation policy, so recovery cannot revive a cancelled return or close a
-new visit. The full-workspace replay clicks the settled panel's icon before
-injecting these events, including control cases for ordinary mutations and
-same-authority snapshots.
+new visit.
 
 Report reading cards reserve 8pt on every side of the WebKit viewport. Close
 overlays the upper-left document area with an opaque canvas circle behind its
@@ -204,7 +197,6 @@ inside the clipped viewport, and both scroll limits retain the same 8pt border.
 This is card chrome, independent
 of the existing HTML safe-area and authored page padding; no Report HTML, CSS,
 scroll offset or theme content is rewritten by this viewport adjustment.
-
 
 Agent panel entry captures only the source title/emoji text and native window
 geometry. Its lightweight compositor ink survives deferred reader mounting and
@@ -243,8 +235,8 @@ inner clip and 22pt outer shell/border share one interpolated size. The retained
 WebKit document reflows during travel, avoiding a final-width layout jump ahead
 of its shell. Browser routing, divider resizing and retained documents keep
 their existing ownership.
-See the [admission and referenced-execution contract](../../../../../design/report-sidecard-admission.md)
-for readiness, cancellation, screenshot diagnosis and Sprint verification limits.
+See the [admission and referenced-execution contract](../../../../../design/reading.md)
+for readiness and cancellation boundaries.
 
 An expanded referenced execution lends its exact identity and destination column
 to the resident composer. Returning to references, folding, replacing it with a
@@ -276,10 +268,10 @@ Pointer/accessibility and reading controls are gated during replacement; input
 waits for content, landing and existing Dock geometry admission. Route, composer
 and sidecard-selection identities fence late receipts; reader-visit identities
 fence readiness/completion. Folding, Browser selection, covering and return
-revoke pending send navigation. Reduce Motion, inactive/covered scenes and resize
+revoke pending send navigation. Inactive/covered scenes and resize
 settle admitted content without travel. Returning to the list or unmounting retires
 both reader leases. Ordinary Agent sends, Agent history navigation and completion
-promotion retain their own behavior. See the [implementation notes](../../../../../design/execution-route-slide.md).
+promotion retain their own behavior. See the [reading contract](../../../../../design/reading.md).
 
 Report related-card width changes keep the HTML document anchored at its
 left edge and resize its viewport with the shell. Selection travel does not animate newly
@@ -287,9 +279,9 @@ inserted reader geometry. The related capability owns one 200ms native opacity
 entrance per selected visit, after scoped-row and Markdown readiness; manifest
 mounting cannot consume it. Loading remains visible while preparing, and hidden
 reader controls/accessibility cannot act. Errors admit normally, refresh/retry
-keeps the same entrance, and a new selection retires pending preparation. Reduce
-Motion skips or settles the fade without replacing the reader. See the
-[related-execution fade investigation](../../../../../design/related-thread-fade.md) and the [recording investigation and Sprint limits](../../../../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
+keeps the same entrance, and a new selection retires pending preparation. The
+ordinary entrance does not consult system motion preferences. See the
+[execution entrance contract](../../../../../design/reading.md) and the [Report viewport contract](../../../../../design/reading.md).
 
 Closing a settled Report retains its current split layout from return preparation
 through route completion. The Report main shell scales/translates directly from
@@ -298,6 +290,6 @@ execution and linked Browser Sidecards fade in place on the same 420ms timeline.
 The full-workspace native carrier stays stationary for this return and owns only
 generation-fenced completion, avoiding a second crop/travel over the split panes.
 Closing before primary content admission keeps the existing native opening-reversal
-path. Reduce Motion, resize, cancellation and inactive-scene completion retain
-the reading stack's policies. See the [return investigation](../../../../../design/report-sidecard-close.md)
-for the retained-layout boundary and Sprint validation limits.
+path. Resize, cancellation and inactive-scene completion retain
+the reading stack's policies. See the [Report return contract](../../../../../design/reading.md)
+for the retained-layout boundary.

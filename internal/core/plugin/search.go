@@ -1,19 +1,6 @@
 package plugin
 
-import (
-	"encoding/json"
-	"strings"
-)
-
-// SearchTextAdapter opts a Harness into keyword text indexing. It extracts
-// public message text from completed turns inside its own schema. Running,
-// waiting, failed, interrupted and unknown executions are excluded, along with
-// attachment fields, raw
-// tool parameters, reasoning and internal-only fields. Unknown adapters remain
-// metadata-only; public text can contain user-visible file references.
-type SearchTextAdapter interface {
-	SearchText(json.RawMessage) (string, error)
-}
+import "encoding/json"
 
 // SearchPassage preserves the exact public text and its owning execution.
 // Empty execution IDs mean no execution locator is available.
@@ -25,16 +12,9 @@ type SearchPassage struct {
 	Unavailable bool `json:"unavailable,omitempty"`
 }
 
-// SearchPassageAdapter uses the same disclosure boundary as SearchTextAdapter,
+// SearchPassageAdapter extracts public completed-execution messages for Agent grep.
+// It excludes internal inputs, reasoning, tool payloads and unfinished executions,
 // without joining unrelated messages or inventing native-history coverage.
 type SearchPassageAdapter interface {
 	SearchPassages(json.RawMessage) ([]SearchPassage, error)
-}
-
-func JoinSearchPassages(passages []SearchPassage) string {
-	parts := make([]string, len(passages))
-	for i, passage := range passages {
-		parts[i] = passage.Text
-	}
-	return strings.Join(parts, "\n")
 }

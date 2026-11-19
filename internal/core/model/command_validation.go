@@ -38,7 +38,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 	}()
 	arity := 1
 	switch channel {
-	case "search:status", "search:retry", "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
+	case "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
 		arity = 0
 	case "attachment:preview", "thread:set-archived", "application:archive":
 		arity = 2
@@ -210,10 +210,6 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		return CommandJSONSize(value, limit)
 	case "app:update-settings":
 		return CommandJSONSize(value, 2_000_000)
-	case "search:query":
-		return CommandJSONSize(value, 2_000_000)
-	case "settings:diagnostics", "moku:voice", "moku:voice-events":
-		return nil // Strict typed validators are owned by these modules.
 	}
 	var allowed, required []string
 	switch channel {
@@ -235,9 +231,6 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 	case "thread:interaction-respond":
 		allowed = []string{"threadId", "executionId", "interactionId", "actionId", "answers", "message"}
 		required = []string{"threadId", "executionId", "interactionId", "actionId"}
-	case "thread:voice", "thread:voice-events":
-		allowed = []string{"threadId", "request"}
-		required = allowed
 	case "harness:extension":
 		allowed = []string{"harnessId", "method", "payload"}
 		required = allowed
@@ -245,7 +238,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		allowed = []string{"id", "decision"}
 		required = allowed
 	case "moku:submit":
-		allowed = []string{"input", "directoryTag", "directoryScopeId", "superThreadId", "voiceInput"}
+		allowed = []string{"input", "directoryTag", "directoryScopeId", "superThreadId"}
 		required = []string{"input"}
 	case "harness:settings-presentation":
 		object, ok := value.(map[string]any)

@@ -3,7 +3,6 @@ package moku
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -14,9 +13,8 @@ import (
 func (c *Coordinator) deliveryLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	reported := map[string]string{}
 	for {
-		c.drainDeliveries(ctx, reported)
+		c.drainDeliveries(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -24,24 +22,16 @@ func (c *Coordinator) deliveryLoop(ctx context.Context) {
 		}
 	}
 }
-func (c *Coordinator) drainDeliveries(ctx context.Context, reported map[string]string) {
+func (c *Coordinator) drainDeliveries(ctx context.Context) {
 	deliveries, err := c.config.PendingDeliveries()
 	if err != nil {
-		c.report("moku-delivery-read", err)
 		return
 	}
-	present := map[string]bool{}
 	for _, delivery := range deliveries {
-		present[delivery.ID] = true
 		if ctx.Err() != nil {
 			return
 		}
 		if delivery.Uncertain {
-			message := "native admission uncertain; automatic replay withheld; inspect moku:deliveries and native conversation, then use moku:resolve-delivery with confirmed decision for " + delivery.ID
-			if reported[delivery.ID] != message {
-				c.report("moku-delivery-uncertain", fmt.Errorf("%s", message))
-				reported[delivery.ID] = message
-			}
 			continue
 		}
 		if delivery.Lazy {
@@ -57,19 +47,8 @@ func (c *Coordinator) drainDeliveries(ctx context.Context, reported map[string]s
 		if err := c.queue.Lock(ctx); err != nil {
 			return
 		}
-		err = c.admitSettings(ctx, func(ctx context.Context) error { return c.deliverNotification(ctx, delivery) })
+		_ = c.admitSettings(ctx, func(ctx context.Context) error { return c.deliverNotification(ctx, delivery) })
 		c.queue.Unlock()
-		if err != nil && err != plugin.ErrMokuIdle && ctx.Err() == nil {
-			if reported[delivery.ID] != err.Error() {
-				c.report("moku-delivery", err)
-				reported[delivery.ID] = err.Error()
-			}
-		}
-	}
-	for id := range reported {
-		if !present[id] {
-			delete(reported, id)
-		}
 	}
 }
 func (c *Coordinator) deliverNotification(ctx context.Context, delivery plugin.MokuDelivery) error {

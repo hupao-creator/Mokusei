@@ -256,16 +256,25 @@ func (h *Host) Archive(ctx context.Context, ref model.ThreadRef, archived bool) 
 		if definition.Archive == nil {
 			return errors.New("thread cannot be archived")
 		}
-		if definition.Archive.Archived(record) == archived {
-			return nil
-		}
 		change, e := definition.Archive.Change(record, archived)
 		if e != nil {
 			return e
 		}
-		related, e := definition.Archive.RelatedLatestExecutions(record, archived)
+		related, e := definition.Archive.RelatedThreads(record, archived)
 		if e != nil {
 			return e
+		}
+		if len(related) > 0 {
+			if h.config.ArchiveThreads == nil {
+				return errors.New("related thread archival unavailable")
+			}
+			if e = h.config.ArchiveThreads(tx, related, archived); e != nil {
+				return e
+			}
+		}
+		// Repeated archive requests still hide any independently restored sources.
+		if definition.Archive.Archived(record) == archived {
+			return nil
 		}
 		writer := newReader(h, definition.OwnerPluginID, tx.Snapshot())
 		writer.tx = tx
@@ -275,14 +284,6 @@ func (h *Host) Archive(ctx context.Context, ref model.ThreadRef, archived bool) 
 		_, e = writer.Put(definition.CollectionID, record.ID, change.Value, plugin.RecordWriteOptions{ExpectedRevision: &record.Revision, TouchUpdatedAt: change.TouchUpdatedAt})
 		if e != nil {
 			return e
-		}
-		if len(related) > 0 {
-			if h.config.ArchiveExecutions == nil {
-				return errors.New("related execution archival unavailable")
-			}
-			if e = h.config.ArchiveExecutions(tx, related, archived); e != nil {
-				return e
-			}
 		}
 		if e = writer.flushEvents(); e != nil {
 			return e
@@ -418,63 +419,4 @@ func (h *Host) ApplySemanticTags(tx *store.Tx, effect plugin.SemanticTagEffect) 
 		}
 	}
 	return nil
-}
-func (h *Host) ClassificationList(snap store.Snapshot, includeArchived bool) ([]plugin.ClassificationThreadSnapshot, error) {
-	result := []plugin.ClassificationThreadSnapshot{}
-	for _, id := range sortedKeys(h.threadTypes) {
-		definition := h.threadTypes[id]
-		if !h.enabled(definition.OwnerPluginID) {
-			continue
-		}
-		if definition.Classification == nil {
-			continue
-		}
-		reader := newReader(h, definition.OwnerPluginID, snap)
-		records, err := reader.List(definition.CollectionID)
-		if err != nil {
-			return nil, err
-		}
-		for _, record := range records {
-			thread := model.ApplicationThreadRecord{VersionedRecord: record, Ref: model.ThreadRef{ThreadID: record.ID, TypeID: id}}
-			item, _, err := h.classification(definition, thread)
-			if err != nil {
-				return nil, err
-			}
-			if includeArchived || !item.Archived {
-				result = append(result, item)
-			}
-		}
-	}
-	return result, nil
-}
-func (h *Host) ClassificationEvidence(snap store.Snapshot, ref model.ThreadRef) (plugin.ClassificationEvidenceSnapshot, error) {
-	definition, record, err := h.readThread(snap, ref)
-	if err != nil {
-		return plugin.ClassificationEvidenceSnapshot{}, err
-	}
-	item, evidence, err := h.classification(definition, record)
-	return plugin.ClassificationEvidenceSnapshot{Thread: item, Content: evidence.Content}, err
-}
-func (h *Host) classification(definition plugin.ThreadTypeDefinition, record model.ApplicationThreadRecord) (plugin.ClassificationThreadSnapshot, plugin.ClassificationEvidence, error) {
-	var result plugin.ClassificationThreadSnapshot
-	if definition.Classification == nil {
-		return result, plugin.ClassificationEvidence{}, errors.New("thread classification unavailable")
-	}
-	projection, err := definition.Project(record)
-	if err != nil {
-		return result, plugin.ClassificationEvidence{}, err
-	}
-	tags, err := definition.Tags.Project(record)
-	if err != nil {
-		return result, plugin.ClassificationEvidence{}, err
-	}
-	evidence, err := definition.Classification.Evidence(record)
-	if err != nil {
-		return result, evidence, err
-	}
-	if evidence.Revision == "" || model.UTF16Length(evidence.Revision) > 256 || model.UTF16Length(evidence.Content) > 32000 {
-		return result, evidence, errors.New("classification evidence exceeds contract")
-	}
-	archived := definition.Archive != nil && definition.Archive.Archived(record)
-	return plugin.ClassificationThreadSnapshot{Ref: record.Ref, Title: projection.Title, Archived: archived, Tags: tags, EvidenceRevision: evidence.Revision}, evidence, nil
 }

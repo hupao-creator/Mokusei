@@ -44,14 +44,59 @@ public struct NativeSidecardFold: ViewModifier {
             .modifier(ReportSidecardReturnHost(enabled: reportReturn, size: destination.size))
             .modifier(NativeSidecardFoldPresentation(rect: geometry.aperture, progress: progress,
                 offset: geometry.offset, destination: destination,
-                fadingReturn: fadesOnClose && progress == 0, frameIdentifier: frameIdentifier))
+                fadingReturn: fadesOnClose && progress == 0, frameIdentifier: frameIdentifier,
+                retainsReturnPose: reportReturn || fadesOnClose))
     }
 }
 
 /// Keep the per-frame work below the document's layout boundary. Paint, pointer
 /// geometry and diagnostics must still receive the very same interpolated rect;
 /// animating only the mask can expose controls outside the visible aperture.
-private struct NativeSidecardFoldPresentation: ViewModifier, @preconcurrency Animatable {
+private struct NativeSidecardFoldPresentation: ViewModifier {
+    let rect: CGRect
+    let progress: CGFloat
+    let offset: CGPoint
+    let destination: CGRect
+    let fadingReturn: Bool
+    let frameIdentifier: String
+    let retainsReturnPose: Bool
+
+    func body(content: Content) -> some View {
+        if retainsReturnPose {
+            content.modifier(NativeSidecardReturnFoldPresentation(rect: rect, progress: progress,
+                offset: offset, destination: destination, fadingReturn: fadingReturn,
+                frameIdentifier: frameIdentifier))
+        } else {
+            // Interpolate at the rendering leaves. Rebuilding this entire
+            // modifier on each tick also resizes its AppKit frame marker and
+            // repeatedly enters layout around the retained native document.
+            content
+                .clipShape(NativeSidecardAnimatedAperture(rect: rect))
+                .contentShape(.interaction, NativeSidecardAnimatedAperture(rect: rect))
+                .modifier(NativeSidecardFoldOpacity(progress: progress))
+                .overlay(alignment: .topLeading) {
+                    NativeReadingPanelFrame(identifier: frameIdentifier)
+                        .frame(width: rect.width, height: rect.height)
+                        .offset(x: rect.minX, y: rect.minY)
+                        .allowsHitTesting(false)
+                }
+                .offset(x: offset.x, y: offset.y)
+        }
+    }
+}
+
+private struct NativeSidecardFoldOpacity: ViewModifier, @preconcurrency Animatable {
+    var progress: CGFloat
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+    func body(content: Content) -> some View {
+        content.opacity(min(1, max(0, progress) * 5))
+    }
+}
+
+private struct NativeSidecardReturnFoldPresentation: ViewModifier, @preconcurrency Animatable {
     var rect: CGRect
     var progress: CGFloat
     var offset: CGPoint
@@ -115,6 +160,22 @@ struct NativeSidecardFoldGeometry {
             height: seed.height + (destination.height - seed.height) * p)
         offset = CGPoint(x: destination.minX + (source.minX - destination.minX - seed.minX) * (1 - p),
             y: destination.minY + (source.minY - destination.minY - seed.minY) * (1 - p))
+    }
+}
+
+private struct NativeSidecardAnimatedAperture: Shape {
+    var rect: CGRect
+
+    var animatableData: AnimatablePair<CGPoint.AnimatableData, CGSize.AnimatableData> {
+        get { .init(rect.origin.animatableData, rect.size.animatableData) }
+        set {
+            rect.origin.animatableData = newValue.first
+            rect.size.animatableData = newValue.second
+        }
+    }
+
+    func path(in bounds: CGRect) -> Path {
+        NativeSidecardFoldAperture(rect: rect).path(in: bounds)
     }
 }
 

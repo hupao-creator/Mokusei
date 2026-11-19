@@ -154,7 +154,6 @@ func (r *Runtime) projectThreads(snapshot store.Snapshot) ([]model.ThreadRecord,
 			if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
 				value, err := harness.SessionState().ProjectRenderer(bytes.Clone(thread.SessionState), model.RendererScope{Kind: "overview"})
 				if err != nil {
-					r.log("catalog.projection", err)
 					entry.record.SessionState = json.RawMessage("null")
 					entry.hash = ""
 				} else {

@@ -1,6 +1,6 @@
 # Tag Glass Morph 原生预览
 
-这是接入 Overview tag filter 前的独立参数实验，保留用于复查当时的设计选择；当前正式标签已使用 morph，验收请使用 [生产组件回放](../tag-filter-morph/README.md)。本目录不代表当前产品行为。无需启动 Mokusei，也不需要项目的 Release 依赖；所有演示数据都来自本目录。
+这是独立 Liquid Glass 参数实验；当前原生标签使用 [生产组件回放](../tag-filter-morph/README.md)。本目录描述自身 fixture 的实现，不定义产品行为。无需启动 Mokusei，也不需要项目的 Release 依赖；所有演示数据都来自本目录。
 
 ## 打开
 

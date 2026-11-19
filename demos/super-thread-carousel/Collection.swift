@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import MokuseiPluginAPI
+@testable import MokuseiUI
 
 struct ReportSample: Identifiable {
     let id: String
@@ -12,6 +13,7 @@ struct ReportSample: Identifiable {
     let symbol: String
     let caption: String
     let minutesSinceClose: Double?
+    var hasCover = true
 
     static let samples: [Self] = [
         .init(id: "navigation", title: "让导航回到内容本身", emoji: "🧭",
@@ -29,7 +31,17 @@ struct ReportSample: Identifiable {
         .init(id: "unread", title: "细节里的原生体验", emoji: "✨",
               summary: "从键盘路径到触控板手势，整理尚待查看的原生交互提案。", tags: ["原生", "未读"],
               color: "#5c5871", symbol: "✳", caption: "Small things, considered.", minutesSinceClose: nil)
-    ]
+    ] + (1...4).map { index in
+        .init(id: "new-\(index)", title: "新报告 \(index)", emoji: "📄",
+              summary: "尚未访问的报告保留在画布中。", tags: ["工程"],
+              color: "#494f78", symbol: "▤", caption: "New report \(index)", minutesSinceClose: nil)
+    }
+    static let panelSamples: [Self] = (4...9).map { index in
+        .init(id: "panel-\(index)", title: "面板成员 \(index)", emoji: "📚",
+              summary: "用于检查完整成员、长列表滚动和无封面卡片。", tags: ["产品"],
+              color: "#325a55", symbol: "\(index)", caption: "Collection member \(index)",
+              minutesSinceClose: 20, hasCover: index != 9)
+    }
 }
 
 struct CollectionProjection {
@@ -38,12 +50,12 @@ struct CollectionProjection {
 
     init(reports: [ReportSample], tag: String, closedAt: [String: Date], now: Date) {
         let visible = reports.filter { tag == "全部" || $0.tags.contains(tag) }
-        let eligible = visible.filter { report in
-            ApplicationOverviewCollectionPolicy(closedBefore: 300, footprint: .init(columns: 1, rows: 2))
-                .includes(lastClosed: closedAt[report.id], now: now)
-        }
-        // Collection is a projection of this view, never a new report identity.
-        members = eligible.count > 1 ? eligible : []
+        let policy = ApplicationOverviewCollectionPolicy(closedBefore: 300, footprint: .init(columns: 1, rows: 2))
+        let eligible = visible.filter { policy.includes(lastClosed: closedAt[$0.id], now: now) }
+        var budget = NativeOverviewCollectionBudget(expandedCells: visible.reduce(0) { $0 + ($1.hasCover ? 2 : 1) })
+        let count = budget.memberCount(eligible: eligible.map { .init(columns: 1, rows: $0.hasCover ? 2 : 1) },
+                                       collection: policy.footprint)
+        members = Array(eligible.prefix(count))
         let collected = Set(members.map(\.id))
         individual = visible.filter { !collected.contains($0.id) }
     }
@@ -65,7 +77,8 @@ struct CarouselSelection {
 
 @MainActor @Observable final class DemoModel {
     static let tags = ["全部", "产品", "原生", "工程", "未读"]
-    let reports = ReportSample.samples
+    var manyMembers = false
+    var reports: [ReportSample] { ReportSample.samples + (manyMembers ? ReportSample.panelSamples : []) }
     var tag = "全部"
     var closedAt: [String: Date] = [:]
     var now: Date
@@ -78,7 +91,7 @@ struct CarouselSelection {
     }
     func reset(at date: Date = .now) {
         offset = 0; now = date; reading = nil
-        closedAt = Dictionary(uniqueKeysWithValues: reports.compactMap { report in
+        closedAt = Dictionary(uniqueKeysWithValues: (ReportSample.samples + ReportSample.panelSamples).compactMap { report in
             report.minutesSinceClose.map { (report.id, date.addingTimeInterval(-$0 * 60)) }
         })
     }

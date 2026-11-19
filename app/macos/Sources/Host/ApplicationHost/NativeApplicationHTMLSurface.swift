@@ -27,7 +27,6 @@ public struct NativeApplicationHTMLSurface: View {
     @Environment(\.nativeApplicationCloseLinkCard) private var closeLinkCard
     @Environment(\.nativeApplicationOpenLinkCard) private var openLinkCard
     @Environment(\.nativeHTMLPreloader) private var preloader
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // Survives revision-scoped sessions, but resets with the reader visit.
     @State private var hasRevealedDocument = false
 
@@ -48,7 +47,7 @@ public struct NativeApplicationHTMLSurface: View {
     public var body: some View {
         HTMLDocumentSession(source: source, thread: thread, theme: theme, suppressed: suppressed, panel: panel,
             locale: locale, zoomPreferencesURL: zoomPreferencesURL, preloader: preloader,
-            hasRevealedDocument: $hasRevealedDocument, reduceMotion: reduceMotion,
+            hasRevealedDocument: $hasRevealedDocument,
             readDocument: readDocument, openExternal: openExternal, openLinkCard: openLinkCard,
             onBack: { if closeLinkCard?() != true { onBack() } }, onSettings: onSettings,
             onNativeNavigationChange: onNativeNavigationChange, onFailure: onFailure)
@@ -72,7 +71,6 @@ private struct HTMLDocumentSession: View {
     let zoomPreferencesURL: URL?
     let preloader: NativeApplicationHTMLPreloader?
     @Binding var hasRevealedDocument: Bool
-    let reduceMotion: Bool
     let readDocument: @MainActor (ApplicationHTMLSource) async throws -> ApplicationHTMLDocument
     let openExternal: @MainActor (URL) async throws -> Void
     let openLinkCard: ((URL) -> Void)?
@@ -104,7 +102,7 @@ private struct HTMLDocumentSession: View {
                     }, onReady: {
                         ready = true; onNativeNavigationChange(!panel)
                         if !hasRevealedDocument {
-                            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { hasRevealedDocument = true }
+                            withAnimation(.easeOut(duration: 0.2)) { hasRevealedDocument = true }
                         }
                     }, onFailure: fail, onNavigation: { intent in
                         guard !suppressed else { return }
@@ -1080,7 +1078,6 @@ private final class HTMLNavigationViewport: NSView {
     }
 
     @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { remount() }
-    @objc func mokuseiForceReloadFocusedWebContent(_ sender: Any?) { remount() }
     @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setZoomLevel(0) }
     @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel + 0.5) }
     @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel - 0.5) }
@@ -1099,7 +1096,6 @@ private final class HTMLNavigationViewport: NSView {
         onBack = {}; onSettings = {}; preferences = nil
     }
 }
-
 
 /// The Report partition keys zoom by hostname, ignoring scheme and port.
 /// Keep unbounded levels so reversing repeated clicks at a visible limit has
@@ -1191,9 +1187,7 @@ private final class HTMLDocumentWebView: WKWebView {
         updateSafeArea()
     }
 
-
     @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { reload() }
-    @objc func mokuseiForceReloadFocusedWebContent(_ sender: Any?) { reloadFromOrigin() }
     @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setDocumentZoomLevel(0) }
     @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel + 0.5) }
     @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel - 0.5) }

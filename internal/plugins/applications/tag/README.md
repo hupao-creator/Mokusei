@@ -1,10 +1,5 @@
 # Scoped semantic tags
 
-Production injected callbacks use the shared
-[private invocation journal](../../../platform/diagnostics/README.md), capturing
-this instance's bound scope and the runner's batch/attempt at entry. This is
-separate from native history and mutation receipts and does not infer model retries.
-
 [plugin.go](plugin.go) registers a per-directory Tag Agent, including Inbox. Each
 pool has at most **five** semantic tags. Every wake reviews all unarchived ordinary
 Threads in that pool; archived Threads, Moku, private sessions and other scopes
@@ -56,8 +51,7 @@ current active pool. The model cannot assign an archived Thread directly.
 Saved configuration applies at the next batch configuration boundary. Active
 batch steering retains its admitted profile. A save during native discovery
 causes re-resolution without spending a batch retry, including when the initial
-discovery result matches an existing idle session. The Runtime replay exercises
-the production Tag and Report participants in inherited and independent modes.
+discovery result matches an existing idle session.
 
 `tag.settings.enabled` is independent of Report and defaults to true when
 omitted. Saving false immediately revokes the active attempt and its tools;
@@ -81,8 +75,6 @@ emoji prefixes. [taglabel](../../../services/taglabel/) validates complete Unico
 Emoji 16.0 sequences. Invalid nonempty generated emoji falls back to `🏷️`;
 missing/empty creation emoji rejects. An omitted update emoji preserves it.
 
-Every public thread envelope includes `tagEmojis`, even when empty. Keys match semantic tags, excluding directory tags. Emoji-only changes publish revisions and update Report source decoration. [generate-tag-emoji.py](../../../../scripts/generate-tag-emoji.py) generates the Swift table from the pinned data; the parity test checks agreement.
+Every public thread envelope includes `tagEmojis`, even when empty. Keys match semantic tags, excluding directory tags. Emoji-only changes publish revisions and update Report source decoration. [generate-tag-emoji.py](../../../../scripts/generate-tag-emoji.py) generates the Swift table from the pinned data; the generated table is a production resource. No parity test is configured here.
 
 Overview displays emoji and name separately from the identity, groups aliases with identical membership, and includes singly used semantic tags. Directory labels come from [directorytag](../../../services/directorytag/directorytag.go). [Overview presentation](../../../../app/macos/Sources/Host/Overview/README.md) owns visual filtering and motion.
-
-Verification: affected Go race tests and `./scripts/go.sh run -race ./tools/verification/runtime`. The production replay covers title-only injection, exact tools, full scoped membership, stable IDs, atomic writes, stale revisions, five-slot reorganization, archive/restore, terminal non-wake and title-change steering/idle wake. Hosted Complete coverage includes existing native label presentation checks.

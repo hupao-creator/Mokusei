@@ -5,7 +5,6 @@ import MokuseiCore
 public enum DesktopAppearance: String, Codable, CaseIterable, Sendable {
     case system, light, dark
 
-
 }
 
 public enum DesktopLocale: String, Codable, CaseIterable, Sendable {
@@ -42,7 +41,6 @@ public final class DesktopPreferences {
     public private(set) var onboardingPending: Bool
     public private(set) var readError: String?
     @ObservationIgnored private let fileURL: URL
-    @ObservationIgnored public var diagnostics = SettingsDiagnostics()
 
     private struct Preferences: Codable {
         var locale: DesktopLocale
@@ -58,7 +56,6 @@ public final class DesktopPreferences {
     }
 
     public init(directory: URL) {
-        let started = Date()
         fileURL = directory.appendingPathComponent("desktop-preferences.json")
         appearance = .system
         locale = .chinese
@@ -93,8 +90,6 @@ public final class DesktopPreferences {
         } catch {
             readError = error.localizedDescription
         }
-        diagnostics.record(.preferences, readError == nil ? .completed : .failed,
-                           durationMs: Date().timeIntervalSince(started) * 1000, fields: [.appearance, .locale])
     }
 
     public func recordApplicationReading(key: String, value: ApplicationCollectionReading) throws {
@@ -111,12 +106,12 @@ public final class DesktopPreferences {
     }
 
     public func setAppearance(_ value: DesktopAppearance) throws {
-        try savePreference(.appearance) { try persist(appearance: value, locale: locale, selectedThreadID: selectedThreadID) }
+        try persist(appearance: value, locale: locale, selectedThreadID: selectedThreadID)
         appearance = value
     }
 
     public func setLocale(_ value: DesktopLocale) throws {
-        try savePreference(.locale) { try persist(appearance: appearance, locale: value, selectedThreadID: selectedThreadID) }
+        try persist(appearance: appearance, locale: value, selectedThreadID: selectedThreadID)
         locale = value
     }
 
@@ -160,15 +155,4 @@ public final class DesktopPreferences {
         }
     }
 
-    private func savePreference(_ field: SettingsDiagnostic.Field, _ write: () throws -> Void) throws {
-        let started = Date()
-        diagnostics.record(.preferences, .started, fields: [field])
-        do {
-            try write()
-            diagnostics.record(.preferences, .saved, durationMs: Date().timeIntervalSince(started) * 1000, fields: [field])
-        } catch {
-            diagnostics.record(.preferences, .failed, durationMs: Date().timeIntervalSince(started) * 1000, fields: [field])
-            throw error
-        }
-    }
 }

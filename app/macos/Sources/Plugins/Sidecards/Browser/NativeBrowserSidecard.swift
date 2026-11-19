@@ -162,7 +162,7 @@ public final class BrowserSidecardPresentation {
     }
 
     var annotationDisabled: Bool {
-        sending || pending.count >= 20 || context.executionDisabled || context.thread.archived == true
+        sending || pending.count >= 20 || context.executionDisabled
             || BrowserURL.absolute(session?.url ?? "") == nil
     }
     var canSend: Bool {
@@ -183,7 +183,7 @@ public final class BrowserSidecardPresentation {
         }
         context = next
         if next.expanded, session == nil, let requestedURL { open(requestedURL) }
-        if !next.expanded || next.suppressed || next.executionDisabled || next.thread.archived == true {
+        if !next.expanded || next.suppressed || next.executionDisabled {
             session?.cancelAnnotation()
             annotationError = ""
         }
@@ -232,8 +232,7 @@ public final class BrowserSidecardPresentation {
             submit: { [weak self, weak session] text in
                 guard let self, let session, !released, contextGeneration == owner,
                       self.session === session, session.annotationID == id, session.annotating,
-                      context.expanded, !context.suppressed, !context.executionDisabled,
-                      context.thread.archived != true else { throw CancellationError() }
+                      context.expanded, !context.suppressed, !context.executionDisabled else { throw CancellationError() }
                 try await session.captureAnnotation(comment: text)
                 // Capture has already transferred this exact selection and text
                 // into the recoverable batch. Submission retains that draft.
@@ -258,9 +257,6 @@ public final class BrowserSidecardPresentation {
 
     private func submitAnnotations(textOnly: Bool = false) async throws {
         guard canSend, !released else { throw CancellationError() }
-        if context.thread.archived == true {
-            sendError = "此 Thread 已归档，请取消归档后发送。"; throw PluginContractError(sendError)
-        }
         if context.thread.observation.latestExecution?.status == .waitingForUser {
             sendError = "请先处理此 Thread 等待中的交互，再发送批注。"; throw PluginContractError(sendError)
         }

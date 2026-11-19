@@ -5,35 +5,25 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 import MokuseiSidecardConversation
 import MokuseiSidecardBrowser
-import MokuseiSidecardVoice
 @testable import MokuseiUI
 
 /// The fixture owns only selection and mock capabilities. Actual plugin sessions
 /// remain mounted while folded, so their editors and drafts survive switching.
 @MainActor @Observable final class DemoSidecards {
     let thread: HarnessThread
-    let modules = [AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(NativeBrowserSidecard()), AnySidecardPlugin(NativeVoiceSidecard())]
+    let modules = [AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(NativeBrowserSidecard())]
     var selected: JSONText?
     var lastSelected: JSONText?
     var widths: [JSONText: CGFloat] = [:]
     var dragging = false
     var transitioning = false
     var revision = 0
-    var reducedMotion = false
     var sessions: [JSONText: SidecardSession] = [:]
     var measuredFrames: [JSONText: CGRect] = [:]
     @ObservationIgnored private var transitionTask: Task<Void, Never>?
     @ObservationIgnored private var handlers: [JSONText: [UUID: (SidecardIntent) -> Bool]] = [:]
     @ObservationIgnored private var retired = false
     @ObservationIgnored private let onBack: () -> Void
-    @ObservationIgnored private var muted = false
-    @ObservationIgnored lazy var voice: SidecardVoiceCapability = SidecardVoiceCapability(
-        state: voiceState(.closed),
-        start: { [weak self] in await MainActor.run { self?.setVoicePhase(.listening) } },
-        stop: { [weak self] in await MainActor.run { self?.setVoicePhase(.closed) } },
-        toggleMute: { [weak self] in guard let self else { return }; muted.toggle(); voice.publish(voiceState(voice.state.phase)) },
-        refresh: {})
-
     init(thread: DemoThread, onBack: @escaping () -> Void) {
         self.thread = try! HarnessThread(id: JSONText(thread.id), harnessID: "codex", revision: 0,
             sessionState: .null, observation: .init(latestExecution: try! .init(executionID: "demo-running-execution", status: .running, startedAt: 1793602800000)), cwd: "/demo/Mokusei", settings: .object([:]),
@@ -48,7 +38,7 @@ import MokuseiSidecardVoice
         }
     }
     var snapshot: NativeSidecardWorkspaceSnapshot {
-        .init(input: .init(thread: thread), cards: cards, selected: selected, lastSelected: lastSelected,
+        .init(input: .init(thread: thread), cards: cards, layoutSelection: selected, lastSelected: lastSelected,
             selectionRevision: revision, transitioning: transitioning, dragging: dragging, widths: widths,
             executionDisabled: false, suppressed: false, entranceReady: true, handoff: nil, focusLauncherOnClose: true)
     }
@@ -63,14 +53,14 @@ import MokuseiSidecardVoice
         transitionTask?.cancel()
         revision += 1
         let visit = revision
-        withAnimation(reducedMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38)) {
+        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.38)) {
             selected = id
             if let id { lastSelected = id }
-            transitioning = !reducedMotion
+            transitioning = true
             update()
         }
         transitionTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .milliseconds(self?.reducedMotion == true ? 0 : 380)) } catch { return }
+            do { try await Task.sleep(for: .milliseconds(380)) } catch { return }
             guard let self, !retired, revision == visit else { return }
             transitioning = false; update()
         }
@@ -88,12 +78,6 @@ import MokuseiSidecardVoice
     private func update() {
         for (id, session) in sessions { try! session.update(context: context(id)) }
     }
-    private func setVoicePhase(_ phase: SidecardVoiceState.Phase) { voice.publish(voiceState(phase)) }
-    private func voiceState(_ phase: SidecardVoiceState.Phase) -> SidecardVoiceState {
-        .init(phase: phase, supported: true, available: true, loading: false, muted: muted, error: "",
-            messages: [try! .init(id: "demo-voice-note", sessionID: "demo-voice", role: .assistant,
-                text: "这里是本地语音讨论示例。演示不会开启麦克风或连接语音服务。", complete: true, createdAt: 1793602800000)])
-    }
     private func context(_ id: JSONText) -> SidecardContext {
         let actions = HarnessThreadActions(interrupt: {}, respond: { _ in }, invokeHarnessExtension: { _, _ in .null },
             forkThread: { _ in "demo-fork" }, openExternal: { _ in }, openFollowUp: { _ in })
@@ -101,7 +85,7 @@ import MokuseiSidecardVoice
             actions: actions, readingTarget: nil, executionDisabled: false, expanded: selected == id,
             transitioning: transitioning, suppressed: selected != id || transitioning || dragging,
             conversation: { _, _ in AnyView(ThreadMessage(id: "demo-execution", author: .assistant,
-                content: "正在整理交互细节。\n\n这是本地执行 fixture，不会提交真实任务。").padding(24)) }, voice: voice,
+                content: "正在整理交互细节。\n\n这是本地执行 fixture，不会提交真实任务。").padding(24)) },
             open: { [weak self] in self?.choose(id); return self?.revision ?? 0 },
             close: { [weak self] in if self?.selected == id { self?.choose(nil) } },
             selectionRevision: { [weak self] in self?.revision ?? 0 },
@@ -157,6 +141,6 @@ import MokuseiSidecardVoice
                     .accessibilityLabel("调整侧栏卡片宽度")
             }
         }
-        .animation(fixture.reducedMotion || fixture.dragging ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: layout.stacked)
+        .animation(fixture.dragging ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: layout.stacked)
     }
 }

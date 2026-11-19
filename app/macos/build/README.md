@@ -18,8 +18,9 @@ make fast         # incremental Go/Swift build into a new development generation
 make watch-main   # rebuild each clean local main commit
 make build        # build Go runtime and release Swift application
 make pack         # sign app/macos/dist/Mokusei.app
-make dist         # also publish Mokusei.app.zip
-make smoke        # validate the packaged production app with an isolated profile
+make dist         # also create Mokusei.app.zip
+make alpha        # build an ad-hoc signed alpha DMG without Apple credentials
+make smoke        # statically validate the packaged production app
 make install      # install to ~/Applications/Mokusei.app
 make open         # open the installed application
 ```
@@ -36,10 +37,11 @@ builds. The version in `go.mod` is the required Go toolchain; `VERSION` supplies
 the application version.
 
 Building requires Apple Silicon and Xcode's macOS 26 SDK; `scripts/go.sh` provides
-the pinned Go toolchain. Packaging also
-requires one valid Apple Development identity with its private key. `CSC_NAME`
+the pinned Go toolchain. Production and development packaging also
+require one valid Apple Development identity with its private key. `CSC_NAME`
 selects an exact certificate name or SHA-1; `CSC_KEYCHAIN` selects its keychain.
-There is no ad-hoc signing fallback. List available identities with
+There is no automatic ad-hoc signing fallback. The explicit alpha channel needs
+no Apple account or certificate. List available identities with
 `security find-identity -v -p codesigning`; the private key must be accessible
 in the selected keychain. Stable signing preserves the designated requirement
 used by privacy permissions across rebuilds.
@@ -50,14 +52,60 @@ and the `Mokusei Native Dev` profile. Production uses `com.mokusei.desktop`,
 binary is built at `.build/go/mokusei-runtime`. A raw Swift executable can use
 `--runtime /absolute/path/to/mokusei-runtime --data-dir /isolated/profile`.
 
-Dev applications automatically write bounded layout-change JSONL under their
-profile's `diagnostics/layout/`. See [layout logging](layout-logging.md) for
-enablement, file discovery, coordinate semantics, coverage and costs.
+Alpha uses `com.mokusei.desktop.alpha`, `Mokusei Alpha.app` and the `Mokusei Alpha`
+profile. Its default data directory is `~/Library/Application Support/Mokusei Alpha`.
+App state is isolated; chosen projects, external tools and their sign-ins are shared.
 
 Build and package do not install applications. `install` refuses to replace a
 running installed app, verifies a private staged copy, and restores the previous
 installation if publication fails. Specify `--destination` only when intending
 to install at that location. These tools never quit the user's production app.
+
+## Invited alpha DMGs
+
+```sh
+make alpha ARGS='--build-number 1'
+```
+
+This builds the Go runtime and the Release Swift application, explicitly signs
+both ad hoc with hardened runtime, and produces a compressed read-only DMG.
+It never selects a certificate or uses `CSC_NAME`/`CSC_KEYCHAIN`.
+Build skipping and Debug configuration are rejected by the alpha command.
+Ordinary compiler caches remain enabled.
+
+`VERSION` supplies the numeric `CFBundleShortVersionString` (for example `0.1.0`).
+`--build-number` supplies numeric `CFBundleVersion` (1–9999, default 1).
+The separate `MokuseiReleaseVersion` is `0.1.0-alpha.1` for that example.
+Use a new build number for each package you distribute.
+
+The output is a versioned directory under `app/macos/dist/alpha/`:
+
+```text
+Mokusei-0.1.0-alpha.1-arm64/
+  Mokusei-0.1.0-alpha.1-arm64.dmg
+  READ-ME-FIRST.txt
+  SHA256SUMS
+  release.json
+```
+
+`--output PATH` changes the parent output directory; Applications destinations
+are rejected. Each release is prepared privately and published with an exclusive
+atomic rename. An existing release directory is never replaced, including by a
+concurrent builder. Failed packaging leaves prior releases intact.
+The DMG contains `Mokusei Alpha.app`, an Applications shortcut and the
+[bilingual installation guide](alpha-installation.txt).
+The receipt records the source commit, dirty-worktree status, versions, signing
+mode, input executable hashes and DMG checksum. Build from a clean checkout when
+distributing a package tied to a commit. Run `shasum -a 256 -c SHA256SUMS` inside
+the output directory to check the image against the published checksum.
+
+Share the DMG and installation guide with invitees. This package is not notarized:
+macOS may block a downloaded copy until the user permits this particular app in
+Privacy & Security. See [Apple's instructions](https://support.apple.com/102445).
+No system-wide Gatekeeper changes are needed. Updates are manual: quit Alpha,
+back up its data and replace its app. Ad-hoc signing does not preserve a stable
+developer identity or promise persistent privacy permissions across updates.
+The command neither installs nor uploads the release.
 
 ## Development and watching main
 
@@ -96,8 +144,8 @@ never removed or replaced when profiles move.
 A runtime guard rejection identifies the blocked canonical profile and ownership
 port and prints a cooperative stop command for that profile, including when the
 previous backup is owned. Quit native clients first. If stop reports
-`SHUTDOWN_FAILED`, inspect the selected profile's `runtime/process.log`; the
-daemon records the error and exits after cleanup, allowing the next launch. The development tool does not force termination or discard profile data.
+`SHUTDOWN_FAILED`, inspect the returned error; the daemon exits after cleanup,
+allowing the next launch. The development tool does not force termination or discard profile data.
 Swift targets explicitly exclude their module READMEs from build inputs.
 
 Rotation retains a native process scan as an additional guard. The scan follows
@@ -127,8 +175,8 @@ Cancellation waits for the invoked tool to finish its own compiler cleanup and
 release its build lease before the watcher returns.
 
 Development launches use LaunchServices and wait for native window readiness
-plus a three-second survival period. Startup times out after 30 seconds. Logs
-are private files under `~/Library/Logs/Mokusei Native Dev/launch-*`, outside
+plus a three-second survival period. Startup times out after 30 seconds. The
+one-shot PID receipt lives in a private temporary directory outside
 TCC-protected checkout locations such as Desktop. Stopping the temporary
 LaunchServices observer leaves the application running. Runtime connection
 continues asynchronously; these readiness checks do not prove harness behavior.
@@ -139,7 +187,6 @@ The tools do not reset or grant privacy consent.
 ```text
 Contents/MacOS/Mokusei
 Contents/MacOS/mokusei-runtime
-Contents/Frameworks/LiveKitWebRTC.framework
 Contents/Resources/MokuseiNative_MokuseiPluginUI.bundle
 Contents/Resources/AppIcon.icns
 Contents/Resources/build-provenance.json
@@ -152,11 +199,11 @@ and authored HTML document content.
 
 The application icon is generated entirely from geometry defined in this
 repository; see
-[its source, regeneration command and historical provenance limit](SOURCES.md).
+[its source, regeneration command and provenance limit](SOURCES.md).
 
 ## Web content networking
 
-Development and production bundles use the same generated ATS policy in
+All three channels use the same generated ATS policy in
 [`bundle.go`](../../../internal/tooling/devtool/bundle.go).
 `NSAllowsLocalNetworking` permits local networking, including the native
 client's loopback runtime connection. `NSAllowsArbitraryLoadsInWebContent` is
@@ -182,28 +229,29 @@ HTTP destination.
 
 The packaging tool preserves Swift resource bundles, validates fonts and icon
 geometry, checks architecture and dynamic dependencies, and removes nonportable
-SwiftPM rpaths. WebRTC is copied with its framework symlinks and thinned to arm64.
-The framework, Go runtime and outer app are signed in dependency order with the
-same Apple Development team. Only the app receives the microphone entitlement;
-Go needs no JIT entitlement. Publication uses the existing locked atomic C
+SwiftPM rpaths. The Go runtime and outer app are signed in dependency order with the
+same Apple Development team, or explicitly ad hoc for alpha. Go needs no JIT entitlement. App publication uses the existing locked atomic C
 publisher. Archives are created from the verified private staging tree.
 
 ## Validation
 
-Packaging verifies signatures, resources and the embedded WebRTC load/SSL path.
-`smoke` additionally verifies final product metadata, portable binary linkage,
-privacy entitlement, absence of old Node artifacts, and isolated runtime
-start/status/stop identity. Its temporary profile and derived workspace are
-removed only after a successful smoke and confirmed shutdown; failures retain
-the profile for diagnosis and report its location. Smoke never opens a GUI,
-requests microphone consent,
-or captures physical audio.
+Packaging verifies signatures and resources.
+`smoke` additionally verifies final product metadata, portable binary linkage
+and absence of old Node artifacts. The command does not launch the application or runtime or provide lifecycle
+correctness coverage.
 
-`make check` runs Go formatting/static checks, Go/Swift builds and the required
-functional regression checks.
-The [devtool replay](../../../tools/verification/devtools/README.md) additionally
-checks profile rotation, active compiler cancellation and nested watcher cleanup
-with isolated process fixtures.
+For alpha bundles, pass `--channel alpha --app PATH` to `smoke`. Only this explicit
+channel accepts ad-hoc signatures; production installation still requires a
+stable Apple Development identity. The alpha command runs this static check
+before image creation and runs `hdiutil verify` before publishing the image.
+These checks do not prove first-launch behavior, downloaded-file Gatekeeper
+acceptance or compatibility on another Mac.
+
+`make check` runs Go formatting/static checks, Go/Swift production builds and
+routine Go, native geometry and Collection budget PBT. Mounted state and system properties are opt-in.
 
 This is a locally signed direct-distribution build. Notarization, public release,
 automatic updates and App Store submission require a separate release workflow.
+Development launch uses a one-shot `--launch-receipt /absolute/path` JSON receipt
+with the ready process PID. The launcher removes its temporary receipt after
+confirming the process remains alive; application stdout/stderr are not collected.

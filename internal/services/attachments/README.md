@@ -8,8 +8,6 @@ extension: `.env` becomes `env`, `.gitignore` becomes `gitignore`, and
 
 Thread ownership retains admitted files independently of temporary composer
 chips. Preview and cleanup validate that ownership and the immutable content.
-The real import, retention, preview and cleanup boundaries are exercised by
-`./scripts/go.sh run -race ./tools/verification/runtime-helpers`.
 
 `NewWithClientStorage` binds the production repository to the same local profile
 as the native client. A staged file records the importing process's private
@@ -50,8 +48,7 @@ live staging leases before reading durable references, so process exit during a
 Stage-to-draft handoff cannot create a gap between those two owners. Collection
 also removes unowned payload-only and metadata-only crash remnants.
 
-`./scripts/go.sh run -race ./tools/verification/attachment-lifecycle` exercises
-real Runtime/SQLite deletion and restart, fork/private owners, failed admission,
-saved drafts, a process-held lease and streaming cleanup. The default runtime CI
-group runs it; `transport -swift-files` verifies the actual Swift lease header and
-atomic draft record against the production repository on macOS.
+No attachment lifecycle or Swift-files correctness replay is configured in
+this source tree. The ownership, admission and collection rules above describe
+the production implementation; build success does not establish their runtime
+coverage.

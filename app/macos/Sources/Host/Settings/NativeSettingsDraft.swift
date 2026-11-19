@@ -23,11 +23,9 @@ public final class NativeSettingsDraft {
     /// Only a Settings visit defers role settings. Onboarding and other editors
     /// retain their existing autosave/explicit-flush behavior.
     @ObservationIgnored private var deferredBase: JSONValue?
-    @ObservationIgnored public var diagnostics = SettingsDiagnostics()
     public var runtimeAvailable = false {
         didSet {
             guard !retired else { timer?.cancel(); timer = nil; return }
-            if oldValue != runtimeAvailable { diagnostics.record(.availability, runtimeAvailable ? .available : .unavailable, revision: revision) }
             if !runtimeAvailable { timer?.cancel(); timer = nil }
             else if !failed && Self.comparableValue(value) != saved { submit() }
         }
@@ -35,7 +33,6 @@ public final class NativeSettingsDraft {
     public var composing = false {
         didSet {
             guard !retired else { return }
-            if oldValue != composing { diagnostics.record(.composition, composing ? .started : .completed, revision: revision) }
             if composing { timer?.cancel(); timer = nil } else if oldValue { schedule() }
         }
     }
@@ -49,7 +46,6 @@ public final class NativeSettingsDraft {
     @ObservationIgnored private var failed = false
     @ObservationIgnored private var dismissReportedError: (() -> Void)?
     @ObservationIgnored private var retired = false
-    @ObservationIgnored private var editingFields = Set<SettingsDiagnostic.Field>()
 
     public init(settings: JSONValue, revision: Int,
                 save: @escaping (JSONValue, Int) async throws -> NativeSettingsSaveResult) {
@@ -60,7 +56,6 @@ public final class NativeSettingsDraft {
     public func receive(settings: JSONValue, revision: Int) {
         guard !retired else { return }
         guard revision >= latest.1 else { return }
-        if revision > latest.1 { diagnostics.record(.receive, .completed, revision: revision) }
         latest = (settings, revision)
         if running == nil && !failed && Self.comparableValue(value) == saved && revision >= self.revision {
             adopt(settings: settings, revision: revision)
@@ -69,10 +64,6 @@ public final class NativeSettingsDraft {
 
     public func change(_ next: JSONValue, textEdit: Bool = false) {
         guard !retired, runtimeAvailable else { return }
-        let fields = SettingsDiagnostic.changedFields(value, next)
-        let newFields = fields.filter { !editingFields.contains($0) }
-        editingFields.formUnion(fields)
-        if !newFields.isEmpty { diagnostics.record(.edit, textEdit || composing ? .pending : .started, revision: revision, fields: newFields) }
         value = next
         if textEdit || composing { schedule() } else { submit() }
     }
@@ -153,7 +144,6 @@ public final class NativeSettingsDraft {
     /// already reached the runtime may finish, but cannot drain another write.
     public func discardForReload() {
         guard !retired else { return }
-        diagnostics.record(.discard, .completed, revision: revision)
         retired = true
         timer?.cancel(); timer = nil
         runtimeAvailable = false
@@ -165,8 +155,7 @@ public final class NativeSettingsDraft {
     /// The workspace must retain this object so the result can report globally.
     public func prepareClose() -> Bool {
         guard !retired else { return true }
-        guard !composing, firstInvalidField == nil, incompleteEditorScope == nil else { diagnostics.record(.close, .blocked, revision: revision); return false }
-        diagnostics.record(.close, .started, revision: revision)
+        guard !composing, firstInvalidField == nil, incompleteEditorScope == nil else { return false }
         deferredBase = nil
         submit()
         let pending = running
@@ -180,7 +169,6 @@ public final class NativeSettingsDraft {
 
     public func retry() {
         guard !retired else { return }
-        diagnostics.record(.retry, .started, revision: revision)
         if conflict != nil { resolveConflict(keepDraft: true) }
         else { failed = false; submit() }
     }
@@ -189,7 +177,6 @@ public final class NativeSettingsDraft {
 
     private func resolveConflict(keepDraft: Bool) {
         guard !retired, let remote = conflict, running == nil else { return }
-        diagnostics.record(.conflict, keepDraft ? .keep : .discard, revision: remote.1)
         timer?.cancel(); timer = nil
         let authoritative = latest.1 > remote.1 ? latest : remote
         if let base = deferredBase {
@@ -218,8 +205,6 @@ public final class NativeSettingsDraft {
         timer?.cancel(); timer = nil
         guard !retired, !composing else { return }
         var next = committableValue
-        if firstInvalidField != nil { diagnostics.record(.validation, .blocked, revision: revision,
-            fields: [.routing]) }
         next = settingsReplacing(next, path: ["moku", "routingGuidance"], value: deferredBase != nil || firstInvalidField == nil
             ? Self.normalizedText(next["moku"]?["routingGuidance"]) : ready["moku"]?["routingGuidance"])
         ready = next
@@ -247,22 +232,15 @@ public final class NativeSettingsDraft {
                 guard self.runtimeAvailable else { self.status = .pending; return false }
                 let snapshot = self.ready
                 let submittedRouting = self.value["moku"]?["routingGuidance"]
-                let started = Date()
-                self.editingFields.removeAll()
-                self.diagnostics.record(.save, .started, revision: self.revision, fields: SettingsDiagnostic.changedFields(self.saved, snapshot))
                 do {
-                    let result = try await SettingsDiagnosticContext.$flowID.withValue(self.diagnostics.flowID) {
-                        try await self.save(snapshot, self.revision)
-                    }
+                    let result = try await self.save(snapshot, self.revision)
                     guard !self.retired else { return false }
                     switch result {
                     case let .conflict(settings, revision):
-                        self.diagnostics.record(.save, .conflict, revision: revision, durationMs: Date().timeIntervalSince(started) * 1000)
                         self.conflict = (settings, revision); self.conflicted = true; self.failed = true
                         self.error = "设置已被其他客户端修改，草稿已保留。保留我的修改并重试会合并独立修改，并以我的修改处理相同字段。"
                         self.status = .error; return false
                     case let .saved(settings, revision):
-                        self.diagnostics.record(.save, .saved, revision: revision, durationMs: Date().timeIntervalSince(started) * 1000)
                         // Keep the exact editable text after a normalized save:
                         // changing its UTF-16 ranges invalidates native Undo.
                         // Explicitly clearing saved guidance still closes it.
@@ -282,12 +260,11 @@ public final class NativeSettingsDraft {
                         self.saved = settings; self.revision = revision
                     }
                 } catch {
-                    self.diagnostics.record(.save, .failed, revision: self.revision, durationMs: Date().timeIntervalSince(started) * 1000)
                     guard !self.retired else { return false }
                     // A newer edit may have fixed the rejected combination while
                     // native validation was still running. Drain that edit before
                     // reporting an error for a value no longer shown in the UI.
-                    if self.ready != snapshot { self.diagnostics.record(.retry, .pending, revision: self.revision); continue }
+                    if self.ready != snapshot { continue }
                     self.failed = true; self.error = error.localizedDescription; self.status = .error
                     return false
                 }

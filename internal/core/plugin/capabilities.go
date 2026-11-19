@@ -13,7 +13,6 @@ var (
 	BackgroundConfigurationCapabilityKey       = CapabilityKey{"mokusei.background-configuration", 1, "runtime"}
 	BackgroundEnvironmentCapabilityKey         = CapabilityKey{"mokusei.background-environment", 1, "runtime"}
 	OrdinaryTaskReadCapabilityKey              = CapabilityKey{"mokusei.tasks.read", 1, "runtime"}
-	ClassificationReadCapabilityKey            = CapabilityKey{"mokusei.classification.read", 1, "runtime"}
 	SemanticTagsReadCapabilityKey              = CapabilityKey{"mokusei.tags.read", 1, "runtime"}
 	SemanticTagsWriteCapabilityKey             = CapabilityKey{"mokusei.tags.write", 1, "runtime"}
 	OrdinaryTaskSnapshotCapabilityKey          = CapabilityKey{"mokusei.tasks.snapshot", 1, "snapshot"}
@@ -171,7 +170,6 @@ type BackgroundEnvironmentCapability interface {
 	Owner() BackgroundAgentRef
 	Cwd() string
 	OutputLocale(context.Context) (string, error)
-	Log(level, event string, fields model.Object)
 }
 
 type OrdinaryTaskSnapshot struct {
@@ -212,22 +210,6 @@ type OrdinaryTaskInventorySnapshotCapability interface {
 	// List excludes archived Threads, Moku and private sessions. The caller must
 	// derive the directory scope from its trusted background owner.
 	List(scope string) ([]OrdinaryTaskIdentity, error)
-}
-type ClassificationThreadSnapshot struct {
-	Ref              model.ThreadRef     `json:"ref"`
-	Title            string              `json:"title"`
-	Archived         bool                `json:"archived"`
-	Tags             model.TagProjection `json:"tags"`
-	EvidenceRevision string              `json:"evidenceRevision"`
-}
-type ClassificationEvidenceSnapshot struct {
-	Thread  ClassificationThreadSnapshot `json:"thread"`
-	Content string                       `json:"content"`
-}
-type ClassificationReadCapability interface {
-	CaptureList(ctx context.Context, includeArchived bool) ([]ClassificationThreadSnapshot, error)
-	Get(context.Context, model.ThreadRef) (*ClassificationThreadSnapshot, error)
-	CaptureEvidence(context.Context, model.ThreadRef) (ClassificationEvidenceSnapshot, error)
 }
 type TagTypeUsageCount struct {
 	TypeID   string `json:"typeId"`

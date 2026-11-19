@@ -22,18 +22,6 @@ public struct NativeMokuTalkMessage: Equatable, Sendable, Identifiable {
         return nil
     }
 
-    /// A selected sheet follows its exact operation across later messages. The
-    /// owner/harness/execution tuple prevents a replacement thread borrowing it.
-    public static func dispatch(id: JSONText, in thread: HarnessThread?) -> Self? {
-        guard let thread, thread.moku == true, let execution = thread.observation.latestExecution else { return nil }
-        for item in (thread.transcript?.arrayValue ?? []).reversed() {
-            if let message = project(item, thread: thread, execution: execution), message.id == id, message.dispatch != nil {
-                return message
-            }
-        }
-        return nil
-    }
-
     private static func project(_ item: JSONValue, thread: HarnessThread, execution: PublicExecution) -> Self? {
         guard item["type"]?.stringValue == "tool-operation",
               case .string(let operationID) = item["id"], !operationID.codeUnits.isEmpty,

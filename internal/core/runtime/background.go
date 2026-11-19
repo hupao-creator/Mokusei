@@ -43,10 +43,6 @@ func (r *Runtime) BackgroundCapabilities(owner plugin.BackgroundAgentRef, settin
 	access.values[plugin.LifecycleCapabilityKey.ID] = scopedLifecycle{base: r.lifecycle, owner: owner}
 	access.values[plugin.SemanticTagsReadCapabilityKey.ID] = tagsReadCapability{r, owner.Binding.Scope}
 	access.values[plugin.SemanticTagsWriteCapabilityKey.ID] = tagsWriteCapability{runtime: r, source: owner.AgentID, scope: owner.Binding.Scope, settingsID: settingsID}
-	if owner.Binding.Kind == plugin.DirectoryScopeKind {
-		// Classification includes application-wide evidence and has no scoped contract.
-		delete(access.values, plugin.ClassificationReadCapabilityKey.ID)
-	}
 	if owner.Binding.Kind == plugin.GlobalScope {
 		// Semantic-tag operations require a particular directory, never an implicit Inbox.
 		delete(access.values, plugin.SemanticTagsReadCapabilityKey.ID)
@@ -80,12 +76,6 @@ func (c backgroundCapability) OutputLocale(ctx context.Context) (string, error) 
 		return "", err
 	}
 	return "zh-CN", nil
-}
-func (c backgroundCapability) Log(level, event string, fields model.Object) {
-	raw, err := json.Marshal(fields)
-	if err == nil {
-		c.runtime.log(c.owner.AgentID+"."+event, fmt.Errorf("%s: %s", level, raw))
-	}
 }
 func (c backgroundCapability) Resolve(ctx context.Context, sessionKey string) (plugin.ResolvedBackgroundConfiguration, error) {
 	if err := c.runtime.begin(); err != nil {

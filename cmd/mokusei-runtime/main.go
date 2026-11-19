@@ -10,17 +10,12 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/composition"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/platform/daemon"
-	"github.com/hupao-creator/Mokusei/internal/platform/diagnostics"
 	"github.com/hupao-creator/Mokusei/internal/platform/environment"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
@@ -81,29 +76,15 @@ func run(args []string, input io.Reader, output io.Writer) error {
 	env := environment.Current()
 	switch command {
 	case "serve":
-		bootstrap := &loggedBootstrap{directory: filepath.Join(p.DataDir, "runtime", "debug-logs")}
 		overview := transport.NewOverviewBroker(10 * time.Second)
 		defer overview.Close()
-		bootstrap.inner = composition.New(composition.Options{
+		bootstrap := composition.New(composition.Options{
 			Profile: p, Environment: env,
 			Headless: env["MOKUSEI_HEADLESS"] == "1",
-			Log:      bootstrap.event, Overview: overview,
-			SettingsTrace: bootstrap.settingsEvent,
-			SearchTrace:   bootstrap.searchEvent,
-			ToolTrace:     bootstrap.toolEvent,
+			Overview: overview,
 		})
 		err = daemon.Serve(ctx, daemon.ServeOptions{
 			Profile: p, Bootstrap: bootstrap, Output: output, Overview: overview,
-			Log: func(err error) {
-				bootstrap.event("runtime", err)
-				// Bootstrap cleanup closes the private logger before the daemon's
-				// final ownership decision. Keep that failure in process.log too.
-				message := err.Error()
-				if len(message) > 7*1024 {
-					message = message[:7*1024]
-				}
-				fmt.Fprintln(os.Stderr, message)
-			},
 		})
 		// A termination request during startup is an orderly shutdown, just as
 		// it is after the service has published its discovery record.
@@ -139,72 +120,6 @@ func run(args []string, input io.Reader, output io.Writer) error {
 	return errors.New("unknown runtime command")
 }
 
-// Logs share the service's profile lease. Opening the logger in Initialize
-// prevents a competing serve process from rotating the active owner's files;
-// closing it with the application flushes diagnostics before lease release.
-type loggedBootstrap struct {
-	inner       daemon.Bootstrap
-	directory   string
-	mu          sync.Mutex
-	logger      *diagnostics.Logger
-	tools       *diagnostics.ToolLogger
-	initialized bool
-}
-
-func (b *loggedBootstrap) Initialize(ctx context.Context) (transport.Host, error) {
-	logger, err := diagnostics.New(b.directory)
-	if err != nil {
-		return nil, err
-	}
-	tools, toolErr := diagnostics.NewToolLogger(filepath.Join(filepath.Dir(b.directory), "tool-calls"))
-	b.mu.Lock()
-	b.logger = logger
-	b.tools = tools
-	b.initialized = true
-	b.mu.Unlock()
-	if toolErr != nil {
-		// Optional diagnostics must not revoke tool availability. Keep the cause
-		// out of service logs because filesystem errors can contain private paths.
-		b.event("tool-audit.unavailable", errors.New("private tool journal initialization failed; callback coverage unavailable until restart"))
-	}
-	return b.inner.Initialize(ctx)
-}
-
-func (b *loggedBootstrap) event(kind string, err error) {
-	b.mu.Lock()
-	logger := b.logger
-	b.mu.Unlock()
-	if logger != nil {
-		logger.Event(kind, err)
-	}
-}
-
-func (b *loggedBootstrap) settingsEvent(event string, fields model.Object) {
-	b.mu.Lock()
-	logger := b.logger
-	b.mu.Unlock()
-	if logger != nil {
-		logger.SettingsEvent(event, fields)
-	}
-}
-
-func (b *loggedBootstrap) Close(ctx context.Context) error {
-	b.mu.Lock()
-	logger, tools, initialized := b.logger, b.tools, b.initialized
-	b.mu.Unlock()
-	var err error
-	if initialized {
-		err = b.inner.Close(ctx)
-	}
-	if err != nil {
-		b.event("runtime.shutdown.failed", err)
-	}
-	if toolErr := tools.Close(); toolErr != nil {
-		b.event("tool-audit.close-failed", errors.New("private tool journal close failed; final persistence is uncertain"))
-	}
-	return errors.Join(err, logger.Close())
-}
-
 func parseCommand(args []string) (command, dataDir string, err error) {
 	command = args[0]
 	switch command {
@@ -237,20 +152,4 @@ func writeStatus(output io.Writer, p profile.Profile, connection *profile.Connec
 		status.DataDir = connection.DataDir
 	}
 	return json.NewEncoder(output).Encode(status)
-}
-
-func (b *loggedBootstrap) searchEvent(event plugin.SearchDiagnostic) {
-	b.mu.Lock()
-	logger := b.logger
-	b.mu.Unlock()
-	if logger != nil {
-		logger.SearchEvent(event)
-	}
-}
-
-func (b *loggedBootstrap) toolEvent(event plugin.ToolInvocation) error {
-	b.mu.Lock()
-	logger := b.tools
-	b.mu.Unlock()
-	return logger.Record(event)
 }

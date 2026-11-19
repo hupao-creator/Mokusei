@@ -35,17 +35,21 @@ repeated totals. Added/deleted counts are always both known or both unknown;
 an error cannot accompany numeric totals. File counts remain fresh if only line
 statistics fail. Each monitor observation publishes status and the completed
 statistics attempt together, so missing totals are unknown/failed, not pending.
-The native card shows the failure reason or an explicit unknown label, and
-retains signed zeroes for known binary/empty/mode-only changes.
+The native card shows the failure reason or an explicit unknown label when
+changed files have unknown totals. Known zero added/deleted totals hide the
+entire extension, including binary-only, pure rename, empty-file and mode-only
+changes; there are no file-type exceptions.
 
 File membership follows Git's ignore rules; generated files are not heuristically
 filtered by the monitor. This repository ignores root `.scratch/`, where native
 replays and local compiler caches write disposable artifacts. Other untracked
 files and already tracked paths under ignored directories still count normally.
 
-The extension appears only for changed files, conflicts, or locally known
-ahead/behind commits. Clean worktrees, non-Git directories, initial failures and
-unknown upstream comparisons alone do not create extensions. A transient read
+The extension appears for positive added or deleted line totals, independently
+of file counts, HEAD or locally known ahead/behind commits. With unknown/failed
+line statistics, changed files retain the existing error/unknown presentation.
+Known zero totals, clean worktrees, non-Git directories and initial failures do
+not create extensions or reserve card space. A transient read
 error retains the last successful status and marks it stale. Git results do not
 change thread order, tags, filter counts or archive state. Visibility changes use
 the same card composition and overview layout transitions as other extensions.
@@ -68,7 +72,5 @@ pathspecs, and disable external diff, text conversion and fsmonitor hooks.
 
 See the [native card extension](../../../../app/macos/Sources/Host/Git/README.md).
 
-Verification: `./scripts/go.sh run -race ./tools/verification/git` from the repository root. This exercises disposable repositories and the real process capability, application host and SQLite store.
-The ignored-cache fixture uses 257 paths, one beyond the line-statistics budget,
-to verify that ignored files do not make complete totals unavailable while
-tracked paths inside an ignored directory still contribute their real changes.
+No Git correctness replay is configured in this source tree. File statistics
+remain bounded production observations, including explicit unavailable totals.

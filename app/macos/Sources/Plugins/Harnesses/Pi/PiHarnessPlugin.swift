@@ -26,6 +26,13 @@ public struct PiHarnessPlugin: HarnessPlugin {
     public var settingsPresentationCodec: PluginValueCodec<JSONValue> {
         PluginValueCodec(decode: piValidatePresentation, encode: piValidatePresentation)
     }
+    public func settingsPresentationIssue(_ presentation: JSONValue) -> String? {
+        if presentation["cli"]?["status"] != .text("ready") {
+            return presentation["cli"]?["message"]?.stringValue ?? "Pi CLI is unavailable."
+        }
+        if presentation["models"]?.arrayValue?.isEmpty != false { return "Pi returned no models. Configure a provider and retry." }
+        return nil
+    }
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<PiOverviewView> {
         try piOverview(input: input, availableColumns: availableColumns)
     }

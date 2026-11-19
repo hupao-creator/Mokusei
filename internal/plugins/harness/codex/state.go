@@ -245,19 +245,21 @@ func ReduceEvent(state Map, executionID string, event Map) Map {
 		}
 	case "reasoning-delta":
 		delta := strings.ReplaceAll(stString(event["delta"]), "\x00", "")
+		if delta == "" {
+			return next
+		}
+		newSegment := event["newSegment"] == true
 		continues := len(timeline) > 0 && stString(stMap(timeline[len(timeline)-1])["kind"]) == "reasoning"
 		if continues {
 			last := stMap(timeline[len(timeline)-1])
-			last["content"] = stTail(stString(last["content"])+delta, stMaxReasoning)
+			last["content"] = stTail(stAppendReasoning(stString(last["content"]), delta, newSegment), stMaxReasoning)
 		} else {
 			timeline = append(timeline, Map{"id": stTimelineID(timeline, "reasoning", timestamp), "kind": "reasoning", "content": stTail(delta, stMaxReasoning), "createdAt": timestamp})
 		}
-		turn["timeline"], turn["reasoning"] = timeline, stTail(stString(turn["reasoning"])+delta, stMaxReasoning)
-		if delta != "" {
-			turn["foreground"] = stReasoning(stMap(turn["foreground"]), delta, continues && turn["reasoningBreak"] != true)
-			if turn["reasoningBreak"] == true {
-				turn["reasoningBreak"] = false
-			}
+		turn["timeline"], turn["reasoning"] = timeline, stTail(stAppendReasoning(stString(turn["reasoning"]), delta, newSegment || !continues), stMaxReasoning)
+		turn["foreground"] = stReasoning(stMap(turn["foreground"]), delta, continues && turn["reasoningBreak"] != true, newSegment)
+		if turn["reasoningBreak"] == true {
+			turn["reasoningBreak"] = false
 		}
 	case "plan":
 		steps := stArray(event["steps"])
@@ -693,11 +695,23 @@ func stForeground(previous, next Map, newSegment bool) Map {
 	next["sequence"] = sequence
 	return next
 }
-func stReasoning(previous Map, delta string, continues bool) Map {
+
+// Keep native item/part boundaries in every text projection without changing
+// chunk boundaries or doubling newlines already supplied by the native text.
+func stAppendReasoning(previous, delta string, newSegment bool) string {
+	if newSegment && previous != "" {
+		trailing := len(previous) - len(strings.TrimRight(previous, "\n"))
+		leading := len(delta) - len(strings.TrimLeft(delta, "\n"))
+		previous += strings.Repeat("\n", max(0, 2-trailing-leading))
+	}
+	return previous + delta
+}
+
+func stReasoning(previous Map, delta string, continues, newSegment bool) Map {
 	source := delta
 	offset := int64(0)
 	if continues && previous["kind"] == "reasoning" {
-		source = stString(previous["text"]) + delta
+		source = stAppendReasoning(stString(previous["text"]), delta, newSegment)
 		offset = stInt(previous["textOffset"])
 	}
 	points := []rune(source)

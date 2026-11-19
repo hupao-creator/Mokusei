@@ -1,5 +1,12 @@
 # External Agent Thread reading benchmark
 
+The [UX gate](../gate/UX.md) registers `ux-reading`, its current scenario/metric
+IDs, repeated paired schedule, provisional response/resource budgets and scoped
+capability requirements. Use the shared [performance runner](../gate/README.md)
+for regression judgment; standalone commands below retain the wider observation
+status and do not apply regression thresholds.
+
+
 This extension uses the [external benchmark framework](../README.md): a built,
 signed production Release app, its bundled Runtime, the actually discovered
 native Codex CLI, a deterministic loopback provider, and independent macOS
@@ -8,7 +15,6 @@ session edits are used. Copy the entire `tools/benchmarks` directory to run it
 outside the source checkout.
 
 ```sh
-python3 tools/benchmarks/reading_benchmark.py conformance
 python3 tools/benchmarks/reading_benchmark.py build --tools /private/tmp/reading-tools
 python3 tools/benchmarks/reading_benchmark.py calibrate \
   --tools /private/tmp/reading-tools --output /private/tmp/reading-controls
@@ -25,10 +31,14 @@ context. Run GUI experiments serially, including Overview experiments. Fixture
 preparation and heavy compilation should finish before formal collection.
 Keep profile and Runtime connection files private. Exit 2 describes unavailable,
 incomplete or unsuccessful observation, not a statistical regression gate.
-The shared default collector no longer starts XCTest or its privileged
+The shared default collector does not start XCTest or its privileged
 performance service. Native hitches remain explicitly unavailable; existing
 Screen Recording/Accessibility/input permissions are still required. No
 administrator prompt or system authorization change is part of a default run.
+Calibration and run check all required permissions before launching any control
+or fixture. Missing capability retains `preflight.json` and `blocked.json`, with
+unsupported status and exit 2. A trusted operator's separate input channel does
+not establish that the timestamped collector has permission or calibration.
 
 ## Workloads and scenarios
 
@@ -85,9 +95,8 @@ composition, byte count and digest. This is a warm open, not a process-cold laun
 
 `first-open`/`reopen` cover completed executions; `output-scroll` admits its
 Sidecard before timing. First recognizable main-body content does not establish
-Sidecard or composer readiness. The
-[November 14 recording diagnosis](../../../design/reader-opening-20261114.md)
-motivated the separate active entry case; its Debug logs are not Release results.
+Sidecard or composer readiness. The [reading lifecycle](../../../design/reading.md)
+describes those separate production admission gates.
 
 ## Measurements and evidence
 
@@ -119,19 +128,18 @@ A wholly inert product probe cannot distinguish a blocked input target from a
 frozen reader; it reports unknown input acceptance/responsiveness. The independent
 frozen control still verifies that the optical scorer detects absent progress.
 
-The shared native hitch collector must pass its own positive/negative/ownership
-controls before a zero value can support a no-hitch conclusion. The separate
-reading controls establish scrolling input and pixel analysis only; they do not
-certify hitch capability. Missing short-lived descendant/exit CPU accounting
+Native hitch collection is unavailable. Independent scrolling controls establish
+system-input and sampled pixel-analysis capability only. Missing short-lived
+descendant/exit CPU accounting
 prevents a complete application-task resource claim. These limitations remain
 visible independently of business correctness.
 
 Every trial retains the source plan, content manifest, public preparation and
 outcome, input/source ledgers, process identities, raw captures/OCR, collector
 result, cleanup and evidence manifest. Measurement state, product outcome and
-comparison remain separate. There is no total score or statistical performance
-regression gate. The older backend detail probe has a different boundary and
-must not be pooled with these measurements.
+comparison remain separate. The standalone report has no total score or regression judgment. The paired
+UX adapter evaluates only its documented narrower metrics; backend diagnostics
+have a different boundary and cannot be pooled with these measurements.
 
 The suite's `summary.md` puts body appearance and scroll response bounds first,
 then observed App CPU and sampled memory. JSON retains every segment and raw
@@ -140,17 +148,14 @@ of typical user latency; repeat separate runs before comparing versions.
 
 ## Verification
 
-Portable conformance sends real HTTP/SSE requests to the production benchmark
-provider and invokes the shared offline scorer. Controls include frozen pixels,
-wrong scroll direction, a different execution, missing business text/input,
-altered content hashes, malformed gesture phases and changed input volume.
-These establish framework behavior; they do not establish macOS rendering.
+The portable gate includes CLI-level generated properties and e2e scenarios;
+synthetic observations do not establish native collection capability.
 
 Live calibration builds an independent AppKit scroll window with normal, frozen,
 reversed, delayed and real main-thread-stall behaviors. It uses the same system
 input, capture and analysis path as the product. Keep failed controls and product
 trials; inspect the raw frames before changing an oracle. The signed production
-experiment is a distinct verification step from portable CI conformance.
+experiment remains an independent measurement, outside required build CI.
 
 The native control also retains the pixel deltas actually received by AppKit
 and its own settled document offset. Calibration requires these input totals to

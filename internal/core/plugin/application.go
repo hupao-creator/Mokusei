@@ -236,20 +236,16 @@ type ThreadProjection struct {
 	View  json.RawMessage
 }
 type ThreadTypeDefinition struct {
-	// SearchText is an optional, pure owner projection of user-facing retrieval
-	// text. The host calls it only after explicit content-indexing consent.
-	SearchText     func(model.ApplicationThreadRecord) (string, error)
-	ID             string
-	OwnerPluginID  string
-	DisplayName    string
-	CollectionID   string
-	Contract       ValueContract
-	Project        func(model.ApplicationThreadRecord) (ThreadProjection, error)
-	Tags           ThreadTags
-	Classification ThreadClassification
-	Archive        ThreadArchive
-	Overview       ThreadOverview
-	Conversation   ThreadConversation
+	ID            string
+	OwnerPluginID string
+	DisplayName   string
+	CollectionID  string
+	Contract      ValueContract
+	Project       func(model.ApplicationThreadRecord) (ThreadProjection, error)
+	Tags          ThreadTags
+	Archive       ThreadArchive
+	Overview      ThreadOverview
+	Conversation  ThreadConversation
 }
 type ThreadStateChange struct {
 	Value          json.RawMessage
@@ -267,17 +263,11 @@ type ThreadTags interface {
 	Sources(model.ApplicationThreadRecord) ([]model.ThreadRef, error)
 	Apply(model.ApplicationThreadRecord, SemanticTagEffect) (ThreadStateChange, error)
 }
-type ClassificationEvidence struct {
-	Content  string
-	Revision string
-}
-type ThreadClassification interface {
-	Evidence(model.ApplicationThreadRecord) (ClassificationEvidence, error)
-}
 type ThreadArchive interface {
 	Archived(model.ApplicationThreadRecord) bool
 	Change(model.ApplicationThreadRecord, bool) (ThreadStateChange, error)
-	RelatedLatestExecutions(model.ApplicationThreadRecord, bool) ([]model.ExecutionRef, error)
+	// RelatedThreads supplies persisted associations, independent of execution state.
+	RelatedThreads(model.ApplicationThreadRecord, bool) ([]model.ThreadRef, error)
 }
 type ThreadOverview interface {
 	Presentation(model.ApplicationThreadRecord) (OverviewPresentation, error)

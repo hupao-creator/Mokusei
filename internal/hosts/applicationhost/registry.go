@@ -270,9 +270,6 @@ func (h *Host) validateRegistry() error {
 		if !ok || collection.OwnerPluginID != definition.OwnerPluginID {
 			return fmt.Errorf("thread type %s has invalid collection", definition.ID)
 		}
-		if definition.Classification != nil && definition.Tags == nil {
-			return fmt.Errorf("thread type %s classification requires tags", definition.ID)
-		}
 	}
 	for _, agent := range h.agents {
 		if id := agent.definition.ExecutionSettingsID; id != "" {

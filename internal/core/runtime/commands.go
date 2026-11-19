@@ -31,17 +31,13 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 	}
 	arity := 1
 	switch channel {
-	case "search:status", "search:retry", "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
+	case "state:load", "history:clear", "moku:clear", "moku:deliveries", "harness:detect-installations", "workspace:list-known-directories":
 		arity = 0
 	case "attachment:preview", "thread:set-archived", "application:archive":
 		arity = 2
 	}
 	if len(args) != arity {
 		return nil, fmt.Errorf("%s expects %d arguments", channel, arity)
-	}
-	if channel == "app:update-settings" || channel == "harness:settings-presentation" || channel == "harness:detect-installations" {
-		finish := r.traceCommand(ctx, channel)
-		defer func() { finish(err) }()
 	}
 	if err := model.ValidateCommandArguments(channel, args); err != nil {
 		return nil, err
@@ -53,8 +49,6 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, err
 		}
 		return r.RecordNoteExposure(ctx, receipt)
-	case "search:status", "search:query", "search:retry":
-		return r.searchCommand(ctx, channel, args)
 	case "moku:deliveries":
 		return r.PendingMokuDeliveries()
 	case "moku:resolve-delivery":
@@ -68,8 +62,6 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		return nil, r.ResolveMokuDelivery(ctx, request.ID, request.Decision)
 	case "state:load":
 		return r.Snapshot()
-	case "settings:diagnostics":
-		return nil, r.recordClientDiagnostics(ctx, args[0])
 	case "attachment:preview":
 		if r.config.Attachments == nil {
 			return nil, errors.New("attachment repository unavailable")
@@ -97,27 +89,8 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, err
 		}
 		return r.config.Attachments.Stage(ctx, imports)
-	case "moku:submit", "moku:clear", "moku:cancel", "moku:voice", "moku:voice-events":
-		if channel == "moku:voice" {
-			// Peek only at routing. Moku owns the closed, action-specific
-			// envelope, including request/session IDs, ownership and SDP.
-			var envelope map[string]json.RawMessage
-			if err := model.Unmarshal(args[0], &envelope); err != nil {
-				return nil, err
-			}
-			var action string
-			if err := model.Unmarshal(envelope["action"], &action); err != nil {
-				return nil, err
-			}
-			if action == "prepare" || action == "start" {
-				var release func()
-				ctx, release, err = r.beginConfigurationAdmission(ctx, false)
-				if err != nil {
-					return nil, err
-				}
-				defer release()
-			}
-		}
+	case "moku:submit", "moku:clear", "moku:cancel":
+
 		r.mu.Lock()
 		moku := r.config.Moku
 		r.mu.Unlock()
@@ -125,8 +98,6 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, errors.New("Moku participant unavailable")
 		}
 		return moku.Invoke(ctx, channel, args)
-	case "thread:voice", "thread:voice-events":
-		return r.threadVoiceChannel(ctx, channel, args[0])
 	case "history:clear":
 		return nil, r.ClearHistory(ctx)
 	case "thread:follow-up":

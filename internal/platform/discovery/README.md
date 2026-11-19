@@ -11,15 +11,15 @@ refreshes join. Superseded readers may finish, but only the current flight can
 publish. Failed, cancelled and timed-out probes cannot overwrite the last success;
 a failed refresh does not renew its freshness. The cache retains at most 64
 successful keys. This cache is not an execution or authentication authority.
+A strict reader may supply an external write time as a freshness hint. A completed
+snapshot whose probe started before that write is read again under the same key.
+Readers still share an in-flight probe and its normal publication rules.
 
 `Identity` hashes the native environment and metadata of adapter-selected files.
 It never reads file contents, logs environment values, or writes snapshots to disk.
 Adapters own the list of native configuration paths. File metadata cannot observe
 keychain/remote account changes or every transitive native configuration include;
 TTL, explicit refresh and live native execution checks remain necessary.
-
-`make check` includes the cancellation, close/drain, refresh publication, failure
-retention and profile/file identity tests with the race detector.
 
 Adapters wrap cleanup errors with `Cleanup`. The cache retains this ownership
 failure even after the reader leaves, fences replacement acquisition and reports

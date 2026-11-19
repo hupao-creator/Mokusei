@@ -14,7 +14,6 @@ struct NativeReportExecutionRow: View {
     @State private var hovered = false
     @State private var excerpt: (source: JSONText, text: String)?
     @State private var visibility = ThreadCardAnimationVisibility(isVisible: false)
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: open) {
@@ -93,7 +92,7 @@ struct NativeReportExecutionRow: View {
         // The sidecard remains mounted when folded. Stop excerpt/clock work then.
         .onChange(of: visible, initial: true) { _, value in visibility.isVisible = value }
         .onDisappear { visibility.isVisible = false }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovered)
+        .animation(.easeOut(duration: 0.14), value: hovered)
     }
 }
 

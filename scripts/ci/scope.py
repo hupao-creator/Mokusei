@@ -27,7 +27,7 @@ def main():
         # README files inside a packaged Resources tree can be runtime inputs.
         # Keep the fast path limited to explicit documentation entry points.
         allowed = (name in {"AGENTS.md", "README.md", "CONTEXT.md", "internal/README.md",
-                           "app/macos/README.md", "tools/verification/README.md", "demos/README.md"}
+                           "app/macos/README.md", "demos/README.md"}
                    or (path.suffix == ".md" and path.parent.as_posix() in {".agents", "scripts/ci"}))
         # A renamed executable, symlink, embedded prompt or unknown file needs full CI.
         modes = [subprocess.check_output(["git", "ls-tree", ref, "--", name], text=True)
@@ -40,8 +40,8 @@ def main():
         output.write(f"documentation_only={str(docs_only).lower()}\n")
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
         summary.write("## Verification scope\n\n" + (
-            "Documentation-only diff: whitespace validation; native/build tests are not required for this scope.\n"
-            if docs_only else "Complete verification required.\n"))
+            "Documentation-only diff: whitespace validation; builds are not required for this scope.\n"
+            if docs_only else "Build, static and routine property checks required.\n"))
         summary.write(f"\nCompared `{base}` to `{head}`; {len(paths)} changed paths.\n")
 
 

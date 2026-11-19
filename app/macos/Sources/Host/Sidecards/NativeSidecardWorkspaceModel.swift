@@ -14,7 +14,6 @@ struct NativeSidecardWorkspaceConfiguration: Equatable {
     var executionReveal: SidecardExecutionReveal? = nil
     var mainReadingHistory = false
     var entranceReady = true
-    var reduceMotion = false
 }
 
 struct NativeSidecardExecutionHandoff: Equatable, Identifiable {
@@ -36,7 +35,8 @@ struct NativeSidecardWorkspaceCard: Identifiable {
 struct NativeSidecardWorkspaceSnapshot {
     let input: HarnessThreadInput
     let cards: [NativeSidecardWorkspaceCard]
-    let selected: JSONText?
+    let layoutSelection: JSONText?
+    var selected: JSONText? { entranceReady ? layoutSelection : nil }
     let lastSelected: JSONText?
     let selectionRevision: Int
     let transitioning: Bool
@@ -119,7 +119,7 @@ final class NativeSidecardWorkspaceModel {
         // directly in main; there is no visible source reader to promote.
         let canHandoff = sameReading && self.configuration.entranceReady && configuration.entranceReady
             && !configuration.suppressed && !configuration.executionDisabled
-            && !configuration.mainReadingHistory && configuration.input.thread.archived != true
+            && !configuration.mainReadingHistory
         if let handoff, !canHandoff || nextExecution?.executionID != handoff.executionID
             || configuration.input.thread.observation.isExecutionActive
             || configuration.enabledIDs?.contains(handoff.cardID) == false {
@@ -136,10 +136,7 @@ final class NativeSidecardWorkspaceModel {
             handoff = NativeSidecardExecutionHandoff(cardID: card.id, executionID: executionID)
         }
         if !self.configuration.entranceReady, configuration.entranceReady, selected != nil {
-            beginSelectionTransition(reduceMotion: configuration.reduceMotion)
-        } else if configuration.reduceMotion {
-            transitionTask?.cancel(); transitionTask = nil
-            transitioning = false
+            beginSelectionTransition()
         }
         self.configuration = configuration; self.services = services
         self.onBack = onBack; self.onVisibilityChange = onVisibilityChange
@@ -234,16 +231,15 @@ final class NativeSidecardWorkspaceModel {
         if selected != id {
             selected = id
             if let id { lastSelected = id }
-            if configuration.entranceReady { beginSelectionTransition(reduceMotion: configuration.reduceMotion) }
+            if configuration.entranceReady { beginSelectionTransition() }
         }
         needsReconciliation = true
         if !reconciling && dispatchDepth == 0 { reconcile() }
         return selectionRevision
     }
 
-    private func beginSelectionTransition(reduceMotion: Bool) {
+    private func beginSelectionTransition() {
         transitionTask?.cancel()
-        guard !reduceMotion else { transitionTask = nil; transitioning = false; return }
         transitioning = true
         transitionTask = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(NativeSidecardTiming.duration)) } catch { return }
@@ -284,7 +280,7 @@ final class NativeSidecardWorkspaceModel {
     }
 
     private func send(_ input: JSONValue) async throws -> SidecardSendReceipt {
-        guard !isReleased, !configuration.executionDisabled, configuration.input.thread.archived != true else {
+        guard !isReleased, !configuration.executionDisabled else {
             throw PluginContractError("This thread currently cannot accept input")
         }
         requestSequence += 1
@@ -320,7 +316,7 @@ final class NativeSidecardWorkspaceModel {
                     input: HarnessThreadInput(thread: input.thread, readingTarget: target),
                     presentation: .execution(executionID), routes: routes)
                     .disabled(disabled))
-            }, voice: services.voice,
+            },
             open: { [weak self] in self?.choose(id) ?? 0 },
             close: { [weak self] in self?.close(id) },
             selectionRevision: { [weak self] in self?.selectionRevision ?? 0 },
@@ -338,7 +334,7 @@ final class NativeSidecardWorkspaceModel {
                 guard self?.isReleased == false else {
                     if !staged.isEmpty {
                         do { try await discardAttachments(staged.map(\.id)) }
-                        catch { NSLog("Sidecard attachment cleanup failed after workspace release: %@", error.localizedDescription) }
+                        catch {  }
                     }
                     throw CancellationError()
                 }
@@ -408,16 +404,16 @@ final class NativeSidecardWorkspaceModel {
                 }
             }
             // A plugin can lose availability without a user action (execution
-            // completion, archive or reading-target change). Retire selection
+            // completion or reading-target change). Retire selection
             // before publishing so no unavailable card remains interactive.
             if let selected, !cards.contains(where: { $0.id == selected && $0.view.available }) {
                 _ = choose(nil)
             }
         } while needsReconciliation && passes < 16
-        // Keep plugin intent and execution ownership live, but publish folded
-        // geometry until the primary entrance and its first layout have committed.
+        // Size the main reader for the reconciled selection before its first
+        // visible document. The entrance gate still owns the card aperture.
         snapshot = NativeSidecardWorkspaceSnapshot(input: configuration.input, cards: cards,
-            selected: configuration.entranceReady ? selected : nil, lastSelected: lastSelected, selectionRevision: selectionRevision,
+            layoutSelection: selected, lastSelected: lastSelected, selectionRevision: selectionRevision,
             transitioning: transitioning, dragging: dragging, widths: widths,
             executionDisabled: configuration.executionDisabled,
             suppressed: configuration.suppressed || !configuration.entranceReady,

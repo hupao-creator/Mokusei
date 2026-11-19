@@ -151,14 +151,10 @@ actor NativeMarkdownParser {
         // Swift String keys merge canonically equivalent but byte-distinct URLs.
         let key = Data(source.utf8)
         if let cached = cache[key] {
-            NativePerformance.event(.markdownCache, values: ["hit": 1])
             order.removeAll { $0 == key }; order.append(key)
             return cached
         }
-        NativePerformance.event(.markdownCache, values: ["hit": 0])
-        let measurement = NativePerformance.begin(.markdownParse)
         let result = MarkdownParser.parse(source)
-        measurement?.end(values: ["bytes": Double(result.sourceBytes), "blocks": Double(result.blocks.count)])
         try Task.checkCancellation()
         if result.sourceBytes <= budget {
             cache[key] = result; order.append(key); bytes += result.sourceBytes

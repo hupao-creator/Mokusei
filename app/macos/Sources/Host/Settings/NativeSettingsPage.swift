@@ -60,7 +60,6 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
     @State private var animationVisits = NativeSettingsAnimationVisits()
     @Namespace private var tabSelection
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, preferences: DesktopPreferences, harnesses: [AnyHarnessPlugin],
                 applicationSections: [NativeApplicationSettingsSection] = [],
@@ -107,7 +106,6 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                       value: settingsContentHeight + detailOverflow
                         + NativeSettingsHeaderLayout.topInset + NativeSettingsHeaderLayout.rowHeight
                         + NativeSettingsHeaderLayout.bottomInset + 18 + 36)
-            .nativeLayoutLog("settings.page")
             .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
             // Settings scopes its dark appearance without recoloring the workspace.
@@ -125,14 +123,12 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             .background(SettingsNavigationInputObserver { keyboardNavigation = $0 })
             .onAppear {
                 model.draft.beginPageEditing()
-                model.draft.diagnostics.record(.page, .opened, revision: model.draft.revision)
                 navigation.mounted = true
                 focusedBack = true
                 model.confirmClear = false; model.operationError = nil
                 agentRegion.dismiss = { dismissAgent() }
             }
             .onDisappear {
-                model.draft.diagnostics.record(.page, .closed, revision: model.draft.revision)
                 navigation.mounted = false
                 agentRegion.stop(); mokuMotion.stop(); onCoordinatorFrame(nil, true)
                 animationVisits.reset()
@@ -276,7 +272,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                     .settingsTabAccessibilityAnchor(id: id).id(id)
             }
         }.padding(.horizontal, 4)
-            .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: activeSection)
+            .animation(.smooth(duration: 0.22), value: activeSection)
             .settingsTabListAccessibility(title: locale.text("设置分类", "Settings sections"), horizontal: true,
                 tabs: sections.map { id in
                     SettingsAccessibilityTab(id: id, title: sectionLabel(id), selected: activeSection == id, focused: focusedTab == id) {

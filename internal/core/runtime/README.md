@@ -4,6 +4,24 @@
 
 ## Threads and content
 
+Archive is a persisted **display-hidden** flag, independent of execution state.
+Ordinary Thread archive never deletes content/history, releases attachments,
+ends native sessions, interrupts foreground/background work, or revokes
+send, interaction, configuration, fork and explicit reading capabilities. New
+work on a hidden Thread leaves it hidden; a fork creates a new visible Thread.
+Normal inventory/Overview filters omit archives, while explicit reads and search
+with archive inclusion continue to use retained records. Moku conversation
+history has a separate `MokuHistory` read-only policy; it is not inferred from
+archive. Existing tag decoration freeze/reclassification on restore is unchanged.
+
+Application archive resolves persisted associated Thread identities within the
+same store writer transaction as the document flag. Super Thread references to
+older executions still hide the whole source Thread, including a newer active
+execution. Duplicate sources and already-hidden sources are idempotent; deleted
+sources stay absent. Invalid sources or storage failures roll back the whole
+change. No associated Super Thread/Collection is recursively archived, no links
+are removed, and restoring a report does not restore its sources.
+
 Moku note writes compare the note incarnation, content revision and
 `readingRevision` inside the store writer transaction. A mismatched basis returns
 the current note/evidence snapshot without changing the note. Full-exposure
@@ -19,15 +37,8 @@ attachment references after the database commit; startup and history reset first
 reconcile surviving Thread/private-session owners and then collect. The attachment
 service protects native drafts and live import processes independently, so failed
 admission does not consume a draft. Unreadable client ownership stops collection
-and is logged without preventing startup. See the
+without preventing startup. See the
 [attachment ownership contract](../../services/attachments/README.md).
-
-[tool_audit.go](tool_audit.go) wraps production Moku/Tag/Report injections at the
-shared native Open boundary, capturing execution/owner identity at callback entry.
-Logging, retry-metadata and diagnostic-classification failures preserve callback
-results and original callback panics. Composition supplies the separate
-[private journal sink](../../platform/diagnostics/README.md); coverage, redaction,
-retention and query limits are defined there.
 
 Ordinary Threads retain `executionTitles`, keyed by exact execution ID. A
 successful metadata completion commits its title and ownership atomically with
@@ -82,7 +93,7 @@ Runtime compares it with the authoritative latest execution after native-owner
 recovery, under the existing cancellation/admission gate. A mismatch returns
 `EXECUTION_CHANGED` before dispatch/reservation; ordinary follow-ups omit the
 field and keep their existing behavior. Historical continuation uses the same
-`ForkThread` ownership, archive, native-work and revision gates, with an opaque
+`ForkThread` ownership, native-work and revision gates, with an opaque
 Harness-owned `executionId` selector. Busy sources remain unavailable for fork;
 the caller retains its draft instead of steering the source or truncating it.
 
@@ -128,10 +139,9 @@ reject the save without changing settings. Actual cross-Harness replacement
 checks again and reserves the native admission boundary through old-owner
 cleanup and durable replacement. Its triggering queued Moku input may proceed
 on the new owner afterward. Private Report/Tag executions do not themselves
-block switching; an in-flight native admission still does. Unrelated settings
-retain their existing save behavior. Voice preparation adopts a saved Harness
-preference before preparing media; the preparation's own admission does not
-block that replacement, while any other concurrent admission still does.
+block switching; every in-flight native service admission still does. The
+replacement gate has no per-command admission exemption. Unrelated settings
+retain their existing save behavior.
 
 Every new Moku execution crosses the same `admitMokuExecution` guard in
 [threads.go](threads.go): initial Send, successor renewal after a proven
@@ -209,27 +219,18 @@ history and cannot substitute for successful-execution evidence.
 Command locks count both holders and waiters. Only the final lease release
 removes a lock, so deleting a thread cannot split concurrent callers across two
 mutexes. Cancellation gates retain live-session identity and pending send claims;
-a deleted session's gate is reclaimed after its final reference is released.
-History reset prunes unreferenced gates after removing durable session records.
-Unknown-ID requests do not retain gates. These contracts are exercised by
-`make check-modules`, including concurrent waiters and repeated deletion/reset.
+a deleted session's gate is reclaimed after its final reference is released. History reset prunes unreferenced gates after removing durable session records. Unknown-ID requests do not retain gates.
 
 ## Shutdown and history reset
 
 [service.go](service.go) revokes admission and drains participants and native owners before storage ownership is released. A protocol disconnect alone is not proof that a child process exited. Cleanup errors remain observable and prevent a replacement owner.
 
-History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner. Search workers and media participate in the same cancellation boundary.
+History clearing stops participants, restores sessions that require cleanup, drains native owners and rechecks public/private background observations before replacing history in one SQLite transaction. Settings survive a full clear. Failed cleanup preserves history and fences the generation; it does not silently erase uncertain native work or start another owner.
 
-Verification from the repository root:
-
-```sh
-./scripts/go.sh run -race ./tools/verification/runtime
-./scripts/go.sh run -race ./tools/verification/runtime-concurrency
-./scripts/go.sh run -race ./tools/verification/settings-shell
-./scripts/go.sh test -race ./internal/core/runtime
-```
-
-The [native settings launcher](../../../tools/verification/README.md) additionally exercises the Swift draft/save path against a real daemon.
+The [property boundaries](#property-boundaries) define Runtime admission, outbox
+and optional system coverage. [E2E observation](#e2e-observation) describes the
+selected mounted Settings/read journeys. The [verification index](../../../tools/verification/facts.md)
+separates implemented contracts, generated domains and actual run evidence.
 
 Automatic installation discovery uses `harness:detect-installation` with one
 Harness ID. Each response is independent and does not refresh the login shell.
@@ -253,31 +254,23 @@ that batch. `sendLockedAdmitted` rejects an idle lazy-only admission and does no
 renew it after an exact `ErrExecutionEnded` or `ErrFollowUpUnavailable`, so finishing races cannot start a
 run. Confirmed unconsumed idle/configuration results release their attempt fence;
 other uncertain native outcomes require the existing operator reconciliation.
-Native voice context synchronization shares this outbox through its admission
-owner, with removal only after the execution commit. Neither receipt proves model
-processing or task completion.
+An admission receipt does not prove model processing or task completion.
 
 Moku's `GrepThreads` reads the current profile's committed ordinary-thread cache,
 including archives and busy owners, excluding Moku/history and deleting owners.
-It supplies Harness-owned public passages to threadsearch independently of the
-Overview index, then fences returned hits by source hash. Directory Scope filters
+It supplies Harness-owned public passages to threadsearch without a derived
+index, then fences returned hits by source hash. Directory Scope filters
 reuse the existing scope resolver. No native history is opened. See the
 [grep contract](../../services/threadsearch/README.md#moku-deterministic-grep).
 
 Overview browsing does not apply agent-authored hidden-card markers. Retired visibility and reading-evidence records are left untouched; ordinary archive, execution eligibility and Report coverage still determine browsing membership.
-
-
-Thread voice calls are removed at the command authority boundary: prepare, start
-and heartbeat return `THREAD_VOICE_REMOVED`. Retained history, poll and Stop remain
-available without native Harness/model discovery. Global Overview Moku voice and
-ordinary text/attachment execution are independent; transcript storage is preserved.
 
 ## Moku recovery-only handles
 
 Stopping a restored Moku execution may open its native session before model
 catalog preparation, without any injection. Such an owner is marked
 `recoveryOnly`; it can restore/settle/interrupt but cannot admit new native work,
-receive user sends or interaction responses, or acquire a new native voice lease.
+receive user sends or interaction responses.
 Ordinary Thread recovery and existing fully prepared Moku handles are unchanged.
 
 A later Open/Send with injection does not retrofit the callback onto this owner.
@@ -291,9 +284,7 @@ injection, including tools, instructions, context and AdmitNewExecution.
 Concurrent Stop is fenced by the cancellation gate. Active/background recovery
 reports busy instead of being replaced; cancellation remains available. Native
 Accept on a recovery owner rejects before the configuration lock, so a Close
-performed by normal preparation cannot deadlock on such a callback. The native
-voice entry requires a prepared owner rather than creating an uninjected one.
-Fully prepared voice owners are not candidates for this replacement. Early send
+performed by normal preparation cannot deadlock on such a callback. Early send
 rejection remains explicitly unconsumed; interaction replies reject before
 claiming an answer. Cleanup failure leaves the owner fenced and prevents a new
 native owner from overlapping it. No new execution ID or input is reserved merely
@@ -311,13 +302,92 @@ Archived Threads retain frozen decoration and do not consume active membership;
 restoration clears assignment before emitting `thread.restored`. Actual title
 changes emit `thread.title-changed`, independently of execution terminal facts.
 
-Moku model routing presets are validated settings fields, participate in settings
-change diagnostics and configuration equality, and are captured at execution
+Moku model routing presets are validated settings fields, participate in
+configuration equality, and are captured at execution
 admission. Missing/custom keeps existing manual routing guidance. Selecting a
 preset preserves that guidance for later restoration; the Moku service owns
 general routing priorities and instruction generation.
 
-Thread search owns its derived keyword text in the authoritative store. History
-reset pauses search, clears derived documents and stamps in the replacement
-transaction, and resumes indexing new threads. See [search](../../services/threadsearch/README.md)
-for projections, ranking and lifecycle fences.
+## Property boundaries
+
+**PBT-MOKU-OUTBOX** drives the production delivery queue and attempt/admission
+transactions against SQLite. Generated lazy/waking deliveries, repeated IDs,
+captures, late arrivals, acknowledgements, confirmed rejections, uncertain
+errors and close/reopen schedules check stable sequence ordering, atomic attempt
+fences, exact-batch removal and restart-only reconciliation. A stale capture
+cannot claim an already attempted delivery. Uncertain outcomes stay fenced;
+only exact pre-consumption rejections release a live attempt. This property
+isolates the durable outbox; it does not establish native admission or scheduler
+wake behavior. See [the property](moku_delivery_property_test.go).
+
+**PBT-RUNTIME-ADMISSION.** The send worker retries only an exact
+`plugin.ErrExecutionEnded` for an unadmitted follow-up. `renewSendAdmission`
+requires the captured execution's durable terminal result before reserving one
+successor. Joined errors, rejection, cancellation, missing terminal evidence and
+post-admission failures do not authorize replay. `Admitted` is the acknowledgement
+boundary; each accepted input emits exactly one `thread.input-accepted` fact.
+A post-admission dispatch error may fail a newly reserved running execution but
+must preserve an existing terminal's identity, outcome and start time.
+
+The [generated admission schedule](../../../tools/verification/pbt/runtime/send_property_test.go)
+drives real Runtime and SQLite with a scripted native peer. Each case has 1–25
+accept/reject/end/end-reject/end-failure/end-cancel/invalid-retry/admitted-failure
+actions and generated completed/failed/interrupted native outcomes. The oracle
+checks acknowledgements, execution identity/status, native attempt count and
+event count after every action; closing the scripted owner joins workers before
+observation. It covers the send-return/terminal/cancellation seam, not real
+native processes, arbitrary concurrent clients or physical input.
+
+**PBT-SYSTEM-COMBINATION.** Composition connects Runtime, authenticated HTTP,
+Moku, Report, Tag and SQLite. The retained native system property exercises
+idempotent command receipts, scoped consumer effects, exact execution references,
+settings CAS, source-preserving reads/forks, interrupt fencing, deletion/clear and
+restart retention through these production boundaries. Archive is display-only:
+reads, follow-up and fork remain available. Generated archive/restore actions
+read public state after each report command and before issuing any individual
+Thread command. Archiving hides the report and its cited Threads. Restoring
+only shows the requested report. Other records keep their visibility and all
+identities remain present. The scenario checks native history content from an assistant reply,
+not merely a token in user input. A scripted loopback model provider is the
+external peer; it does not implement admission, tool handlers or domain writes.
+
+The [system property](../../../tools/verification/pbt/system/system_property_test.go)
+generates 1–3 scopes, independent no-fault/429/500/truncated-SSE choices for Moku,
+child, Report, Tag and read roles, 0–6 read/archive/unarchive/settings/followup/fork/
+interrupt actions, then optional delete and clear. Its oracle checks terminal
+convergence, empty delivery work, report ownership/exact execution evidence,
+scope/tag isolation, source preservation and unchanged retained facts after
+reopening the profile. These expectations correspond to the lifecycle/settings
+contracts above and the [Report](../../plugins/applications/report/README.md),
+[Tag](../../plugins/applications/tag/README.md) and [Moku](../../services/moku/README.md)
+module contracts. Active-delete/active-clear/recreate actions are outside this
+generator even though its scenario helper supports them. No Context acquisition,
+real model service, all Harness matrix or crash recovery is claimed.
+The model peer reads Report's lifecycle batch separately from its appended
+Statusbar. Tag discovery uses `read_statusbar`; `create_tag`/`assign_threads`
+carry the current revision and stable IDs from actual scoped tool results.
+Foreign-scope probes must be rejected. The fixture does not synthesize tag
+membership or bypass the production CAS/receipt path.
+
+Run `make pbt-go` for admission; `MOKUSEI_SYSTEM_CODEX=/absolute/path/to/codex
+make pbt-system` for the opt-in macOS system property. Missing CLI capability
+fails instead of skipping. The system scenario has a 90s total execution budget,
+30s convergence waits and bounded native discovery/cleanup; runner timeouts also
+bound generation/shrinking. See the [PBT guide](../../../tools/verification/pbt/README.md)
+for budgets, failure evidence and replay. System coverage requires an actual run;
+its source or successful compilation alone is not a pass.
+
+## E2E observation
+
+The [desktop interaction runner](../../../tools/e2e/README.md) uses authenticated
+`state:load` and scoped content subscriptions as independent observations.
+`E2E-READ-001` supplies an ordinary `thread:follow-up` while a real reader is
+mounted, then checks the successor and historical mounted execution identities.
+The follow-up receipt and exact scoped reply remain evidence; this input is
+external setup, not a composer UI action. `E2E-SETTINGS-001` changes a mounted
+preset control and closes Settings through its production gate before checking
+`settings.moku.routingPreset` and the reopened selection. The runner neither
+reads/writes SQLite directly nor uses private diagnostics. Runtime cancellation,
+restart/reconnect, race and admission invariants are outside these interaction
+scenarios; their ownership is PBT. Actual coverage is the selected scenario's
+run receipt, not the existence of these public commands.

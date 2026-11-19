@@ -99,9 +99,6 @@ import MokuseiHarnessCodex
     let reopened = try makeModel(DesktopPreferences(directory: directory))
     try deliver(records, to: reopened, authority: UUID())
     rows.append(snapshot("production-restored-open-history", model: reopened))
-    model.beginSearch(); model.updateSearch("的")
-    rows.append(snapshot("production-search-uncollected", model: model))
-    model.endSearch()
     // Exercise historical closes through the actual route recorder.
     model.recordApplicationOpen(first)
     model.recordApplicationClose(at: now.addingTimeInterval(-1200))

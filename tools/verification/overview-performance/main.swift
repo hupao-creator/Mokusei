@@ -113,11 +113,6 @@ private func snapshot(count: Int) throws -> JSONValue {
                 fixture.model.selectTag(i.isMultiple(of: 3) || filters.isEmpty ? nil : filters[i % filters.count])
             })
             fixture.model.selectTag(nil)
-            fixture.model.beginSearch()
-            records.append(measure("keyword-search", count: count, iterations: n) { i in
-                fixture.model.updateSearch(i.isMultiple(of: 2) ? "Café" : "no-match")
-            })
-            fixture.model.endSearch()
             guard fixture.model.items.count == count, fixture.model.error == nil else { throw Failure(message: "Final membership mismatch") }
             records.append(["scenario": "counters", "count": count, "membershipBuilds": fixture.model.membershipBuildCount])
             await fixture.close()

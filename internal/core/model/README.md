@@ -25,7 +25,9 @@ choice membership is enforced separately.
 
 Source: [commands.go](commands.go), [command_validation.go](command_validation.go), [validate.go](validate.go), [records.go](records.go), [state.go](state.go). The authenticated wire version belongs to [transport](../../platform/transport/README.md).
 
-Verification: `./scripts/go.sh run -race ./tools/verification/command-boundaries` from the repository root.
+The parsers and validators above are production boundaries. No executable
+command-boundary replay is configured in this source tree; see the
+[verification index](../../../tools/verification/facts.md).
 
 `ThreadNote` carries `readingRevision` and one server-owned `lastExposure` snapshot.
 An exposure is evidence that the exact nonempty revision completed foreground
@@ -79,7 +81,3 @@ base policy applies.
 `routingGuidance` retains the user's manual text independently while a preset is
 active. Runtime validates preset IDs and captures changes at the next Moku
 execution admission, alongside the existing configuration fields.
-
-`search:retry` is a zero-argument write command that wakes local keyword-index
-recovery. `search:status` and `search:query` remain read channels; their responses
-report indexed/pending counts and keyword hits.

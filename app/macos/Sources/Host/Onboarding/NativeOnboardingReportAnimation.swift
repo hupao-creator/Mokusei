@@ -6,7 +6,6 @@ struct NativeOnboardingReportAnimation: View {
     let locale: DesktopLocale
     var visitPlaybackStarted: Binding<Bool>? = nil
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var windowVisible = true
     @State private var phase = 0
@@ -20,7 +19,7 @@ struct NativeOnboardingReportAnimation: View {
         }
     }
     private var agents: [AnyHarnessPlugin] { Array(harnesses.prefix(3)) }
-    private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
+    private var active: Bool { windowVisible && scenePhase == .active }
     private var paper: Color { Color(white: colorScheme == .dark ? 0.17 : 1) }
 
     var body: some View {
@@ -44,7 +43,7 @@ struct NativeOnboardingReportAnimation: View {
         .accessibilityIdentifier("report-capability-animation")
         .background(NativeSettingsWindowVisibility { windowVisible = $0 })
         .task(id: active) {
-            guard NativeCapabilityPlayback.shouldPlay(active: active, reduceMotion: reduceMotion,
+            guard NativeCapabilityPlayback.shouldPlay(active: active,
                                                        started: Binding(get: { started }, set: { started = $0 })) else {
                 var final = Transaction(); final.disablesAnimations = true
                 withTransaction(final) { phase = 3 }

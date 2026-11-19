@@ -11,7 +11,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 )
 
 type recordReader struct {
@@ -230,11 +229,7 @@ func (r *recordReader) Put(collection, id string, value json.RawMessage, options
 	if err = r.tx.Put(recordKey(collection, id), result); err != nil {
 		return result, err
 	}
-	if definition, ok := r.host.typeForCollection(collection); ok && definition.Archive != nil && definition.Archive.Archived(model.ApplicationThreadRecord{VersionedRecord: result, Ref: model.ThreadRef{ThreadID: id, TypeID: definition.ID}}) {
-		if err = threadsearch.DeleteOwner(r.tx, recordKey(collection, id)); err != nil {
-			return result, err
-		}
-	}
+
 	if previous == nil {
 		ids := r.tx.Order(orderKey(collection))
 		ids = append(ids, id)
@@ -258,9 +253,6 @@ func (r *recordReader) Delete(collection, id string, expectedRevision int64) err
 	}
 	if previous == nil || previous.Revision != expectedRevision {
 		return errors.New("record revision conflict")
-	}
-	if err = threadsearch.DeleteOwner(r.tx, recordKey(collection, id)); err != nil {
-		return err
 	}
 	if err = r.tx.Delete(recordKey(collection, id)); err != nil {
 		return err

@@ -38,13 +38,8 @@ The plugin Overview capability exposes only read-only client context; the Tag
 Agent has no filter-selection tool or write adapter. The broker and native client
 selection protocol remain available independently of background classification.
 
-Verification from the repository root:
-
-```sh
-./scripts/go.sh run -race ./tools/verification/transport
-```
-
-`transport -swift-deltas` and `runtime -swift-voice` additionally use the actual Swift codecs and client.
+No transport/Swift-delta correctness replay is configured in this source tree.
+Go and Swift codecs remain the implemented wire boundary.
 
 After a semantic no-op, content subscriptions retain a fixed-size digest of
 the accepted encoded projection; visible changes disarm it so continuously
@@ -81,5 +76,3 @@ snapshot is authoritative on the same resource; the next patch uses that
 snapshot's revision as its base. Frame selection does not weaken queue
 backpressure: a representation that fits the frame can still fail with
 `CONTENT_BACKPRESSURE` for its client's bounded queue.
-The [reader projection replay and publication benchmark](../../../tools/verification/thread-detail-performance/README.md)
-measure this boundary independently of Harness projection and native rendering.

@@ -35,7 +35,7 @@ public struct NativeMokuTimerMessage: Equatable, Identifiable, Sendable {
     func stop()
 }
 
-/// Separate from voice media ownership; never changes the device/system volume.
+/// Never changes the device/system volume.
 @MainActor public final class NativeMokuTimerSound: NativeMokuTimerPlaying {
     private var sound: NSSound?
     public init() {}

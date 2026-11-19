@@ -197,9 +197,7 @@ func (r *Runner) Stop(ctx context.Context) error {
 	// Interrupt before joining a send/open that may be waiting for native I/O.
 	if handle != nil && busy(handle.Observation()) {
 		cleanup, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-		if err := handle.Interrupt(cleanup, nil); err != nil {
-			r.log("stop-interrupt", err)
-		}
+		_ = handle.Interrupt(cleanup, nil)
 		cancelCleanup()
 	}
 	select {
@@ -230,18 +228,12 @@ func (r *Runner) loop(ctx context.Context, done chan struct{}) {
 		}
 		for ctx.Err() == nil {
 			enabled, err := r.enabled()
-			if err != nil {
-				r.log("enabled", err)
-			}
 			if err != nil || !enabled {
-				if err := r.pause(); err != nil {
-					r.log("disabled-close", err)
-				}
+				_ = r.pause()
 				break
 			}
 			pending, err := r.consumer.Pending(plugin.PendingEventsQuery{Limit: 1})
 			if err != nil {
-				r.log("pending", err)
 				if !wait(ctx, 30*time.Second) {
 					return
 				}
@@ -294,16 +286,11 @@ func (r *Runner) loop(ctx context.Context, done chan struct{}) {
 			r.mu.Unlock()
 			if cancelled {
 				if errors.Is(context.Cause(attempt), errAgentDisabled) {
-					if err := r.pause(); err != nil {
-						r.log("pause-close", err)
-					}
+					_ = r.pause()
 				}
 				continue
 			}
 			if err != nil {
-				if ctx.Err() == nil {
-					r.log("process", err)
-				}
 				if !wait(ctx, 30*time.Second) {
 					return
 				}
@@ -317,9 +304,6 @@ func (r *Runner) loop(ctx context.Context, done chan struct{}) {
 // or start a second attempt while cleanup is still in progress.
 func (r *Runner) RefreshSettings() {
 	enabled, err := r.enabled()
-	if err != nil {
-		r.log("enabled", err)
-	}
 	if err != nil || !enabled {
 		r.mu.Lock()
 		if r.processCancel != nil {
@@ -355,20 +339,6 @@ func wait(ctx context.Context, duration time.Duration) bool {
 	}
 }
 func (r *Runner) process(shutdown context.Context) (returned error) {
-	started := time.Now()
-	stage := "initialize"
-	batch := false
-	defer func() {
-		// Before admission there is no durable attempt count. The batch error
-		// handler below owns diagnostics once work has been acquired.
-		if returned != nil && !batch {
-			outcome := "failed"
-			if shutdown.Err() != nil {
-				outcome = "cancelled"
-			}
-			r.diagnose(outcome, stage, -1, started, returned)
-		}
-	}()
 	ctx, cancel := context.WithTimeout(shutdown, runTimeout)
 	defer cancel()
 	defer func() {
@@ -398,7 +368,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 	}
 	work := r.consumer.Work()
 	if work == nil {
-		stage = "pending"
 		events, err := r.consumer.Pending(plugin.PendingEventsQuery{Limit: batchSize})
 		if err != nil {
 			return err
@@ -410,7 +379,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		for _, event := range events {
 			ids = append(ids, event.ID)
 		}
-		stage = "begin"
 		created, err := r.consumer.Begin(ctx, ids)
 		if err != nil {
 			var failure *model.Error
@@ -423,10 +391,8 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 	}
 	counted := false
 	recovered := false
-	batch = true
 	var plan BatchPlan
 	finish := func(outcome string) error {
-		stage = "finish"
 		current := r.consumer.Work()
 		if current == nil || current.ID != work.ID {
 			return errors.New("Background batch replaced")
@@ -464,26 +430,19 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 				if current != nil && current.ID == work.ID && current.Attempts > 0 {
 					current.Attempts--
 					cleanup, cancel := context.WithTimeout(context.WithoutCancel(shutdown), 30*time.Second)
-					updateErr := r.updateWork(cleanup, current)
+					_ = r.updateWork(cleanup, current)
 					cancel()
-					if updateErr != nil {
-						r.log("pause-work", updateErr)
-					}
 				}
 			}
-			r.diagnose("cancelled", stage, work.Attempts, started, returned)
 			returned = nil
 			return
 		}
-		r.diagnose("failed", stage, work.Attempts, started, returned)
 		r.mu.Lock()
 		handle := r.handle
 		r.mu.Unlock()
 		if handle != nil {
 			cleanup, cleanupCancel := context.WithTimeout(shutdown, 30*time.Second)
-			if err := handle.Interrupt(cleanup, nil); err != nil {
-				r.log("cleanup-interrupt", err)
-			}
+			_ = handle.Interrupt(cleanup, nil)
 			cleanupCancel()
 			if err := r.dispose(); err != nil {
 				returned = errors.Join(returned, err)
@@ -509,7 +468,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		}
 		returned = r.consumer.Update(shutdown, plugin.LifecycleWorkUpdate{ID: current.ID, EventIDs: current.EventIDs, Attempts: attempts, NextAttemptAt: time.Now().Add(5 * time.Second * time.Duration(1<<exponent)).UnixMilli(), ExecutionID: current.ExecutionID})
 	}()
-	stage = "read-events"
 	entries, err := r.ReadEvents(ctx, work.EventIDs)
 	if err != nil {
 		return err
@@ -519,7 +477,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		events = append(events, entry.LifecycleEvent)
 	}
 	if r.behavior.Prepare != nil {
-		stage = "prepare"
 		plan, err = r.behavior.Prepare(ctx, BatchRequest{BatchID: work.ID, Events: events})
 		if err != nil {
 			return err
@@ -528,7 +485,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 	if plan.Skip && work.ExecutionID == "" {
 		return finish("processed")
 	}
-	stage = "read-session"
 	session, err := r.sessions.Read(r.sessionKey())
 	if err != nil {
 		return err
@@ -548,7 +504,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 			return finish("failed")
 		}
 		work.Attempts++
-		stage = "update-work"
 		if err = r.updateWork(ctx, work); err != nil {
 			return err
 		}
@@ -556,7 +511,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 	}
 	var handle plugin.PrivateSessionHandle
 	for {
-		stage = "open-session"
 		prepared, err := r.ensureInstance(ctx)
 		if err != nil {
 			return err
@@ -565,7 +519,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		observation = handle.Observation()
 		execution = observation.LatestExecution
 		if work.ExecutionID != "" && execution != nil && execution.ExecutionID == work.ExecutionID && (execution.Status == "completed" || busy(observation)) {
-			stage = "settlement"
 			if err = r.waitForSettlement(ctx, handle, work.ExecutionID); err != nil {
 				return err
 			}
@@ -578,13 +531,11 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		// still needs replacement for this batch. Interrupt can also leave
 		// native background work alive, which must drain through Close first.
 		if busy(observation) {
-			stage = "interrupt"
 			if err = handle.Interrupt(ctx, nil); err != nil {
 				return err
 			}
 		}
 		if busy(handle.Observation()) {
-			stage = "dispose-orphan"
 			if err = r.dispose(); err != nil {
 				return err
 			}
@@ -595,7 +546,6 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 			return finish("failed")
 		}
 		work.Attempts++
-		stage = "update-work"
 		if err = r.updateWork(ctx, work); err != nil {
 			return err
 		}
@@ -604,12 +554,10 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 	if plan.Events != nil {
 		events = plan.Events
 	}
-	stage = "send"
 	admission, err := r.sendEvents(ctx, handle, work.ID, events, false)
 	if err != nil {
 		return err
 	}
-	stage = "settlement"
 	if err = r.waitForSettlement(ctx, handle, admission.ExecutionID); err != nil {
 		return err
 	}
@@ -635,9 +583,7 @@ func (r *Runner) settleStale(ctx context.Context) error {
 	}
 	handle := prepared.handle
 	if busy(handle.Observation()) {
-		if err = handle.Interrupt(ctx, nil); err != nil {
-			r.log("stale-interrupt", err)
-		}
+		err = handle.Interrupt(ctx, nil)
 		if busy(handle.Observation()) {
 			return r.dispose()
 		}
@@ -710,12 +656,7 @@ func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, erro
 	opening, cancel := context.WithCancel(lifetime)
 	stop := context.AfterFunc(ctx, cancel)
 	bindings := r.behavior.Tools(opening)
-	handle, err = r.sessions.Open(opening, plugin.OpenSessionRequest{SessionKey: r.sessionKey(), Injection: plugin.Injection{Instructions: r.behavior.Instructions, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: bindings, AuditContext: func() plugin.ToolRetryContext {
-		if work := r.consumer.Work(); work != nil {
-			return plugin.ToolRetryContext{ConsumerID: r.consumer.ID(), BatchID: work.ID, Attempt: work.Attempts, BatchExecutionID: work.ExecutionID}
-		}
-		return plugin.ToolRetryContext{}
-	}}}})
+	handle, err = r.sessions.Open(opening, plugin.OpenSessionRequest{SessionKey: r.sessionKey(), Injection: plugin.Injection{Instructions: r.behavior.Instructions, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: bindings}}})
 	stop()
 	if err != nil {
 		cancel()
@@ -743,9 +684,7 @@ func (r *Runner) pause() error {
 	r.mu.Unlock()
 	if handle != nil && busy(handle.Observation()) {
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(lifetime), 30*time.Second)
-		if err := handle.Interrupt(cleanup, nil); err != nil {
-			r.log("pause-interrupt", err)
-		}
+		_ = handle.Interrupt(cleanup, nil)
 		cancel()
 	}
 	return r.dispose()
@@ -872,16 +811,6 @@ func (r *Runner) waitForSettlement(ctx context.Context, handle plugin.PrivateSes
 		case <-wake:
 		}
 	}
-}
-func (r *Runner) log(stage string, err error) {
-	outcome := "failed"
-	r.mu.Lock()
-	stopping := r.ctx != nil && r.ctx.Err() != nil
-	r.mu.Unlock()
-	if stopping && errors.Is(err, context.Canceled) {
-		outcome = "cancelled"
-	}
-	r.diagnose(outcome, stage, -1, time.Time{}, err)
 }
 
 func (r *Runner) sessionKey() string {

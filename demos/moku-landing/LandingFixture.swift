@@ -64,8 +64,7 @@ import MokuseiPluginAPI
         let selected = outcome
         prompt = submission.text.isEmpty ? "整理选中的目录与附件" : submission.text
         running = true; status = "Moku 已收到输入 · 正在派发"
-        let pending = operation(completed: false, success: false)
-        precondition(NativeMokuDispatch(operation: pending, executionIsActive: true)?.phase == .dispatching)
+
         try await Task.sleep(for: .milliseconds(1300))
         while selected == .waiting && captured == epoch {
             try await Task.sleep(for: .milliseconds(100))
@@ -115,7 +114,6 @@ struct LandingSurface: View {
     let fixture: LandingFixture
     var showsDock = true
     var dockOpacity = 1.0
-    var glassWorld = true
     var body: some View {
         NativeMokuScene(state: fixture.scene) {
             GeometryReader { geometry in
@@ -124,7 +122,7 @@ struct LandingSurface: View {
                 ZStack {
                     NativeOverviewCanvas(items: fixture.items, sceneKey: fixture.filteredEmpty ? "filtered" : "all", state: fixture.canvas,
                         toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
-                        cloudAnimationsEnabled: false, glassWorld: glassWorld, interactionPaused: fixture.scene.interactionPaused) { _ in
+                        cloudAnimationsEnabled: false, interactionPaused: fixture.scene.interactionPaused) { _ in
                         HarnessThreadCard(identity: .init(title: "优化 landing page",
                             harness: .init(brandKey: fixture.dispatchHarness.descriptor.id.string,
                                 label: fixture.dispatchHarness.descriptor.displayName.string, logoSource: fixture.dispatchHarness.logoSource),
@@ -156,7 +154,6 @@ struct LandingSurface: View {
                     .accessibilityHidden(dockOpacity < 1)
             }
         } settings: { EmptyView() }
-        .overlay(alignment: .topLeading) { NativeWindowNavigationView(action: nil) }
         .coordinateSpace(name: "workspace")
         .modifier(NativeWorkspaceWindowSurface())
         .environment(\.locale, Locale(identifier: "zh-Hans"))

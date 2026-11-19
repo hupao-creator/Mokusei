@@ -21,9 +21,9 @@ selector; the Runtime rejects execution, settings changes and unarchive attempts
 and retained overrides. Missing values decode as true; false round-trips with
 both modes, and changing a mode/profile preserves the switch.
 
-[SidecardPlugin.swift](SidecardPlugin.swift) defines descriptors, thread-bound context, lifetime, intent routing, file/attachment and voice capabilities. Plugins return content while the host owns outer size, suppression and transitions. `openURL`, compose and send notifications are semantic intents; sibling plugins do not call one another by identity. The built-in Conversation display accepts no compose/send intent; reading follow-up routes open the Host-owned detail Moku composer. Availability changes retire an expanded Sidecard before the next Host snapshot. A voice capability exposes a private read-only discussion, not a send action against the source task.
+[SidecardPlugin.swift](SidecardPlugin.swift) defines descriptors, thread-bound context, lifetime, intent routing, file/attachment capabilities. Plugins return content while the host owns outer size, suppression and transitions. `openURL`, compose and send notifications are semantic intents; sibling plugins do not call one another by identity. The built-in Conversation display accepts no compose/send intent; reading follow-up routes open the Host-owned detail Moku composer. Availability changes retire an expanded Sidecard before the next Host snapshot.
 
-[Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser/Voice modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.
+[Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.
 
 `ApplicationExecutionReferencesUI.subscribe` takes the exact execution references
 whose source facts the renderer consumes. The host routes changed Thread IDs and
@@ -40,7 +40,10 @@ execution references capability, preserving the Harness's appearance-specific co
 [SemanticTagLabel.swift](SemanticTagLabel.swift) validates names and emoji maps using the generated pinned table. [HarnessGitStatus.swift](HarnessGitStatus.swift) supplies typed worktree facts to standard card extensions without turning Git into a Harness-specific feature.
 Its `lineStatsError` describes a failed statistics attempt independently of a
 stale whole-worktree read. Unknown totals have no numeric value; known zeroes
-remain ordinary counts. The host validates paired totals and errors at the wire
+remain ordinary counts. `isActive` excludes known zero added/deleted totals before
+Host projection and card sizing, regardless of changed-file count or HEAD. Either
+positive total admits the extension; unknown/failed totals keep the existing
+changed-file/error presentation. The host validates paired totals and errors at the wire
 boundary before supplying these facts to Harnesses.
 
 Presentation implementations use [PluginUI](../PluginUI/README.md). New plugins implement these boundaries and are composed explicitly rather than adding hidden global discovery.
@@ -53,7 +56,7 @@ available, selected and unsuppressed card publishes a request. Losing selection,
 covering or release retires it; callbacks remain fenced to their owning operation
 and reading visit. Browser uses this for annotation descriptions; execution
 Sidecards continue to own no composer. See the
-[annotation input contract](../../../../../design/browser-annotation-resident-input.md).
+[annotation input contract](../../../../../design/composer.md).
 
 `ClientWebNavigation.localFileURL` parses absolute local paths and local `file:`
 URLs once, retaining literal spaces/Unicode and file-URL query/fragment escapes.
@@ -78,6 +81,12 @@ prefetched before any editor mounts. Editors join the resource's pending read;
 unmounting a global editor keeps its typed presentation cached. Source changes
 invalidate pending results, while disconnect/reload or scope removal releases
 the resource. Thread settings sessions still belong to their mounted editor.
+`settingsPresentationIssue` lets each Harness identify a decoded but unusable
+presentation without mounting an editor: CLI/catalog errors and unfinished model
+availability are distinct from transport completion. The host uses that result
+alongside execution-snapshot readiness for onboarding admission and bounded
+background retries. Empty catalogs remain plugin-specific (Claude permits custom
+identifiers).
 
 [SidecardAttachmentImport.swift](SidecardAttachmentImport.swift) provides lifetime-bound device-local file/byte staging plus the runtime attachment policy. Browser annotations retain the existing URL-only staging capability. Agent detail input uses the Host-owned Moku composer and its attachment service; Conversation is an execution display.
 
@@ -147,15 +156,14 @@ execution label when absent), never the current Thread title. Missing historical
 preview data stays absent rather than borrowing the latest execution. Preview
 text is capped at 600 characters; a non-running execution with no end time is
 shown as unknown duration rather than ticking indefinitely. Super Thread relations
-now obtain authoritative exact-execution state/timing from `report.relations`,
+obtain authoritative exact-execution state/timing from `report.relations`,
 separate from current Thread state. Bounded native previews remain exact-ID-only.
-
 
 ### Application overview collections
 
 `ApplicationThreadPlugin.overviewCollection` is optional native presentation
-policy: an elapsed last-close interval and a footprint. The Host computes one
-collection per opted-in type in the current browsing filter; it does not publish
+policy: an elapsed last-close interval and a footprint. The Host computes up to one
+collection per opted-in type under the [current filter's cell budget](../../Host/Overview/README.md#viewed-application-collections); it does not publish
 or persist a collection entity. `collectionCard` receives the exact member
 snapshots, each with its own scoped capabilities/context, initial selection,
 visibility/foreground gate, selection callback and real-reference open callback.

@@ -11,7 +11,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 )
 
 func (r *Runtime) initializePublication() error {
@@ -180,10 +179,6 @@ func (r *Runtime) projectMutation(snapshot store.Snapshot) (model.AppState, mode
 			mutation.SettingsRevision = &next.SettingsRevision
 		}
 	}
-	next.SearchRevision = threadsearch.Revision(snapshot)
-	if next.SearchRevision != r.baseline.SearchRevision {
-		mutation.SearchRevision = &next.SearchRevision
-	}
 	if keys := snapshot.ChangedKeys(previous, "tag-redirects:"); len(keys) > 0 {
 		next.TagRedirects = make(map[string]*string, len(r.baseline.TagRedirects))
 		for key, target := range r.baseline.TagRedirects {
@@ -272,7 +267,6 @@ func (r *Runtime) projectChangedThread(snapshot store.Snapshot, id string) (mode
 		if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
 			entry.record.SessionState, err = harness.SessionState().ProjectRenderer(model.CloneRaw(thread.SessionState), model.RendererScope{Kind: "overview"})
 			if err != nil {
-				r.log("catalog.projection", err)
 				entry.record.SessionState = json.RawMessage("null")
 				entry.hash = ""
 				if r.publicationRetries == nil {

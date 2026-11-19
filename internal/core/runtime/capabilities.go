@@ -32,7 +32,7 @@ func (c capabilityAccess) Require(key plugin.CapabilityKey) (any, error) {
 	return value, nil
 }
 func (r *Runtime) RuntimeCapabilities(pluginID string) plugin.CapabilityAccess {
-	values := map[string]any{plugin.OrdinaryTaskReadCapabilityKey.ID: taskReadCapability{runtime: r, binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}, plugin.SemanticTagsReadCapabilityKey.ID: tagsReadCapability{r, directorytag.InboxScope}, plugin.SemanticTagsWriteCapabilityKey.ID: tagsWriteCapability{runtime: r, source: pluginID, scope: directorytag.InboxScope}, plugin.ClassificationReadCapabilityKey.ID: classificationCapability{r}, plugin.LifecycleCapabilityKey.ID: scopedLifecycle{base: r.lifecycle, owner: plugin.BackgroundAgentRef{PluginID: pluginID, AgentID: pluginID, Binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}}}
+	values := map[string]any{plugin.OrdinaryTaskReadCapabilityKey.ID: taskReadCapability{runtime: r, binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}, plugin.SemanticTagsReadCapabilityKey.ID: tagsReadCapability{r, directorytag.InboxScope}, plugin.SemanticTagsWriteCapabilityKey.ID: tagsWriteCapability{runtime: r, source: pluginID, scope: directorytag.InboxScope}, plugin.LifecycleCapabilityKey.ID: scopedLifecycle{base: r.lifecycle, owner: plugin.BackgroundAgentRef{PluginID: pluginID, AgentID: pluginID, Binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}}}
 	for id, value := range r.config.ExtraCapabilities {
 		values[id] = value
 	}
@@ -213,51 +213,4 @@ func threadTags(t model.ThreadRecord) model.TagProjection {
 	}
 	tags := append(append([]string{}, semantic...), directory...)
 	return model.TagProjection{Tags: tags, SemanticTags: semantic, DirectoryTags: directory, TagEmojis: t.TagEmojis}
-}
-
-type classificationCapability struct{ runtime *Runtime }
-
-func (c classificationCapability) CaptureList(ctx context.Context, includeArchived bool) ([]plugin.ClassificationThreadSnapshot, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if host, ok := c.runtime.config.Applications.(interface {
-		ClassificationList(store.Snapshot, bool) ([]plugin.ClassificationThreadSnapshot, error)
-	}); ok {
-		return host.ClassificationList(c.runtime.config.Store.Snapshot(), includeArchived)
-	}
-	return []plugin.ClassificationThreadSnapshot{}, nil
-}
-func (c classificationCapability) Get(ctx context.Context, ref model.ThreadRef) (*plugin.ClassificationThreadSnapshot, error) {
-	all, err := c.CaptureList(ctx, true)
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range all {
-		if item.Ref == ref {
-			return &item, nil
-		}
-	}
-	return nil, nil
-}
-func (c classificationCapability) CaptureEvidence(ctx context.Context, ref model.ThreadRef) (plugin.ClassificationEvidenceSnapshot, error) {
-	thread, err := c.Get(ctx, ref)
-	if err != nil {
-		return plugin.ClassificationEvidenceSnapshot{}, err
-	}
-	if thread == nil {
-		return plugin.ClassificationEvidenceSnapshot{}, errors.New("unknown classification thread")
-	}
-	if ref.TypeID == "agent" {
-		history, err := taskReadCapability{runtime: c.runtime, binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}.CaptureHistory(ctx, ref)
-		return plugin.ClassificationEvidenceSnapshot{Thread: *thread, Content: history.Content}, err
-	}
-	if contributor, ok := c.runtime.config.Applications.(interface {
-		ClassificationEvidence(store.Snapshot, model.ThreadRef) (plugin.ClassificationEvidenceSnapshot, error)
-	}); ok {
-		evidence, err := contributor.ClassificationEvidence(c.runtime.config.Store.Snapshot(), ref)
-		thread.EvidenceRevision = evidence.Thread.EvidenceRevision
-		return plugin.ClassificationEvidenceSnapshot{Thread: *thread, Content: evidence.Content}, err
-	}
-	return plugin.ClassificationEvidenceSnapshot{}, errors.New("application does not provide classification evidence")
 }

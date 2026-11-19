@@ -10,7 +10,7 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
     let handoff: NativeSidecardExecutionHandoff?
     let destinationSize: CGSize
     let workspaceSize: CGSize
-    let reduceMotion: Bool
+    let immediate: Bool
     let onComplete: (UUID) -> Void
     let onInputTargetChange: (ThreadConversationInputTarget?) -> Void
     @ViewBuilder let content: Content
@@ -26,7 +26,7 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
     func updateNSView(_ view: ExecutionHandoffReaderView, context: Context) {
         view.update(content: AnyView(content), environment: context.environment,
             handoff: handoff, destinationSize: destinationSize, workspaceSize: workspaceSize,
-            reduced: reduceMotion, onComplete: onComplete, onInputTargetChange: onInputTargetChange)
+            immediate: immediate, onComplete: onComplete, onInputTargetChange: onInputTargetChange)
     }
     static func dismantleNSView(_ view: ExecutionHandoffReaderView, coordinator: ()) { view.retire() }
 }
@@ -58,7 +58,7 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
     required init?(coder: NSCoder) { nil }
 
     func update(content: AnyView, environment: EnvironmentValues, handoff: NativeSidecardExecutionHandoff?,
-                destinationSize: CGSize, workspaceSize: CGSize, reduced: Bool,
+                destinationSize: CGSize, workspaceSize: CGSize, immediate: Bool,
                 onComplete: @escaping (UUID) -> Void,
                 onInputTargetChange: @escaping (ThreadConversationInputTarget?) -> Void) {
         self.onComplete = onComplete
@@ -88,7 +88,7 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
         if let outgoing, let outgoingContent { outgoing.host.rootView = root(outgoingContent, seat: outgoing, active: false) }
         layoutSeats()
         if let handoff, handoff.travelComplete, handoff.contentReady, !landed {
-            if reduced || resized { finish(handoff.id) }
+            if immediate || resized { finish(handoff.id) }
             else if !pageStarted { turnPage(handoff.id) }
         }
     }

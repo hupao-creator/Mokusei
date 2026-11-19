@@ -83,6 +83,8 @@ public final class NativeComposerDraft {
                 savedRevision = saved.revision
                 directoryRevisions = Dictionary(uniqueKeysWithValues: directories.map { ($0.path, UUID()) })
             }
+        } catch let failure as RuntimeError where failure.code == "DRAFT_STORAGE_INVALID" {
+            // Leave the saved record alone and keep the editor available.
         } catch { self.error = error.localizedDescription }
         restoring = false
         Self.owners.removeAll { $0.value == nil }

@@ -3,9 +3,9 @@ import SwiftUI
 /// The persistent character host samples this authored path and owns its clocks
 /// and handoffs.
 enum NativeMokuRunningGeometry {
-    static func sample(milliseconds: Double, capsuleSize: CGSize, cornerRadius: CGFloat, still: Bool) -> MokuRunningFrame {
+    static func sample(milliseconds: Double, capsuleSize: CGSize, cornerRadius: CGFloat) -> MokuRunningFrame {
         let path = orbitPath(in: capsuleSize, cornerRadius: cornerRadius)
-        return MokuRunningStory.sample(time: milliseconds / MokuRunningStory.beatMS, still: still,
+        return MokuRunningStory.sample(time: milliseconds / MokuRunningStory.beatMS,
             restingY: 300 + (capsuleSize.height / 2 + 5.5) / 0.075, restingSpacing: 8 / 0.075) { angle in
             let phase = (angle - .pi / 2) / (2 * .pi)
             let progress = (phase.truncatingRemainder(dividingBy: 1) + 1).truncatingRemainder(dividingBy: 1)

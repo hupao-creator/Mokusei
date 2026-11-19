@@ -15,7 +15,6 @@ struct NativeOnboardingTagAnimation: View {
         let harnesses: [String]
     }
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var windowVisible = true
     @State private var viewport = CGSize(width: 560, height: 250)
@@ -29,7 +28,7 @@ struct NativeOnboardingTagAnimation: View {
             else { playbackStarted = newValue }
         }
     }
-    private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
+    private var active: Bool { windowVisible && scenePhase == .active }
 
     var body: some View {
         if !harnesses.isEmpty { animation }
@@ -47,7 +46,7 @@ struct NativeOnboardingTagAnimation: View {
             .task(id: Playback(size: viewport, dark: colorScheme == .dark, active: active, locale: locale, harnesses: harnesses.map { $0.descriptor.id.string })) {
                 staticFrameReady = false
                 scene.prepare(size: viewport, dark: colorScheme == .dark, harnesses: harnesses, locale: locale)
-                guard NativeCapabilityPlayback.shouldPlay(active: active, reduceMotion: reduceMotion,
+                guard NativeCapabilityPlayback.shouldPlay(active: active,
                                                            started: Binding(get: { started }, set: { started = $0 })) else {
                     scene.organize(animated: false)
                     // Let SpriteKit draw updated textures before pausing its renderer,
@@ -117,7 +116,7 @@ struct NativeOnboardingTagAnimation: View {
         (locale.text("设计登录页面", "Refine login UI"), 0, 0), (locale.text("优化搜索体验", "Improve search"), 1, 1), (locale.text("整理用户访谈", "Review interviews"), 2, 2),
         (locale.text("补充使用指南", "Write user guide"), 3, 1), (locale.text("执行回归检查", "Run regression"), 4, 0), (locale.text("调整窗口布局", "Arrange windows"), 0, 2),
         (locale.text("接入模型接口", "Connect models"), 1, 0), (locale.text("分析竞品体验", "Compare products"), 2, 1), (locale.text("更新开发文档", "Update dev docs"), 3, 2),
-        (locale.text("修复会话恢复", "Restore sessions"), 4, 1), (locale.text("打磨标签样式", "Polish tag style"), 0, 0), (locale.text("支持语音输入", "Add voice input"), 1, 2),
+        (locale.text("修复会话恢复", "Restore sessions"), 4, 1), (locale.text("打磨标签样式", "Polish tag style"), 0, 0), (locale.text("完善搜索结果", "Refine search results"), 1, 2),
         (locale.text("调研快捷操作", "Explore shortcuts"), 2, 0), (locale.text("整理版本说明", "Write release notes"), 3, 1), (locale.text("排查窗口焦点", "Fix window focus"), 4, 2)
     ] }
     static let arrivals: [(index: Int, pause: Int)] = [

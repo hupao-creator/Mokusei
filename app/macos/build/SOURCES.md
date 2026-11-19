@@ -8,9 +8,8 @@ target resolution (at least 1024 pixels), then downsamples before ImageIO and
 the macOS `iconutil` tool encode the result. Pixels outside the tile and its
 shadow remain transparent.
 
-The design was rebuilt from the user-supplied screenshot
-`539BE5D3-EEAE-4F5B-885E-F2B43B279C80.jpg`, replacing the previous procedural
-green-and-gold four-circle icon. The screenshot's dark blue background, compression
+The procedural design uses the user-supplied screenshot
+`539BE5D3-EEAE-4F5B-885E-F2B43B279C80.jpg` as a visual reference. The screenshot's dark blue background, compression
 artifacts and pixels are not included, and regeneration needs no image or font
 inputs. The screenshot is a visual reference only and is not stored in this
 repository. Its original author and license were not supplied; procedural
@@ -44,23 +43,3 @@ sips -g pixelWidth -g pixelHeight -g hasAlpha \
 
 Use a fresh output directory for each extraction. Inspect both the 1024-pixel
 master and small Dock/Finder sizes; the outer padding must stay transparent.
-
-## Replaced asset and historical scope
-
-The previous icon in baseline `a42e44c9943260e36ab4876f3619a43e5f20ec9b`
-was byte-identical to Git blob `eab908a5f38610fbe5403b36322757a395065010`,
-introduced as `apps/desktop/build/icon.icns` by commit
-`d053cfc89f6665579ec7f7e2c26987aeed77e987` ("Use Osmie artwork for desktop
-package icons"). That commit describes selected botanical artwork but supplies no
-author, original source or license. The name "Osmie" alone proves neither
-third-party origin nor project ownership. The older procedural icon generator
-from `8979607b91139aaaf4dd0679540a388f490ab694` produced a different asset and
-cannot establish the replaced icon's provenance.
-
-That historical icon was replaced because that evidence is insufficient to assert
-permission to redistribute the old artwork. This replacement does not remove
-the old blob from Git history. Before publishing historical commits, the
-publisher must either establish permission for that asset or exclude that
-history from the public repository. The current generated source snapshot has
-no dependency on the old artwork. No historical copyright ownership is inferred
-from this replacement.

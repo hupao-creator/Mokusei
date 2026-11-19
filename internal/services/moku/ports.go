@@ -63,8 +63,6 @@ type Configuration struct {
 	ReplaceSession           func(context.Context, string, SessionConfiguration) (model.ThreadRecord, error)
 	ConfigureSession         func(context.Context, string, int64, SessionConfiguration) error
 	OpenSession              func(context.Context, string, *plugin.Injection) error
-	SyncNativeContext        func(context.Context, plugin.VoiceContextSync, []plugin.ContextEntry) error
-	SetNativeAdmission       func(string, func(context.Context) error) error
 	CloseSession             func(context.Context, string) error
 	// onAdmitted runs after durable running observation and before native execution
 	// resumes. It must run once for each successful user admission, also follow-ups.
@@ -76,7 +74,7 @@ type Configuration struct {
 	SubscribeDiagnostics      func(func(string)) func()
 	CreateThread              func(context.Context, CreateThreadRequest) (CreatedThread, error)
 	SendThread                func(context.Context, string, model.AgentInput) (SendResult, error)
-	ReadThread                func(context.Context, string, string) (string, error)
+	AskThread                 func(context.Context, string, string) (string, error)
 	InterruptThread           func(context.Context, string) error
 	InterruptThreadTarget     func(context.Context, string, string) (model.CancellationResult, error)
 	ClaimThreadInput          func(context.Context, string) (context.Context, context.CancelFunc, error)
@@ -86,15 +84,6 @@ type Configuration struct {
 	CollectContext            func(context.Context, string, model.Settings) ([]plugin.ContextEntry, error)
 	SuperThreadContext        func(context.Context, string) (json.RawMessage, error)
 	Ledger                    func(string) plugin.TelemetryLedger
-	PrepareNativeVoice        func(context.Context, string, []plugin.ContextEntry) (plugin.VoiceSession, error)
-	Voice                     plugin.VoiceCapability
-	// VoicePreparationContext returns a Moku-lifetime context that retains the
-	// preparing command's admission identity without its cancellation. Applying
-	// a pending host preference during preparation must not count that same
-	// admission as competing work.
-	VoicePreparationContext func(service, command context.Context) context.Context
-	CompletedReply          func(string, string) (string, bool)
-	ReportFailure           func(string, error)
 	// Tool interruption carries provenance; user cancellation and teardown do not.
 	InterruptThreadFromMokuTool func(context.Context, string) error
 }
@@ -103,9 +92,4 @@ type SubmitRequest struct {
 	DirectoryTag     *string          `json:"directoryTag,omitempty"`
 	DirectoryScopeID *string          `json:"directoryScopeId,omitempty"`
 	SuperThreadID    *string          `json:"superThreadId,omitempty"`
-	VoiceInput       *struct {
-		SessionID   string `json:"sessionId"`
-		OwnershipID string `json:"ownershipId"`
-		InputID     string `json:"inputId"`
-	} `json:"voiceInput,omitempty"`
 }

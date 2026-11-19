@@ -1,9 +1,7 @@
 # Bundled native fonts
 
-These files preserve the font versions used by the former Electron renderer
-(`apps/desktop/src/renderer/src/fonts.css`, no longer in this checkout).
-They are the original npm package WOFF2 files decompressed to OpenType TrueType (not redrawn,
-replaced, or converted to static weights). Their `wght` variation axes remain available to CoreText.
+These bundled OpenType TrueType files derive from the Fontsource WOFF2
+packages listed below. Their `wght` variation axes remain available to CoreText.
 The source licenses are included alongside the fonts.
 
 | Native file | Existing source package | Font version | Weight axis |
@@ -29,42 +27,9 @@ source URLs and license records retain their upstream values; registering a loca
 family name does not change the font's authorship or OFL license.
 
 AppKit/CoreText performs system fallback for glyphs beyond the original fonts' coverage
-(including CJK), as the browser does. A native probe verified `Ж`, `Ω`, `ạ`, and `Ā` resolve
-to the appropriate JetBrains subset, while `中` resolves to PingFang SC.
+(including CJK), as the browser does. Glyphs outside bundled coverage use CoreText system fallback; the exact
+CJK family depends on the installed platform fonts.
 `NativeTypography` never substitutes the complete Inter or JetBrains family with a system font.
-
-Historical conversion recipe, with FontTools and Brotli installed. The
-`node_modules/.pnpm` paths below refer to the original asset-authoring environment
-and are not supplied by this native checkout. These TTFs are already bundled;
-ordinary development and packaging do not install npm packages or run this recipe:
-
-```python
-from pathlib import Path
-from fontTools.ttLib import TTFont
-
-for family in ("inter", "jetbrains-mono"):
-    source = Path(f"node_modules/.pnpm/@fontsource-variable+{family}@5.3.0/node_modules/@fontsource-variable/{family}/files/{family}-latin-wght-normal.woff2")
-    font = TTFont(source)
-    font.flavor = None
-    font.save(f"app/macos/Sources/Shared/PluginUI/Resources/fonts/{family}-latin-wght-normal.ttf")
-
-for subset in ("cyrillic-ext", "cyrillic", "greek", "vietnamese", "latin-ext"):
-    source = Path(f"node_modules/.pnpm/@fontsource-variable+jetbrains-mono@5.3.0/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-{subset}-wght-normal.woff2")
-    font = TTFont(source)
-    font.flavor = None
-    suffix = "".join(part.title() for part in subset.split("-"))
-    rename_ids = {1, 3, 4, 6, 16, 17, 18, 21, 22, 25}
-    rename_ids.update(instance.postscriptNameID for instance in font["fvar"].instances
-                      if instance.postscriptNameID != 0xFFFF)
-    for record in font["name"].names:
-        if record.nameID not in rename_ids:
-            continue
-        value = record.toUnicode().replace("JetBrainsMono", f"MokuseiJetBrainsMono{suffix}")
-        value = value.replace("JetBrains Mono", f"Mokusei JetBrains Mono {suffix}")
-        if value != record.toUnicode():
-            record.string = value.encode(record.getEncoding())
-    font.save(f"app/macos/Sources/Shared/PluginUI/Resources/fonts/jetbrains-mono-{subset}-wght-normal.ttf")
-```
 
 Source SHA-256:
 

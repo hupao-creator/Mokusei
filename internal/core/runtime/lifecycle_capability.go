@@ -97,11 +97,10 @@ func (l *lifecycleCapability) Subscribe(ctx context.Context, scope plugin.Lifecy
 				snapshot := l.runtime.config.Store.Snapshot()
 				events, err := reader.Read(snapshot)
 				if err != nil {
-					l.runtime.log("lifecycle.subscribe", err)
 					continue
 				}
 				for _, event := range events {
-					safeLifecycleCallback(func() { listener(publicEvent(event)) }, l.runtime.log)
+					safeLifecycleCallback(func() { listener(publicEvent(event)) })
 				}
 			}
 		}
@@ -118,9 +117,6 @@ func (c *lifecycleConsumer) Work() *plugin.LifecycleWork {
 }
 func (c *lifecycleConsumer) work(snapshot store.Snapshot) *plugin.LifecycleWork {
 	work, exists, err := snapshot.Work(c.ID())
-	if err != nil {
-		c.cap.runtime.log("lifecycle.work", err)
-	}
 	if err != nil || !exists {
 		return nil
 	}
@@ -268,7 +264,6 @@ func (c *lifecycleConsumer) Subscribe(ctx context.Context, listener func(plugin.
 			}
 			pending, err := c.pending(snapshot, plugin.PendingEventsQuery{})
 			if err != nil {
-				c.cap.runtime.log("lifecycle.consumer", err)
 				return
 			}
 			notification := plugin.LifecycleNotification{Pending: pending, Work: c.work(snapshot)}
@@ -287,7 +282,7 @@ func (c *lifecycleConsumer) Subscribe(ctx context.Context, listener func(plugin.
 				return
 			}
 			previous = raw
-			safeLifecycleCallback(func() { listener(notification) }, c.cap.runtime.log)
+			safeLifecycleCallback(func() { listener(notification) })
 		}
 		publish()
 		for {
@@ -304,12 +299,8 @@ func (c *lifecycleConsumer) Subscribe(ctx context.Context, listener func(plugin.
 	}()
 	return stop, nil
 }
-func safeLifecycleCallback(callback func(), log func(string, error)) {
-	defer func() {
-		if reason := recover(); reason != nil {
-			log("lifecycle.listener", fmt.Errorf("listener panic: %v", reason))
-		}
-	}()
+func safeLifecycleCallback(callback func()) {
+	defer func() { _ = recover() }()
 	callback()
 }
 func publicEvent(e store.Event) plugin.LifecycleEvent {

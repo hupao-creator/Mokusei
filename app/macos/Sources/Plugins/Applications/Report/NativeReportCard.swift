@@ -9,39 +9,78 @@ import SwiftUI
     let projection: NativeReportCardProjection
     let openThread: () -> Void
     var showsCover = true
+    var coverPlayback: NativeReportCoverPlayback = .playing
+    var coverReplayID = 0
+    var coverInitiallyFinished = false
+    var onCoverPlaybackCompleted: (ApplicationThreadRef, JSONText, Int) -> Void = { _, _, _ in }
     var usesGlassBadge = false
+    var showsArchiveAction = false
     var allowsActions: () -> Bool = { true }
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
     @State private var failure: String?
     @State private var unsubscribe: (() -> Void)?
     @State private var archivePending = false
+    @State private var archiveFailure: String?
     private var locale: JSONText { props.context.locale }
     var body: some View {
-        Button {
-            if allowsActions() { openThread() }
-        } label: {
-            VStack(spacing: 4) {
-                if showsCover && props.entry.view.hasCover {
-                    NativeReportCover(props: props)
-                        .frame(height: 308)
-                        .allowsHitTesting(false).accessibilityHidden(true)
+        card
+            .overlay(alignment: .topTrailing) {
+                if showsArchiveAction {
+                    Button { Task { await archive() } } label: {
+                        Group {
+                            if archivePending {
+                                ProgressView().controlSize(.small).accessibilityHidden(true)
+                            } else {
+                                NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 13)
+                            }
+                        }.frame(width: 32, height: 32).contentShape(Circle())
+                    }.buttonStyle(.plain)
+                        .foregroundStyle(NativePalette.overview.ink.swiftUI)
+                        .background(NativePalette.overview.surface.swiftUI, in: Circle())
+                        .disabled(archivePending || !allowsActions())
+                        .accessibilityLabel((archivePending ? applicationText(locale, "处理中…", "Working…") : archiveLabel)
+                            + " · " + props.entry.title.string)
+                        .help(archivePending ? applicationText(locale, "处理中…", "Working…")
+                            : applicationText(locale, "隐藏此 Super Thread 及其关联的 Threads；运行中的任务继续执行。",
+                                              "Hide this Super Thread and its related threads; running tasks continue."))
+                        .padding(12)
                 }
-                metadata
-            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .clipShape(RoundedRectangle(cornerRadius: 22))
-                .contentShape(Rectangle())
+            }
+        .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
+        .onDisappear { unsubscribe?(); unsubscribe = nil }
+        .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; subscribe() }
+        .onChange(of: props.entry.ref) { _, _ in requestedReferences = props.entry.view.relatedExecutions; subscribe() }
+    }
+    private var archiveLabel: String {
+        applicationText(locale, props.entry.archived ? "恢复 Super Thread" : "归档 Super Thread",
+                        props.entry.archived ? "Restore Super Thread" : "Archive Super Thread")
+    }
+    private var card: some View {
+        Button {
+            if allowsActions(), !archivePending { openThread() }
+        } label: {
+            GeometryReader { geometry in
+                VStack(spacing: 4) {
+                    if showsCover && props.entry.view.hasCover {
+                        NativeReportCover(props: props, playback: coverPlayback, replayID: coverReplayID,
+                                          initiallyFinished: coverInitiallyFinished, onPlaybackCompleted: onCoverPlaybackCompleted)
+                            .frame(height: NativeReportCoverLayout.height(for: geometry.size.width))
+                            .allowsHitTesting(false).accessibilityHidden(true)
+                    }
+                    metadata
+                        .padding(.top, showsArchiveAction && !(showsCover && props.entry.view.hasCover) ? 44 : 0)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .contentShape(Rectangle())
+            }
         }.buttonStyle(.plain).foregroundStyle(NativePalette.overview.ink.swiftUI)
             .environment(\.threadCardUsesFlatMaterials, true)
             .contextMenu {
-                Button(applicationText(locale, props.entry.archived ? "恢复报告" : "归档报告", props.entry.archived ? "Restore report" : "Archive report")) {
+                Button(archiveLabel) {
                     Task { await archive() }
                 }.disabled(archivePending || !allowsActions())
             }
-            .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
-            .onDisappear { unsubscribe?(); unsubscribe = nil }
-            .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; subscribe() }
-            .onChange(of: props.entry.ref) { _, _ in requestedReferences = props.entry.view.relatedExecutions; subscribe() }
     }
     private var metadata: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -66,7 +105,7 @@ import SwiftUI
                 .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
             ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
-            if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
+            if let failure = archiveFailure ?? failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
         }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .threadCardBadge {
                 ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
@@ -109,8 +148,8 @@ import SwiftUI
         do {
             try await props.context.capabilities.require(ApplicationCapabilities.threadUserActions)
                 .setArchived(!props.entry.archived, JSONText(UUID().uuidString), props.context.lifetime)
-            failure = nil
-        } catch { failure = error.localizedDescription }
+            archiveFailure = nil
+        } catch { archiveFailure = error.localizedDescription }
     }
     private func updatedLabel(now: Date) -> String {
         let updated = Date(timeIntervalSince1970: props.entry.updatedAt / 1_000)

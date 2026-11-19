@@ -8,8 +8,15 @@ applying it, so slow catalog discovery does not block a prompt save and a newer
 edit wins a recovery race. User input retains the full admission gate through
 native acknowledgment; recovery itself never submits a task.
 The coordinator's serial queue observes cancellation while waiting, so abandoned
-input and voice preparation release their claims before a slow owner finishes.
+inputs release their claims before a slow owner finishes.
 Cancellation of a waiter does not interrupt the admitted owner.
+
+**PBT-MOKU-QUEUE** exercises the production admission queue with 1–8 generated
+cohorts of 1–12 waiters and cancellation subsets. A held owner provides a barrier:
+cancelled waiters must return before that owner releases, surviving waiters must
+enter exclusively, and the same queue must remain usable for subsequent cohorts.
+The [property](admission_property_test.go) does not assume FIFO scheduling or set
+a user-experience latency budget; its 3s deadline is a deadlock guard.
 
 If an execution ends while preparing its follow-up, Runtime checks saved versus
 applied settings before admitting a successor. The coordinator prepares fresh
@@ -32,20 +39,33 @@ contract even when native tool-schema conversion drops composition details.
 Moku retains the same named-target schema and authoritative validation; Pi,
 OpenCode and Claude continue receiving their existing definitions.
 
-[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
+[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `ask_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and queries retain bounded, explicit public access. `ask_thread` makes a model request against an ordinary Agent Thread history fork or captured snapshot; it does not return raw history, send a message to the source, or change source state. The snapshot can be stale and is not a live status query. Terminal events arrive automatically; do not poll for progress or readiness.
 
 Tool scopes follow the current Moku Thread's monotonic record revision, not the
 arrival order of commit callbacks. A delayed note or metadata notification cannot
 cancel a successor's tools or revive a completed execution's scope. Reinstalling
 configuration for the same Thread preserves that revision floor; replacement
 and restart initialize it from the adopted Thread. Older terminal facts still
-settle their own audit rows and voice replies independently of scope authority.
+settle their own audit rows independently of scope authority.
 
-Production tools also use the shared [private invocation journal](../../platform/diagnostics/README.md).
-Transcript operations keep host `callId`/`id` meanings and additionally carry
-`invocationId` and `harnessCallId` for correlation. Callback-entry failures before
-transcript insertion are journaled, with explicit coverage and payload limits.
-Journal retention/redaction is independent of conversation history.
+Tool-operation transcripts are business records, written under the captured Moku
+execution. [tools.go](tools.go) assigns host `id`, `callId` and `invocationId` at
+insertion, retains the native `harnessCallId` when supplied, and records arguments
+and completion results. These identities do not depend on a private log sink.
+A callback rejected before transcript insertion has no operation row; its error
+returns through the tool bridge. Result-recording failures remain tool faults.
+
+**PBT-MOKU-SCOPE** generates valid execution histories with running, waiting and
+terminal observations, then delivers their commit callbacks in arbitrary order
+with duplicates. Only the highest observed owner revision may control tools;
+superseded contexts are cancelled and stale callbacks cannot revive them.
+Same-owner configuration installation preserves the revision floor, while a new
+owner establishes its own floor. [The property](scope_property_test.go) calls the
+production coordinator transitions, using 1–12 executions and bounded callback
+permutations. It checks cancellation authority, not provider I/O, transcript
+contents, physical UI interaction or timing. Run `make pbt-go`; seed/evidence
+controls are in the [PBT guide](../../../tools/verification/pbt/README.md).
+
 
 Moku guidance defaults to managed `worktree:true` for tasks in a committed Git workspace, even without parallel tasks. It reserves `false` for tasks without an eligible Git workspace, explicit requests for the existing checkout, or tasks requiring its uncommitted changes or live state. Moku creates the managed worktree through `create_thread` rather than delegating worktree creation to the Agent. This is model guidance, not an enforced boolean default.
 
@@ -53,16 +73,14 @@ Every `create_thread` call supplies `worktree` as a boolean. `false` uses an exp
 
 Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. All built-in targets expose their native options in the initial creation schema; Moku does not need an on-demand discovery call to compare Harnesses. Cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
 
-[Native catalog evidence and limits](catalog-evidence.md) records the authoritative
-paths investigated and the remaining availability constraint. Moku requires both
-completed enumeration and affirmative **source completeness**; a nonempty list,
-terminated pagination, initialization, waiting or stable fingerprints cannot
-substitute for source evidence. The current built-in adapters do not expose a
-source attestation this implementation can authenticate. Their enumeration
-results remain usable for ordinary explicit-model validation, but cannot seed a
-trusted Moku routing cache. Without a trusted matching snapshot, Moku refuses
-to start and reports every selected target's failure. This is deliberate fail-closed
-behavior, not a claim that full-directory availability has been achieved.
+Moku uses each selected Harness's nonempty native response inventory for routing.
+[Model catalog metadata](../../core/plugin/model_catalog.go) separates completed
+enumeration from source completeness: native caches/fallbacks remain usable;
+unproven remote completeness remains false. Configuration identity fences reuse,
+and actual creation validates native options again. This does not attest remote
+source completeness or current execution availability.
+
+See [native catalog evidence and limits](catalog-evidence.md).
 
 Every new execution crosses Runtime's common `admitMokuExecution` boundary:
 initial Send, renewal after exact unconsumed `ErrExecutionEnded`, and native
@@ -102,7 +120,7 @@ configuration/account inputs. Bounded dependency scanning strengthens the key;
 if scanning fails it falls back to root-file generations with a degraded marker.
 Cancellation still rejects and a detected source change fences publication.
 Arbitrary imports, custom credential helpers and remote/MDM policy are not thereby
-proven; their unknown provenance no longer prevents native inventory routing.
+proven; unknown provenance does not prevent native inventory routing.
 Settings changes still participate in final Runtime admission. No system-prompt
 or tool-use instruction is added by discovery; directory data stays in schemas.
 
@@ -114,15 +132,11 @@ are explicitly described as potentially outdated, not current availability.
 These limitations do not turn
 an unknown/empty directory into a complete one.
 
-A successful matching cache hit does not wait for a native catalog fetch.
-A miss discovers the native inventory rather than rejecting unknown provenance.
-Host
+A successful matching cache hit does not wait for a native catalog fetch. A miss discovers the native inventory rather than rejecting unknown provenance. Host
 execution-profile preparation and local launch/dependency resolution remain
 separate costs. Native enumeration still has its existing bounds (OpenCode:
-30-second native timer and 55-second full probe, plus joined cleanup).
-Resolving local binaries and checking dependency fingerprints is separate work;
-unchanged Codex binary-version facts no longer expire merely with catalog TTL.
-No timing measurement or native replay was performed for this Sprint.
+30-second native timer and 55-second full probe, plus joined cleanup). Resolving local binaries and checking dependency fingerprints is separate work;
+unchanged Codex binary-version facts remain cached independently of catalog TTL.
 
 Both creation/follow-up prompt schemas carry target-routing guidance: explicit
 user choices take precedence over general routing guidance and belong under the single Harness key in `create_thread.target`. Moku addresses the receiving Agent
@@ -151,8 +165,7 @@ lines; it has no abbreviations, URLs or embedded periods.
 [Coordinator preparation](coordinator.go) injects that string as its only built-in
 `Injection.Instructions` entry, independently of the number of target Harnesses.
 `DescribeThreadCreation` supplies tool schemas, not an additional instruction
-block or prose target roster. No removed instructions are relocated into context,
-tool descriptions or another Agent's prompt.
+block or prose target roster. Tool schemas and context remain separate instruction/data boundaries.
 
 The three-sentence budget is **not a cap on the provider's entire model input**:
 
@@ -163,7 +176,7 @@ The three-sentence budget is **not a cap on the provider's entire model input**:
 - Existing tool descriptions and schemas retain their full contracts: exact
   native options and catalog status, routing, worktree naming, Talk/Timer
   limits, note evidence and compare-and-swap rules, and bounded Thread queries.
-  Those contracts already existed separately and are unchanged by this budget.
+  Their size is independent of the three-sentence base-prompt budget.
 - `ContextEntries` contain session-start workspace context and before-send note,
   directory, telemetry, evaluation and notification context, including runtime
   interpretation/safety guidance and variable user or native text; they have
@@ -175,31 +188,24 @@ The three-sentence budget is **not a cap on the provider's entire model input**:
   travels in messages or native system configuration, so even without routing
   guidance the complete native system/developer payload can exceed three sentences.
 - Native engines/providers may supply their own system instructions, workspace
-  instructions or session history; separate voice frontend/relay instructions
-  are also outside this Moku coordinator budget and remain unchanged.
+  instructions or session history outside this Moku coordinator budget.
 
-Detailed wording about character budgets, emoji, Talk expiry and layout, note
-compaction/evidence, native options and worktree names is no longer duplicated
-in the base prompt; its existing tool contract remains authoritative. The base
-omits detailed channel selection, target routing, worktree rules, dispatch
-confirmation, terminal-event waiting and the reminder that Runtime handles voice
-delivery; existing tool guidance is unchanged, not expanded to absorb removals.
-Tag, Report, ordinary Agent instructions and shared Harness serializers are unchanged.
-Updated guidance takes effect when a Moku native session is prepared; existing
-native histories are not rewritten.
+Talk/Timer limits, Note evidence, native options and worktree naming live in
+their tool contracts. The three-sentence base prompt does not duplicate those
+contracts. Native session preparation injects current guidance; stored native
+history retains its original messages.
 
 ## Talk and notes
 
 The built-in prompt states that Moku's own assistant replies are invisible.
 Visible surfaces remain Talk, Timer, the persistent note and ordinary Agent
-Threads, including Moku's delegated instructions; their detailed usage is no
-longer enumerated in the base prompt. Anything the user needs to know or respond
+Threads, including Moku's delegated instructions; their detailed usage lives in tool contracts. Anything the user needs to know or respond
 to must reach a visible surface: Talk for short
 immediate answers, questions, confirmations and updates; the note for persistent
 milestone recaps; and the relevant Agent Thread for detailed task discussion and
-deliverables. Runtime voice delivery remains separate.
+deliverables.
 
-`talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions, including coordination reached through voice; the built-in Moku prompt does not duplicate that policy. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
+`talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions, the built-in Moku prompt does not duplicate that policy. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
 
 `timer(text)` is an immediate, one-time communication tool alongside `talk`.
 It uses the same closed text-only envelope, **160 Unicode code-point** budget,
@@ -235,7 +241,7 @@ history reset. Host replacement preserves the note and its one exact old-text
 exposure; clear revokes exposure but retains the incarnation.
 
 [context.go](context.go) adds a bounded JSON note state before every outgoing
-Moku input, including user, task-event and voice paths. An absent or cleared note
+Moku input, including user and task-event paths. An absent or cleared note
 is explicit. It carries the current text, basis and at most one exact exposed
 earlier version. The evidence is presentation, not approval; useful decisions,
 constraints, unresolved work and pending review remain eligible for the recap.
@@ -243,47 +249,13 @@ The state is not copied into the transcript. Talk supplies short immediate
 updates. The [Dock](../../../app/macos/Sources/Host/MokuScene/README.md) owns
 presentation and viewport evidence collection.
 
-## Context and voice
+## Context
 
 Moku collects registered [Context contributions](../../hosts/contexthost/README.md) at their declared hooks. Harness-native model/account facts retain their owners.
 
 Outgoing workspace context reads the Thread catalog only when a directory tag
 needs resolving. Explicit directory mentions and inputs without a directory tag
 do not load unrelated Thread histories.
-
-[voice.go](voice.go) owns media leases and device/owner fencing. A Codex Moku uses its native voice capability and fails if unavailable; it does not fall back to a relay. Other hosts use the Codex relay with their normal target admission. Preparation adopts a saved host preference first; its own service admission is not treated as competing work for that replacement. Ending Moku media leaves already admitted task work running. Typed dispatch and accepted handoffs fence old delivery; caption fragments do not create a new task generation. See [Codex voice](../../plugins/harness/codex/README.md#voice) and the [native media client](../../../app/macos/Sources/Voice/README.md).
-
-Native preparation propagates its underlying error, preserving caller-visible
-failure identity.
-
-Relay requests still waiting for target admission belong to the media lease and
-leave the queue when that lease ends. Once the native admitted callback confirms input retention, the service owns
-the request independently of media cancellation. Before that callback, closing
-media cancels settings, context and native-admission waits as well.
-
-Relay media belongs to the Moku conversation and survives same-owner model,
-routing and target-schema changes. Reopening the task engine retains the media
-identity and exact spoken-result ownership. Native media belongs to its native
-handle; replacing the Moku Thread or explicitly stopping voice still retires
-media and waits for cleanup.
-Before reopening a same-owner handle, Moku captures pending terminal replies
-from that handle. Delayed terminal handling can therefore deliver the exact
-native reply after replacement, rather than losing it or substituting a summary.
-
-Native voice does not admit a new task with pending execution configuration.
-The authenticated owner can continue its existing call through configuration
-reconnection. A captured handoff is eligible for automatic resubmission only
-when the adapter confirms that no Core execution or injected tool was admitted
-and the retired native process has drained. Cleanup failure, explicit media stop
-or lost ownership revokes that recovery. Unknown native failures remain errors,
-never permission to repeat a potentially consumed request.
-Native Moku speech waits for the same device's delivery-ID readiness receipt
-before producing audio. Duplicate receipts cannot replay the reply, and media
-stop/generation retirement cancels waiting speech. This handshake gives the
-client a playback boundary without guessing ordering between sideband polling
-and WebRTC events; relay and private-discussion speech keep their existing path.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/moku` and `./scripts/go.sh test -race ./internal/services/moku` from the repository root. The runner also exports production-shaped Talk/dispatch/note records for native UI replays.
 
 ## Durable system notifications
 
@@ -300,10 +272,9 @@ local and drains during shutdown.
 
 Direct user input to an ordinary Thread writes a **lazy** system notification in
 that input's successful admission transaction. Idle Moku keeps it queued without
-starting an execution. The next ordinary Moku input (typed, relay voice, or a
+starting an execution. The next ordinary Moku input (typed input or a
 wake-producing terminal fact) carries pending lazy notifications as separate
-system context, preserving the original user input and its transcript. Native
-voice syncs the same context before admitting its next execution. The shared
+system context, preserving the original user input and its transcript. The shared
 notification formatter preserves the direct-to-thread warning: the child has
 already received this input; Moku must neither resend it nor treat it as a new
 request addressed to itself.
@@ -327,14 +298,12 @@ for an active follow-up or the next independently triggered execution. Thread
 deletion and full history reset remove queued notifications; changing Moku's
 Harness preserves them for its replacement conversation.
 
-Before entering native Send or syncing native voice context, Runtime persists an
+Before entering native Send, Runtime persists an
 uncertain attempt for the selected batch. A transport
 failure or crash in this interval cannot prove whether the provider consumed the
 notification, so these entries are retained and never automatically replayed.
-For native voice, context sync alone is not a receipt: removal follows Core
-execution admission. A later run failure does not replay an already admitted
-notification. Admission proves retention, not that the model read or acted on it. Moku
-reports `moku-delivery-uncertain` with the recovery command. Use authenticated
+A later run failure does not replay an already admitted
+notification. Admission proves retention, not that the model read or acted on it. Use authenticated
 `moku:deliveries` with no arguments to inspect pending facts. Restart the runtime
 to fence the old native workers, inspect the native conversation, then invoke
 `moku:resolve-delivery` with one object containing `id` and `decision`:
@@ -343,9 +312,7 @@ to fence the old native workers, inspect the native conversation, then invoke
 the current runtime cannot reconcile its own uncertain attempts. Exactly-once
 provider effects cannot be guaranteed without provider idempotency support.
 
-Uncertainty is currently operator-visible through the Runtime diagnostic log
-(`moku-delivery-uncertain` under the profile's `runtime/debug-logs`) and the
-authenticated Runtime command API. It is not published as Talk, a client error
+Uncertainty is operator-visible through the authenticated Runtime command API. It is not published as Talk, a client error
 banner or a recovery button, and these commands are not Moku tools. Invoke
 `moku:deliveries` with `args: []` to inspect retained entries. After restarting
 the Runtime and checking the native conversation, invoke `moku:resolve-delivery`
@@ -387,7 +354,7 @@ their separate capabilities and never supply tool provenance. Batch attempts and
 ordered per-thread success/error results retain their existing semantics.
 
 `grep_threads` is an admitted, audited deterministic read, distinct from the
-model-based `read_thread`. Runtime limits it to current-profile ordinary Agent
+model-based `ask_thread`. Runtime limits it to current-profile ordinary Agent
 Threads, including archived threads by default. It supports literal/RE2 searches,
 body/title selection and intersecting thread-ID/Directory-Scope filters. Follow
 `nextCursor` even when a page has no hits; missing coverage is explicit and must
@@ -397,7 +364,6 @@ See [grep defaults, bounds and pagination](../threadsearch/README.md#moku-determ
 It is not a progress-polling capability.
 Invalid grep patterns and cursors remain caller-correctable errors through the
 existing tool audit/bridge, while cancellation and Runtime faults remain faults.
-
 
 ## Super Thread send source
 
@@ -411,33 +377,6 @@ summaries remain untrusted evidence. Source resolution failure preserves the dra
 and prevents a context-free send. Inputs without this identity explicitly clear
 previous Super Thread source context; no catalog/history enumeration is added to
 ordinary user submits. Lifecycle delivery and model discovery are unchanged.
-
-Global voice preparation rejects `superThreadId`: live voice is offered only in
-Overview, and thread readers retain text/attachment input. Each global media Attempt
-still has immutable ownership/source-generation facts for reconnection. The native
-client closes local media on leaving Overview and requires explicit Start after
-confirmed cleanup when returning. Existing typed Super Thread context is unchanged.
-
-Explicit Stop records a device/ownership preparation revocation before queue waits,
-including when no prepare has arrived. That identity and reconnect-from identity
-cannot prepare again for this coordinator lifetime; new calls use new UUIDs. The
-client joins the original prepare Task and performs a final identity-fenced Stop
-after its outcome, so an early Stop receipt cannot hide a late allocated session.
-Cleanup failure retains the exact ownership/session for retry and blocks new Start.
-The service does not evict these ephemeral revocations before its lifetime ends.
-
-The native admission hook receives `plugin.WithVoiceAdmission` only for actual
-Codex voice handoffs. It validates that exact session against the active/retiring
-lease and rejects revoked voice. Codex background replies, Claude native starts and
-OpenCode automatic continuations carry no marker and continue through their normal
-Core admission; lack of a microphone lease does not reject those executions.
-
-Relay/recovered input retains media cancellation through settings/context/Core
-admission until native retention is confirmed. Recovered request/source pairs and
-accepted task work keep their existing lifetimes. Typed text/attachments capture
-playback fences before suspension; a vanished or mismatched media owner cannot
-redirect or block their ordinary submission. No tests or timing replays ran during
-this sprint.
 
 ## Model routing preferences
 
@@ -458,5 +397,16 @@ Native creation schemas and admission still own available model choices.
 settings. The coordinator appends nonempty guidance after the base prompt with the
 `Model routing guidance:` prefix. Explicit user Harness/model/thinking choices
 still take precedence through the creation/follow-up tool contracts.
-`tools/verification/moku` exercises real SQLite
-save/restart, retained custom text and production coordinator instruction injection.
+
+## E2E preparation
+
+The [desktop interaction runner](../../../tools/e2e/README.md) prepares
+`E2E-READ-001` by submitting through public `moku:submit`. A deterministic
+loopback Responses peer requests the real injected `create_thread` tool through
+the real Codex CLI. A fresh profile and usable native model/default directory
+are prerequisites; Report/Tag and other Harnesses are disabled through public
+settings. Tool admission alone does not establish completion: preparation waits
+for the public terminal execution and checks exact output through a scoped
+content subscription. `creation.json`, `initial-content.json` and
+`initial-oracle.json` retain these facts. This is setup for UI interaction,
+not a Moku property suite or evidence of real provider/model behavior.

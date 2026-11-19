@@ -521,7 +521,14 @@ def pixels(root, plan, observation, frames, times, result, mark):
                 onset = load(root/'launch.json')['requestedNS']
                 content = [r[0] for r in rows if r[0]>=onset and r[1]
                            and any('BENCH BODY' in t['text'] for t in r[3])]
+                first_content = min(content) if content else None
+                absent = [requests[r[0]] for r in rows if first_content and onset <= r[0] < requests[first_content]
+                          and not (r[1] and any('BENCH BODY' in t['text'] for t in r[3]))]
                 result['metrics']['presentation'] = {
+                    'firstContentSecondsBounds': {'lower': max(0, (max(absent)-onset)/1e9) if absent else 0,
+                                                 'upper': (first_content-onset)/1e9} if first_content else None,
+                    'launchMode': 'new App and Runtime processes; prepared profile; OS caches uncontrolled after fixture warmup',
+                    'readyMilestone': 'recognizable business title and body; later independent scheduled drag probe',
                     'firstRecognizableBusinessContentSeconds': (min(content)-onset)/1e9 if content else None,
                     'firstSuccessfulInteractionProbeSeconds': (first_response-onset)/1e9
                         if first_response and result.get('scenarioEvidence') is True and result['product'] in ('unknown','passed') else None,

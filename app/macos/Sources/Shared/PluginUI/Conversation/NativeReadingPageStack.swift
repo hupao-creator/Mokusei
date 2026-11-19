@@ -46,7 +46,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     private let front: Front
 
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingEntranceReady) private var parentEntranceReady
     @State private var progress = 0.0
     @State private var panelTransition: NativeReadingPanelTransition?
@@ -127,7 +126,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         open: panelContentReady || panelTransition != nil,
                         transition: panelTransition, contentReady: panelContentReady,
                         readerPreloading: panelReaderPreloading,
-                        identity: reduceMotion ? nil : panelIdentity,
+                        identity: panelIdentity,
                         onOpeningStarted: preloadPanelReader,
                         onCompletion: finishPanelTransition,
                         // A host retaining routes supplies a stable container identity;
@@ -138,8 +137,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                             // move that destination while the bridge still owns it.
                             .environment(\.nativeReadingEntranceReady,
                                 parentEntranceReady && panelContentReady && !motion.active && !closing && !preparingClose
-                                    && (reduceMotion || panelIdentity?.pending != true))
-                            .environment(\.nativeThreadIdentityVisit, reduceMotion ? nil : panelIdentity)
+                                    && (panelIdentity?.pending != true))
+                            .environment(\.nativeThreadIdentityVisit, panelIdentity)
                             .environment(\.nativeReadingPanelClosing, closing)
                             .environment(\.nativeReportPanelReturn, reportPanelMotion && panelContentReady && (closing || preparingClose)
                                 ? NativeReportPanelReturn(source: (panelSource ?? panelBounds.insetBy(dx: 24, dy: 24))
@@ -161,7 +160,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                     }
                         // Limit replacement animation to the history identities;
                         // opening/return travel and timeline layout have their own owners.
-                        .animation(axis == .vertical && direction != 0 && !reduceMotion ? curve : nil, value: identity)
+                        .animation(axis == .vertical && direction != 0 ? curve : nil, value: identity)
                         .frame(width: panel ? panelBounds.width + 76 : bounds.size.width, height: panel ? panelBounds.height : bounds.size.height)
                         .background {
                             if axis == .horizontal {
@@ -209,7 +208,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             bindActions()
             if open && mountedIdentity != identity {
                 settle()
-                if axis == .vertical && direction != 0 && enabled && !reduceMotion { trackReplacement() }
+                if axis == .vertical && direction != 0 && enabled { trackReplacement() }
             }
             mountedIdentity = identity
         }
@@ -217,12 +216,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         .onChange(of: direction, initial: true) { _, value in
             motion.replacementDirection = value
             bindActions()
-        }
-        .onChange(of: reduceMotion) { _, value in
-            bindActions()
-            if value {
-                settle(finishingClose: true)
-            }
         }
         .onChange(of: enabled) { _, value in
             bindActions()
@@ -331,7 +324,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         // authoritative catalog still receives updates, and return preparation
         // refreshes the retained canvas before closing begins.
         onParentPresentationChange?(!panel || closing)
-        guard !reduceMotion, closing || direction != 0 else {
+        guard closing || direction != 0 else {
             settle()
             if closing { onClose() }
             return

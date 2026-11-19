@@ -72,7 +72,7 @@ public final class NativeOverviewWorkspaceModel {
     }
     public private(set) var sceneKey = "\u{0}default"
     public var items: [NativeOverviewItem] { content.items }
-    /// Global eligible cards, before tags/search and report coverage. Nil means
+    /// Global eligible cards, before tags and report coverage. Nil means
     /// no catalog has been projected yet; an unloaded workspace is not empty.
     public private(set) var globalConversationCount: Int?
     public private(set) var hasEstablishedConversation = false
@@ -83,19 +83,6 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var operations: [NativeOverviewMokuOperation] = []
     public var featuredOperation: NativeOverviewMokuOperation? { operations.last(where: { $0.phase == .running }) ?? operations.last }
     public private(set) var error: String?
-    public private(set) var isSearching = false
-    public private(set) var searchQuery = ""
-    public private(set) var searchFocusRequest = 0
-    /// Runtime keyword-index diagnosis for tests and error recovery. This is
-    /// not a search-mode selector or embedding-preparation state.
-    public private(set) var searchReason = "disabled"
-    public private(set) var searchIndexing = false
-    @ObservationIgnored private var contentRequest: Task<Void, Never>?
-    @ObservationIgnored private var contentRequestKey: String?
-    @ObservationIgnored private var contentContextKey: String?
-    @ObservationIgnored private var contentRanks: [String: Int]?
-    @ObservationIgnored private var searchCameraBookmark: (sceneKey: String, view: NativeOverviewCameraState)?
-    @ObservationIgnored private let searchRequest: ((JSONValue) async throws -> JSONValue)?
     public private(set) var focusFilterRequestKey = 0
     public private(set) var facts = NativeOverviewPresentationFacts()
     public private(set) var presentationActive = true
@@ -114,7 +101,6 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private(set) var projectionVisitCount = 0
     @ObservationIgnored private(set) var catalogChangeVisitCount = 0
     @ObservationIgnored private var queuedPresentationIDs = Set<String>()
-    @ObservationIgnored private var keywordMemberIDs = Set<String>()
     @ObservationIgnored private var catalogIDs = Set<String>()
     @ObservationIgnored private var catalogGeneration: UInt64?
     @ObservationIgnored private var membershipFacts: NativeOverviewMembershipFacts?
@@ -158,9 +144,7 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private var active = true
 
     public init(workspace: NativeWorkspaceModel, applications: NativeOverviewApplicationFactories,
-                canvasState: NativeOverviewCanvasState = .init(),
-                searchRequest: ((JSONValue) async throws -> JSONValue)? = nil) {
-        self.searchRequest = searchRequest
+                canvasState: NativeOverviewCanvasState = .init()) {
         self.workspace = workspace; applicationFactories = applications; self.canvasState = canvasState
     }
 
@@ -213,7 +197,6 @@ public final class NativeOverviewWorkspaceModel {
         } else {
             presentationDirty = true
             collectionExpiryTask?.cancel(); collectionExpiryTask = nil
-            invalidateContentSearch()
         }
     }
 
@@ -233,10 +216,6 @@ public final class NativeOverviewWorkspaceModel {
             setPresentationActive(true)
             if presentationDirty || becameVisible { reconcile(captureMutation: false) }
         }
-        if isSearching {
-            if searchAvailable { reconcile(captureMutation: false) }
-            else { invalidateContentSearch() }
-        }
         pruneSnapshots()
         publishContext()
     }
@@ -253,46 +232,8 @@ public final class NativeOverviewWorkspaceModel {
             + "\u{0}default"
     }
 
-    public func beginSearch() {
-        if !isSearching { invalidateContentSearch() }
-        isSearching = true
-        searchFocusRequest += 1
-        reconcile(captureMutation: false)
-    }
-    public func updateSearch(_ query: String) {
-        guard isSearching, query != searchQuery else { return }
-        let wasEmpty = NativeOverviewSearch(searchQuery).terms.isEmpty
-        let willBeEmpty = NativeOverviewSearch(query).terms.isEmpty
-        if wasEmpty && !willBeEmpty {
-            // Capture at first query, after any scrolling in the empty search.
-            searchCameraBookmark = canvasState.pendingSearchCameraRestoration
-                ?? canvasState.camera.live.map { (sceneKey, $0) }
-            canvasState.pendingSearchCameraRestoration = nil
-        } else if !wasEmpty && willBeEmpty { restoreSearchCamera() }
-        searchQuery = query
-        reconcile(captureMutation: false)
-    }
-    public func endSearch() {
-        guard isSearching else { return }
-        invalidateContentSearch()
-        restoreSearchCamera()
-        isSearching = false
-        searchQuery = ""
-        reconcile(captureMutation: false)
-        focusFilterRequestKey += 1
-    }
-    public func requestFilterFocus() { endSearch(); focusFilterRequestKey += 1 }
-    public func searchRank(for id: String) -> Int? { isSearching ? contentRanks?[id] : nil }
+    public func requestFilterFocus() { focusFilterRequestKey += 1 }
     public func consumeFilterFocus() { focusFilterRequestKey = 0 }
-    private func restoreSearchCamera() {
-        if let bookmark = searchCameraBookmark {
-            // Catalog membership may change while searching. Restore into the
-            // current tag's browse scene, not its obsolete membership key.
-            let browseScene = browseSceneKey
-            canvasState.pendingSearchCameraRestoration = (browseScene, bookmark.view)
-        }
-        searchCameraBookmark = nil
-    }
     public func consumeRevisions(through value: UInt64) {
         revisions.removeAll { $0.revision <= value }
         pruneSnapshots()
@@ -456,8 +397,6 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func selectTagValue(_ tag: String, scope: String = "", kind: NativeOverviewTagKind? = nil) {
-        searchCameraBookmark = nil
-        canvasState.pendingSearchCameraRestoration = nil
         let filter = matchingFilter(tag: tag, scope: scope, kind: kind)
         let resolvedKind = kind ?? (filter?.isDirectory == true ? .directory : .semantic)
         tagSelection = tag.isEmpty ? nil : .init(tag: tag, kind: resolvedKind, scope: filter?.scope ?? scope)
@@ -525,12 +464,9 @@ public final class NativeOverviewWorkspaceModel {
                         catalogApplications.flatMap { $0.entry.tags.directoryTags.map(\.string) })
             }
             // A hidden selection must not leave the user scoped to an empty tag.
-            // Keep canonical counts/context intact; search does not affect visibility.
             if let selection = tagSelection,
                !allFilters.contains(where: { $0.count > 0 && $0.matches(selection.tag, kind: selection.kind, scope: selection.scope) }) {
                 tagSelection = nil
-                searchCameraBookmark = nil
-                canvasState.pendingSearchCameraRestoration = nil
             }
             let chosenTag = tagSelection?.tag ?? ""
             selectedTag = filters.isEmpty ? "" : chosenTag
@@ -543,28 +479,10 @@ public final class NativeOverviewWorkspaceModel {
             }
             // Scene identity belongs to the retained presentation too. Advancing
             // it while hidden could bookmark the old camera under a new selection.
-            let search = NativeOverviewSearch(isSearching ? searchQuery : "")
-            let scope: NativeOverviewCollection
-            if search.terms.isEmpty {
-                // Empty search keeps the browsing scene, tag membership and camera.
-                sceneKey = browseSceneKey
-                let selectedTags = selectedFilter.map { [$0.tag] + $0.aliases } ?? (selectedTag.isEmpty ? [] : [selectedTag])
-                scope = selectedFilter.flatMap { filterMembers[$0.selectionKey] }.map(resolve)
-                    ?? (selectedTags.isEmpty ? resolve(allMembership()) : collection(tags: selectedTags, kind: tagSelection?.kind, scope: selectedScope))
-            } else {
-                // Search every eligible owner, including directory-only documents
-                // and tasks covered by reports. Browsing tags and report coverage
-                // must not hide metadata or body matches from the query request.
-                sceneKey = "\u{0}global-search:" + search.sceneKey
-                scope = NativeOverviewSelection.candidates(threads: catalogThreads, applications: catalogApplications)
-            }
-            let keyword = search.filter(scope, directoryTags: directoryTags.values)
-            scheduleContentSearch(scope: scope, keyword: keyword)
-            let keywordIDs = Set(keyword.threads.map { $0.id.string } + keyword.applications.map { $0.entry.ref.threadID.string })
-            keywordMemberIDs = keywordIDs
-            let selected = NativeOverviewCollection(
-                threads: scope.threads.filter { keywordIDs.contains($0.id.string) || contentRanks?[$0.id.string] != nil },
-                applications: scope.applications.filter { keywordIDs.contains($0.entry.ref.threadID.string) || contentRanks?[$0.entry.ref.threadID.string] != nil })
+            sceneKey = browseSceneKey
+            let selectedTags = selectedFilter.map { [$0.tag] + $0.aliases } ?? (selectedTag.isEmpty ? [] : [selectedTag])
+            let selected = selectedFilter.flatMap { filterMembers[$0.selectionKey] }.map(resolve)
+                ?? (selectedTags.isEmpty ? resolve(allMembership()) : collection(tags: selectedTags, kind: tagSelection?.kind, scope: selectedScope))
             let nextItems = try project(selected)
             if sceneKey != previousScene { revisions.removeAll() }
             if captureMutation, facts.overviewVisible, previousScene == sceneKey,
@@ -589,7 +507,7 @@ public final class NativeOverviewWorkspaceModel {
         guard error == nil, let generation = catalogGeneration, generation &+ 1 == workspace.catalog.installGeneration,
               !change.reset, let membershipFacts, membershipFacts.localeIsCurrent,
               !change.threadOrderChanged, !change.applicationOrderChanged,
-              change.fields.isDisjoint(with: ["tagRedirects", "plugins", "settings", "searchRevision"]) else { return false }
+              change.fields.isDisjoint(with: ["tagRedirects", "plugins", "settings"]) else { return false }
         var changedThreads: [HarnessThread] = []
         var changedApplications: [(id: JSONText, raw: JSONValue?, old: NativeOverviewApplicationEntry?, next: NativeOverviewApplicationEntry?)] = []
         var membershipThreads = Set<JSONText>(), membershipApplications = Set<JSONText>()
@@ -614,14 +532,6 @@ public final class NativeOverviewWorkspaceModel {
             changedApplications.append((id, raw, previous, next))
         }
         let changedMembership = !membershipThreads.isEmpty || !membershipApplications.isEmpty
-        let search = NativeOverviewSearch(isSearching ? searchQuery : "")
-        var changedSearchMatches = false
-        if !search.terms.isEmpty {
-            let changed = NativeOverviewSelection.candidates(threads: changedThreads, applications: changedApplications.compactMap(\.next))
-            let matches = search.filter(changed, directoryTags: directoryTags.values)
-            let matchIDs = Set(matches.threads.map { $0.id.string } + matches.applications.map { $0.entry.ref.threadID.string })
-            changedSearchMatches = (change.threadIDs.union(change.applicationIDs)).contains { matchIDs.contains($0.string) != keywordMemberIDs.contains($0.string) }
-        }
         for id in change.threadIDs {
             let thread = workspace.catalog.thread(id)
             if thread?.moku != true && thread?.observation.isExecutionActive == true {
@@ -685,16 +595,12 @@ public final class NativeOverviewWorkspaceModel {
         }
         if changedMembership {
             let current = matchingFilter(tag: selectedTag, scope: selectedScope, kind: tagSelection?.kind)
-            if isSearching || current == nil || current?.count == 0 || affectedScopes.contains(selectedScope) {
+            if current == nil || current?.count == 0 || affectedScopes.contains(selectedScope) {
                 reconcile(captureMutation: captureMutation, refreshSelection: false)
                 return true
             }
             selectedFilter = current
             publishContext()
-        }
-        if changedSearchMatches {
-            reconcile(captureMutation: captureMutation, refreshSelection: false)
-            return true
         }
         if changedApplications.contains(where: { change in
             collectionSources.keys.contains(where: { $0.threadID == change.id })
@@ -725,68 +631,6 @@ public final class NativeOverviewWorkspaceModel {
             operationProjectionReady = true
             operationTranscript = workspace.catalog.moku?.transcript
             operations = NativeOverviewMokuOperation.project(transcript: operationTranscript)
-        }
-    }
-
-    private var searchAvailable: Bool {
-        presentationActive && isSearching && facts.overviewVisible && !facts.settingsOpen && facts.documentVisible && facts.focused &&
-            (workspace.runtimeAvailable || searchRequest != nil) && !NativeOverviewSearch(searchQuery).terms.isEmpty
-    }
-    private func invalidateContentSearch() {
-        contentRequest?.cancel(); contentRequest = nil; contentRequestKey = nil; contentContextKey = nil; contentRanks = nil
-        searchReason = "disabled"; searchIndexing = false
-    }
-    private func scheduleContentSearch(scope: NativeOverviewCollection, keyword: NativeOverviewCollection) {
-        guard searchAvailable else { invalidateContentSearch(); return }
-        let refs = scope.threads.map { ApplicationThreadRef(threadID: $0.id, typeID: "agent") } + scope.applications.map { $0.entry.ref }
-        let literal = keyword.threads.map { ApplicationThreadRef(threadID: $0.id, typeID: "agent").json } + keyword.applications.map { $0.entry.ref.json }
-        let contextKey = NativeOverviewSelection.jsonString(.array([.text(searchQuery), .text(sceneKey),
-            .integer(workspace.catalog.searchRevision)]))
-        // Live transcript/status revisions do not change the query. Polling
-        // already refreshes indexed content; restarting on each revision would
-        // repeatedly discard body matches while a thread is streaming.
-        let key = NativeOverviewSelection.jsonString(.array([.text(contextKey), .array(refs.map(\.json)), .array(literal)]))
-        guard contentRequestKey != key else { return }
-        contentRequest?.cancel(); contentRequestKey = key
-        if contentContextKey != contextKey {
-            contentRanks = nil
-            searchReason = "loading"; searchIndexing = false
-        }
-        contentContextKey = contextKey
-        let input = JSONValue.object(["query": .text(searchQuery), "threads": .array(refs.map(\.json)), "keywordMatches": .array(literal)])
-        contentRequest = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .milliseconds(300))
-                while !Task.isCancelled {
-                    guard let self, self.searchAvailable, self.contentRequestKey == key else { return }
-                    let result: JSONValue
-                    if let request = self.searchRequest { result = try await request(input) }
-                    else { result = try await self.workspace.client.invoke("search:query", args: [input]) }
-                    try Task.checkCancellation()
-                    guard self.searchAvailable, self.contentRequestKey == key else { return }
-                    let allowed = Set(refs)
-                    var ranks: [String: Int] = [:]
-                    for (index, hit) in (result["hits"]?.arrayValue ?? []).enumerated() {
-                        guard let ref = hit["ref"], case .string(let id) = ref["threadId"], case .string(let type) = ref["typeId"],
-                              allowed.contains(ApplicationThreadRef(threadID: id, typeID: type)) else { continue }
-                        ranks[id.string] = index
-                    }
-                    self.contentRanks = ranks
-                    self.searchReason = result["reason"]?.stringValue ?? ""
-                    self.searchIndexing = result["indexing"]?.boolValue == true
-                    self.reconcile(captureMutation: false)
-                    // Automatic keyword indexing commits without changing the
-                    // catalog or search revision. Three seconds is the bounded
-                    // refresh cadence: it admits body-only matches without
-                    // restarting the query on every thread update.
-                    try await Task.sleep(for: .seconds(3))
-                }
-            } catch is CancellationError { }
-            catch {
-                guard let self, !Task.isCancelled, self.contentRequestKey == key else { return }
-                self.searchReason = "local-unavailable"; self.searchIndexing = false
-                self.reconcile(captureMutation: false)
-            }
         }
     }
 
@@ -856,9 +700,11 @@ public final class NativeOverviewWorkspaceModel {
 
     func containsGlobalThread(_ id: JSONText) -> Bool { globalThreadIDs.contains(id) }
 
+    private typealias CardEntry = (created: Double, index: Int, item: NativeOverviewItem)
+
     private func project(_ collection: NativeOverviewCollection, groupCollections: Bool = true) throws -> [NativeOverviewItem] {
         projectionVisitCount += collection.count
-        var entries: [(created: Double, index: Int, item: NativeOverviewItem)] = []
+        var entries: [CardEntry] = []
         for thread in collection.threads {
             let input = HarnessThreadInput(thread: thread, git: applicationFactories.gitStatus(thread))
             let projection: HarnessOverviewSnapshot
@@ -891,58 +737,79 @@ public final class NativeOverviewWorkspaceModel {
                 structureKey: projection.envelope.structureKey.string, presentationID: token)))
         }
         if groupCollections {
-            collectionSources.removeAll()
-            collectionExpiryTask?.cancel(); collectionExpiryTask = nil
-            if NativeOverviewSearch(isSearching ? searchQuery : "").terms.isEmpty {
-                let now = Date()
-                var candidates: [JSONText: (AnyApplicationThreadPlugin, ApplicationOverviewCollectionPolicy, [ApplicationOverviewSnapshot])] = [:]
-                var nextExpiry: Date?
-                for application in collection.applications {
-                    let entry = application.entry
-                    let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
-                    guard let policy = plugin.overviewCollection else { continue }
-                    if collectionEligible(entry.ref, policy: policy, at: now) {
-                        if candidates[plugin.id] == nil { candidates[plugin.id] = (plugin, policy, []) }
-                        candidates[plugin.id]!.2.append(applicationCache[entry.ref.threadID]!.1)
-                    } else if applicationVisit?.reference != entry.ref, let closed = reading(entry.ref)?.lastClosedAt {
-                        let expiry = Date(timeIntervalSince1970: closed).addingTimeInterval(policy.closedBefore + 0.01)
-                        nextExpiry = min(nextExpiry ?? expiry, expiry)
-                    }
-                }
-                for (_, (plugin, policy, members)) in candidates where members.count > 1 {
-                    let id = "\u{0}application-collection:\(plugin.id.string):\(browseSceneKey)"
-                    let ids = Set(members.map { $0.entry.ref.threadID.string })
-                    let origin = entries.filter { ids.contains($0.item.id) }.min {
-                        $0.created == $1.created ? $0.index < $1.index : $0.created < $1.created
-                    }!
-                    let token = id + ":" + members.map { String(describing: ObjectIdentifier($0)) }.joined(separator: ",")
-                    snapshots[token] = .collection(plugin, members)
-                    for member in members { collectionSources[member.entry.ref] = id }
-                    entries.removeAll { ids.contains($0.item.id) }
-                    entries.append((origin.created, origin.index, .init(id: id, columns: policy.footprint.columns,
-                        rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token,
-                        providesCardSurface: policy.providesCardSurface)))
-                }
-                if let expiry = nextExpiry, facts.overviewVisible, presentationActive {
-                    collectionExpiryTask = Task { [weak self] in
-                        do {
-                            try await Task.sleep(for: .seconds(min(86_400, max(0.01, expiry.timeIntervalSinceNow))))
-                            try Task.checkCancellation()
-                            guard let self, self.active else { return }
-                            self.reconcile(captureMutation: true)
-                        } catch { }
-                    }
-                }
-            }
+            try groupApplications(collection.applications, in: &entries)
         }
         let ordered = entries.sorted { a, b in
-            if isSearching, let ranks = contentRanks {
-                let left = ranks[a.item.id] ?? Int.max, right = ranks[b.item.id] ?? Int.max
-                if left != right { return left < right }
-            }
             return a.created == b.created ? a.index < b.index : a.created < b.created
         }.map(\.item)
         return ordered
+    }
+
+    private func groupApplications(_ applications: [NativeOverviewApplicationEntry], in entries: inout [CardEntry]) throws {
+        collectionSources.removeAll()
+        collectionExpiryTask?.cancel(); collectionExpiryTask = nil
+        guard applications.count >= 2 else { return }
+
+        // Harness cards cannot be collected. Once they fill the budget, every
+        // space-saving group is needed regardless of the remaining Harness spans.
+        let target = NativeOverviewCollectionBudget.targetCells
+        let taskCount = entries.count - applications.count
+        var expandedCells = 0
+        for entry in entries.prefix(taskCount) {
+            expandedCells += entry.item.columns * min(target, entry.item.rows)
+            if expandedCells >= target { expandedCells = target; break }
+        }
+        for entry in entries.dropFirst(taskCount) { expandedCells += entry.item.columns * entry.item.rows }
+        guard expandedCells > target else { return }
+
+        let now = Date()
+        var candidates: [JSONText: (AnyApplicationThreadPlugin, ApplicationOverviewCollectionPolicy, [ApplicationOverviewSnapshot])] = [:]
+        var typeOrder: [JSONText] = []
+        var nextExpiry: Date?
+        for application in applications {
+            let entry = application.entry
+            let plugin = try workspace.plugins.applications.requireThread(entry.ref.typeID)
+            guard let policy = plugin.overviewCollection else { continue }
+            if collectionEligible(entry.ref, policy: policy, at: now) {
+                if candidates[plugin.id] == nil {
+                    typeOrder.append(plugin.id)
+                    candidates[plugin.id] = (plugin, policy, [])
+                }
+                candidates[plugin.id]!.2.append(applicationCache[entry.ref.threadID]!.1)
+            } else if applicationVisit?.reference != entry.ref, let closed = reading(entry.ref)?.lastClosedAt {
+                let expiry = Date(timeIntervalSince1970: closed).addingTimeInterval(policy.closedBefore + 0.01)
+                nextExpiry = min(nextExpiry ?? expiry, expiry)
+            }
+        }
+        var budget = NativeOverviewCollectionBudget(expandedCells: expandedCells)
+        for typeID in typeOrder {
+            let (plugin, policy, eligible) = candidates[typeID]!
+            let count = budget.memberCount(eligible: eligible.lazy.map(\.envelope.footprint), collection: policy.footprint)
+            guard count > 0 else { continue }
+            let members = Array(eligible.prefix(count))
+            let id = "\u{0}application-collection:\(plugin.id.string):\(browseSceneKey)"
+            let ids = Set(members.map { $0.entry.ref.threadID.string })
+            let origin = entries.filter { ids.contains($0.item.id) }.min {
+                $0.created == $1.created ? $0.index < $1.index : $0.created < $1.created
+            }!
+            let token = id + ":" + members.map { String(describing: ObjectIdentifier($0)) }.joined(separator: ",")
+            snapshots[token] = .collection(plugin, members)
+            for member in members { collectionSources[member.entry.ref] = id }
+            entries.removeAll { ids.contains($0.item.id) }
+            entries.append((origin.created, origin.index, .init(id: id, columns: policy.footprint.columns,
+                rows: policy.footprint.rows, structureKey: "application-collection", presentationID: token,
+                providesCardSurface: policy.providesCardSurface)))
+        }
+        if let expiry = nextExpiry, facts.overviewVisible, presentationActive {
+            collectionExpiryTask = Task { [weak self] in
+                do {
+                    try await Task.sleep(for: .seconds(min(86_400, max(0.01, expiry.timeIntervalSinceNow))))
+                    try Task.checkCancellation()
+                    guard let self, self.active else { return }
+                    self.reconcile(captureMutation: true)
+                } catch { }
+            }
+        }
     }
 
     private func pruneSnapshots() {
@@ -1023,7 +890,6 @@ public final class NativeOverviewWorkspaceModel {
         collectionReadingOwners.removeAll()
         applicationReadDeadline?.cancel(); applicationReadDeadline = nil
         applicationVisit = nil
-        invalidateContentSearch()
         await publication?.value
         try? await workspace.client.updateOverviewContext(nil)
         content.stop()
@@ -1031,7 +897,7 @@ public final class NativeOverviewWorkspaceModel {
         membershipFacts = nil; membershipIndex = .init(); allMembers = .init(); allMembersDirty = false; applicationsByRef.removeAll()
         activeThreadIDs.removeAll(); allHasActiveTasks = false
         globalThreadIDs.removeAll(); globalConversationCount = nil; hasEstablishedConversation = false
-        applicationRecords = .init(); catalogIDs.removeAll(); keywordMemberIDs.removeAll()
+        applicationRecords = .init(); catalogIDs.removeAll()
         globalApplicationIDs.removeAll(); establishedThreadIDs.removeAll(); pendingInsertedIDs.removeAll()
     }
 }

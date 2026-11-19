@@ -4,7 +4,7 @@ import os
 import time
 
 from analysis.report import seal, write_report
-from lifecycle import native, save, sha256
+from lifecycle import desktop_preflight, native, save, sha256
 from runner import collect
 from reading.build import build_control
 from reading.corpus import document
@@ -14,6 +14,7 @@ from reading.analysis import native_motion_truth
 
 def calibrate(tools, directory, modes=("normal", "frozen", "wrong", "delay", "stall")):
     directory.mkdir(parents=True, exist_ok=False, mode=0o700)
+    desktop_preflight(tools, directory)
     app = build_control(tools)
     helper = tools / "collector"
     corpus = document(1, 8)

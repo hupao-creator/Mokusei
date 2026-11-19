@@ -66,8 +66,8 @@ func IsNull(value json.RawMessage) bool {
 	return len(value) == 0 || bytes.Equal(bytes.TrimSpace(value), []byte("null"))
 }
 
-// Error is a client-readable failure. Native process diagnostics belong in logs,
-// not Code; adapters must never put credentials in Message.
+// Error is a client-readable failure. Code is a stable identifier; adapters
+// must never put credentials in Message.
 type Error struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`

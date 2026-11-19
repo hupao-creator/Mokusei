@@ -447,12 +447,6 @@ func RegisterDomain(registry plugin.Registry) error {
 		}
 		view, err := json.Marshal(View{CoverRevision: value.CoverRevision, Emoji: value.Emoji, ShortDescription: value.ShortDescription, PreviewText: HTMLPreview(value.HTML, value.Title), ContentRevision: value.ContentRevision, RelatedExecutions: value.RelatedExecutions})
 		return plugin.ThreadProjection{Scope: value.Scope, Title: value.Title, View: view}, err
-	}, SearchText: func(record model.ApplicationThreadRecord) (string, error) {
-		value, err := ParseData(record.Value)
-		if err != nil {
-			return "", err
-		}
-		return HTMLSearchText(value.HTML), nil
 	}, Tags: extensions, Archive: extensions, Overview: extensions})
 }
 
@@ -635,15 +629,19 @@ func (threadExtensions) Change(record model.ApplicationThreadRecord, archived bo
 	encoded, err := json.Marshal(value)
 	return plugin.ThreadStateChange{Value: encoded}, err
 }
-func (threadExtensions) RelatedLatestExecutions(record model.ApplicationThreadRecord, archived bool) ([]model.ExecutionRef, error) {
+func (threadExtensions) RelatedThreads(record model.ApplicationThreadRecord, archived bool) ([]model.ThreadRef, error) {
 	value, err := ParseData(record.Value)
 	if err != nil {
 		return nil, err
 	}
 	if !archived {
-		return []model.ExecutionRef{}, nil
+		return nil, nil
 	}
-	return value.RelatedExecutions, nil
+	related := make([]model.ThreadRef, 0, len(value.RelatedExecutions))
+	for _, reference := range value.RelatedExecutions {
+		related = append(related, reference.Thread)
+	}
+	return related, nil
 }
 func (threadExtensions) Presentation(record model.ApplicationThreadRecord) (plugin.OverviewPresentation, error) {
 	value, err := ParseData(record.Value)

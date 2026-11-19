@@ -12,6 +12,14 @@ public struct ClaudeHarnessPlugin: HarnessPlugin {
     public var threadSettingsCodec: PluginValueCodec<ClaudeThreadSettingsUpdate> { ClaudeThreadSettingsUpdate.codec }
     public var harnessSettingsCodec: PluginValueCodec<ClaudeHarnessSettings> { ClaudeHarnessSettings.codec }
     public var settingsPresentationCodec: PluginValueCodec<ClaudeSettingsPresentationData> { ClaudeSettingsPresentationData.codec }
+    public func settingsPresentationIssue(_ presentation: ClaudeSettingsPresentationData) -> String? {
+        if presentation.json["cli"]?["status"] != .text("available") {
+            return presentation.json["cli"]?["message"]?.stringValue ?? "Claude Code CLI is unavailable."
+        }
+        // Claude also accepts custom model identifiers; an empty advertised
+        // list is usable once native defaults and capabilities have loaded.
+        return nil
+    }
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<ClaudeOverviewView> { try projectClaudeOverview(input: input, availableColumns: availableColumns) }
     public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
         let state = try ClaudeState(thread.sessionState)

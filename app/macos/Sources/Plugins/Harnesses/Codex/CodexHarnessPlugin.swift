@@ -28,6 +28,12 @@ public struct CodexHarnessPlugin: HarnessPlugin {
         return [.row(JSONText(codeUnits: JSONText("turn:").codeUnits + execution.codeUnits))]
     }
 
+    public func settingsPresentationIssue(_ presentation: CodexSettingsPresentationData) -> String? {
+        if !presentation.cliAvailable { return presentation.cliError ?? "Codex CLI is unavailable." }
+        if let error = presentation.modelsError, !error.isEmpty { return error }
+        if presentation.raw["models"]?.arrayValue?.isEmpty != false { return "Codex returned no models. Check sign-in and retry." }
+        return nil
+    }
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<CodexOverviewView> {
         try projectCodexOverview(input: input, availableColumns: availableColumns)
     }

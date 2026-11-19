@@ -18,7 +18,7 @@ objects = [arg for arg in original if arg.endswith(".o")]
 executable = output / "geometry-probe"
 command = [*prefix, str(source / "geometry.swift"), *objects, "-o", str(executable)]
 subprocess.run(command, check=True)
-result = subprocess.check_output([str(executable)], env={**os.environ, "MOKUSEI_PERFORMANCE": "off"})
+result = subprocess.check_output([str(executable)], env=os.environ.copy())
 (output / "geometry.json").write_bytes(result)
 (output / "geometry-build.json").write_text(json.dumps({"command": command,
     "sourceSHA256": hashlib.sha256((source / "geometry.swift").read_bytes()).hexdigest(),

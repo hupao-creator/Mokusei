@@ -155,7 +155,6 @@ func Collect(ctx context.Context, source *Source, input plugin.MokuContextInput)
 		workers.Add(1)
 		go func(index int, catalog plugin.BoundModelCatalog) {
 			defer workers.Done()
-			started := time.Now()
 			timeout := 7500 * time.Millisecond
 			if catalog.ID == "opencode" {
 				timeout = 20 * time.Second
@@ -164,11 +163,6 @@ func Collect(ctx context.Context, source *Source, input plugin.MokuContextInput)
 			defer cancel()
 			content, err := collectCatalog(bounded, source, catalog)
 			if err != nil {
-				event := "aa.context.catalog.failed"
-				if errors.Is(ctx.Err(), context.Canceled) {
-					event = "aa.context.catalog.cancelled"
-				}
-				source.log(event, map[string]any{"catalogId": catalog.ID, "class": failureClass(err), "durationMs": time.Since(started).Milliseconds()})
 				content = ""
 			}
 			if content != "" && len(content) <= MaxCatalogBytes {
@@ -196,7 +190,6 @@ func Collect(ctx context.Context, source *Source, input plugin.MokuContextInput)
 			next += 2
 		}
 		if size+next > 128*1024 {
-			source.log("aa.context.catalog.skipped", map[string]any{"reason": "contribution-byte-limit", "heading": strings.SplitN(block, "\n", 2)[0], "bytes": next})
 			continue
 		}
 		accepted = append(accepted, block)
@@ -257,7 +250,6 @@ func collectCatalog(ctx context.Context, source *Source, catalog plugin.BoundMod
 		return "", err
 	}
 	if len(acquisition) == 0 {
-		source.log("aa.context.catalog.skipped", map[string]any{"catalogId": catalog.ID, "reason": "no-resolvable-identities", "models": len(identities)})
 		return "", nil
 	}
 	facts, err := source.WaitForBootstrap(ctx, acquisition)
@@ -268,23 +260,17 @@ func collectCatalog(ctx context.Context, source *Source, catalog plugin.BoundMod
 		return "", err
 	}
 	if facts.Availability != "available" {
-		source.log("aa.context.catalog.skipped", map[string]any{"catalogId": catalog.ID, "reason": "facts-unavailable"})
 		return "", nil
 	}
 	models := make([]NativeModel, 0, len(identities))
-	unmatched := []string{}
 	for _, identity := range identities {
 		label := identity.Selector
 		if identity.DisplayName != "" && identity.DisplayName != identity.Selector {
 			label += " (" + identity.DisplayName + ")"
 		}
 		models = append(models, NativeModel{label, identity})
-		if MatchRelease(facts, identity).Status != "matched" {
-			unmatched = append(unmatched, identity.Selector)
-		}
 	}
 	content := FormatModels(facts, models)
-	source.log("aa.context.catalog.completed", map[string]any{"catalogId": catalog.ID, "models": len(models), "matchedModels": len(models) - len(unmatched), "unmeasured": unmatched, "acquisitionIdentities": len(acquisition), "bytes": len(content), "truncated": strings.Contains(content, truncatedMarker)})
 	return content, nil
 }
 func validateIdentities(identities []Identity) error {

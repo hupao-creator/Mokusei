@@ -259,11 +259,10 @@ private struct CardDerivedRowView: View {
 
 private struct CardDerivedScan: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @Environment(\.threadCardNativeDecorationsEnabled) private var nativeDecorations
-    private var animates: Bool { scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true) }
+    private var animates: Bool { scenePhase != .background && enabled && (visibility?.isVisible ?? true) }
 
     var body: some View {
         Group {
@@ -672,10 +671,9 @@ private struct CardInterventionButtonBody: View {
 
 private struct CardPermissionAttention: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
-    private var animates: Bool { scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true) }
+    private var animates: Bool { scenePhase != .background && enabled && (visibility?.isVisible ?? true) }
 
     var body: some View {
         TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in

@@ -30,7 +30,7 @@ jobs:
   paired-release:
     name: Release A/B · foreground Overview
     runs-on: ${{ fromJSON(vars.MOKUSEI_SELF_HOSTED_MACOS == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","ARM64","mokusei-macos-26-gui"]' || '["macos-26"]') }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CGO_ENABLED: '1'
       GOTOOLCHAIN: local
@@ -59,27 +59,20 @@ jobs:
             python3 scripts/ci/deadline.py xcodebuild -downloadComponent MetalToolchain
           fi
           if [[ "$RUNNER_ENVIRONMENT" == github-hosted ]]; then
-            defaults write com.apple.universalaccess reduceMotion -bool false
             defaults write com.apple.universalaccess reduceTransparency -bool false
           fi
           # A self-hosted image must already satisfy this graphical contract.
           xcrun swift scripts/ci/native-environment.swift
-      - name: Verify the source and shared-clock contracts
-        run: |
-          python3 -m unittest discover -s tools/verification/overview-ci-performance -p test_clock_contract.py -v \
-            2>&1 | tee "$RUNNER_TEMP/overview-clock-python.log"
-          go test ./tools/verification/overview-ci-performance/runtime \
-            2>&1 | tee "$RUNNER_TEMP/overview-clock-go.log"
-      - name: Measure fixed Release products with one harness
+      - name: Measure fixed Release products and enforce regression budgets
         run: |
           display_args=()
           if [[ "$RUNNER_ENVIRONMENT" == github-hosted ]]; then
             display_args+=(--configure-display)
           fi
-          python3 tools/verification/overview-ci-performance/run.py \
+          python3 tools/benchmarks/performance.py run --suite overview-release \
             --baseline "$BASELINE_SHA" --candidate "$CANDIDATE_SHA" \
             --output "$RUNNER_TEMP/overview-performance" \
-            "${display_args[@]}" --time-budget-seconds 1500
+            "${display_args[@]}"
       - name: Publish complete measurement report
         if: ${{ always() }}
         run: |
@@ -90,9 +83,6 @@ jobs:
             printf '%s\n' 'The benchmark did not start; inspect toolchain/setup logs. No CPU result is certified.' \
               > "$RUNNER_TEMP/overview-performance/not-started.txt"
           fi
-          for log in "$RUNNER_TEMP"/overview-clock-*.log; do
-            if [[ -f "$log" ]]; then cp "$log" "$RUNNER_TEMP/overview-performance/"; fi
-          done
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:

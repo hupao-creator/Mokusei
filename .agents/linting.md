@@ -1,20 +1,35 @@
 # Local checks
 
-Inspect the actual required checks before planning verification. Default to focused local checks and affected replays, then require the final revision's successful hosted Complete coverage check and the actual remote branch rules. A local run cannot replace a check required by branch protection. Do not duplicate equivalent full local verification unless explicitly requested, diagnosing a failure, or covering an affected boundary CI cannot execute. `make check` remains the local entry point: Go formatting, package boundaries and static registration, allowed external Harness JS resources, `go vet ./...`, Go/Swift builds, the complete Swift suite, concurrency properties, module tests and directory-tag checks.
+`make check` runs Go formatting, architecture/import boundaries, static plugin
+registration, the external Harness JS allowlist, `go vet ./...`, `go build ./...`
+and the macOS Swift production build, followed by routine Go/native geometry PBT.
+`make lint` runs only the static checks;
+`make typecheck` runs the Go and Swift builds.
 
-`make check-swift` captures the windowless and graphical Swift processes through
-the shared CI reporter, prints their logs after capture and retains separate logs,
-actual process statuses and a JSON summary under `.build/check-swift`.
-It requires complete XCTest and Swift Testing summaries with matching counts;
-an early process exit with status zero is a failure. Use the report and named
-native launchers to distinguish an incomplete run from explicit capability skips.
+The [property inventory](../tools/verification/pbt/README.md) declares generated
+checks and their module contracts. There are no ordinary example/table unit-test
+suites. Use `make pbt-go` for runtime properties, `make pbt-native` for geometry;
+mounted state and real-native system properties are explicit opt-ins. Build
+success does not establish runtime behavior, and a property pass certifies only
+its generated input domain. Run affected checks before considering wider budgets.
 
-The no-Node check rejects npm manifests and JS/TS source outside the four explicitly allowed external Pi/OpenCode shims. It includes Go files outside the shipped binary and across build tags. It does not substitute for reviewing process lifetimes, data ownership or the behavior of injected plugin capabilities.
+Follow the [document-driven workflow](../AGENTS.md#文档驱动): read the owning guide,
+check its facts against implementation, document implemented behavior and
+constraints, then derive PBT properties, e2e scenarios or benchmark metrics and
+criteria from those facts. Link the guide and actual evidence in the
+[fact/verification index](../tools/verification/facts.md). Keep gaps and blocked/skipped results
+explicit. The index is not a second specification or a claim of test coverage.
+e2e owns interactions, PBT owns Moku runtime, and benchmarks own user experience.
+Extra PBT coverage needs a concrete reason and does not replace that ownership.
 
-Install the repository-local hook with `make install-hooks`. `.githooks/pre-commit` runs `make lint` without modifying files. The hook checks the working tree; when partially staging, inspect `git diff --cached` and ensure the committed contents match the validated files. A fresh checkout still needs explicit checks even if hooks have not been installed.
+Install the repository-local hook with `make install-hooks`; it runs `make lint`
+without modifying files. Review the staged diff when partially staging.
 
-Use the [verification policy](../scripts/ci/verification-policy.md) to select default CI, extended native-CLI/system CI, and specifically triggered hardware acceptance. The [integration replay commands](../tools/verification/README.md) remain available for local diagnosis and uncovered boundaries. Do not add unit tests unless explicitly requested. A plain Swift test run reports explicit skips for missing display capabilities and external fixtures; hosted CI supplies the fixtures and separate Go/AppKit launchers and rejects unexpected skips. Native integration cases share the test-only process gate across targets. The [Swift audit](../tools/verification/swift-tests/README.md) records the historical investigation, not current CI coverage.
-
-Pure documentation changes require diff and local-link review plus confirmation of the workflow's documentation scope. Wait for hosted checks only when actual protection rules require them. Native tests outside that scope are not reported as executed. Document checks actually run, the source revision, unexpected skips and platform/toolchain limitations. Follow the root AGENTS.md for failure diagnosis, failed-job-only retries and final merge coordination. A local-only requirement needs concrete independent defect coverage and a triggering change; replace it with equivalent CI coverage when available, and remove it as a mandatory gate when it has no specific high value.
+Use the [CI guide](../scripts/ci/README.md) and
+[verification policy](../scripts/ci/verification-policy.md). Confirm actual remote
+required checks before a remote integration; local checks cannot bypass branch
+protection. Documentation-only changes require diff and local-link review.
+Record checks actually run, the revision and any platform/toolchain limitations.
+The independent performance tools are measurements, not automated test coverage.
 
 Work-item conventions are in [issue-tracker.md](issue-tracker.md).

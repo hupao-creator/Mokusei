@@ -13,7 +13,7 @@ public struct NativeHarnessHostCallbacks {
     public let resolveMedia: (@Sendable (URL) async throws -> Data)?
 
     public init(beforeCommand: @escaping () async throws -> Void = {},
-                canExecute: @escaping (HarnessThread) -> Bool = { $0.archived != true },
+                canExecute: @escaping (HarnessThread) -> Bool = { !$0.mokuHistory },
                 openExternal: @escaping (JSONText) async throws -> Void,
                 openFollowUp: @escaping (JSONText, JSONText) -> Void,
                 onError: @escaping (Error) -> Void,
@@ -61,7 +61,10 @@ public final class NativeHarnessHost {
     private var resources: [String: HarnessContentResource] = [:]
     private var surfaces: [UUID: WeakHarnessSurface] = [:]
     private var settingsSurfaces: [UUID: WeakHarnessSettingsSurface] = [:]
-    private var globalSettingsSurfaces: [NativeHarnessSettingsConfiguration: NativeHarnessSettingsSurface] = [:]
+    private var globalSettingsSurfaces: [NativeHarnessSettingsConfiguration: NativeHarnessSettingsSurface] {
+        get { settingsLifetime.surfaces }
+        set { settingsLifetime.surfaces = newValue }
+    }
     private var settingsAuthority: UUID?
     public let settingsLifetime = NativeHarnessSettingsLifetime()
     private var allowedGlobalSettings: Set<NativeHarnessSettingsConfiguration>?
@@ -115,7 +118,7 @@ public final class NativeHarnessHost {
 
     /// Preparation owns no views or actions and never projects a conversation
     /// on the main actor. The selected route's SwiftUI task owns cancellation.
-    public func prefetchReading(input: HarnessThreadInput, performanceContext: UInt64?) async {
+    public func prefetchReading(input: HarnessThreadInput) async {
         guard !Task.isCancelled,
               (try? authoritativeThread(threadID: input.thread.id, harnessID: input.thread.harnessID)) != nil,
               let plugin = try? registry.require(input.thread.harnessID) else { return }
@@ -130,8 +133,7 @@ public final class NativeHarnessHost {
                 case .execution(let key): runtimeScope = .execution(key: key)
                 }
                 group.addTask {
-                    await client.prefetchThreadContent(threadId: input.thread.id, scope: runtimeScope,
-                        performanceContext: performanceContext)
+                    await client.prefetchThreadContent(threadId: input.thread.id, scope: runtimeScope)
                 }
             }
         }
@@ -167,7 +169,7 @@ public final class NativeHarnessHost {
         guard let thread = current, thread.id == threadID, thread.harnessID == harnessID else {
             throw PluginContractError("This thread is no longer available to its Harness")
         }
-        if execution && (thread.archived == true || !callbacks.canExecute(thread) || source?.canExecute() == false) {
+        if execution && (thread.mokuHistory || !callbacks.canExecute(thread) || source?.canExecute() == false) {
             throw PluginContractError("This thread currently cannot accept actions")
         }
         return thread
@@ -202,9 +204,42 @@ public final class NativeHarnessHost {
         return surface
     }
 
+    func cachedSettingsSurface(configuration: NativeHarnessSettingsConfiguration) -> NativeHarnessSettingsSurface? {
+        guard settingsLifetime.available,
+              let surface = globalSettingsSurfaces[configuration.editorIdentity],
+              !surface.isReleased, surface.configuration == configuration else { return nil }
+        return surface
+    }
+
+    func settingsPreparation(harnessID: JSONText) -> NativeHarnessSettingsLoadState {
+        guard settingsLifetime.available else { return .loading }
+        let required = onboardingConfigurations(harnessID: harnessID)
+        guard !required.isEmpty else { return .loading }
+        let states = required.map { cachedSettingsSurface(configuration: $0)?.loadState ?? .loading }
+        // Show terminal errors even while another scope is still loading.
+        for state in states { if case .failed = state { return state } }
+        return states.allSatisfy { $0 == .ready } ? .ready : .loading
+    }
+
+    private func onboardingConfigurations(harnessID: JSONText) -> [NativeHarnessSettingsConfiguration] {
+        let configurations = settingsLifetime.configurations.filter { $0.harnessID == harnessID }
+        let execution = configurations.filter(\.isExecutionConfiguration)
+        // Onboarding mounts execution editors, never ordinary Thread defaults.
+        // A Harness without execution-host capability still needs its defaults.
+        return execution.isEmpty ? configurations : execution
+    }
+
+    func retrySettingsPreparation(harnessID: JSONText) async {
+        let failed = onboardingConfigurations(harnessID: harnessID).filter {
+            if case .failed? = cachedSettingsSurface(configuration: $0)?.loadState { return true }
+            return false
+        }
+        await prefetchSettings(configurations: failed, refresh: true)
+    }
+
     /// The workspace owns these reads independently of editor mounts. A child
     /// cancellation stops retries, while another editor can still join a read.
-    public func prefetchSettings(configurations: [NativeHarnessSettingsConfiguration], reload: Bool = false) async {
+    public func prefetchSettings(configurations: [NativeHarnessSettingsConfiguration], reload: Bool = false, refresh: Bool = false) async {
         guard !Task.isCancelled else { return }
         let generation = settingsLifetime.generation
         let loads: [Task<Void, Never>] = configurations.compactMap { configuration in
@@ -212,16 +247,20 @@ public final class NativeHarnessHost {
             return Task { @MainActor [weak self] in
                 guard let self, !Task.isCancelled, self.settingsLifetime.generation == generation,
                       let surface = try? self.makeSettingsSurface(configuration: configuration) else { return }
+                let prefetchID = UUID()
+                surface.prefetchID = prefetchID
+                defer { if surface.prefetchID == prefetchID { surface.prefetchID = nil } }
                 for delay in [0, 1, 3] {
                     do {
                         if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
                         try Task.checkCancellation()
                         // A newer saved source owns its own prefetch. Never
                         // let an obsolete retry restore the old source.
-                        guard self.settingsLifetime.generation == generation, surface.configuration == configuration else { return }
-                        if reload && delay == 0 { try await surface.reload() }
+                        guard self.settingsLifetime.generation == generation, surface.configuration == configuration,
+                              surface.prefetchID == prefetchID else { return }
+                        if (reload || refresh) && delay == 0 { try await surface.reload(refresh: refresh) }
                         else { try await surface.loadIfNeeded() }
-                        if surface.executionSnapshotError == nil { return }
+                        if surface.preparationError == nil { return }
                     } catch is CancellationError { return }
                     catch { /* Keep the resource's failure visible to its editor. */ }
                 }
@@ -237,6 +276,7 @@ public final class NativeHarnessHost {
     /// Evict removed workspaces/scopes, without retaining every previous cwd.
     public func retainGlobalSettings(configurations: [NativeHarnessSettingsConfiguration]) {
         let identities = Set(configurations.map(\.editorIdentity))
+        settingsLifetime.configurations = configurations
         allowedGlobalSettings = identities
         for (identity, surface) in Array(globalSettingsSurfaces) where !identities.contains(identity) {
             surface.release()

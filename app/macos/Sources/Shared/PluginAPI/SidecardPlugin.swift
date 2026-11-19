@@ -50,85 +50,6 @@ public struct SidecardIntent: Hashable, Sendable {
     }
 }
 
-/// Complete transcript snapshots use the source identity, never generated UUIDs
-/// or text-derived identity. createdAt is the source timestamp in milliseconds.
-public struct VoiceTranscriptMessage: Hashable, Sendable, Identifiable {
-    public enum Role: String, Hashable, Sendable { case user, assistant }
-    public let id: JSONText
-    public let sessionID: JSONText
-    public let role: Role
-    public let text: JSONText
-    public let complete: Bool
-    public let createdAt: Double
-
-    public init(id: JSONText, sessionID: JSONText, role: Role, text: JSONText,
-                complete: Bool, createdAt: Double) throws {
-        guard createdAt.isFinite else { throw PluginContractError("Voice transcript timestamp must be finite") }
-        self.id = id; self.sessionID = sessionID; self.role = role
-        self.text = text; self.complete = complete; self.createdAt = createdAt
-    }
-}
-
-public struct SidecardVoiceState: Hashable, Sendable {
-    public enum Phase: String, Hashable, Sendable {
-        case closed, preparing, connecting, listening, stopping, failed
-    }
-    public let phase: Phase
-    public let supported: Bool
-    public let available: Bool
-    public let loading: Bool
-    public let muted: Bool
-    public let error: JSONText
-    public let messages: [VoiceTranscriptMessage]
-
-    public init(phase: Phase, supported: Bool, available: Bool, loading: Bool,
-                muted: Bool, error: JSONText, messages: [VoiceTranscriptMessage]) {
-        self.phase = phase; self.supported = supported; self.available = available
-        self.loading = loading; self.muted = muted; self.error = error; self.messages = messages
-    }
-}
-
-/// A read-only fork of this thread's voice context. These actions never send
-/// agent input to the source thread. The host publishes canonical snapshots.
-@MainActor @Observable
-public final class SidecardVoiceCapability {
-    public private(set) var state: SidecardVoiceState
-    @ObservationIgnored private let startAction: () async throws -> Void
-    @ObservationIgnored private let stopAction: () async throws -> Void
-    @ObservationIgnored private let toggleMuteAction: () -> Void
-    @ObservationIgnored private let refreshAction: () async throws -> Void
-    @ObservationIgnored private var listeners: [UUID: () -> Void] = [:]
-
-    public init(state: SidecardVoiceState, start: @escaping () async throws -> Void,
-                stop: @escaping () async throws -> Void, toggleMute: @escaping () -> Void,
-                refresh: @escaping () async throws -> Void) {
-        self.state = state; startAction = start; stopAction = stop
-        toggleMuteAction = toggleMute; refreshAction = refresh
-    }
-    public func snapshot() -> SidecardVoiceState { state }
-    public func publish(_ state: SidecardVoiceState) {
-        self.state = state
-        for (id, listener) in Array(listeners) where listeners[id] != nil { listener() }
-    }
-    /// Bind subscriptions to the presentation lifetime to release observers when
-    /// its thread/plugin owner disappears. Cancellation is safe to repeat.
-    @discardableResult
-    public func subscribe(lifetime: PluginLifetime, _ listener: @escaping () -> Void) -> () -> Void {
-        guard !lifetime.isCancelled else { return {} }
-        let id = UUID()
-        listeners[id] = listener
-        let lifetimeID = lifetime.onCancel { [weak self] in self?.listeners[id] = nil }
-        return { [weak self, weak lifetime] in
-            self?.listeners[id] = nil
-            lifetime?.removeHandler(lifetimeID)
-        }
-    }
-    public func start() async throws { try await startAction() }
-    public func stop() async throws { try await stopAction() }
-    public func toggleMute() { toggleMuteAction() }
-    public func refresh() async throws { try await refreshAction() }
-}
-
 public struct SidecardStagedAttachment: Hashable, Sendable, Identifiable {
     public let id: JSONText
     public init(id: JSONText) { self.id = id }
@@ -156,7 +77,6 @@ public struct SidecardContext {
     public let suppressed: Bool
     /// Re-enters the owning Harness through the host composition boundary.
     public let conversation: (JSONText, HarnessReadingTarget?) -> AnyView
-    public let voice: SidecardVoiceCapability?
     public let open: () -> Int
     public let close: () -> Void
     public let selectionRevision: () -> Int
@@ -173,7 +93,7 @@ public struct SidecardContext {
                 actions: HarnessThreadActions, readingTarget: HarnessReadingTarget?,
                 executionDisabled: Bool, expanded: Bool, transitioning: Bool, suppressed: Bool,
                 conversation: @escaping (JSONText, HarnessReadingTarget?) -> AnyView,
-                voice: SidecardVoiceCapability?, open: @escaping () -> Int,
+                open: @escaping () -> Int,
                 close: @escaping () -> Void, selectionRevision: @escaping () -> Int,
                 onIntent: @escaping (@escaping (SidecardIntent) -> Bool) -> () -> Void,
                 send: @escaping (JSONValue) async throws -> SidecardSendReceipt,
@@ -190,7 +110,7 @@ public struct SidecardContext {
         self.executionReveal = executionReveal
         self.executionHandoff = executionHandoff
         self.expanded = expanded; self.transitioning = transitioning; self.suppressed = suppressed
-        self.conversation = conversation; self.voice = voice
+        self.conversation = conversation
         self.open = open; self.close = close
         self.selectionRevision = selectionRevision; observeIntent = onIntent; self.send = send
         stage = stageAttachments; self.discardAttachments = discardAttachments; self.backToOverview = backToOverview

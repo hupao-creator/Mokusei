@@ -41,10 +41,6 @@ public enum NativeWindowNavigationGeometry {
     public static let closedWidth: CGFloat = 88
     public static let nativeButtonLeft: CGFloat = 24
     public static let nativeButtonTop: CGFloat = 31
-    public static let shadowInset: CGFloat = 8
-    public static let safeAreaTop: CGFloat = 74
-    public static let safeAreaLeft: CGFloat = 160
-    public static let dragHeight: CGFloat = 14
     public static let hiddenOffset: CGFloat = -66
     public static let hideAfter = NativeReadingNavigationState.hideAfter
     public static let showWithin = NativeReadingNavigationState.showWithin

@@ -50,22 +50,27 @@ func (r *Runtime) ProjectSession(ctx context.Context, session model.SessionRecor
 	session.SessionState = value
 	return session, nil
 }
-func (r *Runtime) ArchiveExecutions(tx *store.Tx, references []model.ExecutionRef, value bool) error {
+func (r *Runtime) ArchiveThreads(tx *store.Tx, references []model.ThreadRef, value bool) error {
+	seen := make(map[string]bool, len(references))
 	for _, ref := range references {
-		if ref.Thread.TypeID != "agent" {
+		if ref.TypeID != "agent" {
 			return errors.New("archive propagation only supports ordinary agent tasks")
 		}
+		if seen[ref.ThreadID] {
+			continue
+		}
+		seen[ref.ThreadID] = true
 		var thread model.ThreadRecord
-		exists, err := tx.Get("thread:"+ref.Thread.ThreadID, &thread)
+		exists, err := tx.Get("thread:"+ref.ThreadID, &thread)
 		if err != nil {
 			return err
 		}
-		if !exists || thread.Moku || thread.MokuHistory {
+		// Reports retain references after source deletion; there is nothing to hide.
+		if !exists {
 			continue
 		}
-		execution := thread.Observation.LatestExecution
-		if execution == nil || execution.ExecutionID != ref.ExecutionID {
-			continue
+		if thread.Moku || thread.MokuHistory {
+			return errors.New("archive propagation only supports ordinary agent tasks")
 		}
 		if archived(&thread) == value {
 			continue

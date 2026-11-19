@@ -511,7 +511,6 @@ struct NativeStreamingPagedMarkdown: View {
     let fontSize: CGFloat
     let options: MarkdownViewOptions
     @Environment(\.nativeReadingPageCapacity) private var pageCapacity
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var model = NativeStreamingPageModel()
     @State private var width: CGFloat = 0
 
@@ -525,7 +524,7 @@ struct NativeStreamingPagedMarkdown: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .animation(reduceMotion ? nil : NativeReadingPageTiming.replacementAnimation, value: model.pages.count)
+        .animation(NativeReadingPageTiming.replacementAnimation, value: model.pages.count)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { value in
             guard value > 0, value != width else { return }
             width = value
@@ -537,7 +536,6 @@ struct NativeStreamingPagedMarkdown: View {
     }
 
     private var pageTransition: AnyTransition {
-        guard !reduceMotion else { return .identity }
         return .asymmetric(
             insertion: .offset(y: NativeStreamingPageMetrics.entranceTravel).combined(with: .opacity),
             removal: .identity)

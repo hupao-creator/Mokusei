@@ -68,7 +68,6 @@ public enum NativePluginLocalization {
         "点击元素或拖拽框选 · Esc 取消": "Click an element or drag to select · Esc to cancel",
         "执行失败，批注已恢复。可以重试，或仅发送文字。": "Execution failed. Annotations were restored. Retry or send text only.",
         "执行已停止，批注已恢复。": "Execution stopped. Annotations were restored.",
-        "此 Thread 已归档，请取消归档后发送。": "This thread is archived. Unarchive it before sending.",
         "请先处理此 Thread 等待中的交互，再发送批注。": "Respond to this thread's pending interaction before sending annotations.",
         "批注截图数量不匹配": "The annotation screenshot count does not match",
         "执行失败，批注仍保留。详情见线程记录。": "Execution failed. Annotations are retained. See the thread for details.",

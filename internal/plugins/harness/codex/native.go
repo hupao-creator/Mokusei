@@ -25,42 +25,41 @@ type nativePending struct {
 	params, interaction Map
 	timer               *time.Timer
 }
+type nativeReasoningPart struct {
+	itemID, kind string
+	index        int64
+}
 type NativeSession struct {
-	mu                          sync.Mutex
-	notificationMu              sync.Mutex
-	server                      *AppServer
-	id, turnID, executionID     string
-	settings                    Map
-	reasoning, finals, outputs  map[string]string
-	finalOrder                  []string
-	seenUsage                   map[string]bool
-	pending                     map[string]*nativePending
-	emit                        func(Map)
-	activity                    func(Map)
-	realtime                    func(string, Map)
-	nativeAdmit                 func(string) (string, error)
-	nativeConfigurationRejected func(error)
-	nativeAdmissionCancelled    func(string)
-	terminal                    bool
-	bridge                      *ToolBridge
-	completed                   chan struct{}
-	failure                     string
-	closed                      bool
-	closeOnce                   sync.Once
-	closeErr                    error
-	background                  map[string]Map
-	tombstones                  map[string]bool
-	refreshMu                   sync.Mutex
-	toolContext                 context.Context
-	toolCancel                  context.CancelFunc
-	toolCalls                   map[string]bool
-	toolWorkers                 *sync.WaitGroup
-	nativeBacklog               []Map
-	nativeBacklogBytes          int
-	retiredTurns                map[string]bool
-	retryTimer                  *time.Timer
-	retryCount                  int
-	retryGeneration             uint64
+	mu                      sync.Mutex
+	notificationMu          sync.Mutex
+	server                  *AppServer
+	id, turnID, executionID string
+	settings                Map
+	reasoning               map[nativeReasoningPart]string
+	finals, outputs         map[string]string
+	finalOrder              []string
+	seenUsage               map[string]bool
+	pending                 map[string]*nativePending
+	emit                    func(Map)
+	activity                func(Map)
+	terminal                bool
+	bridge                  *ToolBridge
+	completed               chan struct{}
+	failure                 string
+	closed                  bool
+	closeOnce               sync.Once
+	closeErr                error
+	background              map[string]Map
+	tombstones              map[string]bool
+	refreshMu               sync.Mutex
+	toolContext             context.Context
+	toolCancel              context.CancelFunc
+	toolCalls               map[string]bool
+	toolWorkers             *sync.WaitGroup
+	retiredTurns            map[string]bool
+	retryTimer              *time.Timer
+	retryCount              int
+	retryGeneration         uint64
 }
 
 func NewNativeSession(s *AppServer) *NativeSession {
@@ -286,7 +285,7 @@ func (n *NativeSession) Start(ctx context.Context, o NativeOptions, executionID 
 	n.turnID = ""
 	n.terminal = false
 	n.failure = ""
-	n.reasoning = map[string]string{}
+	n.reasoning = map[nativeReasoningPart]string{}
 	n.finals = map[string]string{}
 	n.finalOrder = nil
 	n.outputs = map[string]string{}
@@ -509,22 +508,14 @@ func (n *NativeSession) RespondExecution(ctx context.Context, executionID, id st
 	return nil
 }
 func (n *NativeSession) notification(method string, p Map, wireID any) {
-	if n.routeNativePending(method, p, wireID) {
-		return
-	}
 	if wireID != nil {
 		n.request(method, p, wireID)
 		return
 	}
 	n.mu.Lock()
-	id, turn, terminal, rt := n.id, n.turnID, n.terminal, n.realtime
+	id, turn, terminal := n.id, n.turnID, n.terminal
 	n.mu.Unlock()
-	if rt != nil && (strings.HasPrefix(method, "thread/realtime/") || method == "turn/started") {
-		rt(method, p)
-	}
-	if strings.HasPrefix(method, "thread/realtime/") {
-		return
-	}
+
 	if str(p["threadId"]) != id {
 		return
 	}
@@ -541,40 +532,12 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		return
 	}
 	if terminal && method == "turn/started" && nativeTurn != "" {
-		if e := n.admitNative(nativeTurn); e != nil {
-			if e == errNativeVoiceAdmissionCancelled {
-				n.mu.Lock()
-				n.retiredTurns[nativeTurn] = true
-				cancel := n.nativeAdmissionCancelled
-				n.mu.Unlock()
-				if cancel != nil {
-					cancel(nativeTurn)
-					return
-				}
-			}
-			if e == plugin.ErrMokuConfigurationPending {
-				n.mu.Lock()
-				callback := n.nativeConfigurationRejected
-				if callback != nil {
-					n.retiredTurns[nativeTurn] = true
-					n.nativeAdmit = nil
-				}
-				n.mu.Unlock()
-				if callback != nil {
-					// Core rejected before any tool/execution was admitted. Drain
-					// the original process before handing its exact input back;
-					// generic failures never enter this recovery path.
-					go func() { callback(n.Close()) }()
-					return
-				}
-			}
-			n.protocolFailure(e.Error())
-			return
-		}
-		terminal = false
-		turn = nativeTurn
-		n.drainNativePending(nativeTurn)
+		// Ordinary sends reserve the execution before native dispatch. An
+		// unsolicited turn cannot acquire that authority through notifications.
+		n.protocolFailure("Native Codex turn has no registered owner")
+		return
 	}
+
 	if method == "turn/started" {
 		n.mu.Lock()
 		if !n.terminal && n.turnID == "" {
@@ -605,16 +568,7 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		p = clone(p)
 		p["item"] = item
 	}
-	if item := obj(p["item"]); (method == "item/started" || method == "item/completed") && item["type"] == "userMessage" && rt != nil {
-		texts := []string{}
-		for _, part := range arr(item["content"]) {
-			texts = append(texts, str(obj(part)["text"]))
-		}
-		text := strings.Join(texts, "\n")
-		if strings.Contains(text, "<realtime_delegation>") {
-			rt("mokusei/voice/delegation", Map{"turnId": nativeTurn, "itemId": str(item["id"]), "text": text})
-		}
-	}
+
 	if events := DecodeNotification(method, p); events != nil {
 		for _, e := range events {
 			n.publish(e)
@@ -644,10 +598,12 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		delta := str(p["delta"])
 		n.publish(Map{"type": "text-delta", "itemId": item, "delta": delta})
 	case "item/reasoning/summaryTextDelta", "item/reasoning/textDelta":
-		n.mu.Lock()
-		n.reasoning[str(p["itemId"])] += str(p["delta"])
-		n.mu.Unlock()
-		n.publish(Map{"type": "reasoning-delta", "delta": str(p["delta"])})
+		kind, indexKey := "summary", "summaryIndex"
+		if method == "item/reasoning/textDelta" {
+			kind, indexKey = "content", "contentIndex"
+		}
+		part := nativeReasoningPart{str(p["itemId"]), kind, int64(num(p[indexKey]))}
+		n.reasoningDelta(part, str(p["delta"]))
 		n.publish(Map{"type": "status", "label": "正在分析"})
 	case "item/started":
 		i := obj(p["item"])
@@ -726,25 +682,19 @@ func (n *NativeSession) completedItem(i Map) {
 		n.mu.Unlock()
 		n.publish(Map{"type": "text-final", "itemId": id, "text": text})
 	case "reasoning":
-		parts := []string{}
-		for _, v := range arr(i["summary"]) {
-			if s, ok := v.(string); ok {
-				parts = append(parts, s)
-			}
-		}
+		kind, parts := "summary", arr(i["summary"])
 		if len(parts) == 0 {
-			for _, v := range arr(i["content"]) {
-				if s, ok := v.(string); ok {
-					parts = append(parts, s)
-				}
-			}
+			kind, parts = "content", arr(i["content"])
 		}
-		text := strings.Join(parts, "\n")
-		n.mu.Lock()
-		streamed := n.reasoning[id]
-		n.mu.Unlock()
-		if strings.HasPrefix(text, streamed) && len(text) > len(streamed) {
-			n.publish(Map{"type": "reasoning-delta", "delta": text[len(streamed):]})
+		for index, value := range parts {
+			part := nativeReasoningPart{id, kind, int64(index)}
+			text := strings.ReplaceAll(str(value), "\x00", "")
+			n.mu.Lock()
+			streamed := n.reasoning[part]
+			n.mu.Unlock()
+			if strings.HasPrefix(text, streamed) && len(text) > len(streamed) {
+				n.reasoningDelta(part, text[len(streamed):])
+			}
 		}
 	case "contextCompaction":
 		n.publish(Map{"type": "context-compacted"})
@@ -757,6 +707,20 @@ func (n *NativeSession) completedItem(i Map) {
 		}
 	}
 }
+
+func (n *NativeSession) reasoningDelta(part nativeReasoningPart, delta string) {
+	// Empty parts must not consume their boundary before the first visible delta.
+	delta = strings.ReplaceAll(delta, "\x00", "")
+	if delta == "" {
+		return
+	}
+	n.mu.Lock()
+	previous := n.reasoning[part]
+	n.reasoning[part] = previous + delta
+	n.mu.Unlock()
+	n.publish(Map{"type": "reasoning-delta", "delta": delta, "newSegment": previous == ""})
+}
+
 func (n *NativeSession) finish(turn Map) {
 	n.mu.Lock()
 	if n.terminal {
@@ -946,20 +910,6 @@ func (n *NativeSession) request(method string, p Map, id any) {
 	}
 	n.mu.Unlock()
 	n.publish(Map{"type": "interaction-opened", "interaction": interaction})
-}
-
-// Either owner retirement or an earlier transport failure forbids automatic
-// reuse. These facts are monotonic, although process/bridge drain may follow.
-func (n *NativeSession) retiring() bool {
-	n.mu.Lock()
-	closed := n.closed
-	n.mu.Unlock()
-	if closed {
-		return true
-	}
-	n.server.mu.Lock()
-	defer n.server.mu.Unlock()
-	return n.server.closed
 }
 
 func (n *NativeSession) Close() error {
@@ -1169,44 +1119,6 @@ func (n *NativeSession) completeBackground(item Map) bool {
 	return tracked || completed
 }
 
-func (n *NativeSession) admitNative(turnID string) error {
-	n.mu.Lock()
-	admit := n.nativeAdmit
-	n.mu.Unlock()
-	if admit == nil {
-		return errors.New("Native Codex turn has no registered owner")
-	}
-	executionID, e := admit(turnID)
-	if e != nil {
-		return e
-	}
-	n.mu.Lock()
-	n.executionID = executionID
-	n.turnID = turnID
-	delete(n.retiredTurns, turnID)
-	n.terminal = false
-	n.failure = ""
-	n.reasoning = map[string]string{}
-	n.finals = map[string]string{}
-	n.finalOrder = nil
-	n.outputs = map[string]string{}
-	n.seenUsage = map[string]bool{}
-	n.completed = make(chan struct{})
-	n.toolContext, n.toolCancel = context.WithCancel(context.Background())
-	n.toolCalls = map[string]bool{}
-	n.toolWorkers = &sync.WaitGroup{}
-	n.mu.Unlock()
-	n.server.mu.Lock()
-	closed := n.server.closed
-	failure := n.server.terminalErr
-	n.server.mu.Unlock()
-	if closed {
-		n.failed(failure)
-		return failure
-	}
-	return nil
-}
-
 func (n *NativeSession) validateSettings(ctx context.Context, o *NativeOptions) error {
 	o.Settings = clone(o.Settings)
 	if o.RequireExplicitSettings && str(o.Settings["serviceTier"]) == "" {
@@ -1261,54 +1173,4 @@ func (n *NativeSession) validateSettings(ctx context.Context, o *NativeOptions) 
 	}
 
 	return nil
-}
-
-// Voice can emit native items and requests before its turn/started boundary.
-// Keep their exact wire identity until the registered owner durably admits it.
-func (n *NativeSession) routeNativePending(method string, p Map, id any) bool {
-	threadID := str(p["threadId"])
-	turnID := first(str(p["turnId"]), str(obj(p["turn"])["id"]))
-	if turnID == "" || strings.HasPrefix(method, "thread/realtime/") {
-		return false
-	}
-	n.mu.Lock()
-	if n.nativeAdmit == nil || threadID != n.id || n.retiredTurns[turnID] || (!n.terminal && (n.turnID == "" || n.turnID == turnID)) || (method == "turn/started" && n.terminal) {
-		n.mu.Unlock()
-		return false
-	}
-	frame := Map{"method": method, "params": p, "id": id}
-	size := len(jsonText(frame))
-	if len(n.nativeBacklog) >= 1024 || n.nativeBacklogBytes+size > 8*1024*1024 {
-		n.mu.Unlock()
-		if id != nil {
-			_ = n.server.Reply(id, nil, errors.New("native admission queue exceeded limit"))
-		}
-		n.protocolFailure("Codex native admission queue exceeded limit")
-		return true
-	}
-	n.nativeBacklog = append(n.nativeBacklog, frame)
-	n.nativeBacklogBytes += size
-	n.mu.Unlock()
-	return true
-}
-func (n *NativeSession) drainNativePending(turnID string) {
-	n.mu.Lock()
-	pending := []Map{}
-	retained := []Map{}
-	n.nativeBacklogBytes = 0
-	for _, frame := range n.nativeBacklog {
-		p := obj(frame["params"])
-		id := first(str(p["turnId"]), str(obj(p["turn"])["id"]))
-		if id == turnID {
-			pending = append(pending, frame)
-		} else {
-			retained = append(retained, frame)
-			n.nativeBacklogBytes += len(jsonText(frame))
-		}
-	}
-	n.nativeBacklog = retained
-	n.mu.Unlock()
-	for _, frame := range pending {
-		n.notification(str(frame["method"]), obj(frame["params"]), frame["id"])
-	}
 }

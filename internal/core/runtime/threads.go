@@ -225,7 +225,6 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 	if publicThread && !t.Moku {
 		metadata = metadataStore{owner}
 	}
-	injection = r.auditToolInjection(t, injection)
 	native, err := h.Open(lifetime, plugin.OpenContext{ThreadID: t.ID, ReadThread: func() model.SessionRecord {
 		current, e := r.sessionThread(t.ID)
 		if e != nil {
@@ -489,8 +488,6 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 	if err := h.active(); err != nil {
 		return "", errors.New("native execution owner closed")
 	}
-	var notifications mokuNativeDelivery
-	ctx = context.WithValue(ctx, mokuNativeDeliveryKey{}, &notifications)
 	if before != nil {
 		if err := before(ctx); err != nil {
 			return "", err
@@ -500,8 +497,8 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 	if err != nil {
 		return "", err
 	}
-	if t.MokuHistory || archived(&t) {
-		return "", errors.New("archived conversations cannot admit native execution")
+	if t.MokuHistory {
+		return "", errors.New("Moku history cannot admit native execution")
 	}
 	if e := t.Observation.LatestExecution; e != nil && !e.Terminal() {
 		return "", errors.New("another execution is already active")
@@ -541,11 +538,7 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 		h.mu.Unlock()
 		return "", err
 	}
-	if notifications.batch != nil {
-		if err := notifications.batch.admitted(ctx); err != nil {
-			return "", err
-		}
-	}
+
 	return id, nil
 }
 func (h *threadHandle) close() error {
@@ -577,22 +570,20 @@ func (r *Runtime) settleClosed(owner *threadHandle) {
 	}
 	state, err := owner.harness.SessionState().Settle(plugin.SettleRequest{SessionState: thread.SessionState, ExecutionID: execution.ExecutionID, Outcome: "interrupted", FinishedAt: time.Now().UnixMilli()})
 	if err != nil {
-		r.log("thread.close.settle", err)
 		return
 	}
 	observation, err := owner.harness.SessionState().Project(state)
 	if err != nil {
-		r.log("thread.close.project", err)
 		return
 	}
-	r.log("thread.close.persist", r.updateSessionThread(context.WithoutCancel(r.ctx), owner.id, func(t *model.ThreadRecord) error {
+	_ = r.updateSessionThread(context.WithoutCancel(r.ctx), owner.id, func(t *model.ThreadRecord) error {
 		if e := t.Observation.LatestExecution; e == nil || e.ExecutionID != execution.ExecutionID || e.Terminal() {
 			return nil
 		}
 		t.SessionState = state
 		t.Observation = observation
 		return nil
-	}))
+	})
 }
 
 type metadataStore struct{ owner *threadHandle }
@@ -731,10 +722,10 @@ func (r *Runtime) CreateThread(ctx context.Context, request CreateThreadRequest)
 		}
 		cleanup := context.WithoutCancel(ctx)
 		if preparation != nil && r.config.Workspaces != nil {
-			r.log("thread.create.worktree.rollback", r.config.Workspaces.Discard(cleanup, *preparation))
+			_ = r.config.Workspaces.Discard(cleanup, *preparation)
 		}
 		if request.Cwd == "" && cwd != "" && r.config.Workspaces != nil {
-			r.log("thread.create.temporary.rollback", r.config.Workspaces.DiscardTemporary(cleanup, cwd))
+			_ = r.config.Workspaces.DiscardTemporary(cleanup, cwd)
 		}
 	}()
 	if cwd == "" {
@@ -911,8 +902,8 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 	if err != nil {
 		return SendResult{}, err
 	}
-	if t.MokuHistory || t.Archived != nil && *t.Archived {
-		return SendResult{}, errors.New("thread is archived")
+	if t.MokuHistory {
+		return SendResult{}, errors.New("Moku history is read-only")
 	}
 	if _, err := validateCwd(effectiveCwd(t)); err != nil {
 		return SendResult{}, err
@@ -1263,7 +1254,6 @@ func (r *Runtime) settleSendFailure(owner *threadHandle, id string, cause error)
 	if err == nil {
 		err = owner.Commit(context.WithoutCancel(r.ctx), state)
 	}
-	r.log("thread.send.settle", err)
 }
 func (r *Runtime) InterruptThread(ctx context.Context, id string) error {
 	r.cancelSendClaims(id)
@@ -1517,16 +1507,15 @@ func (r *Runtime) DeleteThread(ctx context.Context, id string) error {
 	r.pruneCancellationState(id)
 	cleanup := context.WithoutCancel(ctx)
 	if r.config.Attachments != nil {
-		r.log("thread.delete.attachments", r.config.Attachments.ReleaseOwner(cleanup, id))
+		_ = r.config.Attachments.ReleaseOwner(cleanup, id)
 	}
-	r.log("thread.delete.voice", r.removeThreadVoice(cleanup, id))
 	if r.config.Workspaces != nil && t.Worktree != nil {
-		r.log("thread.delete.workspace", r.config.Workspaces.Unregister(cleanup, id, t.Worktree))
+		_ = r.config.Workspaces.Unregister(cleanup, id, t.Worktree)
 	}
 	// Reports derive their directory labels from live source threads. Refresh
 	// after the delete commits so a Report referencing this thread drops the
 	// stale task-… label in the same session instead of after a restart.
-	r.log("thread.delete.directory_tags", r.RefreshApplicationDirectoryTags(cleanup))
+	_ = r.RefreshApplicationDirectoryTags(cleanup)
 	return nil
 }
 
@@ -1552,7 +1541,6 @@ func (g workspaceGrant) Grant(ctx context.Context) (plugin.ManagedWorkspaceGrant
 func (r *Runtime) StartRecovery() {
 	threads, err := r.Threads()
 	if err != nil {
-		r.log("recovery.read", err)
 		return
 	}
 	for _, t := range threads {
@@ -1578,7 +1566,6 @@ func (r *Runtime) StartRecovery() {
 				}
 				_, err = r.openThread(r.ctx, current, nil)
 			}
-			r.log("recovery.open", err)
 			if err != nil && r.config.Diagnostic != nil && r.operational() == nil && !r.IsDeleting(thread.ID) {
 				r.config.Diagnostic(fmt.Sprintf("Agent Thread %s restart recovery failed: %v", thread.ID, err))
 			}

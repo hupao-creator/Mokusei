@@ -1,9 +1,6 @@
 // Appended to the existing production-counter helpers in the disposable build.
 @MainActor private func runResearchTrial() async throws {
     let directory = performanceDirectory
-    unsetenv("MOKUSEI_PERFORMANCE_DIR")
-    NativePerformance.configure(directory: directory.appendingPathComponent("native"), mode: .summary)
-    defer { NativePerformance.finish() }
     let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState,
         eventType: CGEventType(rawValue: UInt32.max)!)
     guard idle.isFinite, idle >= 30 else { throw PerformanceFailure(description: "Recent session input; no window shown") }
@@ -43,7 +40,6 @@
         "camera": cameraJSON(fixture), "frames": fixture.frames.mapValues { NSStringFromRect($0) },
         "geometricFullyInWindow": fullyInside, "geometricIntersectingWindow": intersecting,
         "framing": "production readable camera; large collections may be partially outside the viewport",
-        "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
         "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
         "comparison": "all-on; shell-off retains inner glass; all-off uses inner Glass.identity; opaque replacements change occlusion/compositing",
         "cloud": "production harness palettes supplied; autonomous animation paused equally in all conditions",

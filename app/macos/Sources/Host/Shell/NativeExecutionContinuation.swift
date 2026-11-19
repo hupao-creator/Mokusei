@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 import MokuseiCore
 import MokuseiPluginAPI
 
@@ -195,8 +194,6 @@ final class NativeExecutionContinuation {
             // Sending already succeeded. Retain the operation and durable barrier
             // for send() to release before admitting new input, without turning
             // post-send housekeeping into a visible send failure.
-            Logger(subsystem: "Mokusei", category: "ExecutionContinuation")
-                .error("Accepted send receipt cleanup deferred: \(error.localizedDescription, privacy: .public)")
             return
         }
         // A newly mounted draft may already be finalizing this same receipt

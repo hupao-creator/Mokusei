@@ -19,7 +19,36 @@ always dark: the panel scopes `\.colorScheme` to `.dark`, so its own tokens, the
 shared glass shell, hosted AppKit popups/editors and the Tag/Report animations
 stay dark in a light workspace while the window keeps its appearance. Overview
 presentation and native controls remain unchanged outside the panel. Discovery presents
-installed Harness logos or plugin-owned installation guides. Moku reuses the
+Harnesses independently as checking installation, loading configuration, ready,
+or failed with a Harness-specific retry. An executable alone is not discovered:
+readiness joins the workspace's retained Moku execution and enabled independent
+background-role resources for that Harness. Inherited roles join
+Moku's exact resource, so readiness does not wait for unused application scopes.
+Configuration prefetch begins after that Harness is confirmed installed, leaving
+the shared queue available for other installation replies. Each Harness queues
+its execution resources ahead of ordinary Thread defaults in the same batch,
+without a phase barrier that holds defaults behind execution retries. Defaults
+are not read by any subsequent onboarding page and do not gate discovery or its retry;
+they continue warming separately for Settings. Harnesses without execution-host
+capability still require their ordinary resource. This includes each plugin's decoded
+model catalog, capabilities/options and nonempty saved execution snapshots.
+Transport/decode failures, CLI failures and embedded catalog errors remain errors;
+background retries are bounded (1 and 3 seconds) and never count as completion.
+Codex/Pi/OpenCode require usable model catalogs; Claude supports custom model
+identifiers and can legitimately have an empty advertised list. OpenCode waits
+for the account phase that can still filter model availability, not usage telemetry.
+
+The title counts only ready Harnesses and keeps discovery progress or partial
+failure explicit. Continue requires at least one ready Moku-capable Harness and
+does not wait for unrelated slow/failed Harnesses. It admits the current ready
+roster into Moku and the role pickers; returning to discovery can admit newly
+ready Harnesses. The admitted roster remains stable across execution-profile
+saves, while each active editor still enforces its own readiness and validation.
+The same cached, source-keyed surfaces supply the subsequent editors immediately;
+page changes do not reload successful resources or reseed selected defaults.
+Disabled roles need no execution resources until enabled; changing a saved source,
+role mode or connection authority retains the ordinary targeted reload boundary.
+Plugin-owned installation guides remain available for missing Harnesses. Moku reuses the
 Settings coordination map and native Harness execution fields. Tag and Report
 reuse application-owned background configuration, including inheritance and
 retained independent profiles. Provider catalogs, pending model choices and
@@ -49,7 +78,7 @@ logos and retains its completed composition. Settings uses the same behavior
 without onboarding step admission. Leaving the page cancels playback; entering
 it again creates a new playback visit. Hiding or deactivating the window during
 playback settles to the completed composition without replaying on activation.
-Reduce Motion shows the completed composition without deferred playback. Tag
+Tag
 also rebuilds a static final frame on size, appearance, locale or Harness changes
 after playback starts, and pauses SpriteKit once that frame is rendered. Tag's
 collision boundaries remain invisible. A native `SKView` adapter makes both the
@@ -57,18 +86,9 @@ view and its backing Metal layer nonopaque and clears the layer before presentin
 the scene. This keeps tab entry transparent before SpriteKit's first drawable;
 a clear scene background alone does not configure the native host. Ordinary
 updates retain scene identity, and unmounting pauses and detaches it.
-`NativeOnboardingTagSurfaceTests` mounts the production animation and captures
-continuous WindowServer frames across entry and return in the isolated AppKit
-capture host (`--tag-glass-captures`), rejecting a broad light
-rectangle in the dark animation area. CI retains those frames alongside its
-native evidence. The capture method has an explicit mandatory native owner;
-ordinary SwiftPM execution cannot certify its frame delivery. A small clock
-outside the sampled area keeps complete frames arriving for a paused final scene;
-capture begins before insertion, while its 400ms observation window waits for
-the real scene to prepare and start or settle. At least two frames must follow
-that boundary, and the opacity check still includes the earlier entry frames.
-Pixel scans and PNG encoding happen only after capture stops. The same suite checks pause/resume, scene replacement and
-unmount/remount ownership.
+No native Tag-surface capture suite is configured in this source tree;
+transparent host/layer state and playback lifecycle are production constraints,
+not a claim of continuous-frame coverage.
 Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
 
@@ -78,29 +98,11 @@ the panel fades its contents, contracts to the actual Dock geometry, and reveals
 the real composer. The one-time marker is independent of empty-workspace landing:
 archiving all conversations still restores landing without replaying setup.
 
-Verification uses the mounted `NativeMokuLandingTests` for hydration, admission,
-interruption and marker errors. `NativeOnboardingUserFlow` extends the existing
-Go-backed Settings flow with real discovery/resources, independent and inherited
-role settings, Back, failed completion persistence and actual Dock handoff. It
-drives the current `off`, `inherit` and `independent` controls, checking disabled
-readiness, hidden execution fields and exact profile restoration after reopening.
-Before asserting that an incomplete model edit cannot change saved settings, the
-flow joins the earlier discovery-seeded target save through the production flush.
-After onboarding, it checks the exact Settings section order for the full
-production application composition with the built-in role sections:
-
-```sh
-make runtime
-./scripts/go.sh run -race ./tools/verification/settings -runtime "$PWD/.build/go/mokusei-runtime"
-python3 tools/verification/reading-presentation/run.py --moku-landing
-```
-
 The deterministic [visual demo](../../../../../demos/landing-setup/README.md)
-remains available for appearance and animation review. The production settings
-flow, rather than its fixture controls, certifies Runtime persistence. Startup
-and navigation changes also require the signed production package checks in the
-[verification policy](../../../../../scripts/ci/verification-policy.md).
-
+uses the production surfaces with in-memory data. It does not establish Runtime
+persistence, real discovery, focus, input or native-frame correctness. No
+onboarding/Settings e2e flow is configured in this source tree; validation
+ownership is defined by the [verification policy](../../../../../scripts/ci/verification-policy.md).
 
 The Report role is displayed as Super Thread Agent through its application
 settings label. Onboarding progress keys and the `report.settings` binding stay

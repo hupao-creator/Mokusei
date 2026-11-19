@@ -1,54 +1,17 @@
-# Note opening performance and Regular glass
+# Note native preparation measurement
 
-This investigation starts at `61e424b` and uses the user-supplied 10.29-second
-screen recording from 2026-11-03. Frames were decoded with AVFoundation at exact
-100 ms requests (default keyframe tolerance is unsuitable for animation review).
-The recording contains two openings of a short note with one execution link;
-it supports investigating opening/morph work, rather than assuming a long
-note or a slow remote read. Private recording frames and note text are not
-checked in.
+The probe links current optimized production objects, mounts the real Note/Dock
+with synthetic data in a never-ordered, never-activated window, and measures
+native layout/preparation. It uses no Runtime/profile, model, account, network,
+clipboard or global preference writes. `-enable-testing` exposes internal types
+without creating a test target. Hidden-window CPU is not visible opening latency.
 
-## Production path and cause
-
-- `NativeMokuWorkspacePresentation` projects the note from the public catalog.
-  Opening toggles `NativeMokuSceneState.notePanelOpen`; it does not fetch a
-  transcript, read a note file, start a Harness or invoke a backend load.
-- `NativeMokuDock` fits the measured body into the viewport and animates its
-  existing shell. The read-only Markdown parser runs on its background actor;
-  native attributed text and TextKit layout run on the main actor.
-- The Note opts into execution capsules even in ordinary prose paragraphs.
-  Previously, every changed sizing proposal rebuilt their attributed text.
-  Execution attachments were new native objects, invalidating text storage,
-  selection notifications, height caches and native layout even for a return
-  to an already measured width.
-- `updateExecutionSurfaces` assigned each capsule's frame and SwiftUI root on
-  every layout/selection refresh. A new root invalidated another live glass
-  graph despite unchanged content. A two-second sample of the isolated baseline
-  reached `sizeThatFits → measuredHeight → applyText → replaceContent →
-  NSTextStorage → selection notification → updateExecutionSurfaces`, alongside
-  AttributeGraph layout, `NSHostingView.rootView.setter` and `GlassEffectView`
-  updates. This is evidence of repeated CPU/render preparation feeding glass,
-  not a measurement of GPU time.
-- The outer Note shell shares the Dock window; execution capsules are child
-  hosting views inside TextKit, not additional windows. The Note ink's existing
-  compositing group owns its fade; it is not another outer glass shell.
-  Exposure probes inspect layout and coverage but do not load data. Their
-  qualification, dwell, cancellation and backend receipt behavior are unchanged.
-
-The fix keeps eight width/scale heights per text input revision and checks them
-before building attributed content. A proposal always restores the actual
-visible container. Only actual image/execution attachments make content
-width-dependent. Glass roots update only for attachment, selection, locale or
-appearance changes, while actions still read the latest callback.
-
-Expanded Note now uses **dark Regular Liquid Glass**, as requested, without the
-clear shell's bottom-fading gradient. A single persistent `glassEffect` node
-changes material; there is no second clear shell behind Regular. Collapsing
-restores the existing clear interactive Dock. Expanded Regular is noninteractive;
-TextKit, scroll, close/history buttons and input retain event ownership. Reduce
-Transparency takes the original opaque warm-black branch for either state.
-The existing 420 ms shell and 120 ms ink-dismissal timing, including Reduce
-Motion, remain with their existing owners.
+The production Note comes from the public catalog, not a backend fetch when
+opened. Its parser runs off main; attributed text/TextKit stay on main. Native
+text uses bounded per-input width/scale height caching and updates execution-link
+roots only for actual content/selection/locale/appearance changes. The expanded
+shell is dark Regular Liquid Glass and uses opaque fallback under Reduce
+Transparency. Ordinary shell/ink timing does not read Reduce Motion.
 
 ## Reproduce the measurement
 
@@ -58,8 +21,8 @@ no Runtime/profile, account, network operation, global preference or clipboard.
 No test suite or historical replay is invoked. `-enable-testing` only exposes
 internal production types to the standalone executable.
 
-Before changing production sources, preserve a baseline, then preserve the
-candidate after the change:
+Build two fixed compatible versions with the same probe source, preserving each
+binary before measuring:
 
 ```sh
 python3 tools/verification/moku-note-performance/run.py build --label baseline
@@ -76,9 +39,9 @@ sources, changed binaries, missing controls and visible/active probe windows.
 `--skip-build` only links production objects that the caller has just built from
 current sources. Build/link and measurement failures keep their evidence.
 
-For separate production counters (excluded from timing), run a preserved binary
-with `OUTPUT.json --detail`. A system `sample` of that owned process can explain
-CPU stacks; sampling runs must not be included in the timing comparison.
+This independent probe writes CPU, geometry and timing outputs. A system
+`sample` of its owned process can explain CPU stacks; sampling runs must not be
+included in the timing comparison.
 
 `unchanged-execution-layout` performs 30 identical native refreshes per case;
 `alternate-width-proposals` performs ten actual/actual+16/actual sizing cycles.
@@ -89,7 +52,7 @@ it is not time-to-visible. `glassViews` in raw data counts native class names
 containing "Glass"; SwiftUI's glass graph need not expose such an NSView, so
 zero does not mean glass was absent.
 
-## Evidence and limits
+## Versioned measurement evidence
 
 Measured on arm64 macOS 26.5.1 with Swift 6.3.2, optimized production objects,
 four serial AB/BA pairs after all builds completed. Each number is the median of
@@ -159,34 +122,3 @@ preferences and the clipboard were never modified.
   after replacing the content. Copy was inspected without touching the clipboard.
   The inactive offscreen AX tree did not expose a pressable capsule, so AX press
   and callback refresh through that press remain **unverified**, not passed.
-
-### Review and verification
-
-Completed local diff review of input/cache ownership, bounded storage, callback
-freshness, locale/appearance and attachment invalidation, event passthrough,
-material identity, Reduce Transparency priority, and existing animation owners.
-The final production source fingerprint is recorded in provenance; documentation
-and evidence additions after its build do not change compiled sources.
-
-- Release `Mokusei` product build with Swift 6 and `-warnings-as-errors`: passed.
-- Architecture/static-registration/no-Node source checks: passed.
-- Python syntax, diff whitespace and changed local documentation links: passed.
-- No new tests, historical suites/replays, `make check`, git hooks, hosted CI,
-  remote push or PR creation. Commit hooks are disabled for this scoped commit.
-  Read-only remote inspection reported no legacy main branch-protection object;
-  listed runs belonged to other commits and do not certify this work.
-
-Diagnostic limitations/failures were retained: initial sandbox AVFoundation
-hardware decoding failed and succeeded with read-only decoder access; a build
-metadata guard rejected a concurrent README-only edit after successful compile
-(the fingerprint now excludes Markdown docs); the runner refused to overwrite
-an older measurement series (a unique series prefix now preserves both);
-read-only accessibility environment overrides were replaced by the existing
-local opaque preview entry. None was turned into a passing product test.
-
-Not covered: live user-profile behavior, complete Harness navigation/focus/voice
-regressions, full accessibility activation, live Reduce Motion/Transparency
-preference changes, extreme zoom/mixed media, rapidly interrupted material
-transitions, WindowServer frame pacing/GPU cost, or physical trackpad feel.
-Those limits remain for caller integration; no user application was replaced or
-restarted, and no note data was deleted.

@@ -19,7 +19,7 @@ flags = [
     "-module-cache-path", str(build / "ModuleCache"),
 ]
 # Compile the unmodified platform bridge as a minimal module. This keeps the
-# real capsule and eyes available without linking the runtime or voice stack.
+# real capsule and eyes available without linking the runtime stack.
 subprocess.run([
     *flags, "-module-name", "MokuseiPluginUI", "-emit-module", "-emit-object",
     "-emit-module-path", str(build / "MokuseiPluginUI.swiftmodule"),

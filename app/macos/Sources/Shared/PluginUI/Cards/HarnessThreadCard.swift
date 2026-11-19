@@ -15,8 +15,6 @@ public struct HarnessThreadCard: View {
     private let state: AnyView?
     private let harnessLogo: AnyView?
     @State private var hovered = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.threadCardCloudAnimationsEnabled) private var cloudAnimationsEnabled
 
     public init(identity: ThreadCardIdentityView, presentation: ThreadCardPresentation,
                 onRespond: ThreadCardInterventionHandler? = nil, onOpen: (() -> Void)? = nil,
@@ -76,7 +74,6 @@ public struct HarnessThreadCard: View {
                    + CGFloat(max(0, presentation.size.rows - 1)) * NativeGeometry.overviewCardGap)
         .background {
             ThreadCardCloud(running: status?.kind == .running)
-                .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled && !(identity.initialResponse != nil && reduceMotion))
         }
         .onHover { hovered = $0 }
         .environment(\.threadCardUsesFlatMaterials, true)
@@ -209,21 +206,18 @@ private struct ThreadCardIdentity: View {
 private struct CardTitleSwap: View {
     let text: String
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @Environment(\.threadCardTextReduceMotionOverride) private var reduceMotionOverride
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var displayed: String
     @State private var phase = 0
     @State private var visualIdentity = UUID()
     @State private var transition = CardTitleTransition()
-    private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
     init(text: String) { self.text = text; _displayed = State(initialValue: text) }
     var body: some View {
         Text(displayed).cardFont(size: 15, weight: 620).offset(y: phase == 1 ? -4 : phase == 2 ? 4 : 0)
             .blur(radius: phase == 0 ? 0 : 2).opacity(phase == 0 ? 1 : 0)
             .id(visualIdentity).transition(.identity)
             .onChange(of: Input(text: text, animates: scenePhase != .background
-                && (visibility?.isVisible ?? true) && !reduceMotion), initial: true) { _, input in
+                && (visibility?.isVisible ?? true)), initial: true) { _, input in
                 transition.latest = input.text
                 guard input.animates else { settle(); return }
                 guard transition.task == nil, displayed != transition.latest else { return }
@@ -279,12 +273,11 @@ public struct ThreadCardLatestTool: View {
     public let tool: ThreadCardIdentityTool
     @Environment(\.locale) private var locale
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @Environment(\.threadCardProviderColor) private var providerColor
     private var animates: Bool {
-        tool.status == .running && scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true)
+        tool.status == .running && scenePhase != .background && enabled && (visibility?.isVisible ?? true)
     }
     public init(tool: ThreadCardIdentityTool) { self.tool = tool }
     public var body: some View {

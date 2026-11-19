@@ -5,6 +5,13 @@ import MokuseiPluginUI
 import SwiftUI
 import WebKit
 
+/// The authoring viewport is independent of the Overview grid and panel width.
+/// Keep existing fixed-pixel HTML and responsive HTML in the same coordinate space.
+enum NativeReportCoverLayout {
+    static let viewport = CGSize(width: 360, height: 308)
+    static func height(for width: CGFloat) -> CGFloat { width * viewport.height / viewport.width }
+}
+
 /// Scoped to one Report plugin registration, never shared across workspaces.
 /// Retain pixels and markup, not browsers, across tag-scoped card identities.
 @MainActor final class NativeReportCoverCache {
@@ -41,14 +48,39 @@ extension EnvironmentValues {
 /// Full cover markup is fetched for mounted cards, never shipped in the catalog.
 struct NativeReportCover: View {
     let props: ApplicationThreadProps<NativeReportView>
+    var playback: NativeReportCoverPlayback = .playing
+    var replayID = 0
+    var initiallyFinished = false
+    var onReady: () -> Void = {}
+    var onPlaybackStarted: () -> Void = {}
+    var onPlaybackCompleted: (ApplicationThreadRef, JSONText, Int) -> Void = { _, _, _ in }
     @State private var localCache = NativeReportCoverCache()
     @Environment(\.nativeReportCoverCache) private var sharedCache
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.threadCardAnimationVisibility) private var visibility
+    @Environment(\.threadCardCloudAnimationsEnabled) private var animationsEnabled
+
+    private var effectivePlayback: NativeReportCoverPlayback {
+        if playback.isPlaying && (!animationsEnabled || visibility?.isVisible == false) { return .paused }
+        return playback
+    }
 
     var body: some View {
         let key = NativeReportCoverCache.Key(source: .init(pluginID: "report", queryID: "report.cover",
             input: props.entry.ref.json, contentRevision: props.entry.view.coverRevision), dark: colorScheme == .dark)
-        ReportCoverSession(props: props, key: key, cache: sharedCache ?? localCache).id(key)
+        GeometryReader { geometry in
+            let viewport = NativeReportCoverLayout.viewport
+            let scale = min(geometry.size.width / viewport.width, geometry.size.height / viewport.height)
+            ReportCoverSession(props: props, key: key, cache: sharedCache ?? localCache,
+                playback: effectivePlayback, replayID: replayID, initiallyFinished: initiallyFinished,
+                onReady: onReady, onPlaybackStarted: onPlaybackStarted,
+                onPlaybackCompleted: onPlaybackCompleted).id(key)
+                .frame(width: viewport.width, height: viewport.height)
+                // Scale the live browser and its cached poster together, without
+                // changing CSS layout, stretching text or cropping authored content.
+                .scaleEffect(scale)
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+        }
     }
 }
 
@@ -56,13 +88,24 @@ private struct ReportCoverSession: View {
     let props: ApplicationThreadProps<NativeReportView>
     let key: NativeReportCoverCache.Key
     let cache: NativeReportCoverCache
+    let playback: NativeReportCoverPlayback
+    let replayID: Int
+    let initiallyFinished: Bool
+    let onReady: () -> Void
+    let onPlaybackStarted: () -> Void
+    let onPlaybackCompleted: (ApplicationThreadRef, JSONText, Int) -> Void
     @State private var document: ApplicationHTMLDocument?
     @State private var image: NSImage?
     @State private var ready = false
     @State private var failure: String?
 
-    init(props: ApplicationThreadProps<NativeReportView>, key: NativeReportCoverCache.Key, cache: NativeReportCoverCache) {
+    init(props: ApplicationThreadProps<NativeReportView>, key: NativeReportCoverCache.Key, cache: NativeReportCoverCache,
+         playback: NativeReportCoverPlayback, replayID: Int, initiallyFinished: Bool,
+         onReady: @escaping () -> Void, onPlaybackStarted: @escaping () -> Void,
+         onPlaybackCompleted: @escaping (ApplicationThreadRef, JSONText, Int) -> Void) {
         self.props = props; self.key = key; self.cache = cache
+        self.playback = playback; self.replayID = replayID; self.initiallyFinished = initiallyFinished; self.onReady = onReady
+        self.onPlaybackStarted = onPlaybackStarted; self.onPlaybackCompleted = onPlaybackCompleted
         let cached = cache.value(for: key)
         _document = State(initialValue: cached?.document)
         _image = State(initialValue: cached?.image)
@@ -76,12 +119,18 @@ private struct ReportCoverSession: View {
                     .font(NativeTypography.inter(size: 12)).foregroundStyle(.secondary).help(failure)
             } else if !ready { ProgressView().controlSize(.small) }
             if let document {
-                ReportCoverHTML(html: document.html.string, dark: key.dark, onReady: { image in
+                ReportCoverHTML(html: document.html.string, dark: key.dark, playback: playback,
+                    replayID: replayID, initiallyFinished: initiallyFinished,
+                    onPlaybackStarted: onPlaybackStarted,
+                    onPlaybackCompleted: { generation in
+                        onPlaybackCompleted(props.entry.ref, key.source.contentRevision, generation)
+                    }, onReady: { image in
                     // Keep the rendered underlay after admission too: WebKit can
                     // commit its native layer one frame after its snapshot callback.
                     if let image { self.image = image }
                     ready = true
                     cache.store(.init(document: document, image: self.image), for: key)
+                    onReady()
                 }, onFailure: { message in
                     failure = message; self.document = nil; image = nil; ready = false
                     cache.remove(key)
@@ -104,12 +153,28 @@ private struct ReportCoverSession: View {
                 if !Task.isCancelled { failure = error.localizedDescription }
             }
         }
+        .onChange(of: failure) { _, value in
+            // A preload can fail after it becomes selected. Use the current
+            // presentation, not the playback value captured by its fetch task.
+            if value != nil {
+                onReady()
+                if playback.isPlaying { onPlaybackStarted() }
+            }
+        }
+        .onChange(of: playback) { _, value in
+            if failure != nil && value.isPlaying { onPlaybackStarted() }
+        }
     }
 }
 
-private struct ReportCoverHTML: NSViewRepresentable {
+struct ReportCoverHTML: NSViewRepresentable {
     let html: String
     let dark: Bool
+    let playback: NativeReportCoverPlayback
+    let replayID: Int
+    let initiallyFinished: Bool
+    let onPlaybackStarted: () -> Void
+    let onPlaybackCompleted: (Int) -> Void
     let onReady: (NSImage?) -> Void
     let onFailure: (String) -> Void
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -117,6 +182,8 @@ private struct ReportCoverHTML: NSViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = false
+        configuration.userContentController.addUserScript(WKUserScript(source: NativeReportCoverPlayback.script,
+            injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: NativeReportCoverPlayback.world))
         configuration.setURLSchemeHandler(context.coordinator, forURLScheme: "mokusei-cover")
         let view = PassiveCoverWebView(frame: .zero, configuration: configuration)
         // WebKit's initial backing store is white even in a dark card. Reveal
@@ -130,24 +197,148 @@ private struct ReportCoverHTML: NSViewRepresentable {
     func updateNSView(_ view: PassiveCoverWebView, context: Context) {
         context.coordinator.onReady = onReady
         context.coordinator.onFailure = onFailure
+        context.coordinator.onPlaybackStarted = onPlaybackStarted
+        context.coordinator.onPlaybackCompleted = onPlaybackCompleted
+        context.coordinator.playback = playback
+        context.coordinator.updateReplay(replayID, initiallyFinished: initiallyFinished)
         view.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-        guard context.coordinator.html != html else { return }
+        guard context.coordinator.html != html else {
+            context.coordinator.applyPlayback(to: view)
+            return
+        }
         context.coordinator.html = html
         view.load(URLRequest(url: URL(string: "mokusei-cover://document/index.html")!))
     }
     static func dismantleNSView(_ view: PassiveCoverWebView, coordinator: Coordinator) {
-        coordinator.onReady = nil; coordinator.onFailure = nil
+        coordinator.onReady = nil; coordinator.onFailure = nil; coordinator.onPlaybackStarted = nil
+        coordinator.onPlaybackCompleted = nil
+        coordinator.ready = false; coordinator.playbackTask?.cancel(); coordinator.playbackTask = nil
+        view.evaluateJavaScript("globalThis.mokuseiCover?.pause()", in: nil,
+            in: NativeReportCoverPlayback.world) { _ in }
+        view.configuration.userContentController.removeAllUserScripts()
         view.stopLoading(); view.navigationDelegate = nil
     }
     final class Coordinator: NSObject, WKNavigationDelegate, WKURLSchemeHandler {
         var html: String?
         var onReady: ((NSImage?) -> Void)?
         var onFailure: ((String) -> Void)?
+        var onPlaybackStarted: (() -> Void)?
+        var onPlaybackCompleted: ((Int) -> Void)?
+        var ready = false
+        var playback: NativeReportCoverPlayback = .reset
+        var appliedPlayback: NativeReportCoverPlayback?
+        var playbackTask: Task<Void, Never>?
+        var duration = 0.0
+        var holding = false
+        var completedOnce = false
+        var elapsed = 0.0
+        var phaseStartedAt: TimeInterval?
+        var replayID: Int?
+        var initiallyFinished = false
+        func updateReplay(_ id: Int, initiallyFinished: Bool) {
+            guard let previous = replayID else {
+                replayID = id; self.initiallyFinished = initiallyFinished
+                return
+            }
+            guard id != previous else { return }
+            replayID = id; self.initiallyFinished = false
+            playbackTask?.cancel()
+            phaseStartedAt = nil; elapsed = 0; holding = false; completedOnce = false
+            appliedPlayback = nil
+        }
+        func admitInitialPose(_ initial: NativeReportCoverPlayback, replayID initialReplayID: Int?) {
+            ready = true
+            // WebKit can finish an old pose after a newer pointer entry.
+            if replayID == initialReplayID {
+                appliedPlayback = initial
+                completedOnce = initial == .finished
+            } else {
+                appliedPlayback = nil; completedOnce = false
+            }
+        }
+        func applyPlayback(to webView: WKWebView) {
+            guard ready, playback != appliedPlayback else { return }
+            playbackTask?.cancel()
+            if let phaseStartedAt { elapsed += ProcessInfo.processInfo.systemUptime - phaseStartedAt }
+            phaseStartedAt = nil
+            if playback == .reset {
+                holding = false; elapsed = 0
+            }
+            // A pause or redraw cannot grant another
+            // collection play. Only leaving selection resets this admission.
+            if playback == .reset { completedOnce = false }
+            appliedPlayback = playback
+            let mode = playback
+            // Page timers do not run with author JavaScript disabled. Native
+            // ownership also cancels the hold/replay clock when the card leaves.
+            playbackTask = Task { @MainActor [weak self, weak webView] in
+                guard let self, let webView else { return }
+                var first = true
+                do {
+                    repeat {
+                        try Task.checkCancellation()
+                        let command: String
+                        switch mode {
+                        case .reset: command = "reset()"
+                        case .finished: command = "finish()"
+                        case .paused: command = "pause()"
+                        case .playing, .playingOnce:
+                            command = self.holding || (mode == .playingOnce && self.completedOnce)
+                                ? "finish()" : "play(\(self.elapsed))"
+                        }
+                        _ = try await webView.callAsyncJavaScript("return globalThis.mokuseiCover.\(command)",
+                            arguments: [:], in: nil, contentWorld: NativeReportCoverPlayback.world)
+                        try Task.checkCancellation()
+                        guard mode.isPlaying else { return }
+                        if first { self.onPlaybackStarted?(); first = false }
+                        if mode == .playingOnce && (self.holding || self.completedOnce || self.duration == 0) {
+                            let newlyCompleted = !self.completedOnce
+                            self.completedOnce = true
+                            if newlyCompleted, let replayID = self.replayID { self.onPlaybackCompleted?(replayID) }
+                            return
+                        }
+                        guard self.duration > 0 else { return }
+                        self.phaseStartedAt = ProcessInfo.processInfo.systemUptime
+                        let remaining = max(0, (self.holding ? NativeReportCoverTiming.hold : self.duration) - self.elapsed)
+                        try await Task.sleep(for: .seconds(remaining))
+                        try Task.checkCancellation()
+                        self.phaseStartedAt = nil; self.elapsed = 0; self.holding.toggle()
+                    } while true
+                } catch {
+                    if !Task.isCancelled { self.onFailure?(error.localizedDescription) }
+                }
+            }
+        }
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            webView.takeSnapshot(with: nil) { [weak self, weak webView] image, _ in
-                guard let self, let webView, let onReady else { return }
-                onReady(image)
-                webView.alphaValue = 1
+            // Cache a complete poster, independent of the point in a live cycle.
+            webView.evaluateJavaScript("globalThis.mokuseiCover.finish(); globalThis.mokuseiCover.duration", in: nil,
+                in: NativeReportCoverPlayback.world) { [weak self, weak webView] result in
+                guard let self, let webView, self.onReady != nil else { return }
+                switch result {
+                case .failure(let error): self.onFailure?(error.localizedDescription); return
+                case .success(let value):
+                    guard let duration = value as? Double, duration.isFinite, duration >= 0,
+                          duration <= NativeReportCoverTiming.maximumAnimation else {
+                        self.onFailure?("Invalid cover animation duration"); return
+                    }
+                    self.duration = duration
+                }
+                webView.takeSnapshot(with: nil) { [weak self, weak webView] image, error in
+                    guard let self, let webView, self.onReady != nil else { return }
+                    guard let image else { self.onFailure?(error?.localizedDescription ?? "Cover snapshot unavailable"); return }
+                    let initial: NativeReportCoverPlayback = self.initiallyFinished ? .finished : .reset
+                    let command = initial == .finished ? "finish()" : "reset()"
+                    let initialReplayID = self.replayID
+                    webView.evaluateJavaScript("globalThis.mokuseiCover.\(command)", in: nil,
+                        in: NativeReportCoverPlayback.world) { [weak self, weak webView] result in
+                        guard let self, let webView, let onReady = self.onReady else { return }
+                        if case .failure(let error) = result { self.onFailure?(error.localizedDescription); return }
+                        self.admitInitialPose(initial, replayID: initialReplayID)
+                        onReady(image)
+                        webView.alphaValue = 1
+                        self.applyPlayback(to: webView)
+                    }
+                }
             }
         }
         // Serve only the admitted document. Response headers cannot be weakened
@@ -183,7 +374,7 @@ private struct ReportCoverHTML: NSViewRepresentable {
     }
 }
 
-private final class PassiveCoverWebView: WKWebView {
+final class PassiveCoverWebView: WKWebView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override var acceptsFirstResponder: Bool { false }
 }

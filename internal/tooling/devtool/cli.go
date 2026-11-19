@@ -13,15 +13,17 @@ func Usage() {
 
 build       Build the Go runtime and native Swift product (--configuration debug|release)
 runtime     Build .build/go/mokusei-runtime
-bundle      Create and verify a signed bundle (--channel production|development, --zip)
-smoke       Verify a signed bundle and its isolated runtime lifecycle (--app PATH)
+bundle      Create and verify a signed bundle (--channel production|development|alpha, --zip)
+alpha       Build an isolated ad-hoc signed Release DMG (--build-number 1, --output PATH)
+smoke       Verify signed bundle metadata, linkage and resources (--app PATH)
 dev         Build, package and launch the isolated development channel (--fresh)
 fast        Incremental Go/Swift build into an immutable development bundle (--no-open)
 watch-main  Rebuild each clean local main commit (--no-open)
 install     Install a signed production bundle; refuses to replace a running app
 open        Open the installed production app (--app PATH)
 
-Requires Go, Xcode/macOS 26, and an Apple Development identity for packaging.
+Requires Go and Xcode/macOS 26. Production/development packaging requires an
+Apple Development identity. Alpha uses explicit ad-hoc signing without an Apple account.
 Node is needed only by external harnesses that independently require it.`)
 }
 func Run(ctx context.Context, repo string, args []string) error {
@@ -50,11 +52,15 @@ func Run(ctx context.Context, repo string, args []string) error {
 	if command == "dev" || command == "fast" {
 		channelDefault = "development"
 	}
+	if command == "alpha" {
+		channelDefault = "alpha"
+	}
 	channel := f.String("channel", channelDefault, "bundle channel")
 	skipBuild := f.Bool("skip-build", false, "package existing build products")
 	skipRuntime := f.Bool("skip-runtime", false, "reuse existing Go runtime")
 	output := f.String("output", "", "bundle output directory")
 	zip := f.Bool("zip", false, "also archive the signed bundle")
+	buildNumber := f.String("build-number", "", "alpha build number (1–9999, default 1)")
 	product := f.String("product", "Mokusei", "Swift product")
 	app := f.String("app", "", "application path")
 	report := f.String("report", "", "smoke JSON report")
@@ -76,6 +82,12 @@ func Run(ctx context.Context, repo string, args []string) error {
 	}
 	_ = rebuild
 	switch command {
+	case "alpha":
+		if *channel != "alpha" || *configuration != "release" || *skipBuild || *skipRuntime || *zip {
+			return fmt.Errorf("alpha builds a fresh Release DMG; channel/configuration overrides, build skipping and --zip are unsupported")
+		}
+		_, err := Alpha(ctx, repo, *output, *buildNumber)
+		return err
 	case "build":
 		_, err := Build(ctx, repo, *configuration, *product, *skipRuntime)
 		return err
@@ -107,7 +119,7 @@ func Run(ctx context.Context, repo string, args []string) error {
 				}
 			}()
 		}
-		application, err := Bundle(ctx, repo, BundleOptions{Channel: *channel, Configuration: *configuration, Output: *output, SkipBuild: *skipBuild, SkipRuntime: *skipRuntime, Zip: *zip})
+		application, err := Bundle(ctx, repo, BundleOptions{Channel: *channel, Configuration: *configuration, Output: *output, BuildNumber: *buildNumber, SkipBuild: *skipBuild, SkipRuntime: *skipRuntime, Zip: *zip})
 		if err != nil {
 			return err
 		}

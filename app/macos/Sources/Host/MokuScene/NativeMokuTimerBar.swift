@@ -3,7 +3,7 @@ import MokuseiPluginUI
 import SwiftUI
 
 /// A resident Moku communication seat above every route. It adds space rather
-/// than covering the editor or permission/voice controls, and never takes focus.
+/// than covering the editor or permission controls, and never takes focus.
 struct NativeMokuTimerBar: View {
     let timer: NativeMokuTimerController
     let exclusions: NativeClickExclusions
@@ -46,8 +46,7 @@ struct NativeMokuTimerBar: View {
             .accessibilityLabel(localize("Moku 提醒，等待确认", "Moku timer, awaiting acknowledgment"))
             .accessibilityIdentifier("moku-timer")
             .padding(.horizontal, 16).padding(.vertical, 8)
-            // Static eyes and no insertion/removal choreography also respect
-            // Reduce Motion. No timeout, Escape or outside-click dismissal.
+            // No timeout, Escape or outside-click dismissal.
             .transaction { $0.animation = nil }
             .environment(\.colorScheme, .dark)
         }

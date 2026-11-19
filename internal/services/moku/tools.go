@@ -71,7 +71,7 @@ func (c *Coordinator) tools(owner string, description ThreadCreationDescription)
 			callID := newID()
 			operationID := newID()
 			created := time.Now().UnixMilli()
-			if err = c.appendTranscript(linked, owner, map[string]any{"type": "tool-operation", "id": operationID, "executionId": execution.ExecutionID, "callId": callID, "invocationId": call.InvocationID, "harnessCallId": call.CallID, "name": binding.Name, "arguments": arguments, "createdAt": created}); err != nil {
+			if err = c.appendTranscript(linked, owner, map[string]any{"type": "tool-operation", "id": operationID, "executionId": execution.ExecutionID, "callId": callID, "invocationId": newID(), "harnessCallId": call.CallID, "name": binding.Name, "arguments": arguments, "createdAt": created}); err != nil {
 				return nil, err
 			}
 			var result json.RawMessage
@@ -255,7 +255,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			results = append(results, item)
 		}
 		return encode(map[string]any{"ok": ok, "results": results})
-	case "get_thread_status", "send_to_thread", "read_thread":
+	case "get_thread_status", "send_to_thread", "ask_thread":
 		id, err := getText("threadId", 128)
 		if err != nil {
 			return nil, err
@@ -283,15 +283,15 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 				return nil, err
 			}
 			return encode(map[string]any{"ok": true, "threadId": id, "executionId": sent.ExecutionID, "startedNewExecution": sent.StartedNewExecution, "hint": ThreadNotificationHint})
-		case "read_thread":
+		case "ask_thread":
 			question, err := getText("question", 1_000_000)
 			if err != nil {
 				return nil, err
 			}
-			if c.config.ReadThread == nil {
-				return nil, errors.New("Thread history read unavailable")
+			if c.config.AskThread == nil {
+				return nil, errors.New("Thread history question unavailable")
 			}
-			answer, err := c.config.ReadThread(ctx, id, question)
+			answer, err := c.config.AskThread(ctx, id, question)
 			if err != nil {
 				return nil, err
 			}

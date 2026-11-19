@@ -97,9 +97,9 @@ public struct NativeOverviewCameraSubmission: Sendable {
 public enum NativeOverviewCameraGeometry {
     /// Explicit product zoom ceiling. Automatic FitAll respects it; the same
     /// ceiling bounds manual zoom so both paths share one declared limit.
-    public static let scaleCap = NativeOverviewGeometryPolicy.standard.scaleCap ?? 1.7
-    /// Numerical guard for manual transforms, not a readability policy.
-    public static let manualScaleFloor = 0.01
+    public static let scaleCap = NativeOverviewGeometryPolicy.standard.scaleCap ?? 1.0
+    /// Cards keep at least their logical size in both manual and automatic views.
+    public static let scaleFloor = 1.0
     public static let wheelZoomIntensity = 0.0015
     public static let motionDuration: TimeInterval = 0.36
     public static let motionFrameCount = 48
@@ -124,7 +124,15 @@ public enum NativeOverviewCameraGeometry {
                      height: max(0, content.height - 2 * verticalMargin))
     }
 
-    /// Fit a complete world rect into an explicit usable rect and center it.
+    /// The Dock can place the usable center above the window center. Lower the
+    /// automatic target by that difference while retaining the full packing area.
+    static func automaticFramingRegion(_ viewport: NativeOverviewViewport) -> NativeOverviewContentRect {
+        var region = framingRegion(viewport)
+        region.top = max(region.top, (viewport.height - region.height) / 2)
+        return region
+    }
+
+    /// Center the world rect, fitting only as far as the card scale floor allows.
     /// Nil means the caller has no finite, positive geometry to frame.
     public static func centeredTransform(content: NativeOverviewContentRect,
                                          usable: NativeOverviewContentRect,
@@ -137,7 +145,7 @@ public enum NativeOverviewCameraGeometry {
               usable.width.isFinite, usable.height.isFinite else { return nil }
         let fit = min(usable.width / content.width, usable.height / content.height)
         guard fit.isFinite, fit > 0 else { return nil }
-        let scale = min(scaleCap ?? fit, fit)
+        let scale = max(scaleFloor, min(scaleCap ?? fit, fit))
         guard scale.isFinite, scale > 0 else { return nil }
         return .init(scale: scale,
                      x: usable.left + (usable.width - content.width * scale) / 2 - content.left * scale,
@@ -146,14 +154,14 @@ public enum NativeOverviewCameraGeometry {
 
     public static func fit(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
                            scaleCap: Double? = NativeOverviewGeometryPolicy.standard.scaleCap) -> NativeOverviewTransform? {
-        centeredTransform(content: content, usable: framingRegion(viewport), scaleCap: scaleCap)
+        centeredTransform(content: content, usable: automaticFramingRegion(viewport), scaleCap: scaleCap)
     }
 
     public static func zoom(_ transform: NativeOverviewTransform, cursor: CGPoint, nextScale: Double,
-                            minimumScale: Double = manualScaleFloor,
+                            minimumScale: Double = scaleFloor,
                             maximumScale: Double = scaleCap) -> NativeOverviewTransform {
-        let maximum = maximumScale.isFinite ? max(manualScaleFloor, maximumScale) : scaleCap
-        let minimum = minimumScale.isFinite ? min(maximum, max(manualScaleFloor, minimumScale)) : manualScaleFloor
+        let maximum = maximumScale.isFinite ? max(scaleFloor, maximumScale) : scaleCap
+        let minimum = minimumScale.isFinite ? min(maximum, max(scaleFloor, minimumScale)) : scaleFloor
         let scale = nextScale.isFinite ? min(maximum, max(minimum, nextScale)) : minimum
         guard scale != transform.scale else { return transform }
         guard transform.scale.isFinite, transform.scale > 0,
@@ -229,7 +237,6 @@ public final class NativeOverviewCamera {
     @ObservationIgnored public var onSubmission: ((NativeOverviewCameraSubmission) -> Void)?
     @ObservationIgnored public var onFrameSubmission: ((NativeOverviewTransform, NativeOverviewTransform, TimeInterval, TimeInterval) -> Void)?
     @ObservationIgnored public var onChange: (() -> Void)?
-    public var reduceMotion = false
 
     @ObservationIgnored private var geometry: Geometry?
     @ObservationIgnored private var visible = true
@@ -263,9 +270,7 @@ public final class NativeOverviewCamera {
     public var liveTransform: NativeOverviewTransform { isAnimating ? (live?.transform ?? transform) : transform }
     public var animationStartTime: TimeInterval? { track?.started }
     public var viewport: NativeOverviewViewport? { geometry?.viewport }
-    /// Numerical floor for manual transforms. Automatic FitAll is not clamped
-    /// to this value and may be smaller for a very large collection.
-    public var minimumScale: Double { NativeOverviewCameraGeometry.manualScaleFloor }
+    public var minimumScale: Double { NativeOverviewCameraGeometry.scaleFloor }
     public var maximumScale: Double { NativeOverviewCameraGeometry.scaleCap }
     public var hasScheduledMotion: Bool { animationTask != nil }
     public var hasPendingAutomaticFit: Bool { pendingAutoFit }
@@ -307,13 +312,6 @@ public final class NativeOverviewCamera {
         updateAuto()
     }
 
-    /// Derive the target from the complete content rect when the caller does
-    /// not already have a solver camera.
-    public func reconcileBounds(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
-        applyGeometry(content: content, viewport: viewport,
-                      automatic: NativeOverviewCameraGeometry.fit(content, viewport: viewport))
-    }
-
     public func cutTo(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
         stopMotion(commitSample: false)
         let automatic = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
@@ -339,7 +337,8 @@ public final class NativeOverviewCamera {
             pendingAutoFit = false
             commit(.init(transform: constrained(view.transform), manual: true))
         } else {
-            commit(.init(transform: view.transform, manual: false))
+            // Normalize the bookmark before it becomes an animation source.
+            commit(.init(transform: constrained(view.transform), manual: false))
             pendingAutoFit = true
             updateAuto()
         }
@@ -447,7 +446,7 @@ public final class NativeOverviewCamera {
         let from = liveTransform
         stopMotion(commitSample: false)
         let generation = animationGeneration
-        if reduceMotion || !hasObservers {
+        if !hasObservers {
             finishAnimation(target: target, generation: generation)
             return
         }

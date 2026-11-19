@@ -27,7 +27,6 @@ public final class NativeWorkspaceCatalog {
     public private(set) var hasMoku = false
     public private(set) var settings: JSONValue = .object([:])
     public private(set) var settingsRevision = 0
-    public private(set) var searchRevision = 0
     public private(set) var defaultCwd = ""
     public private(set) var plugins: [JSONValue] = []
     public private(set) var tagRedirects: JSONValue = .object([:])
@@ -103,7 +102,6 @@ public final class NativeWorkspaceCatalog {
         if hasMoku != (prepared.moku != nil) { hasMoku = prepared.moku != nil }
         if change.reset || change.fields.contains("settings") { settings = snapshot["settings"]! }
         if change.reset || change.fields.contains("settingsRevision") { settingsRevision = snapshot["settingsRevision"]!.intValue! }
-        if change.reset || change.fields.contains("searchRevision") { searchRevision = snapshot["searchRevision"]?.intValue ?? 0 }
         if change.reset || change.fields.contains("defaultCwd") { defaultCwd = snapshot["defaultCwd"]!.stringValue! }
         if change.reset || change.fields.contains("plugins") { plugins = snapshot["plugins"]?.arrayValue ?? [] }
         if change.reset || change.fields.contains("tagRedirects") { tagRedirects = snapshot["tagRedirects"] ?? .object([:]) }
@@ -145,7 +143,7 @@ struct NativePreparedCatalog: Sendable {
 
     init(snapshot: JSONValue, mutation: JSONValue, previous: Self) throws {
         var change = NativeCatalogChanges()
-        change.fields = Set(["settings", "settingsRevision", "searchRevision", "defaultCwd", "plugins", "tagRedirects", "executions", "agentRuns"].filter { mutation[$0] != nil })
+        change.fields = Set(["settings", "settingsRevision", "defaultCwd", "plugins", "tagRedirects", "executions", "agentRuns"].filter { mutation[$0] != nil })
         let source = snapshot["threads"]!.catalogValue!
         let applications = snapshot["applicationThreads"]!.catalogValue!
         var next = previous.records

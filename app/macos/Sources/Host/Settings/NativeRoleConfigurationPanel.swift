@@ -40,11 +40,10 @@ struct NativeSettingsAnimationVisits {
     mutating func reset() { tag = false; report = false }
 }
 
-/// A hidden window does not consume a visit; Reduce Motion consumes it without
-/// animation. Once admitted, cancellation must not admit another playback.
+/// A hidden window does not consume a visit. Once admitted, cancellation must
+/// not admit another playback.
 enum NativeCapabilityPlayback {
-    static func shouldPlay(active: Bool, reduceMotion: Bool, started: Binding<Bool>) -> Bool {
-        if reduceMotion { started.wrappedValue = true }
+    static func shouldPlay(active: Bool, started: Binding<Bool>) -> Bool {
         return active && !started.wrappedValue
     }
 

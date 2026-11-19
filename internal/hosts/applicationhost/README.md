@@ -56,8 +56,7 @@ ThreadTypeDefinition 通过 Project 返回 title/view 和可选的稳定 Scope�
 | 扩展 | 职责 |
 |---|---|
 | Tags | 投影标签、声明来源、在同一 tag 事务内变换快照 |
-| Classification | 提供稳定 evidence revision 和有界分类内容 |
-| Archive | 更改归档状态并声明受影响的最新执行引用 |
+| Archive | 更改展示隐藏状态并声明持久关联的普通 Thread 身份（不比较最新执行） |
 | Overview | 声明可见性、directory filter 和覆盖的 execution |
 | Conversation | 读取、初始化配置和嵌回宿主授权的 Harness session |
 
@@ -70,11 +69,11 @@ ordering 仅在增删或顺序变化时生成。精确 source hash 缓存每条�
 
 ### 后台能力与生命周期
 
-能力 key 包含 ID、APIVersion 和 Phase。宿主只发放定义的 Requires 清单中的能力；snapshot 能力只在纯查询/事务中使用。现有 keys 覆盖 lifecycle、background configuration/sessions/environment、ordinary tasks read/snapshot、classification、semantic tags read/write/snapshot、只读 overview context 和受控 process。
+能力 key 包含 ID、APIVersion 和 Phase。宿主只发放定义的 Requires 清单中的能力；snapshot 能力只在纯查询/事务中使用。现有 keys 覆盖 lifecycle、background configuration/sessions/environment、ordinary tasks read/snapshot、semantic tags read/write/snapshot、只读 overview context 和受控 process。
 
 BackgroundAgentDefinition 必须显式声明 Global 或 PerDirectoryScope。Runtime 的 DirectoryScopes 只提供持久目录身份与名称；Host 根据注册定义派生稳定实例 ID。目录在 task 生命周期事务中记录，来源删除或事件类型不会影响恢复。
 
-每个实例携带显式 ScopeBinding：Global 与 Directory 不同，Inbox 是有效 Directory，零值和非法绑定被拒绝。生命周期订阅、历史（包括显式事件 ID）和普通任务读取自动与绑定取交集；冲突的事件 scope 匹配空集合。观察私有 session 也必须属于同一实例。Global 仍受 Requires 和普通来源校验约束；分类证据能力暂不支持 Directory 绑定。实例划分不决定 lazy/idle 会话资源策略。
+每个实例携带显式 ScopeBinding：Global 与 Directory 不同，Inbox 是有效 Directory，零值和非法绑定被拒绝。生命周期订阅、历史（包括显式事件 ID）和普通任务读取自动与绑定取交集；冲突的事件 scope 匹配空集合。观察私有 session 也必须属于同一实例。Global 仍受 Requires 和普通来源校验约束。实例划分不决定 lazy/idle 会话资源策略。
 
 `ExecutionSettingsID` 绑定的 `enabled` 控制后台执行，缺省为开启。Settings
 提交后，Host 同步通知支持 `RefreshSettings` 的参与者撤销当前 attempt；参与者
@@ -92,15 +91,7 @@ Host.Start 在全部定义冻结后创建一代 participants。Stop 先撤销工
 
 新批次遇到不属于自己的遗留执行时，先通过原有配置完成清理。冷启动原生 Open 自行结算了旧执行，也不代表新批次已经选好配置；清理后仍重新解析。Interrupt 后仍有后台工作时，必须等待 Close 排空后才能开始新批次。关闭时持久化原生状态产生的 session revision 变化同样只触发重新解析，不消耗业务重试。
 
-共享 runner 的批次错误诊断包含阶段、已记录的尝试次数和本次处理耗时。
-原生终态只记录失败/中断/等待交互状态及是否存在原生错误，不输出错误原文、
-工具参数、会话内容或工作目录。关闭导致的批次取消使用 `cancelled` 信息事件，
-不再先记 `failed`；独立超时和真实失败仍按原有次数上限与退避重试。
-取消不吞掉原生 Handle 的清理失败，也不额外结算或增加关闭中的批次尝试。
-
-The runner snapshots consumer/batch/attempt facts at each injected callback entry
-for the [private tool journal](../../platform/diagnostics/README.md). These facts
-are diagnostic context; batch fences and receipts retain write/dedup authority.
+批次取消仍保留原生 Handle 的清理、回执与执行身份；真实失败仍按原有次数上限与退避重试。
 
 后台批次与工具读取 lifecycle 历史时，每一页开始前检查调用取消。已进入的单页读取仍由无 context 的 snapshot 能力完成；取消后不再继续读取后续页。
 
@@ -130,7 +121,7 @@ live input subscription and durable notification outbox. Their model inputs,
 filters and confirmation behavior do not change. Report still subscribes only to
 application-authored successful completion facts for ordinary Agent Threads in
 its own scope, excluding Moku histories and private agent conversations.
-Complete event content grants no additional source/history or private journal
+Complete event content grants no additional source/history
 access, but it does put the already-authorized raw summary into Report's native
 conversation/model context on every delivery; it receives no additional redaction.
 
@@ -159,22 +150,9 @@ do not acknowledge additional events or silently deliver a metadata-only row.
 - [Tag](../../plugins/applications/tag/README.md) maintains a separate tag pool in each scope.
 - [Git](../../plugins/applications/git/README.md) stores observations for ordinary thread card extensions. It declares no Git thread type and is excluded from user enablement controls.
 
-Verification from the repository root: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh test -race ./internal/hosts/applicationhost`, and `./scripts/go.sh run -race ./tools/verification/runtime`.
+## Verification boundary
 
-## Isolated Swift query fixture
-
-The application-host runner uses actual Report schemas, Plan/Reduce, queries and SQLite with a controlled background participant. The runtime runner additionally exercises the production scoped Report runner. To retain a Report for an actual Swift client query:
-
-```sh
-mokusei_report_profile="$(mktemp -d /tmp/mokusei-report-probe.XXXXXX)"
-./scripts/go.sh run -race ./tools/verification/applicationhost \
-  --seed-profile "$mokusei_report_profile"
-xcrun swift run --package-path app/macos MokuseiProbe \
-  --data-dir "$mokusei_report_profile" \
-  --runtime "$PWD/.build/go/mokusei-runtime" \
-  --query-plugin report --query-operation report.html \
-  --query-input '{"reportId":"ID_FROM_FIXTURE_OUTPUT"}' \
-  --duration 0.5 --stop-service
-```
-
-Build the runtime with `make runtime` first and replace the sample Report ID with the runner's output. Seeding requires an empty absolute directory and rejects a symlink profile. `applicationhost-fixture.json` records the actual query and generated identity. The probe uses production discovery/HTTP/JSON decoding; it does not evaluate report-writing quality or native rendered layout. Remove the isolated profile only after its service has stopped.
+No Application-host fixture producer or Swift-query correctness replay is
+configured in this source tree. [Runtime performance](../../../tools/verification/runtime-performance/README.md)
+measures the public collection-list query with isolated SQLite data, not rendered
+Report layout or model-written report quality.

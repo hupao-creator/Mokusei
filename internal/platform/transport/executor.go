@@ -81,7 +81,7 @@ func (e *commandExecutor) execute(ctx context.Context, channel string, raw []byt
 			defer stop()
 			defer cancel()
 		}
-		return e.host.Invoke(context.WithValue(callContext, commandIdentityKey{}, request.CommandID), channel, request.Args)
+		return e.host.Invoke(callContext, channel, request.Args)
 	}
 	if model.IsReadOnlyChannel(channel) {
 		value, err := run()

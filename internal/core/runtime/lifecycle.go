@@ -7,7 +7,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 )
 
 func (r *Runtime) appendEvent(tx *store.Tx, kind string, subject store.Subject, source string, data any, introduced []string) error {
@@ -45,11 +44,6 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 	}
 	if !record.Moku && !record.MokuHistory {
 		if err := rememberDirectoryScope(tx, *record); err != nil {
-			return err
-		}
-	}
-	if next == nil || next.MokuHistory || (!next.Moku && !searchVisible(*next)) {
-		if err := threadsearch.DeleteOwner(tx, "thread:"+record.ID); err != nil {
 			return err
 		}
 	}

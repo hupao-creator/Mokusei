@@ -59,25 +59,15 @@ public struct NativeOverviewChrome: View {
     public var clickExclusions: NativeClickExclusions?
     public var interactions: NativeOverviewChromeInteractions?
     public var strings: NativeOverviewChromeStrings
-    public var isSearching: Bool
-    public var searchQuery: String
-    public var searchFocusRequest: Int
-    public var onSearchChange: (String) -> Void
-    public var onSearchExit: () -> Void
     @FocusState private var focusedTag: String?
     @Namespace private var tagGlass
     @Namespace private var actionGlass
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var presentedFilters: [NativeOverviewFilter]
     @State private var hasPresentedFilters: Bool
     @State private var returnToAutoVisible: Bool
     @State private var settingsAnchor = OverviewSettingsAnchor()
     @State private var measuredAllWidth: CGFloat = 0
     @State private var measuredTagsWidth: CGFloat = 0
-    @State private var searchProgress: CGFloat
-    @State private var searchMorphVisible: Bool
-    @State private var searchCloseTask: Task<Void, Never>?
-    @State private var pendingFilterFocus = 0
     @State private var hoveredScope: String?
     @State private var displayedSelection: NativeOverviewTagSelection?
     @State private var latestSelection: NativeOverviewTagSelection?
@@ -86,15 +76,11 @@ public struct NativeOverviewChrome: View {
     @State private var retiringMenus: [String: NativeOverviewFilter] = [:]
     @State private var hoverClearTask: Task<Void, Never>?
     @State private var interactionOwner = UUID()
-    @Environment(\.overviewSearchMorphDuration) private var searchMorphDuration
 
     public init(filters: [NativeOverviewFilter], selectedTag: String = "", selectedScope: String = "", selectedKind: NativeOverviewTagKind? = nil,
                 allHasActiveTasks: Bool = false,
                 cameraManual: Bool = false, focusFilterRequestKey: Int = 0,
                 strings: NativeOverviewChromeStrings = .init(),
-                isSearching: Bool = false, searchQuery: String = "", searchFocusRequest: Int = 0,
-                onSearchChange: @escaping (String) -> Void = { _ in },
-                onSearchExit: @escaping () -> Void = {},
                 onTagChange: @escaping (NativeOverviewFilter?) -> Void,
                 onReturnToAuto: (() -> Void)? = nil,
                 onSettings: (() -> Void)? = nil, onRestart: (() -> Void)? = nil,
@@ -117,10 +103,6 @@ public struct NativeOverviewChrome: View {
         self.clickExclusions = clickExclusions
         self.interactions = interactions
         self.onSettingsWithOrigin = onSettingsWithOrigin; self.onSettingsFrameChange = onSettingsFrameChange
-        _searchProgress = State(initialValue: isSearching ? 1 : 0)
-        _searchMorphVisible = State(initialValue: isSearching)
-        self.isSearching = isSearching; self.searchQuery = searchQuery
-        self.searchFocusRequest = searchFocusRequest; self.onSearchChange = onSearchChange; self.onSearchExit = onSearchExit
     }
 
     public var body: some View {
@@ -142,48 +124,27 @@ public struct NativeOverviewChrome: View {
                 filtersBar(maximumWidth: maximumFilterWidth)
                     .frame(width: min(naturalFilterWidth, maximumFilterWidth), height: OverviewTagMetrics.barHeight)
                     .padding(.top, narrow ? OverviewTagMetrics.narrowFilterTop - 10 : 0)
-                    .opacity(presentedFilters.isEmpty || searchMorphVisible || isSearching ? 0 : 1)
-                    .allowsHitTesting(!presentedFilters.isEmpty && !isSearching && !searchMorphVisible)
-                    .disabled(presentedFilters.isEmpty || isSearching || searchMorphVisible)
-                    .accessibilityHidden(presentedFilters.isEmpty || isSearching || searchMorphVisible)
+                    .opacity(presentedFilters.isEmpty ? 0 : 1)
+                    .allowsHitTesting(!presentedFilters.isEmpty)
+                    .disabled(presentedFilters.isEmpty)
+                    .accessibilityHidden(presentedFilters.isEmpty)
             }
             .padding(.top, narrow ? 10 : 16)
-            .overlayPreferenceValue(OverviewSearchTagBounds.self) { anchors in
-                GeometryReader { reader in
-                    if searchMorphVisible || isSearching {
-                        let sources = OverviewSearchMorphGeometry.sources(bounds: anchors.mapValues { reader[$0] },
-                            filters: presentedFilters, all: strings.all, selectedTag: selectedTag,
-                            selectedScope: selectedScope, selectedKind: selectedKind,
-                            selectedChildren: Dictionary(uniqueKeysWithValues: presentedFilters.compactMap { filter in
-                                displayedChild(of: filter).map { (filter.id, $0) }
-                            }))
-                        OverviewSearchMorphLayer(progress: searchProgress, searching: isSearching, sources: sources,
-                            target: CGRect(x: (geometry.size.width - min(460, maximumFilterWidth)) / 2,
-                                           y: narrow ? OverviewTagMetrics.narrowFilterTop : 16,
-                                           width: min(460, maximumFilterWidth), height: OverviewTagMetrics.buttonHeight)) { ready in
-                                searchContents(focusReady: ready)
-                            }
-                    }
-                }
-                .allowsHitTesting(isSearching)
-            }
         }
         .frame(height: OverviewTagMetrics.chromeHeight)
         .onChange(of: cameraManual) { _, manual in
-            withAnimation(reduceMotion ? nil : .smooth(duration: 0.32)) { returnToAutoVisible = manual }
+            withAnimation(.smooth(duration: 0.32)) { returnToAutoVisible = manual }
         }
         .onChange(of: selection) { _, value in
             latestSelection = value
             if hoveredScope == nil && !submenuClosing {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) {
+                withAnimation(.easeInOut(duration: 0.28)) {
                     displayedSelection = value
                 }
             }
         }
-        .onChange(of: isSearching) { _, value in transitionSearch(value) }
         .onChange(of: hoveredScope) { _, value in interactions?.setOpenScope(value, owner: interactionOwner) }
         .onDisappear {
-            searchCloseTask?.cancel()
             hoverClearTask?.cancel()
             submenuRevision += 1
             hoveredScope = nil
@@ -198,7 +159,6 @@ public struct NativeOverviewChrome: View {
             latestSelection = selection
             displayedSelection = selection
             interactions?.installChrome(owner: interactionOwner, openScope: hoveredScope)
-            settleSearch()
             presentFilters(filters, animated: false)
             consumeFocus(focusFilterRequestKey)
         }
@@ -226,55 +186,6 @@ public struct NativeOverviewChrome: View {
     private func closeChildren() {
         hoverClearTask?.cancel()
         setHoveredScope(nil)
-    }
-
-    private func searchContents(focusReady: Bool) -> some View {
-        HStack(spacing: 8) {
-            OverviewThreadSearchField(text: searchQuery,
-                placeholder: strings.search,
-                focusRequest: focusReady ? searchFocusRequest : 0, onChange: onSearchChange, onExit: onSearchExit)
-                .frame(minWidth: 40, maxWidth: .infinity).frame(height: OverviewTagMetrics.buttonHeight)
-            Button(action: onSearchExit) {
-                Image(systemName: "escape").font(.system(size: 11, weight: .medium))
-                    .frame(width: 24, height: OverviewTagMetrics.buttonHeight)
-            }
-            .buttonStyle(.plain).help(strings.closeSearch).accessibilityLabel(strings.closeSearch)
-        }
-        .padding(.horizontal, OverviewTagMetrics.labelInset)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(strings.search)
-    }
-
-    private func transitionSearch(_ searching: Bool) {
-        searchCloseTask?.cancel()
-        if searching {
-            focusedTag = nil
-            hoverClearTask?.cancel()
-            setHoveredScope(nil)
-        }
-        searchMorphVisible = true
-        withAnimation(.smooth(duration: searchMorphDuration)) {
-            searchProgress = searching ? 1 : 0
-        }
-        guard !searching else { return }
-        searchCloseTask = Task { @MainActor in
-            do { try await Task.sleep(for: .seconds(searchMorphDuration)) }
-            catch { return }
-            guard !Task.isCancelled, !isSearching else { return }
-            searchMorphVisible = false
-            consumeFocus(pendingFilterFocus)
-        }
-    }
-
-    private func settleSearch() {
-        searchCloseTask?.cancel()
-        if isSearching { focusedTag = nil }
-        var transaction = Transaction(); transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            searchProgress = isSearching ? 1 : 0
-            searchMorphVisible = isSearching
-        }
-        if !isSearching { consumeFocus(focusFilterRequestKey) }
     }
 
     private var actionWidth: CGFloat {
@@ -308,18 +219,17 @@ public struct NativeOverviewChrome: View {
             // Reserve the conditional slot without covering the tag glass.
             .frame(width: actionWidth, alignment: .trailing)
         }
-        .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }
         .modifier(OverviewToolbarEntry())
         .accessibilityElement(children: .contain)
         .accessibilityLabel(strings.actions)
-        .overviewSearchAnchor("__actions__")
+        .overviewTagAnchor("__actions__")
     }
 
     private func filtersBar(maximumWidth: CGFloat) -> some View {
         filterButtons(maximumWidth: maximumWidth)
-            .overviewSearchAnchor("__bar__")
+            .overviewTagAnchor("__bar__")
             .clipShape(Capsule())
-            .backgroundPreferenceValue(OverviewSearchTagBounds.self) { anchors in
+            .backgroundPreferenceValue(OverviewTagBounds.self) { anchors in
                 GeometryReader { reader in
                     if let viewport = anchors["__scroll__"] {
                         ForEach(presentedFilters.filter(\.isDirectory)) { parent in
@@ -335,9 +245,9 @@ public struct NativeOverviewChrome: View {
                                             revealedTagButtons(for: parent, namespace: namespace,
                                                 source: visible, barWidth: reader.size.width, maximumWidth: maximumWidth)
                                         }
-                                        .transition(reduceMotion ? .identity : .opacity)
+                                        .transition(.opacity)
                                         .modifier(NativeOverviewDirectoryRegistration(registry: interactions, root: interactionOwner, filter: parent,
-                                            enabled: !isSearching && !searchMorphVisible && parent.children.contains { $0.count > 0 },
+                                            enabled: parent.children.contains { $0.count > 0 },
                                             open: { revealChildren(of: parent) }, close: closeChildren,
                                             select: { id in
                                                 if let child = parent.children.first(where: { $0.id == id }) { selectChild(child, of: parent) }
@@ -349,7 +259,6 @@ public struct NativeOverviewChrome: View {
                 }
             }
             .modifier(OverviewToolbarEntry())
-            .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(strings.filter)
     }
@@ -357,7 +266,7 @@ public struct NativeOverviewChrome: View {
     @ViewBuilder
     private func revealedTagButtons(for parent: NativeOverviewFilter, namespace: Namespace.ID, source: CGRect, barWidth: CGFloat, maximumWidth: CGFloat) -> some View {
         let menu = retiringMenus[parent.scope] ?? parent
-        let active = hoveredScope == parent.scope && !isSearching && !searchMorphVisible
+        let active = hoveredScope == parent.scope
         ZStack {
             if (active || retiringMenus[parent.scope] != nil), menu.children.contains(where: { $0.count > 0 }) {
                 OverviewTagMenuViewport(maximumWidth: maximumWidth, active: active, source: source, barWidth: barWidth) { progress, target, widths in
@@ -394,19 +303,18 @@ public struct NativeOverviewChrome: View {
                                     Color.clear.preference(key: OverviewSubmenuWidths.self, value: [child.id: geometry.size.width])
                                 }
                             }
-                            .modifier(OverviewSubmenuMorph(progress: reduceMotion ? 1 : childProgress,
+                            .modifier(OverviewSubmenuMorph(progress: childProgress,
                                 target: target, width: widths[child.id] ?? 1,
                                 originX: menu.children.filter { $0.count > 0 }.prefix { $0.id != child.id }
                                     .reduce(0) { $0 + (widths[$1.id] ?? 0) + OverviewTagMetrics.submenuSpacing },
                                 // Retire the tint with the displayed title so a
                                 // selection change cannot compete with the return.
                                 active: childSelected, id: child.id, namespace: namespace))
-                            .opacity(reduceMotion && childProgress == 0 ? 0 : 1)
                             .transition(.identity)
                             .allowsHitTesting(active && current)
                             .accessibilityHidden(!active || !current)
                             .focused($focusedTag, equals: child.id)
-                            .overviewSearchAnchor(child.id)
+                            .overviewTagAnchor(child.id)
                             .accessibilityIdentifier(child.id)
                             .accessibilityLabel(Text(child.displayTag))
                             .accessibilityAddTraits(child.matches(selectedTag, kind: .semantic, scope: selectedScope) ? .isSelected : [])
@@ -441,9 +349,8 @@ public struct NativeOverviewChrome: View {
 
     private func setHoveredScope(_ scope: String?) {
         guard hoveredScope != scope else { return }
-        var transaction = Transaction(animation: reduceMotion ? nil : scope == nil
+        var transaction = Transaction(animation: scope == nil
             ? .easeInOut(duration: 0.32) : .smooth(duration: 0.22, extraBounce: 0))
-        transaction.disablesAnimations = reduceMotion
         trackSubmenuTransition(to: scope, in: &transaction)
         withTransaction(transaction) {
             retainClosingMenu(to: scope)
@@ -469,28 +376,27 @@ public struct NativeOverviewChrome: View {
         // spring's logical completion. A reopened menu invalidates this callback.
         transaction.addAnimationCompletion(criteria: .removed) {
             guard submenuRevision == revision else { return }
-            var cleanup = Transaction(animation: reduceMotion ? nil : .easeInOut(duration: 0.28))
-            cleanup.disablesAnimations = reduceMotion
+            let cleanup = Transaction(animation: .easeInOut(duration: 0.28))
             withTransaction(cleanup) { retiringMenus = [:] }
             guard hoveredScope == nil else { return }
             submenuClosing = false
             // The menu's removed transaction has ended. Give the title its own
             // transaction so text and chip geometry do not jump on this frame.
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) {
+            withAnimation(.easeInOut(duration: 0.28)) {
                 displayedSelection = latestSelection
             }
         }
     }
 
     private func revealChildren(of filter: NativeOverviewFilter) {
-        guard !isSearching, !searchMorphVisible, filter.isDirectory,
+        guard filter.isDirectory,
               filter.children.contains(where: { $0.count > 0 }) else { return }
         hoverClearTask?.cancel()
         setHoveredScope(filter.scope)
     }
 
     private func selectChild(_ child: NativeOverviewFilter, of parent: NativeOverviewFilter) {
-        guard hoveredScope == parent.scope, !isSearching, !searchMorphVisible,
+        guard hoveredScope == parent.scope,
               presentedFilters.contains(where: {
                   $0.id == parent.id && $0.children.contains { $0.id == child.id && $0.count > 0 }
               }) else { return }
@@ -520,11 +426,10 @@ public struct NativeOverviewChrome: View {
             }
             .buttonStyle(OverviewTagButtonStyle(active: selectedTag.isEmpty))
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measuredAllWidth = $0 }
-            .overviewSearchAnchor("__all__")
             .focused($focusedTag, equals: "__all__")
             .accessibilityAddTraits(selectedTag.isEmpty ? .isSelected : [])
             .accessibilityValue(Text(allHasActiveTasks ? strings.containsActiveTasks : ""))
-            OverviewHorizontalScroll(interactions: interactions, owner: interactionOwner, ids: presentedFilters.map(\.id), enabled: !isSearching && !searchMorphVisible) {
+            OverviewHorizontalScroll(interactions: interactions, owner: interactionOwner, ids: presentedFilters.map(\.id)) {
                 // Keep the effect container inside the scroll viewport. A
                 // container outside it can draw captured labels beyond its clip.
                 GlassEffectContainer(spacing: OverviewTagMetrics.spacing) {
@@ -533,7 +438,7 @@ public struct NativeOverviewChrome: View {
                 }
             }
             .frame(height: OverviewTagMetrics.chipHeight)
-            .overviewSearchAnchor("__scroll__")
+            .overviewTagAnchor("__scroll__")
         }
         .padding(.horizontal, OverviewTagMetrics.barInset)
     }
@@ -555,7 +460,7 @@ public struct NativeOverviewChrome: View {
                         OverviewTagTitle(title: !filter.isDirectory && filter.emoji != nil ? filter.tag : filter.displayTag,
                                          child: displayedChild(of: filter)?.tag)
                         if filter.hasActiveTasks {
-                            OverviewTagActivityIndicator(hasActiveTasks: !isSearching && !searchMorphVisible)
+                            OverviewTagActivityIndicator(hasActiveTasks: true)
                         }
                     }
                     .padding(.horizontal, OverviewTagMetrics.chipLabelInset)
@@ -565,7 +470,7 @@ public struct NativeOverviewChrome: View {
                 .buttonStyle(OverviewTagButtonStyle(active: active, rendersGlass: !filter.isDirectory))
                 .glassEffectID(filter.id, in: tagGlass)
                 .glassEffectTransition(.matchedGeometry)
-                .overviewSearchAnchor(filter.id)
+                .overviewTagAnchor(filter.id)
                 .focused($focusedTag, equals: filter.id)
                 .accessibilityIdentifier(filter.id)
                 .accessibilityLabel(Text(filterTitle(filter)))
@@ -587,7 +492,7 @@ public struct NativeOverviewChrome: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
             // The scroll viewport is sized from this measurement in a later
             // update; carry the resize animation across that layout boundary.
-            withAnimation(reduceMotion || measuredTagsWidth == 0 ? nil : .easeInOut(duration: 0.28)) {
+            withAnimation(measuredTagsWidth == 0 ? nil : .easeInOut(duration: 0.28)) {
                 measuredTagsWidth = width
             }
         }
@@ -610,16 +515,14 @@ public struct NativeOverviewChrome: View {
         .buttonStyle(OverviewChromeIconStyle(active: active, settingsAnchor: settingsAnchor,
                                             onSettingsFrameChange: onSettingsFrameChange))
         .glassEffectID(name, in: actionGlass)
-        .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+        .glassEffectTransition(.matchedGeometry)
         .help(title).accessibilityLabel(title)
         .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     private func consumeFocus(_ request: Int) {
-        if request != 0 { pendingFilterFocus = request }
-        guard pendingFilterFocus != 0, !isSearching, !searchMorphVisible else { return }
+        guard request != 0 else { return }
         focusedTag = filters.isEmpty ? nil : (filters.first(where: { $0.matches(selectedTag, kind: selectedKind, scope: selectedScope) })?.id ?? "__all__")
-        pendingFilterFocus = 0
         onFocusFilterRequestConsumed?()
     }
 
@@ -661,8 +564,6 @@ public struct NativeOverviewChrome: View {
     }
 }
 
-/// Shared with the search carrier so entering search cannot restore the old
-/// slash separator or change the hierarchy's text layout for its first frame.
 struct OverviewTagTitle: View {
     let title: String
     var child: String?
@@ -714,8 +615,6 @@ public struct NativeOverviewChromeStrings: Sendable {
     public var settings = "设置"
     public var restart = "重启开发应用"
     public var actions = "俯瞰视图操作"
-    public var search = "搜索全部会话"
-    public var closeSearch = "退出搜索（Esc）"
     public var filter = "按标签筛选"
     public var closeFilter = "关闭子标签菜单"
     public var containsActiveTasks = "包含活跃任务"
@@ -763,23 +662,22 @@ enum OverviewTagMetrics {
     }
     static let iconButtonSize: CGFloat = 30
     static let actionInset: CGFloat = 5
-    static let buttonHeight = iconButtonSize + actionInset * 2
     static let barInset: CGFloat = 6
     static let labelInset: CGFloat = 12
     static let spacing: CGFloat = 4
     // Match both the row gap and child gap to the native morph distance. Each
     // directory has its own container, so unrelated parents never fuse at rest.
     static let submenuSpacing: CGFloat = 10
-    /// Enlarge the existing tag presentation without changing action controls.
+    /// Enlarge tag ink while keeping all top-level chrome at the same height.
     static let enlargement: CGFloat = 1.1
     static let chipScale: CGFloat = 1.125 * enlargement
     static let chipFont = 10.5 * chipScale
     static let folderIcon = 11 * chipScale
     static let chipContentSpacing = 6 * chipScale
     static let chipLabelInset = labelInset * chipScale
-    static let chipHeight: CGFloat = 42 * enlargement
-    /// Keep the independent action buttons circular and at their existing size.
-    static let actionDiameter: CGFloat = 42
+    static let chipHeight = NativeWindowNavigationGeometry.height
+    /// Tag filters, traffic-light capsules and circular actions share one height.
+    static let actionDiameter = NativeWindowNavigationGeometry.height
     static let barHeight = chipHeight
     /// Always reserve a caption band below the narrow action row, including
     /// when no child is selected. Its appearance cannot move the filter bar.
@@ -837,7 +735,6 @@ private struct OverviewDirectoryGlassSurface: View, @preconcurrency Animatable {
     let active: Bool
     let id: String
     let namespace: Namespace.ID
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var animatableData: AnimatablePair<CGSize.AnimatableData, AnimatablePair<CGFloat, CGFloat>> {
         get { .init(size.animatableData, .init(leadingOverflow, trailingOverflow)) }
@@ -854,7 +751,7 @@ private struct OverviewDirectoryGlassSurface: View, @preconcurrency Animatable {
             .modifier(OverviewTagGlassSurface(active: active,
                 shape: OverviewClippedTagShape(leadingOverflow: leadingOverflow, trailingOverflow: trailingOverflow)))
             .glassEffectID(id, in: namespace)
-            .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+            .glassEffectTransition(.matchedGeometry)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             // These are presentation samples. Selection tint keeps the
@@ -919,7 +816,6 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func body(content: Content) -> some View {
         content
             .foregroundStyle(scheme == .dark ? .white : NativePalette.overview.ink.swiftUI)
@@ -932,7 +828,7 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
             }
             .contentShape(shape)
             .glassEffect(.clear.tint(active ? selectionTint : nil).interactive(), in: shape)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: active)
+            .animation(.easeInOut(duration: 0.18), value: active)
     }
 
     private var selectionTint: Color {
@@ -977,7 +873,6 @@ private struct OverviewTagMenuViewport<Content: View>: View {
     let source: CGRect
     let barWidth: CGFloat
     @ViewBuilder var content: (CGFloat, CGRect, [String: CGFloat]) -> Content
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var contentWidth: CGFloat?
     @State private var entered = false
     @State private var widths: [String: CGFloat] = [:]
@@ -1002,7 +897,7 @@ private struct OverviewTagMenuViewport<Content: View>: View {
                 content(active && entered ? 1 : 0, target, widths)
                     .fixedSize(horizontal: true, vertical: true)
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-                        withAnimation(reduceMotion || !entered || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
+                        withAnimation(!entered || contentWidth == nil ? nil : .easeInOut(duration: 0.28)) {
                             contentWidth = width
                         }
                     }
@@ -1032,7 +927,7 @@ private struct OverviewTagMenuViewport<Content: View>: View {
         // slots. Admit ink only after the viewport has measured those slots.
         let measuredWidth = widths.values.reduce(0, +) + CGFloat(widths.count - 1) * OverviewTagMetrics.submenuSpacing
         guard abs(contentWidth - measuredWidth) < 0.5 else { return }
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.22, extraBounce: 0)) { entered = true }
+        withAnimation(.smooth(duration: 0.22, extraBounce: 0)) { entered = true }
     }
 }
 
@@ -1091,7 +986,6 @@ private struct OverviewHorizontalScroll<Content: View>: View {
     let interactions: NativeOverviewChromeInteractions?
     let owner: UUID
     let ids: [String]
-    let enabled: Bool
     @ViewBuilder var content: () -> Content
     var body: some View {
         ScrollViewReader { proxy in
@@ -1100,7 +994,7 @@ private struct OverviewHorizontalScroll<Content: View>: View {
             }
             .scrollIndicators(.never)
             .scrollBounceBehavior(.basedOnSize)
-            .modifier(NativeOverviewFilterScrollRegistration(registry: interactions, root: owner, ids: ids, enabled: enabled,
+            .modifier(NativeOverviewFilterScrollRegistration(registry: interactions, root: owner, ids: ids, enabled: true,
                 scroll: { id in proxy.scrollTo(id, anchor: .center) }))
         }
     }

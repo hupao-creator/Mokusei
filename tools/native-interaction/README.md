@@ -1,8 +1,10 @@
 # Operate the macOS UI from code
 
 Launch a built application with an explicit profile and a socket inside an
-existing private directory. Use a separate profile for chaos testing. Normal
-launches expose no automation endpoint.
+existing private directory. Use a separate profile for scripted interaction. Normal
+launches expose no automation endpoint. A fresh profile first presents onboarding;
+`settings.open` is admitted only after setup completes and a loaded Overview
+advertises that action. Launch success alone does not establish readiness.
 
 ```sh
 automation_root="$(mktemp -d /private/tmp/oa-interaction.XXXXXX)"
@@ -54,9 +56,6 @@ Unknown/missing fields and invalid argument types are rejected.
 | `overview.show` | none | Another page open; closes Settings through its gate |
 | `navigation.back` | none | Current page's back action; respects nested reading |
 | `thread.open` | `threadId`, `typeId` | Target in the current Overview snapshot |
-| `search.begin` | none | Overview with search closed |
-| `search.update` | `query` | Search open; empty query is supported |
-| `search.end` | none | Search open |
 | `filter.select` | `filterId` | Overview; null selects All |
 
 Navigation text arguments are bounded to 4096 UTF-16 units. Settings text controls
@@ -65,53 +64,14 @@ exercised. Send UTF-8 directly rather than expanding every character to a JSON e
 `actions`, `settingsSections`, `filters` and `threads`. Never derive filter IDs
 from labels. Availability can change between observation and dispatch.
 
-Snapshot also includes `page`, `selectedThread`, `settingsSection`, `search`,
+Snapshot also includes `page`, `selectedThread`, `settingsSection`,
 `selectedFilterId`, `mounted`, `transitioning`, `runtimeAvailable`,
 `settingsSaving`, `settingsCloseBlocked` and `errors`. During startup/reload it
 can be null. Settings/thread mounting is observed from the production page.
 An immediate reply describes accepted intent, not a completed frame. Poll the
 desired postcondition over repeated observations with `mounted: true` and
 `transitioning: false`. This does not promise that every decorative animation,
-search worker or settings save has finished; those facts remain separate.
-
-## Chaos and trace replay
-
-```sh
-python3 tools/native-interaction/client.py --socket "$automation_root/ui.sock" \
-  monkey --seed 42 --steps 200 --trace /private/tmp/chaos-42.jsonl
-python3 tools/native-interaction/client.py --socket "$automation_root/ui.sock" \
-  replay /private/tmp/chaos-42.jsonl --trace /private/tmp/chaos-42-replayed.jsonl
-```
-
-The standard-library navigation runner sorts an explicit set of supported
-choices, uses a seeded PRNG, waits for postconditions on normal steps, and
-intentionally skips animation waits on 30% of steps. It checks a random candidate
-again before dispatch. A candidate that has become unavailable is recorded as
-`candidate-refresh`; a definite `unavailable` or missing-target rejection whose
-response snapshot confirms the change is recorded as `candidate-rejected`.
-Neither counts toward the requested number of successful steps. The next choice
-uses a fresh snapshot. Other rejections, surfaced UI errors, violated route
-invariants, transport failure and bounded wait/overall deadlines still fail.
-The default overall budget is 120 seconds, checked between attempts; each request
-is bounded to five seconds and each settling wait to eight seconds. Custom
-navigation monkeys can pass their selection snapshot as `candidate_state` to
-`step`; its `None` result means no action was applied. Directed `step` calls keep
-strict rejection behavior.
-
-Trace files are new private files, never overwritten. Each action and its before
-state are flushed **before** sending; response and settled state follow. A crash
-therefore leaves the last attempted action. Replay skips confirmed stale
-rejections and submits the remaining recorded actions and expected error codes,
-including an action whose response was lost; it does not retry an uncertain
-action in the original session. Restore the same fixture,
-IDs and initial page/search/filter state before replay. Seeds reproduce choices
-only under the same observed state; traces preserve the actual chosen sequence.
-The navigation runner covers reading, search and filtering. The Settings runner
-below exercises actual form controls. Neither runner sends model tasks or tests
-physical pointer/gesture fidelity.
-
-Run the [isolated production app replay](../verification/native-interaction/README.md)
-to verify the bridge with a repeatable seeded fixture without user data.
+settings save has finished; those facts remain separate.
 
 ## Mounted Settings controls
 
@@ -133,17 +93,17 @@ from client import Client
 client = Client("/private/tmp/my-run/ui.sock")
 client.request({"name": "settings.open"})
 client.request({"name": "settings.select", "section": "moku"})
-state = client.settle(lambda s: any(c["id"] == "moku.routingEnabled"
+state = client.settle(lambda s: any(c["id"].endswith("routingPreset.custom")
     and not c["pending"] for c in s["settings"]["controls"]))
-toggle = next(c for c in state["settings"]["controls"]
-    if c["id"] == "moku.routingEnabled")
-response = client.request({"name": "settings.control", "controlId": toggle["id"],
-    "handle": toggle["handle"], "operation": "set", "value": True})
+choice = next(c for c in state["settings"]["controls"]
+    if c["id"].endswith("routingPreset.custom"))
+response = client.request({"name": "settings.control", "controlId": choice["id"],
+    "handle": choice["handle"], "operation": "activate", "value": None})
 assert response["ok"], response["error"]
-state = client.settle(lambda s: any(c["id"] == "moku.routingGuidance"
+state = client.settle(lambda s: any(c["id"].endswith("routingGuidance")
     and not c["pending"] for c in s["settings"]["controls"]))
 control = next(c for c in state["settings"]["controls"]
-    if c["id"] == "moku.routingGuidance")
+    if c["id"].endswith("routingGuidance"))
 response = client.request({"name": "settings.control", "controlId": control["id"],
     "handle": control["handle"], "operation": "set", "value": "Prefer small tasks 🚀"})
 assert response["ok"], response["error"]
@@ -164,20 +124,6 @@ Old handles are rejected instead of applying captured bindings to a new field.
 `conflicted` and `error` describe save progress independently of frame readiness.
 An `ok` response does not promise persistence. Read Runtime public `state:load`
 when an independent persistence oracle is required.
-
-```sh
-python3 tools/verification/native-interaction/settings.py --steps 100
-```
-
-This launches a signed production Release app and its bundled Runtime with normal
-native Harness discovery. Each seed has a fresh private profile. Directed cases
-cover preferences, real text editing/IME/UTF-16 limits, CAS conflict retry/discard,
-model-dependent choices, dispatch targets and application inheritance. Moku
-routing guidance remains editable; additional instructions and full system-prompt
-replacement/reset controls are no longer part of the product.
-The monkey chooses from currently mounted controls. It saves incremental traces,
-checks public persisted state, and restarts both app and Runtime to verify settings
-and preferences survive. See the [production replay guide](../verification/native-interaction/README.md).
 
 ## Mounted reading controls
 
@@ -205,37 +151,15 @@ controls reject operations.
 | `execution.group`, `activity`, `disclosure` | Disclosure values/toggles only on surfaces whose reader policy mounts them; ordinary Agent detail is summary-only |
 | `row.load`, `execution.load`, `turn` | Actual Codex row/shared execution load state and mounted turn's rendered row count |
 
-```sh
-python3 tools/native-interaction/thread_chaos.py --socket "$automation_root/ui.sock" \
-  --thread-id interaction-c --seed 41 --steps 100 --trace /private/tmp/reading-41.jsonl
-python3 tools/native-interaction/thread_chaos.py --socket "$automation_root/ui.sock" \
-  --replay /private/tmp/reading-41.jsonl --trace /private/tmp/reading-41-replayed.jsonl
-```
-
-The runner exercises history, work visibility, scrolling, rejected Settings
-entry and stale-handle rejection, then makes seeded choices from mounted controls.
-Its disclosure traversal only operates on controls actually mounted by the reader.
-Ordinary Agent detail shows execution summaries without tool/thinking disclosures;
-fixture tool records do not establish nested-tool coverage there. Large completed
-histories exercise the virtualized directory; selecting an entry loads only that
-execution's body. The ordinary Agent reader does not load preceding executions
-when the document reaches the top. The
-[production reading launcher](../verification/thread-interaction/README.md) provides
-that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from
-the same fixture before replay. Replay resolves each recorded logical control ID
-to its new mounted handle; handles from a previous process are never reusable.
-The trace records actual coverage, loading failures and every attempted command.
-Every scroll asserts its observed final position against the requested/clamped
-target within half a point, including repeated relative movement and both edges.
-This reading scope excludes composer send/interrupt, attachments, sidecards, Git,
-external links and media; page navigation alone does not test those features.
-
 Settings uses a horizontal header. Report/Tag modes are exposed through
 `<section>.off`, `<section>.inherit` and `<section>.independent` activation
 actions. Independent Harness seats use `<section>.harness.<id>`; inherited mode
 shows read-only execution fields, while off hides execution fields.
-Moku's model selection preferences switch (`moku.routingEnabled`) is
-directly visible; enabling it reveals the `moku.routingGuidance` editor.
+Moku exposes Economy, Balanced, Performance and Custom actions with
+`routingPreset.<id>` field suffixes. The current mounted scope prefixes their
+full IDs; use observed `id`/`handle`, not a fabricated prefix. Custom reveals
+the `routingGuidance` editor. Selecting another preset retains the custom text.
+There is no `moku.routingEnabled` switch.
 
 ## External benchmark scenario entry
 
@@ -250,3 +174,13 @@ for measurement; it does not write preference/database/session files.
 The Overview benchmark entry also requests a fixed 1280 × 820 initial window
 and disables scene restoration for that explicit scenario. This removes saved
 window geometry as a startup variable; the OS bounds remain externally verified.
+
+## Interaction verification
+
+The [e2e runner](../e2e/README.md) records camera actions and settled transforms
+for `E2E-OVERVIEW-001`. The viewport exposes the window width, height, toolbar
+bottom and bottom reserved height in points. It records mounted-control requests
+and postconditions for `E2E-READ-001` and `E2E-SETTINGS-001`, with separate public
+Runtime outcome evidence. Scenario definitions do not imply a passing run.
+No composer send/pause operation is exposed; HTTP follow-up and interrupt
+commands do not establish composer interaction coverage.

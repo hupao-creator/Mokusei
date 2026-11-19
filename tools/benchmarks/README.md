@@ -1,12 +1,17 @@
 # External Overview rendering benchmark
 
+The [UX gate](gate/UX.md) defines current paired startup, response, progress and
+App resource budgets. [The common runner](gate/README.md) owns policy, identities,
+confidence intervals, evidence and nonzero regression/blocked exits. The commands
+below collect the wider standalone measurement scope; they do not certify a gate.
+Scenario IDs `zoom` and `body.zoom` are explicit unsupported capabilities because
+no validated public system pinch injector is available.
+
+
 This Python CLI runs against a **built, signed production Release `.app`**. It
-builds only its independent macOS collectors and control app. An XCTest UI
-target is built only for an explicitly requested native-hitch diagnostic.
-It never imports product modules, reads Overview types or writes product
+builds only its independent macOS collectors and control app. It never imports product modules, reads Overview types or writes product
 persistence. Copy this directory outside the repository to run it independently.
-Python 3.10+, macOS 26 and Xcode 26 are required for live collection; conformance
-and offline analysis use the Python standard library on Linux or macOS.
+Python 3.10+, macOS 26 and Xcode 26 are required for live collection; offline analysis use the Python standard library on Linux or macOS.
 
 The [Agent Thread reading extension](reading/README.md) shares these collectors,
 public fixture/lifecycle boundaries and evidence contracts. It separately measures
@@ -23,7 +28,6 @@ scenarios, not exclusive CPU attribution to a rendering module.
 ## Run
 
 ```sh
-python3 tools/benchmarks/benchmark.py conformance
 python3 tools/benchmarks/benchmark.py build --tools /private/tmp/overview-tools
 python3 tools/benchmarks/benchmark.py calibrate \
   --tools /private/tmp/overview-tools --output /private/tmp/overview-controls
@@ -45,13 +49,13 @@ visible desktop and exclusive use of the foreground window during each trial.
 The default build/calibration/run path does not launch XCTest, Instruments,
 `sudo`, or an authorization dialog. Read-only permission probes fail before
 fixture launch if the invoking context lacks an existing desktop permission.
+Both calibration and run retain `preflight.json` with the actual collector/build
+identity. Missing permission also writes `blocked.json` and returns exit 2 before
+starting a control or fixture App. No timing or resource value is emitted for
+that attempt.
 The CLI never changes Developer Tools authorization or system security settings.
-`--native-hitches` explicitly opts into the separate XCTest diagnostic for
-`build`, `calibrate` and `run`. It requires Developer Tools authorization already
-enabled and fails preflight otherwise; no interactive authorization is requested
-by the CLI. This extension is not needed to collect the default resource/pixel
-baseline. Default reports retain native hitches as unavailable, never zero or
-passed; optical progress/stall estimates are not native frame-hitch metrics.
+No native XCTest hitch collector is configured. Reports retain native hitches
+as unavailable; optical progress/stall estimates are not native frame-hitch metrics.
 The collector records foreground loss, missed input deadlines and capture gaps.
 Response/stasis estimates retain sampling bounds. A bound that straddles the
 declared progress deadline is incomplete evidence; only a lower bound beyond
@@ -128,10 +132,9 @@ converts them with the host's timebase before emitting `cpuNS`. Every collector
 build links the real sampler into a busy-process check against the independent
 `CLOCK_PROCESS_CPUTIME_ID` clock and retains `cpu-clock-check.json` (also embedded
 in `build.json`). This validates units, not a performance threshold or complete
-descendant accounting. Collectors before this correction mislabeled ticks as
-nanoseconds: their absolute CPU seconds and single-core percentages are invalid
-on non-1:1 timebases. Keep their sealed evidence intact; any derived correction
-must name the old collector and use that run's recorded timebase explicitly.
+descendant accounting. Collector identity and timebase are required measurement
+metadata; datasets with different collector identities cannot be pooled. Data
+without the CPU unit contract cannot support an absolute CPU comparison.
 The observation declares `cpuTimeUnit: nanoseconds`; the analyzer withholds CPU
 metrics when that declaration is absent or unsupported, retaining footprint data.
 
@@ -142,15 +145,9 @@ cost belongs to the collector; OCR runs after collection. Raw screenshots remain
 available for review. Business anchors can be any observable fixture card.
 Absence of useful anchors is a measurement limitation, never a layout failure.
 
-Hitch collection subclasses the native `XCTHitchMetric` to retain its lifecycle,
-copying and raw measurements, with original identifiers, values, units and
-monotonic timestamps. XCTest's discarded iteration does not dispatch workload.
-It attaches to a unique existing PID + birth/launch identity and retains the
-`.xcresult`; it never launches or activates the product. Its sandboxed runner
-uses authenticated loopback coordination, without broader signing entitlements.
-Normal, real main-thread stall and wrong-owner controls must establish capability.
-If pixels freeze while hitches remain zero, the metric is **unsupported** for
-responsiveness conclusions. Zero is never substituted for unavailable data.
+Native hitch collection is unavailable. Optical normal/frozen/wrong/delayed/stall
+controls establish sampled pixel sensitivity only. No zero hitch value is
+substituted for unavailable data, and optical progress is not physical FPS.
 
 ## Agent emoji badge material comparison
 
@@ -206,7 +203,9 @@ loopback Responses provider. Public `thread:follow-up` starts the fixed set of
 active tasks. The framework records the **actually selected native CLI** path,
 version and digest; it does not spoof a discovery version or claim an environment
 variable pins discovery. Background Tag/Report agents are disabled using public
-settings with the real revision. Production search remains enabled.
+settings with the real revision. Tag filtering and the Agent `grep_threads`
+capability are independent; no GUI conversation search or derived keyword index
+is configured.
 
 The App's explicit `--benchmark-scenario overview` entry requires the isolated
 `--data-dir` and automation socket. It records onboarding completion before the
@@ -235,9 +234,8 @@ is involved.
 20 packets/s bursts) are explicit **stress loads**, not the default.
 `--chunk-bytes` and `--message-bytes` are retained in plans. All rates are
 controlled synthetic inputs, not frequencies certified from production traces.
-Workload schedule version 2 records the load kind and card timing; old synchronized
-workloads and the removed `return` case are not silently reinterpreted by current
-analysis. Retain their evidence and original analysis identity separately.
+Workload schedule version 2 records load kind and per-card timing. Comparisons
+require explicit matching schedule/collector identity; incompatible workloads are not pooled.
 
 Absolute deadlines drive output independently of UI responsiveness. The source
 ledger records intended and actual sends, bytes, payload hashes and every card's
@@ -272,58 +270,25 @@ Offline analysis re-evaluates the retained calibration controls against the
 collector/toolchain/OS identity instead of trusting capability booleans. A passing
 product observation requires established pixel sensitivity; observed motion with
 incorrect displacement is reported separately from an actual progress stall.
-Incomplete measurements cannot produce a passing comparison. No statistical
-regression gate, formal A/B inference, physical FPS, energy or GPU claims are
-made. Fixed-count summaries permit inspection of scaling of individual observed
-metrics with their coverage limitations.
+Incomplete measurements cannot produce a passing comparison. The standalone summaries make no regression judgment or physical FPS, energy
+or GPU claim. The paired UX adapter judges only its documented narrower metrics
+and propagates capture uncertainty; incomplete whole-task accounting stays visible.
 
-The retained [2026-11-13 observation](baselines/2026-11-13.md) and
-[machine-readable data](baselines/2026-11-13.json) preserve the original
-incomplete 5/10-card measurements. N=20 is explicitly unmeasured; the user
-stopped further collection. This snapshot is not a regression gate and belongs
-to the original collector configuration, not the later default without XCTest.
-
-The [runtime-clock optimization observation](baselines/2026-11-13-runtime-clock.md)
-uses the later default collector for two 10-card scenarios. It records signed
-before/after artifacts and App CPU samples, while retaining incomplete process
-coverage and unavailable hitch status. It is not a statistical regression result.
-
-The [rendering-cost investigation](baselines/2026-11-13-rendering-costs.md)
-separates six scenario profiles from measured style candidates. It includes a
-120 fps pre-rendered cloud prototype, actual 60/120 Hz window transitions and
-paired App CPU observations on the 120 Hz display. Playback configuration is
-not physical FPS evidence; the product changes remain unshipped experiments.
-
-The historical [production combination](baselines/2026-11-13-combined-rendering.md)
-paired equal voice-availability notification suppression with pre-rendered clouds.
-Pre-rendered playback has since been removed after reported stutter; the live
-Metal cloud, notification suppression and original body reveal are retained.
-Its CPU figures apply to the recorded combination, not the current product.
-The original incomplete measurement status and invalid startup remain explicit.
-
-The [shared pre-rendered follow-up](baselines/2026-11-13-shared-prebaked.md)
-tests one masked player per palette on top of that production change. N10 App
-CPU was effectively unchanged after a matched idle warmup. Both pre-rendered
-approaches are now historical; the prototype and failed preparation are archived.
+The [measurement reports](baselines/) retain source/collector/artifact identities,
+raw-data links, failed preparations and capability limits. Their metrics describe
+only those artifacts; they do not certify current rendering or a regression gate.
 
 ## Verification boundary
 
-`conformance` exercises the real parsers, source schedules and offline scorer
-with synthetic adversarial evidence; it cannot certify a macOS collector. Hosted
-Linux CI runs it. `calibrate` uses separate normal/frozen/wrong/delayed-motion,
-main-thread-stall, SwiftUI drag and short-lived-child controls with the same collectors.
-Its default wrong-owner control rejects a mismatched birth identity before any
-input/capture; it is separate from the opt-in native hitch ownership control.
+`calibrate` retains independent normal/frozen/wrong/delayed-motion, main-thread-stall,
+SwiftUI drag and short-lived-child controls to establish collector capability.
+CLI-level PBT/e2e exercises the current performance gate. Native hitches have no
+validated collector.
 Signed production GUI experiments remain local because CI has no production
 signing credentials. See [verification policy](../../scripts/ci/verification-policy.md).
 
-The older `overview-ci-performance` and
+The `overview-ci-performance` and
 [Overview performance probes](../verification/overview-performance/README.md)
 remain diagnostics with separate baselines. Do not pool their results with these
 external measurements. [Implementation references](REFERENCES.md) document the
 pinned Swift open-source projects and the practices adopted here.
-
-The [2026-11-14 Agent emoji badge comparison](baselines/2026-11-14-emoji-badge-glass.md)
-uses the same signed artifact with launch-scoped flat/glass selection in both
-orders. It reports App CPU/footprint observations separately from failed pan
-trajectory checks and retains the incomplete full-benchmark status.

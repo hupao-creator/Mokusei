@@ -1,0 +1,234 @@
+package runtime
+
+import (
+	"encoding/json"
+	"errors"
+	"math"
+	"regexp"
+	"strings"
+
+	"github.com/hupao-creator/Mokusei/internal/core/model"
+)
+
+type settingsSchemaError struct {
+	field string
+	code  string
+	path  []any
+}
+
+func (e *settingsSchemaError) Error() string { return "Invalid settings request: " + e.field }
+func schemaError(field, code string, path ...any) error {
+	return &settingsSchemaError{field: field, code: code, path: append([]any{}, path...)}
+}
+func settingsInteger(value any, minimum int64) (int64, bool) {
+	number, ok := value.(json.Number)
+	if !ok {
+		return 0, false
+	}
+	n, err := number.Float64()
+	if err != nil || math.IsNaN(n) || math.IsInf(n, 0) || math.Trunc(n) != n || n < float64(minimum) || n > float64(model.MaximumSafeInteger) {
+		return 0, false
+	}
+	return int64(n), true
+}
+
+func parseSettingsRequest(raw json.RawMessage) (int64, model.Settings, error) {
+	value, err := model.Decode(raw)
+	if err != nil {
+		return 0, model.Settings{}, schemaError("JSON", "invalid_type")
+	}
+	if err := model.CommandJSONSize(value, 2_000_000); err != nil {
+		return 0, model.Settings{}, schemaError("settings payload exceeds limit", "too_big", "settings")
+	}
+	request, err := closedSettingsObject(value, []string{"expectedSettingsRevision", "settings"}, []string{"expectedSettingsRevision", "settings"})
+	if err != nil {
+		return 0, model.Settings{}, err
+	}
+	expected, ok := settingsInteger(request["expectedSettingsRevision"], 0)
+	if !ok {
+		return 0, model.Settings{}, schemaError("invalid settings revision", "invalid_type", "expectedSettingsRevision")
+	}
+	settings, err := parseSettingsShell(request["settings"])
+	return expected, settings, err
+}
+func closedSettingsObject(value any, allowed, required []string, path ...any) (model.Object, error) {
+	object, ok := value.(map[string]any)
+	if !ok {
+		return nil, schemaError("expected object", "invalid_type", path...)
+	}
+	known := map[string]bool{}
+	for _, key := range allowed {
+		known[key] = true
+	}
+	for key := range object {
+		if !known[key] {
+			return nil, schemaError("unknown field", "unrecognized_keys", appendPath(path, "*")...)
+		}
+	}
+	for _, key := range required {
+		if _, ok := object[key]; !ok {
+			return nil, schemaError("missing field", "invalid_type", appendPath(path, key)...)
+		}
+	}
+	return object, nil
+}
+func appendPath(path []any, value any) []any { return append(append([]any{}, path...), value) }
+func settingsObjectMap(value any, path ...any) (map[string]json.RawMessage, error) {
+	object, ok := value.(map[string]any)
+	if !ok {
+		return nil, schemaError("expected settings map", "invalid_type", path...)
+	}
+	result := map[string]json.RawMessage{}
+	for key, child := range object {
+		if _, ok := child.(map[string]any); !ok {
+			return nil, schemaError("Harness settings must be an object", "invalid_type", appendPath(path, "*")...)
+		}
+		raw, err := json.Marshal(child)
+		if err != nil {
+			return nil, err
+		}
+		result[key] = raw
+	}
+	return result, nil
+}
+func settingsText(value any, optional bool, path ...any) (*string, error) {
+	if value == nil && optional {
+		return nil, nil
+	}
+	text, ok := value.(string)
+	if !ok {
+		return nil, schemaError("expected text", "invalid_type", path...)
+	}
+	return &text, nil
+}
+
+// ECMAScript trim excludes U+0085 and includes BOM, unlike strings.TrimSpace.
+func settingsSpace(r rune) bool {
+	return r == '\t' || r == '\n' || r == '\v' || r == '\f' || r == '\r' || r == ' ' || r == 0xa0 || r == 0x1680 || (r >= 0x2000 && r <= 0x200a) || r == 0x2028 || r == 0x2029 || r == 0x202f || r == 0x205f || r == 0x3000 || r == 0xfeff
+}
+func normalizedGuidance(value any, path ...any) (*string, error) {
+	text, err := settingsText(value, true, path...)
+	if err != nil || text == nil {
+		return text, err
+	}
+	trimmed := strings.TrimFunc(*text, settingsSpace)
+	if model.UTF16Length(trimmed) > 12000 {
+		return nil, schemaError("guidance must be at most 12000 UTF-16 code units", "too_big", path...)
+	}
+	if trimmed == "" {
+		return nil, nil
+	}
+	return &trimmed, nil
+}
+
+var pluginPreferenceKey = regexp.MustCompile(`^(extension|context|harness|sidecard):[a-z][a-z0-9-]*$`)
+
+func parseSettingsShell(value any) (model.Settings, error) {
+	result := model.Settings{}
+	object, err := closedSettingsObject(value, []string{"moku", "harnesses", "pluginSettings", "pluginEnabled"}, []string{"moku", "harnesses", "pluginSettings"}, "settings")
+	if err != nil {
+		return result, err
+	}
+	moku, err := closedSettingsObject(object["moku"], []string{"hostHarnessPreference", "executionHarnesses", "targetHarnessIds", "routingGuidance", "routingPreset"}, []string{"hostHarnessPreference", "targetHarnessIds", "routingGuidance"}, "settings", "moku")
+	if err != nil {
+		return result, err
+	}
+	preference, err := settingsText(moku["hostHarnessPreference"], false, "settings", "moku", "hostHarnessPreference")
+	if err != nil {
+		return result, err
+	}
+	result.Moku.HostHarnessPreference = *preference
+	result.Moku.ExecutionHarnesses = map[string]json.RawMessage{}
+	if profiles, exists := moku["executionHarnesses"]; exists {
+		result.Moku.ExecutionHarnesses, err = settingsObjectMap(profiles, "settings", "moku", "executionHarnesses")
+		if err != nil {
+			return result, err
+		}
+	}
+	ids, ok := moku["targetHarnessIds"].([]any)
+	if !ok {
+		return result, schemaError("target Harnesses must be an array", "invalid_type", "settings", "moku", "targetHarnessIds")
+	}
+	result.Moku.TargetHarnessIDs = []string{}
+	seen := map[string]bool{}
+	for index, value := range ids {
+		id, ok := value.(string)
+		if !ok || seen[id] {
+			return result, schemaError("invalid or duplicate target Harness", "custom", "settings", "moku", "targetHarnessIds", index)
+		}
+		seen[id] = true
+		result.Moku.TargetHarnessIDs = append(result.Moku.TargetHarnessIDs, id)
+	}
+	if raw, exists := moku["routingPreset"]; exists {
+		preset, ok := raw.(string)
+		if !ok || preset != "economy" && preset != "balanced" && preset != "performance" && preset != "custom" {
+			return result, schemaError("invalid model routing preset", "custom", "settings", "moku", "routingPreset")
+		}
+		result.Moku.RoutingPreset = preset
+	}
+	result.Moku.RoutingGuidance, err = normalizedGuidance(moku["routingGuidance"], "settings", "moku", "routingGuidance")
+	if err != nil {
+		return result, err
+	}
+	result.Harnesses, err = settingsObjectMap(object["harnesses"], "settings", "harnesses")
+	if err != nil {
+		return result, err
+	}
+	entries, ok := object["pluginSettings"].([]any)
+	if !ok {
+		return result, schemaError("pluginSettings must be an array", "invalid_type", "settings", "pluginSettings")
+	}
+	result.PluginSettings = []model.PluginSettings{}
+	seen = map[string]bool{}
+	for index, entry := range entries {
+		path := []any{"settings", "pluginSettings", index}
+		row, err := closedSettingsObject(entry, []string{"id", "schemaVersion", "value"}, []string{"id", "schemaVersion", "value"}, path...)
+		if err != nil {
+			return result, err
+		}
+		id, ok := row["id"].(string)
+		if !ok || strings.TrimSpace(id) == "" || strings.ContainsRune(id, 0) || model.UTF16Length(id) > 128 || seen[id] {
+			return result, schemaError("invalid or duplicate plugin settings ID", "custom", appendPath(path, "id")...)
+		}
+		seen[id] = true
+		version, ok := settingsInteger(row["schemaVersion"], 1)
+		if !ok {
+			return result, schemaError("invalid settings schema version", "invalid_type", appendPath(path, "schemaVersion")...)
+		}
+		raw, err := json.Marshal(row["value"])
+		if err != nil {
+			return result, err
+		}
+		result.PluginSettings = append(result.PluginSettings, model.PluginSettings{ID: id, SchemaVersion: int(version), Value: raw})
+	}
+	if preferences, exists := object["pluginEnabled"]; exists {
+		values, ok := preferences.(map[string]any)
+		if !ok {
+			return result, schemaError("pluginEnabled must be an object", "invalid_type", "settings", "pluginEnabled")
+		}
+		result.PluginEnabled = map[string]bool{}
+		for key, raw := range values {
+			enabled, ok := raw.(bool)
+			if !ok || !pluginPreferenceKey.MatchString(key) {
+				return result, schemaError("invalid plugin preference", "invalid_type", "settings", "pluginEnabled", "*")
+			}
+			result.PluginEnabled[key] = enabled
+		}
+	}
+	return result, nil
+}
+func normalizeSettingsShell(settings model.Settings) (model.Settings, error) {
+	raw, err := json.Marshal(settings)
+	if err != nil {
+		return settings, err
+	}
+	object, err := model.Decode(raw)
+	if err != nil {
+		return settings, err
+	}
+	return parseSettingsShell(object)
+}
+func settingsSchemaFailure(err error) bool {
+	var failure *settingsSchemaError
+	return errors.As(err, &failure)
+}

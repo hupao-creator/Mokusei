@@ -1,11 +1,10 @@
 import Foundation
-import OSLog
 import MokuseiCore
 import MokuseiPluginAPI
 
 /// The captured input owns its receipt until its persisted draft is consumed.
 /// Retrying an uncertain send observes that receipt, including its original
-/// voice fence and Report/directory context; it never constructs another write.
+/// Report/directory context; it never constructs another write.
 @MainActor
 final class NativeMokuSubmission {
     private final class Operation {
@@ -106,8 +105,6 @@ final class NativeMokuSubmission {
             // The accepted revision is already gone. Keep the operation and
             // receipt until cleanup succeeds, without turning success into a
             // send error or letting another draft replace the protected input.
-            Logger(subsystem: "Mokusei", category: "MokuSubmission")
-                .error("Accepted Moku receipt cleanup deferred: \(error.localizedDescription, privacy: .public)")
             return
         }
         if operation === current { operation = nil }

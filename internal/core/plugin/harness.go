@@ -171,9 +171,6 @@ type SeedItem struct {
 type ToolCall struct {
 	CallID    string
 	Arguments json.RawMessage
-	// InvocationID identifies this host callback, independently of native call IDs.
-	InvocationID    string
-	CallIDTruncated bool
 }
 type ToolBinding struct {
 	Name         string
@@ -213,9 +210,6 @@ func CallerError(err error) error {
 type ToolInjection struct {
 	Mode     string
 	Bindings []ToolBinding
-	// AuditContext snapshots retry facts at callback entry, never after settlement.
-	// This is diagnostic context, not authority to execute or write a batch.
-	AuditContext func() ToolRetryContext `json:"-"`
 }
 type Injection struct {
 	// Runtime calls this under admission ownership only when reserving a new
@@ -376,22 +370,4 @@ type MokuTargetDiscoverer interface {
 }
 type MokuContextContributor interface {
 	MokuContext(context.Context, string, SettingsRequest, TelemetryLedger) (string, error)
-}
-
-// Voice and discussion data remain protocol JSON: codecs belong to the owning
-// Harness and voice provider rather than to the runtime's persistence layer.
-type Voice interface {
-	Voice(context.Context, json.RawMessage) (json.RawMessage, error)
-}
-type DiscussionPreparer interface {
-	PrepareDiscussion(context.Context, DiscussionRequest) (Discussion, error)
-}
-type DiscussionRequest struct {
-	Source       model.ThreadRecord
-	Tools        []ToolBinding
-	Instructions string
-}
-type Discussion interface {
-	Ask(context.Context, string) (string, error)
-	Close() error
 }

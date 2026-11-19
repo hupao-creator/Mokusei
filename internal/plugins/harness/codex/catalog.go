@@ -18,9 +18,10 @@ type CatalogTransport interface {
 }
 type CatalogFactory func(context.Context, string, string) (*AppServer, error)
 type catalogSource struct {
-	factory  CatalogFactory
-	identity string
-	current  func(context.Context) (string, error)
+	factory        CatalogFactory
+	identity       string
+	current        func(context.Context) (string, error)
+	cacheUpdatedAt time.Time
 }
 type catalogEntry struct {
 	sourceProof        plugin.CatalogSourceEvidence
@@ -103,12 +104,14 @@ func (c *Catalog) observeOnce(ctx context.Context, cwd, configured string, refre
 	identity := ""
 	factory := c.factory
 	var currentSource func(context.Context) (string, error)
+	var cacheUpdatedAt time.Time
 	if c.source != nil {
 		source, err := c.source(ctx, cwd, configured, routing)
 		if err != nil {
 			return catalogEntry{}, err
 		}
 		factory, identity, currentSource = source.factory, source.identity, source.current
+		cacheUpdatedAt = source.cacheUpdatedAt
 		key += "\x00" + identity
 	}
 	probe := func(shared context.Context) (catalogEntry, error) {
@@ -147,7 +150,7 @@ func (c *Catalog) observeOnce(ctx context.Context, cwd, configured string, refre
 		// probes retain the last same-configuration inventory in this cache.
 		entry, err = c.routingReads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, probe)
 	} else {
-		entry, err = c.reads.Get(ctx, key, refresh, 5*time.Minute, 60*time.Second, probe)
+		entry, err = c.reads.GetFreshAfter(ctx, key, refresh, 5*time.Minute, 60*time.Second, cacheUpdatedAt, probe)
 	}
 	if routing && err == nil && c.routingReads.RefreshFailed(key) {
 		entry.sourceProof.Basis += "; last refresh failed, retaining an earlier native snapshot"

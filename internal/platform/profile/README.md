@@ -52,12 +52,3 @@ descriptor, including device and inode. These files are permanent: release close
 it never unlinks or replaces a lock file, including after profile rotation.
 `ClientLeasePath` exposes the current canonical lock path for diagnostics and
 isolated verification; computing that path grants no authority.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/runtime-helpers`
-checks pre-creation identity, concurrent management, discovery and shutdown.
-Add `--swift-shutdown` for Go/Swift data-directory and workspace agreement plus
-a Swift profile selected before an alias appears. The case-alias branch runs
-only when the filesystem confirms both paths are the same file; otherwise the
-replay checks separate profiles. The [devtool replay](../../../tools/verification/devtools/README.md)
-checks exclusive maintenance and development-profile rotation; its native
-writer mode verifies shared leases and startup at the final rotation boundary.

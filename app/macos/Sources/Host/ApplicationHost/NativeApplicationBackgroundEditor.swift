@@ -3,6 +3,10 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 import SwiftUI
 
+extension EnvironmentValues {
+    @Entry var nativeOnboardingHarnessIDs: Set<JSONText>? = nil
+}
+
 /// The application owns its draft; this shared editor only resolves the saved
 /// Moku defaults and delegates each opaque Harness slice to its native plugin.
 @MainActor
@@ -13,6 +17,7 @@ public struct NativeApplicationBackgroundEditor: View {
     private let value: ApplicationBackgroundExecutionSettings
     private let change: (ApplicationBackgroundExecutionSettings) -> Void
     @Environment(\.nativeSettingsCompactPresentation) private var onboarding
+    @Environment(\.nativeOnboardingHarnessIDs) private var onboardingHarnessIDs
     @Environment(\.nativeSettingsEditorDrafts) private var editorDrafts
     @Environment(\.nativeSettingsRowVerticalPadding) private var rowPadding
 
@@ -32,7 +37,8 @@ public struct NativeApplicationBackgroundEditor: View {
             guard harness.descriptor.threadCapabilities.canHostMoku else { return false }
             guard onboarding else { return true }
             let plugin = settingsModel.plugins.first { $0.key == "harness:\(harness.descriptor.id.string)" }
-            return settingsModel.installations[harness.descriptor.id.string]?.status == .installed
+            return onboardingHarnessIDs?.contains(harness.descriptor.id) != false
+                && settingsModel.installations[harness.descriptor.id.string]?.status == .installed
                 && plugin?.enabled != false && plugin?.unavailableReason == nil
         }
     }

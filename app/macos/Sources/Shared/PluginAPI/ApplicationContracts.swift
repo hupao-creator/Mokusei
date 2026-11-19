@@ -146,20 +146,6 @@ public struct ApplicationValueKey<Value> {
         self.id = id; self.ownerPluginID = ownerPluginID; self.schemaVersion = schemaVersion; self.codec = codec
     }
 }
-@MainActor
-public struct ApplicationPresentationKey<Value> {
-    public let key: ApplicationValueKey<Value>
-    public let apiVersion: Int
-    public init(key: ApplicationValueKey<Value>, apiVersion: Int = 1) { self.key = key; self.apiVersion = apiVersion }
-    public func read<Entry>(_ entry: ApplicationThreadCatalogEntry<Entry>) throws -> Value? {
-        guard let value = entry.presentations.first(where: { $0.id == key.id }) else { return nil }
-        guard value.apiVersion == apiVersion, value.schemaVersion == key.schemaVersion else {
-            throw PluginContractError("Incompatible application thread presentation: \(key.id.string)")
-        }
-        return try key.codec.decode(value.value)
-    }
-}
-
 public enum ApplicationOperationKind: String, Sendable { case query, command }
 @MainActor
 public struct ApplicationOperation<Input, Output> {

@@ -11,11 +11,8 @@ import MokuseiPluginUI
     var status = "正在准备原生阅读器…"
     var slow = false
     var longResult = false
-    var forceReducedMotion = false
-    var systemReducedMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     var dark = false
     var resize: (CGSize) -> Void = { _ in }
-    var reduceMotion: Bool { forceReducedMotion || systemReducedMotion }
     func play() { playRequested = true; revision += 1 }
     func reset() { playRequested = false; revision += 1 }
 }
@@ -44,8 +41,6 @@ private struct DemoWindow: View {
                         .accessibilityLabel("执行卡片：重播或取消交接")
                     NativeIcon(name: "Globe", size: 17).frame(width: 42, height: 42).opacity(0.3)
                         .help("Browser · 此 demo 不连接网页")
-                    NativeIcon(name: "Phone", size: 17).frame(width: 42, height: 42).opacity(0.3)
-                        .help("Voice · 此 demo 不打开麦克风")
                 }.frame(width: 62)
             }.padding(.leading, 22).padding(.trailing, 10).padding(.bottom, 18)
             VStack(alignment: .leading, spacing: 12) {
@@ -61,11 +56,8 @@ private struct DemoWindow: View {
                 HStack(spacing: 18) {
                     Toggle("慢速 3×", isOn: $model.slow)
                     Toggle("长结果", isOn: $model.longResult).onChange(of: model.longResult) { _, _ in model.reset() }
-                    Toggle("减弱动态效果", isOn: $model.forceReducedMotion)
-                        .disabled(model.systemReducedMotion)
                     Toggle("深色", isOn: $model.dark)
                     Spacer()
-                    if model.systemReducedMotion { Text("系统已减弱动态效果").foregroundStyle(.secondary) }
                     Menu("窗口尺寸") {
                         Button("紧凑 · 960 × 680") { model.resize(.init(width: 960, height: 680)) }
                         Button("标准 · 1240 × 800") { model.resize(.init(width: 1240, height: 800)) }
@@ -76,9 +68,6 @@ private struct DemoWindow: View {
         }
         .background(NativePalette.overview.canvas.swiftUI)
         .preferredColorScheme(model.dark ? .dark : .light)
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification)) { _ in
-            model.systemReducedMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        }
     }
 }
 
@@ -128,8 +117,8 @@ private struct DemoWindow: View {
             try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!
                 .write(to: output.appendingPathComponent(name + ".png"))
             samples.append(["name": name, "elapsed": String(describing: start.duration(to: .now)),
-                "status": model.status, "busy": model.busy, "reduced": model.reduceMotion,
-                "systemReducedMotion": model.systemReducedMotion, "size": NSStringFromSize(window.contentLayoutRect.size)])
+                "status": model.status, "busy": model.busy,
+                "size": NSStringFromSize(window.contentLayoutRect.size)])
         }
         try await pause(1200); try await shot("00-running")
         model.slow = true; model.play()
@@ -141,8 +130,6 @@ private struct DemoWindow: View {
         model.resize(.init(width: 960, height: 680))
         try await pause(600); try await shot("04-compact-dark")
         model.slow = false; model.play(); try await pause(1400); try await shot("05-compact-result")
-        model.forceReducedMotion = true; model.reset(); try await pause(300)
-        model.play(); try await pause(500); try await shot("06-reduced")
         try JSONSerialization.data(withJSONObject: samples, options: [.prettyPrinted, .sortedKeys])
             .write(to: output.appendingPathComponent("samples.json"))
     }

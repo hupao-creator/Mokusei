@@ -1,51 +1,13 @@
-# Thread search
+# Agent thread retrieval
 
-This module owns derived keyword text, passage indexing and thread ranking.
-Harness and Application adapters supply public text; search never opens native
-conversations, discovers credentials or loads a local model. The
-[Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
-global eligible thread scope and immediate folded metadata matches, independent
-of its browsing tag. Directory-only documents and tasks covered by reports remain
-included; archive/terminal exclusions remain.
-
-## Projections and incremental work
-
-[documents.go](documents.go) keeps `keyword-text-v3`: metadata is bounded to 512
-Unicode code points and body text to the existing 134,550-code-point prefix.
-The user explicitly retained this body coverage limit. Metadata/body offsets are
-stored independently so changing a title does not shift every body passage.
-Owner-key snapshot diffs extract only changed eligible public sources; telemetry,
-unrelated collections and derived commits do not re-extract histories. Busy
-owners wait for their next source change. Extraction failures use bounded retry.
-Body and freshness stamp commit atomically behind the owner/hash/epoch fence.
-
-## Queries and ranking
-
-[query.go](query.go) preserves whitespace-term substring AND across metadata and
-body; native case/diacritic/width-folded matches independently qualify. Exact
-title substrings rank first. Scores are ranking values, not confidence
-percentages. The decoded keyword-body cache is limited to 64 MiB; the query
-result cache holds at most eight entries. Every response revalidates the live
-owner and history epoch.
-
-## Lifecycle and verification
-
-Archive/deletion revoke derived text and stamps in the owner transaction.
-History clear cancels and joins publishers, advances the epoch and removes
-persisted derived text before resuming. `search:status` and `search:query`
-remain cancellable reads; `search:retry` is a zero-argument recovery command.
-Retired configure/model/index controls remain unsupported.
-
-The [Runtime/native replay](../../../tools/verification/thread-search/README.md)
-checks SQLite indexing, cache reuse, source replacement, archive, migration and
-history clearing against production Runtime boundaries.
+There is no GUI thread search or derived index. This module serves
+only the independent `grep_threads` Agent capability.
 
 ## Moku deterministic grep
 
 [grep.go](grep.go) scans authoritative ordinary-thread sources supplied by Runtime,
-without using the derived index to exclude candidates. It reuses the Harness
-public-text extraction boundary through `SearchPassageAdapter`; the existing
-`SearchText` index projection joins those same passages. Busy threads remain
+without using the derived index to exclude candidates. It uses the Harness
+public-text extraction boundary through `SearchPassageAdapter`. Busy threads remain
 candidates for their earlier completed executions. Archive inclusion is independent
 of Overview visibility. No native session, model request, filesystem history or
 credential lookup is used to obtain conversation text.
@@ -88,9 +50,7 @@ Internal-input exclusion relies on the Harness's retained visibility markers:
 Pi/OpenCode user inputs without those markers are omitted, with the explicit
 `unknown-input-visibility` issue even when another passage matches. Their public
 assistant text remains searchable. Public assistant text may quote internal or
-sensitive input; grep does not redact public text or infer its origin. Shared
-index extraction also omits these unknown-visibility inputs on its next rebuild.
-Unsupported Harnesses, missing/invalid/oversized state, no public text and
+sensitive input; grep does not redact public text or infer its origin. Unsupported Harnesses, missing/invalid/oversized state, no public text and
 concurrent source changes are explicit page-local `issues`, never silent
 negative evidence. Adapter errors are sanitized. Public text can itself contain
 user-authored sensitive material or file paths and reaches the current Moku

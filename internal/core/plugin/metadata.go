@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"regexp"
 	"sort"
 	"strings"
@@ -429,8 +428,7 @@ type generatedMetadataHandle struct {
 
 // WithGeneratedThreadMetadata wraps accepted sends with asynchronous title and
 // emoji completion. Naming failures cannot turn a durably accepted send into a
-// failed submission. Optional voice and completed-reply capabilities are
-// preserved exactly, so callers can still discover native capabilities.
+// failed submission. The optional completed-reply capability is preserved.
 func WithGeneratedThreadMetadata(ctx context.Context, open OpenContext, handle Handle,
 	complete func(context.Context, PromptRequest, json.RawMessage) (PromptResult, error),
 ) Handle {
@@ -440,83 +438,19 @@ func WithGeneratedThreadMetadata(ctx context.Context, open OpenContext, handle H
 	ctx, stop := context.WithCancel(ctx)
 	wrapper := &generatedMetadataHandle{Handle: handle, ctx: ctx, stop: stop, open: open, complete: complete, changed: make(chan struct{}, 1)}
 	wrapper.start()
-	voice, hasVoice := handle.(Voice)
-	reply, hasReply := handle.(CompletedReply)
-	native, hasNative := handle.(NativeVoiceCapability)
-	if hasNative {
-		switch {
-		case hasVoice && hasReply:
-			base := &metadataVoiceReplyHandle{metadataVoiceHandle: &metadataVoiceHandle{generatedMetadataHandle: wrapper, voice: voice}, reply: reply}
-			return &metadataNativeVoiceReplyHandle{metadataVoiceReplyHandle: base, NativeVoiceCapability: native}
-		case hasVoice:
-			return &metadataNativeVoiceHandle{metadataVoiceHandle: &metadataVoiceHandle{generatedMetadataHandle: wrapper, voice: voice}, NativeVoiceCapability: native}
-		case hasReply:
-			return &metadataNativeReplyHandle{metadataReplyHandle: &metadataReplyHandle{generatedMetadataHandle: wrapper, reply: reply}, NativeVoiceCapability: native}
-		default:
-			return &metadataNativeHandle{generatedMetadataHandle: wrapper, NativeVoiceCapability: native}
-		}
-	}
-	switch {
-	case hasVoice && hasReply:
-		return &metadataVoiceReplyHandle{metadataVoiceHandle: &metadataVoiceHandle{generatedMetadataHandle: wrapper, voice: voice}, reply: reply}
-	case hasVoice:
-		return &metadataVoiceHandle{generatedMetadataHandle: wrapper, voice: voice}
-	case hasReply:
+	reply, ok := handle.(CompletedReply)
+	if ok {
 		return &metadataReplyHandle{generatedMetadataHandle: wrapper, reply: reply}
-	default:
-		return wrapper
 	}
+	return wrapper
 }
 
-type metadataVoiceHandle struct {
-	*generatedMetadataHandle
-	voice Voice
-}
 type metadataReplyHandle struct {
 	*generatedMetadataHandle
 	reply CompletedReply
 }
-type metadataVoiceReplyHandle struct {
-	*metadataVoiceHandle
-	reply CompletedReply
-}
-type metadataNativeHandle struct {
-	*generatedMetadataHandle
-	NativeVoiceCapability
-}
-type metadataNativeVoiceHandle struct {
-	*metadataVoiceHandle
-	NativeVoiceCapability
-}
-type metadataNativeReplyHandle struct {
-	*metadataReplyHandle
-	NativeVoiceCapability
-}
-type metadataNativeVoiceReplyHandle struct {
-	*metadataVoiceReplyHandle
-	NativeVoiceCapability
-}
 
-var (
-	_ Voice                 = (*metadataVoiceHandle)(nil)
-	_ CompletedReply        = (*metadataReplyHandle)(nil)
-	_ Voice                 = (*metadataVoiceReplyHandle)(nil)
-	_ CompletedReply        = (*metadataVoiceReplyHandle)(nil)
-	_ NativeVoiceCapability = (*metadataNativeHandle)(nil)
-	_ NativeVoiceCapability = (*metadataNativeVoiceHandle)(nil)
-	_ NativeVoiceCapability = (*metadataNativeReplyHandle)(nil)
-	_ NativeVoiceCapability = (*metadataNativeVoiceReplyHandle)(nil)
-	_ Voice                 = (*metadataNativeVoiceReplyHandle)(nil)
-	_ CompletedReply        = (*metadataNativeVoiceReplyHandle)(nil)
-)
-
-func (h *metadataVoiceHandle) Voice(ctx context.Context, request json.RawMessage) (json.RawMessage, error) {
-	return h.voice.Voice(ctx, request)
-}
 func (h *metadataReplyHandle) CompletedReply(id string) (string, bool) {
-	return h.reply.CompletedReply(id)
-}
-func (h *metadataVoiceReplyHandle) CompletedReply(id string) (string, bool) {
 	return h.reply.CompletedReply(id)
 }
 
@@ -528,10 +462,6 @@ func (h *generatedMetadataHandle) stopped(epoch uint64) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.stoppedLocked() || h.epoch != epoch
-}
-
-func (h *generatedMetadataHandle) report(err error) {
-	slog.Debug("harness.metadata.failed", "threadId", h.open.ThreadID, "error", err)
 }
 
 func (h *generatedMetadataHandle) start() {
@@ -562,11 +492,7 @@ func (h *generatedMetadataHandle) start() {
 			if h.open.Metadata.Read().Revision == lastRevision {
 				continue
 			}
-			var err error
-			lastRevision, err = h.refresh(epoch)
-			if err != nil && !h.stopped(epoch) {
-				h.report(err)
-			}
+			lastRevision, _ = h.refresh(epoch)
 		}
 	}()
 }
@@ -674,7 +600,6 @@ func (h *generatedMetadataHandle) refresh(epoch uint64) (processed int64, err er
 				continue
 			}
 		}
-		h.report(err)
 		latest := h.open.Metadata.Read()
 		if latest.Revision != covered.Revision {
 			continue
@@ -730,7 +655,6 @@ func (h *generatedMetadataHandle) acceptInputLocked(request SendRequest, epoch u
 		return
 	}
 	if err := h.retainAcceptedInput(request); err != nil {
-		h.report(err)
 		return
 	}
 	if !h.stopped(epoch) {

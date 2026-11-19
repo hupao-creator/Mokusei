@@ -3,8 +3,8 @@ import AppKit
 
 enum NativeMokuSwipeAction { case note }
 
-/// Physical finger deltas use the same threshold and direction dominance on
-/// the Mac trackpad. Each contact can request one action only.
+/// Physical trackpad deltas use a distance threshold and direction dominance.
+/// Each gesture can request one action only.
 private struct NativeMokuSwipeIntent {
     static let minimumDistance: CGFloat = 24
     private var upward: CGFloat = 0
@@ -31,37 +31,6 @@ enum NativeMokuSwipeTarget {
         return region.contains(point) && !controls.contains { $0.contains(point) }
     }
 }
-
-/// Touch begins inside Moku, then may leave the short control row while moving
-/// upward. Starting elsewhere never acquires Moku on the way across it.
-struct NativeMokuTouchSwipeSequence {
-    private var origin: CGPoint?
-    private var previous: CGPoint?
-    private var intent = NativeMokuSwipeIntent()
-    var isTracking: Bool { previous != nil }
-    private(set) var hasClaimedDrag = false
-
-    mutating func begin(at point: CGPoint, eligible: Bool, inside: Bool) -> Bool {
-        cancel()
-        guard eligible, inside, point.x.isFinite, point.y.isFinite else { return false }
-        origin = point; previous = point
-        return true
-    }
-    mutating func move(to point: CGPoint, eligible: Bool) -> NativeMokuSwipeAction? {
-        guard let previous else { return nil }
-        guard eligible, point.x.isFinite, point.y.isFinite else { cancel(); return nil }
-        self.previous = point
-        if let origin, hypot(point.x - origin.x, point.y - origin.y) >= NativeMokuSwipeIntent.minimumDistance {
-            // Any deliberate drag must cancel the underlying button's click,
-            // even if its direction has no Moku action. Keep that ownership
-            // through a reversal or a return to the original touch point.
-            hasClaimedDrag = true
-        }
-        return intent.sample(CGPoint(x: point.x - previous.x, y: point.y - previous.y))
-    }
-    mutating func cancel() { origin = nil; previous = nil; intent = .init(); hasClaimedDrag = false }
-}
-
 
 /// A gesture belongs to its starting target. Never acquire a scroll already in
 /// progress elsewhere, or let the opening gesture scroll the expanded note.

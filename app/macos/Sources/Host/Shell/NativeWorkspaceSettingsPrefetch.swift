@@ -21,7 +21,12 @@ final class NativeWorkspaceSettingsPrefetch {
         let settings = model.savedSettings
         let cwd = JSONText(model.defaultCwd)
         let enabled = Set(model.plugins.filter { $0.enabled && $0.unavailableReason == nil }.map(\.key))
-        let harnesses = workspace.plugins.harnesses.modules.filter { enabled.contains("harness:" + $0.descriptor.id.string) }
+        // Installation reads use the same bounded queue. Resolve availability
+        // first instead of putting speculative CLI probes ahead of detection.
+        let harnesses = workspace.plugins.harnesses.modules.filter {
+            enabled.contains("harness:" + $0.descriptor.id.string)
+                && model.installations[$0.descriptor.id.string]?.status == .installed
+        }
         let backgroundSettings = workspace.plugins.applications.modules
             .filter { enabled.contains("extension:" + $0.manifest.id.string) }
             .flatMap(\.settings)
@@ -29,22 +34,22 @@ final class NativeWorkspaceSettingsPrefetch {
         var next: [NativeHarnessSettingsConfiguration] = []
         for harness in harnesses {
             let id = harness.descriptor.id
-            next.append(.init(harnessID: id, cwd: cwd, source: settings["harnesses"]?[id.string] ?? .null))
-            guard harness.descriptor.threadCapabilities.canHostMoku else { continue }
+            let defaults = NativeHarnessSettingsConfiguration(harnessID: id, cwd: cwd, source: settings["harnesses"]?[id.string] ?? .null)
+            guard harness.descriptor.threadCapabilities.canHostMoku else { next.append(defaults); continue }
             let execution = settings["moku"]?["executionHarnesses"]?[id.string] ?? .null
             next.append(.init(harnessID: id, cwd: cwd, source: execution, scope: .global(executionOwner: .moku)))
             for definition in backgroundSettings {
                 guard let entry = settings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .string(definition.id) }),
                       let value = entry["value"], let saved = try? ApplicationBackgroundExecutionSettings(json: value), saved.enabled else { continue }
-                let source: JSONValue
-                let inherited: Bool
-                switch saved.mode {
-                case .inherit: source = execution; inherited = true
-                case .override(let overrides): source = overrides.harnesses[id] ?? .null; inherited = false
-                }
+                // Inherited editors already consume the Moku surface above.
+                // Only independent modes introduce another native workspace.
+                guard case .override(let overrides) = saved.mode else { continue }
                 next.append(.background(harnessID: id, cwd: cwd, settingID: definition.id,
-                                        inherited: inherited, source: source))
+                                        inherited: false, source: overrides.harnesses[id] ?? .null))
             }
+            // Prioritize execution admission without holding defaults behind
+            // execution retry backoff; all scopes share the bounded read queue.
+            next.append(defaults)
         }
         let sequences = model.detailRefreshSequences
         guard next != configurations || sequences != refreshSequences || authority != workspace.snapshotAuthority else { return }

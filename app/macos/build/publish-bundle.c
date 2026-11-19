@@ -9,6 +9,15 @@
 // Only publication is serialized. Every builder renders/signs/probes its own
 // staging tree first. The kernel releases this lock if its owner exits.
 int main(int argc, char **argv) {
+    // Publish a complete versioned alpha release once. Image, guide, checksum and
+    // receipt remain private until ready; concurrent builders cannot replace it.
+    if (argc == 4 && strcmp(argv[1], "--exclusive-directory") == 0) {
+        if (renamex_np(argv[2], argv[3], RENAME_EXCL) != 0) {
+            perror("Could not publish alpha release (choose a new build number if it exists)");
+            return 1;
+        }
+        return 0;
+    }
     if (argc != 6) {
         fprintf(stderr, "Usage: publish-bundle <lock> <staged-app> <app> <staged-zip|-> <zip>\n");
         return 2;

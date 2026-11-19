@@ -1,6 +1,6 @@
 # 正式 Overview Tag Morph 原生回放
 
-此入口直接链接当前 Debug `MokuseiUI.NativeOverviewChrome`，用于验证正式实现；不复制标签 UI，不启动 runtime，也不读取用户会话。
+此入口直接链接当前 Debug `MokuseiUI.NativeOverviewChrome`，用于查看正式实现；不复制标签 UI，不启动 runtime，也不读取用户会话。
 
 ```sh
 xcrun swift build --package-path app/macos
@@ -16,4 +16,4 @@ open .build/tag-filter-morph/ProductionTagMorph.app
 
 “自动增删回放”每 1.5 秒变更测试数据，循环 `2 → 3 → 6 → 2 → 0 → 2`。动画由正式组件自己决定，回放代码没有 `withAnimation`。先停止自动回放再做手动检查；停止或关窗会移除计时器订阅。
 
-当前职责与交互见 [Overview 模块](../../app/macos/Sources/Host/Overview/README.md)。本目录仅是可重复的原生验证工具，正式行为位于 Overview 源码。
+当前职责与交互见 [Overview 模块](../../app/macos/Sources/Host/Overview/README.md)。本目录是可重复的原生交互预览，不含自动断言，正式行为位于 Overview 源码。

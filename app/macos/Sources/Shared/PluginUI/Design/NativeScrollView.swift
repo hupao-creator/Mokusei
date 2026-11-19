@@ -64,7 +64,6 @@ public struct NativeScrollView<Content: View>: View {
         ScrollView(axes, showsIndicators: showsIndicators) {
             content.background(ScrollbarConfiguration().allowsHitTesting(false))
         }
-        .nativeLayoutLog("scroll.viewport")
     }
 }
 

@@ -20,7 +20,7 @@ def validate_receipt(value, style, pid):
         raise ValueError('application did not admit the requested badge experiment')
     if integer(value.get('pid'), 'badge receipt owner', 1) != pid:
         raise ValueError('badge receipt belongs to a different application owner')
-    for key in ('reduceTransparency', 'reduceMotion', 'increaseContrast'):
+    for key in ('reduceTransparency', 'increaseContrast'):
         if type(value.get(key)) is not bool:
             raise ValueError('badge receipt lacks accessibility state: ' + key)
     if value['reduceTransparency']:
@@ -80,7 +80,7 @@ def summarize(directory, attempts):
                     'budgets': {k: plan[k] for k in ('maximumNoProgressSeconds', 'maximumCaptureGapSeconds', 'motionTolerancePixels')},
                     'sampleHz': plan['sampleHz'], 'captureHz': plan['captureHz'],
                     'workload': workload_signature(plan.get('workload')),
-                    'accessibility': {k: receipt[k] for k in ('reduceTransparency', 'reduceMotion', 'increaseContrast')},
+                    'accessibility': {k: receipt[k] for k in ('reduceTransparency', 'increaseContrast')},
                     'host': {k: identity['host'][k] for k in ('os', 'screens')},
                 }
                 observation = load(case/'observation.json')

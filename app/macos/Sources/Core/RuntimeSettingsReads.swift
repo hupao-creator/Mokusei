@@ -9,7 +9,7 @@ struct RuntimeSettingsReadWaiter {
 extension RuntimeClient {
     /// Cold discovery fans out across defaults, Moku and application profiles.
     /// Backpressure it before HTTP admission, leaving the host's 16 command
-    /// slots available for hydration, saves and diagnostics. One read per
+    /// slots available for hydration and saves. One read per
     /// Harness also avoids duplicate initialization and lets other Harnesses
     /// progress while a native CLI is slow. activeCommands bounds the backlog.
     func acquireSettingsRead(key: String) async throws {

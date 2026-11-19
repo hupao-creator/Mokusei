@@ -113,37 +113,6 @@ func loadLaunchCatalog(ctx context.Context, executable string, env []string, cwd
 	return catalog, nil
 }
 
-// A discussion keeps the source history store and effective configuration. It
-// needs only the restricted catalog, so do not launch a throwaway config reader
-// or copy auth/config into an unused isolated home.
-func prepareDiscussionCatalog(ctx context.Context, executable string, env []string, dataRoot, cwd string) (PreparedLaunch, error) {
-	catalog, err := loadLaunchCatalog(ctx, executable, env, cwd)
-	if err != nil {
-		return PreparedLaunch{}, err
-	}
-	restrictLaunchCatalog(catalog)
-	root := filepath.Join(dataRoot, "discussion-catalogs")
-	if err = cpPrivateDirectory(root); err != nil {
-		return PreparedLaunch{}, err
-	}
-	directory, err := os.MkdirTemp(root, "session-")
-	if err != nil {
-		return PreparedLaunch{}, err
-	}
-	dispose := func() error { return os.RemoveAll(directory) }
-	path := filepath.Join(directory, "models.json")
-	data, err := json.Marshal(catalog)
-	if err == nil {
-		err = cpPrivateWrite(path, data)
-	}
-	if err != nil {
-		_ = dispose()
-		return PreparedLaunch{}, err
-	}
-	quoted, _ := json.Marshal(path)
-	return PreparedLaunch{Environment: env, ConfigOverrides: []string{"model_catalog_json=" + string(quoted)}, Dispose: dispose}, nil
-}
-
 func restrictLaunchCatalog(catalog Map) {
 	for _, raw := range csArray(catalog["models"]) {
 		model := obj(raw)

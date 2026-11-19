@@ -18,14 +18,6 @@ struct NativeApplicationReadingPanel: ViewModifier {
     let onClose: () -> Void
     @Environment(\.locale) private var locale
 
-    private var layoutRole: StaticString {
-        switch identifier {
-        case "moku-reading-panel": "moku.history.panel"
-        case "report-reading-panel": "report.reading.panel"
-        default: "application.reading.panel"
-        }
-    }
-
     func body(content: Content) -> some View {
         if enabled {
             if identifier == "report-reading-panel" {
@@ -51,7 +43,6 @@ struct NativeApplicationReadingPanel: ViewModifier {
             .nativeReadingPanelClose(label: locale.language.languageCode?.identifier == "zh" ? "关闭面板" : "Close panel",
                 overlaysContent: identifier == "report-reading-panel", onClose: onClose)
             .accessibilityIdentifier(identifier)
-            .nativeLayoutLog(layoutRole)
             .nativeReadingEscape(perform: suppressed || !escapeEnabled || identifier == "report-reading-panel" ? nil : onClose)
     }
 
@@ -83,7 +74,6 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
     @Environment(\.nativeReportPanelReturn) private var returning
     @Environment(\.nativeReportExecutionInputChanged) private var inputChanged
     @Environment(\.locale) private var locale
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var expanded: Bool { sidecards.active == .browser }
 
     var body: some View {
@@ -160,8 +150,8 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                     .disabled(suppressed || returning != nil)
                     .opacity(returning == nil ? 1 : 0)
             }
-            .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
-            .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
+            .animation(dragging ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(dragging ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
         }
         .background(alignment: .topLeading) {
             NativeExecutionDockRegion(placement: executionPlacement,

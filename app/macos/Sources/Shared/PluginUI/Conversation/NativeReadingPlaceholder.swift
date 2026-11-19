@@ -43,7 +43,6 @@ public struct NativeReadingPlaceholder: View {
                 // Readiness starts waiting before the visual grace period ends.
                 status.pending = status.pending || usesLoadingSkeleton
             }
-            .nativeLayoutLog("reading.placeholder")
             // Reserve the same geometry during the grace period. Inline loading
             // must never claim viewport height or change the reader's scroll extent.
             .opacity(visible || (usesLoadingSkeleton && placement == .surface && identityVisit != nil) ? 1 : 0)
@@ -59,7 +58,6 @@ public struct NativeReadingPlaceholder: View {
             .onDisappear { visible = false }
     }
 }
-
 
 /// Keep each Harness's compact spinner outside the main Agent reader.
 public struct NativeThreadLoadingIndicator: View {

@@ -21,17 +21,7 @@ public final class NativeHarnessThreadSurface {
     @ObservationIgnored private var onIndexChange: (ThreadConversationIndex) -> Void
     @ObservationIgnored private var routes: NativeHarnessThreadRoutes?
     @ObservationIgnored private var lastIndex: ThreadConversationIndex?
-    private(set) var performanceOperation: UInt64?
-    @ObservationIgnored private var performanceParent: UInt64?
-    @ObservationIgnored private var performanceGeneration: UUID?
 
-    func bindPerformance(parent: UInt64?) {
-        guard performanceParent != parent || performanceGeneration != NativePerformance.recordingID || performanceOperation == nil else { return }
-        performanceParent = parent; performanceGeneration = NativePerformance.recordingID
-        let execution: Bool
-        if case .execution = presentation { execution = true } else { execution = false }
-        performanceOperation = NativePerformance.makeSurfaceContext(parent: parent, execution: execution)
-    }
     @ObservationIgnored private let materialization = NativeThreadMaterializationCache()
     @ObservationIgnored private var resources: [String: HarnessContentResource] = [:]
 
@@ -88,8 +78,7 @@ public final class NativeHarnessThreadSurface {
             _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
             do { try await client.retryThreadContent(subscriptionID) }
             catch let error as RuntimeError where error.code == "CONTENT_UNAVAILABLE" {
-                try await client.subscribeThreadContent(threadId: threadID, scope: runtimeScope, subscriptionId: subscriptionID,
-                    performanceContext: performanceOperation)
+                try await client.subscribeThreadContent(threadId: threadID, scope: runtimeScope, subscriptionId: subscriptionID)
             }
             if self.resources[subscriptionID] == nil { await client.releaseThreadContent(subscriptionID) }
         }, release: { [weak self, weak host] in
@@ -105,8 +94,7 @@ public final class NativeHarnessThreadSurface {
                 try checkLifetime()
                 guard !resource.isReleased, resources[subscriptionID] === resource else { throw CancellationError() }
                 _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
-                try await client.subscribeThreadContent(threadId: threadID, scope: runtimeScope, subscriptionId: subscriptionID,
-                    performanceContext: performanceOperation)
+                try await client.subscribeThreadContent(threadId: threadID, scope: runtimeScope, subscriptionId: subscriptionID)
                 if isReleased || resources[subscriptionID] == nil { await client.releaseThreadContent(subscriptionID) }
             } catch {
                 if !resource.isReleased { resource.publish(.error(error.localizedDescription)) }
@@ -116,37 +104,32 @@ public final class NativeHarnessThreadSurface {
     }
 
     func render(_ state: JSONValue) throws -> AnyView {
-        let measurement = NativePerformance.begin(.harnessRender, context: performanceOperation)
-        do {
-            try checkLifetime()
-            _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
-            let materialized = HarnessThreadInput(thread: try materialization.thread(input.thread, content: state), readingTarget: input.readingTarget)
-            let context = HarnessRenderContext(content: .manifest, presentation: presentation,
-                contentResource: { [weak self] scope in
-                    guard let self else {
-                        return HarnessContentResource(state: .error("This conversation surface has been released"),
-                            retry: { throw CancellationError() }, release: {})
-                    }
-                    return contentResource(scope)
-                }, onIndexChange: { [weak self] index in
-                    guard let self, !isReleased, lastIndex != index else { return }
-                    lastIndex = index; onIndexChange(index)
-                }, previewAttachment: host.callbacks.previewAttachment.map { preview in
-                    { [weak self] attachmentID in
-                        guard let self else { throw CancellationError() }; try checkLifetime()
-                        _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
-                        let data = try await preview(threadID, attachmentID)
-                        try checkLifetime(); return data
-                    }
-                }, resolveMedia: host.callbacks.resolveMedia)
-            let result = try plugin.threadView(input: materialized, actions: actions, context: context)
-            measurement?.end()
-            return AnyView(result.environment(\.threadAuthorHarness,
-                ThreadAuthorHarness(name: plugin.descriptor.displayName.string, logo: plugin.logo(size: 12))))
-        } catch {
-            measurement?.end(error is CancellationError ? .cancelled : .failed)
-            throw error
-        }
+        try checkLifetime()
+        _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
+        let materialized = HarnessThreadInput(thread: try materialization.thread(input.thread, content: state), readingTarget: input.readingTarget)
+        let context = HarnessRenderContext(content: .manifest, presentation: presentation,
+            contentResource: { [weak self] scope in
+                guard let self else {
+                    return HarnessContentResource(state: .error("This conversation surface has been released"),
+                        retry: { throw CancellationError() }, release: {})
+                }
+                return contentResource(scope)
+            }, onIndexChange: { [weak self] index in
+                guard let self, !isReleased, lastIndex != index else { return }
+                lastIndex = index; onIndexChange(index)
+            }, previewAttachment: host.callbacks.previewAttachment.map { preview in
+                { [weak self] attachmentID in
+                    guard let self else { throw CancellationError() }; try checkLifetime()
+                    _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
+                    let data = try await preview(threadID, attachmentID)
+                    try checkLifetime(); return data
+                }
+            }, resolveMedia: host.callbacks.resolveMedia)
+        let result = try plugin.threadView(input: materialized, actions: actions, context: context)
+        return AnyView(result.environment(\.threadAuthorHarness,
+            ThreadAuthorHarness(name: plugin.descriptor.displayName.string, logo: plugin.logo(size: 12))))
+
+
     }
 
     func checkLifetime() throws { if isReleased { throw CancellationError() } }
@@ -180,7 +163,6 @@ public final class NativeHarnessThreadSurface {
 private struct NativeHarnessContentView: View {
     let surface: NativeHarnessThreadSurface
     @State private var resource: HarnessContentResource?
-    @Environment(\.nativePerformanceOperation) private var performanceOperation
 
     var body: some View {
         Group {
@@ -197,11 +179,8 @@ private struct NativeHarnessContentView: View {
             } else { NativeHarnessStatusView.loading }
         }
         .task(id: surface.id) {
-            surface.bindPerformance(parent: performanceOperation)
             resource = surface.contentResource(.thread)
         }
-        .onChange(of: performanceOperation) { _, value in surface.bindPerformance(parent: value) }
-        .environment(\.nativePerformanceOperation, surface.performanceOperation ?? performanceOperation)
     }
 
     @ViewBuilder private func render(_ value: JSONValue) -> some View {

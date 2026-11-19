@@ -7,7 +7,6 @@ public struct NativeStatusSpinner: View {
     public var size: CGFloat
     public var lineWidth: CGFloat
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(size: CGFloat = 12, lineWidth: CGFloat = 1.5) {
         self.size = size
@@ -15,7 +14,7 @@ public struct NativeStatusSpinner: View {
     }
 
     public var body: some View {
-        SpinnerSurface(lineWidth: lineWidth, animates: scenePhase != .background && !reduceMotion)
+        SpinnerSurface(lineWidth: lineWidth, animates: scenePhase != .background)
             .frame(width: size, height: size)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
@@ -118,8 +117,7 @@ private final class SpinnerView: NSView {
             animation.beginTime = arc.convertTime(CACurrentMediaTime(), from: nil) - phase
             arc.add(animation, forKey: "spin")
         } else if !active {
-            // Freeze the actual presentation before retiring the animation. Reduce
-            // Motion uses the same static decorative mark, without a frame clock.
+            // Freeze the actual presentation before retiring the animation.
             if let presentation = arc.presentation() { arc.transform = presentation.transform }
             arc.removeAnimation(forKey: "spin")
         }

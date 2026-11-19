@@ -48,7 +48,6 @@ type AgentRun struct {
 	StartedAt   int64  `json:"startedAt"`
 }
 type AppState struct {
-	SearchRevision     int64               `json:"searchRevision"`
 	Revision           int64               `json:"revision"`
 	DefaultCwd         string              `json:"defaultCwd"`
 	Threads            []ThreadRecord      `json:"threads"`
@@ -74,7 +73,6 @@ type RuntimeActivity struct {
 // Pointer replacement fields distinguish an omitted field from an empty array
 // or map, which clears that part of the client's previous state.
 type StateMutation struct {
-	SearchRevision     *int64                              `json:"searchRevision,omitempty"`
 	Type               string                              `json:"type"`
 	BaseRevision       int64                               `json:"baseRevision"`
 	Revision           int64                               `json:"revision"`

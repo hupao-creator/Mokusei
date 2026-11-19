@@ -10,7 +10,6 @@ public struct NativeReportExecutionScroll<Content: View>: NSViewRepresentable {
     private let active: Bool
     private let onReady: () -> Void
     private let content: Content
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
     public init(visit: UUID, continuing: Bool, active: Bool, onReady: @escaping () -> Void,
@@ -23,7 +22,7 @@ public struct NativeReportExecutionScroll<Content: View>: NSViewRepresentable {
     public func updateNSView(_ nsView: NSView, context: Context) {
         guard let view = nsView as? ReportExecutionScrollView else { return }
         view.update(content: AnyView(content), environment: context.environment, visit: visit,
-            continuing: continuing, animated: active && !reduceMotion && scenePhase == .active,
+            continuing: continuing, animated: active && scenePhase == .active,
             onReady: onReady)
     }
     public func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSView, context: Context) -> CGSize? {

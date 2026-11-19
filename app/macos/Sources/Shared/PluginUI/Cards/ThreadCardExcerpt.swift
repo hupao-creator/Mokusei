@@ -12,8 +12,6 @@ public struct ThreadCardExcerpt: View {
     public let messageText: String?
     @Environment(\.lineLimit) private var inheritedLineLimit
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @Environment(\.threadCardTextReduceMotionOverride) private var reduceMotionOverride
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var buffer = ExcerptBuffer()
     @State private var placeholder: String
@@ -23,7 +21,6 @@ public struct ThreadCardExcerpt: View {
     @State private var revealProgress: CGFloat = 0
 
     private var isVisible: Bool { scenePhase != .background && (visibility?.isVisible ?? true) }
-    private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
 
     public init(content: String, messageId: JSONText? = nil, messageText: String? = nil) {
         self.content = content; self.messageId = messageId; self.messageText = messageText
@@ -34,7 +31,7 @@ public struct ThreadCardExcerpt: View {
         let activeReveal = reveal
         let hold = holdSchedule
         let update = ExcerptUpdate(input: .init(content: content, id: messageId, text: messageText ?? content),
-                                   visible: isVisible, animates: !reduceMotion)
+                                   visible: isVisible)
         text(display?.text ?? placeholder)
             // The first pass lays out the raw snapshot under the same height
             // proposal, but stays invisible until the lifecycle
@@ -82,7 +79,7 @@ public struct ThreadCardExcerpt: View {
                 var transaction = Transaction(); transaction.disablesAnimations = true
                 withTransaction(transaction) { revealProgress = 0 }
                 await Task.yield()
-                guard !Task.isCancelled, buffer.active, buffer.animates, reveal?.key == active.key else { return }
+                guard !Task.isCancelled, buffer.active, reveal?.key == active.key else { return }
                 withAnimation(.linear(duration: 0.28)) { revealProgress = 1 }
                 do { try await Task.sleep(for: .milliseconds(280)) } catch { return }
 
@@ -100,7 +97,7 @@ public struct ThreadCardExcerpt: View {
                       var next = buffer.frame, next.key == schedule.key else { return }
                 next.advance(to: schedule.absoluteEnd)
                 buffer.frame = next
-                install(next, animates: buffer.animates)
+                install(next, animates: true)
             }
     }
 
@@ -121,7 +118,6 @@ public struct ThreadCardExcerpt: View {
     private func updatePresentation(_ update: ExcerptUpdate) {
         let changed = buffer.latest != update.input
         buffer.latest = update.input
-        buffer.animates = update.animates
         guard update.visible else { suspend(); return }
         guard buffer.active, var next = buffer.frame else {
             buffer.active = true
@@ -136,7 +132,7 @@ public struct ThreadCardExcerpt: View {
             next.update(content: update.input.content, id: update.input.id, text: update.input.text)
             buffer.frame = next
         }
-        install(next, animates: update.animates)
+        install(next, animates: true)
     }
 
     private func suspend() {
@@ -180,12 +176,11 @@ public struct ThreadCardExcerpt: View {
 @MainActor private final class ExcerptBuffer {
     var latest: ExcerptInput?
     var active = false
-    var animates = true
     var frame: ExcerptFrame?
     var held: ExcerptHold?
 }
 
-private struct ExcerptUpdate: Equatable { let input: ExcerptInput; let visible: Bool; let animates: Bool }
+private struct ExcerptUpdate: Equatable { let input: ExcerptInput; let visible: Bool }
 private struct ExcerptDisplay: Equatable {
     let key: ExcerptKey
     let text: String
@@ -344,7 +339,6 @@ private struct ExcerptFrame {
         return matched >= batchSize ? previous.length - matched : 0
     }
 }
-
 
 private enum ExcerptPreview {
     static let budget = 16_384

@@ -10,7 +10,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 )
 
 func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMessage) (string, error) {
@@ -56,7 +55,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 	if source.Moku || source.MokuHistory {
 		return "", errors.New("Moku thread cannot be forked")
 	}
-	if archived(&source) || source.Observation.BackgroundWork != nil {
+	if source.Observation.BackgroundWork != nil {
 		return "", errors.New("thread is not available for fork")
 	}
 	if e := source.Observation.LatestExecution; e != nil && !e.Terminal() {
@@ -85,6 +84,9 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 	}
 	next := source
 	next.ID = id
+	// A fork is a new visible Thread, independent of the source's visibility.
+	archived := false
+	next.Archived = &archived
 	// A new fork was not the target of the source thread's interrupt command.
 	next.MokuInterruptedExecutionID = ""
 	next.UserInterruptedExecutionID = ""
@@ -153,7 +155,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 		return r.appendEvent(tx, "thread.inventory", store.Subject{Kind: "thread", TypeID: "agent", ID: id}, "application", map[string]any{}, nil)
 	})
 	if err != nil && r.config.Attachments != nil {
-		r.log("fork.attachment.rollback", r.config.Attachments.ReleaseOwner(context.WithoutCancel(ctx), id))
+		_ = r.config.Attachments.ReleaseOwner(context.WithoutCancel(ctx), id)
 	}
 	return id, err
 }
@@ -170,12 +172,8 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 	if r.IsDeleting(id) {
 		return errors.New("thread deletion is in progress")
 	}
-	if value {
-		if err := r.endThreadVoice(ctx, id); err != nil {
-			return err
-		}
-	}
-	err := r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
+	// Archive only changes visibility; native execution owners stay live.
+	return r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
 		if t.Moku {
 			return errors.New("Moku thread cannot be archived")
 		}
@@ -191,10 +189,6 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 		t.Archived = &value
 		return nil
 	})
-	if err == nil && value {
-		return r.endThreadVoice(ctx, id)
-	}
-	return err
 }
 
 // Restore only durable owners requiring cleanup; opening never submits input.
@@ -289,14 +283,7 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 	}
 	r.mu.Unlock()
 	var errs []error
-	if r.search != nil {
-		if err := r.search.Pause(); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if err := r.closeVoice(ctx); err != nil {
-		errs = append(errs, err)
-	}
+
 	if coordinator, ok := r.config.Moku.(plugin.RuntimeParticipant); ok {
 		if err := coordinator.Stop(ctx); err != nil {
 			errs = append(errs, err)
@@ -363,9 +350,6 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		moku = model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: moku.HarnessID, SessionState: json.RawMessage("null"), Settings: settings, Cwd: cwd, CreatedAt: at, UpdatedAt: at}, Moku: true, Title: "Moku", Tags: []string{}, TagEmojis: map[string]string{}, Transcript: []json.RawMessage{}}
 	}
 	_, err = r.config.Store.Update(ctx, func(tx *store.Tx) error {
-		if err := threadsearch.ClearHistory(tx); err != nil {
-			return err
-		}
 		for _, prefix := range []string{mokuDeliveryPrefix, "directory-scope:", "thread:", "interaction-answer:", "telemetry:", "event:", "lifecycle-work:", "lifecycle-outcome:", "private-session:", "private-session-index:", "application-receipt:", "tag-receipt:", "semantic-tags:", "tag-redirects:", "tag-inventory-initialized:"} {
 			for _, key := range tx.Keys(prefix) {
 				if err := tx.Delete(key); err != nil {
@@ -403,24 +387,18 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		return err
 	}
 	r.pruneCancellationStates()
-	if err := r.clearVoice(ctx); err != nil {
-		return err
-	}
+
 	if r.config.Attachments != nil {
 		owners := []string{}
 		if moku.ID != "" {
 			owners = append(owners, moku.ID)
 		}
-		if err = r.config.Attachments.RetainOwners(ctx, owners); err != nil {
-			r.log("history.attachments", err)
-		} else {
-			r.log("history.attachments.collect", r.config.Attachments.CollectOrphans(ctx, 0))
+		if err = r.config.Attachments.RetainOwners(ctx, owners); err == nil {
+			_ = r.config.Attachments.CollectOrphans(ctx, 0)
 		}
 	}
 	if r.config.Workspaces != nil {
-		if err := r.config.Workspaces.ClearOwned(ctx); err != nil {
-			r.log("history.workspaces", err)
-		}
+		_ = r.config.Workspaces.ClearOwned(ctx)
 	}
 	r.lifecycle.mu.Lock()
 	r.lifecycle.consumers = map[string]*lifecycleConsumer{}
@@ -432,9 +410,6 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 	r.handles = map[string]*threadHandle{}
 	r.resetting = false
 	r.mu.Unlock()
-	if r.search != nil {
-		r.search.Resume()
-	}
 	if r.config.Contexts != nil {
 		if err := r.config.Contexts.Start(generationCtx, plugin.RuntimeStartContext{Reason: "history-reset"}); err != nil {
 			// Moku must never resume before its Context services are ready.

@@ -21,7 +21,6 @@ struct NativeComposerEditor: NSViewRepresentable {
     var onEscape: (() -> Void)?
     var submitOnReturn = false
     var emphasizedInsertionPoint = false
-    var reduceCaretMotion = false
     var onPaste: (([NSItemProvider], NSRange) -> Void)? = nil
     var textInsets = EdgeInsets()
 
@@ -120,7 +119,6 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.pasteOwnerID = pasteOwnerID
         editor.pasteAttachments = unavailable ? nil : onPaste
         editor.emphasizedInsertionPoint = emphasizedInsertionPoint
-        editor.reduceCaretMotion = reduceCaretMotion
         scroll.hasVerticalScroller = showsScroller
         coordinator.applySelectionRequest()
         if let window = editor.window {
@@ -236,7 +234,6 @@ struct NativeComposerEditor: NSViewRepresentable {
             needsDisplay = true
         }
     }
-    var reduceCaretMotion = false { didSet { caret.reduceMotion = reduceCaretMotion } }
     private let caret = NativeComposerCaret()
     var composerTextInsets = EdgeInsets() {
         didSet {

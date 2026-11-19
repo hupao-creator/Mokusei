@@ -78,7 +78,6 @@ public struct NativeComposerTextInput: View {
     @State private var measuredHeight: CGFloat
     @Environment(\.locale) private var locale
     @Environment(\.isEnabled) private var environmentEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var unavailable: Bool { disabled || readOnly || !environmentEnabled }
 
     public init(value: Binding<String>, placeholder: String, placeholderIcon: AnyView? = nil,
@@ -124,7 +123,6 @@ public struct NativeComposerTextInput: View {
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
             submitOnReturn: submitOnReturn, emphasizedInsertionPoint: emphasizedInsertionPoint,
-            reduceCaretMotion: reduceMotion,
             onPaste: nativePaste, textInsets: emphasizedInsertionPoint ? editorInsets : EdgeInsets())
             // Split the trailing line spacing around the glyphs to center a single line.
             // Keep glow space inside the native viewport so the scroll clip

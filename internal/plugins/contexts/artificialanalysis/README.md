@@ -40,24 +40,11 @@ A version change refreshes every previously cached configuration, including othe
 catalogs, without conditional ETags. Publication is atomic across this cohort.
 Any detail failure preserves the previous cache and its version, while confirmed
 404/410 responses remove gone configurations. Supported versions are never mixed.
-Index metadata and roster parsing failures use `invalid-document` diagnostics.
+Invalid index metadata and roster documents fail acquisition.
 
 Services sharing a cache root share acquisition with reference-counted ownership. Within one methodology version, refresh deadlines and failure backoff belong to each catalog identity set: refreshing one catalog cannot postpone another's stale facts or trigger acquisition of a still-fresh catalog. Equal pending identity sets share one generation, while different generations remain serialized; at most 4096 deadline keys are retained. A warm cache returns immediately while its due generation refreshes in the background.
 
 Collection and cached fallback use the declared 21-second timeout. Unavailable measurements remain explicitly unknown. Collection failure follows `abort-send`; cancellation or host closure cancels collection rather than invoking fallback. Catalog callbacks must honor their context; each collection joins all callbacks, including their cancellation cleanup, before returning. Closing a service is idempotent and drains its catalog callbacks and acquisition ownership. The [Context host](../../../hosts/contexthost/README.md) enforces contribution and aggregate bounds, including merged-slot separators.
 
-Source closure stops pending detail dispatch and joins the active workers. It
-records one `aa.facts.refresh.cancelled` summary per cancelled generation rather
-than per-configuration failures. Catalog cancellation similarly uses
-`aa.context.catalog.cancelled`; an individual catalog deadline while its caller
-is still live remains a failure. Real acquisition failures retain the existing
-cache fallback and refresh backoff.
-
-The composition log bridge preserves only the closed classification vocabulary,
-elapsed milliseconds, cache-retention Boolean, known Harness catalog IDs, skip
-reasons and bounded generation counts through [diagnostics.go](diagnostics.go).
-Refresh duration starts when a queued generation begins; detail and catalog
-durations cover their own acquisition. Upstream errors, response bodies, model
-names, URLs and filesystem paths are excluded from service diagnostics.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/artificialanalysis` covers v5 version/metric parsing, cache isolation, detailed/compact output, independent catalog expiry, failure backoff, invalidation, interleaved acquisition, cancellation of a 100-detail generation, real-failure cache retention and diagnostic redaction; `./scripts/go.sh run -race ./tools/verification/artificialanalysis/lifecycle` covers registration, shared leases, callback cancellation cleanup and classification, joined closure and context bounds. The [AA replay guide](../../../../tools/verification/artificialanalysis/README.md) also describes opt-in verification against the live public website.
+Source closure stops pending detail dispatch and joins the active workers.
+Real acquisition failures retain the existing cache fallback and refresh backoff.

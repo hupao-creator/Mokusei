@@ -48,8 +48,7 @@ its retained choices.
 Each Settings opening gives Tag and Report independent animation visits. Once
 playback starts, switching tabs and returning shows the completed composition;
 closing and reopening Settings permits both animations to play again. An
-interrupted playback settles to its final frame, and Reduce Motion consumes the
-visit without playing. Onboarding retains its own step lifetime.
+interrupted playback settles to its final frame. Onboarding retains its own step lifetime.
 
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
@@ -64,16 +63,15 @@ choice in both Settings and onboarding.
 The shared choices retain their interactive capsule glass in Settings and
 onboarding; selection, save gates and capability checks are unchanged.
 
-The coordination and dispatch map retains the icon presentation from before
-`016735c` (system Settings controls): transparent 48-point seats, hover surfaces
+The coordination and dispatch map uses transparent 48-point seats, hover surfaces
 and keyboard focus rings. Targets use icons, selection underlines and dashed
 paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled. General's Agent installation buttons and the other
 Settings form controls retain their system presentation.
 
-Settings and onboarding use the original animated eye character for every
+Settings and onboarding use the animated eye character for every
 coordinating Harness. Its vector body, idle motion, handoff and target-gaze
-feedback are restored; no sphere artwork or fallback sphere gradient remains.
+feedback use the native renderer; no sphere artwork or fallback sphere gradient remains.
 
 Model, thinking/effort and variant choices use the same AppKit `NSPopUpButton`
 as other selects in Settings and onboarding, including compact role panels.
@@ -81,12 +79,8 @@ as other selects in Settings and onboarding, including compact role panels.
 Harness catalog, default and dependent-choice mapping remain at their callers.
 Embedded Thread editors retain their capsule/popover presentation.
 
-`NativeSettingsControlsReplayTests` mounts the shared production form and sends
-AppKit actions through real controls, checking option identity/disabled state,
-text binding and disabled input. The existing Settings launcher below exercises
-routing-guidance editing/Undo through the actual SettingsTextArea, persistence,
-IME, conflict and close behavior; the navigation demo covers light/dark, compact
-and zoomed production page layouts.
+Mounted semantic controls invoke production callbacks. The [Settings e2e
+contract](#e2e-contract) covers its selected preset/save/reopen journey.
 
 [NativeSettingsNavigation](NativeSettingsNavigation.swift) shares section selection
 and the close gate between page controls and [semantic workspace actions](../Interaction/README.md).
@@ -104,8 +98,7 @@ panel rather than SwiftUI's overflow-dependent scroller proposal, keeping its
 padding keeps controls clear of the native gutter. The title and subtitle wrap
 to their natural height in narrow windows and either language; they remain part
 of the scrolling content.
-Unavailable selections, including the removed archive and plugin management
-sections, fall back to General and normalize when the available sections change or the page mounts.
+Unavailable selections fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
 The expanded surface and page retain their fixed dark appearance in light,
@@ -134,15 +127,9 @@ Incoming messages and interventions cannot replace Settings. On release, a
 pending intervention takes its ordinary priority over a retained Note/composer.
 
 `NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
-page lays out at its final size; closing fades its ink before panel contraction.
-Reversals fence obsolete completions. Resize, inactivity, Reduce Motion and
+page lays out at its final size; closing fades its ink before panel contraction. Reversals fence obsolete completions. Resize, inactivity and
 explicit settling retire the current animation without leaving the modal gate
 stuck. Opening and return both report transitioning to semantic callers.
-Reduce Motion settles the shell directly.
-`python3 tools/verification/reading-presentation/run.py --settings-transition`
-mounts the production Dock and Settings page for viewport/zoom/landing, backdrop
-blur and click-through, restoration, interruption and lifecycle regression checks.
-The runner captures representative panel screenshots with its evidence.
 
 The application menu and Cmd+, are enabled only for a loaded Overview. Direct
 presentation and semantic requests enforce the same boundary; reading, Moku
@@ -197,19 +184,42 @@ models require an effort choice before submitting the draft. Known unsupported
 choices, disabled models and native applied-value mismatches still reject saves.
 
 The connected workspace starts installation discovery and prefetches the real
-typed settings resources before Settings opens. Enabled Harness defaults, Moku
-execution profiles and registered background-configuration application scopes
-load through the Core client's bounded discovery admission (four active reads,
-one per Harness). Slow native discovery does not occupy every Runtime command
+typed settings resources before Settings opens. Each Harness starts configuration
+acquisition after its independent installation reply confirms it is installed;
+missing or failed installations do not enqueue speculative CLI/catalog reads.
+Enabled Harness defaults, Moku execution profiles and enabled independent
+background-configuration application scopes load through the Core client's bounded discovery admission (four active reads,
+one per Harness). Inherited roles use Moku's exact saved resource, including
+while an independent-mode draft is waiting to save its source change. They do
+not introduce separate application presentation reads or retry loops. Independent
+roles still own distinct resources/workspaces even when their profile JSON is
+equal. Each Harness queues execution resources before ordinary Thread defaults
+in the same bounded batch. Defaults do not wait for every execution scope to
+finish its retries; each scope keeps its own bounded retry lifetime. Onboarding
+joins only the execution resources it actually mounts (or the ordinary resource for a
+Harness without execution-host capability). Defaults remain prefetched for Settings
+and explicitly opened editors can still demand their resources immediately.
+Slow native discovery does not occupy every Runtime command
 slot or prevent unrelated Harnesses from loading. Page/Harness selection shares
 an in-flight read and reuses successful resources across mounts; thread editors retain their own lifetime.
 Saved source changes reload only the affected resource. Removed scopes/cwds,
 installation changes, disconnect, authority replacement and full reload retire
 the corresponding cache. Draft edits and unrelated streamed revisions do not.
-Background failures retry after 1 and 3 seconds, then retain the error for the
+Background failures, including plugin-reported presentation failures, retry after
+1 and 3 seconds, then retain the error for the
 editor's retry/refresh. Execution-snapshot errors also remain retryable even
 when the native presentation itself loaded. No background retry loop runs
 indefinitely. Closing Settings leaves workspace acquisition running.
+
+Onboarding joins the retained execution surfaces its next pages consume before
+admitting a Harness. Its
+ready roster constrains Moku and background-role choices for that discovery visit;
+resource errors remain per Harness, and successful resources mount immediately.
+Installation retries join only that Harness's read, independently of an unfinished
+roster scan; periodic replies retain successful resources when facts are unchanged.
+A successful response with an embedded CLI/catalog error or missing saved execution
+snapshot cannot certify configuration readiness. See the
+[onboarding contract](../Onboarding/README.md).
 
 Installation discovery distinguishes not-yet-loaded, initial loading, successful
 (including empty) and failed reads. Moku shows a compact native progress notice
@@ -227,13 +237,8 @@ changes, and successful replies remove an error only when one exists. Real path,
 status, message and plugin changes still propagate; discovery readiness, retries,
 detail refresh sequences and cancellation retain their existing lifecycle.
 
-The shared Harness editor also shows native progress during initial acquisition.
-Read failures take precedence over an allocated surface and expose retry;
-execution-snapshot failures do not also claim that the profile is merely unpinned.
-Harness-owned refresh/status controls remain responsible for their catalog states.
-The native settings replay mounts these production controls across loading,
-failure/retry, empty, ready and invalid-provider states, and recovers a mounted
-Harness editor after a real HTTP read failure.
+The shared Harness editor also shows native progress during initial acquisition. Read failures take precedence over an allocated surface and expose retry;
+execution-snapshot failures do not also claim that the profile is merely unpinned. Harness-owned refresh/status controls remain responsible for their catalog states.
 
 The page's shared text-editing scope aggregates composition by editor owner.
 Both Moku and contributed application textareas report native marked-text
@@ -271,14 +276,13 @@ draft semantics, retain keyboard/accessibility selection, and localize through
 composition and close-flush behavior. Runtime injects routing priorities without fixed model mappings or candidate
 groups; native creation admission still owns availability. See
 [model routing policy](../../../../../internal/services/moku/README.md#model-routing-preferences).
-`NativeModelRoutingPreferencesTests` mounts the real capsule controls and saves
-through the production draft to verify restoration and language changes. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
-Settings no longer exposes plugin enablement or service-restart instructions.
+A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
+Settings does not expose plugin enablement or service-restart instructions.
 
 The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
 same Moku coordination map with an in-memory settings model. Its `.compact`
 presentation omits map labels and model selection preferences. Settings also uses this map presentation and shows the four model preference choices directly. Both presentations
-use the historical circular avatar (`8f3548f`) with the same selection, handoff
+use the circular vector avatar with the same selection, handoff
 and target feedback; the Settings page retains its native execution editors and saved values.
 
 Changing the coordinating Harness is rejected through the existing save-error
@@ -286,26 +290,11 @@ path while Moku or any ordinary Agent Thread is busy, including pending input
 and waiting interactions. Other settings remain editable. The selected Harness
 inherits the existing note when the idle replacement is applied.
 
-[SettingsDiagnostics](../../Core/SettingsDiagnostics.swift) records bounded operational fields and correlates client flow with command identity. Diagnostics do not contain submitted setting values and their failure does not fail a save.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/settings-shell` for Go boundaries; on macOS build a runtime with `make runtime`, then run `./scripts/go.sh run -race ./tools/verification/settings -runtime "$PWD/.build/go/mokusei-runtime"`. The launcher drives real Swift settings flows against an isolated daemon, including acquisition before page mount, cache reuse, concurrent readers and failed-read recovery. The same native flow mounts the production General page offline to verify appearance/language controls, snapshot and JSON persistence, new-profile defaults, selection/onboarding preservation, and visible write failures with recovery.
-
-The launcher leaves execution profiles uninitialized until native workspace
-acquisition. `transport -swift-settings-capacity` additionally replays the full
-four-Harness cold burst through the real Swift client and Go HTTP admission,
-including slow discovery, ordinary command headroom and cancellation.
-
-`NativeSettingsNavigation` owns the opt-in interaction registry and Settings visit
-identity. The page supplies its current section and render refresh to mounted
-controls. Controls register their real bindings/native editor callbacks through
-[NativeSettingsInteractions](../../Shared/PluginUI/Forms/NativeSettingsInteractions.swift).
-Handles expire when their owner, descriptor, visit, section or refresh changes;
-detached controls unregister by owner. This preserves model/provider dependency
-logic, IME, validation and autosave for script-driven chaos testing. Notices and
-save metadata are observable, with Runtime public state as the persistence oracle.
-Run `python3 tools/verification/native-interaction/settings.py` from the repository
-root to exercise the production app's internal Settings controls across fresh
-seeded profiles and app/Runtime restarts.
+The [Settings e2e contract](#e2e-contract) exercises a mounted preset save,
+close and reopen against the real Runtime. It does not certify four-Harness cold
+capacity, arbitrary resource discovery or every Settings/IME combination. The
+[Settings demo](../../../../../demos/settings-navigation/README.md) uses fixtures
+and cannot establish Runtime persistence.
 
 Automatic installation checks request each Harness independently. A completed
 row becomes usable while slower rows remain checking; an available Moku host's
@@ -331,8 +320,7 @@ while the background editor keeps its three mode choices and contextual
 explanation. Tag and Report keep their production animations while configuration stays immediately available. Each tab
 visit plays once and retains its completed composition. Leaving the tab unmounts
 and cancels its animation; inactive/hidden windows settle an interrupted playback
-to the final frame without replaying on activation. Reduce Motion shows the
-completed composition without deferred playback. Tag pauses SpriteKit after
+to the final frame without replaying on activation. Tag pauses SpriteKit after
 rendering its final frame. Settings has no onboarding progress
 or admission steps. Onboarding alone omits model selection preferences. `draft.flush()`
 awaits accepted writes and rejects incomplete/composing/failed edits before a
@@ -349,16 +337,13 @@ expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
-
-The former Report Agent section is named **Super Thread Agent**. Its existing
-`report.settings` identity, inherited/independent choices and enabled state are
-unchanged; reopening Settings requires no preference migration.
+The **Super Thread Agent** section uses the `report.settings` identity and
+provides inherited/independent choices and an enabled state.
 
 All Harness advanced-options headers retain the native disclosure, with a
 full-width label and 32-point minimum hit height. Title, chevron and trailing space toggle the same
 disclosure; native keyboard activation, localized expanded state, disabled gates
 and the semantic interaction binding remain available. Collapsing retains values.
-
 
 `DesktopPreferences` retains profile-local `applicationCollectionReading` close
 facts, retained eligibility and optional plugin content fingerprints for application collections. Unix-second close
@@ -367,3 +352,22 @@ preserved but cannot establish a close. Appearance, locale, selection and
 onboarding writes preserve both dictionaries. This is reading state rather than
 a configurable setting; collection membership and carousel selection are not
 written to disk. See the [reading contract](../Overview/README.md#viewed-application-collections).
+
+## E2E contract
+
+[`E2E-SETTINGS-001`](../../../../../tools/e2e/README.md) operates the actual
+`moku.routingPreset.economy|balanced|performance|custom` mounted action controls.
+The fresh connected profile uses real Runtime and Codex discovery. From Overview,
+the runner opens Settings/Moku, activates an unselected Economy or Performance
+capsule using its observed handle, and observes its selected value after refresh.
+It closes through the normal save gate, checks the exact saved preset through
+public `state:load`, then reopens and observes the same selection. The four
+`settings-before/edited/persisted/reopened.json` artifacts and UI/API transcripts
+retain the criterion inputs.
+
+The scenario covers one preset's binding, draft, save, transport, persistence
+and reopened display. It does not cover IME, custom text, shortcut/pointer input,
+conflict/error recovery, other preferences or model-selection effectiveness.
+Mounted-control automation invokes the production callback, not a JSON mutation.
+Run receipts establish measured status; a source-level scenario definition or
+successful non-GUI preparation does not establish a desktop pass.

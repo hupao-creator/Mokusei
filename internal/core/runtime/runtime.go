@@ -21,8 +21,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
 	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
 	"github.com/hupao-creator/Mokusei/internal/services/attachments"
-	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
-	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
 )
 
@@ -57,11 +55,7 @@ type Config struct {
 	Contexts           plugin.RuntimeParticipant
 	Moku               Moku
 	Plugins            []model.RuntimePlugin
-	Log                func(string, error)
 	Diagnostic         func(string)
-	SettingsTrace      func(string, model.Object)
-	SearchTrace        func(plugin.SearchDiagnostic)
-	ToolTrace          func(plugin.ToolInvocation) error
 	ProcessFactory     func(string) plugin.ApplicationProcessCapability
 	ExtraCapabilities  map[string]any
 	Workspaces         *workspaces.Manager
@@ -76,7 +70,6 @@ type Runtime struct {
 	serviceMu                 sync.Mutex
 	serviceDraining           bool
 	serviceAdmissions         int
-	configurationAdmissions   map[*serviceAdmissionToken]struct{}
 	mokuHarnessChanging       bool
 	threadCacheMu             sync.Mutex
 	threadCacheRevision       uint64
@@ -84,9 +77,6 @@ type Runtime struct {
 	compute                   *workpool.Pool
 	threadCache               map[string]cachedThread
 	overviewCache             map[string]cachedOverview
-	search                    *threadsearch.Manager
-	voiceOnce                 sync.Once
-	voice                     *threadvoice.Manager
 	config                    Config
 	ctx                       context.Context
 	cancel                    context.CancelFunc
@@ -151,7 +141,6 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 	lifetime, cancel := context.WithCancel(ctx)
 	r := &Runtime{config: config, ctx: lifetime, cancel: cancel, handles: map[string]*threadHandle{}, locks: map[string]*threadCommandLock{}, listeners: map[uint64]func(json.RawMessage){}, publisherDone: make(chan struct{})}
 	r.configurationGate = make(chan struct{}, 1)
-	r.configurationAdmissions = map[*serviceAdmissionToken]struct{}{}
 	r.lifecycle = &lifecycleCapability{runtime: r, consumers: map[string]*lifecycleConsumer{}}
 	r.threadListeners = map[uint64]func(model.ThreadRecord){}
 	r.deleting = map[string]bool{}
@@ -209,7 +198,7 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 		}
 		// Cleanup has no authority to discard unreadable client drafts. Keep
 		// startup available so the native owner can recover its saved input.
-		r.log("attachments.collect", config.Attachments.CollectOrphans(ctx, 0))
+		_ = config.Attachments.CollectOrphans(ctx, 0)
 	}
 	if config.Workspaces != nil {
 		threads, e := r.Threads()
@@ -217,10 +206,7 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 			cancel()
 			return nil, e
 		}
-		failures := config.Workspaces.RehydratePersistedOwners(ctx, threads)
-		for _, failure := range failures {
-			r.log("workspace.recovery", failure.Err)
-		}
+		config.Workspaces.RehydratePersistedOwners(ctx, threads)
 	}
 	r.compute = workpool.New(lifetime, min(4, goruntime.GOMAXPROCS(0)), 8, 64*1024*1024)
 	initialized := false
@@ -230,20 +216,13 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 			_ = r.compute.Close(context.Background())
 		}
 	}()
-	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Sources: r.searchSources, SourceChanges: r.searchSourceChanges, Trace: config.SearchTrace})
-	if err != nil {
-		cancel()
-		return nil, err
-	}
 	r.publicationSnapshot = config.Store.Snapshot()
 	r.baseline, err = r.projectSnapshot(r.publicationSnapshot)
 	if err != nil {
-		r.search.Close()
 		cancel()
 		return nil, err
 	}
 	if err = r.initializePublication(); err != nil {
-		r.search.Close()
 		cancel()
 		return nil, err
 	}
@@ -291,7 +270,6 @@ func (r *Runtime) SetApplications(applications Applications) {
 	r.config.Applications = applications
 	r.applicationGeneration++
 	r.mu.Unlock()
-	r.search.Invalidate()
 	r.Publish()
 }
 func (r *Runtime) SetMoku(moku Moku) { r.mu.Lock(); r.config.Moku = moku; r.mu.Unlock() }
@@ -332,11 +310,6 @@ func (r *Runtime) begin() error {
 	}
 	r.operations.Add(1)
 	return nil
-}
-func (r *Runtime) log(kind string, err error) {
-	if err != nil && r.config.Log != nil {
-		r.config.Log(kind, err)
-	}
 }
 func (r *Runtime) Settings() (model.Settings, int64, error) {
 	var s model.Settings
@@ -484,16 +457,7 @@ func (r *Runtime) Close(ctx context.Context) error {
 		}
 		r.mu.Unlock()
 		var errs []error
-		// Revoking search first joins its publishers before the Runtime can
-		// release its profile lease.
-		if r.search != nil {
-			if err := r.search.Close(); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		if err := r.closeVoice(ctx); err != nil {
-			errs = append(errs, err)
-		}
+
 		if participant, ok := r.config.Moku.(plugin.RuntimeParticipant); ok {
 			if err := participant.Stop(ctx); err != nil {
 				errs = append(errs, err)

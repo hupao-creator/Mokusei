@@ -89,7 +89,6 @@ private struct NativeThreadWorkspaceBody: View {
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: NativeSidecardWorkspaceModel?
     @State private var auxiliaryStageReady = false
     @State private var inputStageReady = false
@@ -99,7 +98,7 @@ private struct NativeThreadWorkspaceBody: View {
         NativeSidecardWorkspaceConfiguration(input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
             executionDisabled: executionDisabled, suppressed: sidecardsSuppressed, enabledIDs: enabledSidecardIDs,
             locale: locale, executionReveal: executionReveal, mainReadingHistory: hasNestedNavigation,
-            entranceReady: auxiliaryStageReady, reduceMotion: reduceMotion)
+            entranceReady: auxiliaryStageReady)
     }
 
     var body: some View {
@@ -149,12 +148,10 @@ struct NativeSidecardWorkspaceLayout: View {
     let model: NativeSidecardWorkspaceModel
     let snapshot: NativeSidecardWorkspaceSnapshot
     /// Previews/replays can supply the same policy without changing OS settings.
-    var motionReduced: Bool? = nil
     var onContentStatusChange: (NativeReadingContentStatus) -> Void = { _ in }
     var onDockSettled: () -> Void = {}
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @Environment(\.nativeAgentInputTargetChanged) private var inputTargetChanged
     @Environment(\.scenePhase) private var scenePhase
@@ -165,10 +162,9 @@ struct NativeSidecardWorkspaceLayout: View {
     @State private var foldedCardID: JSONText?
     @State private var inputTarget: ThreadConversationInputTarget?
     @State private var inputOwner = UUID()
-    private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
 
     private var animation: Animation? {
-        snapshot.dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation
+        snapshot.dragging ? nil : NativeSidecardTiming.foldAnimation
     }
     private var dividerHitWidth: CGFloat {
         6
@@ -184,65 +180,69 @@ struct NativeSidecardWorkspaceLayout: View {
             let mainSize = CGSize(
                 width: layout.mainWidth + (panelSize.width - layout.mainWidth) * handoffProgress,
                 height: layout.mainHeight + (panelSize.height - layout.mainHeight) * handoffProgress)
-            launchers
-                .position(x: panelSize.width + 38, y: panelSize.height / 2)
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .backgroundPreferenceValue(NativeSidecardLauncherAnchors.self) { anchors in
-                    GeometryReader { proxy in
-                        let frames = anchors.mapValues { proxy[$0] }
-                        ZStack(alignment: .topLeading) {
-                            NativeExecutionHandoffReader(handoff: snapshot.handoff,
-                                destinationSize: snapshot.handoff == nil ? mainSize : panelSize,
-                                workspaceSize: geometry.size, reduceMotion: reduceMotion || handoffResized || scenePhase != .active,
-                                onComplete: model.finishHandoff, onInputTargetChange: { target in
-                                    inputTarget = target
-                                    inputTargetChanged?(inputOwner, target)
-                                }) {
-                                mainConversation
+            // Keep the panel's opaque paper across the reserved column until
+            // the launcher fold starts; only the document needs its width early.
+            let shellSize = snapshot.entranceReady ? mainSize : panelSize
+            ZStack(alignment: .topLeading) {
+                NativeExecutionHandoffReader(handoff: snapshot.handoff,
+                    destinationSize: snapshot.handoff == nil ? mainSize : panelSize,
+                    workspaceSize: geometry.size, immediate: handoffResized || scenePhase != .active,
+                    onComplete: model.finishHandoff, onInputTargetChange: { target in
+                        inputTarget = target
+                        inputTargetChanged?(inputOwner, target)
+                    }) {
+                    mainConversation
+                }
+                    .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
+                    // Reflow the reader once at its destination width.
+                    // Animate its center and the surrounding shell
+                    // independently, without rescaling native text or
+                    // proposing a different TextKit width every tick.
+                    .offset(x: -mainSize.width / 2)
+                    // Only the size change loses inherited travel;
+                    // later reader-owned animations keep their transaction.
+                    .transaction(value: mainSize) { $0.animation = nil }
+                    .offset(x: mainSize.width / 2)
+                    .frame(width: shellSize.width, height: shellSize.height, alignment: .topLeading)
+                    .background(NativePalette.thread.canvas.swiftUI)
+                    .background(NativeReadingPanelFrame())
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
+                    .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
+                    .accessibilityIdentifier("agent-reading-panel")
+                    .zIndex(snapshot.handoff == nil ? 0 : 2)
+                if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
+                    NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
+                        onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
+                        onDraggingChange: model.setDragging)
+                        .frame(width: dividerHitWidth, height: geometry.size.height)
+                        .offset(x: layout.mainWidth + (16 - dividerHitWidth) / 2)
+                        .zIndex(2)
+                        .accessibilityLabel(localize("调整卡片宽度", "Resize card"))
+                }
+                // All sessions remain in this ForEach, including folded and
+                // suppressed cards, so child Harness interaction state survives.
+                ForEach(snapshot.cards) { card in
+                    sidecard(card, layout: layout, source: launcherFrames[card.id])
+                }
+            }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                .overlay(alignment: .topLeading) {
+                    launchers
+                        .position(x: panelSize.width + 38, y: panelSize.height / 2)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .backgroundPreferenceValue(NativeSidecardLauncherAnchors.self) { anchors in
+                            GeometryReader { proxy in
+                                let frames = anchors.mapValues { proxy[$0] }
+                                Color.clear.onChange(of: frames, initial: true) { _, current in
+                                    // Retain the last actual launcher for a retiring card.
+                                    launcherFrames.merge(current, uniquingKeysWith: { _, next in next })
+                                }
                             }
-                                .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
-                                // Reflow the reader once at its destination width.
-                                // Animate its center and the surrounding shell
-                                // independently, without rescaling native text or
-                                // proposing a different TextKit width every tick.
-                                .offset(x: -mainSize.width / 2)
-                                // Only the size change loses inherited travel;
-                                // later reader-owned animations keep their transaction.
-                                .transaction(value: mainSize) { $0.animation = nil }
-                                .offset(x: mainSize.width / 2)
-                                .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
-                                .background(NativePalette.thread.canvas.swiftUI)
-                                .background(NativeReadingPanelFrame())
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
-                                .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-                                .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
-                                .accessibilityIdentifier("agent-reading-panel")
-                                .nativeLayoutLog("agent.reading.panel")
-                                .zIndex(snapshot.handoff == nil ? 0 : 2)
-                            if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
-                                NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
-                                    onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
-                                    onDraggingChange: model.setDragging)
-                                    .frame(width: dividerHitWidth, height: geometry.size.height)
-                                    .offset(x: layout.mainWidth + (16 - dividerHitWidth) / 2)
-                                    .zIndex(2)
-                                    .accessibilityLabel(localize("调整卡片宽度", "Resize card"))
-                            }
-                            // All sessions remain in this ForEach, including folded and
-                            // suppressed cards, so child Harness interaction state survives.
-                            ForEach(snapshot.cards) { card in
-                                sidecard(card, layout: layout, source: frames[card.id] ?? launcherFrames[card.id])
-                            }
+                            .allowsHitTesting(false)
                         }
-                        .onChange(of: frames, initial: true) { _, current in
-                            // Retiring availability can remove the anchor before
-                            // its card finishes folding. Keep its last real seat.
-                            launcherFrames.merge(current, uniquingKeysWith: { _, next in next })
-                        }
-                    }
                 }
                 .animation(animation, value: snapshot.selected)
-                .animation(animation, value: layout.stacked)
                 .background(alignment: .topLeading) {
                     // Measure the destination, never the animated aperture.
                     NativeExecutionDockRegion(placement: executionPlacement,
@@ -280,11 +280,7 @@ struct NativeSidecardWorkspaceLayout: View {
             await Task.yield()
             guard !Task.isCancelled, let id = snapshot.handoff?.id,
                   model.snapshot?.handoff?.id == id else { return }
-            foldForHandoff(id, animated: !reduceMotion && !handoffResized && scenePhase == .active)
-        }
-        .onChange(of: reduceMotion) { _, reduced in
-            guard reduced, let handoff = snapshot.handoff else { return }
-            foldForHandoff(handoff.id, animated: false)
+            foldForHandoff(id, animated: !handoffResized && scenePhase == .active)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active, let handoff = snapshot.handoff else { return }
@@ -331,7 +327,7 @@ struct NativeSidecardWorkspaceLayout: View {
 
     private var mainConversation: some View {
         VStack(spacing: 0) {
-            NativeThreadPreparedReader {
+            NativeThreadPreparedReader(bodyLayoutReady: snapshot.entranceReady) {
                 NativeHarnessThreadView(host: model.harnessHost, input: snapshot.input,
                 presentation: .main(excludedExecutionIDs: snapshot.excludedExecutionIDs),
                 routes: model.routes, onIndexChange: model.receiveIndex)
@@ -351,6 +347,7 @@ struct NativeSidecardWorkspaceLayout: View {
         // Reserve the history rail across initial loading. The reading column
         // still centers itself inside the current main pane when it resizes.
         .environment(\.nativeThreadReservesHistoryRail, true)
+        .environment(\.nativeThreadReservesSidecardColumn, snapshot.layoutSelection != nil)
         // The 48pt leading rail keeps the document and its scroller to the
         // right of Close; the rail itself has 64pt of vertical clearance.
         // Do not also reserve Close's height above the entire reading viewport.
@@ -374,17 +371,17 @@ struct NativeSidecardWorkspaceLayout: View {
         let progress = promoting ? 1 - handoffProgress : (expanded ? 1.0 : 0.0)
         let destination = CGRect(x: layout.surfaceX, y: layout.surfaceY,
             width: layout.surfaceWidth, height: layout.surfaceHeight)
-        return Group {
-            if preparing { Color.clear } else { card.view.content }
+        return ZStack(alignment: .topLeading) {
+            if !preparing { card.view.content }
         }
             // Only the main reading body may drive the window's navigation chrome.
             // Sidecards reuse timelines and can contain further nested reading views.
             .environment(\.nativeReadingNavigation, nil)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .nativeLayoutLog("agent.sidecard")
             .clipShape(RoundedRectangle(cornerRadius: 21))
             .modifier(NativeSidecardFold(progress: progress, source: source, destination: destination,
                 frameIdentifier: "sidecard-aperture-" + card.id.string))
+            .animation(animation, value: expanded)
             // Keep the completed fold hidden while the destination prepares or
             // scrolls. Clearing handoff must not expose the expanded source pose.
             .opacity(card.id == foldedCardID ? 0 : 1)
@@ -437,8 +434,8 @@ struct NativeSidecardWorkspaceLayout: View {
 
 extension NativeSidecardWorkspaceGeometry {
     init(size: CGSize, snapshot: NativeSidecardWorkspaceSnapshot) {
-        let owner = snapshot.selected ?? snapshot.lastSelected
-        self.init(size: size, open: snapshot.selected != nil,
+        let owner = snapshot.layoutSelection ?? snapshot.lastSelected
+        self.init(size: size, open: snapshot.layoutSelection != nil,
             preferredWidth: snapshot.cards.first(where: { $0.id == owner })?.view.preferredWidth ?? 1 / 3,
             retainedWidth: owner.flatMap { snapshot.widths[$0] })
     }

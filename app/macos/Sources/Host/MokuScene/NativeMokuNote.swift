@@ -56,7 +56,6 @@ enum NativeMokuNoteLayout {
     }
 }
 
-
 /// Read-only content inside Moku's expanding glass. This view deliberately
 /// owns no material, shadow or outer shape; the capsule supplies all three.
 struct NativeMokuNoteContent: View {
@@ -103,7 +102,6 @@ struct NativeMokuNoteContent: View {
         }
         // Reading content stays above the face and history action.
         .frame(width: width, height: height, alignment: .top)
-        .nativeLayoutLog("moku.note.panel")
         .clipped()
         .onChange(of: contentHeight, initial: true) { _, height in
             if height > 0 { onContentHeightChange?(height + headerHeight) }
@@ -275,7 +273,7 @@ struct NativeMokuNoteContent: View {
 }
 
 /// This inert view observes the real AppKit body and clip geometry without
-/// intercepting pointer, selection, Markdown links, composer, or voice focus.
+/// intercepting pointer, selection, Markdown links, or composer focus.
 private struct NativeMokuNoteExposureProbe: NSViewRepresentable {
     let tracker: NativeMokuNoteExposureTracker
     let note: NativeMokuNote

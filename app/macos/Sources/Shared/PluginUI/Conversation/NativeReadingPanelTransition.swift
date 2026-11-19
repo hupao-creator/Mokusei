@@ -66,8 +66,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private var completedGeneration: Int?
     private var onCompletion: ((Int, Bool) -> Void)?
     private var onOpeningStarted: ((Int) -> Void)?
-    private var prepareMeasurement: NativePerformanceSpan?
-    private var travelMeasurement: NativePerformanceSpan?
     private var acceptsInput = false
     private var identity: NativeThreadIdentityVisit?
     private var flight: NativeThreadIdentityFlight?
@@ -98,15 +96,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
                    paperColor: CGColor, content: AnyView,
                    onOpeningStarted: ((Int) -> Void)? = nil, onCompletion: @escaping (Int, Bool) -> Void) {
         self.environment = environment
-        if command != transition {
-            prepareMeasurement?.end(.cancelled); travelMeasurement?.end(.cancelled)
-            prepareMeasurement = nil; travelMeasurement = nil
-            if let transition {
-                prepareMeasurement = NativePerformance.begin(.readingPrepare,
-                    context: environment.nativePerformanceOperation,
-                    values: ["panel": 1, "closing": transition.closing ? 1 : 0])
-            }
-        }
         if self.identity !== identity {
             preparation?.cancel(); preparation = nil; prepared = false
             flight?.retire(); flight = nil; self.identity = identity
@@ -183,8 +172,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private func prepareOpening() {
         guard startedGeneration == nil, preparation == nil, identity?.openingTarget["title"] != nil,
               identity?.openingTarget["emoji"] != nil else { return }
-        NativePerformance.event(.readingPrepare, context: environment.nativePerformanceOperation,
-            values: ["panel": 1, "anchorsReady": 1])
         preparation = Task { @MainActor [weak self] in
             // Coalesce anchor publication, then resolve the current native
             // layout before freezeOpeningTargets reads the actual views. A
@@ -193,8 +180,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             guard !Task.isCancelled, let self else { return }
             defer { preparation = nil }
             hosting?.layoutSubtreeIfNeeded()
-            NativePerformance.event(.readingPrepare, context: environment.nativePerformanceOperation,
-                values: ["panel": 1, "layoutReady": 1])
             prepared = true; startIfReady()
         }
     }
@@ -221,9 +206,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             completion.setValue(command.generation, forKey: "generation")
             completion.delegate = self
             layer.add(completion, forKey: "reading.report.return")
-            prepareMeasurement?.end(); prepareMeasurement = nil
-            travelMeasurement = NativePerformance.begin(.readingTransition,
-                context: environment.nativePerformanceOperation, values: ["panel": 1, "closing": 1])
             return
         }
         if command.closing { flight?.retire(); flight = nil }
@@ -250,9 +232,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
                 fromPosition: fromPosition, fromPath: fromPath, source: source,
                 readerWidth: target.width, duration: command.duration,
                 generation: command.generation, delegate: self)
-            prepareMeasurement?.end(); prepareMeasurement = nil
-            travelMeasurement = NativePerformance.begin(.readingTransition,
-                context: environment.nativePerformanceOperation, values: ["panel": 1, "closing": 1])
             return
         }
         CATransaction.begin()
@@ -292,10 +271,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         }
         layer.add(travel, forKey: "reading.travel")
         aperture.add(clip, forKey: "reading.aperture")
-        prepareMeasurement?.end(); prepareMeasurement = nil
-        travelMeasurement = NativePerformance.begin(.readingTransition,
-            context: environment.nativePerformanceOperation,
-            values: ["panel": 1, "closing": command.closing ? 1 : 0])
     }
 
     /// Native presentation geometry for the existing transition replay.
@@ -315,8 +290,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             guard let self, let command, command.generation == generation,
                   startedGeneration == generation, completedGeneration != generation,
                   !command.closing else { return }
-            NativePerformance.event(.readingTransition, context: environment.nativePerformanceOperation,
-                values: ["panel": 1, "started": 1])
             if command.thread { onOpeningStarted?(generation) }
         }
     }
@@ -330,7 +303,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             guard let self, let command, command.generation == generation,
                   completedGeneration != generation else { return }
             completedGeneration = generation
-            travelMeasurement?.end(); travelMeasurement = nil
             onCompletion?(generation, command.closing)
         }
     }
@@ -349,8 +321,6 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     }
 
     func retire() {
-        prepareMeasurement?.end(.cancelled); travelMeasurement?.end(.cancelled)
-        prepareMeasurement = nil; travelMeasurement = nil
         preparation?.cancel(); preparation = nil
         command = nil
         flight?.retire(); flight = nil; identity = nil

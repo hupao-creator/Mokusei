@@ -2,7 +2,6 @@ import Foundation
 import Observation
 import MokuseiCore
 import MokuseiPluginAPI
-import MokuseiVoice
 
 @MainActor @Observable
 public final class NativeWorkspaceModel {
@@ -11,7 +10,6 @@ public final class NativeWorkspaceModel {
     public let plugins: NativePluginComposition
     public let timer: NativeMokuTimerController
     public let catalog = NativeWorkspaceCatalog()
-    @ObservationIgnored public let startupPerformance: NativeStartupPerformance?
     public var hasInitialContent: Bool { hasSnapshot && catalog.hasMoku }
     private var hasSnapshot = false
     public private(set) var connection: RuntimeConnectionStatus = .connecting
@@ -24,9 +22,7 @@ public final class NativeWorkspaceModel {
             if hasSnapshot != loaded { hasSnapshot = loaded }
         }
     }
-    public private(set) var connectionError: String? {
-        didSet { if connectionError != nil && !hasInitialContent { startupPerformance?.fail() } }
-    }
+    public private(set) var connectionError: String?
     @ObservationIgnored private var catalogError: String?
     public private(set) var reconnecting = false
     public private(set) var synchronizing = true
@@ -43,7 +39,6 @@ public final class NativeWorkspaceModel {
         let translations = [
             "附件数量不能超过 20 个": "You can attach at most 20 files.",
             "附件正在处理中，请稍候": "Attachments are being processed. Please wait.",
-            "此 Thread 已归档，取消归档后才能追加任务。": "This Thread is archived. Unarchive it to add a task.",
             "关联 Thread 已删除，无法打开。": "The linked Thread was deleted and cannot be opened."
         ]
         return preferences.locale == .english ? translations[operationError] ?? operationError : operationError
@@ -59,9 +54,6 @@ public final class NativeWorkspaceModel {
     @ObservationIgnored public var onFollowUp: ((JSONText, JSONText) -> Void)?
     @ObservationIgnored public var onStopped: (() async -> Void)?
     @ObservationIgnored public lazy var services = NativeWorkspaceServices(workspace: self)
-    @ObservationIgnored public lazy var voice = NativeVoiceCoordinator(client: client, beforeCommand: { [weak self] in
-        guard let self else { throw CancellationError() }; try await self.prepareCommand()
-    })
     @ObservationIgnored public lazy var settingsModel = makeSettingsModel()
     @ObservationIgnored private lazy var settingsPrefetch = NativeWorkspaceSettingsPrefetch(host: harnessHost)
     @ObservationIgnored public lazy var harnessHost = NativeHarnessHost(
@@ -87,14 +79,11 @@ public final class NativeWorkspaceModel {
     )
 
     public init(client: RuntimeClient, preferences: DesktopPreferences, plugins: NativePluginComposition,
-                startupPerformance: NativeStartupPerformance? = nil,
                 timer: NativeMokuTimerController? = nil) {
         self.client = client
         self.preferences = preferences
         self.plugins = plugins
         self.timer = timer ?? NativeMokuTimerController()
-        self.startupPerformance = startupPerformance
-        preferences.diagnostics = SettingsDiagnostics(client: client)
     }
 
     private func makeSettingsModel() -> NativeSettingsModel {
@@ -122,7 +111,6 @@ public final class NativeWorkspaceModel {
             }, loadInstallation: { [weak self] id in
                 guard let self else { throw CancellationError() }; return try await self.invoke("harness:detect-installation", args: [.text(id)])
             })
-        model.draft.diagnostics = SettingsDiagnostics(client: client)
         model.onDiscoveryChange = { [weak self] in self?.refreshSettingsPrefetch() }
         model.draft.onClosedSaveError = { [weak self] message in
             self?.operationError = message
@@ -148,8 +136,6 @@ public final class NativeWorkspaceModel {
                         if status == .connected, self.connection != .connected { self.connectionRevision += 1 }
                         if status != .connected, self.connection == .connected { self.recoveryRevision += 1 }
                         self.connection = status
-                        self.voice.configureMoku(owner: self.catalog.moku?.id,
-                            available: status == .connected && !self.stopping)
                         if status == .connected { self.connectionError = self.catalogError }
                         self.settingsModel.receive(snapshot: self.state, runtimeAvailable: self.runtimeAvailable)
                         self.onConnectionChange?(status)
@@ -171,8 +157,7 @@ public final class NativeWorkspaceModel {
                             self.operationError = error.message
                             continue
                         }
-                        // This local observer will immediately reattach. It is
-                        // not a transport outage and must not retire voice.
+                        // This local observer will immediately reattach.
                         if error.code != "CONSUMER_OVERFLOW" {
                             self.connectionError = error.message
                             self.refreshAvailability()
@@ -180,7 +165,6 @@ public final class NativeWorkspaceModel {
                     case .overviewFilter(let request): self.onOverviewFilter?(request)
                     case .threadContent: self.harnessHost.receive(event)
                     }
-                    self.voice.receive(event)
                     self.refreshSettingsPrefetch()
                 }
                 guard let self, !self.stopping, !Task.isCancelled else { return }
@@ -210,13 +194,11 @@ public final class NativeWorkspaceModel {
             }
             state = snapshot
             timer.receive(catalog.moku)
-            if hasInitialContent { startupPerformance?.dataReady() }
             catalogError = nil
             if connection == .connected { connectionError = nil }
             settingsModel.receive(snapshot: snapshot, runtimeAvailable: runtimeAvailable)
             settingsModel.activeHostHarnessID = catalog.moku?.harnessID.string
             settingsModel.mokuRunning = catalog.executions.contains { $0["threadId"] == catalog.moku.map { .string($0.id) } }
-            voice.configureMoku(owner: catalog.moku?.id, available: connection == .connected && !stopping)
             harnessHost.receive(event)
             onCatalogChange?(event)
         } catch {
@@ -250,7 +232,7 @@ public final class NativeWorkspaceModel {
     }
 
     public func canExecute(_ thread: HarnessThread) -> Bool {
-        executionAvailable(thread) && thread.archived != true
+        executionAvailable(thread) && !thread.mokuHistory
     }
 
     public func executionAvailable(_ thread: HarnessThread) -> Bool {
@@ -358,11 +340,8 @@ public final class NativeWorkspaceModel {
         guard !stopping else { return }
         stopping = true
         timer.stop()
-        // Pause pending settings timers before awaiting voice/service teardown.
+        // Pause pending settings timers before awaiting service teardown.
         refreshAvailability()
-        // Revoke local media immediately, but do not let an unacknowledged
-        // remote voice stop delay the service's own shutdown request.
-        let mediaStop = Task { await voice.stopAll() }
         var failure: Error?
         do {
             // Join the entire wrapper, including locale publication before it
@@ -371,7 +350,6 @@ public final class NativeWorkspaceModel {
             _ = try? await localeTask?.value
             try await client.stopService()
         } catch { failure = error }
-        await mediaStop.value
         await onStopped?()
         await client.close()
         await harnessHost.releaseAll()

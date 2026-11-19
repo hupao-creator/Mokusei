@@ -25,37 +25,20 @@ and write receipts are settled. An HTTP client disconnect cancels only its reads
 
 ## Failed shutdown
 
-Application cleanup failures are recorded as `runtime.shutdown.failed` before diagnostics close and in the detached process log. The stop caller receives the cleanup error, but the daemon still retires discovery, closes management connections, releases ownership and exits. A completed error never leaves a permanent stopping owner.
+The stop caller receives application cleanup errors, but the daemon still retires discovery, closes management connections, releases ownership and exits. A completed error never leaves a permanent stopping owner.
 
 While cleanup is pending, authenticated `/health` reports `status: stopping`; ordinary commands are rejected and exclusive ownership remains held. Start/reopen waits up to two minutes for this owner to retire before starting a replacement. Existing profile data is retained. A late native exit helper carries the old epoch and cannot stop the replacement.
 
-Logs live under the selected profile at `runtime/debug-logs/service.jsonl` and `runtime/process.log`.
-
-Moku/Tag/Report bodies use a separate private
-[`runtime/tool-calls` journal](../diagnostics/README.md), opened under the same
-profile lease and closed after application draining. Service diagnostics do not
-receive its bodies. The journal has independent retention and explicit
-redaction/completeness metadata.
-Journal initialization or close failure is reported without preventing startup
-or changing successful application cleanup; journal initialization retries on the
-next Runtime start. This best-effort policy does not change the existing service
-logger's startup/close contract.
-
 If an `Ensure` child loses the ownership guard before a competing child publishes
-its owner record, it waits for the competitor's existing private launch receipt.
-Pending launches are read before the owner record to cover that handoff; errors
+its owner record, it waits for the competitor's existing private launch receipt. Pending launches are read before the owner record to cover that handoff; errors
 from either metadata read remain errors. A pending receipt never proves success:
-the existing health/identity check must still confirm the published service.
-The original two-minute deadline, cancellation barrier and fail-closed behavior
+the existing health/identity check must still confirm the published service. The original two-minute deadline, cancellation barrier and fail-closed behavior
 for an occupied port without a known pending launch remain unchanged. This
 guarantee covers children using `AwaitLaunch`, not an unidentified foreground
-process holding the port. Deterministic real-process tests in `manager_test.go`
-cover the prepublication window and absent/invalid launch or owner metadata.
+process holding the port.
 
 Native worker cleanup treats a reaped process group or a group containing only
 zombies as stopped. On macOS, a signal probe for a zombie-only group returns
 `EPERM`; bounded process-table inspection must establish that no member can
 execute before cleanup succeeds. A live member or failed inspection cannot
 turn a permission error into successful shutdown.
-
-Verification: `./scripts/go.sh run -race ./tools/verification/runtime-helpers` and `./scripts/go.sh test -race ./cmd/mokusei-runtime`. On macOS, add `--swift-shutdown` to the helper replay for the actual Swift status/start/stop path through failed shutdown and same-profile reopening, dead/live owners on reused ports, unsafe metadata and cancellation. The [transport replay](../../../tools/verification/transport/README.md) also exercises real daemon shutdown with pending read/write HTTP calls and receipt recovery.

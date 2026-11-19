@@ -8,7 +8,7 @@ invalid-field focus, IME and save-on-close gate. This layer owns no Runtime
 commands or independent copy of page state.
 
 `interactionSnapshot()` reports the semantic route, mounted reading/settings
-surface, navigation animation activity, settings save state, search, filter and
+surface, navigation animation activity, settings save state, filter and
 thread identities, available action names and errors. Overview camera observations
 contain ordinary framing, viewport, motion and pause facts; they expose no
 automatic per-card target. `settings.appearance` and
@@ -38,8 +38,7 @@ let state = presentation.interactionSnapshot()
 
 The macOS App's opt-in Unix socket validates external request envelopes and action
 arguments before dispatch. The macOS App owns transport outside the presentation
-module. See the [script/protocol guide](../../../../../tools/native-interaction/README.md)
-and [real app replay](../../../../../tools/verification/native-interaction/README.md).
+module.
 
 `settings.control` addresses a mounted control ID and observed handle, then
 invokes the registration owned by that control. `settings.controls` includes
@@ -59,8 +58,7 @@ components; the Host does not decode a Harness timeline or mutate its data.
 A Settings return retains the page only for capsule animation. While `settingsClosing`
 is true, section selection and mounted-control mutations are unavailable, so a
 rapid caller cannot receive a success for a page that is already retiring. Close,
-Back and Overview remain available. The production navigation replay exercises
-this rejection immediately after initiating Back without waiting for animation.
+Back and Overview remain available.
 
 First-run setup reports `page: "onboarding"` and an `onboarding` object containing
 step (0–4), admission, editor readiness, continuation availability, save/error
@@ -82,7 +80,29 @@ Collection diagnostics are read-only: individual application cards expose
 references. Values contain `lastClosedAt` (Unix milliseconds or null), `retainsEligibility`,
 `intervalSeconds`, the time-condition `eligible` flag, a `reason`
 (`no-close-record`, `future-close-record`, `within-close-interval`, `eligible`) and
-current `collected` membership. Time eligibility alone does not establish two
-eligible members in the same browsing view; search remains individual. During
+current `collected` membership. An eligible report can remain individual when
+the current view fits its 16-cell budget or an older prefix frees enough space. During
 reading travel the retained collection can temporarily differ from live
 eligibility. These observations neither create opens nor migrate unknown history.
+
+## E2E contract
+
+[`E2E-READ-001`](../../../../../tools/e2e/README.md) uses these real navigation
+callbacks and mounted reading registrations. Preconditions are an isolated
+connected workspace, a completed Codex Thread prepared through public Moku
+input, a private automation socket and an exclusively scheduled desktop.
+The runner opens the Overview target, observes its ready nonempty `turn`,
+supplies a public Runtime follow-up, observes the mounted successor, activates
+the initial `history.open` handle, then uses Back and Overview. Each selected
+execution must match the corresponding public scoped output identity. Required
+evidence is `ui-initial/current/history/return/overview.json` plus the public
+content and UI request/response transcript.
+
+This checks navigation, resource acquisition and mounted semantic content. It
+cannot establish pixel appearance, text geometry, pointer hit regions, keyboard
+routing, scroll smoothness or composer submission. A successful dispatch is
+insufficient without the settled mounted postcondition. A missing desktop,
+control, content or evidence yields a nonpassing receipt; this doc does not
+certify an unexecuted scenario. The public protocol has no composer send/pause
+operations. [`E2E-COMPOSER-001`](../MokuScene/README.md#e2e-contract) uses
+operator-assisted system input with separate public result oracles.

@@ -3,10 +3,6 @@ import AppKit
 
 /// The few input queries shared controls need, kept at the native boundary.
 @MainActor public enum NativePlatformInput {
-    public static var isComposingText: Bool {
-        return (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() == true
-    }
-
     public static var isPointerEvent: Bool {
         guard let event = NSApp.currentEvent else { return false }
         return [.leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
