@@ -439,8 +439,8 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
 
         private func rejectDownload() {
             input.onNavigationNotice(input.locale.string.hasPrefix("en")
-                ? "Downloads are not supported in reports. The document remains open."
-                : "报告暂不支持下载，当前文档将保持打开。")
+                ? "Downloads are unavailable in this document. The document remains open."
+                : "此文档暂不支持下载，将保持打开。")
         }
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,

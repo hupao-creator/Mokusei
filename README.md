@@ -21,7 +21,7 @@ to follow the work and give it more direction.
 - **Ask once, coordinate across agents.** Give Chief a task, attach files, and choose project folders with `@`. Chief can answer directly or assign work to the agents you've enabled. [Working with Chief →](docs/working-with-moku.md)
 - **See what needs you.** Overview puts task status, questions, and permission requests on cards. Filter by folder or tag, then open a conversation to step in. [Overview →](docs/overview.md)
 - **Read results and keep going.** Read completed replies, revisit earlier runs, send a follow-up, or branch from an earlier run when the agent supports it. [Agent conversations →](docs/task-conversations.md)
-- **Connect the work.** Optional Tag Agent groups conversations within each project folder; Super Thread Agent prepares reports with links back to source conversations. Git task cards can show branch and change summaries. [Tags, reports, and file changes →](docs/reports-tags-and-changes.md)
+- **Connect the work.** Optional Tag Agent groups conversations within each project folder. Super Thread Agent prepares Super Threads with links back to source conversations. Git task cards can show branch and change summaries. [Tags, Super Threads, and file changes →](docs/reports-tags-and-changes.md)
 - **Give feedback beside the work.** Open a web page in a sidecard, annotate an element or area, and send the screenshot and comment to the current agent conversation. [Sidecards →](docs/sidecards.md)
 
 The interface uses SwiftUI and AppKit, backed by a Go service. Agents run through
@@ -38,7 +38,7 @@ from your inviter.
 
 1. Drag **Chief Alpha.app** from the disk image into **Applications**, then open it. The alpha is not notarized; a trusted download may need the per-app **Open Anyway** exception in **System Settings → Privacy & Security**.
 2. Install and configure at least one supported agent on your Mac: Codex, Claude, Pi Agent, or OpenCode. Chief checks which are ready during setup. Each service determines model access and costs.
-3. Choose the agent that will serve as Chief and the agents it can assign work to. Finish the tag and report agent setup, then click **Start using Chief**.
+3. Choose the agent that will serve as Chief and the agents it can assign work to. Finish setting up Tag Agent and Super Thread Agent, then click **Start using Chief**.
 4. Describe your task in **Type a message…**. Type `@` to choose a project folder, send the request, and open the task card when Chief creates one.
 
 No Go, Xcode, or Apple developer membership is needed to use the alpha.
@@ -53,7 +53,7 @@ in Simplified Chinese; English is available in Settings.
 [Working with Chief](docs/working-with-moku.md) ·
 [Overview](docs/overview.md) ·
 [Agent conversations](docs/task-conversations.md) ·
-[Tags, reports, and file changes](docs/reports-tags-and-changes.md) ·
+[Tags, Super Threads, and file changes](docs/reports-tags-and-changes.md) ·
 [Sidecards](docs/sidecards.md) ·
 [Settings](docs/settings.md)
 

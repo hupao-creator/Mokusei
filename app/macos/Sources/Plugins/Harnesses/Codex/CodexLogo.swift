@@ -4,6 +4,8 @@ import SwiftUI
 /// The Codex SVG rendered as native vector geometry. Arc segments are converted
 /// to cubic Beziers at export time; the original view box and gradient are kept.
 public struct CodexLogo: View {
+    static let themeColor = NativePalette.pair(0x3941ff, 0x8f94ff).swiftUI
+
     /// The approved running-card palette belongs to this harness.
     public static let threadCardCloudPalette = NativeCloudPalette.blueIndigo
 

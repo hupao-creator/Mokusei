@@ -17,6 +17,7 @@ import SwiftUI
     // Compact panels keep the same map and character without group explanations.
     var presentation = Presentation.settings
     var showsRoutingGuidance = false
+    var showsMapGlass = false
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
@@ -148,12 +149,26 @@ import SwiftUI
         } else if !rosterReady || pickable.isEmpty {
             rosterStatus {
                 SettingsNotice(rosterError == nil
-                    ? locale.text("暂无可用的 Agent。请在「通用」中安装本地 Agent 后重试。", "No Agents are available. Install a local Agent in General, then retry.")
+                    ? locale.text("暂无可用的 Agent。请在此 Mac 上安装受支持的 Agent 后重试。", "No Agents are available. Install a supported Agent on this Mac, then retry.")
                     : locale.text("无法读取 Agent 配置，请重试。", "Unable to load Agent configuration. Please retry."), error: rosterError != nil) { retryDiscovery }
                 if let rosterError { SettingsNotice(rosterError, error: true) }
             }
         } else {
-            dispatchMap
+            if showsMapGlass {
+                dispatchMap
+                    .padding(.horizontal, 12)
+                    .background {
+                        Color.clear.nativeRegularCardGlass(
+                            in: RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius),
+                            opaque: NativePalette.settings.hintSurface.swiftUI)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(locale.text("协调与派发", "Coordination and dispatch"))
+            } else {
+                dispatchMap
+            }
             if let rosterError {
                 SettingsNotice(locale.text("部分 Agent 检测失败：", "Some Agents could not be detected: ") + rosterError, error: true) { retryDiscovery }
             }
@@ -191,7 +206,9 @@ import SwiftUI
                                 var path = Path(); path.move(to: point)
                                 path.addCurve(to: destination, control1: CGPoint(x: point.x, y: point.y + bend),
                                               control2: CGPoint(x: destination.x, y: destination.y - bend))
-                                context.stroke(path, with: .color(NativePalette.settings.accent.swiftUI.opacity(0.7)),
+                                let accent = NativePalette.settings.accent.swiftUI
+                                let color = showsMapGlass ? (harness.themeColor ?? accent) : accent.opacity(0.7)
+                                context.stroke(path, with: .color(color),
                                     style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [5, 7],
                                                        dashPhase: NativeMokuSettingsMotion.dispatchDashPhase(nowMilliseconds: now)))
                             }

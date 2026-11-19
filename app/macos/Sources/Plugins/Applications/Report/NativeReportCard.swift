@@ -100,7 +100,7 @@ import SwiftUI
                     .help(applicationText(locale, "\(harness.displayName.string)：\(count) 个关联 Thread", "\(harness.displayName.string): \(count) related threads"))
                 }
                 TimelineView(.periodic(from: .now, by: 30)) { clock in Text(updatedLabel(now: clock.date)) }
-                    .help(applicationText(locale, "报告更新时间，不是最近打开时间。", "Report update time, not the last time you opened it."))
+                    .help(applicationText(locale, "Super Thread 的更新时间，与打开时间无关。", "When this Super Thread was last updated."))
             }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.faint.swiftUI)
                 .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
             ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(3)

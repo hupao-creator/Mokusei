@@ -134,7 +134,7 @@ struct NativeReportCollection: View {
                                 .focused($focusedControl, equals: .allMembers)
                                 .accessibilityFocused($accessibilityFocusedControl, equals: .allMembers)
                                 .accessibilityValue(applicationText(locale, showingMembers ? "已展开" : "已收起", showingMembers ? "Expanded" : "Collapsed"))
-                                .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，第 \(page + 1) 篇，共 \(members.count) 篇", "Show all Super Threads, report \(page + 1) of \(members.count)"))
+                                .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，当前为第 \(page + 1) 条，共 \(members.count) 条", "Show all Super Threads, \(page + 1) of \(members.count)"))
                                 .disabled(!active || outgoingID != nil)
                                 .glassEffect(.regular.interactive(), in: Capsule())
                         }

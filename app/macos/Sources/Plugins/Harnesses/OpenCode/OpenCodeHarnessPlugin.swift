@@ -11,6 +11,7 @@ public struct OpenCodeHarnessPlugin: HarnessPlugin {
     public var descriptor: HarnessPluginDescriptor { .init(id: "opencode", displayName: "OpenCode",
         threadCapabilities: .init(instructions: true, threadContext: true, sendContext: true, toolModes: [.extend, .exclusive]),
         installationGuide: URL(string: "https://opencode.ai/docs/")!) }
+    public var themeColor: Color? { OpenCodeLogo.themeColor }
     public var logoSource: String { OpenCodeLogo.source }
     public func logo(size: CGFloat) -> some View { OpenCodeLogo(size: size) }
     public var translations: HarnessTranslationCatalog { ["en-US": Dictionary(uniqueKeysWithValues: ocEnglish.map { (JSONText($0.key), JSONText($0.value)) })] }

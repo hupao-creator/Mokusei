@@ -146,7 +146,7 @@ struct PiOverviewCard: View {
                 status: threadCardStatus(input.thread.observation), emoji: nativeGeneratedThreadEmoji(metadata: input.thread.metadataState),
                 harnessLogo: AnyView(PiLogo(size: 12)),
                 onInterventionResponse: respond, onOpenThread: openThread)
-                .environment(\.threadCardProviderColor, NativePalette.pair(0x6c5ce7, 0xb5a7ff).swiftUI)
+                .environment(\.threadCardProviderColor, PiLogo.themeColor)
                 .environment(\.threadCardCloudPalette, PiLogo.threadCardCloudPalette)
             if let failure { PiFailure(message: failure) }
         }

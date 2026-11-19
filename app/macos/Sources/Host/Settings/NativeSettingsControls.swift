@@ -37,17 +37,6 @@ struct SettingsNotice<Content: View>: View {
     }
 }
 
-struct SettingsAgentParagraph: ViewModifier {
-    var error = false
-    func body(content: Content) -> some View {
-        let lineHeight = NSLayoutManager().defaultLineHeight(for: NSFont.systemFont(ofSize: 12))
-        let extra = max(0, 19.2 - lineHeight)
-        content.font(.system(size: 12)).lineSpacing(extra).padding(.vertical, extra / 2)
-            .foregroundStyle(error ? NativeAppKitPalette.pair(0xac583e, 0xefa47e).swiftUI : NativeAppKitPalette.settings.muted.swiftUI)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
 /// Keep programmatic entry focus without presenting it as keyboard navigation.
 struct SettingsNavigationFocusRing: ViewModifier {
     let visible: Bool
@@ -60,13 +49,6 @@ struct SettingsNavigationFocusRing: ViewModifier {
                     .allowsHitTesting(false)
             }
         }
-    }
-}
-
-struct SettingsSpinner: View {
-    var size: CGFloat = 14
-    var body: some View {
-        ProgressView().controlSize(.small).frame(width: size, height: size).accessibilityHidden(true)
     }
 }
 

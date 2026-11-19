@@ -12,6 +12,7 @@ public struct PiHarnessPlugin: HarnessPlugin {
             HarnessThreadCapabilities(instructions: true, threadContext: true, sendContext: true, toolModes: [.exclusive]),
             installationGuide: URL(string: "https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent")!)
     }
+    public var themeColor: Color? { PiLogo.themeColor }
     public var logoSource: String { Self.logo }
     public func logo(size: CGFloat) -> some View { PiLogo(size: size) }
     public var translations: HarnessTranslationCatalog {

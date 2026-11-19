@@ -23,7 +23,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
             if identifier == "report-reading-panel" {
                 NativeReportLinkWorkspace(suppressed: suppressed, onClose: onClose) {
                     content
-                        .nativeReadingPanelClose(label: locale.language.languageCode?.identifier == "zh" ? "关闭报告" : "Close report", overlaysContent: true, onClose: onClose)
+                        .nativeReadingPanelClose(label: locale.language.languageCode?.identifier == "zh" ? "关闭 Super Thread" : "Close Super Thread", overlaysContent: true, onClose: onClose)
                         .background(NativeReadingPanelFrame(identifier: identifier))
                         .accessibilityIdentifier(identifier)
                 }

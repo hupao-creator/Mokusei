@@ -15,7 +15,13 @@ enum NativeSettingsRole: String {
         }
     }
 
-    var tabLabel: String { rawValue == "moku" ? "Chief" : rawValue.capitalized }
+    var tabLabel: String {
+        switch self {
+        case .moku: "Chief"
+        case .tag: "Tag"
+        case .report: "Super Thread"
+        }
+    }
     func title(_ locale: DesktopLocale) -> String {
         switch self {
         case .moku: "Chief"
@@ -56,18 +62,21 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
     let role: NativeSettingsRole
     let harnesses: [AnyHarnessPlugin]
     let locale: DesktopLocale
+    let showsHeading: Bool
     var visitPlaybackStarted: Binding<Bool>? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(role.title(locale)).font(.system(size: 25, weight: .medium)).tracking(-0.5)
-                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
-            Text(role.subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
-                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                .fixedSize(horizontal: false, vertical: true).padding(.bottom, 24)
+            if showsHeading {
+                Text(role.title(locale)).font(.system(size: 25, weight: .medium)).tracking(-0.5)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
+                Text(role.subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true).padding(.bottom, 24)
+            }
             if role == .tag {
                 NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted).padding(.bottom, 24)
             } else if role == .report {

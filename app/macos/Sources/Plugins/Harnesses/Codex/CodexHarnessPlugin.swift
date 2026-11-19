@@ -14,6 +14,7 @@ public struct CodexHarnessPlugin: HarnessPlugin {
                 sendContext: true, toolModes: [.extend, .exclusive]),
             installationGuide: URL(string: "https://developers.openai.com/codex/cli/")!)
     }
+    public var themeColor: Color? { CodexLogo.themeColor }
     public var logoSource: String { CodexLogo.source }
     public func logo(size: CGFloat) -> some View { CodexLogo(size: size) }
     public var translations: HarnessTranslationCatalog {

@@ -53,7 +53,7 @@ public struct CodexOverviewCard: View {
             onRespond: responseHandler, onOpen: openThread,
             status: threadCardStatus(input.thread.observation), emoji: generatedEmoji,
             harnessLogo: AnyView(CodexLogo(size: 12)))
-            .environment(\.threadCardProviderColor, NativePalette.pair(0x3941ff, 0x8f94ff).swiftUI)
+            .environment(\.threadCardProviderColor, CodexLogo.themeColor)
             .environment(\.threadCardCloudPalette, CodexLogo.threadCardCloudPalette)
     }
 

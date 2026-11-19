@@ -1,7 +1,7 @@
 # First-run onboarding
 
 `NativeOnboardingState` admits a new profile after the authoritative workspace
-catalog and Moku shell load. It owns the discovery → Moku → Tag → Report → Dock
+catalog and Moku shell load. It owns the discovery → Chief → Tag → Super Thread → Dock
 sequence; the connected workspace continues to own installation discovery,
 settings resources, draft validation and Runtime persistence.
 
@@ -49,7 +49,7 @@ page changes do not reload successful resources or reseed selected defaults.
 Disabled roles need no execution resources until enabled; changing a saved source,
 role mode or connection authority retains the ordinary targeted reload boundary.
 Plugin-owned installation guides remain available for missing Harnesses. Moku reuses the
-Settings coordination map and native Harness execution fields. Tag and Report
+Settings coordination map and native Harness execution fields. Tag and Super Thread
 reuse application-owned background configuration, including inheritance and
 retained independent profiles. Provider catalogs, pending model choices and
 validation remain in their native plugins. Model, reasoning and other select
@@ -59,13 +59,13 @@ as Settings. The shared readiness registry
 combines resource acquisition and incomplete local input; IME, failed saves,
 unavailable Harnesses and invalid fields prevent advancing.
 
-Inherited Tag and Report configuration displays the actual saved Moku profile
+Inherited Tag and Super Thread configuration displays the actual saved Moku profile
 through the same read-only native Harness fields as Settings, including catalog
 and resource status. It waits for resource readiness rather than treating the
 presence of a saved profile as sufficient. Switching back to independent mode
 restores its own retained configuration.
 
-Tag and Report share Settings' Agent off, Use Chief and Configure separately
+Tag and Super Thread share Settings' Agent off, Use Chief and Configure separately
 choices. Turning a role off keeps its source mode and retained independent
 profile, and bypasses that role's resource/availability gate. Selecting either
 enabled choice restores the ordinary readiness gate. Existing reports, tags and
@@ -73,8 +73,9 @@ pending backend work are retained.
 
 The Tag SpriteKit and Report SwiftUI sequences are abstract capability examples,
 shared with Settings through `NativeRoleConfigurationPanel` and with the visual
-demo. Each mounted Tag or Report page plays once with the discovered Harness
-logos and retains its completed composition. Settings uses the same behavior
+demo. Role titles and subtitles are shown during onboarding. Each mounted Tag
+or Super Thread page plays once with the discovered Harness logos and retains
+its completed composition. Settings uses the same behavior
 without onboarding step admission. Leaving the page cancels playback; entering
 it again creates a new playback visit. Hiding or deactivating the window during
 playback settles to the completed composition without replaying on activation.
@@ -100,13 +101,14 @@ archiving all conversations still restores landing without replaying setup.
 
 The deterministic [visual demo](../../../../../demos/landing-setup/README.md)
 uses the production surfaces with in-memory data. It does not establish Runtime
-persistence, real discovery, focus, input or native-frame correctness. No
-onboarding/Settings e2e flow is configured in this source tree; validation
-ownership is defined by the [verification policy](../../../../../scripts/ci/verification-policy.md).
+persistence, real discovery, focus, input or native-frame correctness. The
+Settings e2e starts with onboarding complete. The
+[verification policy](../../../../../scripts/ci/verification-policy.md) defines
+validation ownership.
 
-The Report role is displayed as Super Thread Agent through its application
-settings label. Onboarding progress keys and the `report.settings` binding stay
-stable, preserving completed onboarding and saved execution configuration.
+The Super Thread role uses the Super Thread Agent application settings label.
+Onboarding progress keys and the `report.settings` binding preserve completed
+onboarding and saved execution configuration.
 
 The explicit App launch option `--benchmark-scenario overview` prepares an
 isolated rendering experiment by recording completion before workspace creation.

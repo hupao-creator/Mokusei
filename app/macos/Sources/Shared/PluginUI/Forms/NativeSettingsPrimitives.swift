@@ -401,17 +401,28 @@ private struct NativeSettingsSwitchStyle: ToggleStyle {
 public struct NativeSettingsChoiceButton: View {
     private let title: String
     private let selected: Bool
+    private let hint: String?
     private let action: () -> Void
-    public init(_ title: String, selected: Bool, action: @escaping () -> Void) {
-        self.title = title; self.selected = selected; self.action = action
+    public init(_ title: String, selected: Bool, hint: String? = nil, action: @escaping () -> Void) {
+        self.title = title; self.selected = selected; self.hint = hint; self.action = action
     }
     public var body: some View {
+        if let hint {
+            button.help(hint).accessibilityHint(hint)
+        } else {
+            button
+        }
+    }
+    private var button: some View {
         Button(action: action) {
             HStack(spacing: 7) {
                 Text(title).multilineTextAlignment(.center)
                 if selected {
                     Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold))
                         .accessibilityHidden(true)
+                }
+                if hint != nil {
+                    Image(systemName: "info.circle").accessibilityHidden(true)
                 }
             }
             .font(.system(size: 12, weight: selected ? .medium : .regular))

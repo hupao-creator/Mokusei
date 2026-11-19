@@ -54,7 +54,7 @@ import SwiftUI
     let requires = [ApplicationCapabilities.backgroundConfigurationUI.requirement]
     func settings(props: ApplicationSettingsProps<ApplicationBackgroundExecutionSettings>) -> some View {
         NativeBackgroundSettingsView(props: props,
-            description: applicationText(props.locale, "按目录范围自动整理和更新报告，共用此处的执行设置。", "Organize and update reports within each directory scope using these shared execution settings."))
+            description: applicationText(props.locale, "按目录范围自动整理和更新 Super Thread，共用此处的执行设置。", "Organize and update Super Threads within each directory scope using these shared execution settings."))
     }
 }
 

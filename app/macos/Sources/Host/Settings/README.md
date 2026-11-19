@@ -11,14 +11,15 @@ selection, Undo, label activation and the draft close/save gate.
 
 | Settings surface | Native interactions |
 | --- | --- |
-| General | Appearance/language popups, Agent/install buttons, cancel and destructive clear buttons |
-| Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons (Claude Code omits its local-detail refresh button; acquisition and load-error recovery remain) |
+| General | Appearance and language popups |
 | Chief | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing preset capsules and custom text editor |
-| Report and Tag | Off/inherited/independent filled choices, Harness seats, native execution fields and live capability animations |
+| Tag and Super Thread | Off/inherited/independent filled choices, Harness seats, native execution fields and live capability animations |
 
-Report and Tag each expose three mutually exclusive choices: Agent off, Use
-Chief and Configure separately, in both Settings and onboarding. A contextual
-explanation remains visible below the choices. Off hides execution fields and
+Tag and Super Thread each offer Agent off, Use Chief and Configure separately
+in both Settings and onboarding. Settings presents each mode's explanation as
+a native tooltip and accessibility hint on its capsule. The info icon shares
+the capsule's selection action, and the capsules wrap as the window narrows.
+Onboarding presents the selected mode's explanation below the choices. Off hides execution fields and
 preserves both the underlying source mode and retained independent settings.
 Selecting either enabled choice updates enablement and source in one draft
 change; the first independent choice copies the current Moku draft in Settings
@@ -45,7 +46,7 @@ configuration fields are read-only. Missing/unavailable Agents and unready
 resources prevent onboarding from advancing. Returning to independent mode keeps
 its retained choices.
 
-Each Settings opening gives Tag and Report independent animation visits. Once
+Each Settings opening gives Tag and Super Thread independent animation visits. Once
 playback starts, switching tabs and returning shows the completed composition;
 closing and reopening Settings permits both animations to play again. An
 interrupted playback settles to its final frame. Onboarding retains its own step lifetime.
@@ -66,8 +67,15 @@ onboarding; selection, save gates and capability checks are unchanged.
 The coordination and dispatch map uses transparent 48-point seats, hover surfaces
 and keyboard focus rings. Targets use icons, selection underlines and dashed
 paths rather than checkboxes. The last selected target remains fully opaque
-while removal is disabled. General's Agent installation buttons and the other
-Settings form controls retain their system presentation.
+while removal is disabled.
+
+In Settings the two rows, character and paths share a noninteractive regular
+Liquid Glass background with the Settings panel's 29-point corner radius and
+12-point horizontal insets. Reduce Transparency uses an opaque settings color.
+Each animated dashed path takes the adaptive accent of its current target
+Harness. A Harness without a theme color uses the Settings accent.
+The coordination and dispatch accessibility group contains the individual
+buttons. Onboarding uses the inline compact map and the Settings accent for its paths.
 
 Settings and onboarding use the animated eye character for every
 coordinating Harness. Its vector body, idle motion, handoff and target-gaze
@@ -89,15 +97,16 @@ invalid-field focus and save flushing. Quit waits for the pending valid save
 before Runtime teardown; invalid or failed saves offer Keep Editing and Quit
 Without Saving. The existing bounded cleanup deadline and repeated Quit remain
 available.
-The horizontal header includes General, Moku, Tag and Report in that order, followed by any other enabled application sections. Native tab semantics, a selected underline and roving keyboard focus are shared at every width; the header scrolls when its tabs no longer fit.
+The horizontal header includes General, Chief, Tag and Super Thread in that order, followed by any other enabled application sections. Native tab semantics, a selected underline and roving keyboard focus are shared at every width; the header scrolls when its tabs no longer fit.
 Switching sections scrolls the whole padded form to its top, retaining the same
-18-point title inset whether the selected form fits or overflows. At extreme
+18-point content inset whether the selected form fits or overflows. At extreme
 zoom the outer shell scrolls back to its top as well. Form width follows the
 panel rather than SwiftUI's overflow-dependent scroller proposal, keeping its
 560-point column centered on the same axis with or without overflow. Horizontal
-padding keeps controls clear of the native gutter. The title and subtitle wrap
-to their natural height in narrow windows and either language; they remain part
-of the scrolling content.
+padding keeps controls clear of the native gutter. The navigation labels identify
+the pages. General starts with Interface preferences, Chief starts with its
+configuration, and Tag and Super Thread start with their capability illustrations
+followed by their configuration. Harness fields and advanced options are inline.
 Unavailable selections fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
@@ -121,7 +130,7 @@ also scrolls so its fixed chrome cannot make form controls unreachable.
 The scene blurs Overview and blocks pointer, keyboard and accessibility access
 until the capsule finishes returning. Close, Escape and backdrop click share
 `NativeSettingsNavigation`'s draft gate; backdrop clicks never reach Overview.
-Native menus, IME and Agent details retain their Escape priority. Input and Note
+Native menus and IME retain their Escape priority. Input and Note
 visits remain retained beneath Settings, including draft and reading position.
 Incoming messages and interventions cannot replace Settings. On release, a
 pending intervention takes its ordinary priority over a retained Note/composer.
@@ -224,7 +233,8 @@ snapshot cannot certify configuration readiness. See the
 Installation discovery distinguishes not-yet-loaded, initial loading, successful
 (including empty) and failed reads. Moku shows a compact native progress notice
 until the roster is known, rather than an empty dispatch diagram or premature
-provider validation. Empty rosters point to General for installation; failed or
+provider validation. Empty rosters prompt users to install a supported Agent on
+their Mac and retry. Failed or
 partially failed detection exposes a retry action and the detection error. Only
 a successful roster can establish that a saved provider is unavailable. Periodic
 refreshes keep a successful roster visible. Stopping discovery cancels its probe
@@ -248,7 +258,7 @@ text-field notifications cannot clear another editor's close/save gate.
 
 Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible. Local appearance/language persistence has its own path and works without a connected Runtime. General → Interface preferences saves `DesktopPreferences` directly without entering a Runtime draft. `desktop-preferences.json` stores `preferences.appearance` and `preferences.locale`; updates retain selection and onboarding state. Atomic write failures retain the prior observed value and show the existing preference error notice. Interaction snapshots expose the saved values as `settings.appearance` and `settings.locale`.
 
-Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku's “Model selection preferences” (模型选择偏好) offers Economy, Balanced,
+Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Super Thread Agent and Tag Agent use their built-in system instructions; settings do not expose full system-prompt replacement. Chief's “Model selection preferences” (模型选择偏好) offers Economy, Balanced,
 Performance and Custom separate capsule buttons after its basic execution fields
 and before Advanced options, including the complete Custom guidance editor.
 The production Settings entry uses `.compact, showsRoutingGuidance: true` for
@@ -261,10 +271,12 @@ advanced disclosure padding and description spacing retain their existing metric
 The Custom editor draws a rounded adaptive Settings border above its opaque
 AppKit content, with accent focus and danger validation states, retaining native
 text editing and focus-ring behavior.
-They reuse the role-mode choice style, show a checkmark on the selected item and
-wrap into fewer columns as the window narrows. Chinese and English explanations
-refer only to cost-effective and frontier models; concrete model names and routing
-guidance remain owned by Runtime. The saved
+The preset buttons reuse the role-mode choice style, show a checkmark on the selected item and
+wrap into fewer columns as the window narrows. Each capsule includes an info
+icon and exposes its own localized explanation as a native tooltip and
+accessibility hint. The whole capsule, including the icon, selects the preset.
+The preset explanations use cost-effective and frontier model categories. Runtime
+owns concrete model names and routing guidance. The saved
 `moku.routingPreset` activates general routing guidance on the next Moku
 execution. Custom restores the separately retained `moku.routingGuidance`
 text editor and is saved explicitly, including when empty. With no saved preset,
@@ -316,8 +328,8 @@ Settings keeps its existing page Escape handler; embedded model popovers retain
 The production [onboarding panel](../Onboarding/README.md) and Settings mount
 the same `NativeRoleConfigurationPanel`, map, Harness fields and typed application
 background editor. `nativeSettingsCompactPresentation` suppresses group explanations
-while the background editor keeps its three mode choices and contextual
-explanation. Tag and Report keep their production animations while configuration stays immediately available. Each tab
+while the background editor keeps its three mode choices and their explanations.
+Tag and Super Thread keep their production animations while configuration stays immediately available. Each tab
 visit plays once and retains its completed composition. Leaving the tab unmounts
 and cancels its animation; inactive/hidden windows settle an interrupted playback
 to the final frame without replaying on activation. Tag pauses SpriteKit after
@@ -331,14 +343,15 @@ Harness editors report acquisition and incomplete local model choices through
 Settings starts with a 900-point preferred height and grows to the active tab's
 natural document height (including header and form insets). The shared Dock shell
 keeps its 780-point preferred width and caps both dimensions to the workspace
-viewport with 24-point margins. General, Moku, Tag and Report use this same sizing,
+viewport with 24-point margins. General, Chief, Tag and Super Thread use this same sizing,
 including inherited and independent Harness forms. Smaller windows, app zoom,
 expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
-The **Super Thread Agent** section uses the `report.settings` identity and
-provides inherited/independent choices and an enabled state.
+The **Super Thread** tab configures Super Thread Agent through the
+`report.settings` identity. Its mode choices are Agent off, Use Chief and
+Configure separately.
 
 All Harness advanced-options headers retain the native disclosure, with a
 full-width label and 32-point minimum hit height. Title, chevron and trailing space toggle the same
@@ -356,7 +369,7 @@ and carousel selection are session presentation state. See the
 [`E2E-SETTINGS-001`](../../../../../tools/e2e/README.md) operates the actual
 `moku.routingPreset.economy|balanced|performance|custom` mounted action controls.
 The fresh connected profile uses real Runtime and Codex discovery. From Overview,
-the runner opens Settings/Moku, activates an unselected Economy or Performance
+the runner opens Settings/Chief, activates an unselected Economy or Performance
 capsule using its observed handle, and observes its selected value after refresh.
 It closes through the normal save gate, checks the exact saved preset through
 public `state:load`, then reopens and observes the same selection. The four

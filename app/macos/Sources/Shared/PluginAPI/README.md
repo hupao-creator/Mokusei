@@ -2,6 +2,11 @@
 
 [HarnessPlugin.swift](HarnessPlugin.swift) and [HarnessRegistry.swift](HarnessRegistry.swift) define native Harness registration and presentation. [HarnessThread.swift](HarnessThread.swift) carries public thread state/actions; each plugin interprets its own serialized projection. Shared hosts do not parse another Harness's private timeline.
 
+Harness plugins can expose an adaptive native `themeColor`. The built-in
+plugins share that accent between their card presentation and the Settings
+dispatch paths drawn for their targets. An omitted color uses the host's
+local Settings accent.
+
 Overview cards receive only a responder for already-pending permission/question
 interactions and a callback to open the reading page. They do not receive
 `HarnessThreadActions` or a follow-up draft route, so Overview cannot originate

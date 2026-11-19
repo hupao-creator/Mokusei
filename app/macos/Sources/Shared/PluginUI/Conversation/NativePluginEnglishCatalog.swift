@@ -65,7 +65,7 @@ enum NativePluginEnglishCatalog {
         "前 1 轮对话": "1 previous turn",
         "链接指向的执行不可用。": "The linked execution is unavailable.",
         "历史执行不可用": "Historical execution unavailable",
-        "无法找到报告关联的历史执行。": "The historical execution linked by this report could not be found.",
+        "无法找到此 Super Thread 关联的历史执行。": "The historical execution linked by this Super Thread could not be found.",
         "完成时间：": "Completion time:",
         "俯瞰": "Overview",
         "输入": "Input",

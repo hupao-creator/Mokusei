@@ -10,7 +10,7 @@ Drag the divider to adjust the panels in a side-by-side layout. In a narrow wind
 
 Click a web or local HTML link in an agent conversation to open it beside the conversation. Use **Web page** to reopen the sidecard. In **Address**, you can enter a web address or the full path of a local HTML file. Use the toolbar to go back, go forward, or reload. If a site shows an error page, you can still read it. If loading fails and you see **Retry**, click it to try loading again.
 
-Reports also open web links in a sidecard. To talk to an agent from a report, switch back to **Related executions** and open a source conversation. [Super Threads](reports-tags-and-changes.md#see-the-work-behind-a-super-thread)
+Super Threads also open web links in a sidecard. To talk to an agent from a Super Thread, switch back to **Related executions** and open a source conversation. [Super Threads](reports-tags-and-changes.md#see-the-work-behind-a-super-thread)
 
 ## Mark up a web page and send feedback
 

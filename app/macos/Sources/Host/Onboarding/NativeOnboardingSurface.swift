@@ -108,7 +108,7 @@ struct NativeOnboardingSurface: View {
                         else if panelStep == .discovery { discovery.padding(.top, 22) }
                         else {
                             NativeRoleConfigurationPanel(role: panelStep == .moku ? .moku : panelStep == .tag ? .tag : .report,
-                                harnesses: state.installed, locale: locale) {
+                                harnesses: state.installed, locale: locale, showsHeading: true) {
                                 configurationForStep(panelStep).disabled(state.busy)
                             }
                         }

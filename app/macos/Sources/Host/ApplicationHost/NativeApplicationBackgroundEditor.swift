@@ -43,7 +43,7 @@ public struct NativeApplicationBackgroundEditor: View {
         }
     }
 
-    private enum AgentChoice: String {
+    private enum AgentChoice: String, CaseIterable {
         case off, inherit, independent
     }
 
@@ -51,8 +51,8 @@ public struct NativeApplicationBackgroundEditor: View {
         value.enabled ? (inherited ? .inherit : .independent) : .off
     }
 
-    private var choiceDescription: String {
-        switch selectedChoice {
+    private func choiceDescription(_ choice: AgentChoice) -> String {
+        switch choice {
         case .off:
             locale.text("停止当前 Agent 并暂停自动处理。保留已有数据、待处理任务和运行配置，重新开启后继续处理。",
                         "Stops this Agent and pauses automatic processing. Existing data, pending work and execution settings are kept; enabling resumes pending work.")
@@ -69,18 +69,22 @@ public struct NativeApplicationBackgroundEditor: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             GlassEffectContainer {
-                HStack(spacing: 12) {
-                    modeChoice(locale.text("不启用", "Agent off"), choice: .off)
-                    modeChoice(locale.text("跟随 Chief", "Use Chief"), choice: .inherit)
-                    modeChoice(locale.text("单独配置", "Configure separately"), choice: .independent)
+                if editorDrafts != nil {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 168), spacing: 12)], spacing: 12) {
+                        modeChoices
+                    }.padding(.bottom, 18)
+                } else {
+                    HStack(spacing: 12) { modeChoices }
                 }
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(locale.text("Agent 运行方式", "Agent mode"))
-            Text(choiceDescription)
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10).padding(.bottom, 18)
+            if editorDrafts == nil {
+                Text(choiceDescription(selectedChoice))
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 10).padding(.bottom, 18)
+            }
             if value.enabled { configuration }
             else {
                 Color.clear.frame(height: 0).nativeSettingsEditorReady(true)
@@ -106,10 +110,18 @@ public struct NativeApplicationBackgroundEditor: View {
         }
     }
 
-    private func modeChoice(_ title: String, choice: AgentChoice) -> some View {
-        let selected = selectedChoice == choice
-        return NativeSettingsChoiceButton(title, selected: selected) { selectChoice(choice) }
-        .nativeSettingsAction(choice.rawValue, label: title, selected: selected) { selectChoice(choice) }
+    private var modeChoices: some View {
+        ForEach(AgentChoice.allCases, id: \.self) { choice in
+            let title = switch choice {
+            case .off: locale.text("不启用", "Agent off")
+            case .inherit: locale.text("跟随 Chief", "Use Chief")
+            case .independent: locale.text("单独配置", "Configure separately")
+            }
+            let selected = selectedChoice == choice
+            let hint = editorDrafts != nil ? choiceDescription(choice) : nil
+            NativeSettingsChoiceButton(title, selected: selected, hint: hint) { selectChoice(choice) }
+                .nativeSettingsAction(choice.rawValue, label: title, selected: selected) { selectChoice(choice) }
+        }
     }
 
     @ViewBuilder private func onboardingFields(_ effective: ApplicationBackgroundExecutionSettings.Overrides) -> some View {

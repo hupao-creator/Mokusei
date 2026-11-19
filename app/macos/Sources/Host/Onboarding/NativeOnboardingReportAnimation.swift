@@ -39,7 +39,7 @@ struct NativeOnboardingReportAnimation: View {
         }
         .frame(height: 250)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(locale.text("多份长文档聚拢，展开为全貌、关系和要点三幅图组成的简洁报告", "Long documents gather into a concise visual report: overview, connections, and takeaways"))
+        .accessibilityLabel(locale.text("多份长文档汇成一条 Super Thread，用三幅图展示全貌、关系和要点", "Long documents form a concise Super Thread with three visuals for overview, connections, and takeaways"))
         .accessibilityIdentifier("report-capability-animation")
         .background(NativeSettingsWindowVisibility { windowVisible = $0 })
         .task(id: active) {
