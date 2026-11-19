@@ -8,8 +8,8 @@
 AsciiDoc、README、文本运行说明/生产 prompt、证据文本及 LICENSE，包含隐藏 `.agents/`
 和 `CLAUDE.md` 符号链接：共 **197** 个范围标识，其中 **190** 项自有/适用文档、
 **7** 项第三方原文/生成数据。范围标识数量不是当前文件数量。
-当前表覆盖 **151** 个文档候选，其中下表 **144** 项为自有/适用入口，另列 **7** 项第三方输入。
-其中 **24** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
+当前表覆盖 **152** 个文档候选，其中下表 **145** 项为自有/适用入口，另列 **7** 项第三方输入。
+其中 **25** 项当前入口不在固定审计输入中。**70** 个没有独立当前文件的输入标识
 逐项映射到当前事实所有者；日志接口类标识明确映射到现有能力边界，不声明日志实现。
 
 第三方依赖源码、SwiftPM/Go 缓存、构建输出、图片/字体二进制、JSON/CSV 原始采样和
@@ -29,6 +29,7 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | [.agents/issue-tracker.md](../../.agents/issue-tracker.md) | 流程/配置静态核对；[AGENTS.md](../../AGENTS.md)、[issue-tracker.md](../../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [.agents/linting.md](../../.agents/linting.md) | 流程/配置静态核对；[Makefile](../../Makefile)、[ci.yml](../../.github/workflows/ci.yml)、[scope.py](../../scripts/ci/scope.py)、[PBT inventory](pbt/properties.json) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [.agents/skills/commit-message/SKILL.md](../../.agents/skills/commit-message/SKILL.md) | 流程/配置静态核对；[AGENTS.md](../../AGENTS.md)、[issue-tracker.md](../../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
+| [docs-writing](../../.agents/skills/docs-writing/SKILL.md) | [功能迭代要求](../../AGENTS.md#文档驱动)、[产品指南目录](../../docs/README.md)、[skill 展示信息](../../.agents/skills/docs-writing/agents/openai.yaml) | 仅覆盖写作规范和入口，产品交互证据归所属功能 |
 | [.agents/skills/grilling/SKILL.md](../../.agents/skills/grilling/SKILL.md) | 流程/配置静态核对；[AGENTS.md](../../AGENTS.md)、[issue-tracker.md](../../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [.agents/skills/implement/SKILL.md](../../.agents/skills/implement/SKILL.md) | 流程/配置静态核对；[AGENTS.md](../../AGENTS.md)、[issue-tracker.md](../../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
 | [.agents/skills/to-spec/SKILL.md](../../.agents/skills/to-spec/SKILL.md) | 流程/配置静态核对；[AGENTS.md](../../AGENTS.md)、[issue-tracker.md](../../.agents/issue-tracker.md) | 限已配置流程；不代表远程门禁或行为覆盖通过 |
