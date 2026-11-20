@@ -1124,9 +1124,10 @@ feeding `ScrollPosition`, retained history positions or relative scroll commands
 Snapshots keep the raw offset and inset alongside the normalized position so
 replays can detect coordinate drift instead of accepting a finite but wrong value.
 
-Execution-result visits use the existing nested reader for current as well as
-historical executions, so streaming, completion and a successor never replace
-the referenced execution. Each Harness's typed detail rows supply visible
+Chief Note citations and execution-result visits use the nested reader for current
+and historical executions. The cited run keeps its identity through streaming,
+completion and a successor. A citation starts at the document heading with
+output following off. A result request locates the result after the body loads. Each Harness's typed detail rows supply visible
 content/process semantics and mark final reply rows separately from reviews or
 status messages. Once a body is loaded, its final reply (from its first text part,
 or latest visible row/status when absent) mounts the result anchor; manifests do not claim
@@ -1520,7 +1521,7 @@ WindowServer. Wide/stacked openings, switches, first-link/reopen,
 resize and close/reversal still need visual acceptance when that scope is allowed.
 
 Report commits its initial folded layout through `NativeReadingEntranceStage`
-after primary reading travel. A preselected Note result under Reduce Motion
+after primary reading travel. A preselected Note execution under Reduce Motion
 reserves its final side-by-side or stacked panes from the first Report layout.
 Document and execution readiness still govern content and input admission.
 The reduced-motion Note visit presents its ready content at full opacity. `NativeApplicationHTMLReadinessKey` carries the

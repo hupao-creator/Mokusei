@@ -1030,7 +1030,7 @@ public struct NativeMokuDock: View {
             // still address an anchor while a native transient owns Escape.
             guard let window = NSApp.currentEvent?.window ?? NSApp.keyWindow,
                   window.attachedSheet == nil, NSApp.modalWindow == nil,
-                  !(window.childWindows ?? []).contains(where: { $0.isVisible }) else { return }
+                  !(window.childWindows ?? []).contains(where: { $0.isVisible && $0.canBecomeKey }) else { return }
             if directoryMentions.dismiss() { return }
             if let sidecardComposer { sidecardComposer.cancel() }
             else { onThreadClose?() }

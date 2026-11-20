@@ -126,7 +126,7 @@ another page's Escape.
 Moku note execution URLs are parsed by the shared Markdown link boundary and
 enter through `openNoteExecution`; there is no OS-level execution URL handler.
 This entry admits public ordinary threads, including archived and
-failed or Moku-tool-interrupted threads hidden from Overview. The result reading request is
+failed or Moku-tool-interrupted threads hidden from Overview. The reading request is
 exact and does not start execution. A missing or ineligible thread shows an
 unavailable notice; a missing execution uses the reader's unavailable page. Each click receives a fresh reading request.
 After Note dismissal, Overview keeps a filter that already contains the
@@ -134,10 +134,13 @@ destination or selects a matching filter. A grouped destination must reach its
 own carousel page before the reader opens from the card. An eligible target
 without an Overview card can still open.
 The catalog indexes Super Thread ownership by ordinary Thread, across its runs.
-A unique owner opens the Report panel with the linked execution's result beside
-the document. The Report's own related-list entry opens the current execution.
-Both show the conversation TOC inside the side panel. Back from a Note link returns to the
-expanded Chief Note. The Overview command dismisses the visit to the canvas. Admission rules remain entry-specific; archived
+A unique owner opens the Report panel with the cited run beside the document.
+Both Note routes start at the heading of the exact run. The Report’s own
+related-list entry opens the current execution. Both side-panel entries retain
+the conversation TOC. Back to Chief Note restores the expanded Note.
+The Overview command, the reader backdrop and the Close button on either
+expanded citation dismiss to the canvas with the Note closed. The sidebar
+arrow returns to the related list, where the Report arrow returns to the Note. Admission rules remain entry-specific; archived
 ordinary threads are valid for both, while the Note additionally admits ordinary
 failed or Moku-tool-interrupted threads hidden from Overview.
 
@@ -151,7 +154,7 @@ remaining handles.
 Agent, Report and Moku history reading use a panel-owned Close rather than a Back control beside the
 traffic lights. A Report opened from the member grid uses a panel-owned Back
 arrow in that seat and returns to the same grid. An Agent opened from a Chief Note
-link uses that seat for Back to Chief Note. Agent history executions have no dedicated upper-left Back button,
+link uses Close in that seat. Escape in the cited document returns to the Note. Agent history executions have no dedicated upper-left Back button,
 including when the shared history document has no navigation host. History retains
 TOC navigation, Escape and its close action with the existing route-visit fence.
 Other application navigation retains its own window-navigation behavior.

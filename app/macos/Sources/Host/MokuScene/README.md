@@ -407,17 +407,19 @@ Pointer and accessibility activation dispatch the same exact execution reference
 The Dock closes the Note and retains its reading position. Once the Note has
 closed, Overview reveals the destination in its filter and, for a grouped Report,
 on its Collection page. The settled Overview card supplies the reader’s origin.
-A unique Super Thread owner opens its Report with the linked result selected
-in Related executions. Other links open the result in the ordinary Agent reader,
-including eligible Threads hidden from Overview. Back restores the expanded
-Note and its retained viewport. The closed Note remains ineligible for input,
-accessibility and exposure. Reduce Motion switches directly on entry and return.
+A unique Super Thread owner opens its Report with the cited execution selected
+in Related executions. Other links open the ordinary Agent reader, including
+eligible Threads hidden from Overview. Both readers start at the cited run’s
+heading, with output following off. The visit stays on that execution after a
+successor starts.
 
-The reader opens one fixed execution at its final visible reply, or its latest
-visible content/status when no final reply exists. Running executions initially
-scroll to the bottom and follow output until the user scrolls up; Jump to latest
-restores following. The visit stays on the cited execution after a successor
-starts.
+Closing either expanded reader, clicking its backdrop or using the Overview
+command returns to Overview with the Note closed. Only an explicit Back to the
+Note restores its retained viewport. Escape in the ordinary cited document
+performs that Back action. In the Report, the sidebar arrow restores the related
+list, where the Report arrow returns to the Note.
+The closed Note remains ineligible for input, accessibility and exposure.
+Reduce Motion switches directly on entry and return.
 
 ## Settings expansion
 
@@ -628,7 +630,9 @@ control cancellation retain priority. Escape closes directory completion first;
 in Agent detail an outside press also dismisses completion first without folding
 the editor or closing the reader. Native transient/IME-owned presses are recorded
 before delivery so mouse-up cannot close the reading panel after AppKit commits a
-mark or removes a popup. No forced unmark/discard or delayed close is added.
+mark or removes a popup. The window-sharing indicator can stay visible while
+the reader handles a blank-margin click or the composer handles Escape. Only
+child windows that can take keyboard focus claim those actions.
 Existing Moku interventions/covering routes keep their surface priority and release
 the Agent editor afterward; its draft remains owned by the same Thread.
 Execution Sidecards stay usable

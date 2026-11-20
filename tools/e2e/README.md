@@ -111,7 +111,7 @@ an isolated connected workspace. `E2E-SETTINGS-001` exercises preset persistence
 ### Chief Note execution link
 
 Prepare an isolated workspace with two directories. Give both ordinary Threads
-at least two completed runs with distinguishable replies. Have one Super Thread
+at least two completed runs with distinguishable replies longer than the viewport. Have one Super Thread
 cite a different run of the same Thread as the Note. Put links to both Threads
 near the bottom of a long Chief Note. Include enough Reports for a multipage
 Collection on All. Record the isolated window continuously and save the filter,
@@ -120,12 +120,17 @@ carousel member, execution identities and link position alongside the recording.
 1. In the other directory, scroll the Note to the ordinary link and click it
    with the system pointer. Check that the Note finishes closing before the
    filter changes. The reader should open from the target card at the cited
-   result. Repeat from a filter that already contains the target and check that
-   its selection stays put. Return with **Back to Chief Note** and compare the
-   link’s window position. Open the historical link again and use Escape on
-   its read-only text, then repeat with the Overview command to leave Note closed.
+   run’s heading. After the scoped body has loaded, check that its timeline
+   height exceeds its viewport, `top` is zero and `following` is false. Repeat from a filter that already contains the target and check that
+   its selection stays put. Click the reader’s **×** and verify the Note stays
+   closed on Overview. Reopen the Note and follow the historical link again.
+   Press Escape in the read-only text to return to the Note and compare the
+   link’s window position. On separate visits, use the Overview command and
+   click the reader backdrop. Both Overview exits leave the Note closed.
 2. Open the associated link from a different directory. Check the Report title
-   and the exact cited reply in its open side panel. Use the conversation
+   and the exact cited execution in its open side panel. Apply the same scroll
+   checks to that timeline. Close the expanded visit with the Report’s **×**
+   and verify Overview settles with the Note closed. Reopen the link. Use the conversation
    contents to visit current and historical rows. Type a draft on the historical
    run and switch away and back. **Back to related executions** should show
    the Report’s list. The arrow on the Report returns to the Note.

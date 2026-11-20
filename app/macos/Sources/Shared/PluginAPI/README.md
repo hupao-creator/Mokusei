@@ -109,8 +109,9 @@ these presentation requests.
 with exactly one nonblank `threadId` and `executionId` query parameter, without
 credentials, ports, path or fragment. It yields an `ApplicationExecutionRef`;
 the Host checks public ordinary-thread membership. `HarnessReadingTarget.position`
-adds `result` alongside the default `start`, preserving execution identity and
-the per-click request ID. Harnesses pass semantic positioning with their public
+defaults to `start`. The `executionStart` and `result` positions pin the
+requested execution. The former opens at its document heading and the latter
+locates its final visible reply. Harnesses pass semantic positioning with their public
 active-execution fact to the shared reader, alongside their existing private
 message-anchor resolution.
 

@@ -51,7 +51,7 @@ import MokuseiPluginUI
         let reference: ApplicationExecutionRef
         var space: String
         var phase = Phase.dismissing
-        var returnsToNote = true
+        var returnsToNote = false
     }
     var noteReadingOrigin: NoteReadingOrigin?
 

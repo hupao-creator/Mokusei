@@ -588,7 +588,12 @@ public struct HarnessRespondRequest: Hashable, Sendable {
 }
 
 public struct HarnessReadingTarget: Hashable, Sendable {
-    public enum Position: String, CaseIterable, Hashable, Sendable { case start, result }
+    public enum Position: String, CaseIterable, Hashable, Sendable {
+        case start, executionStart, result
+
+        // Both explicit execution positions keep the cited run when a successor starts.
+        public var pinsExecution: Bool { self == .executionStart || self == .result }
+    }
     public enum Mode: String, CaseIterable, Hashable, Sendable { case current, history }
     public let executionID: JSONText
     public let requestID: JSONText

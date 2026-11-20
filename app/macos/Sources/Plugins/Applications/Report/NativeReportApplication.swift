@@ -104,10 +104,10 @@ struct NativeReportDetail: View {
     private var expanded: Bool { sidecards.active == .relatedExecutions }
     var body: some View {
         GeometryReader { geometry in
-            // A direct result entry already knows its destination. With Reduce
+            // A cited execution already has a destination. With Reduce
             // Motion, reserve both panes on the first frame while the HTML and
             // execution load. Input and accessibility still require admission.
-            let showsExecutionPane = expanded || (reduceMotion && selected != nil && sidecards.entryPosition == .result
+            let showsExecutionPane = expanded || (reduceMotion && selected != nil && sidecards.entryPosition.pinsExecution
                 && sidecards.pending == .relatedExecutions && !suppressed)
             let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: showsExecutionPane,
                 preferredWidth: selected == nil ? 0.3 : 0.5)

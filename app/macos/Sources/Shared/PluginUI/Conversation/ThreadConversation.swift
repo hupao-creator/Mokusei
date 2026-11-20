@@ -213,8 +213,8 @@ public struct ThreadConversation: View {
         if case let .history(id) = destination { return visibleRows.first { $0.id == id } }
         return nil
     }
-    private var resultVisit: Bool {
-        readingTarget?.position == .result && destination == requestedDestination
+    private var pinnedExecutionVisit: Bool {
+        readingTarget?.position.pinsExecution == true && destination == requestedDestination
     }
     // A requested document is the host route's entry, regardless of scroll
     // position. The retained current document is not a previous visit until
@@ -455,11 +455,11 @@ public struct ThreadConversation: View {
     }
     private func historyPage() -> some View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
-                              active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
+                              active: pinnedExecutionVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
                               allowsJumpToLatest: allowsJumpToLatest && selectedPage?.execution?.id == activeExecutionId,
                               hidesHeading: executionCard && !relatedExecution && agentDetail && selectedIsActive,
-                              result: resultVisit, readingTarget: scrollTarget,
+                              pinnedExecution: pinnedExecutionVisit, readingTarget: scrollTarget,
                               readingVisitId: destination == requestedDestination ? consumedRequest : nil,
                               locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
                               backLabel: (entryRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
@@ -550,9 +550,9 @@ public struct ThreadConversation: View {
         if let index {
             let id = visibleRows[index].id
             setPageDirection(toward: id)
-            // A result visit owns exactly one execution, including while it is
+            // A pinned visit owns exactly one execution, including while it is
             // current. A successor cannot move its content or following target.
-            destination = target.position == .result ? .history(id)
+            destination = target.position.pinsExecution ? .history(id)
                 : target.mode == .current || index == lastExecutionIndex ? .document(inline: id) : .history(id)
         } else { destination = .unavailable }
         requestedDestination = destination
@@ -561,7 +561,7 @@ public struct ThreadConversation: View {
         if case let .document(inline?) = destination, !visibleRows.contains(where: { $0.id == inline }) {
             destination = .document(inline: nil)
         }
-        guard !resultVisit, case let .history(id) = destination, visibleRows.contains(where: { $0.id == id && !$0.history }), !historicalIDs.contains(id) else { return }
+        guard !pinnedExecutionVisit, case let .history(id) = destination, visibleRows.contains(where: { $0.id == id && !$0.history }), !historicalIDs.contains(id) else { return }
         let promoted = ConversationDestination.document(inline: id)
         if requestedDestination == destination { requestedDestination = promoted }
         destination = promoted
@@ -598,7 +598,7 @@ private struct ThreadHistoryDocument: View {
     let running: Bool
     let allowsJumpToLatest: Bool
     let hidesHeading: Bool
-    let result: Bool
+    let pinnedExecution: Bool
     let readingTarget: ThreadTimelineReadingTarget?
     let readingVisitId: JSONText?
     let locatedRequestId: JSONText?
@@ -612,7 +612,7 @@ private struct ThreadHistoryDocument: View {
     @State private var authors: [JSONText: JSONValue] = [:]
     @State private var workAvailability: [JSONText: Bool] = [:]
     @State private var manualWork: Bool?
-    private var work: Bool { running || (manualWork ?? (result && active)) }
+    private var work: Bool { running || (manualWork ?? (pinnedExecution && active)) }
     @Environment(\.nativeReadingInteractionActive) private var readingActive
     @FocusState private var headingFocused: Bool
     var body: some View {
@@ -620,7 +620,7 @@ private struct ThreadHistoryDocument: View {
             rows: page.map { [ThreadTimelineRow(id: $0.id, createdAt: $0.createdAt, node: rowContent ?? $0.node)] } ?? [],
             toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。")).nativeReadingContentReady()),
             contentTopInset: agentDetail ? 12 : nil,
-            followOutput: result || (running && readingTarget?.follow == true), allowsJumpToLatest: allowsJumpToLatest,
+            followOutput: pinnedExecution || (running && readingTarget?.follow == true), allowsJumpToLatest: allowsJumpToLatest,
             followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, readingVisitId: readingVisitId, locatedRequestId: locatedRequestId, onLocated: onLocated)
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))

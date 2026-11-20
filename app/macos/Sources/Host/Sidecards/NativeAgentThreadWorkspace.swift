@@ -68,7 +68,7 @@ private extension EnvironmentValues {
 }
 
 extension EnvironmentValues {
-    @Entry var nativeAgentReturnsToNote = false
+    @Entry var nativeAgentPanelClose: (() -> Void)?
     @Entry var nativeAgentInputTargetChanged: ((UUID, ThreadConversationInputTarget?) -> Void)?
 }
 
@@ -154,7 +154,7 @@ struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
-    @Environment(\.nativeAgentReturnsToNote) private var returnsToNote
+    @Environment(\.nativeAgentPanelClose) private var panelClose
     @Environment(\.nativeAgentInputTargetChanged) private var inputTargetChanged
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedLauncher: JSONText?
@@ -210,8 +210,7 @@ struct NativeSidecardWorkspaceLayout: View {
                     .background(NativeReadingPanelFrame())
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-                    .nativeReadingPanelClose(label: returnsToNote ? localize("返回 Chief 笔记", "Back to Chief Note")
-                        : localize("关闭 Thread", "Close thread"), isBack: returnsToNote, onClose: model.closeThread)
+                    .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: panelClose ?? model.closeThread)
                     .accessibilityIdentifier("agent-reading-panel")
                     .zIndex(snapshot.handoff == nil ? 0 : 2)
                 if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {

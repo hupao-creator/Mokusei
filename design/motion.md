@@ -10,9 +10,9 @@ filter. A grouped Report turns to the requested page before the reader opens.
 The settled card uses its ordinary 420ms opening, including the Agent card’s
 identity handoff when its anchors are available. The Report
 admits the cited execution after its document and sidebar layout are ready.
-With Reduce Motion, each handoff settles directly. A preselected result
+With Reduce Motion, each handoff settles directly. A preselected execution
 reserves both Report panes while the content loads, and the input opens at
-its final width once ready. The native document and cited result appear at
+its final width once ready. The native document and cited execution appear at
 full opacity when each finishes loading.
 Reduce Motion also settles member removals and the
 [final Overview card exit](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)

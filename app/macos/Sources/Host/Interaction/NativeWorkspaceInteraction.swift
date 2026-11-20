@@ -152,7 +152,7 @@ public extension NativeWorkspacePresentation {
             }
             else if browsingCollection, let owner = collectionPanel.owner { collectionPanel.close(owner: owner) }
             else if let navigation { navigation.onBack() }
-            else if selected != nil, nativeApplicationNavigation || readingCollectionMember { closeApplication() }
+            else if selected != nil, nativeApplicationNavigation || readingCollectionMember { backFromReader() }
             else { scene.setMokuOpen(false) }
         case .openThread(let ref):
             guard interactionThreads.contains(ref) else {
