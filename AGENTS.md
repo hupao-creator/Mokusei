@@ -63,6 +63,7 @@
 - [产品指南](docs/README.md)
 - [领域术语与职责](CONTEXT.md)
 - [Go 模块与依赖边界](internal/README.md)
+- [如何新增 Harness plugin](internal/plugins/harness/README.md)
 - [共享原生模块与平台边界](app/macos/README.md)
 - [本地验证要求](.agents/linting.md)
 - [当前事实与验证索引](tools/verification/facts.md)
