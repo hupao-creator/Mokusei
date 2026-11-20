@@ -128,6 +128,15 @@ continuously through each action.
    its historical result, focus its read-only text and press Escape to return.
    Open the link again and use the Overview command to leave the Note closed.
 
+5. Bind that Thread to a Super Thread using a different execution. Reopen the
+   Note link and check the owning Report and the exact linked result in its side
+   panel. Select the current and historical rows in the side panel's conversation
+   contents using pointer and AXPress. Check the selected row, displayed run
+   and retained Report. Type a draft on the historical run, switch to current
+   and back, and compare the editor contents. Return using the Report arrow. Open the
+   same Report from Overview, select the related card and repeat TOC navigation
+   from the current run. Back to related executions restores the list.
+
 Keep the source revision, build identity, input targets, mounted result, return
 state and frame recording together. The semantic note toggle alone exercises
 only the Note entrance. [Note and link behavior](../../app/macos/Sources/Host/MokuScene/README.md)

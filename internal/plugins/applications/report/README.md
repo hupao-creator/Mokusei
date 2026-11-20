@@ -159,7 +159,11 @@ projection, while the card uses the authored short description.
 
 The right-hand execution list occupies 30% of available panel width (excluding
 the 16pt gap). Selecting a reference replaces the list with the host's actual
-single-execution Harness reader at 50%. Back restores the list; removal or hiding
+conversation reader at 50%, initially positioned at the current execution. A
+Chief Note opens the owning report with its exact linked result selected, even
+when the report cites a different execution of that Thread. The conversation's
+TOC navigates its history in place and the displayed execution owns the composer.
+Back restores the list; removal or hiding
 of the selected reference retires its reader. HTML remains mounted across these
 changes. Browser-link navigation retains its existing additional workspace.
 

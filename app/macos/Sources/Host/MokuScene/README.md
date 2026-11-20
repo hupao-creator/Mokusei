@@ -406,7 +406,9 @@ control supplies named keyboard/accessibility activation.
 Pointer and accessibility activation use the visible attachment frame at the
 activated character index. The scene converts it from window points into
 logical panel coordinates before the Dock changes owners. The panel expands
-from that link. An offscreen link activated through accessibility uses the
+from that link. The Thread's unique Super Thread owner opens its Report with
+the exact linked result selected in Related executions. Without a unique owner
+the ordinary Agent reader opens that result. An offscreen link activated through accessibility uses the
 visible Note shell. Back restores the expanded Note and its retained viewport.
 The covered Note stays ineligible for input, accessibility and exposure.
 A different document or viewport retires the saved return frame. Reduce Motion

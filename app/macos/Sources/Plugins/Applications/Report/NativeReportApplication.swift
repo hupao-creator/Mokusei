@@ -93,6 +93,7 @@ struct NativeReportDetail: View {
     @State private var referencesRevealed = false
     @Environment(\.nativeReportSidecards) private var sharedSidecards
     @FocusState private var launcherFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @Environment(\.nativeReadingAuxiliarySuppressed) private var suppressed
     @Environment(\.nativeReportPanelReturn) private var returning
@@ -163,9 +164,9 @@ struct NativeReportDetail: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(applicationText(locale, "关联执行", "Related executions"))
             }
-            .animation(NativeSidecardTiming.foldAnimation, value: expanded)
-            .animation(NativeSidecardTiming.foldAnimation, value: selected)
-            .animation(NativeSidecardTiming.foldAnimation, value: layout.stacked)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: selected)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
             .background {
                 NativeReadingEntranceStage(enabled: entranceReady && !suppressed && !entranceAdmitted) {
                     entranceAdmitted = true
@@ -173,9 +174,9 @@ struct NativeReportDetail: View {
                 }
             }
             .preference(key: NativeReportExecutionInputKey.self,
-                value: expanded && !suppressed && returning == nil ? selected.map {
+                value: expanded && !suppressed && returning == nil ? sidecards.inputExecution.map {
                     NativeReportExecutionInput(reference: $0, frame: CGRect(x: layout.surfaceX, y: layout.surfaceY,
-                        width: layout.surfaceWidth, height: layout.surfaceHeight), ready: sidecards.executionReady)
+                        width: layout.surfaceWidth, height: layout.surfaceHeight), ready: sidecards.executionReady && sidecards.inputReady)
                 } : nil)
         }
         .onAppear { subscribeReferences(); refresh() }

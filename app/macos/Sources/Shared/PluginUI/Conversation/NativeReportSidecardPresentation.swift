@@ -57,6 +57,10 @@ public final class NativeReportSidecardPresentation {
     public private(set) var admitted = false
     public private(set) var selectionID = UUID()
     public private(set) var selectedExecution: ApplicationExecutionRef?
+    // The entry stays mounted as the TOC changes the execution that owns input.
+    public private(set) var inputExecution: ApplicationExecutionRef?
+    public private(set) var inputReady = false
+    public private(set) var entryPosition: HarnessReadingTarget.Position = .start
     public private(set) var executionVisit = UUID()
     public private(set) var continuedExecution = false
     public private(set) var executionReady = false
@@ -70,15 +74,25 @@ public final class NativeReportSidecardPresentation {
 
     public init() {}
 
-    public func selectExecution(_ reference: ApplicationExecutionRef?) {
+    public func selectExecution(_ reference: ApplicationExecutionRef?, position: HarnessReadingTarget.Position = .start) {
         guard !retainingForReturn else { return }
         selectionID = UUID(); executionVisit = UUID()
-        selectedExecution = reference; continuedExecution = false; executionReady = false
+        selectedExecution = reference; inputExecution = nil; inputReady = false; entryPosition = position
+        continuedExecution = false; executionReady = false
+    }
+
+    public func updateInput(_ reference: ApplicationExecutionRef?, ready: Bool, visit: UUID) {
+        guard executionVisit == visit, !retainingForReturn else { return }
+        if inputReady != ready { inputReady = ready }
+        if inputExecution != reference {
+            inputExecution = reference
+            selectionID = UUID()
+        }
     }
 
     public func continueExecution(_ reference: ApplicationExecutionRef, from source: ApplicationExecutionRef, selection: UUID, text: String) {
         guard !retainingForReturn, !suppressed, active == .relatedExecutions,
-              selectionID == selection, selectedExecution == source else { return }
+              selectionID == selection, inputExecution == source else { return }
         let text = NativeComposerSubmissionPolicy.trimmedText(text).split(whereSeparator: \.isWhitespace).joined(separator: " ")
         // A receipt can steer the same execution. Keep its emoji while updating
         // only the accepted text; catalog refreshes never generate another one.

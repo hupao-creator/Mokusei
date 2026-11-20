@@ -264,14 +264,18 @@ public final class NativeOverviewWorkspaceModel {
         collectionSelections[cardID] = reference
     }
 
+    func collectionReadingOwner(of thread: ApplicationThreadRef) -> ApplicationThreadRef? {
+        guard let owners = collectionReadingOwners[thread], owners.count == 1 else { return nil }
+        return owners.first
+    }
+
     /// Report and associated Agent routes share one visit while their owner is
     /// unchanged. Coverage is matched by Thread, not by its current execution.
     public func recordReadingRoute(_ route: ApplicationThreadRef?, at date: Date = .now,
                                    uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         let reference: ApplicationThreadRef?
         if let route, route.typeID == "agent" {
-            let owners = collectionReadingOwners[route] ?? []
-            reference = owners.count == 1 ? owners.first : nil
+            reference = collectionReadingOwner(of: route)
         } else { reference = route }
         guard applicationVisit?.reference != reference else { return }
         recordApplicationClose(at: date, uptime: uptime)

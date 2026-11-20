@@ -120,8 +120,8 @@ A new request, including a repeated link, starts a fresh entry visit.
 The mounted active history document handles Escape in its own window even if
 result positioning leaves no SwiftUI focus target. Focus outside its viewport,
 editing, IME composition, native menus and visible child windows that can take
-keyboard focus retain priority. A window-sharing indicator leaves Escape with
-the reader. Hidden or transitioning documents cannot consume another page's Escape.
+keyboard focus retain priority. Hidden or transitioning documents cannot consume
+another page's Escape.
 
 Moku note execution URLs are parsed by the shared Markdown link boundary and
 enter through `openNoteExecution`; there is no OS-level execution URL handler.
@@ -129,7 +129,10 @@ This entry admits public ordinary threads, including archived and
 failed or Moku-tool-interrupted threads hidden from Overview. The result reading request is
 exact and does not start execution. A missing or ineligible thread shows an
 unavailable notice; a missing execution uses the reader's unavailable page. Each click receives a fresh reading request.
-Report relation buttons return to Overview. Back from a Note link returns to the
+The catalog indexes Super Thread ownership by ordinary Thread, across its runs.
+A unique owner opens the Report panel with the linked execution's result beside
+the document. The Report's own related-list entry opens the current execution.
+Both show the conversation TOC inside the side panel. Back from a Note link returns to the
 expanded Chief Note. The Overview command dismisses the visit to the canvas. Admission rules remain entry-specific; archived
 ordinary threads are valid for both, while the Note additionally admits ordinary
 failed or Moku-tool-interrupted threads hidden from Overview.

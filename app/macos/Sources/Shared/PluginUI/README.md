@@ -607,7 +607,10 @@ for its transition; cancellation fences obsolete completion. Other page
 stacks retain their default horizontal direction. New turns do not replace
 an open historical execution;
 removed destinations show the unavailable document and retain return navigation.
-Execution sidecards keep their single-execution presentation. They omit the
+Super Thread's related execution uses the full conversation manifest and the
+shared history rail. The selected row owns the body and the composer while the
+report stays mounted. Ordinary Agent execution sidecards keep their
+single-execution presentation. They omit the
 decorative emoji and visible document title, use a compact 12pt timeline top inset,
 and retain the resolved author, messages and execution actions. Full reading and
 history pages retain their headings and standard insets after execution ends.

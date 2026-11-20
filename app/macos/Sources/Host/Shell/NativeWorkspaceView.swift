@@ -278,8 +278,14 @@ public final class NativeWorkspacePresentation {
             ?? (scene.capsuleFrame.isEmpty ? nil : scene.capsuleFrame)
         let origin = NativeMokuSceneState.NoteReadingOrigin(document: note.documentToken,
             capsule: source, viewport: noteViewport, landing: moku.landing)
-        open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
-            requestID: JSONText(UUID().uuidString), mode: .history, position: .result))
+        if let owner = overview.collectionReadingOwner(of: reference.thread), owner.typeID == "report.document" {
+            open(owner)
+            reportSidecards.selectExecution(reference, position: .result)
+        } else {
+            open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
+                requestID: JSONText(UUID().uuidString), mode: .history, position: .result))
+        }
+        scene.setNotePanelOpen(false)
         scene.noteReadingOrigin = origin
         readingPanelSource = source
     }
@@ -499,9 +505,9 @@ public final class NativeWorkspacePresentation {
             return target.ready && (target.followsLatest || target.executionID != nil)
         }
         guard let reportExecution else { return true }
-        return reportInputReady && reportSidecards.executionReady
+        return reportInputReady && reportSidecards.executionReady && reportSidecards.inputReady
             && reportSidecards.active == .relatedExecutions
-            && reportSidecards.selectedExecution == reportExecution && !reportSidecards.retainingForReturn
+            && reportSidecards.inputExecution == reportExecution && !reportSidecards.retainingForReturn
     }
 
     func updateAgentInput(owner: UUID, target: ThreadConversationInputTarget?, route: UUID) {
@@ -522,8 +528,9 @@ public final class NativeWorkspacePresentation {
         guard navigationRouteID == route, selected?.typeID == "report.document" else { return }
         reportInputBack = onBack
         if reportExecution == reference, reportInputReady == ready { return }
+        let switchingExecution = reportExecution?.thread == reference?.thread && reference != nil
         reportExecution = reference; reportInputReady = ready
-        configureDockInput(in: scene)
+        configureDockInput(in: scene, autofocus: !switchingExecution, retainingOpenInput: switchingExecution)
         if reference != nil, ready { scene.setInputOpen(true) }
     }
 
@@ -543,7 +550,7 @@ public final class NativeWorkspacePresentation {
         if let selection = pending.reportSelection {
             guard reportSidecards.selectionID == selection,
                   reportSidecards.active == .relatedExecutions,
-                  reportSidecards.selectedExecution == pending.reference,
+                  reportSidecards.inputExecution == pending.reference,
                   !reportSidecards.retainingForReturn else { executionSendNavigation = nil; return }
         }
         // The command receipt may precede the public catalog event, especially
@@ -1036,13 +1043,14 @@ public struct NativeWorkspaceView: View {
             presentation.applicationHost.detail(thread: selected, readingTarget: presentation.readingTarget,
                 environment: NativeApplicationDetailEnvironment(suppressed: applicationSuppressed,
                     contentTopInset: presentation.usesReadingPanel ? 60 : 74,
-                    onBack: { presentation.closeApplication() }, onSettings: { presentation.openSettings() },
+                    onBack: { if presentation.navigationRouteID == routeID { presentation.closeApplication() } }, onSettings: { presentation.openSettings() },
                     onNativeNavigationChange: { if presentation.navigationRouteID == routeID { presentation.nativeApplicationNavigation = $0 } },
                     onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }))
                 .modifier(NativeApplicationReadingPanel(enabled: presentation.usesReadingPanel,
                     suppressed: applicationSuppressed, returnsToCollection: presentation.readingCollectionMember,
+                    returnsToNote: presentation.scene.noteReadingOrigin != nil,
                     identifier: selected.typeID == "report.document" ? "report-reading-panel" : "application-reading-panel",
-                    onClose: { presentation.closeApplication() }))
+                    onClose: { if presentation.navigationRouteID == routeID { presentation.closeApplication() } }))
                 .environment(\.nativeReportSidecards, presentation.reportSidecards)
                 .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
                 .environment(\.nativeReportExecutionInputChanged, { reference, ready, onBack in

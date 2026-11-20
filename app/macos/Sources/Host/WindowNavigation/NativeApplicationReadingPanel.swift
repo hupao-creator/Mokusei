@@ -15,6 +15,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
     var suppressed = false
     var escapeEnabled = true
     var returnsToCollection = false
+    var returnsToNote = false
     let identifier: String
     let onClose: () -> Void
     @Environment(\.locale) private var locale
@@ -23,13 +24,14 @@ struct NativeApplicationReadingPanel: ViewModifier {
         if enabled {
             if identifier == "report-reading-panel" {
                 let chinese = locale.language.languageCode?.identifier == "zh"
-                let label = returnsToCollection
+                let isBack = returnsToNote || returnsToCollection
+                let label = returnsToNote ? (chinese ? "返回 Chief 笔记" : "Back to Chief Note") : returnsToCollection
                     ? (chinese ? "返回 Super Thread 合集" : "Back to Super Thread Collection")
                     : (chinese ? "关闭 Super Thread" : "Close Super Thread")
                 NativeReportLinkWorkspace(suppressed: suppressed, onClose: onClose) {
                     content
-                        .nativeReadingPanelClose(label: label, identifier: returnsToCollection ? "reading-panel-back" : "reading-panel-close",
-                            overlaysContent: true, isBack: returnsToCollection, onClose: onClose)
+                        .nativeReadingPanelClose(label: label, identifier: isBack ? "reading-panel-back" : "reading-panel-close",
+                            overlaysContent: true, isBack: isBack, onClose: onClose)
                         .background(NativeReadingPanelFrame(identifier: identifier))
                         .accessibilityIdentifier(identifier)
                 }

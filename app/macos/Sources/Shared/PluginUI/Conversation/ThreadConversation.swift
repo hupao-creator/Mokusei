@@ -187,7 +187,7 @@ public struct ThreadConversation: View {
         return !executionCard
     }
     private var relatedSendTitle: NativeReportSidecardPresentation.SendTitle? {
-        guard relatedExecution, selectedIsActive, case let .execution(id) = context?.presentation else { return nil }
+        guard relatedExecution, selectedIsActive, let id = documentRow?.execution?.id else { return nil }
         return reportSidecards?.sendTitles[ApplicationExecutionRef(
             thread: .init(threadID: threadId, typeID: "agent"), executionID: id)]
     }
@@ -243,8 +243,9 @@ public struct ThreadConversation: View {
         let sidecardEntry = readingTarget.flatMap { target in
             inputEntryRequest == target.requestId && excluded.contains(target.executionId) ? target.executionId : nil
         }
-        let followsLatest = destination == .document(inline: nil) && sidecardEntry == nil
-        let executionID = sidecardEntry ?? visibleRows.first { $0.id == selectedRowID }?.execution?.id
+        let followsLatest = !relatedExecution && destination == .document(inline: nil) && sidecardEntry == nil
+        let selectedExecution = visibleRows.first { $0.id == selectedRowID }?.execution
+        let executionID = sidecardEntry ?? (relatedExecution && selectedExecution?.readable == false ? nil : selectedExecution?.id)
         return ThreadConversationInputTarget(threadID: threadId, requestID: readingTarget?.requestId, executionID: followsLatest ? nil : executionID,
             followsLatest: followsLatest, ready: initializedThread == threadId && !pageMotion.active)
     }
