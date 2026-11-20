@@ -20,26 +20,34 @@ placement first. Closing therefore carries the fixed-size page with the shell
 instead of immediately centering its Map, title and form in the collapsed Dock's
 width. Compositing alone does not provide this layout boundary.
 
-Moku history uses the same bounded reading stack and panel shell as Agent, Git
-and Report reading: shared margins, rounded surface, border, dimmed/blurred
-retained background and panel-owned Close. The reader displays the
-current Moku session; archived session data remains stored. The reading card and
-the current-session input capsule are separate siblings, with a 12pt gap and the
-same horizontal center; the card alone owns the rounded reading surface and
-Close.
+Chief history uses the shared Agent and Super Thread reading-card frame,
+including its top and bottom anchors as the window resizes. The reader displays
+the current Chief session and owns the rounded surface, border and Close. The
+current-session input capsule uses the reading Dock's bottom seat, centered on
+the card. As the capsule grows into the card's space, the scroll viewport adds
+clearance while the card keeps its full height.
+The capsule owns pointer input in its own frame. The adjacent bottom margin
+belongs to the dismissal backdrop.
+
+The [native reading carrier](../WindowNavigation/README.md) presents the live
+card and capsule together over the dimmed and blurred parent. They travel a short
+vertical distance at their laid-out size and fade together over 420ms. The
+compositor retains both until return completes. The editor can take focus once
+the first entrance settles and retains it during a reversal.
 
 Close, the surrounding blank margin and Cmd+B return through the shared motion
-lifetime; native Escape first returns from an internally selected historical
-turn, then closes the panel. Editors, IME, menus and popovers keep priority.
+lifetime. Cmd+B during return reverses from the current visible pose. Native
+Escape first returns from an internally selected historical turn, then closes
+the panel. Editors, IME, menus and popovers keep priority.
 Resize, scene deactivation and recovery complete an accepted Close. The parent
 stays mounted with its route identity and navigation intact, preserving Agent,
 Git or Report reading on return. History has a separate navigation visit and
 does not publish scroll-driven traffic-light navigation. Its panel geometry
 adapts to narrow windows using the existing shared contract.
 
-Entering history from Note keeps the existing Note-dismissal behavior. History
-covers the outside Dock and owns its existing current-session composer. Note
-layout/closing motion, scrollbar policy and Agent composer motion are independently owned.
+Opening **Chief history** from Note dismisses Note. History covers the outside
+Dock and owns the current-session composer. See the
+[desktop replay](../../../../../tools/e2e/README.md#chief-history-panel).
 
 ## Dock and composer
 

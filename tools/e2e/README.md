@@ -168,6 +168,34 @@ The semantic Note toggle exercises the Note entrance. Mounted route identity
 and window frame recordings supply separate evidence.
 [Note and link behavior](../../app/macos/Sources/Host/MokuScene/README.md)
 
+### Chief history panel
+
+Use the isolated desktop session and shared GUI lease described below. Prepare
+two Chief turns, a long transcript, a completed Agent Thread, and a Super Thread.
+Keep all three readings on one display at the same window bounds, workspace
+zoom and system appearance. Measure the outer rounded reading card of each
+route in window-relative points with Agent and Super Thread sidecards folded.
+Record the top and bottom edges, card height and Chief capsule bounds at the
+ordinary window size and again after reducing the window size.
+
+Open Chief Note, activate **Chief history**, and close from the **×**. Window
+frames should show the card and input arrive together and fade out with their
+outlines intact. Compare the title, last visible transcript row, input and
+outer edges through both motions. Repeat from **⌘B** and exercise the backdrop
+click. Reverse a partly completed entrance and a partly completed return.
+Keep an unsent draft and verify the editor's focus and text after reversal.
+Scroll the document, select an earlier turn, and use Escape from read-only
+content to return to current and then close. Resize with history open and again
+after accepting Close. Reopen from an Agent or Super Thread and check the
+underlying visit on return. Check native window close and app quit with history
+open.
+
+Record the revision, app digest, display and capture scale, actual inputs,
+window bounds, frame timestamps and cleanup receipt. Keep frame evidence for
+Agent and Super Thread opening and closing in the same session. Use the
+[Chief history contract](../../app/macos/Sources/Host/MokuScene/README.md) for
+the expected layout and lifecycle.
+
 ### Super Thread reading regression
 
 The [Markdown layout contract](../../design/markdown.md) also applies to the

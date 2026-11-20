@@ -16,11 +16,12 @@ struct NativeReadingPanelTransition: Equatable {
     var report = false
 }
 
-/// The compositor owns panel travel. Agent readers may prepare once native
-/// travel starts, but their drawing and interaction remain gated until arrival.
+/// The compositor owns panel travel. Agent readers can prepare invisibly;
+/// workspace overlays reveal their live content and admit input on arrival.
 struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
     let target: CGRect
     let source: CGRect?
+    let overlayHeight: CGFloat?
     let usesGlass: Bool
     let open: Bool
     let transition: NativeReadingPanelTransition?
@@ -46,7 +47,8 @@ struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
         environment.nativeThreadPreparing = !contentReady && identity != nil
         environment.nativeThreadReaderPreloading = readerPreloading
         environment.nativeReadingInteractionActive = environment.nativeReadingInteractionActive && contentReady
-        view.configure(target: target, source: source, open: open, transition: transition,
+        if overlayHeight != nil { environment.nativeCanvasInputRegions = view.overlayInputRegions }
+        view.configure(target: target, source: source, overlayHeight: overlayHeight, open: open, transition: transition,
             contentReady: contentReady, identity: identity,
             environment: environment,
             paperColor: NativePalette.thread.canvas.swiftUI.resolve(in: context.environment).cgColor,
@@ -65,8 +67,10 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private let paper = CALayer()
     private let glass: NSGlassEffectView?
     private let collectionContentSpace: NSView?
+    fileprivate lazy var overlayInputRegions = NativeCanvasInputRegions()
     private var hosting: NSHostingView<AnyView>?
     private var target = CGRect.zero
+    private var overlayHeight: CGFloat?
     private var source = CGRect.zero
     private var command: NativeReadingPanelTransition?
     private var startedGeneration: Int?
@@ -110,7 +114,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
 
     required init?(coder: NSCoder) { nil }
 
-    func configure(target: CGRect, source: CGRect?, open: Bool,
+    func configure(target: CGRect, source: CGRect?, overlayHeight: CGFloat? = nil, open: Bool,
                    transition: NativeReadingPanelTransition?, contentReady: Bool, identity: NativeThreadIdentityVisit? = nil,
                    environment: EnvironmentValues,
                    paperColor: CGColor, content: AnyView,
@@ -122,8 +126,9 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             identity?.onOpeningTargetsChange = { [weak self] in self?.prepareOpening() }
         }
         if identity?.pending != true { flight?.retire(); flight = nil }
-        let resized = self.target != target
+        let resized = self.target != target || self.overlayHeight != overlayHeight
         self.target = target
+        self.overlayHeight = overlayHeight
         self.source = source ?? target.insetBy(dx: min(24, target.width / 4), dy: min(24, target.height / 4))
         self.onCompletion = onCompletion
         self.onOpeningStarted = onOpeningStarted
@@ -134,7 +139,16 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         // Reader updates during a close must not restore the layer's model
         // position to the open frame; removing the animation would snap back.
         if resized {
-            surface.frame = CGRect(x: target.minX, y: target.minY, width: target.width + 76, height: target.height)
+            let size = overlayHeight.map { CGSize(width: target.width, height: $0) }
+                ?? CGSize(width: target.width + 76, height: target.height)
+            surface.frame = CGRect(origin: target.origin, size: size)
+        }
+        if overlayHeight != nil {
+            // The reader and its accessory share one host and one opacity.
+            // Their rounded surfaces supply their own clips at settled size.
+            surface.layer?.mask = nil
+            paper.isHidden = true
+            if hosting == nil { surface.layer?.opacity = contentReady ? 1 : 0 }
         }
         paper.frame = CGRect(origin: .zero, size: target.size)
         if let glass {
@@ -142,7 +156,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             glass.isHidden = environment.accessibilityReduceTransparency
         }
         paper.backgroundColor = glass?.isHidden == false ? nil : paperColor
-        if contentReady || identity?.pending == true {
+        if contentReady || (overlayHeight != nil && open) || identity?.pending == true {
             let root: AnyView
             if let collectionContentSpace {
                 // Keep the nested host in window points. Applying zoom inside
@@ -170,7 +184,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             }
             hosting?.frame = collectionContentSpace?.bounds ?? surface.bounds
         }
-        if transition?.closing != true {
+        if overlayHeight == nil && transition?.closing != true {
             hosting?.layer?.opacity = contentReady ? 1 : 0
             hosting?.layer?.transform = CATransform3DIdentity
         }
@@ -193,11 +207,11 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             hosting?.layer?.removeAllAnimations()
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            surface.layer?.opacity = 1
-            surface.layer?.mask = open ? nil : aperture
+            surface.layer?.opacity = open || overlayHeight == nil ? 1 : 0
+            surface.layer?.mask = open || overlayHeight != nil ? nil : aperture
             aperture.path = path(self.source.size)
             surface.layer?.position = open ? target.origin : self.source.origin
-            paper.isHidden = open && contentReady && glass == nil
+            paper.isHidden = overlayHeight != nil || (open && contentReady && glass == nil)
             CATransaction.commit()
             if open && contentReady { flight?.completeOpening() }
         }
@@ -224,6 +238,10 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private func startIfReady() {
         guard window != nil, bounds.width > 0, bounds.height > 0,
               let command, startedGeneration != command.generation, let layer = surface.layer else { return }
+        if overlayHeight != nil {
+            animateOverlay(layer, command: command)
+            return
+        }
         // Report's main and auxiliary surfaces return independently. The native
         // carrier stays fixed and only owns generation-fenced completion; applying
         // its normal full-workspace aperture would widen/crop the split reader.
@@ -310,6 +328,39 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         aperture.add(clip, forKey: "reading.aperture")
     }
 
+    private func animateOverlay(_ layer: CALayer, command: NativeReadingPanelTransition) {
+        let hiddenPosition = CGPoint(x: target.minX, y: target.minY - min(12, target.minY))
+        let presented = startedGeneration == nil ? nil : layer.presentation() ?? layer
+        let opacity = presented?.opacity ?? layer.opacity
+        let position = presented?.position ?? (opacity > 0 ? target.origin : hiddenPosition)
+        startedGeneration = command.generation
+        completedGeneration = nil
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.removeAllAnimations()
+        layer.position = command.closing ? hiddenPosition : target.origin
+        layer.opacity = command.closing ? 0 : 1
+
+        let travel = CABasicAnimation(keyPath: "position")
+        travel.fromValue = NSValue(point: position)
+        travel.toValue = NSValue(point: layer.position)
+        travel.duration = command.duration
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = opacity
+        fade.toValue = layer.opacity
+        fade.duration = command.duration
+        let group = CAAnimationGroup()
+        group.animations = [travel, fade]
+        group.duration = command.duration
+        group.timingFunction = command.emphasized ? NativeReadingPageTiming.emphasizedOpening
+            : NativeReadingPageTiming.replacementTimingFunction
+        group.setValue(command.generation, forKey: "generation")
+        group.delegate = self
+        layer.add(group, forKey: "reading.overlay")
+        CATransaction.commit()
+    }
+
     /// Native presentation geometry for the existing transition replay.
     var returnPresentation: (frame: CGRect, opacity: Float, source: CGRect)? {
         guard command?.closing == true, command?.report != true,
@@ -350,9 +401,13 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard acceptsInput else { return nil }
-        // The collection has no controls in the compositor's auxiliary lane.
-        // Leave clicks there to the workspace's outside-click backdrop.
-        if collectionContentSpace != nil, !target.contains(convert(point, from: superview)) { return nil }
+        // Beyond the card, only registered overlay controls claim clicks.
+        // The backdrop owns the rest of the extended host and the glass lane.
+        if (collectionContentSpace != nil || overlayHeight != nil), !target.contains(convert(point, from: superview)) {
+            let windowPoint = superview?.convert(point, to: nil) ?? point
+            guard overlayHeight != nil, let window,
+                  overlayInputRegions.contains(windowPoint, in: window) else { return nil }
+        }
         guard let hit = super.hitTest(point), hit !== self, hit !== surface, hit !== collectionContentSpace else { return nil }
         if let glass, hit.isDescendant(of: glass) { return nil }
         return hit

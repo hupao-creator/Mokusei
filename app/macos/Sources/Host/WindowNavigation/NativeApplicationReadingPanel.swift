@@ -17,6 +17,8 @@ struct NativeApplicationReadingPanel: ViewModifier {
     var returnsToCollection = false
     var returnsToNote = false
     var dismissExecutionToOverview: (() -> Void)?
+    var reservesAuxiliaryLane = true
+    var minimumBottomInset: CGFloat = 0
     let identifier: String
     let onClose: () -> Void
     @Environment(\.locale) private var locale
@@ -38,7 +40,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
                         .accessibilityIdentifier(identifier)
                 }
             } else {
-                panel(content).padding(.trailing, 76)
+                panel(content).padding(.trailing, reservesAuxiliaryLane ? 76 : 0)
             }
         } else { content }
     }
@@ -62,7 +64,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
             content.clipShape(RoundedRectangle(cornerRadius: 14))
                 .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
         } else {
-            content.nativeReadingPanelViewport()
+            content.nativeReadingPanelViewport(minimumBottomInset: minimumBottomInset)
         }
     }
 }
