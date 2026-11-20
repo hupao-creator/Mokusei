@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 const noSuperThreadSource = "This input has no Super Thread source. Do not reuse a previous Super Thread as the current send context."

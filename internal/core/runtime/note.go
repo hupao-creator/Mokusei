@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/store"
 )
 
 func currentMokuNoteThread(tx *store.Tx) (model.ThreadRecord, bool, error) {

@@ -18,7 +18,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 // These resources execute only inside the external OpenCode process. They have

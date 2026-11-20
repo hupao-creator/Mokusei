@@ -6,8 +6,8 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/store"
 )
 
 // Title changes prove a naming commit, but input admission alone does not prove

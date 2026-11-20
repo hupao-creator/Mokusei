@@ -19,7 +19,7 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
 )
 
 const indexURL = "https://artificialanalysis.ai/models/"

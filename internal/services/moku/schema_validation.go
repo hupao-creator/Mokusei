@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 

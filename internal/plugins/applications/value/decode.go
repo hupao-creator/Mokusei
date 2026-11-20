@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 var rawType = reflect.TypeOf(json.RawMessage{})

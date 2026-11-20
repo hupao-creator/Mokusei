@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 // This gate is separate from the command queue: a stop must be able to cancel

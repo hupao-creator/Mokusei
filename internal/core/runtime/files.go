@@ -14,9 +14,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/platform/transport"
-	"github.com/hupao-creator/Mokusei/internal/services/attachments"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/platform/transport"
+	"github.com/hupao-creator/Chief/internal/services/attachments"
 )
 
 func (r *Runtime) FilePolicy(ctx context.Context) (model.AttachmentPolicy, error) {

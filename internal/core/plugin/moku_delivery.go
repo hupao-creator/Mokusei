@@ -3,7 +3,7 @@ package plugin
 import (
 	"errors"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 // ErrMokuConfigurationPending is returned by Core before starting a new Moku

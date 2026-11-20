@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
 )
 
 // FreshDevelopmentData rotates the development data directory aside so the

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"unicode/utf8"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/sqlite"
+	"github.com/hupao-creator/Chief/internal/platform/sqlite"
 )
 
 const schemaVersion = 1

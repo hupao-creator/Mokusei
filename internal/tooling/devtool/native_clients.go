@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
 )
 
 // ErrNativeClientRunning leaves both development directories untouched.

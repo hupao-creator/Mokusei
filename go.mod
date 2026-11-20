@@ -1,4 +1,4 @@
-module github.com/hupao-creator/Mokusei
+module github.com/hupao-creator/Chief
 
 go 1.27.0
 

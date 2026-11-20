@@ -2,7 +2,7 @@ package moku
 
 import (
 	"encoding/json"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 const ToolInputMaxCharacters = 1_000_000

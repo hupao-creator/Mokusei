@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	appvalue "github.com/hupao-creator/Mokusei/internal/plugins/applications/value"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	appvalue "github.com/hupao-creator/Chief/internal/plugins/applications/value"
 )
 
 const Worktrees = "git.worktrees"

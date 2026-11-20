@@ -13,9 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
-	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/transport"
 )
 
 type host struct {

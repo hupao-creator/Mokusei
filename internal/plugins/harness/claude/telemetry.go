@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 func (h *Harness) MokuContext(ctx context.Context, purpose string, r plugin.SettingsRequest, ledger plugin.TelemetryLedger) (string, error) {

@@ -3,8 +3,8 @@ package composition
 import (
 	"context"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/store"
 )
 
 // Removed plugin preferences must not prevent startup. Registered disabled

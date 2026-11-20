@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
+	"github.com/hupao-creator/Chief/internal/platform/processgroup"
 )
 
 type Object = map[string]any

@@ -1,7 +1,6 @@
 # Go runtime modules
 
-The Go module is `github.com/hupao-creator/Mokusei`, matching the source repository.
-Mokusei remains the product and executable name.
+The Go module is `github.com/hupao-creator/Chief`, matching the source repository.
 
 The executable [mokusei-runtime](../cmd/mokusei-runtime/main.go) acquires a profile through the daemon and constructs the application through [composition/bootstrap.go](core/composition/bootstrap.go). Each composition owns its registrations, store, services and native process lifetimes.
 
@@ -20,7 +19,7 @@ The executable [mokusei-runtime](../cmd/mokusei-runtime/main.go) acquires a prof
 | platform | [Daemon/profile ownership](platform/daemon/README.md), [transport](platform/transport/README.md), process groups, environment and SQLite binding |
 | tooling | Development/packaging, architecture checks and allowance-data maintenance |
 
-The four Harnesses use externally installed native engines. Their account, model and credential configuration belongs to those engines. Pi and OpenCode embed small resources loaded by the external engine; the Mokusei application has no Node build or renderer process.
+The four Harnesses use externally installed native engines. Their account, model and credential configuration belongs to those engines. Pi and OpenCode embed small resources loaded by the external engine; the Chief application has no Node build or renderer process.
 
 `internal/tooling/architecture/check.go` enforces the Go import graph across all source files and build tags, static registration and the allowed external JS resources. The generic store has no application-model dependency. Plugins do not import Runtime or construct their own Core authority. The Swift client consumes public projections over authenticated HTTP/NDJSON; it does not open the host database.
 

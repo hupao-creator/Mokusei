@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
+	"github.com/hupao-creator/Chief/internal/platform/processgroup"
 )
 
 type Product struct{ Channel, BundleIdentifier, AppName, DisplayName, DataDirectoryName string }
@@ -59,7 +59,7 @@ func Repository(start string) (string, error) {
 		}
 		parent := filepath.Dir(path)
 		if parent == path {
-			return "", fmt.Errorf("run mokusei-dev from a Mokusei checkout or pass --repo")
+			return "", fmt.Errorf("run mokusei-dev from a Chief checkout or pass --repo")
 		}
 		path = parent
 	}

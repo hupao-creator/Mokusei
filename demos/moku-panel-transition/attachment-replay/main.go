@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/services/attachments"
+	"github.com/hupao-creator/Chief/internal/services/attachments"
 )
 
 func run(mode string) error {

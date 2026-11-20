@@ -18,12 +18,12 @@ func Repository(start string) (string, error) {
 	}
 	for {
 		data, err := os.ReadFile(filepath.Join(current, "go.mod"))
-		if err == nil && strings.Contains(string(data), "module github.com/hupao-creator/Mokusei") {
+		if err == nil && strings.Contains(string(data), "module github.com/hupao-creator/Chief") {
 			return current, nil
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
-			return "", errors.New("Mokusei repository not found; pass --repo PATH")
+			return "", errors.New("Chief repository not found; pass --repo PATH")
 		}
 		current = parent
 	}

@@ -67,8 +67,8 @@ cgo. Chief development, builds, and packaging do not require Node; external
 agent tools manage their own runtime dependencies.
 
 ```sh
-git clone https://github.com/hupao-creator/Mokusei.git
-cd Mokusei
+git clone https://github.com/hupao-creator/Chief.git
+cd Chief
 make build        # build the Go runtime and Swift application
 ```
 

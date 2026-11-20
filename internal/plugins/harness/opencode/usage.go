@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/plugins/harness/opencode/accounttelemetry"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/plugins/harness/opencode/accounttelemetry"
 )
 
 var authHeaderPattern = regexp.MustCompile(`(?i)authorization|api[-_]?key|token`)

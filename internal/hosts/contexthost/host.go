@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 type Config struct {

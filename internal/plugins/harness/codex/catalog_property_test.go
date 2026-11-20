@@ -9,8 +9,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/discovery"
-	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
+	"github.com/hupao-creator/Chief/internal/platform/discovery"
+	"github.com/hupao-creator/Chief/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 

@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 func opaque(prefix string, parts ...string) string {

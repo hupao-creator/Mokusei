@@ -4,15 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
 	"os"
 	"path/filepath"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
-	"github.com/hupao-creator/Mokusei/internal/services/attachments"
-	"github.com/hupao-creator/Mokusei/internal/services/moku"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	core "github.com/hupao-creator/Chief/internal/core/runtime"
+	"github.com/hupao-creator/Chief/internal/services/attachments"
+	"github.com/hupao-creator/Chief/internal/services/moku"
 )
 
 func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {

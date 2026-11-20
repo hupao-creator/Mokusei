@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/platform/sqlite"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/platform/sqlite"
 )
 
 func nativeDirectories(ctx context.Context, env map[string]string) ([]string, []string, error) {

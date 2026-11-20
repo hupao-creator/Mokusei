@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	core "github.com/hupao-creator/Chief/internal/core/runtime"
+	"github.com/hupao-creator/Chief/internal/core/store"
 )
 
 // Both scenarios use the existing public Runtime APIs so the same fixture can

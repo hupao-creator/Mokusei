@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	appvalue "github.com/hupao-creator/Mokusei/internal/plugins/applications/value"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	appvalue "github.com/hupao-creator/Chief/internal/plugins/applications/value"
 )
 
 const CollectionID = "report.records"

@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/hupao-creator/Mokusei/internal/tooling/devtool"
+	"github.com/hupao-creator/Chief/internal/tooling/devtool"
 )
 
 func main() {

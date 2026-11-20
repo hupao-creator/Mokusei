@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/sqlite"
+	"github.com/hupao-creator/Chief/internal/platform/sqlite"
 )
 
 func inheritedEnvironment(overlay map[string]string) map[string]string {

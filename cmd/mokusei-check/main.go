@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/hupao-creator/Mokusei/internal/tooling/architecture"
+	"github.com/hupao-creator/Chief/internal/tooling/architecture"
 	"os"
 	"os/exec"
 )

@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 // This envelope is shared with RuntimeDraftStore. Attachment references and the

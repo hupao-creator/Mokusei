@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 var metadataRetryDelays = [...]time.Duration{2 * time.Second, 5 * time.Second, 15 * time.Second}
