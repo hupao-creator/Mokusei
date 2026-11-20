@@ -21,7 +21,7 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     var images: [String: NativePlatformImage] = [:]
     var helpText: String? = nil
     var executionLinkHarnesses: [JSONText: AnyHarnessPlugin]? = nil
-    var openLink: (URL) -> Void
+    var openLink: (URL, CGRect?) -> Void
     @Environment(\.locale) private var locale
 
     func makeNSView(context: Context) -> MarkdownTextView {
@@ -171,8 +171,8 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
     }
 
     final class Coordinator: NSObject, MarkdownPlatformTextDelegate {
-        var openLink: (URL) -> Void
-        init(openLink: @escaping (URL) -> Void) { self.openLink = openLink }
+        var openLink: (URL, CGRect?) -> Void
+        init(openLink: @escaping (URL, CGRect?) -> Void) { self.openLink = openLink }
         func textViewDidChangeSelection(_ notification: Notification) {
             (notification.object as? MarkdownTextView)?.updateExecutionSurfaces()
         }
@@ -226,7 +226,16 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
                 }
                 return true
             }
-            openLink(url); return true
+            // Mouse, keyboard and the hosted AX button all identify the same
+            // attachment index, even when the same URL occurs twice in a note.
+            let capsule = (textView as? MarkdownTextView)?.executionSurfaces[charIndex]
+            let source = capsule.flatMap { view -> CGRect? in
+                let visible = view.bounds.intersection(view.visibleRect)
+                guard view.window != nil, !visible.isEmpty else { return nil }
+                return view.convert(visible, to: nil)
+            }
+            openLink(url, source)
+            return true
         }
     }
 }

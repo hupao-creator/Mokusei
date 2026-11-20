@@ -513,7 +513,8 @@ input comparisons, so catalog hydration changes logos without a note revision.
 `NativeMarkdownExecutionLink` hosts live clear Liquid Glass in TextKit attachment
 seats, with full-title copy descriptions and pointer passthrough for document
 selection. Its accessible Button routes through the document-owned current link
-action. Attachments remeasure at actual container widths and retire their native
+action. The action carries the activated capsule’s visible window rectangle
+for the reading panel. Attachments remeasure at actual container widths and retire their native
 hosts when the corresponding source disappears. Other Markdown surfaces and
 ordinary web links retain their existing text behavior.
 The attachment seat reserves vertical space around the compact glass capsule;

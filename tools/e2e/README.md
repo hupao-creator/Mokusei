@@ -108,6 +108,30 @@ observations and saved value. The [Settings preview](../../demos/settings-naviga
 can check the mounted editor with an in-memory save. Runtime persistence requires
 an isolated connected workspace. `E2E-SETTINGS-001` exercises preset persistence.
 
+### Chief Note execution link
+
+Use an isolated desktop window with a completed ordinary Thread. Put two links
+to its execution in different paragraphs of a long Chief Note. Open the Note
+and scroll until the second link is visible. Capture only the isolated window
+continuously through each action.
+
+1. Click the second link with the system pointer. Check that the opening
+   aperture starts at that capsule and grows toward the reader across consecutive
+   frames. Confirm the cited execution and its result in the mounted reader.
+2. Use Back to Chief Note. Check shrinking reader ink and aperture on return,
+   then compare the visible link and its window position with the initial frame.
+3. Repeat using system AXPress on the link and Back button. Under Reduce Motion,
+   inspect both directions for a direct cut. Compare the restored Note shell
+   with its original bounds from the first visible return frame. Record whether
+   the preference came from macOS or a process-local environment override.
+4. With a newer execution in the same Thread, open the older citation. Check
+   its historical result, focus its read-only text and press Escape to return.
+   Open the link again and use the Overview command to leave the Note closed.
+
+Keep the source revision, build identity, input targets, mounted result, return
+state and frame recording together. The semantic note toggle alone exercises
+only the Note entrance. [Note and link behavior](../../app/macos/Sources/Host/MokuScene/README.md)
+
 ### Super Thread reading regression
 
 The [Markdown layout contract](../../design/markdown.md) also applies to the

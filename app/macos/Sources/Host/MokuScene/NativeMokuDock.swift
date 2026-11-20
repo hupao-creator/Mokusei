@@ -90,13 +90,14 @@ public struct NativeMokuDock: View {
     public var presentation: NativeMokuWorkspacePresentation?
     public var note: NativeMokuNote?
     public var openExternal: ((URL) -> Void)?
-    public var openExecution: ((ApplicationExecutionRef) -> Void)?
+    public var openExecution: ((ApplicationExecutionRef, CGRect?) -> Void)?
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     @Environment(\.nativeMokuSettingsContent) private var settingsContent
     @Environment(\.colorScheme) private var workspaceColorScheme
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @State private var hovered = false
     @State private var hoverTask: Task<Void, Never>?
@@ -109,6 +110,9 @@ public struct NativeMokuDock: View {
     @State private var focusRequest = 0
     @State private var directoryMentions = NativeMokuDirectoryMentions()
     @State private var editorBottomInset: CGFloat = 29
+    // Keep the note's real scroll view at its reading dimensions while the
+    // same Dock lends its visible shell to the linked Thread's composer.
+    @State private var linkedNoteLayout: (width: CGFloat, height: CGFloat, available: CGFloat)?
     @State private var noteContentHeight: CGFloat = 0
     @State private var noteMounted = false
     @State private var noteExpanded = false
@@ -140,7 +144,7 @@ public struct NativeMokuDock: View {
                 presentation: NativeMokuWorkspacePresentation? = nil,
                 note: NativeMokuNote? = nil,
                 openExternal: ((URL) -> Void)? = nil,
-                openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
+                openExecution: ((ApplicationExecutionRef, CGRect?) -> Void)? = nil,
                 loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
                 onSend: @escaping (NativeComposerSubmission) async throws -> Void,
                 onSendConsumed: @escaping (NativeComposerSubmission) async -> Void = { _ in },
@@ -212,7 +216,11 @@ public struct NativeMokuDock: View {
     private var capsuleFraction: CGFloat { expanded ? 1 : 0 }
     // The native replay supplies a sampling clock only for admitted reading input.
     var readingInputAnimation: Animation?
+    private var settlingNoteDock: Bool {
+        linkedNoteLayout != nil && (state.notePanelOpen || !state.inputInteractionReady)
+    }
     private var surfaceAnimation: Animation? {
+        if settlingNoteDock { return nil }
         guard state.readingPanelVisible else { return .smooth(duration: 0.42, extraBounce: 0) }
         if state.inputOpen && !rowExpanded { return .easeOut(duration: NativeReadingPageTiming.duration) }
         if let readingInputAnimation, state.inputOpen, state.inputInteractionReady { return readingInputAnimation }
@@ -426,7 +434,7 @@ public struct NativeMokuDock: View {
             let destination = NativeMokuHorizontalDestination(offset: placement.surface.midX - geometry.size.width / 2,
                 verticalOffset: readingOffset,
                 frame: executionFrame, revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
-                dragging: executionPlacement?.dragging == true, inactive: scenePhase != .active,
+                dragging: executionPlacement?.dragging == true, inactive: scenePhase != .active || settlingNoteDock,
                 composer: state.composerGeneration, reading: state.readingPanelVisible)
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
@@ -451,6 +459,17 @@ public struct NativeMokuDock: View {
                     .geometryGroup()
                     .offset(y: destination.verticalOffset)
                     .animation(nil, value: destination.verticalOffset)
+                    // The panel owns this handoff. In particular, a shrinking
+                    // composer must not leave an additive width animation on
+                    // the restored Note when Reduce Motion cuts to its frame.
+                    .transaction(value: state.noteReadingOrigin != nil) {
+                        $0.animation = nil; $0.disablesAnimations = true
+                    }
+                    .transaction {
+                        if reduceMotion && settlingNoteDock {
+                            $0.animation = nil; $0.disablesAnimations = true
+                        }
+                    }
                     // Direct resize settles the native trip and shell together.
                     .transaction(value: geometry.size) {
                         $0.animation = nil; $0.disablesAnimations = true
@@ -583,12 +602,17 @@ public struct NativeMokuDock: View {
             // deadlines keep running; newly received Talk waits for actual return.
             if !value.noteCovering { state.setTalkPresented(value.id != nil) }
         }
-        .onChange(of: NoteDestination(open: state.notePanelOpen,
+        .onChange(of: NoteDestination(open: state.notePanelOpen, readingLink: state.noteReadingOrigin != nil,
             immediate: scenePhase != .active || !state.windowVisible || !state.dockRouteVisible
-                || state.dockCovered || state.inputOpen || interaction != nil), initial: true) { _, destination in
-            transitionNote(to: destination)
+                || state.dockCovered || state.inputOpen || interaction != nil), initial: true) { previous, destination in
+            transitionNote(to: destination, returningFromLink: previous.readingLink && destination.open)
+            if !destination.readingLink { linkedNoteLayout = nil }
         }
-        .onDisappear { noteTransitionGeneration &+= 1 }
+        .onDisappear {
+            noteTransitionGeneration &+= 1
+            // A covering route can unmount the retained scroll view.
+            state.noteReadingOrigin?.capsule = nil
+        }
         .task(id: state.talkPresentation.deadline) {
             guard let deadline = state.talkPresentation.deadline, let id = state.talkPresentation.message?.id else { return }
             // SwiftUI cancels on replacement, dismissal and unmount. The scene
@@ -701,21 +725,23 @@ public struct NativeMokuDock: View {
     }
     private struct NoteDestination: Equatable {
         let open: Bool
+        let readingLink: Bool
         let immediate: Bool
     }
 
-    private func transitionNote(to destination: NoteDestination) {
-        if noteMounted == destination.open, noteExpanded == destination.open,
+    private func transitionNote(to destination: NoteDestination, returningFromLink: Bool) {
+        let keepMounted = destination.open || destination.readingLink
+        if noteMounted == keepMounted, noteExpanded == destination.open,
            noteInkVisible == destination.open, noteSettled == destination.open,
            messageInkVisible == !destination.open { return }
         noteTransitionGeneration &+= 1
         let generation = noteTransitionGeneration
         noteSettled = false
-        if destination.immediate {
+        if destination.immediate || destination.readingLink || returningFromLink {
             var transaction = Transaction(animation: nil)
             transaction.disablesAnimations = true
             withTransaction(transaction) {
-                noteMounted = destination.open
+                noteMounted = keepMounted
                 noteExpanded = destination.open
                 noteInkVisible = destination.open
                 noteSettled = destination.open
@@ -846,11 +872,19 @@ public struct NativeMokuDock: View {
         }
         .overlay(alignment: .top) {
             if noteMounted {
+                let held = linkedNoteLayout
                 ZStack {
-                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
+                    NativeMokuNoteContent(note: note, width: held?.width ?? width, height: held?.height ?? noteHeight,
+                                          availableHeight: held?.available ?? noteAvailableHeight,
                                           routeEligible: state.notePanelOpen && noteSettled && !state.settingsOpen && state.overviewVisible
                                               && !state.dockCovered && !navigationDisabled,
-                                          openExternal: openExternal, openExecution: openExecution, workspace: presentation?.workspace,
+                                          openExternal: openExternal, openExecution: { reference, frame in
+                                              guard noteSettled, state.notePanelOpen, !state.dockCovered else { return }
+                                              openExecution?(reference, frame)
+                                              if state.noteReadingOrigin != nil {
+                                                  linkedNoteLayout = (width, noteHeight, noteAvailableHeight)
+                                              }
+                                          }, workspace: presentation?.workspace,
                                           onContentHeightChange: { noteContentHeight = $0 },
                                           claimOpenArm: { state.claimNoteOpenArm() },
                                           onExposure: { state.recordNoteExposure($0) },

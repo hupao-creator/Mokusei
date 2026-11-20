@@ -34,6 +34,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var panelIdentity: NativeThreadIdentityVisit?
     public var panelFrontIdentity: JSONText?
     public var reportPanelMotion: Bool
+    private let respectsReduceMotion: Bool
     public var threadPanelMotion: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
@@ -47,7 +48,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     private let front: Front
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var animatesTravel: Bool { enabled && !(reportPanelMotion && reduceMotion) }
+    private var animatesTravel: Bool { enabled && !(respectsReduceMotion && reduceMotion) }
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.nativeReadingEntranceReady) private var parentEntranceReady
@@ -69,7 +70,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
                 emphasizedOpening: Bool = false, panel: Bool = false, panelUsesGlass: Bool = false,
                 isolatesParent: Bool = false, panelSource: CGRect? = nil,
-                panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
+                panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false,
+                respectsReduceMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
                 onParentPresentationChange: ((Bool) -> Void)? = nil,
@@ -84,6 +86,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.panelUsesGlass = panelUsesGlass
         self.isolatesParent = isolatesParent
         self.panelIdentity = panelIdentity; self.panelFrontIdentity = panelFrontIdentity
+        self.respectsReduceMotion = respectsReduceMotion || reportPanelMotion
         self.reportPanelMotion = reportPanelMotion
         self.threadPanelMotion = threadPanelMotion
         self.axis = axis
@@ -220,7 +223,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             mountedIdentity = identity
         }
         .onChange(of: reduceMotion) { _, value in
-            if value && reportPanelMotion && motion.active { settle(finishingClose: true) }
+            bindActions()
+            if value && respectsReduceMotion && motion.active { settle(finishingClose: true) }
         }
         .onChange(of: scenePhase) { _, value in if value != .active { settle(finishingClose: true) } }
         .onChange(of: direction, initial: true) { _, value in

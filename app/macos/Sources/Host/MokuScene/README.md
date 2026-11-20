@@ -403,6 +403,15 @@ and copying preserve the full title, without inserting a logo/arrow into copied
 content. Pointer events remain with TextKit for drag selection, and the hosted
 control supplies named keyboard/accessibility activation.
 
+Pointer and accessibility activation use the visible attachment frame at the
+activated character index. The scene converts it from window points into
+logical panel coordinates before the Dock changes owners. The panel expands
+from that link. An offscreen link activated through accessibility uses the
+visible Note shell. Back restores the expanded Note and its retained viewport.
+The covered Note stays ineligible for input, accessibility and exposure.
+A different document or viewport retires the saved return frame. Reduce Motion
+switches the panel directly on entry and return.
+
 The reader opens one fixed execution at its final visible reply, or its latest
 visible content/status when no final reply exists. Running executions initially
 scroll to the bottom and follow output until the user scrolls up; Jump to latest

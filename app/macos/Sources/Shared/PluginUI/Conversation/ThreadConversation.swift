@@ -737,7 +737,9 @@ private enum NativeReadingCancellation {
             if (current as? NativeSettingsEscapeCancelling)?.cancelSettingsPresentation() == true { return .handled }
             responder = current.nextResponder
         }
-        return (window.childWindows ?? []).contains { $0.isVisible } ? .native : .reading
+        // A window-sharing indicator may be visible during reading. Only a
+        // child that can take keyboard focus owns cancellation here.
+        return (window.childWindows ?? []).contains { $0.isVisible && $0.canBecomeKey } ? .native : .reading
     }
 }
 

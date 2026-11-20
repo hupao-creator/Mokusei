@@ -257,7 +257,13 @@ public final class NativeWorkspacePresentation {
             requestID: JSONText(UUID().uuidString), mode: current == reference.executionID ? .current : .history))
     }
 
-    public func openNoteExecution(_ reference: ApplicationExecutionRef) {
+    private var noteViewport: CGRect? {
+        scene.executionDockPlacement.sceneSize.map(scene.dockViewport(in:))
+    }
+
+    public func openNoteExecution(_ reference: ApplicationExecutionRef, sourceInWindow: CGRect?) {
+        guard selected == nil, scene.notePanelOpen, !scene.dockCovered,
+              !onboarding.blocksWorkspace, let note = moku.note else { return }
         // The public catalog excludes private background agents. Failed and
         // interrupted ordinary threads remain valid explicit reading targets.
         guard reference.thread.typeID == "agent",
@@ -266,8 +272,16 @@ public final class NativeWorkspacePresentation {
             workspace.report(PluginContractError(NativePluginLocalization.localize("链接指向的执行不可用。", locale: Locale(identifier: workspace.locale.rawValue))))
             return
         }
+        // AX can activate a link outside the scroll clip. The open Note is
+        // still a visible origin when that attachment has no on-screen ink.
+        let source = sourceInWindow.flatMap(scene.executionDockPlacement.sceneFrame(forWindowRect:))
+            ?? (scene.capsuleFrame.isEmpty ? nil : scene.capsuleFrame)
+        let origin = NativeMokuSceneState.NoteReadingOrigin(document: note.documentToken,
+            capsule: source, viewport: noteViewport, landing: moku.landing)
         open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
             requestID: JSONText(UUID().uuidString), mode: .history, position: .result))
+        scene.noteReadingOrigin = origin
+        readingPanelSource = source
     }
 
     public func openFollowUp(_ id: JSONText, draft: JSONText) {
@@ -286,6 +300,11 @@ public final class NativeWorkspacePresentation {
         scene.setInputOpen(true)
     }
 
+    fileprivate func closeThread() {
+        if scene.noteReadingOrigin != nil { messageMotion.close() }
+        else { showOverview() }
+    }
+
     public func showOverview(focusFilter: Bool = false) {
         guard !onboarding.blocksWorkspace else { return }
         if scene.settingsOpen {
@@ -298,6 +317,7 @@ public final class NativeWorkspacePresentation {
             collectionPanel.close(owner: owner)
             return
         }
+        scene.noteReadingOrigin?.returnsToNote = false
         if readingCollectionMember { collectionPanel.retire() }
         if focusFilter { overview.requestFilterFocus() }
         if scene.mokuOpen { scene.setMokuOpen(false) }
@@ -316,6 +336,13 @@ public final class NativeWorkspacePresentation {
         let route = navigationRouteID, target = selected
         await canvas.prepareForPresentation()
         guard !Task.isCancelled, navigationRouteID == route, selected == target else { return }
+        if let origin = scene.noteReadingOrigin, origin.returnsToNote {
+            // Only reverse to the saved seat while its note and layout still
+            // describe this Overview. A changed note has no such destination.
+            readingPanelSource = origin.document == moku.note?.documentToken && origin.viewport == noteViewport
+                && origin.landing == moku.landing ? origin.capsule : nil
+            return
+        }
         // A change in reading eligibility, content or space can move an open
         // report between a collection and its individual card.
         if let target, target.typeID != "agent", readingPanelSourceCardID != nil,
@@ -330,11 +357,13 @@ public final class NativeWorkspacePresentation {
 
     public func finishBack() {
         overview.recordApplicationClose()
+        let returnToNote = scene.noteReadingOrigin?.returnsToNote == true
         collectionPanel.returnToMembers()
         selected = nil; readingTarget = nil; threadIdentityVisit = nil; resetNavigation(); followUpVisible = false
         nativeApplicationNavigation = false
         applicationReturn = nil
         persistSelection(nil); publishPresence()
+        if returnToNote { scene.setNotePanelOpen(true) }
     }
 
     public func closeApplication() {
@@ -358,6 +387,7 @@ public final class NativeWorkspacePresentation {
     }
 
     private func resetNavigation() {
+        scene.noteReadingOrigin = nil
         clearSidecardComposer()
         reportSidecards = NativeReportSidecardPresentation()
         reportExecution = nil; reportInputReady = false; reportInputBack = nil; executionSendNavigation = nil
@@ -876,7 +906,7 @@ public struct NativeWorkspaceView: View {
                               presentation.dockThreadID == detail.id, !presentation.scene.dockCovered,
                               !presentation.messageMotion.active else { return }
                         if reportExecution != nil { presentation.closeReportExecutionInput() }
-                        else { presentation.showOverview() }
+                        else { presentation.closeThread() }
                     },
                     sidecardComposer: sidecardComposer,
                     awaitingContinuation: presentation.awaitingExecutionContinuation,
@@ -957,6 +987,7 @@ public struct NativeWorkspaceView: View {
                 panelFrontIdentity: "workspace-reading-front",
                 threadPanelMotion: presentation.selected?.typeID == "agent",
                 reportPanelMotion: presentation.selected?.typeID == "report.document",
+                respectsReduceMotion: presentation.scene.noteReadingOrigin != nil,
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
                     if !active || !presentation.readingCollectionMember { presentation.overview.setPresentationActive(active) }
@@ -968,10 +999,10 @@ public struct NativeWorkspaceView: View {
                     // folding Overview input or owned by IME/transient controls
                     // cannot also close this panel. Agent input stays expanded.
                     guard !presentation.scene.inputHandledOutsideClick else { return }
-                    if presentation.selected?.typeID == "agent" { presentation.showOverview() }
+                    if presentation.selected?.typeID == "agent" { presentation.closeThread() }
                     else { presentation.closeApplication() }
                 },
-                onClose: { presentation.finishBack() }) {
+                onClose: { if presentation.navigationRouteID == routeID { presentation.finishBack() } }) {
                 NativeOverviewWorkspaceView(model: presentation.overview,
                     callbacks: NativeOverviewWorkspaceCallbacks(
                         openThread: { id, target in presentation.open(ApplicationThreadRef(threadID: id, typeID: "agent"), target: target) },
@@ -1031,12 +1062,14 @@ public struct NativeWorkspaceView: View {
                 executionDisabled: !model.executionAvailable(thread), readingTarget: presentation.readingTarget,
                 sidecardsSuppressed: sidecardsSuppressed,
                 enabledSidecardIDs: enabledSidecards, services: presentation.sidecardServices(),
-                onBack: { presentation.showOverview() },
+                onBack: { if presentation.navigationRouteID == routeID { presentation.closeThread() } },
                 onFollowUpVisibilityChange: { presentation.setFollowUpVisible($0) },
-                backLabel: model.locale.text("返回俯瞰", "Back to overview"),
+                backLabel: presentation.scene.noteReadingOrigin != nil ? model.locale.text("返回 Chief 笔记", "Back to Chief Note")
+                    : model.locale.text("返回俯瞰", "Back to overview"),
                 onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } },
                 executionReveal: presentation.threadExecutionReveal,
                 onEntranceReady: { presentation.admitReadingEntrance(routeID: routeID, reference: selected) })
+                .environment(\.nativeAgentReturnsToNote, presentation.scene.noteReadingOrigin != nil)
                 .environment(\.nativeAgentInputTargetChanged, { owner, target in
                     presentation.updateAgentInput(owner: owner, target: target, route: routeID)
                 })

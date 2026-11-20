@@ -45,6 +45,14 @@ import MokuseiPluginUI
     public private(set) var flightActive = false
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readReplies: Set<JSONText> = []
+    struct NoteReadingOrigin {
+        let document: String
+        var capsule: CGRect?
+        let viewport: CGRect?
+        let landing: Bool
+        var returnsToNote = true
+    }
+    var noteReadingOrigin: NoteReadingOrigin?
     public private(set) var notePanelOpen = false
     public private(set) var noteOpenGeneration = 0
     public var readingPanelVisible = false {

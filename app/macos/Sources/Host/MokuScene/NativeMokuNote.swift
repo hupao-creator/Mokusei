@@ -65,7 +65,7 @@ struct NativeMokuNoteContent: View {
     let availableHeight: CGFloat
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
-    var openExecution: ((ApplicationExecutionRef) -> Void)? = nil
+    var openExecution: ((ApplicationExecutionRef, CGRect?) -> Void)? = nil
     var workspace: NativeWorkspaceModel? = nil
     var onContentHeightChange: ((CGFloat) -> Void)?
     var claimOpenArm: () -> Bool = { false }
@@ -357,7 +357,7 @@ private struct NativeMokuNoteExposureProbe: NSViewRepresentable {
         }
 
         private func handle(_ event: NSEvent) {
-            guard let window, event.window === window, bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+            guard routeEligible, let window, event.window === window, bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
             if event.type == .scrollWheel, !event.momentumPhase.isEmpty { return }
             tracker?.armFromBodyEvent()
             refresh()

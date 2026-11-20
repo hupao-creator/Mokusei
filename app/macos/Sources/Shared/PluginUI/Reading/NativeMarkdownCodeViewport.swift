@@ -33,7 +33,7 @@ final class MarkdownCodeScrollView: NativeStyledScrollView {
 
     init() {
         codeText = MarkdownSelectableText(spans: [], fontSize: NativeMarkdownTypography.fenceSize,
-                                          code: true, openLink: { _ in }).makeTextView()
+                                          code: true, openLink: { _, _ in }).makeTextView()
         super.init(frame: .zero)
         drawsBackground = false
         borderType = .noBorder
@@ -63,7 +63,7 @@ final class MarkdownCodeScrollView: NativeStyledScrollView {
         MarkdownSelectableText(spans: [MarkdownSpan(text: text)],
             fontSize: NativeMarkdownTypography.fenceSize,
             lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true,
-            openLink: { _ in }).updateTextView(codeText)
+            openLink: { _, _ in }).updateTextView(codeText)
         let width = max(1, NativeMarkdownCodeMetrics.width(of: source))
         let height = codeText.measuredHeight(width: width)
         codeText.frame = CGRect(x: 16, y: 16, width: width, height: height)

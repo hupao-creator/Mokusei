@@ -20,7 +20,7 @@ public struct NativeMarkdownView: View {
     public var fontSize: CGFloat
     public var muted: Bool
     public var openExternal: ((URL) -> Void)?
-    public var openExecution: ((ApplicationExecutionRef) -> Void)?
+    public var openExecution: ((ApplicationExecutionRef, CGRect?) -> Void)?
     public var resolveMedia: NativeMarkdownMediaResolver?
     /// Opt-in decoration supplied only by the note; an empty map retains neutral capsules.
     public var executionLinkHarnesses: [JSONText: AnyHarnessPlugin]?
@@ -36,7 +36,7 @@ public struct NativeMarkdownView: View {
     public init(text: String, streaming: Bool = false, fontSize: CGFloat = 16,
                 muted: Bool = false, openExternal: ((URL) -> Void)? = nil,
                 resolveMedia: NativeMarkdownMediaResolver? = nil,
-                openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
+                openExecution: ((ApplicationExecutionRef, CGRect?) -> Void)? = nil,
                 executionLinkHarnesses: [JSONText: AnyHarnessPlugin]? = nil,
                 documentToken: String? = nil,
                 onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)? = nil) {
@@ -49,9 +49,9 @@ public struct NativeMarkdownView: View {
 
     public var body: some View {
         let actions = model.actions
-        actions.openLink = { url in
+        actions.openLink = { url, sourceInWindow in
             if url.scheme?.lowercased() == "mokusei" {
-                if let reference = ApplicationExecutionLink.parse(url) { openExecution?(reference) }
+                if let reference = ApplicationExecutionLink.parse(url) { openExecution?(reference, sourceInWindow) }
             } else { (openExternal ?? { MarkdownPlatformActions.open($0) })(url) }
         }
         actions.resolveMedia = resolveMedia ?? environmentMediaResolver
@@ -189,10 +189,10 @@ private final class MarkdownViewModel: ObservableObject {
 /// obsolete navigation handler or attachment resolver.
 @MainActor
 final class MarkdownViewActions {
-    var openLink: (URL) -> Void = { MarkdownPlatformActions.open($0) }
+    var openLink: (URL, CGRect?) -> Void = { url, _ in MarkdownPlatformActions.open(url) }
     var resolveMedia: NativeMarkdownMediaResolver?
 
-    func open(_ url: URL) { openLink(url) }
+    func open(_ url: URL, sourceInWindow: CGRect?) { openLink(url, sourceInWindow) }
     func loadMedia(_ url: URL) async throws -> Data {
         if let resolveMedia { return try await resolveMedia(url) }
         return try await MarkdownMediaCache.shared.load(url)
@@ -202,7 +202,7 @@ final class MarkdownViewActions {
 struct MarkdownViewOptions {
     var fontSize: CGFloat
     var muted: Bool
-    var openLink: (URL) -> Void
+    var openLink: (URL, CGRect?) -> Void
     var resolveMedia: NativeMarkdownMediaResolver?
     var anchorPrefix: String
     var actions: MarkdownViewActions? = nil
