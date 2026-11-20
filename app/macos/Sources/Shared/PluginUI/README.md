@@ -564,9 +564,10 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
 conversation's turn index as horizontal marks centered vertically at the leading
 edge. An ordinary single turn has no marks. Multiple entries, inherited history
-or a history visit expose the index. The selected mark measures 26×2pt in strong
-ink, and the remaining marks measure 16×1.5pt in muted ink. Their centers are
-24pt apart. Hover or explicit keyboard navigation emphasizes an entry and reveals
+or a history visit expose the index. At full size, the selected mark measures
+26×2pt in strong ink, and the remaining marks measure 16×1.5pt in muted ink.
+In a narrow margin their lengths scale together. Their centers are 24pt apart.
+Hover or explicit keyboard navigation emphasizes an entry and reveals
 its bounded title and answer preview.
 The answer wraps naturally to at most three lines, with the title and timestamp
 remaining visible; shorter answers do not reserve unused lines.
@@ -1241,12 +1242,14 @@ reading panels. Report panels opt into
 Agent Thread panel and live execution Sidecard use `topInset: 22`, matching their
 bottom viewport clearance. The Sidecard has no Close control of its own.
 The main Agent reader and the related-execution reader in a Report overlay
-the TOC on the page stack. Each mark has a 44×24pt hit target starting 4pt
-from the viewport's leading edge. The index clears the top and bottom by at
-least 64pt. The bounded document column uses a minimum margin of 48pt on both
-sides, including before the second turn arrives. The scrollbar stays at the
-viewport edge. Main-panel preparation, loading and top-level Harness errors
-use the same margins. Each document applies them once around its content.
+the TOC on the page stack. The timeline reports the actual leading edge of its
+centered column. Within that margin each mark has a hit target up to 44pt wide
+and 24pt high, inset up to 4pt from the viewport edge. The index keeps 64pt
+of vertical clearance. Its appearance leaves line wrapping and scrollbar
+placement unchanged. The column uses the timeline's normal 18pt or 32pt
+horizontal insets and its 744pt width limit. In the main panel, the fixed Close
+button requires 46pt from the panel edge, including the 8pt viewport inset.
+Preparation, loading, errors and live content honor this clearance on both sides.
 Current and historical Agent documents use 12pt of scrollable padding at each end, without
 additional vertical padding around the conversation viewport. This keeps the
 Close clearance while expanding the readable area at every window width;

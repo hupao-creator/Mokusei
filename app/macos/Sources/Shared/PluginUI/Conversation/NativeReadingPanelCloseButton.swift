@@ -6,6 +6,8 @@ public extension EnvironmentValues {
 
 /// Panel chrome only: callers retain their own route or Sidecard close action.
 public struct NativeReadingPanelCloseButton: View {
+    static let edgeInset: CGFloat = 14
+    static let diameter: CGFloat = 32
     private let label: String
     private let onClose: () -> Void
     private let isBack: Bool
@@ -25,7 +27,7 @@ public struct NativeReadingPanelCloseButton: View {
     public var body: some View {
         Button(action: onClose) {
             NativeIcon(name: isBack ? "ArrowLeft" : "X", size: 17)
-                .frame(width: 32, height: 32)
+                .frame(width: Self.diameter, height: Self.diameter)
                 .contentShape(Circle())
         }
         .buttonStyle(ReadingPanelCloseStyle())
@@ -90,7 +92,7 @@ public extension View {
                                 overlaysContent: Bool = false, isBack: Bool = false, onClose: @escaping () -> Void) -> some View {
         overlay(alignment: .topLeading) {
             NativeReadingPanelCloseButton(label: label, overlaysContent: overlaysContent, isBack: isBack, onClose: onClose)
-                .accessibilityIdentifier(identifier).padding(14)
+                .accessibilityIdentifier(identifier).padding(NativeReadingPanelCloseButton.edgeInset)
         }
     }
 }

@@ -215,8 +215,7 @@ private struct PanelDemo: View {
                     if state.loaded { reading(thread) } else { NativeReadingPlaceholder() }
                 }
                     .environment(\.nativeThreadUsesLoadingSkeleton, true)
-                    .environment(\.nativeThreadReservesHistoryRail, true)
-                    .nativeReadingPanelViewport(balancedVerticalInsets: true)
+                    .nativeReadingPanelViewport(balancedVerticalInsets: true, clearsCloseHorizontally: true)
                     .nativeReadingPanelClose(label: "关闭 Thread", onClose: state.close)
                     .nativeReadingEscape(perform: state.close)
                     .frame(width: split.main.width, height: split.main.height)

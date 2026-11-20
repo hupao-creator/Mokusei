@@ -346,10 +346,8 @@ struct NativeSidecardWorkspaceLayout: View {
             if preparing { status = .init() }
         }
         .onPreferenceChange(NativeReadingContentStatusKey.self, perform: onContentStatusChange)
-        // Top-level loading and errors share the live reader's balanced margins.
-        .environment(\.nativeThreadReservesHistoryRail, true)
         .environment(\.nativeThreadReservesSidecardColumn, snapshot.layoutSelection != nil)
-        .nativeReadingPanelViewport(topInset: 22)
+        .nativeReadingPanelViewport(topInset: 22, clearsCloseHorizontally: true)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))
         // History owns its own Escape. Keep this fallback out of Sidecards so

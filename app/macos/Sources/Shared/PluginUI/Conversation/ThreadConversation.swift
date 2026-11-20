@@ -269,8 +269,6 @@ public struct ThreadConversation: View {
                 readingLayout.nativeReadingScope(interactionScope)
             }
         }
-        // Row and admission leaves inherit their enclosing document's margins.
-        .environment(\.nativeThreadReservesHistoryRail, false)
         .font(NativeTypography.inter(size: 16))
         .environment(\.nativeInteractionQuestionInDocument, true)
         .foregroundStyle(NativePalette.thread.ink.swiftUI)
@@ -306,27 +304,27 @@ public struct ThreadConversation: View {
     }
     private var readingLayout: some View {
         GeometryReader { bounds in
-            let sidebar = historySidebar(availableWidth: bounds.size.width)
             if agentDetail {
-                pageStack
-                    .environment(\.nativeThreadReservesHistoryRail, !executionCard)
-                    .overlay(alignment: .leading) { sidebar }
+                pageStack.overlayPreferenceValue(ThreadDocumentLeadingMargin.self) { margin in
+                    historySidebar(availableWidth: bounds.size.width, margin: margin ?? 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             } else {
                 HStack(spacing: 0) {
-                    sidebar
+                    historySidebar(availableWidth: bounds.size.width, margin: ThreadHistorySidebar.preferredMargin)
                     pageStack
                 }
             }
         }
         .nativeReadingExitCommand(perform: readingPage ? { closeHistory() } : nil)
     }
-    @ViewBuilder private func historySidebar(availableWidth: CGFloat) -> some View {
+    @ViewBuilder private func historySidebar(availableWidth: CGFloat, margin: CGFloat) -> some View {
         if !executionCard {
             let rows = tocRows
             if rows.count > 1 || rows.contains(where: \.history) || readingPage {
                 ThreadHistorySidebar(rows: rows, selected: selectedRowID, current: currentRow?.id,
-                    availableWidth: availableWidth, focusRevision: sidebarFocusRevision, select: selectRow)
-                    .padding(.leading, ThreadHistorySidebar.leadingInset).padding(.vertical, 64)
+                    availableWidth: availableWidth, availableMargin: margin, focusRevision: sidebarFocusRevision, select: selectRow)
+                    .padding(.vertical, 64)
                     .nativeReadingScope("sidebar")
                     .zIndex(1)
             }

@@ -11,9 +11,8 @@ private struct HistorySidebarAnchor: PreferenceKey {
 /// A lightweight index, independent of the document's bounded content window.
 /// Hovering reads only the manifest summary; it never acquires a turn resource.
 struct ThreadHistorySidebar: View {
-    static let leadingInset: CGFloat = 4
-    private static let hitWidth: CGFloat = 44
-    static let documentMargin = leadingInset + hitWidth
+    private static let maximumHitWidth: CGFloat = 44
+    static let preferredMargin = maximumHitWidth + 4
     private static let rowHeight: CGFloat = 24
     private static let endInset: CGFloat = 8
 
@@ -21,6 +20,7 @@ struct ThreadHistorySidebar: View {
     let selected: JSONText?
     let current: JSONText?
     let availableWidth: CGFloat
+    let availableMargin: CGFloat
     let focusRevision: Int
     let select: (JSONText) -> Void
     @Environment(\.threadAgentDetail) private var agentDetail
@@ -39,6 +39,8 @@ struct ThreadHistorySidebar: View {
 
     private var focused: JSONText? { keyboardFocused ? keyboardRow : nil }
     private var preview: JSONText? { hovered ?? (keyboardPreview ? focused : nil) }
+    private var hitWidth: CGFloat { min(Self.maximumHitWidth, availableMargin) }
+    private var leadingInset: CGFloat { min(4, availableMargin - hitWidth) }
 
     private var window: Range<Int> {
         let start = min(rows.count, max(0, Int(top / Self.rowHeight) - 8))
@@ -69,7 +71,7 @@ struct ThreadHistorySidebar: View {
             if active { keyboardRow = selected; reveal(selected) }
             else { keyboardPreview = false }
         }
-        .frame(width: Self.hitWidth)
+        .frame(width: hitWidth)
         .frame(maxHeight: contentHeight)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             viewport = height
@@ -116,6 +118,7 @@ struct ThreadHistorySidebar: View {
         .accessibilityValue(focused.flatMap { id in rows.first { $0.id == id } }.map { agentDetail ? $0.executionTitle : $0.execution?.prompt ?? "" } ?? "")
         .accessibilityHint(localize("使用上下方向键选择轮次，按回车阅读"))
         .nativeReadingObservation("state", role: "history.sidebar", value: observation)
+        .padding(.leading, leadingInset)
     }
 
     private var observation: JSONValue {
@@ -136,7 +139,7 @@ struct ThreadHistorySidebar: View {
                 if rect.maxY > 0 && rect.minY < geometry.size.height {
                     ThreadHistoryPreview(row: row, current: id == current)
                         .id(id)
-                        .frame(width: min(340, max(0, availableWidth - Self.documentMargin - 12)), alignment: .leading)
+                        .frame(width: min(340, max(0, availableWidth - leadingInset - hitWidth - 12)), alignment: .leading)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { previewHeight = $0 }
                         // Include the gap in the hover region so crossing from
                         // a mark to its summary does not retire the preview.
@@ -146,7 +149,7 @@ struct ThreadHistorySidebar: View {
                             if inside { showHover(id) }
                             else { dismissHover(id) }
                         }
-                        .offset(x: Self.hitWidth, y: max(0, min(rect.midY - previewHeight / 2, geometry.size.height - previewHeight)))
+                        .offset(x: hitWidth, y: max(0, min(rect.midY - previewHeight / 2, geometry.size.height - previewHeight)))
                         .accessibilityHidden(true)
                         .onDisappear { dismissHover(id) }
                 }
@@ -157,6 +160,7 @@ struct ThreadHistorySidebar: View {
     private func entry(_ row: ThreadConversationRow, index: Int) -> some View {
         let active = row.id == selected
         let emphasized = active || hovered == row.id || focused == row.id
+        let inkScale = min(1, max(0, hitWidth - 4) / 26)
         let prompt = row.execution?.prompt ?? ""
         let title: String
         if agentDetail, row.execution != nil { title = row.executionTitle }
@@ -165,8 +169,8 @@ struct ThreadHistorySidebar: View {
         return Button { keyboardRow = row.id; select(row.id) } label: {
             Rectangle().fill(emphasized ? NativePalette.thread.inkStrong.swiftUI : NativePalette.thread.muted.swiftUI)
                 .opacity(emphasized || contrast == .increased ? 1 : 0.62)
-                .frame(width: active ? 26 : emphasized ? 22 : 16, height: active ? 2 : 1.5)
-                .frame(width: Self.hitWidth, height: Self.rowHeight).contentShape(Rectangle())
+                .frame(width: (active ? 26 : emphasized ? 22 : 16) * inkScale, height: active ? 2 : 1.5)
+                .frame(width: hitWidth, height: Self.rowHeight).contentShape(Rectangle())
         }
         .buttonStyle(.plain).focusable(false)
         .id(row.id)

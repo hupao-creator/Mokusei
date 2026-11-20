@@ -12,7 +12,6 @@ public extension EnvironmentValues {
     /// already arrived through the independent title/emoji handoff.
     @Entry var nativeThreadBodyEntranceHidden = false
     @Entry var nativeThreadReservesSidecardColumn = false
-    @Entry var nativeThreadReservesHistoryRail = false
     @Entry var nativeThreadIdentityVisit: NativeThreadIdentityVisit? = nil
 }
 

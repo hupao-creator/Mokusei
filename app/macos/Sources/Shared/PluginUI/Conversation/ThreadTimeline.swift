@@ -3,6 +3,15 @@ import Observation
 import SwiftUI
 import MokuseiCore
 
+/// The index can use the document's actual whitespace, including any extra
+/// space around the capped column. Page travel and vertical scroll do not change it.
+struct ThreadDocumentLeadingMargin: PreferenceKey {
+    static let defaultValue: CGFloat? = nil
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        if let next = nextValue() { value = min(value ?? next, next) }
+    }
+}
+
 /// A transient render slot. No native message semantics or persisted state live here.
 public struct ThreadTimelineRow: Identifiable {
     public let id: JSONText
@@ -246,6 +255,12 @@ public struct HarnessMessageTimeline: View {
                         Color.clear.frame(height: 0).id(TimelineEdge.bottom)
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
+                    .background {
+                        GeometryReader { column in
+                            Color.clear.preference(key: ThreadDocumentLeadingMargin.self,
+                                value: max(0, column.frame(in: .named("thread-timeline-content")).minX))
+                        }
+                    }
                     .nativeThreadDocumentMargins(standard: bounds.size.width <= 540 ? 18 : 32)
                     .padding(.vertical, readingVerticalInset(bounds.size.width)).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")

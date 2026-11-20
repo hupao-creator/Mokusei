@@ -89,8 +89,7 @@ struct ExecutionDocument: View {
                     icon: "🪄", rows: [.init(id: executionID, createdAt: 0,
                         execution: .init(id: executionID, title: title, prompt: "", answer: answer,
                             completedAt: 1793869740000), node: AnyView(turn))])
-                    .environment(\.nativeThreadReservesHistoryRail, true)
-                    .nativeReadingPanelViewport(topInset: 22)
+                    .nativeReadingPanelViewport(topInset: 22, clearsCloseHorizontally: true)
             }
         }
         .environment(\.nativeThreadUsesLoadingSkeleton, false)
