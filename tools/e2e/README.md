@@ -193,9 +193,10 @@ history controls use the same navigation callbacks as the rail.
 To check the [Agent reader's history marks](../../app/macos/Sources/Shared/PluginUI/README.md#reading-panel-presentation),
 also start with one completed run and send a second at a fixed window size.
 Compare the heading and body frames before and after the marks appear. The
-column should keep its width and horizontal position. Check the two lines on
-the leading margin, hover each for its preview, then click the earlier run and
-click the newest mark to return. Press Up immediately. The earlier preview
+column should keep its width and horizontal position. Check both marks in the
+leading margin. Start just outside the 24pt hit area and check that the preview
+stays closed, then hover each mark to open its preview. Click the earlier run
+and click the newest mark to return. Press Up immediately. The earlier preview
 should appear while the newest document stays on screen. Press Return and
 check that the earlier document opens. Repeat in the related-execution reader
 beside a Super Thread and at a narrow width. Record the viewport, document and

@@ -11,8 +11,8 @@ private struct HistorySidebarAnchor: PreferenceKey {
 /// A lightweight index, independent of the document's bounded content window.
 /// Hovering reads only the manifest summary; it never acquires a turn resource.
 struct ThreadHistorySidebar: View {
-    private static let maximumHitWidth: CGFloat = 44
-    static let preferredMargin = maximumHitWidth + 4
+    private static let inlineHitWidth: CGFloat = 44
+    static let preferredMargin = inlineHitWidth + 4
     private static let rowHeight: CGFloat = 24
     private static let endInset: CGFloat = 8
 
@@ -39,7 +39,8 @@ struct ThreadHistorySidebar: View {
 
     private var focused: JSONText? { keyboardFocused ? keyboardRow : nil }
     private var preview: JSONText? { hovered ?? (keyboardPreview ? focused : nil) }
-    private var hitWidth: CGFloat { min(Self.maximumHitWidth, availableMargin) }
+    private var maximumHitWidth: CGFloat { agentDetail ? 24 : Self.inlineHitWidth }
+    private var hitWidth: CGFloat { min(maximumHitWidth, availableMargin) }
     private var leadingInset: CGFloat { min(4, availableMargin - hitWidth) }
 
     private var window: Range<Int> {
@@ -160,7 +161,9 @@ struct ThreadHistorySidebar: View {
     private func entry(_ row: ThreadConversationRow, index: Int) -> some View {
         let active = row.id == selected
         let emphasized = active || hovered == row.id || focused == row.id
-        let inkScale = min(1, max(0, hitWidth - 4) / 26)
+        let markWidth: CGFloat
+        if agentDetail { markWidth = active ? 16 : emphasized ? 13 : 10 }
+        else { markWidth = active ? 26 : emphasized ? 22 : 16 }
         let prompt = row.execution?.prompt ?? ""
         let title: String
         if agentDetail, row.execution != nil { title = row.executionTitle }
@@ -169,7 +172,7 @@ struct ThreadHistorySidebar: View {
         return Button { keyboardRow = row.id; select(row.id) } label: {
             Rectangle().fill(emphasized ? NativePalette.thread.inkStrong.swiftUI : NativePalette.thread.muted.swiftUI)
                 .opacity(emphasized || contrast == .increased ? 1 : 0.62)
-                .frame(width: (active ? 26 : emphasized ? 22 : 16) * inkScale, height: active ? 2 : 1.5)
+                .frame(width: markWidth * hitWidth / maximumHitWidth, height: active ? 2 : 1.5)
                 .frame(width: hitWidth, height: Self.rowHeight).contentShape(Rectangle())
         }
         .buttonStyle(.plain).focusable(false)
