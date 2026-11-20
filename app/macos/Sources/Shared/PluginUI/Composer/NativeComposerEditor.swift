@@ -252,21 +252,12 @@ struct NativeComposerEditor: NSViewRepresentable {
     }
 }
 
-@MainActor final class ComposerTextView: NSTextView {
+@MainActor final class ComposerTextView: NativeCaretTextView {
     var pasteOwnerID: UUID?
     var changed: ((Bool) -> Void)?
     var focusChanged: (() -> Void)?
     var handleKey: ((NSEvent) -> Bool)?
     var pasteAttachments: (([NSItemProvider], NSRange) -> Void)?
-    var emphasizedInsertionPoint = false {
-        didSet {
-            guard emphasizedInsertionPoint != oldValue else { return }
-            if emphasizedInsertionPoint { wantsLayer = true }
-            caret.remove()
-            needsDisplay = true
-        }
-    }
-    private let caret = NativeComposerCaret()
     var composerTextInsets = EdgeInsets() {
         didSet {
             guard composerTextInsets != oldValue else { return }
@@ -301,7 +292,6 @@ struct NativeComposerEditor: NSViewRepresentable {
         }
     }
     override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
-        caret.remove()
         editing { super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange) }
     }
     override func insertText(_ string: Any, replacementRange: NSRange) {
@@ -317,51 +307,6 @@ struct NativeComposerEditor: NSViewRepresentable {
     override func keyDown(with event: NSEvent) {
         if hasMarkedText() || handleKey?(event) != true { super.keyDown(with: event) }
     }
-    override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
-        guard emphasizedInsertionPoint, !hasMarkedText() else {
-            caret.remove()
-            super.drawInsertionPoint(in: rect, color: color, turnedOn: flag)
-            return
-        }
-        guard shouldDrawInsertionPoint, window?.isKeyWindow == true,
-              window?.occlusionState.contains(.visible) == true,
-              selectedRange().length == 0, !isHiddenOrHasHiddenAncestor, rect.intersects(visibleRect) else {
-            caret.remove()
-            return
-        }
-        // Off callbacks also erase the old insertion rectangle during movement.
-        // Keep the breathing layer alive, but only position it on an on callback.
-        if flag { caret.show(at: rect, in: self) }
-    }
-    override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting flag: Bool) {
-        super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: flag)
-        if ranges.count != 1 || selectedRange().length != 0 { caret.remove() }
-    }
-    override func viewDidHide() {
-        super.viewDidHide()
-        caret.remove()
-    }
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        NotificationCenter.default.removeObserver(self, name: NSWindow.didResignKeyNotification, object: nil)
-        NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: nil)
-        caret.remove()
-        if let window {
-            for name in [NSWindow.didResignKeyNotification, NSWindow.didChangeOcclusionStateNotification] {
-                NotificationCenter.default.addObserver(self, selector: #selector(caretWindowChanged), name: name, object: window)
-            }
-        }
-    }
-    @objc private func caretWindowChanged() {
-        if window?.isKeyWindow != true || window?.occlusionState.contains(.visible) != true { caret.remove() }
-    }
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        // CALayer colors are resolved values; refresh even without an edit.
-        caret.remove()
-        needsDisplay = true
-        if emphasizedInsertionPoint { updateInsertionPointStateAndRestartTimer(true) }
-    }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted { focusChanged?() }
@@ -369,7 +314,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     }
     override func resignFirstResponder() -> Bool {
         let accepted = super.resignFirstResponder()
-        if accepted { caret.remove(); focusChanged?() }
+        if accepted { focusChanged?() }
         return accepted
     }
 }

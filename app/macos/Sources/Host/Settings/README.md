@@ -262,19 +262,23 @@ text-field notifications cannot clear another editor's close/save gate.
 
 Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible.
 
-Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Super Thread Agent and Tag Agent use their built-in system instructions; settings do not expose full system-prompt replacement. Chief's “Model selection preferences” (模型选择偏好) offers Economy, Balanced,
+Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Super Thread Agent and Tag Agent use their built-in system instructions; settings do not expose full system-prompt replacement. Chief's “Task Orchestration Preferences” (任务编排偏好) offers Economy, Balanced,
 Performance and Custom separate capsule buttons after its basic execution fields
 and before Advanced options, including the complete Custom guidance editor.
 The production Settings entry uses `.compact, showsRoutingGuidance: true` for
 its map. Routing insertion and the compact row rhythm follow that explicit
 routing opt-in as well as the full Settings presentation. The visible execution
-field order is model, reasoning effort, model selection preferences, then Advanced
+field order is model, reasoning effort, Task Orchestration Preferences, then Advanced
 options. The compact onboarding map leaves routing guidance disabled.
 Moku rows use 12pt vertical padding instead of the default 15pt; label hierarchy,
 advanced disclosure padding and description spacing retain their existing metrics.
-The Custom editor draws a rounded adaptive Settings border above its opaque
-AppKit content, with accent focus and danger validation states, retaining native
-text editing and focus-ring behavior.
+The Custom editor places a transparent multiline AppKit viewport over a
+16-point rounded Regular Liquid Glass backdrop. The backdrop follows the system
+appearance and uses an opaque, outlined background with Reduce Transparency. The
+editor shares [Chief's animated insertion point](../../Shared/PluginUI/README.md#cards-composer-and-forms),
+using the adaptive label color for its core. A single rounded outline shows
+accent focus or danger validation above the backdrop. AppKit owns selection, Undo, IME and
+accessibility. See the [native editor replay](../../../../../tools/e2e/README.md#custom-task-orchestration-editor).
 The preset buttons reuse the role-mode choice style, show a checkmark on the selected item and
 wrap into fewer columns as the window narrows. Each capsule includes an info
 icon and exposes its own localized explanation as a native tooltip and
@@ -297,7 +301,7 @@ Settings does not expose plugin enablement or service-restart instructions.
 
 The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
 same Moku coordination map with an in-memory settings model. Its `.compact`
-presentation omits map labels and model selection preferences. Settings also uses this map presentation and shows the four model preference choices directly. Both presentations
+presentation omits map labels and Task Orchestration Preferences. Settings also uses this map presentation and shows the four preference choices directly. Both presentations
 use the circular vector avatar with the same selection, handoff
 and target feedback; the Settings page retains its native execution editors and saved values.
 
@@ -338,7 +342,7 @@ visit plays once and retains its completed composition. Leaving the tab unmounts
 and cancels its animation; inactive/hidden windows settle an interrupted playback
 to the final frame without replaying on activation. Tag pauses SpriteKit after
 rendering its final frame. Settings has no onboarding progress
-or admission steps. Onboarding alone omits model selection preferences. `draft.flush()`
+or admission steps. Onboarding alone omits Task Orchestration Preferences. `draft.flush()`
 awaits accepted writes and rejects incomplete/composing/failed edits before a
 step can finish. `flushForQuit()` retains its retired-draft semantics.
 Harness editors report acquisition and incomplete local model choices through

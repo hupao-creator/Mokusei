@@ -72,6 +72,27 @@ mode and before/after observations with each run. A process-local simulation
 covers only its injected inputs. It cannot certify macOS notifications or all
 window pixels.
 
+### Custom task orchestration editor
+
+Open **Chief → Task Orchestration Preferences → Custom** in Settings. Verify
+the title in English and Simplified Chinese. In light and dark appearance,
+capture the editor focused and unfocused. Check the rounded glass, legible text
+and the breathing insertion point, then repeat with Reduce Transparency and
+check for an opaque editor. Compare same-line typing and Return with Chief's
+composer: the insertion point eases along a line and moves directly to a new
+line. Select text and move focus away to check that the glow clears.
+
+Enter multiline text, replace and undo a selection, and scroll within the field.
+Check that macOS exposes a labeled multiline editor with the current value and
+selection. With a system input method, start composing and cancel or commit the
+marked text. Check that composition uses the native caret and that Escape during
+composition leaves Settings open. Switch presets and return to Custom, then
+close and reopen Settings and compare the exact text with the saved
+`moku.routingGuidance`. Record the revision, appearance, input method, editor
+observations and saved value. The [Settings preview](../../demos/settings-navigation/README.md)
+can check the mounted editor with an in-memory save. Runtime persistence requires
+an isolated connected workspace. `E2E-SETTINGS-001` exercises preset persistence.
+
 ### Super Thread reading regression
 
 The [Markdown layout contract](../../design/markdown.md) also applies to the

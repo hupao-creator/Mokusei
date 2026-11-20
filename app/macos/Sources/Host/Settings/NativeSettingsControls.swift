@@ -55,8 +55,10 @@ struct SettingsNavigationFocusRing: ViewModifier {
 /// AppKit's editing delegate is needed for IME composition: marked text must not
 /// be sent to persistence or permit a page dismissal midway through composition.
 struct SettingsTextArea: NSViewRepresentable {
+    static let cornerRadius: CGFloat = 16
     var interaction = NativeSettingsEditorInteraction()
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.nativeSettingsFieldActivation) private var fieldActivation
     @Environment(\.nativeSettingsTextEditing) private var editing
     @Binding var text: String
@@ -71,19 +73,22 @@ struct SettingsTextArea: NSViewRepresentable {
         let scroll = Surface()
         scroll.hasVerticalScroller = true
         NativeScrollbarStyle.apply(to: scroll); scroll.borderType = .noBorder
-        scroll.drawsBackground = true; scroll.backgroundColor = .textBackgroundColor
+        scroll.drawsBackground = false
+        scroll.contentView.drawsBackground = false
         scroll.contentInsets = NSEdgeInsets(top: 1, left: 1, bottom: 1, right: 1)
-        scroll.focusRingType = .exterior
+        scroll.focusRingType = .none
         scroll.wantsLayer = true
-        scroll.layer?.cornerRadius = 7
+        scroll.layer?.cornerRadius = Self.cornerRadius
         scroll.layer?.masksToBounds = true
         let view = Editor()
-        view.drawsBackground = true; view.allowsUndo = true
+        view.focusRingType = .none
+        view.drawsBackground = false; view.allowsUndo = true
         view.isRichText = false; view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticTextReplacementEnabled = false; view.isAutomaticSpellingCorrectionEnabled = false
         view.font = .systemFont(ofSize: 13); view.textColor = NativeAppKitPalette.settings.text
         view.insertionPointColor = NativeAppKitPalette.settings.text
-        view.backgroundColor = .textBackgroundColor
+        view.emphasizedInsertionPointColor = .labelColor
+        view.emphasizedInsertionPoint = true
         view.textContainerInset = NSSize(width: 10, height: 7)
         view.textContainer?.lineFragmentPadding = 0
         let paragraph = NSMutableParagraphStyle(); paragraph.minimumLineHeight = 18.2; paragraph.maximumLineHeight = 18.2
@@ -117,7 +122,9 @@ struct SettingsTextArea: NSViewRepresentable {
         }
         scroll.alphaValue = isEnabled ? 1 : 0.5
         if let surface = scroll as? Surface {
+            surface.opaqueBackdrop = reduceTransparency
             surface.invalid = invalid
+            surface.updateBorder()
             surface.updateInteraction = { [weak surface, weak view] in
                 guard let surface, let view else { return }
                 interaction.install(surface.interactionLease, editor: view, label: accessibilityLabel, value: text, invalid: invalid)
@@ -130,13 +137,12 @@ struct SettingsTextArea: NSViewRepresentable {
         }
     }
     final class Surface: NativeStyledScrollView {
-        // Keep the outline above the opaque AppKit clip/document surfaces.
+        // Match the material's shape for focus and validation.
         private let outline = CALayer()
         override func layout() {
             super.layout()
             if outline.superlayer == nil {
-                outline.borderWidth = 1
-                outline.cornerRadius = 7
+                outline.cornerRadius = SettingsTextArea.cornerRadius
                 outline.zPosition = 1
                 layer?.addSublayer(outline)
             }
@@ -146,20 +152,22 @@ struct SettingsTextArea: NSViewRepresentable {
             CATransaction.commit()
             updateBorder()
         }
-        var invalid = false { didSet { updateBorder() } }
+        var opaqueBackdrop = false
+        var invalid = false
         var editorFocused = false { didSet { updateBorder() } }
         override func viewDidChangeEffectiveAppearance() {
             super.viewDidChangeEffectiveAppearance()
             updateBorder()
         }
         func updateBorder() {
-            // Resolve dynamic colors in this view's appearance before CGColor;
-            // AppKit's bezel alone disappears against the dark Settings surface.
-            let color = invalid ? NativeAppKitPalette.settings.danger
-                : editorFocused ? NativeAppKitPalette.settings.accent : NativeAppKitPalette.settings.inputBorder.withAlphaComponent(0.32)
+            // Resolve dynamic colors in this view's appearance before CGColor.
+            let palette = NativeAppKitPalette.settings
+            let idleColor = opaqueBackdrop ? palette.inputBorder.withAlphaComponent(0.32) : NSColor.clear
+            let color = invalid ? palette.danger : editorFocused ? palette.accent : idleColor
             effectiveAppearance.performAsCurrentDrawingAppearance {
                 CATransaction.begin()
                 CATransaction.setDisableActions(true)
+                outline.borderWidth = editorFocused ? 2 : 1
                 outline.borderColor = color.cgColor
                 CATransaction.commit()
             }
@@ -213,7 +221,7 @@ struct SettingsTextArea: NSViewRepresentable {
             editing?.editingEnded(view)
         }
     }
-    final class Editor: NSTextView {
+    final class Editor: NativeCaretTextView {
         var compositionChanged: ((Bool) -> Void)?
         var escape: (() -> Void)?
         var placeholder: String? { didSet { if oldValue != placeholder { needsDisplay = true } } }

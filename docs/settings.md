@@ -12,7 +12,7 @@ On the **Chief** tab, choose the coordinating agent in the top row and at least 
 
 If Chief says no agents are available, install and sign in to a supported agent on your Mac, then return to the **Chief** tab and click **Retry**. [Supported agents](getting-started.md#connect-an-agent)
 
-Use **Model selection preferences** to guide Chief's choices for future tasks. Pick **Economy**, **Balanced**, or **Performance**, or select **Custom** and describe what you prefer. Hover over a choice marked with an info icon to read its description. Chief keeps your custom text if you switch presets. Chief chooses from the agents you've enabled and the models available when it assigns the work.
+Use **Task Orchestration Preferences** to guide which models Chief chooses when it assigns tasks. Pick **Economy**, **Balanced**, or **Performance**, or select **Custom** and describe what you prefer in the text box below. Hover over a choice marked with an info icon to read its description. Chief keeps your custom text if you switch presets. Chief chooses from the agents you've enabled and the models available when it assigns the work.
 
 ## Set up Tag Agent and Super Thread Agent
 

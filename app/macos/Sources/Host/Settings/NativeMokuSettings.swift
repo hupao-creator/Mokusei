@@ -131,7 +131,9 @@ import SwiftUI
             }), locale: locale)
             if NativeModelRoutingPreferences.selectedPreset(in: moku) == "custom" {
                 VStack(alignment: .leading, spacing: 12) {
-                    textArea(field: "routingGuidance", label: locale.text("告诉 Chief 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。", "Tell Chief how to choose models for delegated tasks, for example favor speed for simple tasks and reasoning ability for complex tasks."), height: 112)
+                    textArea(field: "routingGuidance", label: locale.text(
+                        "告诉 Chief 如何为委派的任务选择模型。例如，简单任务优先速度，复杂任务优先推理能力。",
+                        "Tell Chief how to choose models when delegating tasks. For example, favor speed for simple tasks and reasoning ability for complex tasks."), height: 112)
                     if let error = model.draft.validationError("routingGuidance", locale: locale) {
                         SettingsNotice(error, error: true)
                     }
@@ -301,6 +303,13 @@ import SwiftUI
            onEscape: onCloseRequest)
             .nativeSettingsControl(field)
             .frame(height: height)
+            .background {
+                Color.clear.nativeRegularCardGlass(
+                    in: RoundedRectangle(cornerRadius: SettingsTextArea.cornerRadius),
+                    opaque: NativePalette.settings.hintSurface.swiftUI)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
     }
 
     private func changeMoku(_ field: String, _ value: JSONValue?, textEdit: Bool = false) {

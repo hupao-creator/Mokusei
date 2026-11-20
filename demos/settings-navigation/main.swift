@@ -40,6 +40,11 @@ import MokuseiHarnessOpenCode
     }
 }
 
+private struct FixtureHarnessForm: View {
+    @Environment(\.nativeSettingsBeforeAdvanced) private var beforeAdvanced
+    var body: some View { beforeAdvanced }
+}
+
 private struct Surface: View {
     let fixture: Fixture
     var body: some View {
@@ -55,7 +60,7 @@ private struct Surface: View {
             } settings: {
                 NativeSettingsPage(model: fixture.model, navigation: fixture.navigation,
                     locale: .chinese, harnesses: fixture.harnesses,
-                    harnessSettings: { _ in AnyView(EmptyView()) },
+                    harnessSettings: { _ in AnyView(FixtureHarnessForm()) },
                     onClose: { _ in fixture.scene.closeSettings() })
             }
             .frame(width: geometry.size.width / fixture.scale, height: geometry.size.height / fixture.scale)

@@ -20,7 +20,7 @@ struct NativeModelRoutingPreferences: View {
          ("performance", locale.text("性能", "Performance")), ("custom", locale.text("自定义", "Custom"))]
     }
     var body: some View {
-        SettingsRow(label: locale.text("模型选择偏好", "Model selection preferences"), stacked: true) {
+        SettingsRow(label: locale.text("任务编排偏好", "Task Orchestration Preferences"), stacked: true) {
             GlassEffectContainer {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 12)], spacing: 12) {
                     ForEach(options, id: \.0) { id, title in
