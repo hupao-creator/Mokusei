@@ -76,7 +76,7 @@ public struct OpenCodeThreadView: View {
                 return AnyView(OpenCodeLazyRow(key: key, input: input, actions: actions, context: context,
                     onAnchor: { request, anchor in resolvedAnchor = (request, anchor) }))
             } : nil)
-            .environment(\.threadCardProviderColor, NativePalette.pair(0x33312f, 0xd9d7d4).swiftUI)
+            .environment(\.threadCardProviderColor, OpenCodeLogo.themeColor)
     }
     @ViewBuilder private func row(_ key: JSONText, state: OpenCodeState) -> some View {
         if key == "opencode-fork-history" {
@@ -408,7 +408,7 @@ struct OpenCodeFailure: View {
             Text(retryError ?? message).textSelection(.enabled)
             if let retry { Button(ocLocalized("重试", locale: locale)) { Task { do { try await retry(); retryError = nil } catch { retryError = error.localizedDescription } } }.buttonStyle(.plain) }
         }.font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.danger.swiftUI).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 14)
-            .nativeThreadRailFallback()
+            .nativeThreadDocumentMargins()
             .nativeReadingContentReady()
     }
 }

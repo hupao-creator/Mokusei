@@ -114,7 +114,7 @@ public struct OpenCodeOverviewCard: View {
             onOpen: openThread,
             interventionActionLabel: { $0.id == "open-native-form" ? ocLocalized("打开 OpenCode 表单", locale: locale) : $0.label },
             status: threadCardStatus(input.thread.observation), emoji: ocEmoji(input.thread.metadataState), harnessLogo: AnyView(OpenCodeLogo(size: 12)))
-            .environment(\.threadCardProviderColor, NativePalette.pair(0x33312f, 0xd9d7d4).swiftUI)
+            .environment(\.threadCardProviderColor, OpenCodeLogo.themeColor)
             .environment(\.threadCardCloudPalette, OpenCodeLogo.threadCardCloudPalette)
             .overlay(alignment: .bottomLeading) { if let failure { Text(failure).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18) } }
             .overlay(alignment: .bottomTrailing) {

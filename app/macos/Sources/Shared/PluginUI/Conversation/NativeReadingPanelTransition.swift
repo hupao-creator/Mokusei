@@ -3,6 +3,10 @@ import MokuseiCore
 import QuartzCore
 import SwiftUI
 
+public extension EnvironmentValues {
+    @Entry var nativeWindowContentScale: CGFloat = 1
+}
+
 struct NativeReadingPanelTransition: Equatable {
     let generation: Int
     let closing: Bool
@@ -17,6 +21,7 @@ struct NativeReadingPanelTransition: Equatable {
 struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
     let target: CGRect
     let source: CGRect?
+    let usesGlass: Bool
     let open: Bool
     let transition: NativeReadingPanelTransition?
     let contentReady: Bool
@@ -26,7 +31,7 @@ struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
     let onCompletion: (Int, Bool) -> Void
     let content: Content
 
-    func makeNSView(context: Context) -> ReadingPanelView { ReadingPanelView() }
+    func makeNSView(context: Context) -> ReadingPanelView { ReadingPanelView(usesGlass: usesGlass) }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: ReadingPanelView, context: Context) -> CGSize? {
         // The workspace owns this viewport; fitting its hosted document would
@@ -58,6 +63,8 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private let surface = ReadingPanelSurfaceView()
     private let aperture = CAShapeLayer()
     private let paper = CALayer()
+    private let glass: NSGlassEffectView?
+    private let collectionContentSpace: NSView?
     private var hosting: NSHostingView<AnyView>?
     private var target = CGRect.zero
     private var source = CGRect.zero
@@ -76,8 +83,10 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { false }
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
+    init(usesGlass: Bool) {
+        glass = usesGlass ? NSGlassEffectView() : nil
+        collectionContentSpace = usesGlass ? ReadingPanelSurfaceView() : nil
+        super.init(frame: .zero)
         wantsLayer = true
         surface.wantsLayer = true
         // AppKit backs flipped views with an origin anchor. Keep that native
@@ -85,6 +94,17 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         surface.layer!.anchorPoint = .zero
         addSubview(surface)
         surface.layer!.addSublayer(paper)
+        // Keep the collection material on the moving surface, including the
+        // opening frames before the member grid is mounted.
+        if let glass, let collectionContentSpace {
+            glass.style = .regular
+            glass.cornerRadius = 22
+            glass.setAccessibilityHidden(true)
+            paper.cornerRadius = glass.cornerRadius
+            paper.cornerCurve = .continuous
+            surface.addSubview(glass)
+            surface.addSubview(collectionContentSpace)
+        }
         surface.layer!.mask = aperture
     }
 
@@ -117,11 +137,27 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             surface.frame = CGRect(x: target.minX, y: target.minY, width: target.width + 76, height: target.height)
         }
         paper.frame = CGRect(origin: .zero, size: target.size)
-        paper.backgroundColor = paperColor
+        if let glass {
+            glass.frame = paper.frame
+            glass.isHidden = environment.accessibilityReduceTransparency
+        }
+        paper.backgroundColor = glass?.isHidden == false ? nil : paperColor
         if contentReady || identity?.pending == true {
-            if let hosting { hosting.rootView = content }
+            let root: AnyView
+            if let collectionContentSpace {
+                // Keep the nested host in window points. Applying zoom inside
+                // its SwiftUI root keeps pointer and AX frames on the artwork.
+                let logical = surface.bounds.size
+                let scale = environment.nativeWindowContentScale
+                collectionContentSpace.frame = surface.bounds
+                collectionContentSpace.setBoundsSize(CGSize(width: logical.width * scale, height: logical.height * scale))
+                root = AnyView(content.frame(width: logical.width, height: logical.height)
+                    .scaleEffect(scale, anchor: .topLeading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
+            } else { root = content }
+            if let hosting { hosting.rootView = root }
             else {
-                let view = NSHostingView(rootView: content)
+                let view = NSHostingView(rootView: root)
                 // The compositor supplies the host's frame, independently of
                 // the document's minimum, ideal and maximum content sizes.
                 view.sizingOptions = []
@@ -129,9 +165,10 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
                 hosting = view
                 // The lightweight identity ink remains above the newly admitted
                 // opaque reader until its measured heading takes ownership.
-                surface.addSubview(view, positioned: .below, relativeTo: nil)
+                if let collectionContentSpace { collectionContentSpace.addSubview(view) }
+                else { surface.addSubview(view, positioned: .below, relativeTo: nil) }
             }
-            hosting?.frame = surface.bounds
+            hosting?.frame = collectionContentSpace?.bounds ?? surface.bounds
         }
         if transition?.closing != true {
             hosting?.layer?.opacity = contentReady ? 1 : 0
@@ -160,7 +197,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             surface.layer?.mask = open ? nil : aperture
             aperture.path = path(self.source.size)
             surface.layer?.position = open ? target.origin : self.source.origin
-            paper.isHidden = open && contentReady
+            paper.isHidden = open && contentReady && glass == nil
             CATransaction.commit()
             if open && contentReady { flight?.completeOpening() }
         }
@@ -312,7 +349,12 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard acceptsInput, let hit = super.hitTest(point), hit !== self, hit !== surface else { return nil }
+        guard acceptsInput else { return nil }
+        // The collection has no controls in the compositor's auxiliary lane.
+        // Leave clicks there to the workspace's outside-click backdrop.
+        if collectionContentSpace != nil, !target.contains(convert(point, from: superview)) { return nil }
+        guard let hit = super.hitTest(point), hit !== self, hit !== surface, hit !== collectionContentSpace else { return nil }
+        if let glass, hit.isDescendant(of: glass) { return nil }
         return hit
     }
 

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
+	"github.com/hupao-creator/Chief/internal/platform/processgroup"
 	"io"
 	"os"
 	"os/exec"
@@ -235,7 +235,7 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 	}()
 	initCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	s.initialized, err = s.Call(initCtx, "initialize", Map{"clientInfo": Map{"name": codexClientName, "title": "Mokusei", "version": "0.2.0"}, "capabilities": Map{"experimentalApi": true, "requestAttestation": false, "extensions": Map{"openai/form": Map{}}}})
+	s.initialized, err = s.Call(initCtx, "initialize", Map{"clientInfo": Map{"name": codexClientName, "title": "Chief", "version": "0.2.0"}, "capabilities": Map{"experimentalApi": true, "requestAttestation": false, "extensions": Map{"openai/form": Map{}}}})
 	if err == nil {
 		err = s.Notify("initialized", nil)
 	}

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"unicode/utf8"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 func (stateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage, error) {

@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 
 /// Device-owned reading bytes. This directory is separate from drafts and the
@@ -127,16 +128,51 @@ public struct RuntimeDraftStore: Sendable {
         return (value, ids)
     }
 
+    /// Match and replace under the collector's gate so another client cannot
+    /// erase a pending send or consume a newer draft between read and write.
+    public func update(_ change: (JSONValue?) throws -> (JSONValue, [JSONText])?) throws {
+        try RuntimeAttachmentLease.withExclusiveOwnership(in: storageDirectory) {
+            if let (value, ids) = try change(readDocument()?.value) {
+                try write(value, attachmentIDs: ids)
+            }
+        }
+    }
+
     public func save(_ value: JSONValue, attachmentIDs: [JSONText] = []) throws {
+        try RuntimeAttachmentLease.withSharedOwnership(in: storageDirectory) {
+            try write(value, attachmentIDs: attachmentIDs)
+        }
+    }
+
+    public func acquireSubmissionLease() throws -> RuntimeDraftSubmissionLease {
+        try RuntimeDraftSubmissionLease(file: file.deletingPathExtension().appendingPathExtension("lock"))
+    }
+
+    private func write(_ value: JSONValue, attachmentIDs: [JSONText]) throws {
         // The repository reads this versioned ownership envelope without knowing
         // the native composer's value schema. Publish both in one atomic write.
         let data = try runtimeObject(["version": .integer(2), "scope": .string(scope),
             "attachmentIDs": .array(attachmentIDs.map(JSONValue.string)), "value": value]).encodedData()
         guard data.count <= RuntimeProtocol.maxRequestBytes else { throw RuntimeError("DRAFT_TOO_LARGE", "The draft exceeds the local storage limit") }
-        try RuntimeAttachmentLease.withSharedOwnership(in: storageDirectory) {
-            try RuntimePrivateFile.write(data, to: file)
-        }
+        try RuntimePrivateFile.write(data, to: file)
     }
+}
+
+/// Held from before the draft handoff through receipt consumption. Process exit
+/// releases the kernel lock, allowing another owner to review the saved input.
+public final class RuntimeDraftSubmissionLease {
+    private let descriptor: Int32
+    fileprivate init(file: URL) throws {
+        let directory = file.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
+        let fd = Darwin.open(directory.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard fd >= 0 else { throw RuntimeError("DRAFT_IO", "Could not open the draft directory") }
+        defer { Darwin.close(fd) }
+        descriptor = try RuntimeProfileClientLease.lockFile(directory: fd, name: file.lastPathComponent,
+            mode: LOCK_EX, busy: RuntimeError("DRAFT_SENDING", "The original send is still in progress."))
+    }
+    deinit { Darwin.close(descriptor) }
 }
 
 enum RuntimePrivateFile {

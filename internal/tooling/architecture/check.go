@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const module = "github.com/hupao-creator/Mokusei/"
+const module = "github.com/hupao-creator/Chief/"
 
 var allowed = map[string]string{
 	"hosts/applicationhost": "core/model core/plugin core/store", "platform/applicationprocess": "platform/environment core/model core/plugin platform/processgroup",

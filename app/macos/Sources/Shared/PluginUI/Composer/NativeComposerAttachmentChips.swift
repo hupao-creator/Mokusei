@@ -98,7 +98,7 @@ public struct NativeComposerAttachmentChips: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
             .padding(.init(top: NativeComposerChipMetrics.topInset, leading: NativeComposerChipMetrics.containerInset,
                            bottom: NativeComposerChipMetrics.bottomInset, trailing: NativeComposerChipMetrics.containerInset))
-            .accessibilityLabel(composerLocalized("Moku 附件", locale: locale))
+            .accessibilityLabel(composerLocalized("Chief 附件", locale: locale))
             .quickLookPreview($previewURL, in: imageURLs)
             .onChange(of: imageURLs) { _, urls in
                 if let previewURL, !urls.contains(previewURL) { self.previewURL = nil }

@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 type localSchemaLoader struct{}
 
 func (localSchemaLoader) Load(string) (any, error) {
-	return nil, errors.New("Moku schemas cannot load external resources")
+	return nil, errors.New("Chief schemas cannot load external resources")
 }
 
 // The validator belongs to one immutable tool binding. Compile lazily so schema

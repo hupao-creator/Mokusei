@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 // Statusbar describes classification membership only. It grants no authority to

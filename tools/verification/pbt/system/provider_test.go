@@ -15,6 +15,7 @@ type provider struct {
 	childrenWake    chan struct{}
 	barriers        map[string]*responseBarrier
 	scopeChecks     map[string]bool
+	userStops       map[string]string
 	children        map[string]string
 	childExecutions map[string]string
 	workspaces      []string
@@ -198,7 +199,7 @@ func (p *provider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if tool == "" {
 			var err error
-			tool, call, args, err = mokuTerminalPlan(req["input"])
+			tool, call, args, err = p.mokuTerminalPlan(req["input"])
 			if err != nil {
 				p.mu.Lock()
 				p.failures = append(p.failures, err.Error())

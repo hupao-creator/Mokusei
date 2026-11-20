@@ -1,6 +1,6 @@
 package moku
 
-import "github.com/hupao-creator/Mokusei/internal/core/model"
+import "github.com/hupao-creator/Chief/internal/core/model"
 
 // Presets express routing priorities without assigning models to fixed tiers.
 // Manual guidance is retained separately and applies only in custom mode.

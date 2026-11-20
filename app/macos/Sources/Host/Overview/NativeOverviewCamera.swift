@@ -154,7 +154,14 @@ public enum NativeOverviewCameraGeometry {
 
     public static func fit(_ content: NativeOverviewContentRect, viewport: NativeOverviewViewport,
                            scaleCap: Double? = NativeOverviewGeometryPolicy.standard.scaleCap) -> NativeOverviewTransform? {
-        centeredTransform(content: content, usable: automaticFramingRegion(viewport), scaleCap: scaleCap)
+        var usable = automaticFramingRegion(viewport)
+        // At maximum workspace zoom the header and Dock can exhaust the packing
+        // height. Frame the cards on the visible canvas so navigation can start.
+        if usable.height == 0 {
+            usable.top = 0
+            usable.height = viewport.height
+        }
+        return centeredTransform(content: content, usable: usable, scaleCap: scaleCap)
     }
 
     public static func zoom(_ transform: NativeOverviewTransform, cursor: CGPoint, nextScale: Double,
@@ -391,6 +398,28 @@ public final class NativeOverviewCamera {
         }
         updateAuto()
         publish()
+    }
+
+    /// An explicit reading link can target a card outside a saved pan or the
+    /// automatic scale floor. Keep the current zoom and pan only when needed.
+    func revealReadingCard(_ rect: CGRect, reduceMotion: Bool) async {
+        if let animationTask { await animationTask.value }
+        guard !Task.isCancelled, let viewport, let live else { return }
+        let region = NativeOverviewCameraGeometry.contentRegion(viewport)
+        let usable = CGRect(x: region.left, y: region.top, width: region.width, height: region.height)
+        let transform = live.transform
+        let frame = CGRect(x: transform.x + rect.minX * transform.scale, y: transform.y + rect.minY * transform.scale,
+            width: rect.width * transform.scale, height: rect.height * transform.scale)
+        guard !usable.isEmpty, !usable.intersects(frame) else { return }
+        let target = NativeOverviewTransform(scale: transform.scale,
+            x: transform.x + usable.midX - frame.midX, y: transform.y + usable.midY - frame.midY)
+        if reduceMotion { setManualTransform(target) }
+        else {
+            manual = true
+            pendingAutoFit = false
+            startAnimation(to: target)
+            await animationTask?.value
+        }
     }
 
     public func setInteractionPaused(_ paused: Bool) {

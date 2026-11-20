@@ -28,11 +28,14 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var focusBlur: Bool
     public var stationaryParent: Bool
     public var panel: Bool
+    private let panelUsesGlass: Bool
     public var isolatesParent: Bool
     public var panelSource: CGRect?
     public var panelIdentity: NativeThreadIdentityVisit?
     public var panelFrontIdentity: JSONText?
     public var reportPanelMotion: Bool
+    private let respectsReduceMotion: Bool
+    private let requiresPanelSource: Bool
     public var threadPanelMotion: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
@@ -44,6 +47,11 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var onPanelOutsideClick: (() -> Void)?
     private let parent: Parent
     private let front: Front
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var animatesTravel: Bool {
+        enabled && !(respectsReduceMotion && reduceMotion) && (!requiresPanelSource || panelSource != nil)
+    }
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.nativeReadingEntranceReady) private var parentEntranceReady
@@ -63,8 +71,11 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
-                emphasizedOpening: Bool = false, panel: Bool = false, isolatesParent: Bool = false, panelSource: CGRect? = nil,
-                panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
+                emphasizedOpening: Bool = false, panel: Bool = false, panelUsesGlass: Bool = false,
+                isolatesParent: Bool = false, panelSource: CGRect? = nil,
+                panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false,
+                respectsReduceMotion: Bool = false, requiresPanelSource: Bool = false,
+                duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
                 onParentPresentationChange: ((Bool) -> Void)? = nil,
@@ -76,8 +87,11 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.focusBlur = focusBlur; self.stationaryParent = stationaryParent
         self.emphasizedOpening = emphasizedOpening; self.duration = duration
         self.panel = panel; self.panelSource = panelSource
+        self.panelUsesGlass = panelUsesGlass
         self.isolatesParent = isolatesParent
         self.panelIdentity = panelIdentity; self.panelFrontIdentity = panelFrontIdentity
+        self.respectsReduceMotion = respectsReduceMotion || reportPanelMotion
+        self.requiresPanelSource = requiresPanelSource
         self.reportPanelMotion = reportPanelMotion
         self.threadPanelMotion = threadPanelMotion
         self.axis = axis
@@ -122,7 +136,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         .accessibilityHidden(true)
                 }
                 if open && panel {
-                    NativeReadingPanelViewport(target: panelBounds, source: panelSource,
+                    NativeReadingPanelViewport(target: panelBounds, source: panelSource, usesGlass: panelUsesGlass,
                         open: panelContentReady || panelTransition != nil,
                         transition: panelTransition, contentReady: panelContentReady,
                         readerPreloading: panelReaderPreloading,
@@ -201,7 +215,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         }
         .onChange(of: open) { _, value in
             bindActions()
-            if value && enabled { mountedIdentity = identity; animate(closing: false) }
+            if value { mountedIdentity = identity }
+            if value && animatesTravel { animate(closing: false) }
             else { settle() }
         }
         .onChange(of: identity) { _, _ in
@@ -211,6 +226,10 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 if axis == .vertical && direction != 0 && enabled { trackReplacement() }
             }
             mountedIdentity = identity
+        }
+        .onChange(of: reduceMotion) { _, value in
+            bindActions()
+            if value && respectsReduceMotion && motion.active { settle(finishingClose: true) }
         }
         .onChange(of: scenePhase) { _, value in if value != .active { settle(finishingClose: true) } }
         .onChange(of: direction, initial: true) { _, value in
@@ -237,7 +256,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         // Reversing an opening uses the already participating parent immediately.
         // Only a settled detail needs to refresh its retained, paused backdrop.
         guard let prepareParent, !motion.active else {
-            if enabled { animate(closing: true) }
+            if animatesTravel { animate(closing: true) }
             else { onClose() }
             return
         }
@@ -254,7 +273,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             guard !Task.isCancelled, generation == token else { return }
             preparingClose = false
             motion.active = false
-            if enabled { animate(closing: true) }
+            if animatesTravel { animate(closing: true) }
             else { onClose() }
         }
     }

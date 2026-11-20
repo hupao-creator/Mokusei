@@ -16,6 +16,8 @@ import SwiftUI
     var usesGlassBadge = false
     var showsArchiveAction = false
     var allowsActions: () -> Bool = { true }
+    var memberSource: NativeCollectionPanelSource?
+    @Environment(\.nativeCollectionPanel) private var collectionPanel
     @State private var references: [ApplicationExecutionPresentation] = []
     @State private var requestedReferences: [ApplicationExecutionRef] = []
     @State private var failure: String?
@@ -58,7 +60,10 @@ import SwiftUI
     }
     private var card: some View {
         Button {
-            if allowsActions(), !archivePending { openThread() }
+            guard allowsActions(), !archivePending else { return }
+            if let memberSource, let collectionPanel {
+                collectionPanel.openMember(props.entry.ref, source: memberSource, navigate: openThread)
+            } else { openThread() }
         } label: {
             GeometryReader { geometry in
                 VStack(spacing: 4) {
@@ -100,13 +105,16 @@ import SwiftUI
                     .help(applicationText(locale, "\(harness.displayName.string)：\(count) 个关联 Thread", "\(harness.displayName.string): \(count) related threads"))
                 }
                 TimelineView(.periodic(from: .now, by: 30)) { clock in Text(updatedLabel(now: clock.date)) }
-                    .help(applicationText(locale, "报告更新时间，不是最近打开时间。", "Report update time, not the last time you opened it."))
+                    .help(applicationText(locale, "Super Thread 的更新时间，与打开时间无关。", "When this Super Thread was last updated."))
             }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.faint.swiftUI)
                 .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
             ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
             if let failure = archiveFailure ?? failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
-        }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+            // A covered Overview card has only 130pt below its cover and gap.
+            .padding([.horizontal, .top], 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .threadCardBadge {
                 ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
                                          completedBackground: true, usesRegularGlass: usesGlassBadge)

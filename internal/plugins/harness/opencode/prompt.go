@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 // ReadFork reasons on a native history branch in the source database. Its own

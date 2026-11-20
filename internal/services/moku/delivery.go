@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 // Delivery retries only work that has not reached native Send. The runtime owns
@@ -57,7 +57,11 @@ func (c *Coordinator) deliverNotification(ctx context.Context, delivery plugin.M
 		if err != nil {
 			return err
 		}
-		serialized, err := json.Marshal(publicThread(delivery.Thread))
+		thread := publicThread(delivery.Thread)
+		if delivery.UserAction != nil {
+			thread["event"] = delivery.UserAction
+		}
+		serialized, err := json.Marshal(thread)
 		if err != nil {
 			return err
 		}

@@ -68,6 +68,7 @@ private extension EnvironmentValues {
 }
 
 extension EnvironmentValues {
+    @Entry var nativeAgentPanelClose: (() -> Void)?
     @Entry var nativeAgentInputTargetChanged: ((UUID, ThreadConversationInputTarget?) -> Void)?
 }
 
@@ -153,6 +154,7 @@ struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
+    @Environment(\.nativeAgentPanelClose) private var panelClose
     @Environment(\.nativeAgentInputTargetChanged) private var inputTargetChanged
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedLauncher: JSONText?
@@ -208,7 +210,7 @@ struct NativeSidecardWorkspaceLayout: View {
                     .background(NativeReadingPanelFrame())
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-                    .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
+                    .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: panelClose ?? model.closeThread)
                     .accessibilityIdentifier("agent-reading-panel")
                     .zIndex(snapshot.handoff == nil ? 0 : 2)
                 if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
@@ -344,14 +346,8 @@ struct NativeSidecardWorkspaceLayout: View {
             if preparing { status = .init() }
         }
         .onPreferenceChange(NativeReadingContentStatusKey.self, perform: onContentStatusChange)
-        // Reserve the history rail across initial loading. The reading column
-        // still centers itself inside the current main pane when it resizes.
-        .environment(\.nativeThreadReservesHistoryRail, true)
         .environment(\.nativeThreadReservesSidecardColumn, snapshot.layoutSelection != nil)
-        // The 48pt leading rail keeps the document and its scroller to the
-        // right of Close; the rail itself has 64pt of vertical clearance.
-        // Do not also reserve Close's height above the entire reading viewport.
-        .nativeReadingPanelViewport(topInset: 22)
+        .nativeReadingPanelViewport(topInset: 22, clearsCloseHorizontally: true)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))
         // History owns its own Escape. Keep this fallback out of Sidecards so

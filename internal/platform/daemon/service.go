@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
-	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/transport"
 )
 
 // Bootstrap must not open storage or native resources in its constructor.

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 type Config struct {
@@ -84,10 +84,10 @@ func (r *registry) MokuContext(d plugin.MokuContextDefinition) error {
 		return fmt.Errorf("invalid Context contribution identity %q", d.ID)
 	}
 	if d.Create == nil || strings.TrimSpace(d.Slot) == "" || d.TimeoutMS <= 0 || d.TimeoutMS > 60000 || !slices.Contains([]string{"session-start", "before-send"}, d.InjectAt) || !slices.Contains([]string{"omit", "abort-send"}, d.OnFailure) {
-		return fmt.Errorf("invalid Moku context %s", d.ID)
+		return fmt.Errorf("invalid Chief context %s", d.ID)
 	}
 	if _, exists := r.definitions[d.ID]; exists {
-		return fmt.Errorf("duplicate Moku context %s", d.ID)
+		return fmt.Errorf("duplicate Chief context %s", d.ID)
 	}
 	r.definitions[d.ID] = ownedDefinition{definition: d, enabled: r.enabled}
 	return nil
@@ -138,7 +138,7 @@ func (h *Host) Start(ctx context.Context, _ plugin.RuntimeStartContext) (err err
 			return createErr
 		}
 		if service == nil {
-			return errors.New("nil Moku context service")
+			return errors.New("nil Chief context service")
 		}
 		h.mu.Lock()
 		h.services[id] = service

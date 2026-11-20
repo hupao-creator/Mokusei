@@ -8,15 +8,16 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	core "github.com/hupao-creator/Chief/internal/core/runtime"
+	"github.com/hupao-creator/Chief/internal/core/store"
+	"github.com/hupao-creator/Chief/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 
@@ -25,11 +26,12 @@ import (
 // implement the host's admission, retry, cancellation or settlement logic.
 type propertyHarness struct {
 	*harness
-	mu       sync.Mutex
-	schedule string
-	outcome  string
-	calls    int
-	entered  chan struct{}
+	mu             sync.Mutex
+	schedule       string
+	outcome        string
+	calls          int
+	entered        chan struct{}
+	afterInterrupt func() error
 }
 
 func (h *propertyHarness) Open(ctx context.Context, open plugin.OpenContext) (plugin.Handle, error) {
@@ -39,6 +41,16 @@ func (h *propertyHarness) Open(ctx context.Context, open plugin.OpenContext) (pl
 type propertyHandle struct {
 	*handle
 	peer *propertyHarness
+}
+
+func (h *propertyHandle) Interrupt(ctx context.Context) error {
+	if err := h.handle.Interrupt(ctx); err != nil {
+		return err
+	}
+	if h.peer.afterInterrupt != nil {
+		return h.peer.afterInterrupt()
+	}
+	return nil
 }
 
 func (h *propertyHandle) Send(ctx context.Context, request plugin.SendRequest) error {
@@ -237,5 +249,97 @@ func TestSendAdmissionProperties(t *testing.T) {
 		if err != nil || settled.Revision != after.Revision {
 			t.Fatalf("duplicate stop changed the settled record or it became unreadable: %v", err)
 		}
+		// All preceding terminals came from the peer or the Chief tool. Keep
+		// them queued across successor runs to detect cross-execution attribution.
+		for _, rejected := range []bool{true, false} {
+			checkUserStopDelivery(t, r, peer, id, rejected)
+		}
 	})
+}
+
+func checkUserStopDelivery(t *rapid.T, r *core.Runtime, peer *propertyHarness, threadID string, rejected bool) {
+	ctx := context.Background()
+	request := raw(map[string]any{"threadId": threadID, "input": model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "continue"}}}})
+	if _, err := r.Invoke(ctx, "thread:follow-up", []json.RawMessage{request}); err != nil {
+		t.Fatal(err)
+	}
+	thread, err := r.Thread(threadID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	executionID := thread.Observation.LatestExecution.ExecutionID
+	nativeFailure := errors.New("native stop acknowledgement failed")
+	peer.afterInterrupt = func() error {
+		pending, err := r.ReadyMokuDeliveries()
+		if err != nil {
+			return err
+		}
+		for _, d := range pending {
+			if e := d.Thread.Observation.LatestExecution; e != nil && e.ExecutionID == executionID {
+				return errors.New("interrupted terminal available before Stop acknowledgement")
+			}
+		}
+		if rejected {
+			return nativeFailure
+		}
+		return nil
+	}
+	defer func() { peer.afterInterrupt = nil }()
+	target := raw(model.CancellationRequest{ThreadID: threadID, ExpectedCancellationID: thread.CancellationID})
+	result, err := r.Invoke(ctx, "thread:interrupt", []json.RawMessage{target})
+	if rejected {
+		if !errors.Is(err, nativeFailure) {
+			t.Fatalf("expected native stop error, got %v", err)
+		}
+	} else if err != nil || result.(model.CancellationResult).Status != model.CancellationCancelled {
+		t.Fatalf("user stop failed: %v, %v", result, err)
+	}
+	pending, err := r.ReadyMokuDeliveries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminals, directInputs := 0, 0
+	for _, d := range pending {
+		if d.Lazy {
+			var notice struct{ Event plugin.LifecycleEvent }
+			body, ok := strings.CutPrefix(d.Notification, "Mokusei user direct-to-thread event:\n")
+			if !ok || json.NewDecoder(strings.NewReader(body)).Decode(&notice) != nil {
+				t.Fatal("invalid direct input notification")
+			}
+			var sent model.UserThreadInput
+			if json.Unmarshal(notice.Event.Data, &sent) != nil {
+				t.Fatal("invalid input admission")
+			}
+			if sent.ExecutionID == executionID {
+				directInputs++
+				if notice.Event.Source != "user" || notice.Event.Subject.ID != threadID || len(sent.Parts) != 1 || sent.Parts[0].Text != "continue" {
+					t.Fatal("direct input lost its user or content")
+				}
+			}
+		}
+		e := d.Thread.Observation.LatestExecution
+		matches := e != nil && e.ExecutionID == executionID
+		if matches {
+			terminals++
+			if d.Lazy || e.Status != "interrupted" {
+				t.Fatal("stop lost its waking interrupted terminal")
+			}
+		}
+		if d.UserAction == nil {
+			if matches && !rejected {
+				t.Fatal("user Stop missing from terminal delivery")
+			}
+			continue
+		}
+		var data struct {
+			ExecutionID string `json:"executionId"`
+		}
+		if !matches || rejected || d.UserAction.Source != "user" || d.UserAction.Type != "thread.interrupt-acknowledged" ||
+			d.UserAction.Subject.ID != threadID || json.Unmarshal(d.UserAction.Data, &data) != nil || data.ExecutionID != executionID {
+			t.Fatal("incorrect user attribution on pending delivery")
+		}
+	}
+	if terminals != 1 || directInputs != 1 {
+		t.Fatalf("got %d terminals and %d direct inputs, want one each", terminals, directInputs)
+	}
 }

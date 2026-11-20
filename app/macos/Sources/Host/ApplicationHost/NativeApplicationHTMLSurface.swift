@@ -62,6 +62,7 @@ private struct HTMLDocumentIdentity: Hashable {
 
 @MainActor
 private struct HTMLDocumentSession: View {
+    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
     let source: ApplicationHTMLSource
     let thread: ApplicationThreadRef
     let theme: PluginTheme
@@ -102,7 +103,7 @@ private struct HTMLDocumentSession: View {
                     }, onReady: {
                         ready = true; onNativeNavigationChange(!panel)
                         if !hasRevealedDocument {
-                            withAnimation(.easeOut(duration: 0.2)) { hasRevealedDocument = true }
+                            withAnimation(animatesEntrance ? .easeOut(duration: 0.2) : nil) { hasRevealedDocument = true }
                         }
                     }, onFailure: fail, onNavigation: { intent in
                         guard !suppressed else { return }
@@ -153,7 +154,7 @@ private struct HTMLDocumentSession: View {
         .nativeReadingEscape(perform: panel && !ready && !suppressed ? onBack : nil)
         .preference(key: NativeApplicationHTMLReadinessKey.self, value:
             NativeApplicationHTMLReadiness(source: source, thread: thread, generation: loadedGeneration, ready: ready))
-        .preferredColorScheme(theme == .dark ? .dark : .light)
+        .environment(\.colorScheme, theme == .dark ? .dark : .light)
         .task(id: refresh) {
             document = nil; failure = nil; ready = false; scrollHidden = false; hovered = false; navigationNotice = nil
             onNativeNavigationChange(false)
@@ -439,8 +440,8 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
 
         private func rejectDownload() {
             input.onNavigationNotice(input.locale.string.hasPrefix("en")
-                ? "Downloads are not supported in reports. The document remains open."
-                : "报告暂不支持下载，当前文档将保持打开。")
+                ? "Downloads are unavailable in this document. The document remains open."
+                : "此文档暂不支持下载，将保持打开。")
         }
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,

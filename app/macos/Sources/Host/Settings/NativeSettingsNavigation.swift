@@ -7,6 +7,7 @@ import MokuseiPluginUI
 /// The page and programmatic navigation share the same section and close gate.
 @MainActor @Observable
 public final class NativeSettingsNavigation {
+    public static let defaultSection = "moku"
     static let incompleteEditError = "请补全当前模型配置后再关闭设置。"
     public var section: String
     public private(set) var focusRequest = 0
@@ -16,14 +17,18 @@ public final class NativeSettingsNavigation {
     public func interactionContext(section: String) -> NativeSettingsInteractionContext { .init(visit: visit, section: section) }
     public var returnRect = CGRect.zero
 
-    public init(section: String = "moku") { self.section = section }
+    public init(section: String = defaultSection) { self.section = section }
+
+    func activeSection(in sections: [String]) -> String {
+        sections.contains(section) ? section : Self.defaultSection
+    }
 
     public static func sections(model: NativeSettingsModel, applications: [NativeApplicationSettingsSection]) -> [String] {
         let available = applications.filter { definition in
             model.plugins.first { $0.key == "extension:\(definition.owner)" }?.enabled != false
         }.map(\.id)
         let roles = ["tag.settings", "report.settings"].filter { available.contains($0) }
-        return ["general", "moku"] + roles + available.filter { !roles.contains($0) }
+        return [defaultSection] + roles + available.filter { !roles.contains($0) }
     }
 
     public func closeBlockReason(model: NativeSettingsModel) -> String? {

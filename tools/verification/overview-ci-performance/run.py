@@ -1172,11 +1172,15 @@ def main():
             sources = sorted((checkout / SOURCE.relative_to(ROOT)).glob("*.swift"))
             if not sources:
                 raise RuntimeError("Swift Overview performance harness is missing")
-            probe_build = {"sources": list(map(str, sources)), "swiftFlags": SWIFT_FLAGS,
+            # Select the locale injection API in each product. Both variants mount the same fixture in Chinese.
+            flags = list(SWIFT_FLAGS)
+            if (checkout / "app/macos/Sources/Host/Shell/DesktopLocale.swift").is_file():
+                flags.extend(["-D", "MOKUSEI_SYSTEM_PRESENTATION"])
+            probe_build = {"sources": list(map(str, sources)), "swiftFlags": flags,
                            "configuration": "release", "startedAt": utc(), "succeeded": False}
             try:
                 with native_build_log(build_dir / "probe-build.log"), time_limit(budget.remaining(120)):
-                    replay.compile(sources, extra_args=SWIFT_FLAGS)
+                    replay.compile(sources, extra_args=flags)
                 probe_build["succeeded"] = True
             except BaseException as error:
                 error.overview_log = build_dir / "probe-build.log"

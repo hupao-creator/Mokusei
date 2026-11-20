@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
+	"github.com/hupao-creator/Chief/internal/platform/processgroup"
 )
 
 type Object = map[string]any
@@ -380,7 +380,7 @@ func (r *Runtime) authorizeSessionRequest(method string, u *url.URL, body any) e
 		return nil
 	}
 	if !r.bridge.Owns(id) {
-		return errors.New("OpenCode session is not owned by this Mokusei runtime")
+		return errors.New("OpenCode session is not owned by this Chief runtime")
 	}
 	return nil
 }

@@ -11,6 +11,7 @@ public struct OpenCodeHarnessPlugin: HarnessPlugin {
     public var descriptor: HarnessPluginDescriptor { .init(id: "opencode", displayName: "OpenCode",
         threadCapabilities: .init(instructions: true, threadContext: true, sendContext: true, toolModes: [.extend, .exclusive]),
         installationGuide: URL(string: "https://opencode.ai/docs/")!) }
+    public var themeColor: Color? { OpenCodeLogo.themeColor }
     public var logoSource: String { OpenCodeLogo.source }
     public func logo(size: CGFloat) -> some View { OpenCodeLogo(size: size) }
     public var translations: HarnessTranslationCatalog { ["en-US": Dictionary(uniqueKeysWithValues: ocEnglish.map { (JSONText($0.key), JSONText($0.value)) })] }
@@ -74,7 +75,7 @@ private let ocEnglish: [String: String] = [
     "来自源 OpenCode 会话的分支历史": "History from the source OpenCode session", "OpenCode 分支历史（只读）": "OpenCode fork history (read-only)",
     "OpenCode 拒绝原因（可选）": "Reason for denying OpenCode (optional)", "OpenCode 子会话": "OpenCode child session", "打开 OpenCode 表单": "Open OpenCode form",
     "打开 OpenCode 请求页面": "Open the OpenCode request page", "我已完成此步骤": "I have completed this step", "其他回答，每行一项": "Other answers, one per line", "是": "Yes", "否": "No",
-    "该 OpenCode 免费模型可用于保留原生工具的普通任务和线程问答，但不支持 Moku 或独占工具的元数据生成。请选择其他已配置的 Host 或模型；不会自动改用付费模型。": "This free OpenCode model supports ordinary tasks and thread questions with native tools, but not Moku or metadata generation with exclusive tools. Select another configured Host or model; Mokusei will not automatically switch to a paid model.",
+    "该 OpenCode 免费模型可用于保留原生工具的普通任务和线程问答，但不支持 Chief 或独占工具的元数据生成。请选择其他已配置的 Host 或模型；不会自动改用付费模型。": "This free OpenCode model supports ordinary tasks and thread questions with native tools, but not Chief or metadata generation with exclusive tools. Select another configured Host or model; Chief will not automatically switch to a paid model.",
     "模型": "Model", "推理选择": "Thinking", "权限模式": "Permission mode", "请选择": "Select", "目录中不可用": "Unavailable in catalog", "未选择": "Not selected",
     "该 Thread 正在运行，请等待完成或停止后再修改。": "This thread is running. Wait for it to finish or stop it before editing.", "应用 Thread 配置": "Apply thread settings",
     "可用": "Available", "不可用": "Unavailable", "重试": "Retry", "允许一次": "Allow once", "本会话始终允许": "Allow for this session", "拒绝": "Deny", "提交": "Submit", "取消": "Cancel",

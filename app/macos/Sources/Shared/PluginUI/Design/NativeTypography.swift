@@ -18,7 +18,7 @@ public enum NativeTypography {
         for filename in files {
             guard let url = NativeResources.bundle.url(forResource: filename, withExtension: "ttf")
                     ?? NativeResources.bundle.url(forResource: filename, withExtension: "ttf", subdirectory: "fonts") else {
-                preconditionFailure("Missing bundled Mokusei font: \(filename).ttf")
+                preconditionFailure("Missing bundled Chief font: \(filename).ttf")
             }
             var error: Unmanaged<CFError>?
             if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
@@ -26,7 +26,7 @@ public enum NativeTypography {
                 // Another Mokusei UI host in this process may already have
                 // registered this exact bundled font.
                 guard registrationError.map({ CFErrorGetCode($0) == CTFontManagerError.alreadyRegistered.rawValue }) == true else {
-                    preconditionFailure("Cannot register Mokusei font \(filename): \(String(describing: registrationError))")
+                    preconditionFailure("Cannot register Chief font \(filename): \(String(describing: registrationError))")
                 }
             }
         }
@@ -101,12 +101,12 @@ enum NativeResources {
             if let packaged = Bundle(url: packagedURL) {
                 guard packaged.url(forResource: "inter-latin-wght-normal", withExtension: "ttf")
                         ?? packaged.url(forResource: "inter-latin-wght-normal", withExtension: "ttf", subdirectory: "fonts") != nil else {
-                    preconditionFailure("Packaged Mokusei UI resource bundle is missing the Inter font: \(packagedURL.path)")
+                    preconditionFailure("Packaged Chief UI resource bundle is missing the Inter font: \(packagedURL.path)")
                 }
                 return packaged
             }
             if Bundle.main.bundleURL.pathExtension == "app" {
-                preconditionFailure("Packaged Mokusei UI resource bundle is missing: \(packagedURL.path)")
+                preconditionFailure("Packaged Chief UI resource bundle is missing: \(packagedURL.path)")
             }
         }
         #if SWIFT_PACKAGE

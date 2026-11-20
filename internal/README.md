@@ -1,7 +1,6 @@
 # Go runtime modules
 
-The Go module is `github.com/hupao-creator/Mokusei`, matching the source repository.
-Mokusei remains the product and executable name.
+The Go module is `github.com/hupao-creator/Chief`, matching the source repository.
 
 The executable [mokusei-runtime](../cmd/mokusei-runtime/main.go) acquires a profile through the daemon and constructs the application through [composition/bootstrap.go](core/composition/bootstrap.go). Each composition owns its registrations, store, services and native process lifetimes.
 
@@ -13,14 +12,14 @@ The executable [mokusei-runtime](../cmd/mokusei-runtime/main.go) acquires a prof
 | [core/store](core/store/README.md) | SQLite transactions, immutable snapshots and durable lifecycle work |
 | [hosts/applicationhost](hosts/applicationhost/README.md) | Application registration, scoped operations and background participants |
 | [hosts/contexthost](hosts/contexthost/README.md) | Moku-only context services |
-| plugins/harness | [Codex](plugins/harness/codex/README.md), [Claude](plugins/harness/claude/README.md), [Pi](plugins/harness/pi/README.md), [OpenCode](plugins/harness/opencode/README.md) |
+| [plugins/harness](plugins/harness/README.md) | Integration guide and adapters for [Codex](plugins/harness/codex/README.md), [Claude](plugins/harness/claude/README.md), [Pi](plugins/harness/pi/README.md), [OpenCode](plugins/harness/opencode/README.md) |
 | plugins/applications | [Report](plugins/applications/report/README.md), [Tag](plugins/applications/tag/README.md), built-in [Git](plugins/applications/git/README.md) |
 | plugins/contexts | [Artificial Analysis](plugins/contexts/artificialanalysis/README.md) |
 | services | [Moku](services/moku/README.md), [workspaces](services/workspaces/README.md), [search](services/threadsearch/README.md), [attachments](services/attachments/README.md) and tag normalization |
 | platform | [Daemon/profile ownership](platform/daemon/README.md), [transport](platform/transport/README.md), process groups, environment and SQLite binding |
 | tooling | Development/packaging, architecture checks and allowance-data maintenance |
 
-The four Harnesses use externally installed native engines. Their account, model and credential configuration belongs to those engines. Pi and OpenCode embed small resources loaded by the external engine; the Mokusei application has no Node build or renderer process.
+The four Harnesses use externally installed native engines. Their account, model and credential configuration belongs to those engines. Pi and OpenCode embed small resources loaded by the external engine; the Chief application has no Node build or renderer process.
 
 `internal/tooling/architecture/check.go` enforces the Go import graph across all source files and build tags, static registration and the allowed external JS resources. The generic store has no application-model dependency. Plugins do not import Runtime or construct their own Core authority. The Swift client consumes public projections over authenticated HTTP/NDJSON; it does not open the host database.
 

@@ -1,6 +1,8 @@
 import MokuseiPluginUI
 import SwiftUI
 public struct ClaudeLogo: View {
+    static let themeColor = NativePalette.pair(0xd97757, 0xe5a184).swiftUI
+
     /// The approved running-card palette belongs to this harness.
     public static let threadCardCloudPalette = NativeCloudPalette(channels: [
         .init(color: NativePalette.color(0xf6ad71).swiftUI, seed: 136, energy: 0.36),

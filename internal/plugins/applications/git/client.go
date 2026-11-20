@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"unicode/utf8"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 type readFailure string

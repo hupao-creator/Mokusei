@@ -2,10 +2,6 @@ import MokuseiPluginUI
 import Foundation
 import SwiftUI
 
-public extension EnvironmentValues {
-    @Entry var nativeWindowContentScale: CGFloat = 1
-}
-
 public extension Scene {
     @SceneBuilder
     func nativeWorkspaceWindowStyle() -> some Scene {
@@ -23,7 +19,7 @@ public struct NativeWorkspaceWindowSurface: ViewModifier {
     @ViewBuilder
     public func body(content: Content) -> some View {
         content
-            .background(NativeWindowControlPlacement().allowsHitTesting(false).accessibilityHidden(true))
+            .background { NativeWindowControlPlacement().allowsHitTesting(false).accessibilityHidden(true) }
             .ignoresSafeArea()
             .containerBackground(.ultraThinMaterial, for: .window)
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)

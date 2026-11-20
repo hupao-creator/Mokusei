@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 type CatalogVariant struct {
@@ -494,7 +494,7 @@ func hasKnownPaidCost(native CatalogNativeModel, provider *CatalogNativeProvider
 	return positive
 }
 
-const ExclusiveModelReason = "该 OpenCode 免费模型可用于保留原生工具的普通任务和线程问答，但不支持 Moku 或独占工具的元数据生成。请选择其他已配置的 Host 或模型；不会自动改用付费模型。"
+const ExclusiveModelReason = "该 OpenCode 免费模型可用于保留原生工具的普通任务和线程问答，但不支持 Chief 或独占工具的元数据生成。请选择其他已配置的 Host 或模型；不会自动改用付费模型。"
 
 func NativeExclusiveReason(native CatalogNativeModel, provider *CatalogNativeProvider, baseURL, variantID string) string {
 	if native.ProviderID != "opencode" || provider == nil || provider.ID != "opencode" || len(native.Cost) == 0 {

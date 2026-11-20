@@ -3,9 +3,9 @@ package composition
 import (
 	"context"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/platform/transport"
 	"math"
 )
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/core/store"
 )
 
 // Setup and cleanup stay outside the caller's measured/profiled operation range.

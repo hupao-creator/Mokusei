@@ -129,7 +129,12 @@ and acknowledged terminal-outcome checks as tool provenance. Successful retentio
 clears the other source marker. Lifecycle teardown, recovery settlement, failed or
 uncertain stops and background-only cancellation supply no user marker. Forks
 clear both markers; a later execution cannot reuse an earlier marker for archive
-eligibility. The native Overview offers quick archive only for this exact user
+eligibility. The acknowledgement transaction records the ordinary Thread's
+`thread.interrupt-acknowledged` lifecycle fact with source `user` and attaches
+it to the matching terminal outbox entry. The coordinator defers that execution's
+interrupted delivery while the user Stop is in flight. An error releases the
+original terminal without attribution. A process exit before acknowledgement
+also leaves the original terminal available on restart. The native Overview offers quick archive only for this exact user
 interruption with no pending input or background work, using the existing
 `thread:set-archived` command and normal catalog invalidation.
 
@@ -343,6 +348,11 @@ checks acknowledgements, execution identity/status, native attempt count and
 event count after every action. After each history, a Moku stop must either
 interrupt the still-running execution with exact provenance or report a stale
 target and preserve the settled record revision. An immediate repeat is stale.
+Two subsequent public follow-ups exercise a rejected and a successful user Stop.
+A poll between native settlement and acknowledgement checks that the terminal
+is withheld. After the command returns, the property checks the direct input's
+source and content, a single waking terminal and exact acknowledgement attribution
+across the queued executions.
 Closing the scripted owner joins send workers before observation. The property
 covers the send-return/terminal/cancellation seam, not real
 native processes, arbitrary concurrent clients or physical input.

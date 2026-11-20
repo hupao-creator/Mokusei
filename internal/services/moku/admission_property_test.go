@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/tools/verification/pbt/rapidcheck"
+	"github.com/hupao-creator/Chief/tools/verification/pbt/rapidcheck"
 	"pgregory.net/rapid"
 )
 

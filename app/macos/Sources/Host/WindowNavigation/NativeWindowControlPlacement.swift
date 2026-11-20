@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// Deliberate AppKit exception: SwiftUI does not expose placement of the real
-/// window controls. This bridge owns their historical coordinates and reading offset.
+/// window controls. Their placement is in window points and follows reading offsets.
 struct NativeWindowControlPlacement: NSViewRepresentable {
     // Window layout and reading animation must use the same offset; otherwise
     // a deferred toolbar placement can put collapsed controls back on screen.
@@ -16,9 +16,9 @@ struct NativeWindowControlPlacement: NSViewRepresentable {
     }
 
     private static func placeControls(in window: NSWindow) {
-        guard let content = window.contentView else { return }
+        guard let content = window.contentView, let placement = placements.object(forKey: window) else { return }
         guard !window.styleMask.contains(.fullScreen) else {
-            placements.object(forKey: window)?.hideBackdrop()
+            placement.hideBackdrop()
             return
         }
         let offset = CGFloat(readingOffsets.object(forKey: window)?.doubleValue ?? 0)
@@ -30,20 +30,23 @@ struct NativeWindowControlPlacement: NSViewRepresentable {
         // applying coordinates to the entire group, including on reveal.
         for (_, button) in buttons where button.isHidden != hidden { button.isHidden = hidden }
         for (_, button) in buttons { button.superview?.layoutSubtreeIfNeeded() }
+        let top = NativeWindowNavigationGeometry.nativeButtonTop + offset
         for (index, button) in buttons {
             guard let parent = button.superview else { continue }
-            let top = NativeWindowNavigationGeometry.nativeButtonTop + offset
-            let y = content.isFlipped ? top : content.bounds.height - top - button.frame.height
+            let height = button.frame.height
+            let y = content.isFlipped ? content.bounds.minY + top : content.bounds.maxY - top - height
             let rect = CGRect(x: NativeWindowNavigationGeometry.nativeButtonLeft + CGFloat(index * 20),
                               y: y, width: button.frame.width, height: button.frame.height)
             let origin = content.convert(rect, to: parent).origin
             if button.frame.origin != origin { button.setFrameOrigin(origin) }
         }
-        placements.object(forKey: window)?.placeBackdrop(buttons: buttons.map { $0.1 }, hidden: hidden)
+        placement.placeBackdrop(buttons: buttons.map { $0.1 }, hidden: hidden)
     }
 
     func makeNSView(context: Context) -> PlacementView { PlacementView() }
-    func updateNSView(_ view: PlacementView, context: Context) { view.schedulePlacement() }
+    func updateNSView(_ view: PlacementView, context: Context) {
+        view.schedulePlacement()
+    }
     static func dismantleNSView(_ view: PlacementView, coordinator: ()) { view.detach() }
 
     final class PlacementView: NSView {
@@ -98,6 +101,7 @@ struct NativeWindowControlPlacement: NSViewRepresentable {
             }
             observedWindow = nil
             backdrop.removeFromSuperview()
+            backdrop.buttons = []
             for observed in observedButtons { observed.button?.postsFrameChangedNotifications = observed.postedFrameChanges }
             observedButtons = []
         }
@@ -113,16 +117,16 @@ struct NativeWindowControlPlacement: NSViewRepresentable {
         fileprivate func hideBackdrop() { backdrop.isHidden = true }
 
         fileprivate func placeBackdrop(buttons: [NSButton], hidden: Bool) {
-            guard let first = buttons.first, let parent = first.superview,
-                  buttons.allSatisfy({ $0.superview === parent }) else {
+            guard !buttons.isEmpty, let content = window?.contentView, let parent = content.superview else {
                 backdrop.removeFromSuperview()
                 return
             }
-            // Leave the real buttons in AppKit's titlebar hierarchy: it owns
-            // grouped hover, target/actions, accessibility and fullscreen behavior.
+            // The native titlebar can be shorter than the visible button row. Its
+            // background sits above content to route hits past that ancestor's bounds.
             if backdrop.superview !== parent {
-                parent.addSubview(backdrop, positioned: .below, relativeTo: first)
+                parent.addSubview(backdrop, positioned: .above, relativeTo: content)
             }
+            backdrop.buttons = buttons
             let group = buttons.reduce(CGRect.null) { $0.union($1.convert($1.bounds, to: parent)) }
             let verticalPadding = (NativeWindowNavigationGeometry.height - group.height) / 2
             backdrop.frame = group.insetBy(dx: -12, dy: -verticalPadding)
@@ -149,9 +153,9 @@ struct NativeWindowControlPlacement: NSViewRepresentable {
     }
 }
 
-/// Decoration only. Empty capsule space keeps the titlebar's original drag and
-/// hit-testing behavior, and the standard buttons remain independent siblings.
+/// The original AppKit buttons retain their actions, accessibility and grouped hover.
 private final class WindowControlBackdrop: NSView {
+    var buttons: [NSButton] = []
     private let glass = NSGlassEffectView()
 
     override init(frame frameRect: NSRect) {
@@ -166,7 +170,15 @@ private final class WindowControlBackdrop: NSView {
     }
     required init?(coder: NSCoder) { nil }
 
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard !isHidden, frame.contains(point), let superview else { return nil }
+        for button in buttons where !button.isHiddenOrHasHiddenAncestor {
+            if let parent = button.superview,
+               let hit = button.hitTest(parent.convert(point, from: superview)) { return hit }
+        }
+        // Pass the empty capsule padding through to the workspace's drag gesture.
+        return nil
+    }
     override var acceptsFirstResponder: Bool { false }
     override var mouseDownCanMoveWindow: Bool { true }
 

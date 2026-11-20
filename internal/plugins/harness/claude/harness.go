@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/platform/processgroup"
 )
 
 type Harness struct {
@@ -135,7 +135,7 @@ func (h *Harness) Open(ctx context.Context, open plugin.OpenContext) (plugin.Han
 	}
 	for _, turn := range state.Turns {
 		if turn.Status == "running" {
-			turn.fail("Mokusei restarted before this Claude execution reached terminal")
+			turn.fail("Chief restarted before this Claude execution reached terminal")
 			turn.settle("interrupted", time.Now().UnixMilli(), nil)
 		}
 	}

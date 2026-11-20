@@ -31,7 +31,7 @@
 
 ## 从源码得到的边界
 
-基线为 `1f0f537f409d3d1e4f65d52042d0e853c1cb917a`。调研页中的布局样本由固定坐标定义，模拟尺寸、取景和溢出。独立布局修复 `0fffd4566dbc7ea2910a5a8320a2e3163ed8029c` 随提交记录的原生几何图显示：1632×961 pt 窗口、1× 相机、相同四张卡，3×3 外框的三个空格消失，四卡恰好填满 3×2。这里核对了该提交的记录以及下述算术，未重跑该版原生场景。[独立提交中的四卡证据图](https://github.com/hupao-creator/Mokusei/blob/0fffd4566dbc7ea2910a5a8320a2e3163ed8029c/tools/verification/pbt/evidence/overview-mixed-spans.png)
+基线为 `1f0f537f409d3d1e4f65d52042d0e853c1cb917a`。调研页中的布局样本由固定坐标定义，模拟尺寸、取景和溢出。独立布局修复 `0fffd4566dbc7ea2910a5a8320a2e3163ed8029c` 随提交记录的原生几何图显示：1632×961 pt 窗口、1× 相机、相同四张卡，3×3 外框的三个空格消失，四卡恰好填满 3×2。这里核对了该提交的记录以及下述算术，未重跑该版原生场景。[独立提交中的四卡证据图](https://github.com/hupao-creator/Chief/blob/0fffd4566dbc7ea2910a5a8320a2e3163ed8029c/tools/verification/pbt/evidence/overview-mixed-spans.png)
 
 | 所有者 | 已核对的现值 |
 |---|---|
@@ -96,7 +96,7 @@
 
 ## 原生组件究竟显示了什么？
 
-**普通已完成任务。** 布局线程的 `2a30b4b086a17c3d33537fd103e611dff94a5f18` 用真实 Codex / Claude 卡、同样的两条中文消息、原字号做对照。14″ 的 264×166 卡上，短标题、模型、时长和用量仍可见；长消息换行到第三行后出现省略号，原先可见的第二段消失。20 张单格卡的 After 截图可数出 5 列 × 4 行，Before 在四周溢出。该 demo 仅在紧凑预览给消息最多三行，宽松预览按可用高度显示。全景另外做了等比缩小，判断字号请看「单卡对照」。这里保留布局线程提供的三张原图，未重启 demo。[单卡原图](density-demo/comparison.png) · [Before 全景](density-demo/grid-before.png) · [After 全景](density-demo/grid-after.png) · [demo 源码与采集方法](https://github.com/hupao-creator/Mokusei/tree/2a30b4b086a17c3d33537fd103e611dff94a5f18/demos/overview-density)
+**普通已完成任务。** 布局线程的 `2a30b4b086a17c3d33537fd103e611dff94a5f18` 用真实 Codex / Claude 卡、同样的两条中文消息、原字号做对照。14″ 的 264×166 卡上，短标题、模型、时长和用量仍可见；长消息换行到第三行后出现省略号，原先可见的第二段消失。20 张单格卡的 After 截图可数出 5 列 × 4 行，Before 在四周溢出。该 demo 仅在紧凑预览给消息最多三行，宽松预览按可用高度显示。全景另外做了等比缩小，判断字号请看「单卡对照」。这里保留布局线程提供的三张原图，未重启 demo。[单卡原图](density-demo/comparison.png) · [Before 全景](density-demo/grid-before.png) · [After 全景](density-demo/grid-after.png)
 
 **含权限的任务。** 本次独立采集使用基线的 `composeThreadCard` 和 `HarnessThreadCard`，同一条长中文标题、状态、模型、指示文字和三个权限按钮，组成 2×1。每张白卡左格是任务，右格是权限。264×166 单格时，任务标题和权限问题都出现省略号，三个操作仍可排在一行，左格最新消息只露出两行并省略；197.6×136 时左格消息只剩一行，主按钮独占一行，另外两个按钮换到下方、接近卡底，权限说明也发生截断。307.2×199.75 时，样本权限问题能显示完整；473.6×280.5 时，长任务标题也能完整显示。保字号解决了辨认字符大小的问题，具体批准什么仍取决于能否读全请求。样张只验证可见文字和按钮位置，没有执行权限动作。[原生权限样张](native-cards.png) · [样本与采集源码](render.swift) · [生产权限表单](../../../app/macos/Sources/Shared/PluginUI/Cards/ThreadCardSections.swift)
 

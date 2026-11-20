@@ -21,7 +21,7 @@ public struct NativeRuntimeSurface<Content: View>: View {
             }
             else {
                 RuntimeStartupScreen(state: model.connection, error: model.connectionError ?? "",
-                    reconnecting: model.reconnecting, locale: model.preferences.locale,
+                    reconnecting: model.reconnecting, locale: model.locale,
                     onReconnect: { Task { await model.retry() } },
                     announcementsEnabled: !model.settingsOpen)
             }
@@ -41,7 +41,7 @@ public struct NativeRuntimeConnectionNotice: View {
         if model.hasInitialContent {
             RuntimeConnectionNotice(state: model.connection, synchronizing: model.synchronizing,
                 error: model.connectionError ?? "", reconnecting: model.reconnecting,
-                locale: model.preferences.locale, onReconnect: { Task { await model.retry() } },
+                locale: model.locale, onReconnect: { Task { await model.retry() } },
                 announcementsEnabled: !model.settingsOpen)
         }
     }

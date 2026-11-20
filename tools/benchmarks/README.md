@@ -32,7 +32,7 @@ python3 tools/benchmarks/benchmark.py build --tools /private/tmp/overview-tools
 python3 tools/benchmarks/benchmark.py calibrate \
   --tools /private/tmp/overview-tools --output /private/tmp/overview-controls
 python3 tools/benchmarks/benchmark.py run \
-  --app /absolute/path/Mokusei.app --tools /private/tmp/overview-tools \
+  --app /absolute/path/Chief.app --tools /private/tmp/overview-tools \
   --capabilities /private/tmp/overview-controls \
   --output /private/tmp/overview-run --count 5 10 20 \
   --scenario first-render idle.completed idle.active pan body body.pan
@@ -159,7 +159,7 @@ not a statistical regression gate or a claim of complete benchmark capability.
 
 ```sh
 python3 tools/benchmarks/benchmark.py compare-badge \
-  --app /absolute/path/Mokusei.app --tools /private/tmp/overview-tools \
+  --app /absolute/path/Chief.app --tools /private/tmp/overview-tools \
   --capabilities /private/tmp/overview-controls --output /private/tmp/badge-comparison \
   --count 10 --window-bounds 50 60 1280 950
 ```

@@ -15,10 +15,16 @@ enum NativeSettingsRole: String {
         }
     }
 
-    var tabLabel: String { rawValue == "moku" ? "Moku" : rawValue.capitalized }
+    var tabLabel: String {
+        switch self {
+        case .moku: "Chief"
+        case .tag: "Tag"
+        case .report: "Super Thread"
+        }
+    }
     func title(_ locale: DesktopLocale) -> String {
         switch self {
-        case .moku: "Moku"
+        case .moku: "Chief"
         case .tag: locale.text("找到想找的会话", "Find your conversations")
         case .report: locale.text("从文字到图示", "From text to pictures")
         }
@@ -56,25 +62,78 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
     let role: NativeSettingsRole
     let harnesses: [AnyHarnessPlugin]
     let locale: DesktopLocale
+    let showsHeading: Bool
+    var illustrationWidth: CGFloat? = nil
     var visitPlaybackStarted: Binding<Bool>? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(role.title(locale)).font(.system(size: 25, weight: .medium)).tracking(-0.5)
-                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
-            Text(role.subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
-                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                .fixedSize(horizontal: false, vertical: true).padding(.bottom, 24)
-            if role == .tag {
-                NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted).padding(.bottom, 24)
-            } else if role == .report {
-                NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted).padding(.bottom, 24)
+            if showsHeading {
+                Text(role.title(locale)).font(.system(size: 25, weight: .medium)).tracking(-0.5)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
+                Text(role.subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true).padding(.bottom, 24)
+            }
+            if role != .moku {
+                if let illustrationWidth, !harnesses.isEmpty {
+                    NativeSettingsIllustrationPanel(width: illustrationWidth) {
+                        animation
+                    }
+                    .padding(.bottom, 24)
+                } else {
+                    animation.padding(.bottom, 24)
+                }
             }
             content
+                .frame(maxWidth: illustrationWidth != nil && role != .moku ? NativeSettingsContentLayout.formWidth : nil,
+                       alignment: .leading)
         }.environment(\.nativeSettingsCompactPresentation, true)
+    }
+
+    @ViewBuilder private var animation: some View {
+        if role == .tag {
+            NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
+        } else {
+            NativeOnboardingReportAnimation(harnesses: harnesses, visitPlaybackStarted: visitPlaybackStarted)
+        }
+    }
+}
+
+struct NativeSettingsIllustrationPanel<Content: View>: View {
+    let width: CGFloat
+    @ViewBuilder var content: Content
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        let paddingScale = min(1, width / 320)
+        let horizontalInset = 16 * paddingScale
+        let canvasHeight: CGFloat = 250
+        let innerWidth = max(0, width - 2 * horizontalInset)
+        // Preserve the positions and legibility of the seats, tokens and figures at high zoom.
+        let canvasWidth = max(500, innerWidth)
+        let scale = innerWidth / canvasWidth
+        content.frame(width: canvasWidth, height: canvasHeight)
+            .scaleEffect(scale)
+            .frame(width: innerWidth, height: canvasHeight * scale)
+            .padding(.vertical, 14 * paddingScale)
+            .frame(width: width)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius * paddingScale)
+                Color.clear.nativeRegularCardGlass(
+                    in: shape,
+                    opaque: NativePalette.settings.hintSurface.swiftUI)
+                    .overlay {
+                        if reduceTransparency {
+                            shape.strokeBorder(NativePalette.settings.inputBorder.swiftUI)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
     }
 }
 

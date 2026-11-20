@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 // ReceiptStatus is observation only. An unknown ID must never admit or replay

@@ -18,15 +18,15 @@ only to Overview and cannot cover a Thread or application reading route.
 window/back controls. The workspace hides its Back control for Agent, Report and
 Moku history panels; those surfaces use their own production panel Close.
 [NativeWindowControlPlacement](NativeWindowControlPlacement.swift) retains native
-Mac traffic-light positions and actions through resize and workspace zoom.
-The real button group has a sibling `NSGlassEffectView` with native `.clear`
-style and no tint, padded 12pt horizontally around its native frames and
-vertically centered at the shared 42pt chrome height, with a 21pt corner radius.
-Existing glass wrappers own SwiftUI surfaces with different material/ink policies; this AppKit decoration leaves the
-buttons in their original titlebar hierarchy, preserving actions, accessibility
-and grouped hover. It returns no hit target, so empty capsule space keeps the
-existing titlebar dragging behavior. The capsule follows reading offsets and
-resize, hides from fullscreen entry until exit, and detaches with its owner.
+Mac traffic-light actions through resize and workspace zoom. The real buttons
+keep their native size and sit 31 window points from the top in Overview.
+Reading navigation applies its offset to that window-relative placement.
+The untinted, 42pt-high clear glass capsule extends 12pt beyond either end of
+the group. It sits above the content view so hits within a button's moved frame
+reach that original AppKit button even below the titlebar's bounds. The buttons
+stay in the system titlebar hierarchy. Empty capsule space passes input to the
+underlying window drag region. The capsule follows reading offsets and resize,
+hides for fullscreen, and detaches with its owner.
 The macOS 26 minimum supports clear directly; there is no regular-glass fallback.
 Reduce Transparency explicitly replaces glass with an opaque system window
 background, without changing system preferences or button behavior.
@@ -119,18 +119,28 @@ the same historical row; Back then restores the current document before leaving.
 A new request, including a repeated link, starts a fresh entry visit.
 The mounted active history document handles Escape in its own window even if
 result positioning leaves no SwiftUI focus target. Focus outside its viewport,
-editing, IME composition and native menu/popup cancellation retain priority;
-hidden/transitioning documents
-cannot consume another page's Escape.
+editing, IME composition, native menus and visible child windows that can take
+keyboard focus retain priority. Hidden or transitioning documents cannot consume
+another page's Escape.
 
 Moku note execution URLs are parsed by the shared Markdown link boundary and
 enter through `openNoteExecution`; there is no OS-level execution URL handler.
 This entry admits public ordinary threads, including archived and
-failed or Moku-tool-interrupted threads hidden from Overview. The result reading request is
+failed or Moku-tool-interrupted threads hidden from Overview. The reading request is
 exact and does not start execution. A missing or ineligible thread shows an
 unavailable notice; a missing execution uses the reader's unavailable page. Each click receives a fresh reading request.
-Report relation buttons and the Note are Overview entry points, so their Host
-return action restores Overview. Admission rules remain entry-specific; archived
+After Note dismissal, Overview keeps a filter that already contains the
+destination or selects a matching filter. A grouped destination must reach its
+own carousel page before the reader opens from the card. An eligible target
+without an Overview card can still open.
+The catalog indexes Super Thread ownership by ordinary Thread, across its runs.
+A unique owner opens the Report panel with the cited run beside the document.
+Both Note routes start at the heading of the exact run. The Report’s own
+related-list entry opens the current execution. Both side-panel entries retain
+the conversation TOC. Back to Chief Note restores the expanded Note.
+The Overview command, the reader backdrop and the Close button on either
+expanded citation dismiss to the canvas with the Note closed. The sidebar
+arrow returns to the related list, where the Report arrow returns to the Note. Admission rules remain entry-specific; archived
 ordinary threads are valid for both, while the Note additionally admits ordinary
 failed or Moku-tool-interrupted threads hidden from Overview.
 
@@ -142,7 +152,9 @@ share demand within their owning row, and retiring a surface releases all its
 remaining handles.
 
 Agent, Report and Moku history reading use a panel-owned Close rather than a Back control beside the
-traffic lights. Agent history executions have no dedicated upper-left Back button,
+traffic lights. A Report opened from the member grid uses a panel-owned Back
+arrow in that seat and returns to the same grid. An Agent opened from a Chief Note
+link uses Close in that seat. Escape in the cited document returns to the Note. Agent history executions have no dedicated upper-left Back button,
 including when the shared history document has no navigation host. History retains
 TOC navigation, Escape and its close action with the existing route-visit fence.
 Other application navigation retains its own window-navigation behavior.
@@ -157,8 +169,9 @@ its return frame after resize. These routes share panel margins, source-frame
 animation, rounded surfaces and the full-circle Close target.
 The shared Close sits at the panel's upper-left. Viewports normally reserve
 48pt below the top edge; the main Agent reader uses symmetric 22pt viewport
-insets and clears Close horizontally through its reserved 48pt history rail.
-The rail retains its own 64pt vertical padding. This applies to both opening
+insets and clears Close through its symmetric document margins. The history
+marks overlay the leading margin and retain 64pt of vertical clearance.
+The document margins apply to both opening
 heading preparation and the live current/history reader, retaining measured
 title handoff and the existing content readiness gates for input and Sidecards.
 Agent Sidecards use their right-side launcher as
@@ -279,14 +292,14 @@ inserted reader geometry. The related capability owns one 200ms native opacity
 entrance per selected visit, after scoped-row and Markdown readiness; manifest
 mounting cannot consume it. Loading remains visible while preparing, and hidden
 reader controls/accessibility cannot act. Errors admit normally, refresh/retry
-keeps the same entrance, and a new selection retires pending preparation. The
-ordinary entrance does not consult system motion preferences. See the
+keeps the same entrance, and a new selection retires pending preparation. A Chief Note entry under Reduce Motion shows the ready execution immediately. The
+ordinary list entrance keeps its 200ms timing. See the
 [execution entrance contract](../../../../../design/reading.md) and the [Report viewport contract](../../../../../design/reading.md).
 
 Closing a settled Report retains its current split layout from return preparation
 through route completion. The Report main shell scales/translates directly from
-its presented width and height to the refreshed Overview source card; related
-execution and linked Browser Sidecards fade in place on the same 420ms timeline.
+its presented width and height to the source card in Overview or the retained
+member grid. Related execution and linked Browser Sidecards fade in place on the same 420ms timeline.
 The full-workspace native carrier stays stationary for this return and owns only
 generation-fenced completion, avoiding a second crop/travel over the split panes.
 Closing before primary content admission keeps the existing native opening-reversal

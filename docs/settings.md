@@ -1,33 +1,33 @@
-# Change Mokusei settings
+# Change Chief settings
 
-## Open and save Settings
+## Open Settings and save changes
 
-During setup, **Continue** saves the choices you've made on the current page. Click **Start using Moku** on the last page to finish. After setup, press **⌘,** in **Overview** or choose **Settings…** from the Mokusei menu. Under **General → Interface preferences**, changes to **Appearance** and **Interface language** save right away, even when agents are temporarily unavailable.
+From **Overview**, click the **Settings** gear in the upper-right corner, press **⌘,**, or choose **Settings…** from the Chief menu. If you're reading a conversation or a Super Thread, press **⌘K** to return to Overview first.
 
-Under **Interface language**, you can choose **English** or **Simplified Chinese**.
-
-Changes on the **Moku**, **Tag**, and **Report** pages are saved together when you close Settings. If the window stays open, check the message at the top and fill in any required choices. If you see a save error after closing Settings, reopen it and click **Retry saving**. If the settings changed elsewhere, choose **Keep my changes and retry** or **Discard draft and load latest settings**.
-
-Under **General → Local Agents**, click an agent icon to check its status. If you see **Installation failed · Click to retry**, click the icon to try the installation again. If detection fails, Mokusei retries automatically. If the agent is installed but Mokusei couldn't load its settings, follow the retry instructions in the agent's details.
+Settings opens on **Chief**. Agent changes save when you close Settings. If the panel stays open, check the message and complete any required choices. If a save error appears after the panel closes, reopen Settings and click **Retry saving**. If the saved settings changed elsewhere, choose **Keep my changes and retry** to apply your choices or **Discard draft and load latest settings** to use the saved ones.
 
 ## Choose who coordinates and who can take tasks
 
-Under **Moku → Coordination and dispatch**, choose the agent that talks with you and assigns work. Then choose at least one agent it can assign tasks to. Before switching the coordinating agent, finish any work in Moku or a task conversation that's still running, waiting for your response, or waiting to be sent. After the switch, Moku starts a new conversation and keeps your notes.
+On the **Chief** tab, choose the coordinating agent in the top row and at least one agent it can assign tasks to in the bottom row. Dashed lines connect Chief to the agents it can assign work to. Complete any required model choices. Before switching the coordinating agent, finish work that's running, waiting for a response, or waiting to send. Switching to a different agent starts a new Chief conversation and keeps your note.
 
-Use **Model selection preferences** to guide Moku's choices for future tasks. Pick **Economy**, **Balanced**, or **Performance**, or choose **Custom** and describe your preferences. Mokusei keeps your custom text if you switch to another option. Moku's choices also depend on the agents and models you've set up and what's available when it assigns the task.
+If Chief says no agents are available, install and sign in to a supported agent on your Mac, then return to the **Chief** tab and click **Retry**. [Supported agents](getting-started.md#connect-an-agent)
 
-## Set up the tag and report agents
+Use **Task Orchestration Preferences** to guide which models Chief chooses when it assigns tasks. Pick **Economy**, **Balanced**, or **Performance**, or select **Custom** and click the text box below. When the cursor appears, describe what you prefer. The hint disappears as you type. Hover over a choice marked with an info icon to read its description. Chief keeps your custom text if you switch presets. Chief chooses from the agents you've enabled and the models available when it assigns the work.
 
-Use **Tag** to set up Tag Agent and **Report** to set up Super Thread Agent. Each has three options.
+## Set up Tag Agent and Super Thread Agent
 
-- **Agent off** pauses the agent's work and keeps existing tags, reports, and saved settings.
-- **Use Moku** uses Moku's settings. Changes apply to future work.
-- **Configure separately** lets you choose an agent and model for this role. If you switch to **Use Moku** or **Agent off**, you can come back to your separate settings later.
+Use **Tag** to set up Tag Agent and **Super Thread** to set up Super Thread Agent. When an agent is available, an illustration on a rounded glass panel plays above the role's settings. In the Super Thread illustration, several documents come together into one page with three diagrams. You can turn either role on independently. Hover over a choice marked with an info icon to see what it does.
 
-The roles are independent, so you can turn on either one by itself. [Tags, reports, and file changes](reports-tags-and-changes.md)
+- **Agent off** stops automatic work for that role and keeps its existing tags or Super Threads and saved choices. Pending work resumes when you turn the agent back on.
+- **Use Chief** uses Chief's agent and model settings for future work.
+- **Configure separately** lets you choose an agent and model for the role. Chief keeps those choices if you later switch to **Use Chief** or **Agent off**.
 
-## Clear history on this Mac
+[Find tags and Super Threads](reports-tags-and-changes.md)
 
-Under **General → Clear history**, click **Clear all history**, then **Confirm permanent deletion**. Mokusei stops running tasks and deletes the task conversations, reports, and Moku conversations saved on this Mac. If you only want to hide a card from Overview, see [how to archive a conversation](overview.md#archive-a-conversation).
+## Change appearance or language on your Mac
+
+To change Chief's appearance, open **System Settings → Appearance** on your Mac and choose **Light**, **Dark**, or **Auto**. You can see the change in Overview, Settings, and the first-run setup screens.
+
+Chief uses Simplified Chinese when Chinese is first in your Mac's preferred languages. It uses English when English or any other language is first. To change the order, go to **System Settings → General → Language & Region** and check the labels in Chief after macOS applies the change.
 
 [Back to the product guide](README.md)

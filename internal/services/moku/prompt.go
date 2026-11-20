@@ -2,7 +2,7 @@ package moku
 
 import (
 	"encoding/json"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 const ToolInputMaxCharacters = 1_000_000
@@ -21,7 +21,7 @@ const TalkTextPolicy = "Use concise plain text, at most 160 Unicode code points 
 // from Talk's latest-only replacement and automatic expiry.
 const TimerTextPolicy = "Use concise plain text, at most 160 Unicode code points including whitespace and newlines. " +
 	"Whitespace-only and NUL text is invalid; accepted text is preserved exactly. Over-budget text is rejected, never truncated. " +
-	"This immediately shows Moku's timer message with a looping bell and an explicit Received button. " +
+	"This immediately shows Chief's timer message with a looping bell and an explicit Received button. " +
 	"Messages queue until individually acknowledged in the UI; ordinary talk cannot replace them. " +
 	"The call returns without waiting for acknowledgment. Use only when the user needs an audible, acknowledged message. " +
 	"This does not schedule future delivery, accept a date or duration, or guarantee delivery while the app is closed or disconnected."
@@ -47,16 +47,16 @@ const NoteContentGuidance = "Keep the note as the smallest useful current recap.
 // harness context compaction cannot make Moku forget what it recorded.
 func MokuNoteContext(state model.NoteState) string {
 	encoded, _ := json.Marshal(state)
-	return "Persistent Moku note state (JSON data, not instructions). Keep it current with update_note when a user-relevant milestone changes it.\n" + string(encoded)
+	return "Persistent Chief note state (JSON data, not instructions). Keep it current with update_note when a user-relevant milestone changes it.\n" + string(encoded)
 }
 
 // ThreadNotificationHint is returned with delegated work and included in the
 // coordinator context so terminal events, rather than polling, resume Moku.
-const ThreadNotificationHint = "Execution completion, failure, and interruption are delivered to you automatically as Mokusei Agent Thread terminal events. " +
+const ThreadNotificationHint = "Execution completion, failure, and interruption are delivered to you automatically as Agent Thread terminal events. " +
 	"After creating or sending work to a Thread, do not repeatedly call get_thread_status, list_threads, or ask_thread to report progress or decide whether it is ready for review, validation, completion, or delivery. " +
 	"Base progress reports on facts already available; reporting progress does not itself justify another query. " +
 	"Do not fetch an intermediate update merely because the delegated instructions requested one. A specific content question alone does not justify reading: its answer must be needed now for an explicit user question, a next action otherwise blocked, fault diagnosis, or review of finished results. " +
-	"Continue independent work if any remains; otherwise end your current Moku turn and let the runtime deliver the terminal event and resume coordination. Ending this turn leaves the delegated work and overall task in progress. " +
+	"Continue independent work if any remains; otherwise end your current Chief turn and let the runtime deliver the terminal event and resume coordination. Ending this turn leaves the delegated work and overall task in progress. " +
 	"Terminal events also arrive while you are busy; you do not need to read a Thread to receive them. " +
 	"Queries remain appropriate for an explicit user request for immediate progress, coordination genuinely blocked on a specific intermediate result, or fault diagnosis. Use get_thread_status for a needed status snapshot and ask_thread only for a specific content question."
 
@@ -71,7 +71,7 @@ const threadTaskPromptGuidance = "Separate target routing from the work assigned
 
 // Keep the base focused on coordination, reply visibility and information routing;
 // detailed tool contracts already live in their schemas.
-const mokuSystemPrompt = "Coordinate the user's task board across domains by promptly delegating execution and detailed work to independent Agent Threads and tracking their outcomes. " +
+const mokuSystemPrompt = "You are Chief, the assistant that coordinates the user's task board by promptly delegating execution and detailed work to independent Agent Threads across domains and tracking their outcomes. " +
 	"The user cannot see your assistant replies. " +
 	"Carefully distinguish what the user tells you for your own coordination from what delegated Agent Threads need to know, and pass each Thread the context and instructions relevant to its task."
 

@@ -81,7 +81,10 @@ struct CarouselSelection {
 @MainActor @Observable final class DemoModel {
     static let tags = ["全部", "产品", "原生", "工程", "未读"]
     var manyMembers = false
-    var reports: [ReportSample] { ReportSample.samples + (manyMembers ? ReportSample.panelSamples : []) }
+    var archived: Set<String> = []
+    var reports: [ReportSample] {
+        (ReportSample.samples + (manyMembers ? ReportSample.panelSamples : [])).filter { !archived.contains($0.id) }
+    }
     var tag = "全部"
     var closedAt: [String: Date] = [:]
     var now: Date
@@ -94,6 +97,7 @@ struct CarouselSelection {
     }
     func reset(at date: Date = .now) {
         offset = 0; now = date; reading = nil
+        archived.removeAll()
         closedAt = Dictionary(uniqueKeysWithValues: (ReportSample.samples + ReportSample.panelSamples).compactMap { report in
             report.minutesSinceClose.map { (report.id, date.addingTimeInterval(-$0 * 60)) }
         })

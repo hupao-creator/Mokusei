@@ -3,8 +3,8 @@
 For script-driven navigation and chaos testing, launch with `--automation-socket`
 and an explicit `--data-dir`; see the [interaction guide](../../../tools/native-interaction/README.md).
 
-Mokusei is a native Apple Silicon application for macOS 26 and later.
-Its SwiftUI/AppKit interface launches a packaged Go runtime. Mokusei's build,
+Chief is a native Apple Silicon application for macOS 26 and later.
+Its SwiftUI/AppKit interface launches a packaged Go runtime. Chief's build,
 packaging and development commands use Go and Xcode. External
 harnesses manage their own dependencies, which may include Node.
 
@@ -17,11 +17,11 @@ make dev          # build, sign and open the isolated development application
 make fast         # incremental Go/Swift build into a new development generation
 make watch-main   # rebuild each clean local main commit
 make build        # build Go runtime and release Swift application
-make pack         # sign app/macos/dist/Mokusei.app
-make dist         # also create Mokusei.app.zip
+make pack         # sign app/macos/dist/Chief.app
+make dist         # also create Chief.app.zip
 make alpha        # build an ad-hoc signed alpha DMG without Apple credentials
 make smoke        # statically validate the packaged production app
-make install      # install to ~/Applications/Mokusei.app
+make install      # install to ~/Applications/Chief.app by default
 make open         # open the installed application
 ```
 
@@ -46,20 +46,29 @@ no Apple account or certificate. List available identities with
 in the selected keychain. Stable signing preserves the designated requirement
 used by privacy permissions across rebuilds.
 
-Development uses `com.mokusei.native.dev`, `Mokusei Native Dev.app`
+Development uses `com.mokusei.native.dev`, `Chief Native Dev.app`
 and the `Mokusei Native Dev` profile. Production uses `com.mokusei.desktop`,
-`Mokusei.app` and the canonical `Mokusei` profile. The Go runtime
+`Chief.app` and the canonical `Mokusei` profile. The Go runtime
 binary is built at `.build/go/mokusei-runtime`. A raw Swift executable can use
 `--runtime /absolute/path/to/mokusei-runtime --data-dir /isolated/profile`.
 
-Alpha uses `com.mokusei.desktop.alpha`, `Mokusei Alpha.app` and the `Mokusei Alpha`
+Alpha uses `com.mokusei.desktop.alpha`, `Chief Alpha.app` and the `Mokusei Alpha`
 profile. Its default data directory is `~/Library/Application Support/Mokusei Alpha`.
 App state is isolated; chosen projects, external tools and their sign-ins are shared.
+
+The bundle names and display names use Chief. The three bundle identifiers,
+Application Support profiles, packaged executables and internal plist keys
+retain their existing identities. The product name is shared across English
+and Simplified Chinese.
 
 Build and package do not install applications. `install` refuses to replace a
 running installed app, verifies a private staged copy, and restores the previous
 installation if publication fails. Specify `--destination` only when intending
-to install at that location. These tools never quit the user's production app.
+to install at that location. `install` and `open` use
+`~/Applications/Mokusei.app` if it exists and `~/Applications/Chief.app` is absent.
+An in-place update verifies the existing installation's production signature
+and preserves its filename. You can rename the bundle in Finder after quitting.
+These tools never quit the user's production app.
 
 ## Invited alpha DMGs
 
@@ -81,8 +90,8 @@ Use a new build number for each package you distribute.
 The output is a versioned directory under `app/macos/dist/alpha/`:
 
 ```text
-Mokusei-0.1.0-alpha.1-arm64/
-  Mokusei-0.1.0-alpha.1-arm64.dmg
+Chief-0.1.0-alpha.1-arm64/
+  Chief-0.1.0-alpha.1-arm64.dmg
   READ-ME-FIRST.txt
   SHA256SUMS
   release.json
@@ -92,7 +101,7 @@ Mokusei-0.1.0-alpha.1-arm64/
 are rejected. Each release is prepared privately and published with an exclusive
 atomic rename. An existing release directory is never replaced, including by a
 concurrent builder. Failed packaging leaves prior releases intact.
-The DMG contains `Mokusei Alpha.app`, an Applications shortcut and the
+The DMG contains `Chief Alpha.app`, an Applications shortcut and the
 [bilingual installation guide](alpha-installation.txt).
 The receipt records the source commit, dirty-worktree status, versions, signing
 mode, input executable hashes and DMG checksum. Build from a clean checkout when
@@ -236,7 +245,8 @@ publisher. Archives are created from the verified private staging tree.
 ## Validation
 
 Packaging verifies signatures and resources.
-`smoke` additionally verifies final product metadata, portable binary linkage
+`smoke` additionally verifies both macOS bundle names, channel identity and
+profile metadata, portable binary linkage
 and absence of old Node artifacts. The command does not launch the application or runtime or provide lifecycle
 correctness coverage.
 

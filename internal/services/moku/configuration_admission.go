@@ -1,6 +1,6 @@
 package moku
 
-import "github.com/hupao-creator/Mokusei/internal/core/plugin"
+import "github.com/hupao-creator/Chief/internal/core/plugin"
 
 // The caller retains the coordinator queue and settings admission gate. Core
 // can reject an unconsumed follow-up when its old execution ended during

@@ -19,7 +19,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
+	"github.com/hupao-creator/Chief/internal/services/workspaces"
 )
 
 const managedWorktreeSuffix = "-mokusei-worktrees"

@@ -15,23 +15,39 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
+	"github.com/hupao-creator/Chief/internal/platform/processgroup"
 )
 
 type Product struct{ Channel, BundleIdentifier, AppName, DisplayName, DataDirectoryName string }
 
+const legacyProductionAppName = "Mokusei.app"
+
 func ProductConfiguration(channel string) (Product, error) {
 	switch channel {
 	case "development":
-		return Product{channel, "com.mokusei.native.dev", "Mokusei Native Dev.app", "Mokusei Native Dev", "Mokusei Native Dev"}, nil
+		return Product{channel, "com.mokusei.native.dev", "Chief Native Dev.app", "Chief Native Dev", "Mokusei Native Dev"}, nil
 	case "production":
-		return Product{channel, "com.mokusei.desktop", "Mokusei.app", "Mokusei", "Mokusei"}, nil
+		return Product{channel, "com.mokusei.desktop", "Chief.app", "Chief", "Mokusei"}, nil
 	case "alpha":
-		return Product{channel, "com.mokusei.desktop.alpha", "Mokusei Alpha.app", "Mokusei Alpha", "Mokusei Alpha"}, nil
+		return Product{channel, "com.mokusei.desktop.alpha", "Chief Alpha.app", "Chief Alpha", "Mokusei Alpha"}, nil
 	default:
 		return Product{}, fmt.Errorf("unknown application channel %q", channel)
 	}
 }
+
+func defaultProductionApp(home string) string {
+	product, _ := ProductConfiguration("production")
+	applications := filepath.Join(home, "Applications")
+	current := filepath.Join(applications, product.AppName)
+	legacy := filepath.Join(applications, legacyProductionAppName)
+	// Updating the existing bundle in place avoids two copies with the same
+	// LaunchServices identity and keeps the existing install path usable.
+	if !exists(current) && exists(legacy) {
+		return legacy
+	}
+	return current
+}
+
 func Repository(start string) (string, error) {
 	path, err := filepath.Abs(start)
 	if err != nil {
@@ -43,7 +59,7 @@ func Repository(start string) (string, error) {
 		}
 		parent := filepath.Dir(path)
 		if parent == path {
-			return "", fmt.Errorf("run mokusei-dev from a Mokusei checkout or pass --repo")
+			return "", fmt.Errorf("run mokusei-dev from a Chief checkout or pass --repo")
 		}
 		path = parent
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 	"strings"
 	"time"
 )
@@ -29,7 +29,7 @@ func (h *Host) CollectMokuContexts(ctx context.Context, phase string, catalogs [
 		}
 		service := services[id]
 		if service == nil {
-			return nil, fmt.Errorf("Moku context %s is not started", id)
+			return nil, fmt.Errorf("Chief context %s is not started", id)
 		}
 		attempt, cancel := context.WithTimeout(ctx, time.Duration(definition.TimeoutMS)*time.Millisecond)
 		content, err := service.Collect(attempt, plugin.MokuContextInput{Catalogs: catalogs})
@@ -51,17 +51,17 @@ func (h *Host) CollectMokuContexts(ctx context.Context, phase string, catalogs [
 			return nil, ctx.Err()
 		}
 		if err == nil && len(content) > 128*1024 {
-			err = errors.New("Moku context contribution exceeds byte limit")
+			err = errors.New("Chief context contribution exceeds byte limit")
 		}
 		if err != nil {
 			if definition.OnFailure == "abort-send" {
-				return nil, fmt.Errorf("Moku context %s: %w", id, err)
+				return nil, fmt.Errorf("Chief context %s: %w", id, err)
 			}
 			continue
 		}
 		if strings.TrimSpace(content) == "" {
 			if definition.OnFailure == "abort-send" {
-				return nil, fmt.Errorf("Moku context %s returned no content", id)
+				return nil, fmt.Errorf("Chief context %s returned no content", id)
 			}
 			continue
 		}
@@ -70,7 +70,7 @@ func (h *Host) CollectMokuContexts(ctx context.Context, phase string, catalogs [
 			total += len("\n\n")
 		}
 		if total > 256*1024 {
-			return nil, errors.New("Moku context total exceeds byte limit")
+			return nil, errors.New("Chief context total exceeds byte limit")
 		}
 		slots[definition.Slot] = append(slots[definition.Slot], content)
 	}

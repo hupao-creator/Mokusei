@@ -121,13 +121,17 @@ class Desktop:
         save(self.session.output / "ui-overview.json", self.stable(lambda s: s["page"] == "overview"))
 
     def settings(self):
+        def wait_for_chief():
+            state = self.stable(lambda s: s["page"] == "settings")
+            assert state["settingsSection"] == "moku", state["settingsSection"]
+            assert state["settingsSections"] == ["moku", "tag.settings", "report.settings"], state["settingsSections"]
+
         state = self.stable()
         if state["page"] != "overview":
             self.request({"name": "overview.show"})
             self.stable(lambda s: s["page"] == "overview")
         self.request({"name": "settings.open"})
-        self.stable(lambda s: s["page"] == "settings")
-        self.request({"name": "settings.select", "section": "moku"})
+        wait_for_chief()
 
         def presets(state):
             return {c["id"].removeprefix("moku.routingPreset."): c for c in state["settings"]["controls"]
@@ -150,8 +154,7 @@ class Desktop:
              "revision": persisted["settingsRevision"]})
         assert actual == expected, "mounted preset did not persist through public state:load"
         self.request({"name": "settings.open"})
-        self.stable(lambda s: s["page"] == "settings")
-        self.request({"name": "settings.select", "section": "moku"})
+        wait_for_chief()
         save(self.session.output / "settings-reopened.json",
              self.stable(lambda s: expected in presets(s) and presets(s)[expected]["value"] is True))
         self.request({"name": "settings.close"})

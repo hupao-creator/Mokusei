@@ -11,6 +11,8 @@ struct NativeReportCollection: View {
     let onSelection: (ApplicationThreadRef) -> Void
     let openThread: (ApplicationThreadRef) -> Void
     @Environment(\.collectionReturnMember) private var returnMember
+    @Environment(\.collectionReadingSource) private var readingSource
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: ApplicationThreadRef
     @State private var currentMembers: Set<ApplicationThreadRef>
     @State private var direction = 1
@@ -43,7 +45,7 @@ struct NativeReportCollection: View {
     private var members: [ApplicationThreadRef] { props.map { $0.entry.ref } }
     private var selected: ApplicationThreadRef { members.contains(selection) ? selection : members[0] }
     private var page: Int { members.firstIndex(of: selected) ?? 0 }
-    private var playing: Bool { active && visibility?.isVisible != false && !interacting && !showingMembers && trackingMenus.isEmpty }
+    private var playing: Bool { active && readingSource == nil && visibility?.isVisible != false && !interacting && !showingMembers && trackingMenus.isEmpty }
     private enum Control: Hashable {
         case allMembers, previous, member(ApplicationThreadRef), menu, next
     }
@@ -134,7 +136,7 @@ struct NativeReportCollection: View {
                                 .focused($focusedControl, equals: .allMembers)
                                 .accessibilityFocused($accessibilityFocusedControl, equals: .allMembers)
                                 .accessibilityValue(applicationText(locale, showingMembers ? "已展开" : "已收起", showingMembers ? "Expanded" : "Collapsed"))
-                                .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，第 \(page + 1) 篇，共 \(members.count) 篇", "Show all Super Threads, report \(page + 1) of \(members.count)"))
+                                .accessibilityLabel(applicationText(locale, "显示全部 Super Thread，当前为第 \(page + 1) 条，共 \(members.count) 条", "Show all Super Threads, \(page + 1) of \(members.count)"))
                                 .disabled(!active || outgoingID != nil)
                                 .glassEffect(.regular.interactive(), in: Capsule())
                         }
@@ -206,6 +208,11 @@ struct NativeReportCollection: View {
             }
         }
         .background(NativeCollectionPanelAnchor(panelSource))
+        .background {
+            if let readingSource, selected == readingSource.member, outgoingID == nil {
+                NativeReadingEntranceStage(enabled: true, onReady: readingSource.onReady).id(readingSource.id)
+            }
+        }
         .contentShape(RoundedRectangle(cornerRadius: 22))
         .onChange(of: props.map(\.entry)) { _, _ in refreshMembers() }
         .onChange(of: locale) { _, _ in refreshMembers() }
@@ -226,6 +233,9 @@ struct NativeReportCollection: View {
         }
         .onDisappear { hovered = false; showingMembers = false; memberPresentation?.dismiss(owner: panelOwner); trackingMenus.removeAll() }
         .onChange(of: returnMember, initial: true) { _, ref in restoreReturnMember(ref) }
+        .onChange(of: readingSource?.id, initial: true) { _, _ in revealReadingSource() }
+        .onChange(of: outgoingID) { _, outgoing in if outgoing == nil { revealReadingSource() } }
+        .onChange(of: reduceMotion) { _, value in if value { revealReadingSource() } }
         .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
         .onChange(of: playing) { _, value in
             if !value { playbackStarted = nil }
@@ -234,25 +244,32 @@ struct NativeReportCollection: View {
             currentMembers = Set(next)
             settle()
             if !next.contains(selection) { selection = next[0] }
-            restoreReturnMember(returnMember)
+            if readingSource != nil { revealReadingSource() } else { restoreReturnMember(returnMember) }
         }
         .onChange(of: active) { _, value in
-            if !value { hovered = false; showingMembers = false; settle() }
-            else { restoreReturnMember(returnMember) }
+            if value { restoreReturnMember(returnMember); refreshMembers() }
+            else {
+                hovered = false; settle()
+                if memberPresentation?.readingMember == nil { showingMembers = false }
+            }
         }
         .onChange(of: visibility?.isVisible) { _, visible in
-            if visible == false { hovered = false; showingMembers = false; settle() }
+            if visible == false {
+                hovered = false; settle()
+                if memberPresentation?.readingMember == nil { showingMembers = false }
+            }
         }
         .task(id: motionEpoch) {
             guard outgoingID != nil else { return }
             do {
                 // Commit the initial pair of native pages before animating it.
                 try await Task.sleep(for: .milliseconds(20))
-                let duration = 0.46 * (slow ? 3 : 1)
-                withAnimation(.easeInOut(duration: duration)) { progress = 1 }
-                try await Task.sleep(for: .seconds(duration))
-                try Task.checkCancellation()
-                outgoingID = nil
+                let epoch = motionEpoch
+                withAnimation(.easeInOut(duration: 0.46 * (slow ? 3 : 1)), completionCriteria: .removed) {
+                    progress = 1
+                } completion: {
+                    if motionEpoch == epoch { outgoingID = nil }
+                }
             } catch { /* View identity owns and cancels this transition. */ }
         }
         .task(id: clockKey) {
@@ -265,10 +282,21 @@ struct NativeReportCollection: View {
         }
     }
     private func restoreReturnMember(_ ref: ApplicationThreadRef?) {
-        guard let ref, members.contains(ref) else { return }
+        guard readingSource == nil, let ref, members.contains(ref) else { return }
         settle()
         selection = ref
         onSelection(ref)
+    }
+
+    private func revealReadingSource() {
+        guard let ref = readingSource?.member, let index = members.firstIndex(of: ref) else { return }
+        if reduceMotion || !active {
+            settle()
+            selection = ref
+            onSelection(ref)
+        } else if outgoingID == nil, ref != selected {
+            select(ref, direction: index >= page ? 1 : -1)
+        }
     }
 
     private func toggleMembers() {
@@ -276,9 +304,10 @@ struct NativeReportCollection: View {
         if showingMembers { memberPresentation.close(owner: panelOwner); return }
         hovered = false
         showingMembers = true
-        memberPresentation.present(owner: panelOwner, source: panelSource, content: AnyView(memberPanel)) {
+        memberPresentation.present(owner: panelOwner, source: panelSource, content: AnyView(memberPanel)) { restoreFocus in
             hovered = false
             showingMembers = false
+            guard restoreFocus else { return }
             focusedControl = .allMembers
             accessibilityFocusedControl = .allMembers
         }
@@ -289,17 +318,23 @@ struct NativeReportCollection: View {
         memberPresentation?.update(owner: panelOwner, content: AnyView(memberPanel))
     }
 
+    private func allowsMemberAction(_ reference: ApplicationThreadRef) -> Bool {
+        memberPresentation?.owner == panelOwner && active && currentMembers.contains(reference)
+            && memberPresentation?.closing == false && memberPresentation?.readingMember == nil
+    }
+
     private var memberPanel: some View {
         // This content is retained outside the card's view updates. Its captured
         // State value can still say showingMembers=false while drawing; the
         // observable presentation is the live authority for this panel visit.
         NativeReportCollectionMembers(props: props, locale: locale,
             close: { memberPresentation?.close(owner: panelOwner) },
-            allowsActions: { memberPresentation?.owner == panelOwner && active && memberPresentation?.closing != true && currentMembers.contains($0) },
+            allowsActions: allowsMemberAction,
             openThread: { reference in
-                guard memberPresentation?.owner == panelOwner, active, currentMembers.contains(reference), memberPresentation?.closing != true else { return }
-                memberPresentation?.dismiss(owner: panelOwner)
+                guard allowsMemberAction(reference) else { return }
                 openThread(reference)
+                // A host without a reader handoff still releases its member grid.
+                memberPresentation?.dismiss(owner: panelOwner)
             })
             .environment(\.nativeReportCoverCache, coverCache)
     }

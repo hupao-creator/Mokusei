@@ -85,7 +85,9 @@ public final class RuntimeProfileClientLease: @unchecked Sendable {
               opened.st_ino == named.st_ino else { throw unsafeLease() }
     }
 
-    private static func lockFile(directory: Int32, name: String, mode: Int32) throws -> Int32 {
+    static func lockFile(directory: Int32, name: String, mode: Int32,
+                         busy: RuntimeError = RuntimeError("PROFILE_MAINTENANCE",
+                            "This profile is being maintained. Try opening it again when maintenance finishes.")) throws -> Int32 {
         // Do not open an existing device/FIFO. Recheck after open and flock to
         // reject a path replaced during admission or a detached old lock inode.
         var before = stat()
@@ -107,7 +109,7 @@ public final class RuntimeProfileClientLease: @unchecked Sendable {
             while acquire(fd, mode | LOCK_NB) != 0 {
                 if errno == EINTR { continue }
                 if errno == EWOULDBLOCK || errno == EAGAIN {
-                    throw RuntimeError("PROFILE_MAINTENANCE", "This profile is being maintained. Try opening it again when maintenance finishes.")
+                    throw busy
                 }
                 throw ioFailure("acquire the profile lease")
             }

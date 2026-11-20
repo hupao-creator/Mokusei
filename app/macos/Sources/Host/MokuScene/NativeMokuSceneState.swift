@@ -22,6 +22,8 @@ import MokuseiPluginUI
     public private(set) var historyVisit = UUID()
     public private(set) var cameraActive = false
     private var landingActive = false
+    // The handoff can cue only the Dock currently mounted in this scene.
+    @ObservationIgnored weak var dockCharacter: NativeMokuCharacterMotion?
     public private(set) var inputOpen = false
     public private(set) var inputPinnedOpen = false
     public private(set) var inputAdmissionReady = true
@@ -45,6 +47,24 @@ import MokuseiPluginUI
     public private(set) var flightActive = false
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readReplies: Set<JSONText> = []
+    struct NoteReadingOrigin {
+        enum Phase: String { case dismissing, locating, reading }
+        let id = UUID()
+        let reference: ApplicationExecutionRef
+        var space: String
+        var phase = Phase.dismissing
+        var returnsToNote = false
+    }
+    var noteReadingOrigin: NoteReadingOrigin?
+
+    func finishLinkedNoteDismissal(_ id: UUID?) {
+        guard let id, noteReadingOrigin?.id == id, noteReadingOrigin?.phase == .dismissing else { return }
+        noteReadingOrigin?.phase = .locating
+    }
+
+    func cancelPendingNoteReading() {
+        if let origin = noteReadingOrigin, origin.phase != .reading { noteReadingOrigin = nil }
+    }
     public private(set) var notePanelOpen = false
     public private(set) var noteOpenGeneration = 0
     public var readingPanelVisible = false {
@@ -165,11 +185,15 @@ import MokuseiPluginUI
     /// editor selection must never cross from Moku or one Thread to another.
     public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool, keepsInputOpen: Bool = false,
                                    inputAdmissionReady: Bool = true, waitsForHarnessIdentity: Bool = false,
-                                   autofocus: Bool = true) {
+                                   autofocus: Bool = true, retainingOpenInput: Bool = false) {
         let identity = ObjectIdentifier(draft)
+        // A document change inside an admitted reader replaces the draft, but
+        // the pinned shell and its settled Harness mark still belong to the visit.
+        let retainOpenInput = retainingOpenInput && opensInput && keepsInputOpen && inputPinnedOpen
+            && inputOpen && inputInteractionReady && inputAdmissionReady
         inputPinnedOpen = keepsInputOpen
         if !waitsForHarnessIdentity { inputIdentityReady = true }
-        else if !inputAdmissionReady || composerIdentity != identity { inputIdentityReady = false }
+        else if !retainOpenInput, !inputAdmissionReady || composerIdentity != identity { inputIdentityReady = false }
         if self.inputAdmissionReady != inputAdmissionReady {
             self.inputAdmissionReady = inputAdmissionReady
             if !inputAdmissionReady {
@@ -186,7 +210,7 @@ import MokuseiPluginUI
         composerAutofocus = autofocus
         composerGeneration = UUID()
         capsuleTask?.cancel(); capsuleTask = nil
-        inputOpen = false; inputLeaving = false; capsuleSealed = false
+        inputOpen = retainOpenInput; inputLeaving = false; capsuleSealed = false
         retainedSelection = nil; retainedSelectionText = nil
         retainDraft(draft)
         setInputOpen(opensInput)
@@ -282,11 +306,12 @@ import MokuseiPluginUI
         guard !settingsOpen else { return }
         guard open != notePanelOpen else { return }
         guard !open || (overviewVisible && !disabled && !dockCovered && !dockInteractionVisible) else { return }
-        if open { setInputOpen(false) }
+        if open { cancelPendingNoteReading(); setInputOpen(false) }
         notePanelOpen = open
         command?(.position)
     }
-    private func closeNotePanel() {
+    private func closeNotePanel(cancelReading: Bool = true) {
+        if cancelReading { cancelPendingNoteReading() }
         guard notePanelOpen else { return }
         notePanelOpen = false
         command?(.position)
@@ -358,6 +383,7 @@ import MokuseiPluginUI
     public func openSettings() {
         guard canOpenSettings else { return }
         guard !settingsOpen || settingsClosing else { return }
+        cancelPendingNoteReading()
         talkPresentation.setPresented(false)
         // Keep the underlying input/Note visit alive. Settings temporarily owns
         // the capsule; a pending intervention is admitted after it retires.
@@ -413,7 +439,10 @@ import MokuseiPluginUI
         onSettingsOpenChange?(false)
     }
     func setWindowVisible(_ value: Bool) {
-        if !value { talkPresentation.setPresented(false); closeNotePanel() }
+        if !value {
+            dockCharacter?.cancelOnboardingBlink()
+            talkPresentation.setPresented(false); closeNotePanel(cancelReading: false)
+        }
         windowVisible = value
         if value, mokuOpen, !cameraActive, let key = liveReplyKey { markReplyRead(key) }
     }

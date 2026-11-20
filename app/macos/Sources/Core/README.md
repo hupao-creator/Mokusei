@@ -71,9 +71,16 @@ the native value schema. Unreadable ownership records stop collection.
 `ownership.lock` gate. Each restored draft and pending submission holds an
 independent token; a process reference file aggregates only its live tokens.
 Another client's saved-draft replacement cannot revoke an in-memory owner.
-Token updates and draft persistence take the shared gate, while collection takes
-it exclusively. Normal disposal and send completion release their tokens;
-failed final persistence conservatively retains its token until process exit.
+Token updates take the shared gate. Composer revision checks and atomic draft
+replacements take the exclusive gate, as does collection. The draft envelope
+retains ready IDs for both the submitted input and the editable successor.
+A separate nonblocking lock per draft scope spans dispatch and receipt
+consumption. Local review of an interrupted send acquires that same lock.
+Process exit releases the lock while the original input remains on disk.
+A saved Composer handoff names its initial command before dispatch. After a
+lost response, a fresh Host can look up that ID or its continuation phases.
+A completed fork alone still requires the original continuation context.
+Normal disposal and send completion release their tokens. Failed final persistence conservatively retains its token until process exit.
 
 Equal keys in different scope kinds and different keys in
 the same kind remain distinct; a missing scope stays absent.
@@ -104,10 +111,10 @@ Execution continuation uses `invoke(... retainingReceipt: true)` with an explici
 command ID. A successful result remains in the durable command journal until
 its caller consumes the matching draft. Acknowledgement waits only for that
 receipt's own active command; unrelated reads/writes do not prevent cleanup.
-After an accepted continuation consumes its draft, cleanup failures are logged
-without presenting a send error. The retained operation and durable receipt still
-block new input until cleanup succeeds on the next send attempt; no input is
-replayed by cleanup. `resolveCommandReceipt` is query-only:
+Composer writes the settled draft and its receipt cleanup ID in the same
+transaction. A live or reopened owner can finish journal acknowledgement and
+remove that marker. Both operations are idempotent. The next draft stays editable
+throughout cleanup. `resolveCommandReceipt` is query-only:
 unknown, pending, expired and indeterminate outcomes never fall back to invoke.
 This is deliberately distinct from explicit same-ID invoke retries, which the
 general client API can admit after an unknown receipt.
@@ -149,7 +156,7 @@ Downloads retain the validated host basename, including `.partial`.
 Directory-list entries use their own host, target and entry name for UI identity,
 so distinct symlinks to the same target retain stable labels after redraws.
 
-Client appearance and language preferences live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
+Native navigation and drafts belong to the workspace. [Desktop preferences](../Host/Shell/DesktopPreferences.swift) persist profile-local selection, onboarding and reading activity. The native app [derives its interface settings from macOS](../../README.md#system-appearance-and-language) and publishes the resolved language for generated output through profile metadata.
 
 HTTP and command rejections after handoff retain the original fork identity;
 an explicit replacement preserves it until the accepted draft is consumed.
@@ -157,6 +164,8 @@ Handoff and replacement publish their exact attachment references before HTTP,
 and replacing a rejected predecessor retains the successor's files with the
 original fork lineage.
 
-No command-journal integration suite is configured in this source tree. Receipt
-identity, shared-profile admission and attachment handoff above are implemented
-constraints; no runtime coverage is implied by the production build.
+The [Host receipt replay](../../../../demos/moku-panel-transition/README.md#host-receipt-replay)
+exercises the native timestamped ID and historical phase IDs against the Go HTTP
+executor and durable ReceiptStore in an isolated profile. It drops admitted HTTP
+responses and verifies lookup and same-ID deduplication. It also checks collector contention and durable attachment ownership.
+Real model execution and full service recovery are outside that replay.

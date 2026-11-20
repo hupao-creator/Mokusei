@@ -69,7 +69,14 @@ func Smoke(ctx context.Context, repo, application, channel, report string) error
 	if err = json.Unmarshal([]byte(out), &info); err != nil {
 		return err
 	}
-	expected := map[string]string{"CFBundleIdentifier": product.BundleIdentifier, "CFBundleDisplayName": product.DisplayName, "MokuseiDataDirectoryName": product.DataDirectoryName, "LSMinimumSystemVersion": "26.0", "CFBundleExecutable": "Mokusei"}
+	expected := map[string]string{
+		"CFBundleIdentifier":       product.BundleIdentifier,
+		"CFBundleName":             product.DisplayName,
+		"CFBundleDisplayName":      product.DisplayName,
+		"MokuseiDataDirectoryName": product.DataDirectoryName,
+		"LSMinimumSystemVersion":   "26.0",
+		"CFBundleExecutable":       "Mokusei",
+	}
 	for key, value := range expected {
 		if info[key] != value {
 			return fmt.Errorf("unexpected bundle metadata %s", key)

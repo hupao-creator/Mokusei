@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 const maxToolMessageBytes = 8 * 1024 * 1024
@@ -212,7 +212,7 @@ func (b *ToolBridge) handleRequest(w http.ResponseWriter, request *http.Request)
 	}
 	tool, exists := b.tools[call.Name]
 	if !exists {
-		bridgeJSON(w, http.StatusNotFound, map[string]any{"error": "Unknown Mokusei tool"})
+		bridgeJSON(w, http.StatusNotFound, map[string]any{"error": "Unknown Chief tool"})
 		return
 	}
 	if len(call.Arguments) == 0 {
@@ -249,7 +249,7 @@ func (b *ToolBridge) handleRequest(w http.ResponseWriter, request *http.Request)
 		// A faulty plugin must not crash the entire runtime or strand the client.
 		defer func() {
 			if recover() != nil {
-				done <- outcome{err: errors.New("Mokusei tool failed unexpectedly")}
+				done <- outcome{err: errors.New("Chief tool failed unexpectedly")}
 			}
 		}()
 		if err := ctx.Err(); err != nil {
@@ -274,7 +274,7 @@ func (b *ToolBridge) handleRequest(w http.ResponseWriter, request *http.Request)
 			completed.result = json.RawMessage("null")
 		}
 		if !json.Valid(completed.result) {
-			bridgeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "Mokusei tool returned invalid JSON"})
+			bridgeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "Chief tool returned invalid JSON"})
 			return
 		}
 		bridgeJSON(w, http.StatusOK, map[string]any{"result": completed.result})
@@ -687,7 +687,7 @@ func (p *mcpPeer) handle(ctx context.Context, request mcpRequest) {
 		}
 		if status < 200 || status >= 300 {
 			if payload.Error == "" {
-				payload.Error = "Mokusei tool failed"
+				payload.Error = "Chief tool failed"
 			}
 			p.result(request.ID, map[string]any{"content": []any{map[string]any{"type": "text", "text": payload.Error}}, "isError": true})
 			return
@@ -697,7 +697,7 @@ func (p *mcpPeer) handle(ctx context.Context, request mcpRequest) {
 		}
 		value, err := model.Decode(payload.Result)
 		if err != nil {
-			p.rpcError(request.ID, -32603, "Invalid Mokusei tool result")
+			p.rpcError(request.ID, -32603, "Invalid Chief tool result")
 			return
 		}
 		text := string(payload.Result)

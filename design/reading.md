@@ -111,6 +111,9 @@ List state uses a 3:7 Sidecard-to-Report ratio; exact execution detail uses 5:5,
 subject to shared width/stacking constraints. HTML stays mounted, anchored left,
 and its viewport follows shell width continuously. A selected execution waits for
 scoped content and Markdown readiness, then fades one retained host over 200ms.
+A Chief Note entry under Reduce Motion reserves the final panes on the first
+Report layout and shows native document and execution content directly when
+ready. The ordinary Thread reader also shows its cited content directly.
 Hidden controls/accessibility cannot act. Streaming/retry does not replay the
 entrance; unavailable/error content admits as readable content.
 

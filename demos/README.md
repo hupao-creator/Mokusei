@@ -14,7 +14,7 @@
 | [moku-landing](moku-landing/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |
 | [moku-mention-transition](moku-mention-transition/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |
 | [moku-note-transition](moku-note-transition/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |
-| [moku-panel-transition](moku-panel-transition/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |
+| [moku-panel-transition](moku-panel-transition/README.md) | 隔离回放 Agent/Report Dock 动画、AppKit 输入和待确认草稿；本地 Host 回放通过 Go transport 核对回执，使用 fixture 命令结果 |
 | [moku-thinking-orbit](moku-thinking-orbit/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |
 | [report-thread](report-thread/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |
 | [settings-navigation](settings-navigation/README.md) | 链接生产组件的交互 fixture；不连接真实 Runtime/账户，无自动验收 |

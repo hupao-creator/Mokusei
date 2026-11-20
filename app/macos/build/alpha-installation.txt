@@ -1,4 +1,4 @@
-Mokusei Alpha — 安装与更新 / Installation and updates
+Chief Alpha — 安装与更新 / Installation and updates
 
 系统要求
 Apple Silicon Mac（M 系列芯片），macOS 26 或更新版本。
@@ -8,8 +8,8 @@ Apple Silicon Mac（M 系列芯片），macOS 26 或更新版本。
 
 首次安装
 1. 从邀请方取得 DMG 和本说明，确认版本与来源；SHA256SUMS 可用于核对下载完整性。
-2. 打开 DMG，把 Mokusei Alpha.app 拖入 Applications 文件夹，然后弹出磁盘映像。
-3. 从“应用程序”打开 Mokusei Alpha。
+2. 打开 DMG，把 Chief Alpha.app 拖入 Applications 文件夹，然后弹出磁盘映像。
+3. 从“应用程序”打开 Chief Alpha。
 4. 这个 alpha 使用临时签名，未经 Apple 公证。macOS 可能提示无法验证开发者或
    无法检查恶意软件。确认你信任邀请方提供的这个包后，在“系统设置 → 隐私与安全性”
    找到该应用的提示，点“仍要打开”，按系统提示确认。无需关闭系统整体安全检查。
@@ -17,11 +17,12 @@ Apple Silicon Mac（M 系列芯片），macOS 26 或更新版本。
    Apple 的说明：https://support.apple.com/zh-cn/102445
 
 数据与更新
-Alpha 与 Mokusei 正式版、开发版并存，使用独立数据目录：
+Alpha 与 Chief 正式版、开发版并存，使用独立数据目录：
 ~/Library/Application Support/Mokusei Alpha
 应用数据独立，但你主动选择的项目目录、Agent 登录状态和外部工具仍由本机共享。
-本阶段没有自动更新。更新前先退出 Mokusei Alpha，再备份上述数据目录，
-然后用新 DMG 替换 Applications 中的 Mokusei Alpha.app。
+本阶段没有自动更新。更新前先退出 Chief Alpha，再备份上述数据目录，
+然后用新 DMG 替换 Applications 中的应用。如果原应用名为 Mokusei Alpha.app，
+请先将其移出 Applications，再安装 Chief Alpha。
 Alpha 的数据格式可能变化，不保证旧版本之间的数据兼容。请保留原始项目备份。
 临时签名随构建变化，更新后 macOS 可能再次请求文件访问等权限。
 反馈问题时附上 DMG 文件名、macOS 版本和复现步骤；不要发送账号密钥。
@@ -35,8 +36,8 @@ You supply each Agent's dependencies, account and any model usage fees.
 First installation
 1. Obtain the DMG and this guide from your inviter and confirm the source and version.
    SHA256SUMS can be used to check that the download is intact.
-2. Open the DMG, drag Mokusei Alpha.app to Applications, then eject the disk image.
-3. Open Mokusei Alpha from Applications.
+2. Open the DMG, drag Chief Alpha.app to Applications, then eject the disk image.
+3. Open Chief Alpha from Applications.
 4. This alpha is ad-hoc signed and has not been notarized by Apple. macOS may say
    it cannot verify the developer or check for malicious software. If you trust
    this particular package from your inviter, open System Settings > Privacy &
@@ -46,12 +47,14 @@ First installation
    version to your inviter. Apple's guide: https://support.apple.com/en-us/102445
 
 Data and updates
-Alpha can coexist with Mokusei production and development installations. Its data is in:
+Alpha can coexist with Chief production and development installations. Its data is in:
 ~/Library/Application Support/Mokusei Alpha
 App data is separate; projects you choose, Agent sign-ins and external tools are
 still shared on your Mac.
-There is no automatic updater. Quit Mokusei Alpha, back up that data directory,
-then replace the app in Applications with the one from the new DMG.
+There is no automatic updater. Quit Chief Alpha, back up that data directory,
+then replace the app in Applications with the one from the new DMG. If the
+installed bundle is named Mokusei Alpha.app, move it out of Applications
+before installing Chief Alpha.
 Alpha data formats may change; compatibility between older versions is not guaranteed.
 Keep backups of your original projects. Ad-hoc signatures change between builds,
 so macOS may request file access and other permissions again after an update.

@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 import SwiftUI
 
 @MainActor
@@ -94,6 +95,10 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private var applicationVisit: NativeOverviewCollectionVisit?
     @ObservationIgnored private var applicationReadDeadline: Task<Void, Never>?
     private(set) var returnMember: ApplicationThreadRef?
+    var readingSource: NativeOverviewReadingSource?
+    // A member reader covers a live grid. Save its ranking inputs before the
+    // visit writes reading evidence, so Back can restore the same grid seat.
+    @ObservationIgnored private var heldCollectionRanks: [ApplicationThreadRef: (idle: Bool, qualifiedAt: Double?)] = [:]
     @ObservationIgnored private var projectedCollectionScene: String?
     @ObservationIgnored private var collectionAgeSample = Date().timeIntervalSince1970
     @ObservationIgnored private var snapshots: [String: NativeOverviewCardSnapshot] = [:]
@@ -248,6 +253,32 @@ public final class NativeOverviewWorkspaceModel {
 
     public func sourceCardID(for reference: ApplicationThreadRef) -> String? { collectionSources[reference] }
 
+    func visibleCardID(for reference: ApplicationThreadRef) -> String? {
+        let id = sourceCardID(for: reference) ?? reference.threadID.string
+        return content.activeIDs.contains(id) ? id : nil
+    }
+
+    /// Prefer the current space, including a collapsed Collection. Directory
+    /// membership is scope-aware even when two directories share a chip label.
+    func revealReadingSource(for reference: ApplicationThreadRef) {
+        guard visibleCardID(for: reference) == nil else { return }
+        func contains(_ membership: NativeOverviewMembership?) -> Bool {
+            if reference.typeID == "agent" { return membership?.threads.contains(reference.threadID) == true }
+            return membership?.applications.contains(reference) == true
+        }
+        if let filter = allFilters.first(where: { contains(filterMembers[$0.selectionKey]) }) {
+            selectTag(filter)
+        } else if tagSelection != nil, contains(allMembership()) {
+            selectTag(nil)
+        } else if reference.typeID == "agent", let thread = workspace.catalog.thread(reference.threadID),
+                  let directory = filters.first(where: { $0.scope == NativeOverviewSelection.scope(thread) }),
+                  selectedFilter?.selectionKey != directory.selectionKey {
+            // An explicit result can belong to an archived Thread. Its space
+            // can still exist even though no card is eligible to provide geometry.
+            selectTag(directory)
+        }
+    }
+
     public func selectedCollectionMember(for item: NativeOverviewItem) -> ApplicationThreadRef? {
         guard case .collection(_, let members) = snapshot(for: item) else { return nil }
         if let returnMember, members.contains(where: { $0.entry.ref == returnMember }) { return returnMember }
@@ -261,14 +292,18 @@ public final class NativeOverviewWorkspaceModel {
         collectionSelections[cardID] = reference
     }
 
+    func collectionReadingOwner(of thread: ApplicationThreadRef) -> ApplicationThreadRef? {
+        guard let owners = collectionReadingOwners[thread], owners.count == 1 else { return nil }
+        return owners.first
+    }
+
     /// Report and associated Agent routes share one visit while their owner is
     /// unchanged. Coverage is matched by Thread, not by its current execution.
     public func recordReadingRoute(_ route: ApplicationThreadRef?, at date: Date = .now,
                                    uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         let reference: ApplicationThreadRef?
         if let route, route.typeID == "agent" {
-            let owners = collectionReadingOwners[route] ?? []
-            reference = owners.count == 1 ? owners.first : nil
+            reference = collectionReadingOwner(of: route)
         } else { reference = route }
         guard applicationVisit?.reference != reference else { return }
         recordApplicationClose(at: date, uptime: uptime)
@@ -316,7 +351,7 @@ public final class NativeOverviewWorkspaceModel {
             visit.promote(&evidence)
             saveReading(visit.reference, evidence)
             // The deliberate promotion can use the full budget on prepared return.
-            projectedCollectionScene = nil
+            if heldCollectionRanks[visit.reference] == nil { projectedCollectionScene = nil }
             readingChanged()
         } else if visible {
             let delay = max(0.01, visit.threshold - visit.elapsed)
@@ -328,6 +363,21 @@ public final class NativeOverviewWorkspaceModel {
                 } catch { }
             }
         }
+    }
+
+    func holdCollectionRank(for reference: ApplicationThreadRef) {
+        guard heldCollectionRanks[reference] == nil,
+              let entry = try? workspace.catalog.applicationEntry(reference) else { return }
+        heldCollectionRanks[reference] = (isIdle(entry, now: collectionAgeSample), reading(reference)?.lastQualifiedAt)
+    }
+
+    func releaseCollectionRanks() {
+        guard !heldCollectionRanks.isEmpty else { return }
+        if heldCollectionRanks.contains(where: { reading($0.key)?.lastQualifiedAt != $0.value.qualifiedAt }) {
+            projectedCollectionScene = nil
+        }
+        heldCollectionRanks.removeAll()
+        readingChanged()
     }
 
     private func reading(_ reference: ApplicationThreadRef) -> ApplicationCollectionReading? {
@@ -754,8 +804,9 @@ public final class NativeOverviewWorkspaceModel {
             let snapshotsForType = applications.filter { $0.entry.ref.typeID == typeID }.map { applicationCache[$0.entry.ref.threadID]!.1 }
             let ranked = snapshotsForType.map { snapshot in
                 let entry = snapshot.entry
-                let qualified = reading(entry.ref)?.lastQualifiedAt
-                return (snapshot: snapshot, qualified: qualified != nil, idle: isIdle(entry, now: now),
+                let rank = heldCollectionRanks[entry.ref] ?? (isIdle(entry, now: now), reading(entry.ref)?.lastQualifiedAt)
+                let qualified = rank.qualifiedAt
+                return (snapshot: snapshot, qualified: qualified != nil, idle: rank.idle,
                         priority: qualified ?? entry.createdAt / 1000)
             }.sorted { a, b in
                 if a.idle != b.idle { return a.idle }
@@ -857,7 +908,7 @@ public final class NativeOverviewWorkspaceModel {
     public func stop() async {
         active = false
         collectionSources.removeAll(); collectionSelections.removeAll(); recentApplicationReading.removeAll()
-        collectionReadingOwners.removeAll()
+        collectionReadingOwners.removeAll(); heldCollectionRanks.removeAll()
         applicationReadDeadline?.cancel(); applicationReadDeadline = nil
         applicationVisit = nil
         await publication?.value

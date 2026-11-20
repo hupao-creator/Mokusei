@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 var commandIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{16,128}$`)

@@ -1,27 +1,38 @@
-# Working with Moku
+# Work with Chief
 
-## Check who will get your message
+## Send a request
 
-In **Overview**, click Moku's eyes or press **⌘⇧B** to open its input box. When the box says **Ask Moku…** or names a folder after **Ask Moku about**, you're writing to Moku. You can ask a question, give Moku a task to assign, or ask it to find work you already started. Say what you want done, what materials to use, and what you'd like back.
+From **Overview**, click Chief's eyes or press **⌘⇧B** to open **Type a message…**. Ask a question, describe a task for Chief to assign, or ask it to find work you already started. Say what you want back and which materials to use.
 
-In an agent conversation, the input at the bottom shows the conversation name and the agent's icon. Messages there go to that conversation. If you've selected an earlier run, your message picks up from the run you're reading. In a Super Thread report, open a card in **Related executions** before sending a follow-up to the source conversation. [Agent conversations](task-conversations.md)
+In a task conversation, the same input box shows the agent's icon and sends to that conversation. In a Super Thread, open a source conversation in **Related executions** before sending a follow-up. [Agent conversations](task-conversations.md) · [Super Threads](reports-tags-and-changes.md#see-the-work-behind-a-super-thread)
 
-When Moku is at the bottom of **Overview**, click outside its input box or press **Esc** to close it. Your unsent draft is there when you open the box again.
+When Chief's input is at the bottom of Overview, click outside it or press **Esc** to close it. Your unsent draft is there when you reopen the box.
 
-To stop several tasks, name them in one message to Moku. Mokusei tries each task and tells Moku which stop requests succeeded. A task that has already finished and has no work left keeps its original result, and Mokusei still tries the other tasks you named.
+## Point Chief to the right files
 
-## Choose project folders and attach files
+Type `@` and select a project folder from the suggestions. You can select several and say what to use each one for. The menu shows folders Chief already knows about from your work or your agents. If your folder isn't listed, include its full path in the request.
 
-Type `@` and choose a folder from the suggestions. Check that it appears in the input box before you send. You can choose more than one folder and tell Moku what to look at in each. Moku also takes the selected folder in Overview into account, and folders you explicitly add to the message take priority. Tasks without a project folder go into Inbox, whose tags appear in the main filter bar in Overview.
+If you send without selecting a folder in the message, Chief takes the current Overview folder into account. A folder you select in the message takes priority. Tasks created without a project folder go into Inbox.
 
-Click **+** beside the input box to add an image or file, or drag a file into the box. You can send text, files, and folders together. Wait for any files to finish preparing before you send. If an attachment needs to be added again, remove it and select the original file again.
+Click **+** just to the right of Chief's eyes to open the file chooser on your Mac. Select one or more files, or click **Cancel** to keep your draft as it is. You can also drop files into the input box.
 
-## Find replies, notes, and past messages
+To browse the connected host, Control-click **+** and choose **Choose host files** to attach files or **Choose a host directory** to reference a folder.
 
-- When Moku replies directly, the reply appears where you typed your request. You can select the text and scroll through longer replies. Click Moku's eyes to type again. When Moku confirms it has assigned the task, open the conversation card to follow the work.
-- To read Moku's notes, return to Overview and press **⌘⇧N**, or swipe up with two fingers on the trackpad over Moku. You can scroll, select text, and open task links in the note.
-- Open **Moku history** below the note or press **⌘B**. You can read past messages in the current Moku conversation and use the input below them to keep talking to Moku. If you switch the coordinating agent, Mokusei keeps the previous conversation and shows the new one in the history panel.
+Selected files appear above the input. Click an image thumbnail to preview it or use the **×** on an attachment to remove it. Wait for the files to finish preparing, then click **Send**. You can attach up to 20 files per message. Size limits apply, and the agent running Chief determines which attachment types it can use. If you want Chief to delegate work on a file, say which file the agent should use in your request.
 
-If a message fails to send, Mokusei keeps what you entered in the input box and shows the reason. Follow the prompt, check the message in the same box, and click **Send** again. If Mokusei is still checking whether the previous message went through, leave the original content in place and wait for confirmation. If Moku has already assigned the task, open its conversation first to see what happened.
+## Find Chief's replies and notes
+
+- **Replies.** A direct reply appears where you typed your request. You can select the text and scroll through a longer reply. The reply closes on its own, so ask Chief to put anything you want to keep in its note.
+- **Task updates.** A dispatch message tells you that Chief handed off your request. Open the task card in Overview to see how the work is going.
+- **Notes.** From Overview, press **⌘⇧N** or swipe up with two fingers over Chief to open **Chief Note**. Scroll to a run and click its link. The note closes. If your current Overview filter includes the destination, it stays selected. If the card is in another folder or tag, Overview switches there. If the conversation belongs to exactly one Super Thread, its card opens with the run you clicked in **Related executions**. A collection turns to that Super Thread’s page first. Other links open the cited run in the task conversation. In both readers, you start at the top of the run. Click the **×** at the top left of the reader or press **⌘K** to return to Overview with the note closed. To resume the note from a task conversation, press **Esc** in the run you opened. In a Super Thread, click **Back to related executions**, then **Back to Chief Note** on the report.
+- **Conversation history.** Press **⌘B** or click **Chief history** below the note. Use the input below the current conversation to keep talking to Chief. When a different agent takes over as Chief, a new conversation starts and the note carries over.
+
+## Stop work or acknowledge an alert
+
+To stop Chief's current response, hover over its eyes at the bottom of Overview and click the square **Stop Chief** button on the right. The button stays on the right when you open the input box. To stop one or more delegated tasks, name them in a message to Chief. Chief tries each request separately. You can also stop a task yourself from its conversation. [Stop a run](task-conversations.md#respond-to-a-request-or-stop-a-run)
+
+Chief can send an immediate alert that rings until you click **Received**. If another alert is waiting, it appears next. Alerts are kept while Chief is open and are cleared when you quit.
+
+If a message fails to send, review the error and the text in the input box before retrying. If Chief is still checking the previous send, wait for confirmation or use **Check previous receipt** if shown. Open any task card Chief already created to see what happened.
 
 [Back to the product guide](README.md)

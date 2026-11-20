@@ -129,9 +129,8 @@ func Run(ctx context.Context, repo string, args []string) error {
 			if err != nil {
 				return err
 			}
-			p, _ := ProductConfiguration("production")
 			if *destination == "" {
-				*destination = filepath.Join(home, "Applications", p.AppName)
+				*destination = defaultProductionApp(home)
 			}
 			installed, err := Install(ctx, application, *destination)
 			if err == nil {
@@ -159,9 +158,8 @@ func Run(ctx context.Context, repo string, args []string) error {
 		if err != nil {
 			return err
 		}
-		p, _ := ProductConfiguration("production")
 		if *app == "" {
-			*app = filepath.Join(home, "Applications", p.AppName)
+			*app = defaultProductionApp(home)
 		}
 		if !exists(*app) {
 			return fmt.Errorf("installed application not found: %s", *app)

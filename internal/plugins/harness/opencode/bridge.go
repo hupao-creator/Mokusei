@@ -18,7 +18,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 // These resources execute only inside the external OpenCode process. They have
@@ -400,7 +400,7 @@ func bridgeFailureMessage(err error) string {
 		message = string(runes[:2000]) + "..."
 	}
 	if message == "" {
-		return "Mokusei bridge operation failed"
+		return "Chief bridge operation failed"
 	}
 	return message
 }

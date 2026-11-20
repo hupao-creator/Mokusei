@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/hosts/applicationhost"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/hosts/applicationhost"
 )
 
 const CollectionID = "list-fixture.records"

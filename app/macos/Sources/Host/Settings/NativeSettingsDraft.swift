@@ -79,8 +79,8 @@ public final class NativeSettingsDraft {
     public func validationError(_ field: String, locale: DesktopLocale) -> String? {
         let length = settingsTrimCodeUnits(value["moku"]?[field]).count
         guard length > 12_000 else { return nil }
-        return locale.text("模型选择偏好最多 12000 个字符（UTF-16 计数），当前 \(length) 个。",
-                           "Model selection preferences must be at most 12000 UTF-16 code units; current length: \(length).")
+        return locale.text("自定义任务编排偏好最多 12000 个字符（UTF-16 计数），当前 \(length) 个。",
+                           "Custom task orchestration preferences can use up to 12,000 UTF-16 code units. Current length is \(length).")
     }
 
     public var firstInvalidField: String? {

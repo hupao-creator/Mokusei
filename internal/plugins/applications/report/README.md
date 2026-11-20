@@ -143,7 +143,7 @@ Report documents persist `emoji` (one complete Unicode emoji) and
 of HTML. Create requires both; update can replace either without changing the
 HTML content revision. Read/list and the native catalog expose these fields.
 Super Thread Agent supplies them through its tool schema. Its instructions ask for
-a concise, evidence-grounded two-line card snapshot; the 220-scalar limit remains a
+a concise, evidence-grounded introduction for a three-line preview. The 220-scalar limit is a
 hard validation boundary, not a target to fill. On report updates the agent
 revisits the introduction when new evidence changes the report or can make the
 card more useful. Existing descriptions are not rewritten in bulk; they change
@@ -159,7 +159,11 @@ projection, while the card uses the authored short description.
 
 The right-hand execution list occupies 30% of available panel width (excluding
 the 16pt gap). Selecting a reference replaces the list with the host's actual
-single-execution Harness reader at 50%. Back restores the list; removal or hiding
+conversation reader at 50%, initially positioned at the current execution. A
+Chief Note opens the owning report at the top of the exact linked execution, even
+when the report cites a different execution of that Thread. The conversation's
+TOC navigates its history in place and the displayed execution owns the composer.
+Back restores the list; removal or hiding
 of the selected reference retires its reader. HTML remains mounted across these
 changes. Browser-link navigation retains its existing additional workspace.
 
@@ -292,7 +296,6 @@ visible from time zero so a replay does not start with an empty background. The 
 and then replays; authors must not include the hold, infinite loops, hover
 transitions or scroll timelines. Covers supply both light and dark palettes.
 This guidance is independent of the report body's ELI5/host-integration rules.
-The report introduction targets a concise two-line card.
 Cover markup is HTML/CSS, limited to 64,000 Unicode scalars; inline SVG, scripts
 and embedded documents are rejected at admission. See the
 [cover dimensions](../../../../design/overview.md)

@@ -12,8 +12,8 @@ import (
 	"sync"
 	"unicode/utf16"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 type ToolHandler func(context.Context, model.Object, string) (any, error)

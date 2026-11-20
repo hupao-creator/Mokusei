@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
 )
 
 // FreshDevelopmentData rotates the development data directory aside so the
@@ -220,7 +220,13 @@ func Install(ctx context.Context, source, destination string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if filepath.Base(destination) != product.AppName {
+	switch filepath.Base(destination) {
+	case legacyProductionAppName:
+		if _, err = VerifySignature(ctx, destination, product.BundleIdentifier, ""); err != nil {
+			return "", fmt.Errorf("verify existing installation at %s: %w", destination, err)
+		}
+	case product.AppName:
+	default:
 		return "", fmt.Errorf("installation destination must end with %s", product.AppName)
 	}
 	running, err := applicationRunning(ctx, destination)

@@ -91,15 +91,8 @@ public final class NativeApplicationHost {
     func canExecute(_ owner: JSONText, entry: ApplicationThreadCatalogEntry<JSONValue>) -> Bool {
         workspace.runtimeAvailable && isEnabled(owner)
     }
-    var theme: PluginTheme {
-        switch workspace.preferences.appearance {
-        case .light: .light
-        case .dark: .dark
-        case .system:
-            NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
-        }
-    }
-    var locale: JSONText { JSONText(workspace.preferences.locale.rawValue) }
+    var theme: PluginTheme { workspace.systemTheme }
+    var locale: JSONText { JSONText(workspace.locale.rawValue) }
 
     func domain(pluginID: JSONText, viewLifetime: PluginLifetime) throws -> ApplicationDomainClient {
         let manifest = try module(pluginID).manifest
@@ -202,7 +195,7 @@ public final class NativeApplicationHost {
                 ? workspace.catalog.thread(reference.thread.threadID) : nil
             guard let thread else {
                 return ApplicationExecutionPresentation(reference: reference,
-                    title: JSONText(workspace.preferences.locale.text("已删除的 Agent Thread", "Deleted Agent Thread")),
+                    title: JSONText(workspace.locale.text("已删除的 Agent Thread", "Deleted Agent Thread")),
                     emoji: nil, missing: true, running: false, harness: nil, preview: nil)
             }
             guard thread.moku != true, !thread.mokuHistory else { return nil }
@@ -210,7 +203,7 @@ public final class NativeApplicationHost {
             let preview = try plugin.executionPreview(thread: thread, executionID: reference.executionID)
             // Never use a later execution's title, elapsed time or reply for this link.
             let title = thread.executionTitles[reference.executionID]
-                ?? JSONText(workspace.preferences.locale.text("执行记录", "Execution"))
+                ?? JSONText(workspace.locale.text("执行记录", "Execution"))
             return ApplicationExecutionPresentation(reference: reference, title: title,
                 emoji: nativeGeneratedThreadEmoji(metadata: thread.metadataState), missing: false,
                 running: preview?.running ?? false,

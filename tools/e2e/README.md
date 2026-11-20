@@ -22,7 +22,7 @@ contains every requested ID, including blocked and unreached entries.
 | --- | --- | --- | --- |
 | `E2E-OVERVIEW-001` | Observe a mounted task at 1×, pan by (+48, −90)pt, and restore the center of all card placements. Cell spans and window clearances determine the expected coordinates. | One task in the default suite, two tasks and eight reports in the Collection suite. The automatic, panned and recentered snapshots record the three poses. | Semantic camera actions and mounted identity. Pointer hit testing and drawn pixels need separate evidence. |
 | `E2E-READ-001` | Open the prepared Agent from Overview; observe its ready, nonempty mounted turn; deliver an external follow-up; observe its mounted successor; activate the first history entry; Back returns to the successor; Overview closes the reader | Fresh profile, real Codex directory, settled source reply; `creation.json`, scoped content, `ui-initial/current/history/return/overview.json`, `ui-events.jsonl` | Navigation callbacks, content acquisition and mounted turn identity; HTTP follow-up input, not composer submission. Semantic readiness is not proof of exact rendered pixels or text layout |
-| `E2E-SETTINGS-001` | Open Settings/Moku; activate an unselected `routingPreset` capsule; observe selection; close through the save gate; read the exact saved preset through public Runtime state; reopen and observe it selected | Same isolated connected workspace; `settings-before/edited/persisted/reopened.json`, UI operations and public API receipts | Real binding/draft/transport/persistence/reopen path for one preset; not IME, keyboard, pointer hit-testing, errors/conflicts or all settings |
+| `E2E-SETTINGS-001` | Open Settings with Chief selected and only Chief, Tag and Super Thread available; activate an unselected `routingPreset` capsule; close through the save gate; read the exact saved preset through public Runtime state; reopen on Chief and observe it selected | Same isolated connected workspace; `settings-before/edited/persisted/reopened.json`, UI operations and public API receipts | Default navigation and the binding/draft/transport/persistence/reopen path for one preset; IME, keyboard, pointer hit-testing, errors/conflicts and system presentation need separate evidence |
 | `E2E-COLLECTION-001` | Open a grouped member, return, then revisit and read. Switch directory and archive/restore unrelated reports while All remains mounted. | Two isolated directories, two completed tasks and eight reports from a deterministic peer. | The 18-cell All groups two fresh reports. A nine-cell directory releases them. A brief visit holds the cover, a qualified visit promotes the report, and the group releases when the expanded view reaches 14 cells. |
 | `E2E-COMPOSER-001` | Type a follow-up and activate the actual Send button; observe accepted draft clearing and completed output; send a held task, observe Stop in the empty action seat, activate it and observe interruption and an editable empty composer without navigating away | Exclusive desktop, accessible isolated bundle, external operator; `operator-send/stop.json` AX observations, exact persisted prompts, `composer-send-content/oracle/ui.json`, `composer-running/stopped/stop-content/stop-ui.json` | Operator-assisted OS input, not unattended CI; current ordinary Thread text input and cancellation only, not pause/resume, historical forks, IME or uncertain receipt recovery |
 
@@ -36,6 +36,219 @@ Reading uses two completed executions; Composer adds one completed follow-up and
 one interrupted execution. Real provider behavior/authentication, other Harnesses,
 forks, archive button input, reconnect/restart recovery and cancellation invariants are not
 certified by these scenarios.
+
+### First-run handoff
+
+Launch the native app with a fresh private profile and a ready Chief-capable
+agent. With the window active and Reduce Motion off, record the window as you
+click **Start using Chief** on the Super Thread Agent page. Inspect the frames
+as the panel reaches the input box. Both eyes should be open as the box comes
+into view, then narrow together once and reopen in the same seat. Watch for
+the next idle blink after a full interval. Type in the
+revealed editor. Reopen the same profile and check that it skips setup.
+Repeat with a fresh profile for each interruption. Enable Reduce Motion during
+the final 180ms fade, or cover the window during the fade and uncover it during
+the following 320ms. Both eyes should be open on return and stay open until
+the next idle blink. Also enable Reduce Motion while the eyes are closing and
+check that they reopen immediately. In each case verify that you can type at
+handoff. Record the revision, the times of the interruption and return, and
+the eye frames through the next idle blink. Starting with Reduce Motion on
+also skips the handoff blink.
+This visual check exercises the [onboarding handoff](../../app/macos/Sources/Host/Onboarding/README.md).
+
+### System appearance and language
+
+Use a private profile and a disposable macOS session for system-wide setting
+changes. The [native app contract](../../app/macos/README.md#system-appearance-and-language)
+owns resolution, profile compatibility and window appearance.
+
+1. Launch into a fresh profile and inspect onboarding and menus. Repeat with a
+   profile containing saved `preferences.appearance` and `preferences.locale`
+   opposite to the system settings. Check that this profile keeps its onboarding
+   marker, selection and reading records across a normal write and relaunch.
+2. Cover Chinese with different scripts and regions, English with different
+   regions, and a different primary language with Chinese second. Inspect the
+   visible language and `snapshot.settings.locale`, including after changing the
+   preferred order while Chief is running. Check the profile's output locale
+   receipt before starting a generated-output operation.
+3. Open Settings from loaded Overview and confirm Chief is selected and the
+   available tabs are Chief, Tag and Super Thread. Select another tab, close
+   Settings, and reopen on Chief. Repeat the open on a previously loaded Overview
+   while disconnected.
+4. Change macOS Appearance from Light to Dark and back with Overview, a reader
+   and an attachment preview open. Record effective appearance in the snapshot
+   and capture each window. Repeat with the same Settings visit and the same
+   first-run form mounted. Check that the form backgrounds and controls follow
+   the new appearance without changing the active tab or setup step.
+5. With an installed, enabled agent, compare the Chief map and the Tag and
+   Super Thread animation backdrops in both appearances. Capture the animations
+   during playback and after switching away and back. At the full Settings
+   width, check that all three panels extend equally past both sides of the form
+   and have internal padding above and below their contents. Narrow the viewport
+   until the illustration canvas scales down. Check that the art and the panel
+   fit, that the form below remains reachable by scrolling, and that clicking a
+   Chief dispatch target and each role's mode control updates its selection.
+   At 5× zoom, scroll the header out of view and continue down to the form.
+   Check that the resident eyes move out with the header.
+   Repeat the backdrop check with Reduce Transparency and inspect the opaque
+   fallback. Record the window width, zoom, frames and observed selections.
+   See the [Settings backdrop and playback contract](../../app/macos/Sources/Host/Settings/README.md).
+
+Keep the revision, primary language order, appearance, profile fixture, launch
+mode and before/after observations with each run. A process-local simulation
+covers only its injected inputs. It cannot certify macOS notifications or all
+window pixels.
+
+### Custom task orchestration editor
+
+Open **Chief → Task Orchestration Preferences → Custom** in Settings. Verify
+the title and hint in English and Simplified Chinese. In light and dark
+appearance, capture the empty editor before and after focus. The rounded
+glass has the same border in both states. Type the first words of the hint,
+return the insertion point to the start of the line, and compare the first text
+origin, baseline and insertion position with the empty frame. At narrow widths,
+compare the hint and the same text typed into the editor across wrapped lines.
+Delete the text and check that the entire hint returns with the same padding.
+Repeat with Reduce Transparency and check for an opaque editor with a neutral
+outline. Check that an invalid draft shows the danger outline on and off focus.
+Compare same-line typing and Return with Chief's composer. The insertion point
+eases along a line and moves directly to a new line. Select text and move focus
+away to check that the glow clears.
+
+Enter multiline text, replace and undo a selection, and scroll within the field.
+Check that the text and selection share the inset as lines scroll in and out.
+Check that macOS exposes a labeled multiline editor with the current value and
+selection. With a system input method, start composing and cancel or commit the
+marked text. Check that composition uses the native caret and that Escape during
+composition leaves Settings open. Switch presets and return to Custom, then
+close and reopen Settings and compare the exact text with the saved
+`moku.routingGuidance`. Record the revision, appearance, input method, editor
+observations and saved value. The [Settings preview](../../demos/settings-navigation/README.md)
+can check the mounted editor with an in-memory save. Runtime persistence requires
+an isolated connected workspace. `E2E-SETTINGS-001` exercises preset persistence.
+
+### Chief Note execution link
+
+Prepare an isolated workspace with two directories. Give both ordinary Threads
+at least two completed runs with distinguishable replies longer than the viewport. Have one Super Thread
+cite a different run of the same Thread as the Note. Put links to both Threads
+near the bottom of a long Chief Note. Include enough Reports for a multipage
+Collection on All. Record the isolated window continuously and save the filter,
+carousel member, execution identities and link position alongside the recording.
+
+1. In the other directory, scroll the Note to the ordinary link and click it
+   with the system pointer. Check that the Note finishes closing before the
+   filter changes. The reader should open from the target card at the cited
+   run’s heading. After the scoped body has loaded, check that its timeline
+   height exceeds its viewport, `top` is zero and `following` is false. Repeat from a filter that already contains the target and check that
+   its selection stays put. Click the reader’s **×** and verify the Note stays
+   closed on Overview. Reopen the Note and follow the historical link again.
+   Press Escape in the read-only text to return to the Note and compare the
+   link’s window position. On separate visits, use the Overview command and
+   click the reader backdrop. Both Overview exits leave the Note closed.
+2. Open the associated link from a different directory. Check the Report title
+   and the exact cited execution in its open side panel. Apply the same scroll
+   checks to that timeline. Close the expanded visit with the Report’s **×**
+   and verify Overview settles with the Note closed. Reopen the link. Use the conversation
+   contents to visit current and historical rows. Type a draft on the historical
+   run and switch away and back. **Back to related executions** should show
+   the Report’s list. The arrow on the Report returns to the Note.
+3. In All, start with another Report showing in the target Collection. Open
+   the associated link. The filter should stay on All. Check consecutive frames
+   for the Note closing, the carousel moving to the cited Report and settling,
+   then the reader expanding from that card. Compare the panel travel with a
+   direct click on the same card at the same window size and camera position.
+   Repeat the comparison for an ordinary Thread and an individual Report.
+   After a brief visit, return to the Note and check the carousel page and
+   the Note’s scroll position.
+4. Repeat the three routes with system AXPress. Check English and Simplified
+   Chinese. With Reduce Motion enabled, inspect the recording for a direct
+   change at each handoff and on return. Record the preference source and the
+   capture rate. Track source revision, executable identity, scoped replies,
+   input targets and returned state for each visit.
+
+The semantic Note toggle exercises the Note entrance. Mounted route identity
+and window frame recordings supply separate evidence.
+[Note and link behavior](../../app/macos/Sources/Host/MokuScene/README.md)
+
+### Super Thread reading regression
+
+The [Markdown layout contract](../../design/markdown.md) also applies to the
+related-execution sidebar. This local desktop replay needs the native Report
+reader and system scroll input. The `supported` suite covers navigation in the
+ordinary Thread reader.
+
+In a private profile, prepare two completed Threads in one directory and link
+both from one Super Thread. Open that report from Overview and activate the
+target row in **Related executions**. Verify the selected execution against
+its public scoped reply. Direct the input into the right-hand text column
+while the report stays open. Include downward scrolling and a reversal with
+momentum. Record the timeline offset, content height, viewport and time for
+the next UI request after each gesture. A five-second request timeout fails
+this replay. For a short, settled text fixture, the extent at a fixed width
+must stay constant and the offset must travel in both directions.
+
+For a long fixture, the [128 KiB mixed Markdown corpus](../benchmarks/reading/corpus.py)
+provides identifiable first and last blocks. Check first entry, scrolling to
+the final marker, scrolling back through visited sections, native text
+selection after leaving a section and returning, narrow-window reflow, Back
+to the related list and re-entry. First visits can refine the reserved heights.
+After traversing the full document at one width, reversing through it should
+retain the measured extent. Record the app and fixture digests, each input,
+the original timeout and sample when present, and the isolated cleanup receipt.
+Mounted readiness and UI request times measure different events from display
+frame times.
+
+### Agent reader alignment
+
+At a fixed main Agent panel width, show one short reply, extend that same reply
+until it scrolls, then shorten it again. Start the native replay process with
+`-AppleShowScrollBars Always`. Record the argument-domain value, the actual
+document scroll view's legacy style, clip width and vertical scroller visibility.
+Measure the heading or full-width divider against both panel edges. The short
+and long states must have the same centered column and wrap the same sample text
+identically. Check a narrow pane at or below 540pt and a pane wide enough to
+reach the 744pt column limit. Open an earlier run from the margin and return
+to verify the same geometry in both documents.
+
+### Agent history composer
+
+Use an isolated profile with an ordinary Agent Thread and at least three
+runs. After the input below the current run settles, select an earlier run
+from Conversation contents, select another earlier run, and return to current.
+Check the visible run in each direction, including when returning to the first
+historical selection. Use distinct drafts to check that input follows the
+selected run and that selection leaves focus with the reader. The mounted
+history controls use the same navigation callbacks as the rail.
+
+To check the [Agent reader's history marks](../../app/macos/Sources/Shared/PluginUI/README.md#reading-panel-presentation),
+also start with one completed run and send a second at a fixed window size.
+Compare the heading and body frames before and after the marks appear. The
+column should keep its width and horizontal position. Check both marks in the
+leading margin. Start just outside the 24pt hit area and check that the preview
+stays closed. The selected and idle marks should be equally long and share a
+left edge. Hover each mark to open its preview. In a longer history check that
+nearby marks extend progressively less and that the original widths return
+when the pointer leaves. Click the earlier run
+and click the newest mark to return. Press Up immediately. The earlier preview
+should appear while the newest document stays on screen. Press Return and
+check that the earlier document opens. Repeat in the related-execution reader
+beside a Super Thread and at a narrow width. Record the viewport, document and
+mark bounds alongside the frames. The mounted navigation scenario alone does
+not measure this geometry.
+
+For the [composer geometry contract](../../design/composer.md#geometry-and-surfaces),
+record the isolated window during each selection. Check intermediate frames at
+fixed window size with empty drafts. The glass must stay expanded and the
+Harness mark must remain visible. Compare each frame's horizontal center and
+width to the settled bar at the same column, allowing for capture and edge
+detection precision. With a running execution in an open Execution sidecard,
+switch between historical runs in the main pane and check the same geometry.
+When the destination actually changes columns, check for direct travel between
+the two settled centers. Repeat at ordinary and narrow window sizes in English
+and Simplified Chinese. Record the build identity, observed sizes, language,
+events, frame samples and capture limitations. `E2E-READ-001` checks mounted
+navigation, while the window recording supplies the geometry evidence.
 
 ## Fact sources
 
@@ -85,7 +298,7 @@ python3 tools/e2e/run.py verify output/e2e/interaction
 Output directories must be new; no rerun overwrites evidence. The default
 `supported` suite requests Overview, Reading and Settings. Use `--suite collection` on the
 same run command to check the populated camera and the report budget under its real clock. It enables
-the isolated Report Agent, activates the uniquely bundled test application and waits for the mounted reader to own foreground before timing visits.
+the isolated Super Thread Agent, activates the uniquely bundled test application and waits for the mounted reader to own foreground before timing visits.
 `all` additionally requests collection and Composer. Composer requires `--operator-composer` and real external
 input receipts. `--suite composer` selects just that scenario. No scenario is
 silently skipped. The desktop lease uses atomic directory creation, records
@@ -95,6 +308,32 @@ the matching directory inode and owner. It coordinates cooperating runners, not 
 manual shared-desktop scheduling remains necessary. The App's existing explicit
 `--benchmark-scenario overview` prepares onboarding in the fresh profile; it
 does not certify first-run onboarding.
+
+### Collection member opening
+
+Use a report with a cover and an introduction long enough to wrap past three
+lines. On its individual Overview card, carousel page and member grid card,
+check that the first three lines are readable and the ellipsis ends line three.
+Repeat with English and Chinese text, in light and dark appearance, including
+a narrow single-column grid. Check that a short introduction stays on one
+line. Compare the settled pages after switching to check the cover size and
+the alignment of the title, update time and introduction.
+
+The automated Collection journey opens members by semantic Overview target.
+For the grid and its return destination, use the same populated, isolated
+workspace. Open the page count, scroll to a member and record its frame. Use
+a system click and AXPress in separate visits. Capture opening and return.
+The Report shell expands from the member and contracts to it on Back. Check
+intermediate shell positions, the report title and the **Back to Super Thread
+Collection** arrow. Back must restore the grid’s scroll position and member
+order. Qualify a read and check that regrouping waits for the grid’s Close.
+For a brief read, check the retained carousel cover after closing the grid.
+
+Repeat from an Overview card. Its **Close Super Thread** button returns to
+Overview. With Reduce Motion, both entry points switch directly in both
+directions. Record whether the setting was system-wide or a replay-local
+override. Semantic state alone cannot certify those frames or system inputs.
+See the [member panel contract](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections).
 
 ## External input and isolation
 
@@ -223,3 +462,28 @@ missing controls, a deadline or failed public postconditions remain nonpassing;
 HTTP submission is never substituted for Composer input. Keyboard Return, IME,
 attachments, other providers, historical/exact-execution input, steering during
 active output and recovery after uncertain admission are outside this scenario.
+
+### Chief file picker
+
+Use a uniquely bundled production build and an isolated online profile with a
+configured Chief. The [Dock contract](../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
+and [shared composer](../../app/macos/Sources/Shared/PluginUI/README.md#cards-composer-and-forms)
+own the control and its draft import. Start on Overview and click the plus next
+to the eyes with the system mouse. Check that the native chooser opens on the
+first click, cancel it, and check that the draft text and chips are still present.
+Use AXPress on the same button and confirm the chooser opens directly. Select a
+known text file and image. Check their ready chips, open and dismiss the image
+preview, and send. Independently read the current Chief transcript through
+Runtime and match the user message, attachment names and sizes. Check the
+managed file bytes against the fixtures and confirm the draft clears. A
+deterministic external peer can observe native delivery without a provider account.
+
+On a host-enabled draft, Control-click the plus and check that each host option
+opens the corresponding file or directory browser. Repeat the primary control
+and chooser check in Chief history. Check English and Chinese. Capture the plus and
+the eyes in the same row in light and dark system appearances and at a narrow
+width or app zoom that admits the two-row composer. Inspect the control's
+localized accessibility label, action and frame. Keep the commit, app digest,
+profile and input backend, screenshots or AX observations, fixture digests,
+transcript result and cleanup receipt. This local system-input procedure is
+separate from `E2E-COMPOSER-001` and has no hosted runner.

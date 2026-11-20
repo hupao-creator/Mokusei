@@ -147,6 +147,8 @@ public protocol HarnessPlugin {
     /// Compatibility/source metadata only. Visible host marks use logo(size:).
     var logoSource: String { get }
     @ViewBuilder func logo(size: CGFloat) -> Logo
+    /// Adaptive brand accent for host presentation of this Harness.
+    var themeColor: Color? { get }
     var translations: HarnessTranslationCatalog { get }
     var threadSettingsCodec: PluginValueCodec<ThreadSettingsUpdate> { get }
     var harnessSettingsCodec: PluginValueCodec<HarnessSettings> { get }
@@ -171,6 +173,7 @@ public protocol HarnessPlugin {
 }
 
 extension HarnessPlugin {
+    public var themeColor: Color? { nil }
     public func settingsPresentationIssue(_ presentation: SettingsPresentation) -> String? { nil }
     public func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope] { [] }
     public var translations: HarnessTranslationCatalog { [:] }

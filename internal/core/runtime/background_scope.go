@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 // Every declared branch is intersected with instance authority. In particular,

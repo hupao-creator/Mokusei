@@ -96,6 +96,7 @@ private final class HarnessProjectionCache<Plugin: HarnessPlugin> {
 public final class AnyHarnessPlugin {
     public let descriptor: HarnessPluginDescriptor
     public let logoSource: String
+    public let themeColor: Color?
     public let translations: HarnessTranslationCatalog
     private let logoBody: (CGFloat) -> AnyView
     private let threadBody: (HarnessThreadInput, HarnessThreadActions, HarnessRenderContext) -> AnyView
@@ -110,6 +111,7 @@ public final class AnyHarnessPlugin {
     public init<P: HarnessPlugin>(_ plugin: P) {
         readingPrefetchScopes = { plugin.readingPrefetchScopes(input: $0) }
         descriptor = plugin.descriptor; logoSource = plugin.logoSource; translations = plugin.translations
+        themeColor = plugin.themeColor
         logoBody = { size in AnyView(plugin.logo(size: size)) }
         let cache = HarnessProjectionCache(plugin)
         threadBody = { input, actions, context in AnyView(plugin.threadView(input: input, actions: actions, context: context)) }

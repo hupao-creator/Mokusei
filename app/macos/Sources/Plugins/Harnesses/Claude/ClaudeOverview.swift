@@ -197,7 +197,7 @@ public struct ClaudeOverviewCard: View {
                 guard let publicAction = projection.pendingPublicInteraction?.actions.first(where: { $0.id == action.id }) else { return action.label }
                 return claudeLocalized(claudeActionLabel(publicAction, kind: "question"), locale: locale)
             }, status: threadCardStatus(input.thread.observation), emoji: claudeEmoji(input.thread), harnessLogo: AnyView(ClaudeLogo(size: 12)))
-            .environment(\.threadCardProviderColor, NativePalette.pair(0xd97757,0xe5a184).swiftUI)
+            .environment(\.threadCardProviderColor, ClaudeLogo.themeColor)
             .environment(\.threadCardCloudPalette, ClaudeLogo.threadCardCloudPalette)
     }
     private var workflowSlots: [String: AnyView] {

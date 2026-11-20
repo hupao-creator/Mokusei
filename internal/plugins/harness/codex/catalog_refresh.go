@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/discovery"
+	"github.com/hupao-creator/Chief/internal/platform/discovery"
 )
 
 // T3 Code gives ChatGPT startup discovery a short window to observe the native

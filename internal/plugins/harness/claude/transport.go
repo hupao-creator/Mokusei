@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 type Settings struct {
@@ -961,7 +961,7 @@ func (t *Transport) handleInteraction(frame map[string]any) {
 		return
 	}
 	if !t.options.Interactive {
-		payload := map[string]any{"behavior": "deny", "message": "Mokusei non-interactive task does not allow interactive approval", "toolUseID": request["tool_use_id"]}
+		payload := map[string]any{"behavior": "deny", "message": "Chief non-interactive task does not allow interactive approval", "toolUseID": request["tool_use_id"]}
 		if kind == "elicitation" {
 			payload = map[string]any{"action": "decline"}
 		}

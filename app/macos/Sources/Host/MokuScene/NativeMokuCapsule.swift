@@ -11,8 +11,12 @@ enum NativeMokuCapsuleLayout {
     /// radius from this value).
     static let cornerRadius: CGFloat = 29
 
+    static func restingInset(forHeight height: CGFloat) -> CGFloat {
+        max(24, min(36, height * 0.05))
+    }
+
     static func frame(in viewport: CGRect, landing: Bool = false, reading: Bool = false) -> CGRect {
-        let restingBottom = landing ? 24 : max(24, min(36, viewport.height * 0.05))
+        let restingBottom = landing ? 24 : restingInset(forHeight: viewport.height)
         // Reading gives the expanding composer a lower seat. Keep a physical
         // margin even in compact/zoomed windows; never translate outside the fit.
         let bottom = reading && !landing ? max(12, restingBottom - 16) : restingBottom

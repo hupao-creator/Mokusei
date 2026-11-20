@@ -42,16 +42,19 @@ public struct NativeOverviewWorkspaceView: View {
     public var clickExclusions: NativeClickExclusions
     public var chromeVisible: Bool
     public var landing: Bool
+    var revealingNoteSource = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
     @State private var callbackStore: NativeOverviewWorkspaceCallbackStore
     private var inputRegions: NativeCanvasInputRegions { sharedInputRegions ?? localInputRegions }
-    private var locale: DesktopLocale { model.workspace.preferences.locale }
+    private var locale: DesktopLocale { model.workspace.locale }
     public init(model: NativeOverviewWorkspaceModel, callbacks: NativeOverviewWorkspaceCallbacks,
-                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false, chromeVisible: Bool = true) {
+                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false,
+                chromeVisible: Bool = true, revealingNoteSource: Bool = false) {
         self.model = model; self.callbacks = callbacks; self.interactionPaused = interactionPaused
         self.clickExclusions = clickExclusions
-        self.landing = landing; self.chromeVisible = chromeVisible
+        self.landing = landing; self.chromeVisible = chromeVisible; self.revealingNoteSource = revealingNoteSource
         _callbackStore = State(initialValue: NativeOverviewWorkspaceCallbackStore(callbacks))
     }
     public var body: some View {
@@ -59,23 +62,34 @@ public struct NativeOverviewWorkspaceView: View {
         return GeometryReader { geometry in
             let viewport = Self.viewport(in: geometry.size, hasFilters: !model.filters.isEmpty,
                                          hasDock: model.workspace.catalog.hasMoku)
+            let filters = landing ? [] : model.visibleFilters
+            let headerBottom = OverviewTagMetrics.headerBottom(in: geometry.size, hasFilters: !filters.isEmpty)
+            // The last card can make the Dock switch to landing before the
+            // canvas admits its empty layout. Keep that exit drawable while
+            // landing and its input take over immediately.
+            let retiringToLanding = landing && !reduceMotion && !model.facts.settingsOpen
+                && model.content.isEmpty
+                && (!model.canvasState.presentedPlacements.isEmpty || model.canvasState.isLayingOut)
+            let canvasVisible = !landing || retiringToLanding
             ZStack {
                 NativeOverviewCanvas(contentSource: model.content, sceneKey: model.sceneKey, state: model.canvasState,
                     selectionID: selectionID,
                     toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
-                    visible: model.facts.overviewVisible && model.facts.documentVisible && !landing,
+                    headerInputBottom: headerBottom,
+                    visible: model.facts.overviewVisible && model.facts.documentVisible && canvasVisible,
                     layoutPaused: !model.presentationActive,
+                    reduceLayoutMotion: revealingNoteSource && reduceMotion,
                     cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
-                    interactionPaused: interactionPaused, resetEpoch: model.recoveryEpoch,
+                    interactionPaused: interactionPaused || landing, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },
                     onRetainedPresentationIDsChanged: { model.retainPresentations($0) },
                     cardContentIdentity: ObjectIdentifier(model),
                     inputRegions: inputRegions) { item in
                         NativeOverviewWorkspaceCard(item: item, model: model, callbacks: callbackStore)
-                            .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
+                            .environment(\.locale, Locale(identifier: model.workspace.locale.rawValue))
                             .environment(\.threadCardNativeDecorationsEnabled, true)
                     }
-                    .opacity(landing ? 0 : 1)
+                    .opacity(canvasVisible ? 1 : 0)
                     .allowsHitTesting(!landing)
                     .accessibilityHidden(landing)
                 if !landing && model.content.isEmpty && model.error == nil {
@@ -110,7 +124,8 @@ public struct NativeOverviewWorkspaceView: View {
                     visible: model.facts.overviewVisible && model.facts.documentVisible && !landing).allowsHitTesting(false)
             }
             .overlay(alignment: .top) {
-                NativeOverviewChrome(filters: landing ? [] : model.visibleFilters, selectedTag: model.selectedTag,
+                NativeOverviewChrome(filters: filters, viewportHeight: geometry.size.height,
+                    selectedTag: model.selectedTag,
                     selectedScope: model.selectedScope, selectedKind: model.tagSelection?.kind,
                     allHasActiveTasks: model.allHasActiveTasks,
                     cameraManual: model.canvasState.camera.manual,
@@ -124,7 +139,9 @@ public struct NativeOverviewWorkspaceView: View {
                     .opacity(chromeVisible ? 1 : 0)
                     // Translate the retained chrome without compressing its labels or
                     // changing the canvas clearance, including the narrow two-row layout.
-                    .offset(y: chromeVisible ? 0 : -OverviewTagMetrics.chromeHeight)
+                    .visualEffect { [chromeVisible] chrome, geometry in
+                        chrome.offset(y: chromeVisible ? 0 : -geometry.size.height)
+                    }
                     .allowsHitTesting(chromeVisible).accessibilityHidden(!chromeVisible)
                     .animation(NativeReadingPageTiming.openingAnimation, value: chromeVisible)
             }
@@ -201,7 +218,7 @@ private struct NativeOverviewWorkspaceCard: View {
                     .focusable()
                     .focusEffectDisabled()
                     .onKeyPress(.return) { open(thread.id); return .handled }
-                    .accessibilityAction(named: Text(model.workspace.preferences.locale.text("打开会话", "Open conversation"))) { open(thread.id) }
+                    .accessibilityAction(named: Text(model.workspace.locale.text("打开会话", "Open conversation"))) { open(thread.id) }
             case .application(let plugin, let snapshot):
                 applicationCard(plugin: plugin, snapshot: snapshot)
             case .collection(let plugin, let members):
@@ -213,6 +230,12 @@ private struct NativeOverviewWorkspaceCard: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
+        .background {
+            if let request = model.readingSource, model.visibleCardID(for: request.member) == item.id,
+               model.sourceCardID(for: request.member) == nil {
+                NativeReadingEntranceStage(enabled: true, onReady: request.onReady).id(request.id)
+            }
+        }
         .environment(\.locale, locale)
         .overlay(alignment: .bottomLeading) {
             if let error { Text(error).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI).padding(12) }
@@ -270,7 +293,9 @@ private struct NativeOverviewWorkspaceCard: View {
                     guard plugin.hasDetail, model.canvasState.allowsActivation(cardID: item.id),
                           members.contains(where: { $0.entry.ref == reference }) else { return }
                     callbacks.current.openApplication(reference, nil)
-                }).environment(\.collectionReturnMember, model.returnMember))
+                }).environment(\.collectionReturnMember, model.returnMember)
+                .environment(\.collectionReadingSource,
+                    model.readingSource.flatMap { model.sourceCardID(for: $0.member) == item.id ? $0 : nil }))
         } catch {
             return AnyView(Text(error.localizedDescription).font(NativeTypography.inter(size: 11))
                 .foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18)

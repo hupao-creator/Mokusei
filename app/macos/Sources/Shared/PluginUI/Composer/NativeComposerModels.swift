@@ -87,10 +87,16 @@ public struct NativeComposerAttachment: Hashable, Sendable, Identifiable {
 }
 
 public struct NativeComposerSubmission: Sendable {
+    public let commandID: String
     public let text: String
     public let directories: [NativeComposerDirectory]
     public let attachments: [NativeComposerStoredAttachment]
     public init(text: String, directories: [NativeComposerDirectory], attachments: [NativeComposerStoredAttachment]) {
+        self.init(text: text, directories: directories, attachments: attachments, commandID: RuntimeProtocol.makeCommandID())
+    }
+
+    init(text: String, directories: [NativeComposerDirectory], attachments: [NativeComposerStoredAttachment], commandID: String) {
+        self.commandID = commandID
         self.text = text; self.directories = directories; self.attachments = attachments
     }
     public var input: JSONValue {

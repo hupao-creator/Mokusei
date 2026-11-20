@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 type executionScope struct {
@@ -30,7 +30,7 @@ type userAdmission struct {
 type coordinatorEvent struct {
 	record     *model.ThreadRecord
 	diagnostic string
-	userInput  *plugin.LifecycleEvent
+	userAction *plugin.LifecycleEvent
 	lifetime   context.Context
 }
 type Coordinator struct {
@@ -57,7 +57,7 @@ type Coordinator struct {
 	workers                sync.WaitGroup
 	unsubscribe            func()
 	unsubscribeDiagnostics func()
-	unsubscribeUserInputs  func()
+	unsubscribeUserActions func()
 	refreshWake            chan struct{}
 	runContext             []plugin.ContextEntry
 	runContextGeneration   uint64
@@ -65,10 +65,10 @@ type Coordinator struct {
 
 func New(config Configuration) (*Coordinator, error) {
 	if config.Settings == nil || config.Threads == nil || config.Thread == nil || config.UpdateThread == nil || config.EnsureSession == nil || config.ReplaceSession == nil || config.OpenSession == nil || config.CloseSession == nil || config.SendSession == nil || config.SubscribeCommitted == nil {
-		return nil, errors.New("Moku requires complete durable session capabilities")
+		return nil, errors.New("Chief requires complete durable session capabilities")
 	}
 	if config.Workspace == "" {
-		return nil, errors.New("Moku requires an isolated runtime workspace")
+		return nil, errors.New("Chief requires an isolated runtime workspace")
 	}
 	c := &Coordinator{config: config, admissions: make(map[*userAdmission]bool), scopes: make(map[string]executionScope), observed: make(map[string]string)}
 	return c, nil
@@ -86,7 +86,7 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 	}
 	if c.stopping || c.cleanupFailure != nil {
 		c.mu.Unlock()
-		return errors.New("Moku cleanup must finish before restarting")
+		return errors.New("Chief cleanup must finish before restarting")
 	}
 	c.ctx, c.cancel = context.WithCancel(ctx)
 	c.running = true
@@ -183,10 +183,10 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 		}
 	}
 	c.mu.Unlock()
-	if c.config.SubscribeUserThreadInputs != nil && (c.config.PendingDeliveries == nil || c.config.SendDelivery == nil) {
+	if c.config.SubscribeUserThreadActions != nil && (c.config.PendingDeliveries == nil || c.config.SendDelivery == nil) {
 		lifetime := c.ctx
-		c.unsubscribeUserInputs, err = c.config.SubscribeUserThreadInputs(lifetime, func(event plugin.LifecycleEvent) {
-			c.enqueueEvent(coordinatorEvent{userInput: &event, lifetime: lifetime})
+		c.unsubscribeUserActions, err = c.config.SubscribeUserThreadActions(lifetime, func(event plugin.LifecycleEvent) {
+			c.enqueueEvent(coordinatorEvent{userAction: &event, lifetime: lifetime})
 		})
 		if err != nil {
 			c.mu.Lock()
@@ -249,9 +249,9 @@ func (c *Coordinator) Stop(ctx context.Context) error {
 		c.unsubscribeDiagnostics()
 		c.unsubscribeDiagnostics = nil
 	}
-	if c.unsubscribeUserInputs != nil {
-		c.unsubscribeUserInputs()
-		c.unsubscribeUserInputs = nil
+	if c.unsubscribeUserActions != nil {
+		c.unsubscribeUserActions()
+		c.unsubscribeUserActions = nil
 	}
 	done := make(chan struct{})
 	go func() { c.workers.Wait(); close(done) }()
@@ -298,7 +298,7 @@ func (c *Coordinator) begin(ctx context.Context) (context.Context, func(), error
 	c.mu.Lock()
 	if !c.running || c.cleanupFailure != nil || c.ctx.Err() != nil {
 		c.mu.Unlock()
-		return nil, nil, errors.New("Moku participant is not running")
+		return nil, nil, errors.New("Chief participant is not running")
 	}
 	service := c.ctx
 	c.workers.Add(1)
@@ -337,11 +337,11 @@ func (c *Coordinator) Invoke(ctx context.Context, channel string, args []json.Ra
 		return c.CancelTarget(ctx, request)
 	case "moku:stage-attachments":
 		if len(args) != 1 || c.config.StageAttachments == nil {
-			return nil, errors.New("Moku attachment staging unavailable")
+			return nil, errors.New("Chief attachment staging unavailable")
 		}
 		return c.config.StageAttachments(ctx, args[0])
 	default:
-		return nil, model.NewError("UNKNOWN_COMMAND", "Unknown Moku command")
+		return nil, model.NewError("UNKNOWN_COMMAND", "Unknown Chief command")
 	}
 }
 func (c *Coordinator) current() (model.ThreadRecord, error) {
@@ -360,7 +360,7 @@ func (c *Coordinator) current() (model.ThreadRecord, error) {
 			return record, nil
 		}
 	}
-	return model.ThreadRecord{}, errors.New("Moku session is not initialized")
+	return model.ThreadRecord{}, errors.New("Chief session is not initialized")
 }
 func (c *Coordinator) Submit(ctx context.Context, request SubmitRequest) error {
 	ctx, finish, err := c.begin(ctx)
@@ -435,7 +435,7 @@ func (c *Coordinator) Submit(ctx context.Context, request SubmitRequest) error {
 					return readErr
 				}
 				if current.ID != record.ID {
-					return errors.New("Moku admission owner replaced")
+					return errors.New("Chief admission owner replaced")
 				}
 
 				if appendErr := c.appendTranscript(context.WithoutCancel(admissionCtx), record.ID, userMessage(request.Input, newID(), time.Now().UnixMilli())); appendErr != nil {
@@ -465,7 +465,7 @@ func (c *Coordinator) CancelTarget(ctx context.Context, request model.Cancellati
 		return model.CancellationResult{Status: model.CancellationStale}, nil
 	}
 	if c.config.InterruptThreadTarget == nil {
-		return model.CancellationResult{}, errors.New("Moku fenced interruption capability unavailable")
+		return model.CancellationResult{}, errors.New("Chief fenced interruption capability unavailable")
 	}
 	return c.config.InterruptThreadTarget(ctx, request.ThreadID, request.ExpectedCancellationID)
 }
@@ -495,10 +495,10 @@ func (c *Coordinator) Cancel(ctx context.Context) error {
 		return nil
 	}
 	if execution == nil || execution.Terminal() {
-		return errors.New("Moku 当前没有 active Execution")
+		return errors.New("Chief 当前没有 active Execution")
 	}
 	if c.config.InterruptThread == nil {
-		return errors.New("Moku interruption capability unavailable")
+		return errors.New("Chief interruption capability unavailable")
 	}
 	return c.config.InterruptThread(ctx, record.ID)
 }
@@ -512,7 +512,7 @@ func (c *Coordinator) Clear(ctx context.Context) error {
 	pending := len(c.admissions) > 0
 	c.mu.Unlock()
 	if pending {
-		return errors.New("Moku 正在运行，停止后才能清空 session")
+		return errors.New("Chief 正在运行，停止后才能清空 session")
 	}
 	if err := c.queue.Lock(ctx); err != nil {
 		return err
@@ -527,7 +527,7 @@ func (c *Coordinator) Clear(ctx context.Context) error {
 		pending = len(c.admissions) > 0
 		c.mu.Unlock()
 		if pending || live(record) {
-			return errors.New("Moku 正在运行，停止后才能清空 session")
+			return errors.New("Chief 正在运行，停止后才能清空 session")
 		}
 		settings, revision, err := c.config.Settings()
 		if err == nil && c.config.PrepareSettings != nil {
@@ -565,7 +565,7 @@ func (c *Coordinator) Respond(ctx context.Context, response model.RespondRequest
 			return err
 		}
 		if c.config.RespondThread == nil {
-			return errors.New("Moku interaction response unavailable")
+			return errors.New("Chief interaction response unavailable")
 		}
 		return c.config.RespondThread(ctx, record.ID, response)
 	})
@@ -647,7 +647,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			}
 		} else {
 			if c.config.ConfigureSession == nil {
-				return current, errors.New("Moku configuration persistence unavailable")
+				return current, errors.New("Chief configuration persistence unavailable")
 			}
 			for {
 				err = c.config.ConfigureSession(ctx, current.ID, current.Revision, configuration)
@@ -664,7 +664,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 				}
 				current = latest
 				if live(current) {
-					return current, errors.New("Moku configuration changed while native work became active; retry after that work settles")
+					return current, errors.New("Chief configuration changed while native work became active; retry after that work settles")
 				}
 				if profileChanged {
 					resolved, resolveErr := c.resolveHost(ctx, settings, revision, current.HarnessID)
@@ -707,7 +707,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 				return current, readErr
 			}
 			if live(latest) {
-				return latest, errors.New("Moku native work began during catalog refresh; retry after that work settles")
+				return latest, errors.New("Chief native work began during catalog refresh; retry after that work settles")
 			}
 
 			if err = c.config.CloseSession(ctx, current.ID); err != nil {
@@ -813,13 +813,13 @@ func (c *Coordinator) resolveHost(ctx context.Context, settings model.Settings, 
 			continue
 		}
 		if h == nil || !h.Descriptor().ThreadCapabilities.CanHostMoku() {
-			failures = append(failures, fmt.Errorf("%s cannot host Moku", id))
+			failures = append(failures, fmt.Errorf("%s cannot host Chief", id))
 			continue
 		}
 		merged := mergedSettings(settings, id, true)
 		if available, err := c.available(ctx, h, merged, "exclusive"); err != nil || !available.Available {
 			if available.RequiresExplicitSelection && id == current {
-				return SessionConfiguration{}, fmt.Errorf("当前 Moku Host 配置不可用（%s: %s）。请在设置中选择兼容的 Host 或模型。", id, available.Reason)
+				return SessionConfiguration{}, fmt.Errorf("当前 Chief Host 配置不可用（%s: %s）。请在设置中选择兼容的 Host 或模型。", id, available.Reason)
 			}
 			if err == nil {
 				err = errors.New(available.Reason)
@@ -846,7 +846,7 @@ func (c *Coordinator) resolveHost(ctx context.Context, settings model.Settings, 
 		}
 		return SessionConfiguration{HarnessID: id, Settings: resolved, AppliedSettings: settings, SettingsRevision: revision, Cwd: c.config.Workspace}, nil
 	}
-	return SessionConfiguration{}, errors.Join(append([]error{errors.New("Moku 没有可用的 Host Harness")}, failures...)...)
+	return SessionConfiguration{}, errors.Join(append([]error{errors.New("Chief 没有可用的 Host Harness")}, failures...)...)
 }
 func (c *Coordinator) available(ctx context.Context, h plugin.Harness, settings json.RawMessage, modes ...string) (plugin.Availability, error) {
 	mode := ""

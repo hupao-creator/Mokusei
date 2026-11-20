@@ -7,10 +7,10 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/plugins/applications/background"
-	appvalue "github.com/hupao-creator/Mokusei/internal/plugins/applications/value"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/plugins/applications/background"
+	appvalue "github.com/hupao-creator/Chief/internal/plugins/applications/value"
 )
 
 func statusbarTool(lifetime context.Context, read func(context.Context) (plugin.TagStatusbar, error)) plugin.ToolBinding {

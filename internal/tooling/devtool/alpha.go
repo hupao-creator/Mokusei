@@ -50,7 +50,7 @@ func Alpha(ctx context.Context, repo, output, buildNumber string) (string, error
 	if err = json.Unmarshal(data, &provenance); err != nil {
 		return "", err
 	}
-	name := "Mokusei-" + provenance.ReleaseVersion + "-arm64"
+	name := "Chief-" + provenance.ReleaseVersion + "-arm64"
 	destination := filepath.Join(output, name)
 	if _, err = os.Lstat(destination); err == nil {
 		return "", fmt.Errorf("alpha release already exists: %s; choose a new --build-number", destination)
@@ -69,7 +69,7 @@ func Alpha(ctx context.Context, repo, output, buildNumber string) (string, error
 		}
 	}
 	image := filepath.Join(release, name+".dmg")
-	if err = runVisible(ctx, repo, nil, "/usr/bin/hdiutil", "create", "-volname", "Mokusei "+provenance.ReleaseVersion, "-srcfolder", payload, "-fs", "HFS+", "-format", "UDZO", image); err != nil {
+	if err = runVisible(ctx, repo, nil, "/usr/bin/hdiutil", "create", "-volname", "Chief "+provenance.ReleaseVersion, "-srcfolder", payload, "-fs", "HFS+", "-format", "UDZO", image); err != nil {
 		return "", err
 	}
 	if err = runVisible(ctx, repo, nil, "/usr/bin/hdiutil", "verify", image); err != nil {

@@ -13,9 +13,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	appvalue "github.com/hupao-creator/Mokusei/internal/plugins/applications/value"
-	"github.com/hupao-creator/Mokusei/internal/services/taglabel"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	appvalue "github.com/hupao-creator/Chief/internal/plugins/applications/value"
+	"github.com/hupao-creator/Chief/internal/services/taglabel"
 	htmlnode "golang.org/x/net/html"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

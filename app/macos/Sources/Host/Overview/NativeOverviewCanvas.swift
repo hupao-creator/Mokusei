@@ -151,7 +151,7 @@ public final class NativeOverviewCanvasState {
 }
 
 /// Cards share one SwiftUI tree and inherit the workspace environment directly.
-/// Public fixture/production default for the actual persistent tag bar.
+/// Shared header allowance for card packing and camera framing.
 public enum NativeOverviewViewportDefaults {
     public static var toolbarBottom: Double { OverviewTagMetrics.wideToolbarClearance }
 }
@@ -166,9 +166,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
     public var selectionID: String?
     public var state: NativeOverviewCanvasState
     public var toolbarBottom: Double
+    private let headerInputBottom: Double
     public var bottomReservedHeight: Double
     public var visible: Bool
     public var layoutPaused: Bool
+    let reduceLayoutMotion: Bool
     public var cloudAnimationsEnabled: Bool
     public var interactionPaused: Bool
     public var resetEpoch: UInt64
@@ -207,8 +209,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
 
     public init(items: [NativeOverviewItem] = [], contentSource: NativeOverviewContentStore? = nil,
                 sceneKey: String, state: NativeOverviewCanvasState,
-                selectionID: String? = nil, toolbarBottom: Double = NativeOverviewViewportDefaults.toolbarBottom, bottomReservedHeight: Double = 0, visible: Bool = true,
-                layoutPaused: Bool = false,
+                selectionID: String? = nil, toolbarBottom: Double = NativeOverviewViewportDefaults.toolbarBottom, bottomReservedHeight: Double = 0, headerInputBottom: Double? = nil, visible: Bool = true,
+                layoutPaused: Bool = false, reduceLayoutMotion: Bool = false,
                 cloudAnimationsEnabled: Bool = true,
                 interactionPaused: Bool = false, resetEpoch: UInt64 = 0,
                 revisions: [NativeOverviewLayoutRevision] = [], onRevisionsConsumed: ((UInt64) -> Void)? = nil,
@@ -221,7 +223,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
         _localContent = State(initialValue: NativeOverviewContentStore(items: contentSource == nil ? items : []))
         self.sceneKey = sceneKey; self.state = state; self.selectionID = selectionID
         self.toolbarBottom = toolbarBottom; self.visible = visible; self.cloudAnimationsEnabled = cloudAnimationsEnabled
-        self.layoutPaused = layoutPaused
+        self.layoutPaused = layoutPaused; self.reduceLayoutMotion = reduceLayoutMotion
+        self.headerInputBottom = headerInputBottom ?? toolbarBottom
         self.bottomReservedHeight = bottomReservedHeight
         self.interactionPaused = interactionPaused; self.resetEpoch = resetEpoch; self.revisions = revisions
         self.onRevisionsConsumed = onRevisionsConsumed
@@ -244,14 +247,13 @@ public struct NativeOverviewCanvas<Content: View>: View {
                                                   toolbarBottom: toolbarBottom, bottomReservedHeight: bottomReservedHeight)
             ZStack(alignment: .topLeading) {
                 // Window dragging must never enter the camera's manual pan gesture.
-                // Use the same header boundary as automatic camera framing.
                 Color.clear.contentShape(Rectangle())
-                    .frame(height: max(0, toolbarBottom))
+                    .frame(height: max(0, headerInputBottom))
                     .gesture(WindowDragGesture())
                 Color.clear.contentShape(Rectangle())
                     .onTapGesture { if state.allowsBackgroundAutoFocus() { state.camera.returnToAuto() } }
                     .gesture(pan)
-                    .padding(.top, max(0, toolbarBottom))
+                    .padding(.top, max(0, headerInputBottom))
                 OverviewCameraPlane(camera: state.camera, visible: visible, ignoreLayout: true) {
                     ZStack(alignment: .topLeading) {
                         ForEach(placements, id: \.id) { placement in
@@ -276,8 +278,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background {
-                NativeOverviewScrollInput(input: navigationInput, size: geometry.size, toolbarBottom: toolbarBottom,
+            .background(alignment: .topLeading) {
+                NativeOverviewScrollInput(input: navigationInput, size: geometry.size, toolbarBottom: headerInputBottom,
                     identity: "\(ownership)|\(sceneKey)|\(selectionID ?? "")|\(resetEpoch)", contentScale: windowContentScale,
                     enabled: { visible && state.visible && !state.externalInteractionPaused && !interactionPaused
                         && !state.isLayingOut && state.hostOwner == ownership && state.camera.isInitialized },
@@ -566,7 +568,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
         try Task.checkCancellation()
         guard layoutToken == token, state.hostOwner == ownership else { throw CancellationError() }
         let initial = mountedScene == nil || (!replaceScene && displayed.isEmpty && outgoingPlacements.isEmpty)
-        let animated = state.visible && !initial
+        let animated = state.visible && !initial && !reduceLayoutMotion
         let now = ProcessInfo.processInfo.systemUptime
         let oldPlacements = displayed + outgoingPlacements
         let oldRecords = rendered.map(\.item)
@@ -726,7 +728,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
         // Filter card poses own screen-space travel, including camera changes.
         // Prepare the final automatic camera before the frozen layout; an
         // independent camera clock would run while plugin cards are mounting.
-        let filterTransition = animated && replaceScene
+        let filterTransition = (animated || reduceLayoutMotion) && replaceScene
         if initial || next.isEmpty || !state.camera.isInitialized
             || (replaceScene && !hasVisibleSurvivor)
             || (filterTransition && !state.camera.manual) {
@@ -736,7 +738,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 state.camera.cutTo(content: contentRect, viewport: viewport)
             }
         } else {
-            state.camera.applyGeometry(content: contentRect, viewport: viewport, automatic: automatic)
+            let target = automatic ?? NativeOverviewCameraGeometry.fit(contentRect, viewport: viewport)
+            state.camera.applyGeometry(content: contentRect, viewport: viewport, automatic: target)
         }
     }
 

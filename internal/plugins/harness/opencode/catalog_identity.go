@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/sqlite"
+	"github.com/hupao-creator/Chief/internal/platform/sqlite"
 )
 
 // OpenCode 2 stores credential selection in its native database, not auth.json.

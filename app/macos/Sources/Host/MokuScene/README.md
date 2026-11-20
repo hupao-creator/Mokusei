@@ -1,6 +1,9 @@
-# Moku presentation
+# Chief presentation
 
 [NativeMokuWorkspacePresentation](NativeMokuWorkspacePresentation.swift) derives the current Moku execution's display from public transcript operations. [NativeMokuSceneState](NativeMokuSceneState.swift) owns transient presentation and dismissal. The [Go coordinator](../../../../../internal/services/moku/README.md) owns task admission, tool results, notes.
+
+The composer, conversation history, note and reminder use the Chief name in
+both interface languages, including their Accessibility labels.
 
 Question choices use the full visible rounded rectangle as their button hit
 shape, including padding and the empty space beside the answer text.
@@ -40,8 +43,8 @@ layout/closing motion, scrollbar policy and Agent composer motion are independen
 
 ## Dock and composer
 
-Dock and history composer placeholders stay on one line and truncate at the tail,
-including the Agent-target title. The native draft editor remains multiline.
+Dock and history composer placeholders stay on one line and truncate at the tail.
+The native draft editor remains multiline.
 The composer layout reserves attachment/action seats and the resident eye seat
 (the actual Harness logo in Agent detail) before giving
 the remaining width to the editor; long placeholder text cannot displace Stop.
@@ -50,16 +53,14 @@ Dock's separate trailing control inset. Its configuration adapts within that
 reserved content seat as described below.
 
 Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
-panel and history input capsule keep their existing dark
-appearance independently of the system and workspace preference.
-The current and archived Moku conversation reading cards inherit the workspace
-appearance: light, dark or system. No local reader override or separate theme
-state masks the window preference. The dark capsule override is a local SwiftUI
-environment, not a window/application appearance preference.
-Settings and onboarding retain their fixed dark appearance. Settings uses an
-opaque native window background in its local dark appearance,
-including with Reduce Transparency; the expanded panel has no tint or glass.
-The resident eyes travel into its reserved header seat during expansion.
+panel and history input capsule use a dark SwiftUI environment.
+The current and archived Moku conversation reading cards inherit the workspace's
+system appearance. The capsule's dark environment is scoped to its own content.
+Settings and the onboarding forms use the system appearance. Settings uses the
+opaque native window background, including with Reduce Transparency. The
+illustrations have their own [Liquid Glass panels](../Settings/README.md).
+The resident eyes travel into the reserved header seat during expansion and
+follow that seat when the Settings shell scrolls at extreme zoom.
 
 The collapsed Overview Dock is the original 168×44-point eye capsule. Its warm
 capsule material and Note's Regular glass share one persistent native glass node.
@@ -69,9 +70,16 @@ sphere artwork or palette is loaded. Agent detail retains its actual Harness
 logo; Overview and history input reserve the eye seat. The Stop control remains
 at the trailing edge with its existing cancellation and accessibility semantics.
 
-The shared input row places the attachment plus directly before the editor,
-after the identity seat. Attachment import, file/directory picking, native input
-ownership and the zero-size event-monitor origin are unchanged.
+The shared input row places the attachment plus immediately to the right of
+the identity seat. Below 260pt the editor takes the upper row and the plus
+stays beside the identity on the lower row. A primary click or accessibility press opens
+the device file chooser directly. For host-enabled drafts, the contextual
+menu on the same button offers host files and host directory references.
+The composer remains dark in both macOS appearances. A native chooser keeps
+its Escape and Cancel behavior. Cancelling adds no chips and leaves the draft
+available. The same current Chief draft and send route serve Overview and
+Chief history. Chief's delegation tools take text prompts. When a delegated
+Agent needs a file, its prompt can refer to the file by its managed path.
 
 Agent entry sequences the compact Dock's travel, the eyes-to-Harness flip and
 composer expansion. The reading entrance's actual arrival/layout admission
@@ -92,38 +100,55 @@ while reading/content readiness still gates input. See the
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
 Dock and history clear submitted text, directory mentions and ready attachment
-chips immediately through the shared draft's optimistic editor projection. The
+chips in the mounted editor as soon as the draft captures the send. The
 retiring Dock capsule also clears its sealed ink snapshot before collapse.
+The pinned Thread editor remains editable and keeps its native first responder
+while the send awaits confirmation. A reopened ordinary Dock can also edit its
+next draft. The draft blocks further submissions until the pending send settles.
+Browser annotation retains its own read-only submission interval.
 Admission still owns persistence consumption and staged-file release. Failure
 reveals the retained draft, preserving any new text after the failed message;
-no automatic retry occurs. Ready image chips use system Quick Look with the
+no automatic retry occurs. **Check previous receipt** checks the saved command
+ID. A missing receipt permits local review after checking the conversation.
+Local recovery offers **Restore to draft** or **Keep next draft**. Both choices
+are local and preserve the editable successor. Ready image chips use system Quick Look with the
 shared strip's local managed-file URLs and independent preview/remove actions.
 No current e2e evidence is supplied for Quick Look focus or pointer behavior.
 
 The identity seat retains the last open editor position while the composer
 retires. Directory completion stays above the same bottom-anchored native editor.
 Its measured height changes the shell without replacing the editor or its
-selection owner through entry, exit and rapid reversal. No completion replay
-is configured in this source tree.
+selection owner through entry, exit and rapid reversal. The pending-send replay
+selects the same directory in two consecutive drafts using Return.
 
-Input collapse hides the composer immediately. The shell and eyes continue
-their motion while `inputLeaving` keeps the ordinary closing editor mounted for
-420ms. Returning from an Agent conversation to Overview closes the reading
+The bottom Overview Dock carries one Stop button while the running Chief's
+eyes and capsule move between their compact and input positions. The input
+row reserves its measured seat beside Send. Stop is visible while editing
+and on hover or focus in the compact capsule. The editor uses its final
+width throughout the 420ms motion. Its ink fades in during the last tenth
+of expansion and fades out over the same part of the return. Closing ends
+editing immediately. Reduce Motion switches this Dock directly between its
+two layouts. See the [Overview Dock replay](../../../../../demos/moku-panel-transition/README.md#overview-dock-replay).
+
+`inputLeaving` keeps the ordinary closing editor mounted for 420ms to retain
+its selection. Returning from an Agent conversation to Overview closes the reading
 panel's input gate while the workspace still owns the outgoing draft. The
-composer and its directory suggestions hide at that point. When the route
-releases the row, it has no SwiftUI exit fade. Reopening
+composer and its directory suggestions hide at that point. The shell starts
+contracting in its reading column on the same update, easing out over the
+420ms return. Route release removes the row without a SwiftUI exit fade. Reopening
 restores the active draft and its selection. Talk has independent presentation
-and can become readable when input closes. The shell and the single
-identity seat share destination geometry in the same animation transaction; no
-delayed expansion fraction or intrinsic/fixed row switch moves the identity.
-The shell is positioned by its bottom edge so height changes cannot first move
-AppKit text to a new row and then translate it back. Native editor internals lay
-out at their destination width while the shell reveals/clips them. Below 260pt
-of capsule width a persistent four-seat Layout gives text/attachment and
-identity/actions separate rows, preserving the same native editor through resize.
-The surface height stays within the available viewport. The
-[isolated panel replay](../../../../../demos/moku-panel-transition/README.md#collapse-replay)
-captures intermediate frames and checks the retained editor and Talk handoff.
+and can become readable when input closes. The shell and the single identity
+seat move in the same transaction. The editor overlay reserves its final width
+and height before the editor mounts. In the wide layout, input ink appears to
+the right of the Harness logo after the logo clears the final text seat. Below
+260pt of capsule width, text and attachments occupy the row above the identity
+and actions. The editor fades in during the last tenth of shell expansion.
+Returning reading panels retain their last admitted Dock column through the
+return. Resize preserves the native editor and the shell fits the viewport.
+The [Agent entrance replay](../../../../../demos/moku-panel-transition/README.md#agent-entrance-replay)
+checks the settled text origin, focus and return. The
+[Report replay](../../../../../demos/moku-panel-transition/README.md#collapse-replay)
+covers the wide and narrow logo clearance and execution-list input gate.
 
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least
@@ -167,12 +192,10 @@ Directory completion opens above the editor within the same capsule. The editor 
 Moku submission through admission, receipt recovery and persisted draft
 consumption. An uncertain retry queries that same receipt;
 changed input or a different Report/directory cannot consume the original
-submission. Dock, Report and history capture the source with their send and consumption
-callbacks. A successful response retains its receipt until `didConsume` confirms
-the accepted draft revision was consumed without a storage error, including a
-late or disposed owner. Reopening without the original in-memory association
-keeps the durable receipt as a barrier; it never guesses that restored text is
-new work.
+submission. Dock, Report and history capture the source when sending. A
+successful response retains its receipt until the settled draft and its cleanup
+ID are durable. An owner that reopens the draft can finish the matching
+acknowledgement even if the original window closed.
 
 An empty or whitespace-only draft without attachments/directories mounts no Send
 button or circular background, including in accessibility. Its empty layout seat
@@ -192,13 +215,12 @@ Same-line movement remains 120ms and interruptible. IME composition uses the
 native caret; line changes stay immediate. Selection and focus/visibility loss
 remove the layer and animations.
 
-The Dock and history input placeholder follows the displayed directory tags,
-including the retained draft during Dock dismissal. With no directory it reads
-`Ask Moku…` (Chinese `向 Moku 提问…`). With a directory it reads
-`Ask Moku about <name>…` (Chinese `向 Moku 询问关于 <name> 的问题…`).
-Two directories show both names joined by `and` / `和`. Three or more show the
-first name and a count (`<name> and N other directories` / `<name> 等 N 个目录`,
-with the Chinese count including all selected directories).
+The empty message editor reads `Type a message…` (Chinese `输入消息…`) across
+Overview, landing, Git, Moku history, Agent details and Report execution details.
+The placeholder also supplies the editor's accessibility label. Editor help
+describes whether the message goes to Moku or directly to the current Thread.
+Selected directories are shown as chips. Browser annotation mode supplies its
+own editor instructions based on whether a page region is selected.
 
 On macOS, clicking the collapsed Moku row opens input; when a message is visible, only the eyes are the input target so prose remains selectable and controls retain their actions. Clicking the eyes beneath an open note switches to input. Physical two-finger upward swipe opens the note; horizontal swipes do not open input. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/interaction ownership. Its AppKit monitor routes trackpad scroll events; the shared target checks exclude microphone controls and note-reading content. The click entry uses the existing composer focus and draft-restoration path. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
 
@@ -214,8 +236,13 @@ The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.
 [NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock. Blink shape uses the continuous timestamp rather than fixed-rate samples.
 
 Static character targets are cached until their input changes. The native display
-link sleeps between the existing absolute-time blinks (4.2-second period,
-0.32-second blink); one cancellable wake resumes it at the next blink. A Harness
+link sleeps between blinks (4.2-second period, 0.32-second blink). The
+[first-run handoff](../Onboarding/README.md) schedules a single blink on the
+mounted face and sets its next idle blink one full period later. The Dock's
+Reduce Motion and scene state, together with the face's AppKit visibility,
+govern that first blink. Losing eligibility clears it immediately, including
+while the display link sleeps. The next idle blink keeps its scheduled time.
+One cancellable wake resumes the display link at the next blink. A Harness
 identity with no face and no moving decoration has neither frames nor a blink
 wake. Role transitions, loading, visible reasoning and retiring ink keep their
 frames through the final paint. Resuming starts a fresh wall-time interval, so
@@ -363,7 +390,7 @@ The [Note transition preview](../../../../../demos/moku-note-transition/README.m
 records the production Dock with synthetic notes, including intermediate frames,
 rapid reversals, narrow/centered layouts and a local no-animation fixture.
 
-Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The history selector opens those sessions through their original Harness reader; the current composer belongs only to the current session. Runtime prevents archive reactivation, fork and execution, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
+Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The desktop history panel opens the current session. Runtime prevents archive reactivation, fork and execution of previous sessions, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
 
 Note Markdown accepts app-internal execution links in the form
 `[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`. The note
@@ -373,7 +400,7 @@ Agent Threads qualify, including archived, failed and interrupted ones. Moku,
 its history and missing/private targets produce an unavailable notice. The note
 retains its existing character budget and viewport-exposure semantics.
 
-Note execution references use the selected A clear Liquid Glass capsule with
+Note execution references use a clear Liquid Glass capsule with
 its owning Harness's native logo and a trailing up-right arrow. There is no
 hover scale or interactive glass response. Ordinary links keep their existing
 purple underline. The note observes public catalog membership and uses the
@@ -389,11 +416,23 @@ and copying preserve the full title, without inserting a logo/arrow into copied
 content. Pointer events remain with TextKit for drag selection, and the hosted
 control supplies named keyboard/accessibility activation.
 
-The reader opens one fixed execution at its final visible reply, or its latest
-visible content/status when no final reply exists. Running executions initially
-scroll to the bottom and follow output until the user scrolls up; Jump to latest
-restores following. The visit stays on the cited execution after a successor
-starts.
+Pointer and accessibility activation dispatch the same exact execution reference.
+The Dock closes the Note and retains its reading position. Once the Note has
+closed, Overview reveals the destination in its filter and, for a grouped Report,
+on its Collection page. The settled Overview card supplies the reader’s origin.
+A unique Super Thread owner opens its Report with the cited execution selected
+in Related executions. Other links open the ordinary Agent reader, including
+eligible Threads hidden from Overview. Both readers start at the cited run’s
+heading, with output following off. The visit stays on that execution after a
+successor starts.
+
+Closing either expanded reader, clicking its backdrop or using the Overview
+command returns to Overview with the Note closed. Only an explicit Back to the
+Note restores its retained viewport. Escape in the ordinary cited document
+performs that Back action. In the Report, the sidebar arrow restores the related
+list, where the Report arrow returns to the Note.
+The closed Note remains ineligible for input, accessibility and exposure.
+Reduce Motion switches directly on entry and return.
 
 ## Settings expansion
 
@@ -497,9 +536,10 @@ panels' full column width and keep the same bottom reading baseline. Composer
 expansion retains its separate entrance timing.
 
 The Scene keeps the complete Dock in one persistent native hosting tree. Its
-native outer layer owns horizontal travel; the Dock lays out at the target
-column once, and a compositor translation carries its editor, controls and glass
-together. Main-thread work therefore does not stop an already admitted trip.
+native outer layer owns horizontal travel. The native host moves to the target
+column in the same transaction that starts compositor travel. The source
+correction holds through the first compositor sample. Its editor,
+controls and glass travel together even while the main thread prepares content.
 Reversal starts at the current presentation position. Completion is fenced to
 the current native animation, placement revision and composer generation;
 resizing settles immediately. Keyboard focus survives travel,
@@ -530,12 +570,14 @@ a travel wait. Once input is admitted, later card choices move the retained edit
 without folding it. Direct resizing settles without a delay.
 Scene-level input admission also gates interaction restoration,
 input controls and focus; navigation cannot bypass it by reconfiguring the draft.
-Automatic focus uses its existing 180ms delay from input expansion, with
-draft/generation checks. That delay does not disable admitted native click/Tab
-focus. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,
+Within an admitted Agent reader, TOC selection and Back replace the editor's
+draft without folding the pinned shell or readmitting its settled Harness mark.
+Input readiness still follows the selected document.
+Automatic focus follows the current composer visit's ink reveal. The Dock
+requests focus when the reveal reaches 10% opacity. Admitted click and Tab
+focus remain available during opening. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,
 without changing its draft, send generation or suppressed automatic-focus policy;
-accepted Close also suspends input hit testing/focus through the panel's live
-motion state without folding the retained shell. The fitted Dock
+accepted Close suspends input hit testing/focus as the shell folds. The fitted Dock
 bottom moves down by up to 16pt, keeping at least
 12pt below it; Super Thread admits the expanded composer only for a selected
 associated Thread; Git retains its normal input policy in that same lower seat.
@@ -548,9 +590,9 @@ Thread, Report or Git detail is presented in a reading panel. `dockRouteVisible`
 reading-panel eligibility without admitting Settings or Note on a reading route.
 The composer, Talk and pending interventions use that shared eligibility; other
 application pages and covering routes still hide the Dock. Returning to Overview publishes eligibility in an order that retains native
-input/hit-region ownership. Agent detail keeps its input expanded, with a localized
-placeholder naming that Thread. Its leading identity seat reveals the
-actual Harness plugin's native logo, which remains visible while typing.
+input/hit-region ownership. Agent detail keeps its input expanded. Its leading
+identity seat reveals the actual Harness plugin's native logo, which remains
+visible while typing.
 The host resolves the current target's `harnessID` on each render, including target
 changes; unknown/empty IDs use a neutral terminal mark, never Moku's Harness.
 Registered custom Harnesses supply their own mark through the same registry.
@@ -601,7 +643,9 @@ control cancellation retain priority. Escape closes directory completion first;
 in Agent detail an outside press also dismisses completion first without folding
 the editor or closing the reader. Native transient/IME-owned presses are recorded
 before delivery so mouse-up cannot close the reading panel after AppKit commits a
-mark or removes a popup. No forced unmark/discard or delayed close is added.
+mark or removes a popup. The window-sharing indicator can stay visible while
+the reader handles a blank-margin click or the composer handles Escape. Only
+child windows that can take keyboard focus claim those actions.
 Existing Moku interventions/covering routes keep their surface priority and release
 the Agent editor afterward; its draft remains owned by the same Thread.
 Execution Sidecards stay usable
@@ -616,15 +660,14 @@ See the [composer routing contract](../../../../../design/composer.md).
 
 Report execution details borrow that same Agent composer and native column
 placement. Exact-execution drafts are shared with Agent history/result readers
-for the same Thread/execution pair. The placeholder uses the exact
-execution title (neutral fallback), never a newer execution's Thread title. The editor opens after its horizontal travel settles. Returning to the list,
-folding, Browser selection or departure restores Moku and retains the draft;
+for the same Thread/execution pair. The editor opens after its horizontal travel
+settles. Returning to the list, folding, Browser selection or departure
+restores Moku and retains the draft;
 editor Escape follows Report's auxiliary Back. Only the viewed current active
 execution exposes Stop; historical input cannot stop a newer execution. The shared sender uses the existing expected-execution admission fence. An
 explicit pre-admission `EXECUTION_CHANGED` rejection takes the historical fork
 path once; uncertain writes are never automatically resent. A failed follow-up
-retains both the exact draft and its admitted fork for retry across these readers
-within the window. Successful exact sends open the accepted Agent execution
+retains both the exact draft and its admitted fork for review across these readers. Successful exact sends open the accepted Agent execution
 after catalog admission, fenced to the owning route/composer visit. Ordinary
 current sends keep their existing visit-scoped execution reveal. TOC selection changes drafts without acquiring editor focus. Initial input,
 explicit Browser annotation mode and Moku retain their existing autofocus. Pending focus requests wait for editor eligibility and are applied once, so an
@@ -635,17 +678,15 @@ seat. The retained outgoing reader cannot overwrite or clear that target, and
 canceling a handoff republishes the restored reader's target. The workspace
 withdraws its input owner when it leaves, independently of either reader's
 teardown. Each continuation phase retains its original source, input, destination and
-command ID. An uncertain retry queries that receipt before any routing decision;
-a confirmed fork can then proceed to its first follow-up, while a confirmed
-follow-up consumes the original draft without sending it again. Changed input
-cannot replace an uncertain phase. A fork's durable receipt transfers to its
-follow-up in one journal transaction before dispatch. If that follow-up is
-definitively rejected, its receipt still retains the fork association: the
-original sender can accept corrected input for that same branch, while a
-reopened owner without the phase context blocks new work and identifies the
-protected receipt. Successful follow-up receipts remain protected until the
-captured draft consumption callback, including late/disposed owners. A receipt
-release callback is identity-fenced against a newer operation. This policy is
+command ID. During Send, a confirmed fork transfers its durable receipt to
+the first follow-up in one journal transaction before dispatch. After a lost
+response, Check previous receipt only reads the identified command. If the
+fork exists and its input was never accepted, the composer keeps its protected
+receipt until the user chooses Restore to draft or Keep next draft. Either
+decision releases the barrier and lets the user continue in the created branch.
+A confirmed final send consumes its own draft and leaves the successor intact.
+The saved successor records the receipt until journal cleanup has completed,
+including when the original owner closes. This policy is
 shared by Report and Agent input; there is no force-resend button. See [Execution continuation](../../../../../design/reading.md)
 for native constraints and evidence limits.
 
@@ -679,7 +720,8 @@ settle travel directly. This preserves the existing draft,
 receipt, input-readiness and late-callback fences. See the
 [composer geometry contract](../../../../../design/composer.md).
 
-No Runtime send/receipt e2e is configured in this source tree.
+The [Host receipt replay](../../../../../demos/moku-panel-transition/README.md#host-receipt-replay)
+exercises the production client transport and journal with fixture outcomes.
 The [composer ownership guide](../../../../../design/composer.md) describes
 the implemented admission and cancellation boundaries.
 

@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/services/directorytag"
 )
 
 func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settings) (ThreadCreationDescription, error) {
@@ -26,10 +26,10 @@ func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settin
 	for _, id := range settings.Moku.TargetHarnessIDs {
 		h := c.config.Harnesses[id]
 		if h == nil {
-			return ThreadCreationDescription{}, fmt.Errorf("Moku cannot start: selected Harness %s is not registered", id)
+			return ThreadCreationDescription{}, fmt.Errorf("Chief cannot start: selected Harness %s is not registered", id)
 		}
 		if c.config.HarnessEnabled != nil && !c.config.HarnessEnabled(id) {
-			return ThreadCreationDescription{}, fmt.Errorf("Moku cannot start: selected Harness %s is disabled", id)
+			return ThreadCreationDescription{}, fmt.Errorf("Chief cannot start: selected Harness %s is disabled", id)
 		}
 		// Capture independent immutable inputs before workers run. The settings
 		// admission owner continues to fence this entire discovery operation.
@@ -48,7 +48,7 @@ func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settin
 			defer pending.Done()
 			defer func() {
 				if recover() != nil {
-					results[index].err = fmt.Errorf("Moku Target Harness discovery failed: %s", source.id)
+					results[index].err = fmt.Errorf("Chief Target Harness discovery failed: %s", source.id)
 				}
 			}()
 			select {
@@ -79,17 +79,17 @@ func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settin
 		targets = append(targets, result.target)
 	}
 	if len(failures) > 0 {
-		return ThreadCreationDescription{}, fmt.Errorf("Moku cannot start until every selected Harness has a complete model catalog: %w", errors.Join(failures...))
+		return ThreadCreationDescription{}, fmt.Errorf("Chief cannot start until every selected Harness has a complete model catalog: %w", errors.Join(failures...))
 	}
 	if len(targets) == 0 {
-		return ThreadCreationDescription{}, errors.New("Moku cannot start: no target Harness selected")
+		return ThreadCreationDescription{}, errors.New("Chief cannot start: no target Harness selected")
 	}
 	latest, _, err := c.config.Settings()
 	if err != nil {
 		return ThreadCreationDescription{}, err
 	}
 	if !sameMokuSettings(settings, latest) {
-		return ThreadCreationDescription{}, errors.New("Moku configuration changed during model catalog discovery; retry with the current selection")
+		return ThreadCreationDescription{}, errors.New("Chief configuration changed during model catalog discovery; retry with the current selection")
 	}
 	return DescribeThreadCreation(targets, c.config.Workspace)
 }
@@ -192,7 +192,7 @@ func (c *Coordinator) collectNativeContext(ctx context.Context, entryID string, 
 			func() {
 				defer func() {
 					if recover() != nil {
-						result.err = errors.New("Moku context contributor panicked")
+						result.err = errors.New("Chief context contributor panicked")
 					}
 				}()
 				result.text, result.err = source.collect(contributionCtx)
@@ -321,7 +321,7 @@ func (c *Coordinator) sendContext(ctx context.Context, input model.AgentInput, d
 		native := append([]plugin.ContextEntry{}, c.runContext...)
 		c.mu.Unlock()
 		if applied == nil {
-			return nil, errors.New("Moku configuration unavailable")
+			return nil, errors.New("Chief configuration unavailable")
 		}
 		if !ready {
 			// Account capacity is advisory. A slow first refresh must not hold

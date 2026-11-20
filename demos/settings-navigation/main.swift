@@ -14,7 +14,6 @@ import MokuseiHarnessOpenCode
 @MainActor @Observable private final class Fixture {
     let navigation = NativeSettingsNavigation(section: "archived")
     let model: NativeSettingsModel
-    let preferences: DesktopPreferences
     let scene = NativeMokuSceneState()
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var settings: Bool {
@@ -29,9 +28,7 @@ import MokuseiHarnessOpenCode
     let harnesses = [AnyHarnessPlugin(PiHarnessPlugin()), AnyHarnessPlugin(CodexHarnessPlugin()),
                      AnyHarnessPlugin(ClaudeHarnessPlugin()), AnyHarnessPlugin(OpenCodeHarnessPlugin())]
 
-    init(directory: URL) throws {
-        preferences = DesktopPreferences(directory: directory)
-        try preferences.setLocale(.chinese)
+    init() throws {
         let value = try JSONValue(data: Data(#"{"moku":{"hostHarnessPreference":"codex","targetHarnessIds":["codex","claude"],"routingGuidance":null}}"#.utf8))
         model = NativeSettingsModel(settings: value, revision: 0,
             save: { value, revision in .saved(settings: value, revision: revision + 1) },
@@ -41,6 +38,11 @@ import MokuseiHarnessOpenCode
             }, installHarness: { _ in })
         model.receive(snapshot: nil, runtimeAvailable: true)
     }
+}
+
+private struct FixtureHarnessForm: View {
+    @Environment(\.nativeSettingsBeforeAdvanced) private var beforeAdvanced
+    var body: some View { beforeAdvanced }
 }
 
 private struct Surface: View {
@@ -57,10 +59,8 @@ private struct Surface: View {
                 fixture.navigation.requestClose(model: fixture.model) { _ in fixture.scene.closeSettings() }
             } settings: {
                 NativeSettingsPage(model: fixture.model, navigation: fixture.navigation,
-                    preferences: fixture.preferences, harnesses: fixture.harnesses,
-                    harnessSettings: { _ in AnyView(EmptyView()) },
-                    onSetAppearance: { try fixture.preferences.setAppearance($0) },
-                    onSetLocale: { try fixture.preferences.setLocale($0) },
+                    locale: .chinese, harnesses: fixture.harnesses,
+                    harnessSettings: { _ in AnyView(FixtureHarnessForm()) },
                     onClose: { _ in fixture.scene.closeSettings() })
             }
             .frame(width: geometry.size.width / fixture.scale, height: geometry.size.height / fixture.scale)
@@ -87,9 +87,8 @@ private struct Surface: View {
     }
 
     private func run() async throws {
-        let directory = URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "SettingsDemoDirectory") as! String)
         let opensMoku = Bundle.main.object(forInfoDictionaryKey: "SettingsDemoOpensMoku") as? Bool == true
-        let fixture = try Fixture(directory: directory.appendingPathComponent("profile"))
+        let fixture = try Fixture()
         self.fixture = fixture
         if opensMoku {
             fixture.dark = true

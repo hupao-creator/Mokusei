@@ -7,6 +7,16 @@ public enum RuntimeProtocol {
     public static let maxEventBytes = maxResponseBytes
     public static let maxOverviewBytes = 2 * 1024 * 1024
     public static let maximumSafeInteger = 9_007_199_254_740_991
+
+    public static func makeCommandID() -> String {
+        "\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.lowercased())"
+    }
+
+    /// The lookup/journal identity remains valid after the new-admission window expires.
+    public static func isReceiptID(_ value: String) -> Bool {
+        (16...128).contains(value.count)
+            && value.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 || $0 == 95 }
+    }
 }
 
 public struct RuntimeError: Error, Sendable, LocalizedError, Equatable {

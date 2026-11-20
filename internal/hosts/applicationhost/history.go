@@ -3,7 +3,7 @@ package applicationhost
 import (
 	"errors"
 
-	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/core/store"
 )
 
 // ClearHistory joins the runtime's history-reset transaction after this host has

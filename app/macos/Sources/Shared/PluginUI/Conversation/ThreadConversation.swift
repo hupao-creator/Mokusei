@@ -102,7 +102,6 @@ public struct ThreadConversation: View {
     public let actions: AnyView?
     public let emptyState: AnyView?
     public let renderRow: ((JSONText) -> AnyView)?
-    @Environment(\.nativeThreadReservesHistoryRail) private var reservesHistoryRail
     @Environment(\.locale) private var locale
     @Environment(\.nativeReadingContentHandoff) private var contentHandoff
     @Environment(\.threadDetailNavigation) private var navigation
@@ -114,6 +113,7 @@ public struct ThreadConversation: View {
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadRelatedExecution) private var relatedExecution
     @Environment(\.nativeReportSidecards) private var reportSidecards
+    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
     @State private var consumedRequest: JSONText?
@@ -187,7 +187,7 @@ public struct ThreadConversation: View {
         return !executionCard
     }
     private var relatedSendTitle: NativeReportSidecardPresentation.SendTitle? {
-        guard relatedExecution, selectedIsActive, case let .execution(id) = context?.presentation else { return nil }
+        guard relatedExecution, selectedIsActive, let id = documentRow?.execution?.id else { return nil }
         return reportSidecards?.sendTitles[ApplicationExecutionRef(
             thread: .init(threadID: threadId, typeID: "agent"), executionID: id)]
     }
@@ -212,8 +212,8 @@ public struct ThreadConversation: View {
         if case let .history(id) = destination { return visibleRows.first { $0.id == id } }
         return nil
     }
-    private var resultVisit: Bool {
-        readingTarget?.position == .result && destination == requestedDestination
+    private var pinnedExecutionVisit: Bool {
+        readingTarget?.position.pinsExecution == true && destination == requestedDestination
     }
     // A requested document is the host route's entry, regardless of scroll
     // position. The retained current document is not a previous visit until
@@ -243,8 +243,9 @@ public struct ThreadConversation: View {
         let sidecardEntry = readingTarget.flatMap { target in
             inputEntryRequest == target.requestId && excluded.contains(target.executionId) ? target.executionId : nil
         }
-        let followsLatest = destination == .document(inline: nil) && sidecardEntry == nil
-        let executionID = sidecardEntry ?? visibleRows.first { $0.id == selectedRowID }?.execution?.id
+        let followsLatest = !relatedExecution && destination == .document(inline: nil) && sidecardEntry == nil
+        let selectedExecution = visibleRows.first { $0.id == selectedRowID }?.execution
+        let executionID = sidecardEntry ?? (relatedExecution && selectedExecution?.readable == false ? nil : selectedExecution?.id)
         return ThreadConversationInputTarget(threadID: threadId, requestID: readingTarget?.requestId, executionID: followsLatest ? nil : executionID,
             followsLatest: followsLatest, ready: initializedThread == threadId && !pageMotion.active)
     }
@@ -268,9 +269,6 @@ public struct ThreadConversation: View {
                 readingLayout.nativeReadingScope(interactionScope)
             }
         }
-        // This layout owns the rail. Nested loading/error rows already sit to
-        // its right and must not reserve another rail of their own.
-        .environment(\.nativeThreadReservesHistoryRail, false)
         .font(NativeTypography.inter(size: 16))
         .environment(\.nativeInteractionQuestionInDocument, true)
         .foregroundStyle(NativePalette.thread.ink.swiftUI)
@@ -306,27 +304,38 @@ public struct ThreadConversation: View {
     }
     private var readingLayout: some View {
         GeometryReader { bounds in
-            HStack(spacing: 0) {
-                if !executionCard && (tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
-                    ThreadHistorySidebar(rows: tocRows, selected: selectedRowID, current: currentRow?.id,
-                        availableWidth: bounds.size.width, focusRevision: sidebarFocusRevision, select: selectRow)
-                        .padding(.leading, 4).padding(.vertical, 64)
-                        .nativeReadingScope("sidebar")
-                        .zIndex(1)
+            if agentDetail {
+                pageStack.overlayPreferenceValue(ThreadDocumentLeadingMargin.self) { margin in
+                    historySidebar(availableWidth: bounds.size.width, margin: margin ?? 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                if !executionCard && reservesHistoryRail && !(tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
-                    Color.clear.frame(width: 48)
+            } else {
+                HStack(spacing: 0) {
+                    historySidebar(availableWidth: bounds.size.width, margin: ThreadHistorySidebar.preferredMargin)
+                    pageStack
                 }
-                pageStack
             }
-            .nativeReadingExitCommand(perform: readingPage ? { closeHistory() } : nil)
+        }
+        .nativeReadingExitCommand(perform: readingPage ? { closeHistory() } : nil)
+    }
+    @ViewBuilder private func historySidebar(availableWidth: CGFloat, margin: CGFloat) -> some View {
+        if !executionCard {
+            let rows = tocRows
+            if rows.count > 1 || rows.contains(where: \.history) || readingPage {
+                ThreadHistorySidebar(rows: rows, selected: selectedRowID, current: currentRow?.id,
+                    availableWidth: availableWidth, availableMargin: margin, focusRevision: sidebarFocusRevision, select: selectRow)
+                    .padding(.vertical, 64)
+                    .nativeReadingScope("sidebar")
+                    .zIndex(1)
+            }
         }
     }
     private var pageStack: some View {
         GeometryReader { _ in
             NativeReadingPageStack(open: readingPage, identity: readingIdentity, motion: pageMotion,
+                                   respectsReduceMotion: !animatesEntrance && entryRoute,
                                    axis: .vertical,
-                                   direction: pageDirection,
+                                   direction: !animatesEntrance && entryRoute ? 0 : pageDirection,
                                    onClose: finishClosingHistory) {
                 if hasMountedCurrentDocument || !readingPage || !entryRoute {
                     HarnessMessageTimeline(timelineKey: threadId,
@@ -452,11 +461,11 @@ public struct ThreadConversation: View {
     }
     private func historyPage() -> some View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
-                              active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
+                              active: pinnedExecutionVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
                               allowsJumpToLatest: allowsJumpToLatest && selectedPage?.execution?.id == activeExecutionId,
                               hidesHeading: executionCard && !relatedExecution && agentDetail && selectedIsActive,
-                              result: resultVisit, readingTarget: scrollTarget,
+                              pinnedExecution: pinnedExecutionVisit, readingTarget: scrollTarget,
                               readingVisitId: destination == requestedDestination ? consumedRequest : nil,
                               locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
                               backLabel: (entryRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
@@ -547,9 +556,9 @@ public struct ThreadConversation: View {
         if let index {
             let id = visibleRows[index].id
             setPageDirection(toward: id)
-            // A result visit owns exactly one execution, including while it is
+            // A pinned visit owns exactly one execution, including while it is
             // current. A successor cannot move its content or following target.
-            destination = target.position == .result ? .history(id)
+            destination = target.position.pinsExecution ? .history(id)
                 : target.mode == .current || index == lastExecutionIndex ? .document(inline: id) : .history(id)
         } else { destination = .unavailable }
         requestedDestination = destination
@@ -558,7 +567,7 @@ public struct ThreadConversation: View {
         if case let .document(inline?) = destination, !visibleRows.contains(where: { $0.id == inline }) {
             destination = .document(inline: nil)
         }
-        guard !resultVisit, case let .history(id) = destination, visibleRows.contains(where: { $0.id == id && !$0.history }), !historicalIDs.contains(id) else { return }
+        guard !pinnedExecutionVisit, case let .history(id) = destination, visibleRows.contains(where: { $0.id == id && !$0.history }), !historicalIDs.contains(id) else { return }
         let promoted = ConversationDestination.document(inline: id)
         if requestedDestination == destination { requestedDestination = promoted }
         destination = promoted
@@ -595,7 +604,7 @@ private struct ThreadHistoryDocument: View {
     let running: Bool
     let allowsJumpToLatest: Bool
     let hidesHeading: Bool
-    let result: Bool
+    let pinnedExecution: Bool
     let readingTarget: ThreadTimelineReadingTarget?
     let readingVisitId: JSONText?
     let locatedRequestId: JSONText?
@@ -609,7 +618,7 @@ private struct ThreadHistoryDocument: View {
     @State private var authors: [JSONText: JSONValue] = [:]
     @State private var workAvailability: [JSONText: Bool] = [:]
     @State private var manualWork: Bool?
-    private var work: Bool { running || (manualWork ?? (result && active)) }
+    private var work: Bool { running || (manualWork ?? (pinnedExecution && active)) }
     @Environment(\.nativeReadingInteractionActive) private var readingActive
     @FocusState private var headingFocused: Bool
     var body: some View {
@@ -617,7 +626,7 @@ private struct ThreadHistoryDocument: View {
             rows: page.map { [ThreadTimelineRow(id: $0.id, createdAt: $0.createdAt, node: rowContent ?? $0.node)] } ?? [],
             toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。")).nativeReadingContentReady()),
             contentTopInset: agentDetail ? 12 : nil,
-            followOutput: result || (running && readingTarget?.follow == true), allowsJumpToLatest: allowsJumpToLatest,
+            followOutput: pinnedExecution || (running && readingTarget?.follow == true), allowsJumpToLatest: allowsJumpToLatest,
             followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, readingVisitId: readingVisitId, locatedRequestId: locatedRequestId, onLocated: onLocated)
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))
@@ -737,7 +746,9 @@ private enum NativeReadingCancellation {
             if (current as? NativeSettingsEscapeCancelling)?.cancelSettingsPresentation() == true { return .handled }
             responder = current.nextResponder
         }
-        return (window.childWindows ?? []).contains { $0.isVisible } ? .native : .reading
+        // A window-sharing indicator may be visible during reading. Only a
+        // child that can take keyboard focus owns cancellation here.
+        return (window.childWindows ?? []).contains { $0.isVisible && $0.canBecomeKey } ? .native : .reading
     }
 }
 

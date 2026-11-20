@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 func (c *Coordinator) appendTranscript(ctx context.Context, threadID string, item map[string]any) error {
 	return c.config.UpdateThread(ctx, threadID, func(record *model.ThreadRecord) error {
 		if !record.Moku {
-			return errors.New("Moku transcript owner was replaced")
+			return errors.New("Chief transcript owner was replaced")
 		}
 		created := time.Now().UnixMilli()
 		if raw, ok := item["createdAt"].(int64); ok && raw > created {
@@ -26,13 +26,13 @@ func (c *Coordinator) appendTranscript(ctx context.Context, threadID string, ite
 		for _, raw := range record.Transcript {
 			var existing map[string]any
 			if json.Unmarshal(raw, &existing) != nil {
-				return errors.New("invalid Moku transcript")
+				return errors.New("invalid Chief transcript")
 			}
 			if existing["id"] == item["id"] {
-				return errors.New("duplicate Moku transcript ID")
+				return errors.New("duplicate Chief transcript ID")
 			}
 			if item["type"] == "tool-operation" && existing["callId"] == item["callId"] {
-				return errors.New("duplicate Moku tool call ID")
+				return errors.New("duplicate Chief tool call ID")
 			}
 			if timestamp, ok := existing["createdAt"].(float64); ok && int64(timestamp) > created {
 				created = int64(timestamp)
@@ -53,13 +53,13 @@ func (c *Coordinator) completeTool(ctx context.Context, threadID, executionID, c
 		for index, raw := range record.Transcript {
 			var item map[string]any
 			if json.Unmarshal(raw, &item) != nil {
-				return errors.New("invalid Moku transcript")
+				return errors.New("invalid Chief transcript")
 			}
 			if item["type"] != "tool-operation" || item["executionId"] != executionID || item["callId"] != callID {
 				continue
 			}
 			if _, done := item["completedAt"]; done {
-				return errors.New("Moku tool operation already completed")
+				return errors.New("Chief tool operation already completed")
 			}
 			matches++
 			item["completedAt"] = max(time.Now().UnixMilli(), record.UpdatedAt)
@@ -74,7 +74,7 @@ func (c *Coordinator) completeTool(ctx context.Context, threadID, executionID, c
 			record.Transcript[index] = encoded
 		}
 		if matches != 1 {
-			return errors.New("Moku pending tool operation is missing or ambiguous")
+			return errors.New("Chief pending tool operation is missing or ambiguous")
 		}
 		return nil
 	})
@@ -95,7 +95,7 @@ func (c *Coordinator) settleExecution(ctx context.Context, record model.ThreadRe
 		for index, raw := range current.Transcript {
 			var item map[string]any
 			if json.Unmarshal(raw, &item) != nil {
-				return errors.New("invalid Moku transcript")
+				return errors.New("invalid Chief transcript")
 			}
 			if item["executionId"] != execution.ExecutionID {
 				continue
@@ -108,7 +108,7 @@ func (c *Coordinator) settleExecution(ctx context.Context, record model.ThreadRe
 			if item["type"] == "tool-operation" {
 				if _, done := item["completedAt"]; !done {
 					item["completedAt"] = max(time.Now().UnixMilli(), current.UpdatedAt)
-					item["result"] = map[string]any{"error": "Moku execution terminated before tool completion"}
+					item["result"] = map[string]any{"error": "Chief execution terminated before tool completion"}
 					item["isError"] = true
 					changed = true
 				}
@@ -270,8 +270,8 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 				subjectID := ""
 				if event.record != nil {
 					subjectID = event.record.ID
-				} else if event.userInput != nil {
-					subjectID = event.userInput.Subject.ID
+				} else if event.userAction != nil {
+					subjectID = event.userAction.Subject.ID
 				}
 				if subjectID == "" {
 					return nil
@@ -288,8 +288,8 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 					return err
 				}
 				var input model.AgentInput
-				if event.userInput != nil {
-					input = userThreadInputNotification(*event.userInput, subject)
+				if event.userAction != nil {
+					input = userThreadActionNotification(*event.userAction, subject)
 				} else {
 					serialized, _ := json.Marshal(publicThread(*event.record))
 					input = textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
@@ -310,7 +310,13 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 	}
 }
 
-func userThreadInputNotification(event plugin.LifecycleEvent, thread model.ThreadRecord) model.AgentInput {
+func userThreadActionNotification(event plugin.LifecycleEvent, thread model.ThreadRecord) model.AgentInput {
+	if event.Type == "thread.interrupt-acknowledged" {
+		// The live terminal callback may already have run. This fact identifies
+		// its exact execution even if the child has since started another.
+		serialized, _ := json.Marshal(map[string]any{"event": event})
+		return textInput("Mokusei user Stop acknowledgement:\n" + string(serialized))
+	}
 	return plugin.MokuUserThreadInputNotification(event, publicThread(thread))
 }
 func publicWorkspace(record model.ThreadRecord) map[string]any {
@@ -352,7 +358,7 @@ func (c *Coordinator) settleStaleTranscript(ctx context.Context, record model.Th
 	}
 	return c.config.UpdateThread(ctx, record.ID, func(current *model.ThreadRecord) error {
 		if !current.Moku {
-			return errors.New("Moku audit owner changed during restart")
+			return errors.New("Chief audit owner changed during restart")
 		}
 		at := max(time.Now().UnixMilli(), current.UpdatedAt)
 		for index, raw := range current.Transcript {
@@ -369,7 +375,7 @@ func (c *Coordinator) settleStaleTranscript(ctx context.Context, record model.Th
 			if item["type"] == "tool-operation" {
 				if _, done := item["completedAt"]; !done {
 					item["completedAt"] = at
-					item["result"] = map[string]any{"error": "Moku execution was interrupted during restart"}
+					item["result"] = map[string]any{"error": "Chief execution was interrupted during restart"}
 					item["isError"] = true
 					changed = true
 				}

@@ -19,7 +19,7 @@ python3 tools/benchmarks/reading_benchmark.py build --tools /private/tmp/reading
 python3 tools/benchmarks/reading_benchmark.py calibrate \
   --tools /private/tmp/reading-tools --output /private/tmp/reading-controls
 python3 tools/benchmarks/reading_benchmark.py run \
-  --app /absolute/path/Mokusei.app --tools /private/tmp/reading-tools \
+  --app /absolute/path/Chief.app --tools /private/tmp/reading-tools \
   --capabilities /private/tmp/reading-controls --output /private/tmp/reading-run
 python3 tools/benchmarks/reading_benchmark.py analyze \
   /private/tmp/reading-run/body-8/00-reading.first-open

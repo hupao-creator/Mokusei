@@ -131,7 +131,7 @@ struct NativePreparedCatalog: Sendable {
             else { thread = try HarnessThread(json: value) }
             next.updateValue(thread, forKey: id)
             if thread.moku == true {
-                guard nextMoku == nil else { throw PluginContractError("Runtime contains more than one Moku thread") }
+                guard nextMoku == nil else { throw PluginContractError("Runtime contains more than one Chief thread") }
                 nextMoku = thread
             }
         }
@@ -181,7 +181,7 @@ struct NativePreparedCatalog: Sendable {
         var nextMoku = previous.moku.flatMap { next[$0.id] }.flatMap { $0.moku == true ? $0 : nil }
         for id in change.threadIDs {
             guard let thread = next[id], thread.moku == true else { continue }
-            guard nextMoku == nil || nextMoku?.id == id else { throw PluginContractError("Runtime contains more than one Moku thread") }
+            guard nextMoku == nil || nextMoku?.id == id else { throw PluginContractError("Runtime contains more than one Chief thread") }
             nextMoku = thread
         }
         for raw in mutation["applicationThreads"]?["removedIds"]?.arrayValue ?? [] {

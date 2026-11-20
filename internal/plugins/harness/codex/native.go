@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 type NativeOptions struct {
@@ -171,7 +171,7 @@ func (n *NativeSession) prepare(ctx context.Context, o NativeOptions) (string, e
 	}
 	if len(o.WritableRoots) > 0 {
 		config["sandbox_workspace_write"] = Map{"writable_roots": o.WritableRoots, "network_access": false, "exclude_tmpdir_env_var": false, "exclude_slash_tmp": false}
-		o.Instructions += "\n\nThis Codex turn runs in a Mokusei-managed detached linked worktree. Standard git add and git commit are available in the current worktree. Keep HEAD detached, do not create or switch branches, and do not operate on the base checkout, another worktree, or shared refs. Return the commit SHA; integration into the base branch is owned by the caller."
+		o.Instructions += "\n\nThis Codex turn runs in a Chief-managed detached linked worktree. Standard git add and git commit are available in the current worktree. Keep HEAD detached, do not create or switch branches, and do not operate on the base checkout, another worktree, or shared refs. Return the commit SHA; integration into the base branch is owned by the caller."
 	}
 	base := present(o.Settings, "model", "serviceTier", "approvalsReviewer", "personality")
 	base["cwd"] = o.Cwd
@@ -865,7 +865,7 @@ func (n *NativeSession) request(method string, p Map, id any) {
 	reviewer := n.settings["approvalsReviewer"]
 	n.mu.Unlock()
 	if !valid {
-		_ = n.server.Reply(id, nil, errors.New("Mokusei 找不到对应的活动 Codex turn"))
+		_ = n.server.Reply(id, nil, errors.New("Chief 找不到对应的活动 Codex turn"))
 		return
 	}
 	interaction, e := ParseInteraction(method, p)

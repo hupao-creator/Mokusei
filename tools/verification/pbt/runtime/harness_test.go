@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	core "github.com/hupao-creator/Chief/internal/core/runtime"
 )
 
 // Extracted from the historical runtime-concurrency fixture. This peer only

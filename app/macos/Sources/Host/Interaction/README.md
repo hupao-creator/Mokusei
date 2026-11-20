@@ -11,9 +11,10 @@ commands or independent copy of page state.
 surface, navigation animation activity, settings save state, filter and
 thread identities, available action names and errors. Overview camera observations
 contain ordinary framing, viewport, motion and pause facts; they expose no
-automatic per-card target. `settings.appearance` and
-`settings.locale` report the saved client preferences even when Settings is closed
-or the Runtime is unavailable. Thread targets are the current Overview projection;
+automatic per-card target. `settings.appearance` reports the effective AppKit
+appearance (`light` or `dark`) and `settings.locale` reports the resolved interface
+language (`zh-CN` or `en-US`), including when Settings is closed or the Runtime is
+unavailable. Thread targets are the current Overview projection;
 stale or filtered-out targets are rejected.
 Available actions are advisory: dispatch checks current state again. A successful
 call means the intent was applied; it does not mean SwiftUI has rendered a frame,
@@ -21,6 +22,13 @@ an animation has ended, or settings persistence has completed. Settings opening
 and return both report `transitioning`; return keeps the Settings route mounted
 until the capsule finishes contracting. `settings.open` is available only on a
 loaded Overview; other routes reject it without navigation.
+
+A Chief Note execution visit exposes `overview.dock.noteExecutionPhase`. It
+moves from `dismissing` while the Note closes to `locating` while Overview
+reveals the card and any Collection page, then to `reading` when the Host
+selects the reader. The field is null outside the visit. Compare the selected
+filter, Collection member and mounted execution with the isolated window
+recording to verify ordering and card travel.
 
 Moku history reports its shared reading-panel motion as `transitioning`, stays
 mounted until Close completes, and uses a separate navigation action from its
@@ -31,7 +39,7 @@ Direct Swift callers can use, on the main actor:
 
 ```swift
 try presentation.performInteraction(.openSettings)
-try presentation.performInteraction(.selectSettingsSection("general"))
+try presentation.performInteraction(.selectSettingsSection("moku"))
 try presentation.performInteraction(.closeSettings)
 let state = presentation.interactionSnapshot()
 ```
@@ -71,8 +79,13 @@ blocked throughout setup and the morph.
 Super Thread collections expose every real member as a `thread.open` target.
 Overview card observations include `members` and the currently displayed member's
 `ref`/`title`; the synthetic collection identity is only a canvas slot. Opening
-uses the same source/return geometry resolution and profile-local reading fact
-as native card activation. Selecting a carousel page is not a reading event.
+by semantic target uses the Overview card as its source. Opening from the mounted
+member grid uses its visible member. Both use the same Report motion and
+profile-local reading fact. Back from a grid member restores the mounted
+`collection` page. That page exposes navigation back and Overview, and
+withholds canvas actions. Close from an Overview entry restores Overview. During the grid-to-reader transition,
+the snapshot reports `transitioning`, withholds reading controls and excludes
+that time from foreground reading. Selecting a carousel page is not a reading event.
 
 
 Individual report observations expose `collectionEligibility`. Collections expose

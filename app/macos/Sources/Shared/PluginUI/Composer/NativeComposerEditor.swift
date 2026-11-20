@@ -4,6 +4,7 @@ import SwiftUI
 /// The native input session owns text and selection while marked text exists.
 struct NativeComposerEditor: NSViewRepresentable {
     @Binding var value: String
+    var draft: NativeComposerDraft?
     @Binding var selection: NSRange?
     @Binding var focused: Bool
     var pasteOwnerID: UUID
@@ -47,7 +48,9 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.isAutomaticQuoteSubstitutionEnabled = false
         editor.isAutomaticDashSubstitutionEnabled = false
         editor.delegate = context.coordinator
-        editor.changed = { [weak coordinator = context.coordinator] in coordinator?.publish(synchronizeText: true) }
+        editor.changed = { [weak coordinator = context.coordinator] edited in
+            coordinator?.publish(synchronizeText: true, nativeEdit: edited)
+        }
         editor.focusChanged = { [weak coordinator = context.coordinator] in coordinator?.schedulePublish() }
         editor.handleKey = { [weak coordinator = context.coordinator] event in coordinator?.handle(event) ?? false }
         scroll.documentView = editor
@@ -58,6 +61,8 @@ struct NativeComposerEditor: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         let coordinator = context.coordinator
+        if coordinator.parent.draft !== draft { coordinator.parent.draft?.editors.remove(coordinator) }
+        draft?.editors.add(coordinator)
         coordinator.parent = self
         guard let editor = scroll.documentView as? ComposerTextView else { return }
         coordinator.updating = true
@@ -145,6 +150,30 @@ struct NativeComposerEditor: NSViewRepresentable {
         private var publishScheduled = false
         init(_ parent: NativeComposerEditor) { self.parent = parent }
 
+        /// Sends and receipts change the editing buffer between AppKit events.
+        /// Install the projection before another native edit can publish stale text.
+        func applyDraft(_ draft: NativeComposerDraft) {
+            guard parent.draft === draft, !parent.unavailable, parent.focusEnabled,
+                  let editor, !editor.hasMarkedText() else { return }
+            let old = editor.string as NSString, value = draft.inputText as NSString
+            guard !editor.string.utf16.elementsEqual(draft.inputText.utf16) else { return }
+            let wasUpdating = updating
+            updating = true
+            var selection = editor.selectedRange()
+            let offset = value.length - old.length
+            if offset >= 0, value.compare(old as String, options: .literal,
+                    range: NSRange(location: offset, length: old.length)) == .orderedSame {
+                selection.location += offset
+            }
+            lastModel = draft.inputText
+            editor.string = draft.inputText
+            editor.setSelectedRange(clamped(selection))
+            // Invalidate native checking/completion for the previous buffer.
+            editor.didChangeText()
+            updating = wasUpdating
+            schedulePublish()
+        }
+
         func clamped(_ range: NSRange) -> NSRange {
             let length = editor?.string.utf16.count ?? 0
             let location = min(max(0, range.location), length)
@@ -166,7 +195,7 @@ struct NativeComposerEditor: NSViewRepresentable {
                 publish()
             }
         }
-        func publish(synchronizeText: Bool = false) {
+        func publish(synchronizeText: Bool = false, nativeEdit: Bool = false) {
             guard let editor, editor.operationDepth == 0 else { return }
             guard !updating else { schedulePublish(); return }
             applySelectionRequest()
@@ -176,13 +205,15 @@ struct NativeComposerEditor: NSViewRepresentable {
             // that arrived before SwiftUI has applied it to the native editor.
             if synchronizeText {
                 lastModel = state.text
-                if !parent.value.utf16.elementsEqual(state.text.utf16) { parent.value = state.text }
+                if (nativeEdit && parent.draft != nil) || !parent.value.utf16.elementsEqual(state.text.utf16) {
+                    parent.value = state.text
+                }
             }
             if parent.selection != state.selection { parent.selection = state.selection }
             if parent.focused != state.focused { parent.focused = state.focused }
             if state != lastState { lastState = state; parent.onState?(state) }
         }
-        func textDidChange(_ notification: Notification) { publish(synchronizeText: true) }
+        func textDidChange(_ notification: Notification) { publish(synchronizeText: true, nativeEdit: true) }
         func textViewDidChangeSelection(_ notification: Notification) { publish() }
         func textDidBeginEditing(_ notification: Notification) { publish() }
         func textDidEndEditing(_ notification: Notification) { publish() }
@@ -211,6 +242,7 @@ struct NativeComposerEditor: NSViewRepresentable {
                 option: flags.contains(.option), control: flags.contains(.control))) == true { return true }
             if key == .enter {
                 guard parent.submitOnReturn || returnModifiers == .command else { return false }
+                guard !event.isARepeat else { return true }
                 parent.onSubmit()
                 return true
             }
@@ -220,21 +252,12 @@ struct NativeComposerEditor: NSViewRepresentable {
     }
 }
 
-@MainActor final class ComposerTextView: NSTextView {
+@MainActor final class ComposerTextView: NativeCaretTextView {
     var pasteOwnerID: UUID?
-    var changed: (() -> Void)?
+    var changed: ((Bool) -> Void)?
     var focusChanged: (() -> Void)?
     var handleKey: ((NSEvent) -> Bool)?
     var pasteAttachments: (([NSItemProvider], NSRange) -> Void)?
-    var emphasizedInsertionPoint = false {
-        didSet {
-            guard emphasizedInsertionPoint != oldValue else { return }
-            if emphasizedInsertionPoint { wantsLayer = true }
-            caret.remove()
-            needsDisplay = true
-        }
-    }
-    private let caret = NativeComposerCaret()
     var composerTextInsets = EdgeInsets() {
         didSet {
             guard composerTextInsets != oldValue else { return }
@@ -251,14 +274,24 @@ struct NativeComposerEditor: NSViewRepresentable {
                        y: origin.y + (composerTextInsets.top - composerTextInsets.bottom) / 2)
     }
     private(set) var operationDepth = 0
+    // AppKit may replace selected text with identical characters. Carry its
+    // edit notification through the outer input call, including IME callbacks.
+    private var editedDuringInput = false
+    override func didChangeText() {
+        if operationDepth > 0 { editedDuringInput = true }
+        super.didChangeText()
+    }
     private func editing(_ operation: () -> Void) {
         operationDepth += 1
         operation()
         operationDepth -= 1
-        if operationDepth == 0 { changed?() }
+        if operationDepth == 0 {
+            let edited = editedDuringInput
+            editedDuringInput = false
+            changed?(edited)
+        }
     }
     override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
-        caret.remove()
         editing { super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange) }
     }
     override func insertText(_ string: Any, replacementRange: NSRange) {
@@ -274,51 +307,6 @@ struct NativeComposerEditor: NSViewRepresentable {
     override func keyDown(with event: NSEvent) {
         if hasMarkedText() || handleKey?(event) != true { super.keyDown(with: event) }
     }
-    override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
-        guard emphasizedInsertionPoint, !hasMarkedText() else {
-            caret.remove()
-            super.drawInsertionPoint(in: rect, color: color, turnedOn: flag)
-            return
-        }
-        guard shouldDrawInsertionPoint, window?.isKeyWindow == true,
-              window?.occlusionState.contains(.visible) == true,
-              selectedRange().length == 0, !isHiddenOrHasHiddenAncestor, rect.intersects(visibleRect) else {
-            caret.remove()
-            return
-        }
-        // Off callbacks also erase the old insertion rectangle during movement.
-        // Keep the breathing layer alive, but only position it on an on callback.
-        if flag { caret.show(at: rect, in: self) }
-    }
-    override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting flag: Bool) {
-        super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: flag)
-        if ranges.count != 1 || selectedRange().length != 0 { caret.remove() }
-    }
-    override func viewDidHide() {
-        super.viewDidHide()
-        caret.remove()
-    }
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        NotificationCenter.default.removeObserver(self, name: NSWindow.didResignKeyNotification, object: nil)
-        NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: nil)
-        caret.remove()
-        if let window {
-            for name in [NSWindow.didResignKeyNotification, NSWindow.didChangeOcclusionStateNotification] {
-                NotificationCenter.default.addObserver(self, selector: #selector(caretWindowChanged), name: name, object: window)
-            }
-        }
-    }
-    @objc private func caretWindowChanged() {
-        if window?.isKeyWindow != true || window?.occlusionState.contains(.visible) != true { caret.remove() }
-    }
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        // CALayer colors are resolved values; refresh even without an edit.
-        caret.remove()
-        needsDisplay = true
-        if emphasizedInsertionPoint { updateInsertionPointStateAndRestartTimer(true) }
-    }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted { focusChanged?() }
@@ -326,7 +314,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     }
     override func resignFirstResponder() -> Bool {
         let accepted = super.resignFirstResponder()
-        if accepted { caret.remove(); focusChanged?() }
+        if accepted { focusChanged?() }
         return accepted
     }
 }

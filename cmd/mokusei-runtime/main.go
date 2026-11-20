@@ -14,12 +14,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/composition"
-	"github.com/hupao-creator/Mokusei/internal/platform/daemon"
-	"github.com/hupao-creator/Mokusei/internal/platform/environment"
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
-	"github.com/hupao-creator/Mokusei/internal/platform/transport"
-	"github.com/hupao-creator/Mokusei/internal/plugins/harness/claude"
+	"github.com/hupao-creator/Chief/internal/core/composition"
+	"github.com/hupao-creator/Chief/internal/platform/daemon"
+	"github.com/hupao-creator/Chief/internal/platform/environment"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/transport"
+	"github.com/hupao-creator/Chief/internal/plugins/harness/claude"
 )
 
 const usage = "Usage: mokusei-runtime <start|status|stop|serve> [--data-dir <directory>]"

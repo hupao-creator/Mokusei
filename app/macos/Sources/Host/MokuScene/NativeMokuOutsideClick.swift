@@ -210,7 +210,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
             // still belongs to the composer. Let that surface handle its click
             // (including its own outside dismissal) before retiring the input.
             preservesOwnedInteractions && (!trackingMenus.isEmpty || window.attachedSheet != nil
-                || NSApp.modalWindow != nil || (window.childWindows ?? []).contains { $0.isVisible })
+                || NSApp.modalWindow != nil || (window.childWindows ?? []).contains { $0.isVisible && $0.canBecomeKey })
         }
 
         private func clickOutsideWindow() {

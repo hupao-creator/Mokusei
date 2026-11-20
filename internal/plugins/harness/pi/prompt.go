@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -52,7 +52,7 @@ func (a *Adapter) Complete(ctx context.Context, request plugin.PromptRequest) (p
 	if err = assertRuntimeSettings(ctx, rpc, settings, false); err != nil {
 		return plugin.PromptResult{}, err
 	}
-	pieces := []string{"Complete this isolated Mokusei request. Messages follow as JSON data:"}
+	pieces := []string{"Complete this isolated Chief request. Messages follow as JSON data:"}
 	for _, message := range request.Messages {
 		data, err := json.Marshal(message)
 		if err != nil {

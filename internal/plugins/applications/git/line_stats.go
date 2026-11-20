@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 )
 
 // Statistics never load patches or run text conversion. The separate budget

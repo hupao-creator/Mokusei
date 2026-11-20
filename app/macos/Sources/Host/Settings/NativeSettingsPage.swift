@@ -14,12 +14,26 @@ enum NativeSettingsHeaderLayout {
     static let topInset: CGFloat = 16
     static let bottomInset: CGFloat = 12
     static let rowHeight: CGFloat = 42
+    static let height = topInset + rowHeight + bottomInset
     /// Placeholder the header reserves at the leading edge, left of the tabs.
     static let faceSlot = CGSize(width: 30, height: 30)
     /// Centre of that column in panel-local points.
     static var faceCenter: CGPoint {
         CGPoint(x: horizontalInset + faceSlot.width / 2, y: topInset + rowHeight / 2)
     }
+}
+
+struct NativeSettingsHeaderScrollKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+enum NativeSettingsContentLayout {
+    static let formWidth: CGFloat = 560
+    static let illustrationWidth: CGFloat = 640
+    static let horizontalInset: CGFloat = 30
 }
 
 /// The scroll document reports its natural height, independent of the clipped
@@ -33,60 +47,43 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
 
 @MainActor public struct NativeSettingsPage: View {
     public let model: NativeSettingsModel
-    public let preferences: DesktopPreferences
+    public let locale: DesktopLocale
     public let harnesses: [AnyHarnessPlugin]
     public let applicationSections: [NativeApplicationSettingsSection]
     public let harnessSettings: (NativeHarnessSettingsRequest) -> AnyView
-    public let onSetAppearance: (DesktopAppearance) throws -> Void
-    public let onSetLocale: (DesktopLocale) throws -> Void
     public let onClose: (CGRect) -> Void
     public var mokuController: MokuCharacterController?
     public var onCoordinatorFrame: (CGRect?, Bool) -> Void
     @State private var navigation: NativeSettingsNavigation
-    @State private var preferencesErrors: [String: String] = [:]
-    @State private var activeAgent: String?
-    @State private var pinnedAgent = false
     @FocusState private var focusedTab: String?
     @FocusState private var focusedBack: Bool
-    @FocusState private var focusedAgent: String?
-    @State private var agentRegion = SettingsDetailRegion()
-    @State private var agentErrorHeight: CGFloat = 130
-    @State private var agentDetailHeight: CGFloat = 318
-    @State private var restoringAgentFocus = false
     @State private var settingsContentHeight: CGFloat = 0
-    @State private var agentRowBottom: CGFloat = 0
+    @State private var headerScroll: CGFloat = 0
     @State private var hoveredTab: String?
     @State private var keyboardNavigation = false
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
     @State private var animationVisits = NativeSettingsAnimationVisits()
     @Namespace private var tabSelection
 
-    public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, preferences: DesktopPreferences, harnesses: [AnyHarnessPlugin],
+    public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, locale: DesktopLocale, harnesses: [AnyHarnessPlugin],
                 applicationSections: [NativeApplicationSettingsSection] = [],
                 harnessSettings: @escaping (NativeHarnessSettingsRequest) -> AnyView,
-                onSetAppearance: @escaping (DesktopAppearance) throws -> Void,
-                onSetLocale: @escaping (DesktopLocale) throws -> Void,
                 onClose: @escaping (CGRect) -> Void,
                 mokuController: MokuCharacterController? = nil,
                 onCoordinatorFrame: @escaping (CGRect?, Bool) -> Void = { _, _ in }) {
         self.model = model
-        _navigation = State(initialValue: navigation ?? NativeSettingsNavigation(section: model.runtimeAvailable ? "moku" : "general"))
-        self.preferences = preferences; self.harnesses = harnesses
+        _navigation = State(initialValue: navigation ?? NativeSettingsNavigation())
+        self.locale = locale; self.harnesses = harnesses; self.onClose = onClose
         self.applicationSections = applicationSections; self.harnessSettings = harnessSettings
-        self.onSetAppearance = onSetAppearance; self.onSetLocale = onSetLocale; self.onClose = onClose
         self.mokuController = mokuController; self.onCoordinatorFrame = onCoordinatorFrame
     }
 
-    private var locale: DesktopLocale { preferences.locale }
     private var activeApplications: [NativeApplicationSettingsSection] {
         applicationSections.filter { definition in sections.contains(definition.id) }
     }
     private var sections: [String] { NativeSettingsNavigation.sections(model: model, applications: applicationSections) }
-    private var activeSection: String { sections.contains(navigation.section) ? navigation.section : "general" }
+    private var activeSection: String { navigation.activeSection(in: sections) }
     private var busy: Bool { model.clearing }
-    private var detailOverflow: CGFloat {
-        activeAgent == nil ? 0 : max(0, agentRowBottom + 10 + min(350, agentDetailHeight + 32) - settingsContentHeight)
-    }
 
     public var body: some View {
         GeometryReader { geometry in
@@ -96,79 +93,65 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 ScrollViewReader { reader in
                     NativeScrollView {
                         panel(width: geometry.size.width).frame(minHeight: 360).id("settings-shell-top")
-                    }.onChange(of: activeSection) { _, _ in reader.scrollTo("settings-shell-top", anchor: .top) }
+                    }
+                    .onScrollGeometryChange(for: CGFloat.self) { scroll in
+                        min(NativeSettingsHeaderLayout.height, max(0, scroll.contentOffset.y + scroll.contentInsets.top))
+                    } action: { _, offset in headerScroll = offset }
+                    .preference(key: NativeSettingsHeaderScrollKey.self, value: headerScroll)
+                    .onChange(of: activeSection) { _, _ in reader.scrollTo("settings-shell-top", anchor: .top) }
+                    .onDisappear { headerScroll = 0 }
                 }.environment(\.nativeSettingsViewportWidth, geometry.size.width)
             } else {
                 panel(width: geometry.size.width)
                     .environment(\.nativeSettingsViewportWidth, geometry.size.width)
             }
         }.preference(key: NativeSettingsPreferredHeightKey.self,
-                      value: settingsContentHeight + detailOverflow
-                        + NativeSettingsHeaderLayout.topInset + NativeSettingsHeaderLayout.rowHeight
-                        + NativeSettingsHeaderLayout.bottomInset + 18 + 36)
+                      value: settingsContentHeight
+                        + NativeSettingsHeaderLayout.height + 18 + 36)
             .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
-            // Settings scopes its dark appearance without recoloring the workspace.
-            .environment(\.colorScheme, .dark)
             .environment(\.locale, Locale(identifier: locale.rawValue))
             .environment(\.nativeSettingsInteractions, navigation.interactions)
             .environment(\.nativeSettingsInteractionContext, navigation.interactionContext(section: activeSection))
             .environment(\.nativeSettingsInteractionRefresh, navigation.interactions.refresh)
             .nativeSettingsTextEditing(onComposition: { model.draft.composing = $0 },
                                        onBlur: { model.draft.flushText() })
-            .background(NativeSettingsEscapeHandler {
-                if activeAgent != nil { dismissAgent(returnFocus: true) }
-                else { requestClose() }
-            })
+            .background(NativeSettingsEscapeHandler { requestClose() })
             .background(SettingsNavigationInputObserver { keyboardNavigation = $0 })
             .onAppear {
                 model.draft.beginPageEditing()
                 navigation.mounted = true
                 focusedBack = true
-                model.confirmClear = false; model.operationError = nil
-                agentRegion.dismiss = { dismissAgent() }
+                model.operationError = nil
             }
             .onDisappear {
                 navigation.mounted = false
-                agentRegion.stop(); mokuMotion.stop(); onCoordinatorFrame(nil, true)
+                mokuMotion.stop(); onCoordinatorFrame(nil, true)
                 animationVisits.reset()
             }
             .onChange(of: sections, initial: true) { _, _ in
                 navigation.section = activeSection
             }
-            .onChange(of: activeAgent) { _, active in
-                agentRegion.setActive(active != nil)
-                agentDetailHeight = 318
-            }
-            .onChange(of: pinnedAgent) { _, pinned in agentRegion.pinned = pinned }
-            .onChange(of: focusedAgent) { _, id in
-                agentRegion.iconFocused = id != nil
-                if restoringAgentFocus { restoringAgentFocus = false }
-                else if let id { activeAgent = id }
-                else { agentRegion.dismissAfterFocusLeave() }
-            }
             .onChange(of: model.runtimeAvailable) { _, available in
-                if !available { navigation.section = "general"; dismissAgent() }
-                else { Task { await model.refreshInstallations() } }
+                if available { Task { await model.refreshInstallations() } }
             }
             .onChange(of: navigation.section) { _, _ in
-                model.confirmClear = false; activeAgent = nil; pinnedAgent = false
                 if navigation.section != "moku" { onCoordinatorFrame(nil, true) }
             }
-            .onExitCommand {
-                if activeAgent != nil { dismissAgent(returnFocus: true) }
-                else { requestClose() }
-            }
+            .onExitCommand { requestClose() }
     }
 
     private func panel(width: CGFloat) -> some View {
-        VStack(spacing: 0) {
+        let illustrationWidth = min(NativeSettingsContentLayout.illustrationWidth,
+                                    max(0, width - 2 * NativeSettingsContentLayout.horizontalInset))
+        return VStack(spacing: 0) {
             header
             ScrollViewReader { reader in
                 NativeScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
+                    VStack(spacing: 0) {
                         if !model.runtimeAvailable {
-                            SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
+                            SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。", "Connect to the runtime service to edit Agent configuration."))
+                                .frame(maxWidth: NativeSettingsContentLayout.formWidth, alignment: .leading)
                         }
                         if let error = model.draft.error ?? model.operationError {
                             SettingsNotice(localizedError(error), error: true) {
@@ -182,20 +165,18 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                                         }
                                     }.buttonStyle(.bordered).disabled(busy || !model.runtimeAvailable)
                                 }
-                            }.id("notice")
+                            }.frame(maxWidth: NativeSettingsContentLayout.formWidth, alignment: .leading).id("notice")
                         }
-                        sectionBody.disabled(busy)
+                        sectionBody(illustrationWidth: illustrationWidth).disabled(busy)
                             .environment(\.nativeSettingsFormPage, true)
-                    }.background(GeometryReader { content in
+                    }.frame(width: illustrationWidth)
+                    .background(GeometryReader { content in
                         Color.clear.onAppear { settingsContentHeight = content.size.height }
                             .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
-                    }).coordinateSpace(name: "settings-form")
-                        .padding(.bottom, detailOverflow)
-                        .frame(maxWidth: 560, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
-                        .padding(.horizontal, 30).padding(.top, 18).padding(.bottom, 36)
-                        // SwiftUI otherwise subtracts a scroller width only for
-                        // overflowing forms, shifting the centered title. The
-                        // horizontal padding keeps controls clear of the gutter.
+                    })
+                        .padding(.top, 18).padding(.bottom, 36)
+                        // Overflow must not shift the centered form. Horizontal
+                        // padding keeps controls clear of the native gutter.
                         .frame(width: width)
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                         // Include the top inset in the scroll target. An anchor
@@ -290,26 +271,14 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
         }
     }
 
-    @ViewBuilder private var sectionBody: some View {
-        if activeSection == "general" {
-            VStack(spacing: 0) {
-                Text(locale.text("通用", "General")).font(.system(size: 25, weight: .medium)).tracking(-0.5)
-                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
-                Text(locale.text("界面偏好与本地 Agent", "Interface preferences and local Agents"))
-                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .font(.system(size: 13)).foregroundStyle(.secondary).padding(.bottom, 48)
-                general
-            }
-        } else if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
-            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale,
+    @ViewBuilder private func sectionBody(illustrationWidth: CGFloat) -> some View {
+        if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
+            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale, showsHeading: false, illustrationWidth: illustrationWidth,
                                          visitPlaybackStarted: role == .tag ? $animationVisits.tag : role == .report ? $animationVisits.report : nil) {
                 if role == .moku {
                     NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,
                         harnessSettings: harnessSettings, controller: mokuController, onCoordinatorFrame: onCoordinatorFrame,
-                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true)
+                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true, illustrationWidth: illustrationWidth)
                 } else if let application = activeApplications.first(where: { $0.id == activeSection }) {
                     applicationContent(application)
                 }
@@ -317,6 +286,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 .id(activeSection + model.draft.editorDrafts.generation.uuidString)
         } else if let application = activeApplications.first(where: { $0.id == activeSection }), model.runtimeAvailable {
             applicationContent(application)
+                .frame(maxWidth: NativeSettingsContentLayout.formWidth, alignment: .leading)
         }
     }
 
@@ -326,179 +296,13 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             .environment(\.nativeSettingsInteractionScope, application.id)
     }
 
-    private var general: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsGroup(title: locale.text("界面偏好", "Interface preferences")) {
-                ForEach(["appearance", "locale"], id: \.self) { field in
-                    if let error = preferencesErrors[field] { SettingsNotice(error, error: true) }
-                }
-                SettingsRow(label: locale.text("外观", "Appearance")) {
-                    SettingsSelect(label: locale.text("外观", "Appearance"), selection: Binding(get: { preferences.appearance }, set: { value in
-                        do { try onSetAppearance(value); preferencesErrors.removeValue(forKey: "appearance") } catch { preferencesErrors["appearance"] = error.localizedDescription }
-                    }), options: [
-                        .init(value: .system, title: locale.text("跟随系统", "System")),
-                        .init(value: .light, title: locale.text("浅色", "Light")),
-                        .init(value: .dark, title: locale.text("深色", "Dark"))
-                    ]).nativeSettingsControl("appearance")
-                }
-                SettingsRow(label: locale.text("界面语言", "Interface language")) {
-                    SettingsSelect(label: locale.text("界面语言", "Interface language"), selection: Binding(get: { preferences.locale }, set: { value in
-                        do { try onSetLocale(value); preferencesErrors.removeValue(forKey: "locale") } catch { preferencesErrors["locale"] = error.localizedDescription }
-                    }), options: [
-                        .init(value: .chinese, title: locale.text("简体中文", "Simplified Chinese")),
-                        .init(value: .english, title: locale.text("英语", "English"))
-                    ]).nativeSettingsControl("locale")
-                }
-            }
-            SettingsGroup(title: locale.text("本地 Agent", "Local Agents")) {
-                if model.runtimeAvailable { localAgents }
-            }.disabled(!model.runtimeAvailable).zIndex(2)
-            SettingsGroup(title: locale.text("清空历史数据", "Clear history"), description: locale.text("停止正在运行的任务，并删除本机保存的 thread、报告和 Moku session。", "Stop running tasks and delete threads, reports, and Moku sessions saved on this machine.")) {
-                HStack(spacing: 8) {
-                    if model.confirmClear && !model.clearing {
-                        Button(locale.text("取消清空", "Cancel")) { model.confirmClear = false }.buttonStyle(.bordered)
-                    }
-                    Button(role: .destructive) { Task { await model.requestClear() } } label: {
-                        HStack(spacing: 6) {
-                            if model.clearing { SettingsSpinner(size: 14) } else { NativeIcon(name: "Trash2", size: 14, strokeWidth: 2) }
-                            Text(model.clearing ? locale.text("清空中…", "Clearing…") : model.confirmClear ? locale.text("确认永久删除", "Confirm permanent deletion") : locale.text("清空全部历史数据", "Clear all history"))
-                        }
-                    }.buttonStyle(.bordered)
-                }.padding(.bottom, 12).disabled(!model.runtimeAvailable || model.clearing || model.draft.status == .saving || model.draft.status == .pending)
-            }
-        }
-    }
-
-    private var localAgents: some View {
-        HStack(spacing: 16) {
-            ForEach(harnesses, id: \.descriptor.id) { harness in
-                let id = harness.descriptor.id.string
-                let state = model.installationState(id)
-                NativeHarnessSettingsIcon(harness: harness, state: state, showStatus: true) {
-                    activateAgent(id, keyboard: false)
-                }.help("\(harness.descriptor.displayName.string) · \(statusText(id))")
-                    .accessibilityLabel("\(harness.descriptor.displayName.string) · \(statusText(id))")
-                    .accessibilityValue(activeAgent == id ? locale.text("已展开", "Expanded") : locale.text("已折叠", "Collapsed"))
-                    .focused($focusedAgent, equals: id)
-                    .onHover { if $0 && !pinnedAgent { activeAgent = id } }
-                    .onKeyPress(keys: [.return, .space]) { _ in activateAgent(id, keyboard: true); return .handled }
-            }
-            Spacer(minLength: 0)
-        }.padding(.bottom, 8)
-            .background(SettingsDetailBoundary(region: agentRegion))
-            .background(GeometryReader { row in
-                Color.clear.onAppear { agentRowBottom = row.frame(in: .named("settings-form")).maxY }
-                    .onChange(of: row.frame(in: .named("settings-form")).maxY) { _, bottom in agentRowBottom = bottom }
-            })
-            .onHover { if !$0 { agentRegion.dismissAfterPointerLeave() } }
-            .onChange(of: harnesses.map { "\($0.descriptor.displayName.string): \(statusText($0.descriptor.id.string))" }.joined(separator: "; ")) { _, status in
-                NativeSettingsAccessibility.announce(status)
-            }
-            .overlay(alignment: .topLeading) {
-                GeometryReader { geometry in
-                    if let harness = harnesses.first(where: { $0.descriptor.id.string == activeAgent }) {
-                        agentDetail(harness).frame(width: min(380, geometry.size.width))
-                            .padding(.top, 10)
-                            .background(SettingsDetailBoundary(region: agentRegion))
-                            .onHover { if !$0 { agentRegion.dismissAfterPointerLeave() } }
-                            .offset(y: geometry.size.height)
-                            .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: -3)), removal: .identity))
-                    }
-                }
-            }
-            .animation(.easeOut(duration: 0.14), value: activeAgent != nil)
-    }
-
-    private func activateAgent(_ id: String, keyboard: Bool) {
-        let state = model.installationState(id)
-        guard state != .checking && state != .installing else { return }
-        if state == .missing || model.installationErrors[id] != nil {
-            activeAgent = id; pinnedAgent = true
-            Task { await model.install(id) }
-        } else if keyboard {
-            activeAgent = id; pinnedAgent = true
-            agentRegion.focusFirstInput()
-        } else {
-            activeAgent = activeAgent == id && pinnedAgent ? nil : id
-            pinnedAgent = activeAgent != nil
-        }
-    }
-
-    private func dismissAgent(returnFocus: Bool = false) {
-        let previous = activeAgent
-        if returnFocus && focusedAgent != previous { restoringAgentFocus = true; focusedAgent = previous }
-        activeAgent = nil; pinnedAgent = false
-    }
-
-    private func agentDetail(_ harness: AnyHarnessPlugin) -> some View {
-        let id = harness.descriptor.id.string
-        let state = model.installationState(id)
-        return NativeScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 14) {
-                    Text(harness.descriptor.displayName.string).font(.system(size: 13, weight: .semibold))
-                    Spacer(minLength: 0)
-                    Text(statusText(id)).font(.system(size: 11)).foregroundStyle(state == .installed ? NativeAppKitPalette.pair(0x458163, 0x8fc7a6).swiftUI : NativeAppKitPalette.settings.muted.swiftUI)
-                }
-                if state == .missing {
-                    Text(locale.text("点击图标即可安装，完成后自动检测。", "Click the icon to install. Detection refreshes automatically."))
-                        .modifier(SettingsAgentParagraph()).padding(.top, 10)
-                }
-                if state == .installing {
-                    Text(locale.text("正在下载并安装，你可以继续使用其他功能。", "Downloading and installing. You can continue using other features."))
-                        .modifier(SettingsAgentParagraph()).padding(.top, 10)
-                }
-                if let error = model.installationErrors[id] ?? (state == .error ? model.installations[id]?.message : nil) {
-                    NativeScrollView {
-                        Text(verbatim: error).modifier(SettingsAgentParagraph(error: true))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(GeometryReader { message in
-                                Color.clear.onAppear { agentErrorHeight = message.size.height }
-                                    .onChange(of: message.size.height) { _, height in agentErrorHeight = height }
-                            })
-                    }.frame(height: min(130, agentErrorHeight)).padding(.top, 10)
-                        .onAppear { NativeSettingsAccessibility.announce(error, urgent: true) }
-                        .onChange(of: error) { _, value in NativeSettingsAccessibility.announce(value, urgent: true) }
-                }
-                if state == .installed || (state == .error && model.installationErrors[id] == nil) {
-                    harnessSettings(NativeHarnessSettingsRequest(harnessID: harness.descriptor.id, section: .cli,
-                        executionSnapshot: false, scopeID: nil, refreshSequence: model.detailRefreshSequences[id] ?? 0,
-                        savedValue: model.savedSettings["harnesses"]?[id] ?? .null,
-                        value: model.harnessValueBinding(id, execution: false)))
-                }
-            }.font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
-                .background(GeometryReader { content in
-                    Color.clear.onAppear { agentDetailHeight = content.size.height }
-                        .onChange(of: content.size.height) { _, height in agentDetailHeight = height }
-                })
-        }.frame(height: min(318, agentDetailHeight)).padding(16)
-            .environment(\.nativeSettingsLocalAgentDetail, true)
-            .background(NativeAppKitPalette.settings.hintSurface.swiftUI, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(NativeAppKitPalette.settings.hintBorder.swiftUI))
-            .shadow(color: NativeAppKitPalette.color(0x26384e, alpha: 20 / 255).swiftUI, radius: 14, y: 8)
-            .shadow(color: NativeAppKitPalette.color(0x26384e, alpha: 8 / 255).swiftUI, radius: 3, y: 2)
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(harness.descriptor.displayName.string)
-    }
-
     private func requestClose() {
         navigation.requestClose(model: model, onClose: onClose)
     }
     private func sectionLabel(_ id: String) -> String {
-        switch id {
-        case "general": locale.text("通用", "General")
-        case "moku": "Moku"
-        default: NativeSettingsRole(section: id)?.tabLabel ?? activeApplications.first(where: { $0.id == id }).map { locale.text($0.label, $0.englishLabel) } ?? id
-        }
-    }
-    private func statusText(_ id: String) -> String {
-        switch model.installationState(id) {
-        case .checking: locale.text("正在检测…", "Checking…")
-        case .installed: locale.text("已安装", "Installed")
-        case .missing: locale.text("未安装 · 点击安装", "Not installed · Click to install")
-        case .installing: locale.text("正在安装…", "Installing…")
-        case .error: model.installationErrors[id] != nil ? locale.text("安装失败 · 点击重试", "Installation failed · Click to retry") : locale.text("检测失败 · 将自动重试", "Detection failed · Retrying automatically")
-        }
+        NativeSettingsRole(section: id)?.tabLabel
+            ?? activeApplications.first(where: { $0.id == id }).map { locale.text($0.label, $0.englishLabel) }
+            ?? id
     }
     private func navigateTab(from id: String, key: KeyEquivalent) {
         guard let index = sections.firstIndex(of: id), !sections.isEmpty else { return }

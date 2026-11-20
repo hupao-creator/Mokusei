@@ -24,7 +24,7 @@ public enum NativePluginLocalization {
         "前 {count} 轮对话": "{count} previous turns", "返回当前会话": "Back to current conversation",
         "显示用户消息": "Show user messages", "隐藏用户消息": "Hide user messages",
         "显示执行过程": "Show execution details", "收起执行过程": "Hide execution details",
-        "历史执行不可用": "Historical execution unavailable", "无法找到报告关联的历史执行。": "The linked historical execution could not be found.",
+        "历史执行不可用": "Historical execution unavailable", "无法找到此 Super Thread 关联的历史执行。": "The linked historical execution could not be found.",
         "这轮对话已不可用。": "This conversation turn is no longer available.", "正在读取": "Loading",
         "消息显示": "Message display", "消息时间线": "Message timeline", "已加载消息": "Loaded messages",
         "你的补充": "Your follow-up", "附件或批注": "Attachments or annotations",

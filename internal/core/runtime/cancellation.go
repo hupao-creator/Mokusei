@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 // This gate is separate from the command queue: a stop must be able to cancel
@@ -14,13 +14,14 @@ import (
 // their own event locks. The cancelling flag fences new admissions until native
 // interruption has returned.
 type threadCancellation struct {
-	mu           sync.Mutex
-	users        int // protected by Runtime.mu, includes waiters and outstanding claims
-	id           string
-	executionID  string
-	cancelling   bool
-	closedTarget string
-	claims       map[*sendClaim]struct{}
+	mu                  sync.Mutex
+	users               int // protected by Runtime.mu, includes waiters and outstanding claims
+	id                  string
+	executionID         string
+	cancelling          bool
+	closedTarget        string
+	userStopExecutionID string
+	claims              map[*sendClaim]struct{}
 }
 type sendClaim struct {
 	runtime  *Runtime
@@ -190,7 +191,7 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 	if mokuTool {
 		if thread.Moku || thread.MokuHistory {
 			state.mu.Unlock()
-			return model.CancellationResult{}, errors.New("Moku tools may only target ordinary Agent Threads")
+			return model.CancellationResult{}, errors.New("Chief tools may only target ordinary Agent Threads")
 		}
 		expected = thread.CancellationID
 	}
@@ -213,6 +214,9 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 			executionID = state.executionID
 		}
 	}
+	if !mokuTool {
+		state.userStopExecutionID = executionID
+	}
 	state.cancelling = true
 	state.closedTarget = expected
 	for claim := range state.claims {
@@ -222,7 +226,12 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 	owner := r.handles[id]
 	r.mu.Unlock()
 	state.mu.Unlock()
-	defer func() { state.mu.Lock(); state.cancelling = false; state.mu.Unlock() }()
+	defer func() {
+		state.mu.Lock()
+		state.userStopExecutionID = ""
+		state.cancelling = false
+		state.mu.Unlock()
+	}()
 	if owner == nil && (active || thread.Observation.BackgroundWork != nil) {
 		lock := r.threadLock(id)
 		lock.Lock()

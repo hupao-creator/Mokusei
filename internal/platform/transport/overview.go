@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 // Overview presentation facts belong to connected clients, never the persisted

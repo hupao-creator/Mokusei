@@ -1,39 +1,39 @@
-# Getting started with Mokusei
+# Get started with Chief
 
-## Install Mokusei Alpha
+## Install Chief Alpha
 
 You'll need a Mac with Apple silicon running macOS 26 or later.
 
-1. Get the Mokusei Alpha disk image from your inviter and confirm its source and version.
-2. Open the disk image and drag **Mokusei Alpha.app** into **Applications**. Eject the disk image, then open Mokusei Alpha from **Applications**.
-3. If macOS says it can't verify the developer or check the app for malicious software, confirm that you trust the copy your inviter supplied. In **System Settings → Privacy & Security**, find the message for Mokusei Alpha, click **Open Anyway**, and follow the prompts. If macOS reports malware or a damaged app, or the app still won't open, send the full message and version to your inviter.
+1. Get the Chief Alpha disk image and `READ-ME-FIRST.txt` from your inviter. Confirm the source and version.
+2. Open the disk image, drag **Chief Alpha.app** into **Applications**, and eject the disk image. Open Chief Alpha from **Applications**.
+3. If macOS says it can't verify the developer or check the app for malicious software, confirm that you trust this copy. In **System Settings → Privacy & Security**, find the message for Chief Alpha and click **Open Anyway**. If macOS reports malware or damage, or the app still won't open, send the full message and version to your inviter.
 
-## Set up an agent
+## Connect an agent
 
-On a fresh install, Mokusei opens in Simplified Chinese. This guide uses the English interface labels. You can change the app's language in Settings after setup.
+Chief opens in Simplified Chinese if Chinese is first in your Mac's preferred languages. For every other primary language, Chief opens in English. This guide uses the English labels. [Change appearance or language on your Mac](settings.md#change-appearance-or-language-on-your-mac)
 
-Mokusei works with Codex, Claude, Pi Agent, and OpenCode. Choose at least one, follow its installation instructions on this Mac, and sign in or set up a model as needed. Each service determines which models you can use and what they cost.
+Chief checks for Codex, Claude, Pi Agent, and OpenCode on your Mac. To set up a missing agent, click **Install** on the first setup page to open its installation instructions. Follow those instructions and sign in or set up a model as needed. Model access and costs depend on the service you use.
 
-When you first open Mokusei, it checks for each agent. If an agent is missing, click **Install** to open its instructions. Once you've set it up, return to Mokusei and click **Check again** when that button is available. If Mokusei couldn't load an agent's settings, click **Retry** next to the error. You can click **Continue** as soon as one agent that can serve as Moku is ready. If other agents are still being checked, you can set up the ones that are ready and come back to see the rest.
+Return to Chief. Click **Check again** if it appears, or **Retry** next to an agent that couldn't load. You can click **Continue** once an agent that can serve as Chief is ready. Use **Back** if you want to return to the first page and check any other agents.
 
 ## Choose who does what
 
-1. On the **Moku** page, choose the agent that will talk to you and coordinate your work. Then choose at least one agent Moku can assign tasks to. Use the options on the page to finish choosing a model.
-2. The next two pages set up the tag and report agents. Each offers **Agent off**, **Use Moku**, and **Configure separately**.
-3. Click **Start using Moku**. Once your settings are saved, Moku's input box appears in the workspace. If you quit partway through setup, Mokusei opens to the agent check when you return and keeps the choices you've already saved.
+1. On the **Chief** page, choose the agent that will talk to you and coordinate your work. Below it, choose at least one agent it may assign tasks to. Complete any required model choices and click **Continue**.
+2. On the next two pages, choose how to run **Tag Agent** and **Super Thread Agent**. For either role, choose **Agent off**, **Use Chief**, or **Configure separately**. [What each option does](settings.md#set-up-tag-agent-and-super-thread-agent)
+3. Click **Start using Chief**. The setup panel shrinks into Chief's input box. If you keep the window in view and Reduce Motion off, Chief's eyes blink once as the box appears. You can start typing as soon as setup closes.
 
-If a setup page couldn't load or save your settings, click **Retry** next to the error. Fill in any missing choices, such as a model, before clicking **Continue** or **Start using Moku**. You can change these choices later. [Settings](settings.md)
+If you see a load or save error, use **Retry** next to it. If you quit partway through setup, Chief returns to the agent check and keeps the choices you've already saved.
 
 ## Send your first request
 
-In the **Ask Moku…** box, describe what you want done and what you'd like to get back. If the work belongs to a project folder, type `@` and choose the folder before sending.
+In **Type a message…**, describe what you want done and what you'd like to get back. If your project folder appears when you type `@`, select it before sending. If it doesn't appear, include the folder's full path in your message.
 
-Moku can answer you directly or create an agent conversation to handle the task. Once the conversation is created, its card appears in **Overview** and Moku moves to the bottom of the window. Click the card to check progress, read the result, or respond to a request from the agent. [Working with Moku](working-with-moku.md)
+Chief can reply directly or assign the work to an agent. When it creates a task conversation, click its card in **Overview** to check progress, read the result, or respond to a request. [Working with Chief](working-with-moku.md)
 
-## Update Mokusei Alpha
+## Update Chief Alpha
 
-Alpha updates are manual. Quit Mokusei Alpha and back up its app data as described in the accompanying `READ-ME-FIRST.txt`. Then drag the new **Mokusei Alpha.app** into **Applications** and replace the existing copy.
+Quit Chief Alpha before updating. Back up `~/Library/Application Support/Mokusei Alpha`, then replace **Chief Alpha.app** in **Applications** with the copy from the new disk image. If the installed app is named **Mokusei Alpha.app**, move it out of **Applications** before installing Chief Alpha.
 
-App data may be incompatible between Alpha versions. macOS may also ask for file access or other permissions again after an update. Alpha keeps its own app data and uses the project folders and agent sign-ins you already have on this Mac.
+Alpha updates are manual. App data may be incompatible between versions, and macOS may ask for permissions again. Alpha has its own app data and uses the project folders and agent sign-ins you already have on this Mac.
 
 [Back to the product guide](README.md)

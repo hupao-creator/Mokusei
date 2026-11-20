@@ -170,7 +170,7 @@ private struct NativeApplicationConversationWorkspace: View {
                     .disabled(!host.isHarnessAvailable(thread.harnessID))
             } else if conversation != nil {
                 VStack(alignment: .leading, spacing: 8) {
-                    Button(host.workspace.preferences.locale.text("打开会话", "Open conversation")) {
+                    Button(host.workspace.locale.text("打开会话", "Open conversation")) {
                         Task {
                             initializing = true; failure = nil
                             defer { initializing = false }
@@ -229,6 +229,7 @@ private struct NativeApplicationHTMLCapabilityView: View {
 private struct NativeApplicationReferencedExecution: View {
     let host: NativeApplicationHost
     let reference: ApplicationExecutionRef
+    @Environment(\.nativeReportSidecards) private var sidecards
     @State private var catalogRevision = 0
     @State private var lifetime = PluginLifetime()
     @State private var unsubscribe: (() -> Void)?
@@ -236,19 +237,42 @@ private struct NativeApplicationReferencedExecution: View {
         Group {
             let _ = catalogRevision
             if let thread = host.workspace.catalog.thread(reference.thread.threadID), thread.moku != true, !thread.mokuHistory {
-                NativeHarnessThreadView(host: host.workspace.harnessHost,
-                    input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))
-                    .environment(\.threadRelatedExecution, true)
-                    .environment(\.nativeReadingNavigation, nil)
+                if let sidecards {
+                    reportConversation(thread, sidecards: sidecards)
+                } else {
+                    NativeHarnessThreadView(host: host.workspace.harnessHost, input: HarnessThreadInput(thread: thread),
+                        presentation: .execution(reference.executionID))
+                }
             } else {
-                Text(host.workspace.preferences.locale.text("关联执行不可用", "Related execution unavailable"))
+                Text(host.workspace.locale.text("关联执行不可用", "Related execution unavailable"))
                     .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .nativeReadingContentReady()
             }
-        }.id(reference)
+        }
+            .environment(\.threadRelatedExecution, true)
+            .environment(\.nativeReadingNavigation, nil)
+            .id(reference)
             .onAppear { subscribeReference() }
             .onChange(of: reference) { _, _ in subscribeReference() }
             .onDisappear { unsubscribe?(); unsubscribe = nil }
+    }
+
+    private func reportConversation(_ thread: HarnessThread, sidecards: NativeReportSidecardPresentation) -> some View {
+        let visit = sidecards.executionVisit
+        let request = HarnessReadingTarget(executionID: reference.executionID, requestID: JSONText(visit.uuidString),
+            mode: .history, position: sidecards.entryPosition)
+        let back = ThreadDetailBackAction(label: host.workspace.locale.text("返回关联执行", "Back to related executions")) {
+            if sidecards.executionVisit == visit { sidecards.selectExecution(nil) }
+        }
+        return ThreadDetailFrame(navigation: back, onNavigationChange: { _ in }, isolatedNavigation: true) {
+            NativeHarnessThreadView(host: host.workspace.harnessHost,
+                input: HarnessThreadInput(thread: thread, readingTarget: request))
+                .onPreferenceChange(ThreadConversationInputTargetKey.self) { target in
+                    if let target, target.threadID != reference.thread.threadID || target.requestID != request.requestID { return }
+                    let displayed = target?.executionID.map { ApplicationExecutionRef(thread: reference.thread, executionID: $0) }
+                    sidecards.updateInput(displayed, ready: target?.ready == true, visit: visit)
+                }
+        }
     }
 
     private func subscribeReference() {

@@ -28,7 +28,7 @@ public struct NativeApplicationBackgroundEditor: View {
         self.value = value; self.change = change
     }
 
-    private var locale: DesktopLocale { workspace.preferences.locale }
+    private var locale: DesktopLocale { workspace.locale }
     private var inherited: Bool {
         if case .inherit = value.mode { return true }; return false
     }
@@ -43,7 +43,7 @@ public struct NativeApplicationBackgroundEditor: View {
         }
     }
 
-    private enum AgentChoice: String {
+    private enum AgentChoice: String, CaseIterable {
         case off, inherit, independent
     }
 
@@ -51,36 +51,40 @@ public struct NativeApplicationBackgroundEditor: View {
         value.enabled ? (inherited ? .inherit : .independent) : .off
     }
 
-    private var choiceDescription: String {
-        switch selectedChoice {
+    private func choiceDescription(_ choice: AgentChoice) -> String {
+        switch choice {
         case .off:
             locale.text("停止当前 Agent 并暂停自动处理。保留已有数据、待处理任务和运行配置，重新开启后继续处理。",
                         "Stops this Agent and pauses automatic processing. Existing data, pending work and execution settings are kept; enabling resumes pending work.")
         case .inherit:
-            editorDrafts != nil ? locale.text("使用此设置页中的 Moku 配置，关闭设置时一并保存；保留已有的单独配置。",
-                        "Uses Moku’s configuration in this Settings draft. Both are saved when Settings closes; your separate settings are kept.") : locale.text("使用下方 Moku 当前保存的配置。修改 Moku 后，从下个任务开始采用新配置；保留已有的单独配置。",
-                        "Uses Moku’s saved settings shown below. Changes to Moku apply to the next task. Your separate settings are kept.")
+            editorDrafts != nil ? locale.text("使用此设置页中的 Chief 配置，关闭设置时一并保存；保留已有的单独配置。",
+                        "Uses Chief’s configuration in this Settings draft. Both are saved when Settings closes; your separate settings are kept.") : locale.text("使用下方 Chief 当前保存的配置。修改 Chief 后，从下个任务开始采用新配置；保留已有的单独配置。",
+                        "Uses Chief’s saved settings shown below. Changes to Chief apply to the next task. Your separate settings are kept.")
         case .independent:
-            locale.text("独立保存运行配置，修改从下个任务开始生效。切换到跟随 Moku 或关闭 Agent 后，仍保留此配置。",
-                        "Saves execution settings independently. Changes apply to the next task. These settings are kept when using Moku or turning the Agent off.")
+            locale.text("独立保存运行配置，修改从下个任务开始生效。切换到跟随 Chief 或关闭 Agent 后，仍保留此配置。",
+                        "Saves execution settings independently. Changes apply to the next task. These settings are kept when using Chief or turning the Agent off.")
         }
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             GlassEffectContainer {
-                HStack(spacing: 12) {
-                    modeChoice(locale.text("不启用", "Agent off"), choice: .off)
-                    modeChoice(locale.text("跟随 Moku", "Use Moku"), choice: .inherit)
-                    modeChoice(locale.text("单独配置", "Configure separately"), choice: .independent)
+                if editorDrafts != nil {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 168), spacing: 12)], spacing: 12) {
+                        modeChoices
+                    }.padding(.bottom, 18)
+                } else {
+                    HStack(spacing: 12) { modeChoices }
                 }
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(locale.text("Agent 运行方式", "Agent mode"))
-            Text(choiceDescription)
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10).padding(.bottom, 18)
+            if editorDrafts == nil {
+                Text(choiceDescription(selectedChoice))
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 10).padding(.bottom, 18)
+            }
             if value.enabled { configuration }
             else {
                 Color.clear.frame(height: 0).nativeSettingsEditorReady(true)
@@ -106,10 +110,18 @@ public struct NativeApplicationBackgroundEditor: View {
         }
     }
 
-    private func modeChoice(_ title: String, choice: AgentChoice) -> some View {
-        let selected = selectedChoice == choice
-        return NativeSettingsChoiceButton(title, selected: selected) { selectChoice(choice) }
-        .nativeSettingsAction(choice.rawValue, label: title, selected: selected) { selectChoice(choice) }
+    private var modeChoices: some View {
+        ForEach(AgentChoice.allCases, id: \.self) { choice in
+            let title = switch choice {
+            case .off: locale.text("不启用", "Agent off")
+            case .inherit: locale.text("跟随 Chief", "Use Chief")
+            case .independent: locale.text("单独配置", "Configure separately")
+            }
+            let selected = selectedChoice == choice
+            let hint = editorDrafts != nil ? choiceDescription(choice) : nil
+            NativeSettingsChoiceButton(title, selected: selected, hint: hint) { selectChoice(choice) }
+                .nativeSettingsAction(choice.rawValue, label: title, selected: selected) { selectChoice(choice) }
+        }
     }
 
     @ViewBuilder private func onboardingFields(_ effective: ApplicationBackgroundExecutionSettings.Overrides) -> some View {
@@ -124,15 +136,15 @@ public struct NativeApplicationBackgroundEditor: View {
                     }.frame(height: 32).padding(.top, rowPadding)
                     VStack(alignment: .leading, spacing: 8) {
                         if !harnesses.contains(where: { $0.descriptor.id == host.descriptor.id }) {
-                            NativeSettingsNotice(message: locale.text("Moku 当前选择的 Agent 不可用，请先检查 Moku 配置。",
-                                "Moku’s selected Agent is unavailable. Check Moku configuration first."), kind: .warning)
+                            NativeSettingsNotice(message: locale.text("Chief 当前选择的 Agent 不可用，请先检查 Chief 配置。",
+                                "Chief’s selected Agent is unavailable. Check Chief configuration first."), kind: .warning)
                         }
                         harnessFields(host, effective: effective)
                     }.frame(maxWidth: .infinity)
                 }.padding(.vertical, 8)
                     .nativeSettingsEditorReady(harnesses.contains { $0.descriptor.id == host.descriptor.id })
             } else {
-                NativeSettingsNotice(message: locale.text("请先完成 Moku 配置。", "Complete Moku configuration first."))
+                NativeSettingsNotice(message: locale.text("请先完成 Chief 配置。", "Complete Chief configuration first."))
                     .nativeSettingsEditorReady(false)
             }
         } else {
@@ -173,8 +185,8 @@ public struct NativeApplicationBackgroundEditor: View {
             if let host = workspace.plugins.harnesses.modules.first(where: { $0.descriptor.id == effective.harnessPreference }) {
                 harnessFields(host, effective: effective)
             } else {
-                NativeSettingsNotice(message: locale.text("请先选择 Moku 的协调 Agent 并固定运行配置。",
-                    "Choose Moku’s coordinating Agent and save its execution settings first."))
+                NativeSettingsNotice(message: locale.text("请先选择 Chief 的协调 Agent 并固定运行配置。",
+                    "Choose Chief’s coordinating Agent and save its execution settings first."))
             }
         }
     }
@@ -224,7 +236,7 @@ public struct NativeApplicationBackgroundEditor: View {
     private func mokuSettings(_ source: JSONValue) throws -> ApplicationBackgroundExecutionSettings.Overrides {
         guard case .string(let preference) = source["moku"]?["hostHarnessPreference"],
               case .object(let harnesses) = source["moku"]?["executionHarnesses"] else {
-            throw PluginContractError("Invalid saved Moku execution settings")
+            throw PluginContractError("Invalid saved Chief execution settings")
         }
         return try .init(harnessPreference: preference, harnesses: harnesses)
     }

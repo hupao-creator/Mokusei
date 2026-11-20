@@ -8,8 +8,8 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/plugins/applications/report"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/plugins/applications/report"
 )
 
 func resultPage(input any, id string, target any) error {

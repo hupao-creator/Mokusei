@@ -8,14 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/internal/core/composition"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
-	"github.com/hupao-creator/Mokusei/internal/platform/transport"
-	"github.com/hupao-creator/Mokusei/internal/plugins/harness/codex"
-	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
+	"github.com/hupao-creator/Chief/internal/core/composition"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/platform/transport"
+	"github.com/hupao-creator/Chief/internal/plugins/harness/codex"
+	"github.com/hupao-creator/Chief/internal/services/directorytag"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -64,7 +64,7 @@ func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, 
 		return e
 	}
 	var convergence object
-	mock := &provider{faultPlan: plan, faultHits: map[string]int{}, children: map[string]string{}, scopeChecks: map[string]bool{}}
+	mock := &provider{userStops: map[string]string{}, faultPlan: plan, faultHits: map[string]int{}, children: map[string]string{}, scopeChecks: map[string]bool{}}
 	if scopes > 1 {
 		// This prefix is outside the product's mokusei-* temporary-workspace
 		// namespace, so each directory has its own real scope without writing HOME.

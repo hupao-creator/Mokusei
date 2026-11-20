@@ -2,8 +2,78 @@ import AppKit
 import QuartzCore
 import SwiftUI
 
+/// Shares Chief's insertion effect while leaving input and selection with AppKit.
+@MainActor open class NativeCaretTextView: NSTextView {
+    package var emphasizedInsertionPointColor: NSColor = .white
+    package var emphasizedInsertionPoint = false {
+        didSet {
+            guard emphasizedInsertionPoint != oldValue else { return }
+            if emphasizedInsertionPoint { wantsLayer = true }
+            caret.remove()
+            needsDisplay = true
+        }
+    }
+    private let caret = NativeComposerCaret()
+
+    open override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        caret.remove()
+        super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange)
+    }
+
+    public override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
+        guard emphasizedInsertionPoint, !hasMarkedText() else {
+            caret.remove()
+            super.drawInsertionPoint(in: rect, color: color, turnedOn: flag)
+            return
+        }
+        guard shouldDrawInsertionPoint, window?.isKeyWindow == true,
+              window?.occlusionState.contains(.visible) == true,
+              selectedRange().length == 0, !isHiddenOrHasHiddenAncestor, rect.intersects(visibleRect) else {
+            caret.remove()
+            return
+        }
+        // Off callbacks also erase the old insertion rectangle during movement.
+        // Keep the breathing layer alive, but only position it on an on callback.
+        if flag { caret.show(at: rect, in: self, color: emphasizedInsertionPointColor) }
+    }
+    public override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting flag: Bool) {
+        super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: flag)
+        if ranges.count != 1 || selectedRange().length != 0 { caret.remove() }
+    }
+    public override func viewDidHide() {
+        super.viewDidHide()
+        caret.remove()
+    }
+    open override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didResignKeyNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: nil)
+        caret.remove()
+        if let window {
+            for name in [NSWindow.didResignKeyNotification, NSWindow.didChangeOcclusionStateNotification] {
+                NotificationCenter.default.addObserver(self, selector: #selector(caretWindowChanged), name: name, object: window)
+            }
+        }
+    }
+    @objc private func caretWindowChanged() {
+        if window?.isKeyWindow != true || window?.occlusionState.contains(.visible) != true { caret.remove() }
+    }
+    public override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        // CALayer colors are resolved values; refresh even without an edit.
+        caret.remove()
+        needsDisplay = true
+        if emphasizedInsertionPoint { updateInsertionPointStateAndRestartTimer(true) }
+    }
+    open override func resignFirstResponder() -> Bool {
+        let accepted = super.resignFirstResponder()
+        if accepted { caret.remove() }
+        return accepted
+    }
+}
+
 /// Owns only the insertion mark's presentation; AppKit retains text and selection.
-@MainActor final class NativeComposerCaret {
+@MainActor private final class NativeComposerCaret {
     /// Optical tuning after visual review. The approved 25/24 study is lengthened
     /// by one point and moved down by the same amount, so the top edge drops half
     /// a point while the lower end gains 1.5 points. Glyph layout is untouched.
@@ -26,7 +96,7 @@ import SwiftUI
         layer.addSublayer(core)
     }
 
-    func show(at nativeRect: CGRect, in editor: NSTextView) {
+    func show(at nativeRect: CGRect, in editor: NSTextView, color: NSColor) {
         editor.wantsLayer = true
         guard let parent = editor.layer else { return }
         let nativeWidth: CGFloat = 2.6
@@ -53,7 +123,9 @@ import SwiftUI
         }
         core.frame = layer.bounds
         core.cornerRadius = width / 2
-        core.backgroundColor = NSColor.white.cgColor
+        editor.effectiveAppearance.performAsCurrentDrawingAppearance {
+            core.backgroundColor = color.cgColor
+        }
         let scale = editor.window?.backingScaleFactor ?? 2
         if glowHeight != height || glowScale != scale {
             // Rasterize the reference's actual blurred shapes once per geometry,

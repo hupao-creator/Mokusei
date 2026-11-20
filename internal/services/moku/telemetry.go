@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/platform/profile"
 )
 
 const ledgerSchemaVersion = 2
@@ -110,12 +110,12 @@ func (l *TelemetryLedger) Record(ctx context.Context, raw json.RawMessage) error
 	}
 	var sample map[string]any
 	if err := json.Unmarshal(raw, &sample); err != nil || sample == nil {
-		return errors.New("invalid Moku telemetry sample")
+		return errors.New("invalid Chief telemetry sample")
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.disposed {
-		return errors.New("Moku telemetry ledger 已关闭")
+		return errors.New("Chief telemetry ledger 已关闭")
 	}
 	changed := false
 	switch sample["type"] {
@@ -145,11 +145,11 @@ func (l *TelemetryLedger) Record(ctx context.Context, raw json.RawMessage) error
 		changed = true
 	case "window-reading":
 		if _, ok := sample["windows"].([]any); !ok {
-			return errors.New("invalid Moku telemetry windows")
+			return errors.New("invalid Chief telemetry windows")
 		}
 		changed = l.recordWindowReadingLocked(sample)
 	default:
-		return errors.New("invalid Moku telemetry sample type")
+		return errors.New("invalid Chief telemetry sample type")
 	}
 	if changed {
 		l.markDirtyLocked()
@@ -540,23 +540,23 @@ func loadLedgerSnapshot(path string) (ledgerPersistedSnapshot, error) {
 	var value map[string]any
 	if json.Unmarshal(raw, &value) != nil || !ledgerOnlyKeys(value, []string{"schemaVersion", "generatedAt", "windows", "recentSampleIds", "pendingExecutionSamples"}) ||
 		value["schemaVersion"] != float64(ledgerSchemaVersion) || !validTimestamp(value["generatedAt"]) {
-		return ledgerPersistedSnapshot{}, errors.New("invalid current Moku telemetry ledger schema")
+		return ledgerPersistedSnapshot{}, errors.New("invalid current Chief telemetry ledger schema")
 	}
 	windowValues, valid := value["windows"].([]any)
 	if !valid {
-		return ledgerPersistedSnapshot{}, errors.New("invalid current Moku telemetry ledger windows")
+		return ledgerPersistedSnapshot{}, errors.New("invalid current Chief telemetry ledger windows")
 	}
 	windows := normalizeWindows(windowValues)
 	if len(windows) != len(windowValues) {
-		return ledgerPersistedSnapshot{}, errors.New("invalid current Moku telemetry ledger window")
+		return ledgerPersistedSnapshot{}, errors.New("invalid current Chief telemetry ledger window")
 	}
 	recent, valid := normalizeRecentSampleIDs(value["recentSampleIds"])
 	if !valid {
-		return ledgerPersistedSnapshot{}, errors.New("invalid current Moku telemetry ledger sample ids")
+		return ledgerPersistedSnapshot{}, errors.New("invalid current Chief telemetry ledger sample ids")
 	}
 	pending, valid := normalizePendingExecutionSamples(value["pendingExecutionSamples"])
 	if !valid {
-		return ledgerPersistedSnapshot{}, errors.New("invalid current Moku telemetry ledger pending samples")
+		return ledgerPersistedSnapshot{}, errors.New("invalid current Chief telemetry ledger pending samples")
 	}
 	seen := make(map[string]struct{}, len(recent))
 	for _, id := range recent {
@@ -564,7 +564,7 @@ func loadLedgerSnapshot(path string) (ledgerPersistedSnapshot, error) {
 	}
 	for _, sample := range pending {
 		if _, exists := seen[sample["sampleId"].(string)]; exists {
-			return ledgerPersistedSnapshot{}, errors.New("overlapping current Moku telemetry ledger sample ids")
+			return ledgerPersistedSnapshot{}, errors.New("overlapping current Chief telemetry ledger sample ids")
 		}
 	}
 	return ledgerPersistedSnapshot{SchemaVersion: ledgerSchemaVersion, GeneratedAt: value["generatedAt"].(float64), Windows: windows, RecentSampleIDs: recent, PendingExecutionSamples: pending}, nil
@@ -583,7 +583,7 @@ func (l *TelemetryLedger) snapshotJSONLocked() ([]byte, error) {
 	}
 	pending, valid := normalizePendingExecutionSamples(copied["pendingExecutionSamples"])
 	if !valid {
-		return nil, errors.New("invalid in-memory Moku telemetry ledger pending samples")
+		return nil, errors.New("invalid in-memory Chief telemetry ledger pending samples")
 	}
 	recent, valid := normalizeRecentSampleIDs(copied["recentSampleIds"])
 	if !valid {
@@ -619,7 +619,7 @@ func (l *TelemetryLedger) snapshotJSONLocked() ([]byte, error) {
 		}
 	}
 	if len(encoded) > ledgerMaxFileBytes {
-		return nil, errors.New("Moku telemetry ledger exceeds hard file bound")
+		return nil, errors.New("Chief telemetry ledger exceeds hard file bound")
 	}
 	return encoded, nil
 }
@@ -645,7 +645,7 @@ func dropOldestLedgerCompleted(windows []ledgerWindow) bool {
 func callLedgerWriter(ctx context.Context, writer func(context.Context, string, []byte) error, path string, data []byte) (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = fmt.Errorf("Moku telemetry persistence panicked: %v", value)
+			err = fmt.Errorf("Chief telemetry persistence panicked: %v", value)
 		}
 	}()
 	return writer(ctx, path, data)

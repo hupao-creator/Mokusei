@@ -1,6 +1,13 @@
 import Foundation
 import CryptoKit
 
+public enum RuntimeComposerReceipt: Sendable {
+    case absent
+    case accepted(String)
+    case rejected(String)
+    case unfinishedFork(String)
+}
+
 extension RuntimeClient {
     /// Writes require a live authoritative connection. Persisting an ID tracks
     /// one submitted operation; it is never an offline queue or a replay payload.
@@ -43,7 +50,7 @@ extension RuntimeClient {
         guard readOnly ? activeCommands.count < 128 : (unresolvedCommands[key] != nil || activeCommands.count + unresolvedCommands.count < 128) else {
             throw RuntimeError("TOO_MANY_UNRESOLVED_COMMANDS", "Inspect pending command outcomes before submitting more work")
         }
-        let id = receiptID ?? unresolvedCommands[key] ?? "\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.lowercased())"
+        let id = receiptID ?? unresolvedCommands[key] ?? RuntimeProtocol.makeCommandID()
         let alreadySubmitted: Bool
         explicitReceipts[id] = fingerprint
         let body = try runtimeObject(["commandId": .text(id), "args": .array(args)]).encodedData()
@@ -137,6 +144,39 @@ extension RuntimeClient {
               let owner = connection else { throw RuntimeError.uncertain(id) }
         guard let result = try await lookupCommand(id, owner: owner) else { throw RuntimeError.uncertain(id) }
         return try settledResult(result, id: id)
+    }
+
+    public func retainsCommandReceipt(_ id: String) throws -> Bool {
+        try refreshCommandJournal()
+        return commandRecords[id] != nil
+    }
+
+    /// Inspect only. In particular a confirmed fork has not delivered the input.
+    public func checkSavedComposerReceipt(_ id: String, channel: String) async throws -> RuntimeComposerReceipt {
+        try refreshCommandJournal()
+        guard let record = try RuntimeCommandJournal.composerRecord(id, channel: channel, in: commandRecords) else { return .absent }
+        if record.status == .rejected {
+            return record.forkReceiptID == nil ? .rejected(record.id) : .unfinishedFork(record.id)
+        }
+        let result: JSONValue
+        do { result = try await resolveCommandReceipt(record.id) }
+        catch let error as RuntimeError where error.kind == .commandRejected {
+            return record.forkReceiptID == nil ? .rejected(record.id) : .unfinishedFork(record.id)
+        }
+        if record.channel == "thread:fork" { return .unfinishedFork(record.id) }
+        if channel == "thread:follow-up", result["executionId"]?.stringValue?.isEmpty != false {
+            throw RuntimeError.uncertain(record.id)
+        }
+        return .accepted(record.id)
+    }
+
+    /// Called after the draft durably records an accepted/rejected outcome or the
+    /// user's decision to leave an already created branch. Repeating cleanup is safe.
+    public func consumeComposerReceipt(_ id: String, channel: String) throws {
+        let active = Set(activeCommands.keys)
+        try transactCommandJournal(retryableCleanup: true) {
+            try $0.consumeComposerReceipt(id, channel: channel, active: active)
+        }
     }
 
     private func deliverWrite(channel: String, body: Data, receiptID: String,

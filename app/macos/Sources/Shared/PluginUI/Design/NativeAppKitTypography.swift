@@ -50,7 +50,7 @@ public extension NativeTypography {
         // CoreText can assign a different PostScript instance name at a
         // non-default variable weight; the family must still be exact.
         guard let font = NativePlatformFont(descriptor: descriptor, size: size), font.familyName == family else {
-            preconditionFailure("Bundled Mokusei font unavailable: \(postScriptName)")
+            preconditionFailure("Bundled Chief font unavailable: \(postScriptName)")
         }
         fonts.values.setObject(font, forKey: cacheKey)
         return font

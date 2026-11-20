@@ -11,10 +11,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/services/workspaces"
 )
 
 type SettingsResult struct {
@@ -58,10 +58,10 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 		}
 	}
 	if settings.Moku.HostHarnessPreference == "" {
-		return SettingsResult{}, errors.New("Moku host harness preference is required")
+		return SettingsResult{}, errors.New("Chief host harness preference is required")
 	}
 	if p := settings.Moku.HostHarnessPreference; p != "auto" && r.config.Harnesses[p] == nil {
-		return SettingsResult{}, fmt.Errorf("unknown Moku harness: %s", p)
+		return SettingsResult{}, fmt.Errorf("unknown Chief harness: %s", p)
 	}
 	for _, id := range settings.Moku.TargetHarnessIDs {
 		if r.config.Harnesses[id] == nil {
@@ -204,7 +204,7 @@ func (r *Runtime) UpdateThreadSettings(ctx context.Context, id, harnessID string
 		return result, errors.New("thread harness does not match")
 	}
 	if source.Moku || source.MokuHistory {
-		return result, errors.New("Moku execution settings cannot be edited through a thread")
+		return result, errors.New("Chief execution settings cannot be edited through a thread")
 	}
 	if source.SettingsRevision != expected {
 		return result, nil
@@ -226,7 +226,7 @@ func (r *Runtime) UpdateThreadSettings(ctx context.Context, id, harnessID string
 	}
 	err = r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
 		if t.MokuHistory {
-			return errors.New("Moku history is read-only")
+			return errors.New("Chief history is read-only")
 		}
 		if t.SettingsRevision != expected || !same(t.Settings, source.Settings) || t.HarnessID != source.HarnessID {
 			result = ThreadSettingsResult{Status: "conflict", SettingsRevision: t.SettingsRevision, Settings: model.CloneRaw(t.Settings)}

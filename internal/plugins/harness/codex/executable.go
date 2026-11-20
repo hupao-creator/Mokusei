@@ -19,8 +19,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/platform/discovery"
-	"github.com/hupao-creator/Mokusei/internal/platform/sqlite"
+	"github.com/hupao-creator/Chief/internal/platform/discovery"
+	"github.com/hupao-creator/Chief/internal/platform/sqlite"
 	"github.com/pelletier/go-toml/v2"
 )
 

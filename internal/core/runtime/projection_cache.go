@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
-	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/platform/workpool"
+	"github.com/hupao-creator/Chief/internal/services/directorytag"
 )
 
 type cachedThread struct {

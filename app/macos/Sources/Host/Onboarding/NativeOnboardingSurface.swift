@@ -14,10 +14,8 @@ struct NativeOnboardingSurface: View {
     @State private var contentVisible = true
     @State private var collapsed = false
     @State private var panelVisible = true
-    // Onboarding unfolds from the always-dark Moku, so its own surface tokens
-    // stay dark even when the workspace window follows a light appearance.
-    private var ink: Color { Color(white: 0.94) }
-    private var secondary: Color { Color(white: 0.73) }
+    private let ink = NativePalette.settings.text.swiftUI
+    private let secondary = NativePalette.settings.muted.swiftUI
     private var motion: Animation? { .smooth(duration: 0.32) }
     private var locale: DesktopLocale { state.locale }
 
@@ -32,17 +30,16 @@ struct NativeOnboardingSurface: View {
                 .opacity(contentVisible ? 1 : 0)
                 .frame(width: collapsed ? destination.width : panelSize.width,
                        height: collapsed ? destination.height : panelSize.height)
-                // Stay opaque for the whole contraction. Cross-fading this fill
-                // to clear glass while the Dock is still hidden samples the light
-                // workspace and paints a bright pill before the composer appears.
+                // Once the form ink has retired, carry the capsule's material
+                // color through the contraction so the Dock can appear behind it.
                 .background {
-                    Color(white: 0.10)
+                    (collapsed ? Color(white: 0.10) : Color(nsColor: .windowBackgroundColor))
                         .opacity(reduceTransparency || contrast == .increased ? 1 : 0.96)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
                 .overlay {
                     RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-                        .strokeBorder(.white.opacity(0.12), lineWidth: 0.8)
+                        .strokeBorder(.primary.opacity(0.12), lineWidth: 0.8)
                         .opacity(collapsed ? 0 : 1)
                 }
                 .shadow(color: .black.opacity(0.13), radius: collapsed ? 13 : 30, y: collapsed ? 6 : 16)
@@ -56,9 +53,6 @@ struct NativeOnboardingSurface: View {
         }
         .coordinateSpace(name: "onboarding")
         .ignoresSafeArea()
-        // Scope the dark appearance locally: the containing window and the rest
-        // of the workspace keep following the selected/system appearance.
-        .environment(\.colorScheme, .dark)
         .environment(\.nativeSettingsCompactPresentation, true)
         .environment(\.nativeSettingsInteractions, state.interactions)
         .environment(\.nativeSettingsInteractionContext, state.context)
@@ -108,7 +102,7 @@ struct NativeOnboardingSurface: View {
                         else if panelStep == .discovery { discovery.padding(.top, 22) }
                         else {
                             NativeRoleConfigurationPanel(role: panelStep == .moku ? .moku : panelStep == .tag ? .tag : .report,
-                                harnesses: state.installed, locale: locale) {
+                                harnesses: state.installed, locale: locale, showsHeading: true) {
                                 configurationForStep(panelStep).disabled(state.busy)
                             }
                         }
@@ -133,7 +127,7 @@ struct NativeOnboardingSurface: View {
                     Button { Task { await state.advance() } } label: {
                         HStack(spacing: 15) {
                             if state.busy { ProgressView().controlSize(.small) }
-                            Text(panelStep == .report ? locale.text("开始使用 Moku", "Start using Moku") : locale.text("继续", "Continue"))
+                            Text(panelStep == .report ? locale.text("开始使用 Chief", "Start using Chief") : locale.text("继续", "Continue"))
                             Image(systemName: "arrow.right")
                         }.font(.system(size: 12, weight: .medium)).frame(minWidth: 116, minHeight: 24)
                     }.buttonStyle(.glass).keyboardShortcut(.defaultAction)
@@ -256,9 +250,14 @@ struct NativeOnboardingSurface: View {
             // Reveal the Dock behind the still-opaque panel first. Animating the
             // panel and the Dock against each other leaves both translucent over
             // the light workspace for a frame, which reads as a second flash.
+            let firstReveal = !state.dockVisible
             state.dockVisible = true
             try await Task.sleep(for: .milliseconds(30))
-            withAnimation(.easeInOut(duration: 0.18)) { panelVisible = false }
+            let revealDuration = 0.18
+            if firstReveal, scene.windowVisible {
+                scene.dockCharacter?.scheduleOnboardingBlink(at: .now.addingTimeInterval(revealDuration))
+            }
+            withAnimation(.easeInOut(duration: revealDuration)) { panelVisible = false }
             try await Task.sleep(for: .milliseconds(200))
             state.finishHandoff()
         } catch { return }

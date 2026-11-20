@@ -9,6 +9,7 @@ public extension NativeWorkspacePresentation {
         if onboarding.blocksWorkspace { return "onboarding" }
         if scene.settingsOpen { return "settings" }
         if scene.mokuOpen { return "moku" }
+        if browsingCollection { return "collection" }
         return selected == nil ? "overview" : "thread"
     }
 
@@ -48,13 +49,14 @@ public extension NativeWorkspacePresentation {
             }
             return actions.sorted()
         }
+        if browsingCollection { return ["navigation.back", "overview.show"] }
         var actions: [String] = canOpenSettings ? ["settings.open"] : []
         if interactionPage == "overview" {
             actions += ["filter.select"]
             if !interactionThreads.isEmpty { actions += ["thread.open"] }
         } else {
             actions += ["overview.show"]
-            if navigation != nil || scene.mokuOpen || (selected != nil && nativeApplicationNavigation) { actions += ["navigation.back"] }
+            if readingCollectionMember || navigation != nil || scene.mokuOpen || (selected != nil && nativeApplicationNavigation) { actions += ["navigation.back"] }
         }
         actions += overviewInteractionActions
         actions += readingInteractionActions
@@ -65,7 +67,7 @@ public extension NativeWorkspacePresentation {
     /// Callers observe mounted/transitioning and their own route postcondition.
     func interactionSnapshot() -> JSONValue {
         let sections = interactionSettingsSections
-        let section = sections.contains(settingsNavigation.section) ? settingsNavigation.section : "general"
+        let section = settingsNavigation.activeSection(in: sections)
         let draft = workspace.settingsModel.draft
         let pageMounted = onboarding.blocksWorkspace ? onboarding.mounted : scene.settingsOpen ? settingsNavigation.mounted
             : scene.mokuOpen ? mokuNavigation != nil
@@ -78,11 +80,11 @@ public extension NativeWorkspacePresentation {
                 "error": draft.error.map(JSONValue.text) ?? .null,
                 "composing": .bool(draft.composing), "conflicted": .bool(draft.conflicted),
                 "invalidField": draft.firstInvalidField.map(JSONValue.text) ?? .null,
-                "appearance": .text(workspace.preferences.appearance.rawValue), "locale": .text(workspace.preferences.locale.rawValue)
+                "appearance": .text(workspace.systemTheme.rawValue), "locale": .text(workspace.locale.rawValue)
             ])
         return .object([
             "page": .text(interactionPage), "mounted": .bool(interactionReady && pageMounted),
-            "transitioning": .bool(messageMotion.active || scene.historyMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
+            "transitioning": .bool(openingCollectionMember || collectionPanel.transitioning || messageMotion.active || scene.historyMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
                 || (onboarding.blocksWorkspace && onboarding.step == .landing)),
             "onboarding": .object(["step": .integer(onboarding.step.rawValue), "canContinue": .bool(onboarding.canAdvance),
                 "editorReady": .bool(onboarding.editorReady), "admitted": .bool(onboarding.admitted),
@@ -132,7 +134,7 @@ public extension NativeWorkspacePresentation {
                 catch let error as NativeSettingsControlError { throw NativeInteractionError(error.code, error.message) }
                 return
             }
-            let section = interactionSettingsSections.contains(settingsNavigation.section) ? settingsNavigation.section : "general"
+            let section = settingsNavigation.activeSection(in: interactionSettingsSections)
             do {
                 try settingsNavigation.interactions.perform(id: id, handle: handle, operation: operation, value: value,
                     context: settingsNavigation.interactionContext(section: section))
@@ -148,8 +150,9 @@ public extension NativeWorkspacePresentation {
                 if let mokuNavigation { mokuNavigation.onBack() }
                 else { scene.closeHistory() }
             }
+            else if browsingCollection, let owner = collectionPanel.owner { collectionPanel.close(owner: owner) }
             else if let navigation { navigation.onBack() }
-            else if selected != nil, nativeApplicationNavigation { closeApplication() }
+            else if selected != nil, nativeApplicationNavigation || readingCollectionMember { backFromReader() }
             else { scene.setMokuOpen(false) }
         case .openThread(let ref):
             guard interactionThreads.contains(ref) else {

@@ -54,7 +54,7 @@ import SwiftUI
     let requires = [ApplicationCapabilities.backgroundConfigurationUI.requirement]
     func settings(props: ApplicationSettingsProps<ApplicationBackgroundExecutionSettings>) -> some View {
         NativeBackgroundSettingsView(props: props,
-            description: applicationText(props.locale, "按目录范围自动整理和更新报告，共用此处的执行设置。", "Organize and update reports within each directory scope using these shared execution settings."))
+            description: applicationText(props.locale, "按目录范围自动整理和更新 Super Thread，共用此处的执行设置。", "Organize and update Super Threads within each directory scope using these shared execution settings."))
     }
 }
 
@@ -93,6 +93,7 @@ struct NativeReportDetail: View {
     @State private var referencesRevealed = false
     @Environment(\.nativeReportSidecards) private var sharedSidecards
     @FocusState private var launcherFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @Environment(\.nativeReadingAuxiliarySuppressed) private var suppressed
     @Environment(\.nativeReportPanelReturn) private var returning
@@ -103,7 +104,12 @@ struct NativeReportDetail: View {
     private var expanded: Bool { sidecards.active == .relatedExecutions }
     var body: some View {
         GeometryReader { geometry in
-            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: expanded,
+            // A cited execution already has a destination. With Reduce
+            // Motion, reserve both panes on the first frame while the HTML and
+            // execution load. Input and accessibility still require admission.
+            let showsExecutionPane = expanded || (reduceMotion && selected != nil && sidecards.entryPosition.pinsExecution
+                && sidecards.pending == .relatedExecutions && !suppressed)
+            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: showsExecutionPane,
                 preferredWidth: selected == nil ? 0.3 : 0.5)
             let source = launcherPosition.map { CGRect(x: $0.x - 21, y: $0.y - 21, width: 42, height: 42) }
             ZStack(alignment: .topLeading) {
@@ -151,7 +157,7 @@ struct NativeReportDetail: View {
                 // Later reader-owned animation transactions remain independent.
                 .transaction(value: selected) { $0.animation = nil }
                 .clipShape(RoundedRectangle(cornerRadius: 21))
-                .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source,
+                .modifier(NativeSidecardFold(progress: showsExecutionPane ? 1 : 0, source: source,
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight),
                     frameIdentifier: "report-executions-sidecard", reportReturn: true))
@@ -163,9 +169,9 @@ struct NativeReportDetail: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(applicationText(locale, "关联执行", "Related executions"))
             }
-            .animation(NativeSidecardTiming.foldAnimation, value: expanded)
-            .animation(NativeSidecardTiming.foldAnimation, value: selected)
-            .animation(NativeSidecardTiming.foldAnimation, value: layout.stacked)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: selected)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
             .background {
                 NativeReadingEntranceStage(enabled: entranceReady && !suppressed && !entranceAdmitted) {
                     entranceAdmitted = true
@@ -173,9 +179,9 @@ struct NativeReportDetail: View {
                 }
             }
             .preference(key: NativeReportExecutionInputKey.self,
-                value: expanded && !suppressed && returning == nil ? selected.map {
+                value: expanded && !suppressed && returning == nil ? sidecards.inputExecution.map {
                     NativeReportExecutionInput(reference: $0, frame: CGRect(x: layout.surfaceX, y: layout.surfaceY,
-                        width: layout.surfaceWidth, height: layout.surfaceHeight), ready: sidecards.executionReady)
+                        width: layout.surfaceWidth, height: layout.surfaceHeight), ready: sidecards.executionReady && sidecards.inputReady)
                 } : nil)
         }
         .onAppear { subscribeReferences(); refresh() }

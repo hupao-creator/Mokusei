@@ -15,13 +15,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/platform/transport"
-	"github.com/hupao-creator/Mokusei/internal/platform/workpool"
-	"github.com/hupao-creator/Mokusei/internal/services/attachments"
-	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/platform/transport"
+	"github.com/hupao-creator/Chief/internal/platform/workpool"
+	"github.com/hupao-creator/Chief/internal/services/attachments"
+	"github.com/hupao-creator/Chief/internal/services/workspaces"
 )
 
 type OperationRequest = plugin.OperationRequest
@@ -292,10 +292,10 @@ func (r *Runtime) operational() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.closed {
-		return errors.New("Mokusei runtime is shutting down")
+		return errors.New("Chief runtime is shutting down")
 	}
 	if r.resetting {
-		return errors.New("Mokusei history is being cleared")
+		return errors.New("Chief history is being cleared")
 	}
 	return r.ctx.Err()
 }
@@ -303,7 +303,7 @@ func (r *Runtime) begin() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.closed || r.resetting {
-		return errors.New("Mokusei runtime is unavailable")
+		return errors.New("Chief runtime is unavailable")
 	}
 	if err := r.ctx.Err(); err != nil {
 		return err

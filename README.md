@@ -1,77 +1,123 @@
-# Mokusei
+# Chief
 
-Mokusei (木犀) is a native workspace for coordinating AI agents. Moku is its coordinating assistant.
+<p align="center">
+  <strong>A native Mac workspace for coordinating AI agents.</strong>
+</p>
 
-The [getting started guide](docs/getting-started.md) walks invited Mac users
-through installing Mokusei Alpha, choosing an agent, and sending a first request.
-The [Mokusei Product Guide](docs/README.md) covers tracking work, reading reports,
-and changing settings.
+<p align="center">
+  <a href="#get-started">Get started</a> · <a href="docs/README.md">Product guide</a> · <a href="#development">Development</a> · <a href="LICENSE">Apache 2.0</a>
+</p>
 
-## Developer guide
+<p align="center">
+  Apple silicon · macOS 26+ · Invited alpha
+</p>
 
-Source repository and Go module: [`github.com/hupao-creator/Mokusei`](https://github.com/hupao-creator/Mokusei).
+---
 
-Mokusei uses a Go background service and a native SwiftUI/AppKit macOS application. Development, builds and packaging do not require Node. External Harnesses manage their own runtimes; Pi and OpenCode retain small JavaScript resources executed inside those external tools.
+Chief brings Codex, Claude, Pi Agent, and OpenCode into one workspace.
+Talk to the **Chief** assistant to coordinate work, then open each task's conversation
+to follow the work and give it more direction.
 
-Repository layout:
+- **Ask once, coordinate across agents.** Give Chief a task, attach files, and choose project folders with `@`. Chief can answer directly or assign work to the agents you've enabled. [Working with Chief →](docs/working-with-moku.md)
+- **See what needs you.** Overview puts task status, questions, and permission requests on cards. Filter by folder or tag, then open a conversation to step in. [Overview →](docs/overview.md)
+- **Read results and keep going.** Read completed replies, revisit earlier runs, send a follow-up, or branch from an earlier run when the agent supports it. [Agent conversations →](docs/task-conversations.md)
+- **Connect the work.** Optional Tag Agent groups conversations within each project folder. Super Thread Agent prepares Super Threads with links back to source conversations. Git task cards can show branch and change summaries. [Tags, Super Threads, and file changes →](docs/reports-tags-and-changes.md)
+- **Give feedback beside the work.** Open a web page in a sidecard, annotate an element or area, and send the screenshot and comment to the current agent conversation. [Sidecards →](docs/sidecards.md)
 
-```text
-app/
-  macos/             Swift package and macOS application
-    Sources/
-      App/             macOS application entry
-      Composition/     Shared static plugin registration
-      Core/            Runtime client and shared protocol models
-      Host/            Native host UI, navigation and feature surfaces
-      Shared/          Plugin API and shared plugin UI
-      Plugins/         Harnesses, Applications and Sidecards
-      Tools/           Protocol and host service probes
-    Plugins/           Swift build plugins
-    build/             Signing and packaging assets
-cmd/                 Go executable entry points
-internal/
-  core/              Composition, models, plugin API, runtime and state store
-  hosts/             Application and Context plugin hosts
-  plugins/           Harnesses, applications and contexts
-  services/          Moku, attachments, search, tags and workspaces
-  platform/          Daemon, transport, processes and SQLite
-  tooling/           Development, architecture and maintenance
-tools/verification/  Independent performance measurements and native packaging
-demos/               Native interaction prototypes
-```
+The interface uses SwiftUI and AppKit, backed by a Go service. Agents run through
+their externally installed tools and retain their own accounts, models, and
+credentials.
 
-See [native build and packaging](app/macos/build/README.md) for Mac client development, signing and verification.
-The [demo inventory](demos/README.md) distinguishes production-component previews from independent visual experiments.
-Use the [state machine inventory](design/state-machines.md) to find which component owns a transition, what triggers it and where its outcome is observable.
+---
 
-Directory groups organize existing modules. Swift target names and dependencies
-are declared in `app/macos/Package.swift`; Go package dependencies are checked by
-`internal/tooling/architecture`.
+## Get started
 
-Build requirements: Apple Silicon, macOS 26 or later, Xcode with the macOS 26 SDK and command-line tools, and Git. Production/development packaging and installation require an Apple Development identity with its private key; there is no automatic ad-hoc fallback. The explicit alpha command uses ad-hoc signing and requires no Apple account or paid membership. `scripts/go.sh` locates or downloads the pinned Go toolchain and verifies the official archive checksum. SQLite uses the system C library through cgo.
+Chief is available as an **invited alpha** for Macs with Apple silicon and
+macOS 26 or later. Get the **Chief Alpha** disk image and installation guide
+from your inviter.
+
+1. Drag **Chief Alpha.app** from the disk image into **Applications**, then open it. The alpha is not notarized; a trusted download may need the per-app **Open Anyway** exception in **System Settings → Privacy & Security**.
+2. Install and configure at least one supported agent on your Mac: Codex, Claude, Pi Agent, or OpenCode. Chief checks which are ready during setup. Each service determines model access and costs.
+3. Choose the agent that will serve as Chief and the agents it can assign work to. Finish setting up Tag Agent and Super Thread Agent, then click **Start using Chief**.
+4. Describe your task in **Type a message…**. Type `@` to choose a project folder, send the request, and open the task card when Chief creates one.
+
+No Go, Xcode, or Apple developer membership is needed to use the alpha.
+Updates are manual, and alpha app data may be incompatible between versions.
+Follow the accompanying installation guide when updating. Chief follows your
+Mac's appearance and opens in Simplified Chinese when Chinese is the primary
+system language. For all other primary languages, Chief uses English.
+
+[Full installation and first-request guide →](docs/getting-started.md)
+
+## Product guide
+
+[Working with Chief](docs/working-with-moku.md) ·
+[Overview](docs/overview.md) ·
+[Agent conversations](docs/task-conversations.md) ·
+[Tags, Super Threads, and file changes](docs/reports-tags-and-changes.md) ·
+[Sidecards](docs/sidecards.md) ·
+[Settings](docs/settings.md)
+
+## Development
+
+You'll need Apple silicon, macOS 26+, Xcode with the macOS 26 SDK and command-line
+tools, and Git. `scripts/go.sh` locates or downloads the pinned Go toolchain and
+verifies the official archive checksum. SQLite uses the system C library through
+cgo. Chief development, builds, and packaging do not require Node; external
+agent tools manage their own runtime dependencies.
 
 ```sh
-git clone https://github.com/hupao-creator/Mokusei.git
-cd Mokusei
-make runtime                  # .build/go/mokusei-runtime
-make build                    # Go service and Swift application
-make dev                      # signed development application
-make dev ARGS=--fresh         # launch with a clean development data directory
-make check                    # static checks, Go/Swift builds and routine PBT
-make install-hooks            # repository-local pre-commit hook
-make pack                     # signed production bundle
-make dist                     # signed production bundle and zip
-make alpha ARGS='--build-number 1' # isolated, ad-hoc signed alpha DMG
-make install                  # build/sign and install to ~/Applications/Mokusei.app
-make open                     # open the installed application
-make smoke ARGS='--app "/absolute/path/to/Mokusei.app"'
+git clone https://github.com/hupao-creator/Chief.git
+cd Chief
+make build        # build the Go runtime and Swift application
 ```
 
-Cloning requires whatever access is configured for the repository. `make build` checks compilation without installing an app. `make install` builds and signs a production bundle, refuses to replace a running installation, and requires the signing identity described in the [packaging guide](app/macos/build/README.md).
+`make build` checks compilation without installing an app. To build, sign, and
+open the isolated development app:
 
-`make alpha` creates a local DMG for invited users under `app/macos/dist/alpha/`, with a separate **Mokusei Alpha.app** and data directory. Recipients need Apple Silicon and macOS 26+, plus the native Agent CLI they choose to use; they do not need Go, Xcode or developer membership. The package is not notarized. Include the generated [installation guide](app/macos/build/alpha-installation.txt) when sharing it: first opening a trusted download may require the per-app Privacy & Security exception. Updates are manual. This command does not upload a public release.
+```sh
+make dev
+```
 
-The service owns its profile independently of the client connection. A disconnected client does not cancel accepted work. Explicitly quitting the native application requests a coordinated runtime shutdown. Manage an isolated profile directly:
+Development and production packaging require a valid **Apple Development**
+identity with its private key; there is no automatic ad-hoc fallback. The explicit
+alpha command needs no Apple account or certificate:
+
+```sh
+make alpha ARGS='--build-number 1'
+```
+
+This creates a local DMG, installation guide, and checksums under
+`app/macos/dist/alpha/`. **Chief Alpha.app** uses a separate app identity and data
+directory; project folders and external agent sign-ins are shared. The command
+does not upload a release. See [native build and packaging](app/macos/build/README.md)
+for signing, output paths, and distribution constraints.
+
+<details>
+<summary>More build, installation, and runtime commands</summary>
+
+Run these commands individually from the repository root as needed:
+
+```sh
+make runtime                     # .build/go/mokusei-runtime
+make dev ARGS=--fresh             # rotate development data to <profile>.previous and launch
+make check                       # static checks, Go/Swift builds, and routine PBT
+make install-hooks               # repository-local pre-commit hook
+make pack                        # signed production bundle
+make dist                        # signed production bundle and zip
+make install                     # build/sign and install the production app
+make open                        # open the installed application
+make smoke ARGS='--app "/absolute/path/to/Chief.app"'
+```
+
+`make install` refuses to replace a running installation and requires the signing
+identity described above. `smoke` checks packaged metadata, signatures, linkage,
+and resources; it does not launch the app or verify interactions.
+
+The service owns its profile independently of the client connection. A
+client disconnect does not cancel accepted work; explicitly quitting the native
+app requests a coordinated runtime shutdown. After `make runtime`, manage an
+isolated profile directly:
 
 ```sh
 .build/go/mokusei-runtime start --data-dir /absolute/profile
@@ -79,39 +125,40 @@ The service owns its profile independently of the client connection. A disconnec
 .build/go/mokusei-runtime stop --data-dir /absolute/profile
 ```
 
-Use `./scripts/go.sh run ./cmd/mokusei-dev --help` for development and installation commands. Native OpenCode allowance-data maintenance is in `cmd/mokusei-maintain`.
+Use `./scripts/go.sh run ./cmd/mokusei-dev --help` for development and installation
+options. Native OpenCode allowance-data maintenance lives in `cmd/mokusei-maintain`.
 
-[Property checks](tools/verification/pbt/README.md) exercise generated runtime
-histories, transactions and bounded native geometry. [Plugin contracts](internal/core/plugin/README.md)
-describe Go extensions. [Runtime module documentation](internal/README.md) and
-[native module documentation](app/macos/README.md) map the current implementation.
+</details>
+
+### Find your way around
+
+| Area | Start here |
+| --- | --- |
+| Go runtime, services, and plugins | [Module map](internal/README.md), [plugin contracts](internal/core/plugin/README.md) |
+| Native application and shared UI | [Native module map](app/macos/README.md), [build and packaging](app/macos/build/README.md) |
+| Domain language and state transitions | [Domain terms](CONTEXT.md), [state machine inventory](design/state-machines.md) |
+| Interaction previews and visual experiments | [Demo inventory](demos/README.md) |
+
+Before changing code, read [AGENTS.md](AGENTS.md) and the owning module's README.
 [Contributor checks](.agents/linting.md) and [CI](scripts/ci/README.md) define
-validation commands and their current scope.
+validation commands and their scope. PBT owns runtime invariants, e2e owns
+interactions, and benchmarks own user-experience measurements. `make check`
+runs static/build checks and routine [PBT](tools/verification/pbt/README.md);
+it does not run the separate [product e2e](tools/e2e/README.md) or
+[performance measurements](tools/verification/README.md). There are no ordinary
+example/table unit-test suites.
 
-[Performance tools](tools/verification/README.md) supply independent measurements;
-they do not establish interaction correctness.
-
-Mermaid fences display as source code. The built-in [Git application](internal/plugins/applications/git/README.md) supplies read-only worktree facts on task cards and on-demand file/diff query APIs. Managed Git worktrees are owned by the [workspace service](internal/services/workspaces/README.md).
-
-Current behavior, constraints, limits and runnable commands live with their owning
-modules. The [fact index](tools/verification/facts.md) connects those documents
-to implementation and validation boundaries. The
-[coverage map](tools/verification/coverage.md) lists every first-party document
-and its evidence limits. Documentation describes implemented state. Git retains
-design and change history. Measurement reports retain source, collector and
-artifact identities so results remain attributable.
-
-Before/after measurements require the named baseline revision to be available
-locally. A report for another revision does not certify the current build.
+The [fact index](tools/verification/facts.md) connects module contracts to their
+implementation and verification boundaries; the [coverage map](tools/verification/coverage.md)
+records evidence limits. Measurements for another revision do not certify the
+current build; before/after comparisons need the named baseline available locally.
 
 ## License
 
-Mokusei is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 hupao-creator.
+Chief is licensed under the [Apache License 2.0](LICENSE).
+Copyright 2026 hupao-creator.
 
-Third-party materials retain their existing licenses and attribution notices, including [agent skills](.agents/skills/LICENSE), [fonts and icons](app/macos/Sources/Shared/PluginUI/Resources/), and [Unicode data](internal/services/taglabel/UNICODE-LICENSE.txt).
-
-Automated correctness checks use the declared [PBT inventory](tools/verification/pbt/README.md).
-There are no ordinary example/table unit-test suites. Behavioral verification
-assigns Moku runtime to PBT, interaction to e2e and user experience to benchmarks;
-implemented checks and unverified domains remain explicit in the
-[contributor guide](.agents/linting.md) and [fact index](tools/verification/facts.md).
+Third-party materials retain their licenses and attribution notices, including
+[agent skills](.agents/skills/LICENSE),
+[fonts and icons](app/macos/Sources/Shared/PluginUI/Resources/), and
+[Unicode data](internal/services/taglabel/UNICODE-LICENSE.txt).

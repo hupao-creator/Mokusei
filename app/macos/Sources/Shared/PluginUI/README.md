@@ -37,12 +37,19 @@ surface without creating a route or a native child window. Its environment
 presentation owns one UUID-scoped visit, uses native source/viewport anchors to
 convert camera geometry, and delegates travel, resize settling,
 blank-margin dismissal and Escape arbitration to the existing reading stack.
-Explicit Close refreshes the source frame; member navigation, source removal and
-covering routes retire the visit immediately. Callers refresh the contents when
-member facts change and retain their own selection, playback and data lifetimes.
+Explicit Close refreshes the carousel source frame. The grid is the retained parent of a
+member reader. Its activated card supplies the source and return frame for the
+workspace’s shared Report transition. Back reveals the same grid and resumes
+its controls. Report panel travel settles directly under Reduce Motion.
+Callers refresh the
+contents when member facts change and retain their own selection, playback and
+data lifetimes.
 The collection parent remains mounted for those updates while drawing, input and
 accessibility are suppressed. The shared compositor's auxiliary lane stays
-outside the collection's fixed header and scroll viewport.
+outside the collection's Liquid Glass panel. Close floats over the panel and
+stays fixed while the member grid scrolls. The collection hosts its SwiftUI
+content in window points and applies workspace zoom inside that host so input
+and accessibility frames follow the displayed controls.
 Blank-margin dismissal ignores nonfocusable system child accessories such as the
 window-sharing indicator. Visible focusable child windows, sheets, modal windows
 and the press forwarded while closing an NSPopover still block dismissal.
@@ -75,15 +82,13 @@ entry temporarily excluded into the active Sidecard. Row-only renders and
 execution Sidecards do not publish another input owner. Unavailable or aggregate
 history without an execution identity cannot silently become current input.
 
-`NativeComposerDraft.submit` optionally notifies its owner through `didConsume`
-after the captured accepted revision has been consumed without a storage error.
-The resident Dock and Moku history composer capture this callback with the
-original send, so closing or replacing their views cannot acknowledge another
-draft. Execution continuation and Moku submission use it to release a retained
-accepted receipt; failed/uncertain sends never call it. Moku's Host also captures
-the original Report/directory source for that callback, independently of the
-currently visible route. Existing callers without retained receipts keep their
-ordinary behavior.
+The resident Dock and Moku history capture the submitted draft and its route
+together. The shared draft persists each pending send under its initial
+command ID. Settlement writes the editable successor and its cleanup marker
+before the Host acknowledges the retained receipt. A reopened owner can
+retry that acknowledgement without sending the successor. The optional
+`didConsume` observer reports completed consumption to callers such as the
+receipt replay.
 
 `NativeComposerTextInput` keeps an unconsumed focus request pending while the
 editor is unavailable or focus is suspended. Eligibility changes retry that
@@ -311,8 +316,10 @@ must own both indicator visibility and the document-width proposal: forcing a
 resident AppKit gutter while its initial document is empty can leave loaded
 content measured at full width until the first scroll. In legacy mode its gutter
 is allocated when content becomes scrollable, rather than reserved for short
-content. Content loading can therefore change the available width; scrolling an
-already loaded document must not. Explicit hidden indicators remain SwiftUI-owned.
+content. The main Agent reader centers its column in the full viewport, so a
+persistent scroller occupies the trailing margin. Other SwiftUI readers that
+use the scroll content width can receive a narrower proposal during loading.
+Explicit hidden indicators remain SwiftUI-owned.
 The AppKit subclass and scoped control adapter retain their resident-gutter policy.
 
 No native scrollbar correctness suite or windowless styling replay is
@@ -508,7 +515,8 @@ input comparisons, so catalog hydration changes logos without a note revision.
 `NativeMarkdownExecutionLink` hosts live clear Liquid Glass in TextKit attachment
 seats, with full-title copy descriptions and pointer passthrough for document
 selection. Its accessible Button routes through the document-owned current link
-action. Attachments remeasure at actual container widths and retire their native
+action. The action carries the activated capsule’s visible window rectangle
+for the reading panel. Attachments remeasure at actual container widths and retire their native
 hosts when the corresponding source disappears. Other Markdown surfaces and
 ordinary web links retain their existing text behavior.
 The attachment seat reserves vertical space around the compact glass capsule;
@@ -556,11 +564,19 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).
 
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
-conversation's turn index as a left-hand TOC. The selected mark is longer and
-brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
+conversation's turn index as horizontal marks centered vertically at the leading
+edge. An ordinary single turn has no marks. Multiple entries, inherited history
+or a history visit expose the index. Agent marks share a leading edge, a 2pt
+height and a 10pt pitch. At rest they are 10pt long, with the selected run in
+darker ink. Hover extends the pointed mark to 24pt and its three neighbors on
+either side to 20, 16 and 13pt in order of distance. The hit areas and row
+positions stay fixed. A margin narrower than 24pt scales all lengths together.
+Pointer hover and keyboard navigation both open the title and answer preview.
+Only pointer hover extends the marks.
 The answer wraps naturally to at most three lines, with the title and timestamp
 remaining visible; shorter answers do not reserve unused lines.
-Restoring focus after Back does not reopen the preview. The mark and preview share
+Back restores focus to the current run's mark with the preview closed. The
+next Up or Down press opens a preview. The mark and preview share
 a cancellable 100ms pointer handoff, including the gap between them; leaving both,
 unmounting or deactivating the scene retires pointer previews. The
 viewport-bounded, independently scrollable index includes inherited history and
@@ -601,7 +617,10 @@ for its transition; cancellation fences obsolete completion. Other page
 stacks retain their default horizontal direction. New turns do not replace
 an open historical execution;
 removed destinations show the unavailable document and retain return navigation.
-Execution sidecards keep their single-execution presentation. They omit the
+Super Thread's related execution uses the full conversation manifest and the
+shared history rail. The selected row owns the body and the composer while the
+report stays mounted. Ordinary Agent execution sidecards keep their
+single-execution presentation. They omit the
 decorative emoji and visible document title, use a compact 12pt timeline top inset,
 and retain the resolved author, messages and execution actions. Full reading and
 history pages retain their headings and standard insets after execution ends.
@@ -736,7 +755,7 @@ steer and expanded recent-tool rows, with native tail truncation under compressi
 There is no fixed five/eight-line execution limit; larger cells admit more whole
 lines and short replies keep their natural height. Extension cells retain their
 own space. Excerpt reveal layers use the same height proposal as settled text,
-including when the card resizes; Report descriptions keep their explicit five-line
+including when the card resizes; Report descriptions keep their explicit three-line
 limit. The bounded source preview and streaming batch policy remain unchanged.
 `HarnessThreadCard` and the Overview semantic boundary supply
 `threadCardUsesFlatMaterials`: terminal badges and provider badges without an
@@ -803,6 +822,13 @@ opacity entrance; remounts and later excerpt revisions keep the existing policy.
 
 Composer state and submitted revision belong to the workspace. Attachment upload, file selection and send receipts are shared by the Dock and conversation surfaces. The Host’s `NativeMokuComposerInput` composes the shared text input, attachment chips and host file picker for both Dock and history; PluginUI owns those primitives and draft persistence. Harness and Moku interaction owners compose `InteractionQuestionField` with their own validation, submission and cancellation controls, sending through injected actions rather than bypassing Runtime admission.
 
+The device open panel reserves the draft import while it is open. Cancelling
+releases the reservation without staging files. Confirmed selections join the
+same draft validation, pending-chip, preview and staging path as drop and host
+file imports. The file values retain their macOS selection grants through preview
+and upload. The desktop client streams local file contents to the connected
+runtime under the existing client attachment lease.
+
 Ready image thumbnails open the existing system Quick Look presentation using
 managed absolute file URLs, with all ready images in the strip available for
 navigation. Preview and remove are sibling buttons; pending images remain
@@ -816,17 +842,36 @@ animate the content stack independently of the shorter scroll clip; that briefly
 cuts off the surviving chips. Attachment status/type changes use the same atomic
 layout update. The surrounding Dock retains its own shell transitions.
 
-Moku opts into `NativeComposerDraft.submit(optimisticallyClear:)`. Its
-`inputText`, `inputAttachments` and `inputDirectories` project an empty editor
-immediately while the original draft, captured send payload and attachment leases
-remain owned until admission. Other composer callers retain receipt-time clearing.
-The existing submitting fence blocks duplicate sends. New text/imports retain
-their revision/identity and survive success. On failure the original chips return;
-new text is preserved after the failed text, separated by a blank line. Recovery
-never retries a send. A retired owner's text recovery compares its last saved
-revision so a replacement owner's edits or consumption win, and preserves raw
-pending imports. Accepted sends never enter failure recovery, including when
-subsequent persistence consumption fails.
+Moku opts into `NativeComposerDraft.submit(optimisticallyClear:)`. Before
+dispatch, persistent drafts atomically save the submitted text, directory
+mentions and ready chips under a send ID alongside a fresh editable draft.
+Acceptance consumes that ID. Rejection prepends the failed text to the latest
+draft with a blank line and restores its chips. Selecting the same directory
+in the next draft gives that draft its own mention. A reopened owner can
+check the original receipt when the send lock is free. A prior command blocking
+a different draft cannot claim that draft, even when both messages have the
+same text. Local recovery is available when there is no retained receipt.
+Storage errors belong to the failed write and clear when persistence succeeds.
+Resolving a tracked handoff saves a cleanup ID atomically with the successor.
+Cleanup can finish after reopening, even if the journal already released the
+receipt. Querying a historical phase never submits input. An existing fork with
+unsent input keeps its protected receipt until the user decides what to keep. A writer that loses a revision conflict keeps its unsaved
+buffer and an error until it reopens the durable draft. Its stale revision
+cannot overwrite the winning draft or prevent that draft from consuming a send.
+
+A mounted editor receives these changes synchronously on the main actor.
+Send and Return capture only committed input. While a failed send is being
+restored during composition, the input method keeps its marked range. The
+draft saves the recovered prefix and the composing text, then installs the
+prefix and adjusts the native selection when composition finishes. The saved
+draft records the identity of its last body edit. A second editor that only
+changes directory or attachment chips keeps the inherited body identity. The
+first editor can then commit its candidate once alongside those chips. If the
+second editor replaces the body, even with identical text, its edit survives
+as a separate paragraph above the committed candidate. Rejection also restores
+the submitted text above both edits. The caret stays with the committed text. A held
+Return or double-click cannot retry the previous send. Other composer callers
+retain receipt-time clearing.
 
 Attachment paste shortcuts bind to the exact mounted native composer through a
 shared editor identity. Common window ancestry and overlapping geometry cannot
@@ -841,7 +886,7 @@ Visible defaults populate the editor; optional absence remains valid. Hidden
 defaults participate in conditions without becoming steps, and inactive drafts
 stay local. Core retains schema validation and native answer conversion.
 
-Accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
+For receipt-time clearing, accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
 
 Each draft write publishes its ready staged-file IDs in the Core ownership
 envelope together with its contents. A successful send releases its staging
@@ -860,18 +905,18 @@ requests retain priority, and restoration does not request focus. The Host
 retains a text-associated initial selection for full Dock editor remounts.
 No mounted UI/IME correctness replay is configured in this source tree.
 
-`NativeComposerTextInput` optionally emphasizes its insertion mark through
-[NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
+`NativeComposerTextInput` and the Custom task orchestration editor opt into the
+shared [NativeCaretTextView](Composer/NativeComposerCaret.swift) insertion effect. It uses a
 rounded caret, sized to 25/24 of the text size plus one point, with its center
 one point below AppKit's actual `drawInsertionPoint` rectangle. The top edge
 sits half a point lower and the lower end reaches the descender without moving
 glyphs. View coordinates are converted through AppKit to the backing layer's
 coordinates before placement, so a flipped or scaled text view does not
-displace the mark. The opt-in presentation always uses a 2.6-point white core
-with a warm-yellow upper halo and cool-blue lower halo. Moku is its production
-caller and supplies a fixed dark surface; ordinary composers retain their native
-caret and appearance. Empty emphasized inputs leave three points between the
-insertion origin and placeholder text.
+displace the mark. The 2.6-point core is white in Chief's dark composer and
+uses the adaptive label color in Settings. Both use a warm-yellow upper halo
+and cool-blue lower halo. Ordinary composers keep the native caret. Empty
+emphasized composers leave three points between the insertion origin and
+placeholder text.
 The halo preserves the approved study’s blurred 16-point warm and 14-point cool
 ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
 the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered
@@ -879,8 +924,7 @@ once per caret height/backing scale and its opacity is animated by Core Animatio
 no per-frame SwiftUI rendering or timer is needed. Emphasized editors place their
 existing padding inside the native text viewport, preserving glyph positions while
 leaving room for the glow before native scroll clipping.
-White ink breathes at 20–100% opacity, while both halos fade fully, independently
-of the native editor's inherited system appearance.
+The core breathes at 20–100% opacity while both halos fade fully.
 Core Animation breathes over 2.4 seconds; native blink callbacks do not hide it
 or restart the cycle. Same-line movement interpolates over 120ms from the current
 presentation; repainting an unchanged rectangle does not restart movement.
@@ -980,9 +1024,11 @@ the same window and local width changes retain the current visual identity.
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display. Hiding, backgrounding or detaching cancels that owner and settles the latest title. Cancelling an active transition replaces only its stateless animated text leaf,
 so an in-flight fade-in is retired even when its model phase is already settled;
-the transition owner and card keep their identity. Disabling cloud effects does not freeze text content. Application-owned animations use ordinary motion without reading, observing
-or propagating system Reduce Motion. Native framework defaults and external
-Report HTML/CSS remain renderer-owned. See the [motion contract](../../../../../design/motion.md).
+the transition owner and card keep their identity. Disabling cloud effects does
+not freeze text content. Title and excerpt animations use their ordinary timing
+under Reduce Motion. The [motion contract](../../../../../design/motion.md)
+describes Collection member opening and card removal. Native framework defaults
+and external Report HTML/CSS remain renderer-owned.
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity.
 
@@ -1088,9 +1134,10 @@ feeding `ScrollPosition`, retained history positions or relative scroll commands
 Snapshots keep the raw offset and inset alongside the normalized position so
 replays can detect coordinate drift instead of accepting a finite but wrong value.
 
-Execution-result visits use the existing nested reader for current as well as
-historical executions, so streaming, completion and a successor never replace
-the referenced execution. Each Harness's typed detail rows supply visible
+Chief Note citations and execution-result visits use the nested reader for current
+and historical executions. The cited run keeps its identity through streaming,
+completion and a successor. A citation starts at the document heading with
+output following off. A result request locates the result after the body loads. Each Harness's typed detail rows supply visible
 content/process semantics and mark final reply rows separately from reviews or
 status messages. Once a body is loaded, its final reply (from its first text part,
 or latest visible row/status when absent) mounts the result anchor; manifests do not claim
@@ -1198,15 +1245,19 @@ viewport/margin contract for production and the standalone native fixture.
 reading panels. Report panels opt into
 `topInset: 8, balancedVerticalInsets: true`, reserving 8pt at both ends. The main
 Agent Thread panel and live execution Sidecard use `topInset: 22`, matching their
-bottom viewport clearance. The Sidecard has no Close control of its own. The main
-panel's reserved
-48pt leading history rail separates the document and its scroller horizontally
-from Close; the rail itself retains 64pt of vertical padding. `ThreadConversation`
-consumes that rail reservation before rendering nested rows. Top-level loading
-and Harness error views use `nativeThreadRailFallback()`
-to reserve the same 48pt when no conversation layout is present; nested status
-views do not add it again. This also keeps heading-only loading aligned with
-the preparation reader without changing viewport height during admission.
+bottom viewport clearance. The Sidecard has no Close control of its own.
+The main Agent reader and the related-execution reader in a Report overlay
+the TOC on the page stack. The timeline reports the actual leading edge of its
+centered column. Within that margin each mark has a hit target up to 24pt wide
+and one row high, inset up to 4pt from the viewport edge. The index keeps 64pt
+of vertical clearance. Its appearance leaves line wrapping and scrollbar
+placement unchanged. The column uses the timeline's normal 18pt or 32pt
+horizontal insets and its 744pt width limit. In the main panel, the fixed Close
+button requires 46pt from the panel edge, including the 8pt viewport inset.
+Preparation, loading, errors and live content honor this clearance on both sides.
+The main timeline measures its column width and leading edge outside the scroll
+view. At a fixed panel size a short reply, a scrollable reply and a historical
+reply use the same column, including with macOS scroll bars set to Always.
 Current and historical Agent documents use 12pt of scrollable padding at each end, without
 additional vertical padding around the conversation viewport. This keeps the
 Close clearance while expanding the readable area at every window width;
@@ -1215,8 +1266,8 @@ keeps its existing host layout. The entire viewport
 sits inside this frame, so persistent and
 overlay indicators, their hit regions and both scroll limits clear the rounded
 edge. The default top clears Close's complete 14pt inset + 32pt hit region,
-including when an overlay scroller expands on hover. The main Agent reader's
-horizontal clearance supplies that separation with the smaller top inset.
+including when an overlay scroller expands on hover. The main Agent document's
+leading margin clears Close with the smaller top inset.
 Close remains anchored to the outer
 panel. The frame reduces available
 content width by only 16pt; native gutter ownership remains as described above.
@@ -1252,7 +1303,7 @@ The main Agent panel has fixed viewport chrome of 22pt above and below, with
 no additional page-stack inset around its main conversation. Together with the
 12pt document inset, this gives 34pt from either outer panel edge to the
 corresponding document boundary at its scroll limit. Title/emoji and author spacing belong inside the document. Close stays at its
-14pt panel inset, separate from the document's reserved leading rail throughout
+14pt panel inset, clear of the document and the TOC marks throughout
 scrolling, history navigation, resizing and Sidecard layout changes.
 Short documents remain top aligned;
 unused viewport height below them is not padding and is not forcibly filled or
@@ -1330,9 +1381,8 @@ Agent Overview cards register window-local title/emoji anchors through
 `NativeThreadIdentityRegistry`. An ordinary card-open copies their text and
 geometry into one route visit. Before travel, the workspace prepares its sidecard
 geometry and a row-free `ThreadConversation` using the same heading layout.
-The main Agent reader reserves its 48pt history rail across loading. Its bounded
-reading column remains centered in the available reading viewport, with the
-existing responsive insets. A real sidecard open/close resizes that viewport and
+The main Agent reader centers the bounded reading column in the full viewport
+throughout loading and history navigation. A real sidecard open/close resizes that viewport and
 recenters the entire column normally; it does not start another identity flight.
 Do not lock the reading origin to the panel's left edge to prevent this reflow:
 that breaks wide-window composition. Loading and loaded headings use the same
@@ -1390,16 +1440,20 @@ and placement share those results. List markers, quote rules and footnote number
 use a fixed leading slot, so horizontal flexibility negotiation does not probe
 their paragraph at one-point width. SwiftUI owns right-to-left mirroring.
 
-Completed replies in a reading viewport mount top-level blocks near the visible
-area through a lazy vertical stack. Nested list/quote content and atomic tables
-or code blocks retain their width-driven layout. Documents with footnotes keep
-all native anchors mounted; exposure-tracked notes and streaming pages retain
-their exact geometry and existing admission policy. No cross-document height
-cache or cross-block selection registry remains.
+Completed replies use the width-driven column in both the main timeline and
+Super Thread's related-execution reader. For long documents,
+[reading sections](Reading/NativeMarkdownReadingSections.swift) reserve
+offscreen space from the block metrics at the actual reading width. Approaching
+a section mounts its blocks once for the visit. Reversing direction keeps those
+views, their measured heights and their native selections. Reading more of a
+document can therefore increase the number of mounted views. Short replies,
+footnote anchors and exposure-tracked notes use measured blocks throughout.
+See the [Markdown layout contract](../../../../../design/markdown.md) for the
+section sizes and streaming boundary.
 
-No native Markdown growth/resize/selection/table/footnote correctness replay is
-configured in this source tree. Image failure hints use the native text view's tooltip and
-accessibility help; ordinary text adds no SwiftUI help responder.
+The [local related-execution replay](../../../../../tools/e2e/README.md#super-thread-reading-regression)
+checks scroll direction changes, native selection and resize. Image failure
+hints use the native text view's tooltip and accessibility help.
 
 Markdown publishes the complete parsed document and acknowledges its token in
 the same update. A newer revision supersedes pending parse results, including
@@ -1480,7 +1534,10 @@ WindowServer. Wide/stacked openings, switches, first-link/reopen,
 resize and close/reversal still need visual acceptance when that scope is allowed.
 
 Report commits its initial folded layout through `NativeReadingEntranceStage`
-after primary reading travel. `NativeApplicationHTMLReadinessKey` carries the
+after primary reading travel. A preselected Note execution under Reduce Motion
+reserves its final side-by-side or stacked panes from the first Report layout.
+Document and execution readiness still govern content and input admission.
+The reduced-motion Note visit presents its ready content at full opacity. `NativeApplicationHTMLReadinessKey` carries the
 current source, thread, WebKit view generation and main-frame readiness.
 `NativeReportSidecardPresentation` waits for both gates, then 200ms, before
 admitting the latest pending selection. Report references and Browser share

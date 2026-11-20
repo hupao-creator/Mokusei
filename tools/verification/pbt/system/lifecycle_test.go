@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/model"
 )
 
 func findThread(state model.AppState, id string) (model.ThreadRecord, bool) {
@@ -299,13 +299,19 @@ func exerciseLifecycle(ctx context.Context, invoke systemInvoke, host actionHost
 		if e != nil {
 			return next, e
 		}
+		mock.mu.Lock()
+		notified := mock.userStops[receipt.ExecutionID] == source.ID
+		mock.mu.Unlock()
+		if !notified {
+			return next, errors.New("Chief model input lacked the acknowledged user Stop for the interrupted execution")
+		}
 		if reportCount(next) != reportCount(state) {
 			return next, errors.New("interrupted execution produced Report")
 		}
 		if e = unchangedReports(state, next, ""); e != nil {
 			return next, e
 		}
-		fmt.Printf("PASS interrupt: active model request fenced, late response released, no new Report (%s)\n", result.Status)
+		fmt.Printf("PASS interrupt: Chief received the user Stop, active model request fenced, late response released, no new Report (%s)\n", result.Status)
 		return next, nil
 	}
 	expectedReports := reportCount(state)

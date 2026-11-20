@@ -8,7 +8,7 @@ advertises that action. Launch success alone does not establish readiness.
 
 ```sh
 automation_root="$(mktemp -d /private/tmp/oa-interaction.XXXXXX)"
-open -n "/absolute/path/Mokusei.app" --args \
+open -n "/absolute/path/Chief.app" --args \
   --data-dir "$automation_root/profile" \
   --automation-socket "$automation_root/ui.sock"
 
@@ -16,7 +16,7 @@ python3 tools/native-interaction/client.py --socket "$automation_root/ui.sock" s
 python3 tools/native-interaction/client.py --socket "$automation_root/ui.sock" \
   perform '{"name":"settings.open"}'
 python3 tools/native-interaction/client.py --socket "$automation_root/ui.sock" \
-  perform '{"name":"settings.select","section":"general"}'
+  perform '{"name":"settings.select","section":"tag.settings"}'
 python3 tools/native-interaction/client.py --socket "$automation_root/ui.sock" \
   perform '{"name":"settings.close"}'
 ```
@@ -75,10 +75,10 @@ settings save has finished; those facts remain separate.
 
 ## Mounted Settings controls
 
-`snapshot.settings.appearance` and `snapshot.settings.locale` report the saved
-client preferences. General exposes `general.appearance` and `general.locale`
-selects. They save locally even without a connected Runtime; a failed write
-retains its old value and surfaces the page notice.
+`snapshot.settings.appearance` reports the AppKit application appearance (`light`
+or `dark`). `snapshot.settings.locale` reports Chief's resolved interface language
+(`zh-CN` or `en-US`). Settings opens on `moku` (Chief). The available tabs and
+their IDs are in `snapshot.settingsSections`.
 
 `snapshot.settings.controls` lists the controls actually mounted in the current
 Settings visit and section. Each has a stable `id`, ephemeral `handle`, `kind`,

@@ -17,8 +17,8 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 | [Sources/Composition](Sources/Composition/NativePlugins.swift) | Shared static Harness, Application and Sidecard registration |
 | [Sources/Core](Sources/Core/README.md) | Protocol, connections, public state, host files and offline recovery |
 | [Sources/Host/Overview](Sources/Host/Overview/README.md) | Layout, camera, selection and filtering |
-| [Sources/Host/MokuScene](Sources/Host/MokuScene/README.md) | Moku Dock, history composer, Talk, dispatch and notes |
-| [Sources/Host/Onboarding](Sources/Host/Onboarding/README.md) | First-run admission, role configuration and handoff into the Moku Dock |
+| [Sources/Host/MokuScene](Sources/Host/MokuScene/README.md) | Chief Dock, history composer, Talk, dispatch and notes |
+| [Sources/Host/Onboarding](Sources/Host/Onboarding/README.md) | First-run admission, role configuration and handoff into the Chief Dock |
 | [Sources/Host/Settings](Sources/Host/Settings/README.md) | Settings drafts, validation and autosave |
 | [Sources/Host/WindowNavigation](Sources/Host/WindowNavigation/README.md) | Window controls and reading navigation |
 | [Sources/Host/Interaction](Sources/Host/Interaction/README.md) | Typed workspace actions and observable state for script-driven interaction |
@@ -161,6 +161,30 @@ instead of jumping to the destination width before the shell moves. See the
 
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands.
 
+## System appearance and language
+
+AppKit supplies the appearance for the workspace, auxiliary windows and native
+panels. SwiftUI and WebKit reading surfaces, Settings, and the first-run forms
+inherit the workspace color scheme. Chief's Dock uses its dark capsule material,
+and the expanded Settings surface and its header character use the system scheme.
+
+Chief uses the first language in macOS's global preferred-language list. Chinese
+language identifiers, across scripts and regions, resolve to Simplified Chinese
+(`zh-CN`). English and all other identifiers, including an absent preference,
+resolve to English (`en-US`). The app resolves this before showing its first UI
+and refreshes on system defaults and locale notifications and app activation.
+Workspace surfaces and app commands use this language. The workspace publishes
+the same locale to Runtime profile metadata before connection and execution
+commands, and updates it when the language changes during a session.
+
+`desktop-preferences.json` stores profile selection, onboarding and reading
+activity. Saved appearance and language fields are ignored on read and omitted
+from subsequent writes. A preexisting profile still establishes prior use unless
+the file explicitly marks onboarding as pending.
+
+See the [system presentation replay](../../tools/e2e/README.md#system-appearance-and-language)
+for the scenarios and their evidence boundaries.
+
 Workspace startup and Dock presence are narrow observable facts. `hasSnapshot`
 changes only when the workspace snapshot becomes present/absent, and the catalog
 publishes `hasMoku` only when Moku is added or removed. `hasInitialContent` derives
@@ -245,7 +269,7 @@ and the [production fixture](../../demos/super-thread-carousel/README.md).
 Production targets build with `xcrun swift build --package-path app/macos`.
 The package has one dedicated PBT target, `MokuseiProperties`, containing only
 Overview generated geometry/state properties and their minimal fixture support.
-`make pbt-native` runs geometry; `make pbt-native-state` opts into mounted state
+`make pbt-native` runs geometry, collection budgets and deferred regrouping; `make pbt-native-state` opts into mounted state
 convergence. Run native checks serially; see the [Overview property contracts](Sources/Host/Overview/README.md#property-boundaries).
 There are no ordinary unit-test targets. `make check` runs static/build checks
 and PBT; see the [PBT guide](../../tools/verification/pbt/README.md).

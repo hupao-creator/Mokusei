@@ -122,6 +122,7 @@ struct LandingSurface: View {
                 ZStack {
                     NativeOverviewCanvas(items: fixture.items, sceneKey: fixture.filteredEmpty ? "filtered" : "all", state: fixture.canvas,
                         toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
+                        headerInputBottom: OverviewTagMetrics.headerBottom(in: geometry.size, hasFilters: fixture.hasThread && !fixture.archived),
                         cloudAnimationsEnabled: false, interactionPaused: fixture.scene.interactionPaused) { _ in
                         HarnessThreadCard(identity: .init(title: "优化 landing page",
                             harness: .init(brandKey: fixture.dispatchHarness.descriptor.id.string,
@@ -140,6 +141,7 @@ struct LandingSurface: View {
                 .overlay(alignment: .top) {
                     NativeOverviewChrome(filters: fixture.hasThread && !fixture.archived
                         ? [.init(tag: "Mokusei", scope: "demo", count: 1, isDirectory: true)] : [],
+                        viewportHeight: geometry.size.height,
                         onTagChange: { _ in fixture.filteredEmpty = false }, onSettings: fixture.openControls)
                 }
             }

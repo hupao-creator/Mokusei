@@ -19,7 +19,7 @@ private struct CardShell<Content: View>: View {
 }
 
 private struct DemoView: View {
-    @State private var model = DemoModel()
+    @Bindable var model: DemoModel
     @State private var coverCache = NativeReportCoverCache()
     let fixtures: [String: ReportFixture]
     @State private var dark = false
@@ -126,10 +126,13 @@ private struct DemoView: View {
 }
 
 @MainActor private final class Delegate: NSObject, NSApplicationDelegate {
+    let model: DemoModel
     let fixtures: [String: ReportFixture]
     var window: NSWindow?
     let viewport = DemoViewport()
-    init(fixtures: [String: ReportFixture]) { self.fixtures = fixtures }
+    init(model: DemoModel, fixtures: [String: ReportFixture]) {
+        self.model = model; self.fixtures = fixtures
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1192, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -137,8 +140,9 @@ private struct DemoView: View {
         window.minSize = .init(width: 500, height: 400)
         window.isReleasedWhenClosed = false
         let viewport = self.viewport
+        let model = self.model
         let host = NSHostingView(rootView: GeometryReader { geometry in
-            DemoView(fixtures: self.fixtures)
+            DemoView(model: model, fixtures: self.fixtures)
                 .frame(width: geometry.size.width / viewport.scale, height: geometry.size.height / viewport.scale)
                 .environment(\.nativeWindowContentScale, viewport.scale)
                 .scaleEffect(viewport.scale, anchor: .topLeading)
@@ -167,19 +171,25 @@ private struct DemoView: View {
     @MainActor static func main() async throws {
         try prepareIsolatedNativeReplay()
         let now = Date()
-        let fixtures = try Dictionary(uniqueKeysWithValues: (ReportSample.samples + ReportSample.panelSamples).map { ($0.id, try ReportFixture($0, now: now)) })
+        let model = DemoModel(now: now)
+        let fixtures = try Dictionary(uniqueKeysWithValues: (ReportSample.samples + ReportSample.panelSamples).map { sample in
+            (sample.id, try ReportFixture(sample, now: now) { archived in
+                if archived { model.archived.insert(sample.id) }
+                else { model.archived.remove(sample.id) }
+            })
+        })
         if CommandLine.arguments.contains("--headless") {
             try DemoModel.describe()
             try await exportProductionProjection(fixtures: fixtures)
             return
         }
-        runGUI(fixtures: fixtures)
+        runGUI(model: model, fixtures: fixtures)
     }
-    @MainActor private static func runGUI(fixtures: [String: ReportFixture]) {
+    @MainActor private static func runGUI(model: DemoModel, fixtures: [String: ReportFixture]) {
         NativeTypography.registerFonts()
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
-        let delegate = Delegate(fixtures: fixtures); app.delegate = delegate
+        let delegate = Delegate(model: model, fixtures: fixtures); app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }
 }

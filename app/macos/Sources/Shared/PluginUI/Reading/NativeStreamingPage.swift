@@ -15,13 +15,11 @@ extension EnvironmentValues {
     }
 }
 
-/// Geometry and block measurements for page-level streaming.
+/// Block metrics for streamed page breaks and unvisited reading sections.
 ///
 /// A page is one visible reading viewport, expressed in points (not source
 /// lines). Measurements mirror the production renderer's line heights and
-/// block margins so a page closes at the same place the reader sees it fill.
-/// They are estimates only for layout decisions; rendered blocks still use the
-/// real Markdown views and are never re-measured here.
+/// block margins. Mounted blocks always take their size from the Markdown views.
 @MainActor
 enum NativeStreamingPageMetrics {
     /// Used only if the environment loses its viewport while a page model is

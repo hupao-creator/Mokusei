@@ -1,21 +1,37 @@
-# Read and continue agent conversations
+# Read and continue a task conversation
 
-## Read the result or respond to a request
+## Read a result
 
-In Overview, click a task card. The conversation shows replies the agent has finished and keeps any failure messages. The full text of a reply appears when the agent finishes writing it. When a run ends, the reading area usually shows the final answer on its own and folds earlier replies into the details of that run. Click **Show work** to see a summary of the agent's reasoning and tool use. [Overview](overview.md)
+Click the task card in [Overview](overview.md). The conversation keeps finished replies and failure messages. When a run ends, the reading area usually shows its final answer on its own. Click **Show work** when it appears to see the reasoning and tools behind the answer. If you scroll up during a live run, use **Jump to latest** when it appears to return to the newest output.
 
-If the agent asks you to make a choice or grant permission, respond to the prompt. The options depend on the agent and its request. While a run is active and the input box has nothing waiting to send, the **Stop this thread** button is available. Click it to stop the current run. You can send a new message to continue later. The task keeps running if you close the conversation or collapse its sidecard.
+Click the blank margin outside the conversation to return to Overview. The input bar folds as the conversation closes.
 
-## Send follow-ups and attachments
+## Respond to a request or stop a run
 
-Type your follow-up at the bottom of the conversation and click **Send**. If the current run accepts follow-ups, your message goes to that run. If the run has ended, your message starts a new run in the same conversation. Respond to any pending request first. If your message fails to send, Mokusei shows the reason and keeps your input so you can retry from the same box.
+If the agent asks a question or requests permission, respond to the prompt. The choices depend on the agent and its request.
 
-Click **+** to add an image or file. Supported attachments vary by agent. If an agent rejects an attachment type, remove the attachment and try a supported type or describe it in text. If you switch conversations, you can come back to finish editing your unsent message.
+To stop the current run, click **Stop this thread**. The button shares the **Send** position and appears when the run is active and the input box is empty. Keep any unsent draft you want before clearing the box. When the run stops, Chief receives a notification that you stopped it. You can send a new message to continue later. Closing the conversation or its **Execution** sidecard leaves the task running. [Watch a live run](sidecards.md#watch-a-run-in-progress)
 
-## Revisit an earlier run
+## Send a follow-up or attachment
 
-When the conversation has multiple runs or includes history from an earlier conversation, use **Conversation contents** in the reading area to choose a run. Hover over an entry to see its title. If it has no title, look for the original request or the time. Use the back button in the reading area to leave the earlier run.
+Type your follow-up in **Type a message…** and click **Send** or press Return. Use Shift+Return for a new line. If the current run accepts follow-ups, your message goes to that run. If it has ended, sending starts a new run in the same conversation. Answer any pending question or permission request first.
 
-Sending from the latest run continues the same conversation. Sending from an earlier run tries to start a separate conversation from that point and keeps the original conversation. Reading an earlier run leaves newer work running. To use **Stop this thread**, return to the active run. You can also ask Moku to stop tasks by name. [Working with Moku](working-with-moku.md)
+Click **+** and select an image or file on your Mac. It appears above your draft. Supported attachments vary by agent. If the agent rejects an attachment, remove it and try a supported type or describe it in text. You can return to finish an unsent draft after opening a different conversation.
+
+You can start writing the next message while Chief confirms the previous send. Once the send succeeds, the next draft stays in the box. If the send is rejected, Chief puts the earlier message above your new text so you can review both before sending.
+
+## Revisit or branch from an earlier run
+
+When there are several runs to read, look for the short horizontal lines halfway down the left edge of the reading area. Each line in **Conversation contents** represents a run, from oldest at the top to newest at the bottom. The darker line marks the run on screen. Hover over a line and it extends to the right, along with the lines nearest to it.
+
+Hover over a line to preview the run, then click it to read. With keyboard focus on **Conversation contents**, use the Up and Down arrows to preview runs and Return to open one. Click the newest run’s line to return to it. You can then press Up to preview the previous run again. Any newer work keeps going while you read.
+
+If you send a message from an earlier run, Chief tries to start a separate conversation from that point. The original stays intact. Branching depends on whether the agent can recover the selected run's history.
+
+## Recover an interrupted send
+
+If you see **Check the conversation for this interrupted send**, use **Check previous receipt** when available. If Chief asks you to check the conversation yourself, look for the earlier message. Choose **Keep next draft** if it arrived or **Restore to draft** to put it back above the new text. Review the draft before sending again.
+
+If Chief says a branch was created but the message didn't send, choose what to keep and continue in that branch. If you see **Finish previous receipt cleanup**, click it before trying to send again.
 
 [Back to the product guide](README.md)

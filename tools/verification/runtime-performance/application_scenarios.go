@@ -8,11 +8,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	"github.com/hupao-creator/Mokusei/internal/core/store"
-	"github.com/hupao-creator/Mokusei/internal/hosts/applicationhost"
-	"github.com/hupao-creator/Mokusei/tools/verification/runtime-performance/listfixture"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/store"
+	"github.com/hupao-creator/Chief/internal/hosts/applicationhost"
+	"github.com/hupao-creator/Chief/tools/verification/runtime-performance/listfixture"
 )
 
 // The measured query uses this public application fixture. Setup

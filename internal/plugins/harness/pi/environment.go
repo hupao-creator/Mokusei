@@ -3,8 +3,8 @@ package pi
 import (
 	"context"
 	"errors"
-	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Chief/internal/core/model"
+	"github.com/hupao-creator/Chief/internal/core/plugin"
 	"os"
 	"strings"
 )

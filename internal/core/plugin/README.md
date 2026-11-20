@@ -72,7 +72,9 @@ See the [verification index](../../../tools/verification/facts.md).
 system notification. `Lazy` forbids starting an execution solely for that delivery;
 `Notification` is its text, and `Sequence` preserves committed order. Core's exact
 `ErrMokuIdle` guarantees no input consumption at an idle/ended admission boundary.
-The notification text is carried independently of the triggering user message.
+An interrupted terminal can carry its acknowledged `UserAction` lifecycle event.
+Chief receives that event alongside its thread observation. The notification text
+is carried independently of the triggering user message.
 The shared direct-to-thread formatter in [moku_notification.go](moku_notification.go)
 preserves admission-only semantics and bounded previews for both durable and live
 notification consumers.

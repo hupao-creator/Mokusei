@@ -6,6 +6,9 @@ public extension EnvironmentValues {
     /// The owning reading stack has completed primary travel. Nested readers
     /// inherit this gate until their own stack supplies its completion state.
     @Entry var nativeReadingEntranceReady = true
+    /// Direct reading visits still admit asynchronous content at its real
+    /// readiness boundary, but present the admitted ink at full opacity.
+    @Entry var nativeReadingEntranceAnimated = true
 }
 
 /// Commit the initial, folded layout before admitting secondary motion. A reader

@@ -24,19 +24,19 @@ public struct NativeReadingPlaceholder: View {
             if usesLoadingSkeleton && placement == .surface && identityVisit != nil {
                 NativeThreadOpeningContent(showsLoading: visible)
             } else if usesLoadingSkeleton {
-                NativeThreadLoadingSkeleton().frame(maxWidth: NativeGeometry.readingWidth).padding(.horizontal, placement == .surface ? 32 : 0)
+                NativeThreadLoadingSkeleton().frame(maxWidth: NativeGeometry.readingWidth)
+                    .nativeThreadDocumentMargins(standard: placement == .surface ? 32 : 0)
             } else {
                 Text(locale.language.languageCode?.identifier == "zh" ? "正在读取…" : "Loading…")
             .font(NativeTypography.inter(size: 13))
             .foregroundStyle(NativePalette.thread.muted.swiftUI)
             .multilineTextAlignment(placement == .surface ? .center : .leading)
             .padding(.vertical, 16)
-            .padding(.horizontal, placement == .surface ? 18 : 0)
+            .nativeThreadDocumentMargins(standard: placement == .surface ? 18 : 0)
             .frame(maxWidth: .infinity, maxHeight: placement == .surface ? .infinity : nil,
                    alignment: placement == .surface ? .center : .leading)
             }
         }
-            .nativeThreadRailFallback()
             .transformPreference(NativeReadingContentStatusKey.self) { status in
                 // A loaded sibling (for example a system error) cannot admit
                 // auxiliary input while this document is still being acquired.

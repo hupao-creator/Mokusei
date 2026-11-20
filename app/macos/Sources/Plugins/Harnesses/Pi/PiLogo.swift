@@ -3,6 +3,8 @@ import SwiftUI
 
 /// The shipped pi.dev mark, rendered from the original 800×800 vector geometry.
 public struct PiLogo: View {
+    static let themeColor = NativePalette.pair(0x6c5ce7, 0xb5a7ff).swiftUI
+
     /// The approved running-card palette belongs to this harness.
     public static let threadCardCloudPalette = NativeCloudPalette(channels: [
         .init(color: NativePalette.color(0xff525e).swiftUI, seed: 19, energy: 0.25),

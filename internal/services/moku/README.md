@@ -1,4 +1,7 @@
-# Moku coordination
+# Chief coordination
+
+Chief is the assistant’s display and prompt identity. The implementation uses
+`moku` for its module, tool namespace, persisted role fields and command names.
 
 [coordinator.go](coordinator.go) owns Moku's conversation, admission queue, saved/applied execution configuration and native handle. [ports.go](ports.go) declares injected Runtime capabilities. Ordinary tasks remain Runtime-owned; Moku coordinates them through admitted tools and lifecycle facts.
 
@@ -157,7 +160,7 @@ histories are not rewritten; updated guidance is injected on session preparation
 
 ## System prompt budget and injection boundary
 
-[DefaultSystemPrompt](prompt.go) contains exactly three English sentences covering
+[DefaultSystemPrompt](prompt.go) names the assistant Chief and covers
 coordination, invisible assistant replies and the distinction between information
 for Moku itself and information needed by delegated Agent Threads. Count the
 complete built-in string by sentence-ending periods, not Go string literals or
@@ -269,6 +272,14 @@ When this outbox is available, ordinary terminal commits bypass the in-memory
 event queue and its duplicate tracking. Configurations without the outbox retain
 the live notification path. Already queued Moku terminal audit settlement stays
 local and drains during shutdown.
+
+For an acknowledged user Stop, the terminal notification includes the same
+lifecycle `event.source` field as a direct input, with value `user`.
+The `thread.interrupt-acknowledged` event identifies the child in
+`event.subject.id` and the interrupted execution in `event.data.executionId`.
+The terminal observation retains its native status. Without an acknowledged
+user Stop, the terminal notification omits this event. A live-only coordinator
+receives the same acknowledgement as a separate execution-specific notice.
 
 Direct user input to an ordinary Thread writes a **lazy** system notification in
 that input's successful admission transaction. Idle Moku keeps it queued without

@@ -6,23 +6,28 @@ public extension EnvironmentValues {
 
 /// Panel chrome only: callers retain their own route or Sidecard close action.
 public struct NativeReadingPanelCloseButton: View {
+    static let edgeInset: CGFloat = 14
+    static let diameter: CGFloat = 32
     private let label: String
     private let onClose: () -> Void
+    private let isBack: Bool
     private let overlaysContent: Bool
     @Environment(\.isEnabled) private var enabled
     @FocusState private var focused: Bool
     @Environment(\.nativeReadingPanelClosing) private var closing
+    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
     @Environment(\.nativeThreadPreparing) private var preparing
     @State private var appeared = false
 
-    public init(label: String, overlaysContent: Bool = false, onClose: @escaping () -> Void) {
+    public init(label: String, overlaysContent: Bool = false, isBack: Bool = false, onClose: @escaping () -> Void) {
+        self.isBack = isBack
         self.label = label; self.onClose = onClose; self.overlaysContent = overlaysContent
     }
 
     public var body: some View {
         Button(action: onClose) {
-            NativeIcon(name: "X", size: 17)
-                .frame(width: 32, height: 32)
+            NativeIcon(name: isBack ? "ArrowLeft" : "X", size: 17)
+                .frame(width: Self.diameter, height: Self.diameter)
                 .contentShape(Circle())
         }
         .buttonStyle(ReadingPanelCloseStyle())
@@ -46,9 +51,9 @@ public struct NativeReadingPanelCloseButton: View {
         }
         .help(label).accessibilityLabel(label)
         .opacity(appeared && !closing && !preparing ? 1 : 0)
-        .animation(.easeOut(duration: 0.16), value: preparing)
-        .animation(.easeOut(duration: closing ? 0.08 : 0.16), value: closing)
-        .onAppear { withAnimation(.easeOut(duration: 0.16)) { appeared = true } }
+        .animation(animatesEntrance ? .easeOut(duration: 0.16) : nil, value: preparing)
+        .animation(animatesEntrance ? .easeOut(duration: closing ? 0.08 : 0.16) : nil, value: closing)
+        .onAppear { withAnimation(animatesEntrance ? .easeOut(duration: 0.16) : nil) { appeared = true } }
     }
 }
 
@@ -84,10 +89,10 @@ public extension View {
     /// or resizing. For overlay placement, keep the control legible over authored
     /// content with an opaque canvas backing; the host still owns edge clipping.
     func nativeReadingPanelClose(label: String, identifier: String = "reading-panel-close",
-                                overlaysContent: Bool = false, onClose: @escaping () -> Void) -> some View {
+                                overlaysContent: Bool = false, isBack: Bool = false, onClose: @escaping () -> Void) -> some View {
         overlay(alignment: .topLeading) {
-            NativeReadingPanelCloseButton(label: label, overlaysContent: overlaysContent, onClose: onClose)
-                .accessibilityIdentifier(identifier).padding(14)
+            NativeReadingPanelCloseButton(label: label, overlaysContent: overlaysContent, isBack: isBack, onClose: onClose)
+                .accessibilityIdentifier(identifier).padding(NativeReadingPanelCloseButton.edgeInset)
         }
     }
 }
