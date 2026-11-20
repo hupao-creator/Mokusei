@@ -10,8 +10,12 @@ public final class NativeWorkspacePresentation {
     public let workspace: NativeWorkspaceModel
     public let settingsNavigation = NativeSettingsNavigation()
     public let canvas = NativeOverviewCanvasState()
-    fileprivate let collectionPanel = NativeCollectionPanelPresentation()
-    var openingCollectionMember: Bool { collectionPanel.openingMember != nil }
+    @ObservationIgnored lazy var collectionPanel = NativeCollectionPanelPresentation { [weak self] in
+        self?.overview.releaseCollectionRanks()
+    }
+    var readingCollectionMember: Bool { collectionPanel.readingMember != nil }
+    var browsingCollection: Bool { collectionPanel.owner != nil && selected == nil }
+    var openingCollectionMember: Bool { readingCollectionMember && !readingEntranceAdmitted }
     public let messageMotion = NativeReadingPageMotion()
     public let threadIdentityRegistry = NativeThreadIdentityRegistry()
     public private(set) var threadIdentityVisit: NativeThreadIdentityVisit?
@@ -231,12 +235,14 @@ public final class NativeWorkspacePresentation {
             followUpVisible = false; resetNavigation(); nativeApplicationNavigation = false
         }
         if selected != ref {
+            if selected == nil { collectionPanel.acceptOpening(ref) }
+            if collectionPanel.owner != nil && collectionPanel.readingMember != ref { collectionPanel.retire() }
+            if readingCollectionMember { overview.holdCollectionRank(for: ref) }
             readingPanelSourceCardID = selected == nil ? sourceCardID ?? overview.sourceCardID(for: ref) ?? ref.threadID.string : nil
-            readingPanelSource = readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
+            readingPanelSource = readingCollectionMember ? collectionPanel.memberFrame : readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
             threadIdentityVisit = ref.typeID == "agent" && target == nil
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
         }
-        if selected == nil { collectionPanel.acceptOpening(ref) }
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
         publishPresence()
@@ -287,6 +293,12 @@ public final class NativeWorkspacePresentation {
                 onClose: { _ in scene.closeSettings() }) else { return }
             return
         }
+        if browsingCollection, let owner = collectionPanel.owner {
+            if focusFilter { overview.requestFilterFocus() }
+            collectionPanel.close(owner: owner)
+            return
+        }
+        if readingCollectionMember { collectionPanel.retire() }
         if focusFilter { overview.requestFilterFocus() }
         if scene.mokuOpen { scene.setMokuOpen(false) }
         // Reversal keeps the opening's source frozen. A settled return samples
@@ -297,6 +309,10 @@ public final class NativeWorkspacePresentation {
 
     fileprivate func prepareOverviewReturn() async {
         guard !Task.isCancelled else { return }
+        if readingCollectionMember {
+            readingPanelSource = collectionPanel.memberFrame ?? readingPanelSource
+            return
+        }
         let route = navigationRouteID, target = selected
         await canvas.prepareForPresentation()
         guard !Task.isCancelled, navigationRouteID == route, selected == target else { return }
@@ -314,6 +330,7 @@ public final class NativeWorkspacePresentation {
 
     public func finishBack() {
         overview.recordApplicationClose()
+        collectionPanel.returnToMembers()
         selected = nil; readingTarget = nil; threadIdentityVisit = nil; resetNavigation(); followUpVisible = false
         nativeApplicationNavigation = false
         applicationReturn = nil
@@ -372,7 +389,7 @@ public final class NativeWorkspacePresentation {
 
     var readingForeground: Bool {
         focused && documentVisible && readingWindowActive && workspace.connection == .connected
-            && readingEntranceAdmitted && !openingCollectionMember && !scene.mokuOpen && !scene.settingsOpen
+            && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen
     }
 
     public func publishPresence() {
@@ -773,10 +790,6 @@ public struct NativeWorkspaceView: View {
             onScroll: { presentation.scene.setShellScrollOffset($0) },
             onDismiss: { model.dismissOperationError() }) {
             workspaceScene
-                .nativeCollectionPanelHost(enabled: presentation.selected == presentation.collectionPanel.openingMember
-                    && !presentation.scene.settingsOpen && !presentation.scene.mokuOpen
-                    && !presentation.scene.cameraActive && !presentation.onboarding.blocksWorkspace,
-                    presentation: presentation.collectionPanel, readerReady: presentation.readingEntranceAdmitted)
         }
         .overlay(alignment: .top) {
             NativeRuntimeConnectionNotice(model: model).padding(.top, 12)
@@ -803,7 +816,6 @@ public struct NativeWorkspaceView: View {
         .onChange(of: colorScheme) { _, _ in
             presentation.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
         }
-        .onChange(of: presentation.openingCollectionMember) { _, _ in presentation.publishPresence() }
         .onChange(of: presentation.scene.cameraActive) { _, _ in presentation.publishPresence() }
         .onChange(of: model.stopping) { _, _ in presentation.publishPresence() }
         .onChange(of: presentation.onboarding.blocksWorkspace) { _, _ in presentation.publishPresence() }
@@ -899,13 +911,13 @@ public struct NativeWorkspaceView: View {
                         }
                         else { presentation.cancelMoku(observed: thread) }
                     })
+                    .opacity(presentation.collectionPanel.parentVisible || presentation.selected != nil ? 1 : 0)
+                    .animation(NativeReadingPageTiming.openingAnimation, value: presentation.collectionPanel.parentVisible)
                     .opacity(presentation.onboarding.dockVisible ? 1 : 0)
-                    // The handoff shows this Dock behind the opaque onboarding
-                    // panel, then fades only the panel. Cross-fading both would
-                    // expose the light workspace through two translucent pills.
                     .animation(nil, value: presentation.onboarding.dockVisible)
-                    .allowsHitTesting(!presentation.onboarding.blocksWorkspace)
-                    .accessibilityHidden(presentation.onboarding.blocksWorkspace)
+                    .disabled(presentation.browsingCollection)
+                    .allowsHitTesting(!presentation.browsingCollection && !presentation.onboarding.blocksWorkspace)
+                    .accessibilityHidden(presentation.browsingCollection || presentation.onboarding.blocksWorkspace)
             }
         } onCloseSettings: {
             presentation.settingsNavigation.requestClose(model: model.settingsModel) { _ in presentation.scene.closeSettings() }
@@ -923,7 +935,7 @@ public struct NativeWorkspaceView: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.scene.mokuOpen || presentation.nativeApplicationNavigation || presentation.usesReadingPanel,
+            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.browsingCollection || presentation.scene.mokuOpen || presentation.nativeApplicationNavigation || presentation.usesReadingPanel,
                 suspended: presentation.scene.cameraActive || presentation.scene.settingsOpen,
                 managesNativeButtons: !presentation.nativeApplicationNavigation || applicationSuppressed,
                 reading: presentation.readingNavigation)
@@ -940,7 +952,6 @@ public struct NativeWorkspaceView: View {
                 identity: readingIdentity, motion: presentation.messageMotion,
                 enabled: !presentation.scene.settingsOpen && !presentation.scene.mokuOpen && !presentation.scene.cameraActive,
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true,
-                animatesOpening: !presentation.openingCollectionMember,
                 panel: presentation.usesReadingPanel, isolatesParent: true, panelSource: presentation.readingPanelSource,
                 panelIdentity: presentation.selected?.typeID == "agent" ? presentation.threadIdentityVisit : nil,
                 panelFrontIdentity: "workspace-reading-front",
@@ -948,7 +959,7 @@ public struct NativeWorkspaceView: View {
                 reportPanelMotion: presentation.selected?.typeID == "report.document",
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
-                    presentation.overview.setPresentationActive(active)
+                    if !active || !presentation.readingCollectionMember { presentation.overview.setPresentationActive(active) }
                 },
                 prepareParent: { await presentation.prepareOverviewReturn() },
                 onPanelOutsideClick: applicationSuppressed ? nil : {
@@ -969,6 +980,9 @@ public struct NativeWorkspaceView: View {
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,
                     chromeVisible: presentation.selected == nil)
+                    .nativeCollectionPanelHost(enabled: presentation.readingCollectionMember || (!presentation.scene.settingsOpen
+                        && !presentation.scene.mokuOpen && !presentation.scene.cameraActive && !presentation.onboarding.blocksWorkspace),
+                        presentation: presentation.collectionPanel)
             } front: {
                 readingFront.id(routeID)
                     .environment(\.nativeExecutionDockRoute, routeID)
@@ -995,7 +1009,7 @@ public struct NativeWorkspaceView: View {
                     onNativeNavigationChange: { if presentation.navigationRouteID == routeID { presentation.nativeApplicationNavigation = $0 } },
                     onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }))
                 .modifier(NativeApplicationReadingPanel(enabled: presentation.usesReadingPanel,
-                    suppressed: applicationSuppressed,
+                    suppressed: applicationSuppressed, returnsToCollection: presentation.readingCollectionMember,
                     identifier: selected.typeID == "report.document" ? "report-reading-panel" : "application-reading-panel",
                     onClose: { presentation.closeApplication() }))
                 .environment(\.nativeReportSidecards, presentation.reportSidecards)
@@ -1004,9 +1018,6 @@ public struct NativeWorkspaceView: View {
                     presentation.updateReportExecution(reference, ready: ready, onBack: onBack, route: routeID)
                 })
                 .environment(\.nativeReadingNavigation, presentation.usesReadingPanel ? nil : presentation.readingNavigation)
-                .transformEnvironment(\.nativeReadingEntranceReady) {
-                    if presentation.openingCollectionMember { $0 = false }
-                }
                 .background {
                     NativeWorkspaceApplicationEntrance(admitted: presentation.readingEntranceAdmitted) {
                         _ = presentation.admitReadingEntrance(routeID: routeID, reference: selected)

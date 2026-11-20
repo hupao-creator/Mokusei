@@ -18,7 +18,7 @@ redefine a bug as correct behavior. Missing evidence is not a zero or a pass.
 
 Routine [CI](README.md) runs formatting, architecture/import and registration
 checks, Go vet/build, runtime PBT, the Swift production build and the native
-geometry and Collection budget properties. Locally
+geometry, Collection budget and deferred regrouping properties. Locally
 run affected checks and use larger sample counts or `--race` to investigate a
 specific concern. `make check` combines routine checks; do not run an equivalent
 local full suite merely to repeat required hosted validation.

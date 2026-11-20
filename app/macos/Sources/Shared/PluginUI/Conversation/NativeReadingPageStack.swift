@@ -35,7 +35,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var panelFrontIdentity: JSONText?
     public var reportPanelMotion: Bool
     public var threadPanelMotion: Bool
-    public var animatesOpening: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
     public var axis: Axis
@@ -46,6 +45,9 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var onPanelOutsideClick: (() -> Void)?
     private let parent: Parent
     private let front: Front
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var animatesTravel: Bool { enabled && !(reportPanelMotion && reduceMotion) }
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.nativeReadingEntranceReady) private var parentEntranceReady
@@ -65,7 +67,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
-                emphasizedOpening: Bool = false, animatesOpening: Bool = true, panel: Bool = false, panelUsesGlass: Bool = false,
+                emphasizedOpening: Bool = false, panel: Bool = false, panelUsesGlass: Bool = false,
                 isolatesParent: Bool = false, panelSource: CGRect? = nil,
                 panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
@@ -77,7 +79,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 @ViewBuilder parent: () -> Parent, @ViewBuilder front: () -> Front) {
         self.open = open; self.identity = identity; self.motion = motion; self.enabled = enabled
         self.focusBlur = focusBlur; self.stationaryParent = stationaryParent
-        self.animatesOpening = animatesOpening
         self.emphasizedOpening = emphasizedOpening; self.duration = duration
         self.panel = panel; self.panelSource = panelSource
         self.panelUsesGlass = panelUsesGlass
@@ -207,7 +208,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         .onChange(of: open) { _, value in
             bindActions()
             if value { mountedIdentity = identity }
-            if value && enabled && animatesOpening { animate(closing: false) }
+            if value && animatesTravel { animate(closing: false) }
             else { settle() }
         }
         .onChange(of: identity) { _, _ in
@@ -217,6 +218,9 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 if axis == .vertical && direction != 0 && enabled { trackReplacement() }
             }
             mountedIdentity = identity
+        }
+        .onChange(of: reduceMotion) { _, value in
+            if value && reportPanelMotion && motion.active { settle(finishingClose: true) }
         }
         .onChange(of: scenePhase) { _, value in if value != .active { settle(finishingClose: true) } }
         .onChange(of: direction, initial: true) { _, value in
@@ -243,7 +247,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         // Reversing an opening uses the already participating parent immediately.
         // Only a settled detail needs to refresh its retained, paused backdrop.
         guard let prepareParent, !motion.active else {
-            if enabled { animate(closing: true) }
+            if animatesTravel { animate(closing: true) }
             else { onClose() }
             return
         }
@@ -260,7 +264,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             guard !Task.isCancelled, generation == token else { return }
             preparingClose = false
             motion.active = false
-            if enabled { animate(closing: true) }
+            if animatesTravel { animate(closing: true) }
             else { onClose() }
         }
     }

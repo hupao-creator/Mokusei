@@ -8,6 +8,7 @@ public extension EnvironmentValues {
 public struct NativeReadingPanelCloseButton: View {
     private let label: String
     private let onClose: () -> Void
+    private let isBack: Bool
     private let overlaysContent: Bool
     @Environment(\.isEnabled) private var enabled
     @FocusState private var focused: Bool
@@ -15,13 +16,14 @@ public struct NativeReadingPanelCloseButton: View {
     @Environment(\.nativeThreadPreparing) private var preparing
     @State private var appeared = false
 
-    public init(label: String, overlaysContent: Bool = false, onClose: @escaping () -> Void) {
+    public init(label: String, overlaysContent: Bool = false, isBack: Bool = false, onClose: @escaping () -> Void) {
+        self.isBack = isBack
         self.label = label; self.onClose = onClose; self.overlaysContent = overlaysContent
     }
 
     public var body: some View {
         Button(action: onClose) {
-            NativeIcon(name: "X", size: 17)
+            NativeIcon(name: isBack ? "ArrowLeft" : "X", size: 17)
                 .frame(width: 32, height: 32)
                 .contentShape(Circle())
         }
@@ -84,9 +86,9 @@ public extension View {
     /// or resizing. For overlay placement, keep the control legible over authored
     /// content with an opaque canvas backing; the host still owns edge clipping.
     func nativeReadingPanelClose(label: String, identifier: String = "reading-panel-close",
-                                overlaysContent: Bool = false, onClose: @escaping () -> Void) -> some View {
+                                overlaysContent: Bool = false, isBack: Bool = false, onClose: @escaping () -> Void) -> some View {
         overlay(alignment: .topLeading) {
-            NativeReadingPanelCloseButton(label: label, overlaysContent: overlaysContent, onClose: onClose)
+            NativeReadingPanelCloseButton(label: label, overlaysContent: overlaysContent, isBack: isBack, onClose: onClose)
                 .accessibilityIdentifier(identifier).padding(14)
         }
     }

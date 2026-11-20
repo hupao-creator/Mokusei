@@ -142,7 +142,8 @@ share demand within their owning row, and retiring a surface releases all its
 remaining handles.
 
 Agent, Report and Moku history reading use a panel-owned Close rather than a Back control beside the
-traffic lights. Agent history executions have no dedicated upper-left Back button,
+traffic lights. A Report opened from the member grid uses a panel-owned Back
+arrow in that seat and returns to the same grid. Agent history executions have no dedicated upper-left Back button,
 including when the shared history document has no navigation host. History retains
 TOC navigation, Escape and its close action with the existing route-visit fence.
 Other application navigation retains its own window-navigation behavior.
@@ -285,8 +286,8 @@ ordinary entrance does not consult system motion preferences. See the
 
 Closing a settled Report retains its current split layout from return preparation
 through route completion. The Report main shell scales/translates directly from
-its presented width and height to the refreshed Overview source card; related
-execution and linked Browser Sidecards fade in place on the same 420ms timeline.
+its presented width and height to the source card in Overview or the retained
+member grid. Related execution and linked Browser Sidecards fade in place on the same 420ms timeline.
 The full-workspace native carrier stays stationary for this return and owns only
 generation-fenced completion, avoiding a second crop/travel over the split panes.
 Closing before primary content admission keeps the existing native opening-reversal

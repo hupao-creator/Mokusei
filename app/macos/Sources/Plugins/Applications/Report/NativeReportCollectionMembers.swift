@@ -126,6 +126,7 @@ private struct CollectionMemberCard: View {
     let exiting: Bool
     let allowsActions: () -> Bool
     let openThread: () -> Void
+    @Environment(\.nativeCollectionPanel) private var collectionPanel
     @State private var visible = false
     @State private var source = NativeCollectionPanelSource()
 
@@ -133,7 +134,7 @@ private struct CollectionMemberCard: View {
         NativeReportCard(props: member,
             projection: .init(previewText: member.entry.view.shortDescription,
                               relatedThreadCount: member.entry.view.relatedExecutions.count),
-            openThread: openThread, coverPlayback: visible && !exiting ? .playingOnce : .paused,
+            openThread: openThread, coverPlayback: visible && !exiting && collectionPanel?.readingMember == nil ? .playingOnce : .paused,
             coverReplayID: replayID, coverInitiallyFinished: initiallyFinished,
             onCoverPlaybackCompleted: onPlaybackCompleted,
             showsArchiveAction: true, allowsActions: allowsActions, memberSource: source)
@@ -143,6 +144,6 @@ private struct CollectionMemberCard: View {
             .overlay { RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI) }
             .onAppear { visible = true }
             .onDisappear { visible = false }
-            .onHover { inside in if inside && visible && !exiting { replay() } }
+            .onHover { inside in if inside && visible && !exiting && collectionPanel?.readingMember == nil { replay() } }
     }
 }

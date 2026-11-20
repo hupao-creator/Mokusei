@@ -566,16 +566,18 @@ reading surface matched to the current appearance.
 The carousel pauses through opening and return; closing starts a fresh dwell.
 Escape, Close and blank-margin clicks reverse the panel into the current card
 frame. The count is behind the expanded surface, not a second floating control.
-Opening a member keeps the grid in place while the selected Report reader mounts.
-The grid zooms toward the activated card while fading into the reader. The visible
-card frame supplies the center and scale, keeping its cover in proportion.
-Reduce Motion skips the grid zoom and crossfade. The reader layout can be
-mounted while the report content is still loading. Both surfaces gate input
-and accessibility during the handoff.
-Closing the reader returns to the current Overview card for that report.
-Outside a member handoff, inactive, offscreen and removed collections dismiss the
-panel. Dismissed card actions cannot open a second member. The lower page menu
-and navigation controls continue to select carousel pages.
+Activating a member gives the Report reading stack its visible card frame in
+workspace coordinates. The stack expands the same native panel as an Overview
+open. Back returns to the retained member grid and uses the member frame at
+return time. The grid keeps its scroll position and cover playback state. Its
+controls and accessibility children are inactive while the reader covers it.
+Overview entries show Close and return to their current Overview card. Both
+Report routes skip panel travel under Reduce Motion.
+
+Reading evidence and foreground time accrue during the reader visit. The grid
+holds the pre-visit grouping rank of each member read from it until panel
+dismissal, when Overview applies reading-driven promotions. Archive continues
+to update the open grid. The lower carousel menu and arrows select pages.
 
 The selected ID is shared by cover, metadata, opening and semantic navigation.
 Automatic advance follows an 11-second dwell while foreground, visible and not in
@@ -640,10 +642,21 @@ and one-day boundaries and exercise pause/resume and distinct short visits.
 The [mounted journey](../../../../../tools/e2e/README.md#current-scenario-contract)
 checks return selection, promotion and the two-cell release margin.
 
+**PBT-COLLECTION-REGROUP** exercises the production Report catalog, Overview
+projection and panel lifecycle in temporary profiles. Generated traces start
+with 9–12 fresh two-cell reports and visit up to three seats in each of one or
+two panel sessions. Visits span 1–7 foreground seconds with a 5-second
+qualification threshold and can repeat. Reading evidence must advance while
+member order stays fixed through reading, Back and the start of Close. After
+dismissal, the oldest unqualified reports must fill the available group seats.
+A failing trace shrinks by deleting visits and sessions with the same failure.
+This checks deferred grouping across visit sequences. The grid’s mounted
+scroll position, controls and animation frames require the native replay.
+
 **PBT-OVERVIEW-GEOMETRY** calls the production pure layout solver with 0–18
 unique product-ordered cards (1–3 columns, 1–2 rows), usable viewport widths
-240–2,600pt, heights 240–1,600pt, origins −400…400/−200…200pt and either no scale
-cap or an explicit cap 1…2.6. The [generated property](../../../Tests/Properties/NativeOverviewGeometryProperties.swift)
+240–2,600pt, heights 240–1,600pt and origins −400…400/−200…200pt. It uses the
+shipping 1× camera policy. The [generated property](../../../Tests/Properties/NativeOverviewGeometryProperties.swift)
 checks exact membership/order/spans and uses the specified 320×196pt cell and
 16pt gap to check the frame union against the solver's production metrics.
 It checks finite positive nonoverlapping frames and bounded FitAll scale with its
@@ -664,7 +677,8 @@ start with independent toolbar (0–120pt) and Dock (0–180pt) clearances.
 Every fourth seed starts with 8–14 single-width cards of varying heights to
 exercise overflow. Each trace makes 18 attempts at insert/remove/footprint/resize/pause/visibility/manual/auto/
 content events, up to 1–2 column/row spans, 500–1,500 by 500–1,000pt sizes,
-manual scales 0.6…1.5 (production normalization still applies) and revisions 0–5.
+manual pans at the current camera scale and revisions 0–5. The window supplies
+its actual display backing scale for pixel comparisons.
 ID selection sorts the live set before seeded sampling. After releasing pause,
 hiding and manual ownership, the latest snapshot must settle within 3s: presented
 membership and rendered frame identities agree, card/camera projection differs
@@ -678,7 +692,7 @@ only shrink to the same failure category. This checks mounted convergence, not
 physical gestures, captured appearance or frame pacing.
 
 These properties live in the dedicated `MokuseiProperties` SwiftPM target.
-`make pbt-native` runs geometry and collection budgets with explicit seed/case
+`make pbt-native` runs geometry, collection budgets and deferred regrouping with explicit seed/case
 budgets. `make pbt-native-state` separately runs mounted convergence and requires
 macOS 26 with a WindowServer; missing display fails. Its 3s bound is a hang guard,
 not a user-experience latency threshold. Failures retain original/reduced JSON for

@@ -13,7 +13,7 @@ private enum StateEvent: Codable, CustomStringConvertible {
     case clearances(toolbar: Double, dock: Double)
     case pause(Bool)
     case visible(Bool)
-    case manual(Double)
+    case manual
     case automatic
     case content(String, Int)
 
@@ -26,7 +26,7 @@ private enum StateEvent: Codable, CustomStringConvertible {
         case .clearances(let toolbar, let dock): "clearances(toolbar=\(toolbar),dock=\(dock))"
         case .pause(let value): "pause(\(value))"
         case .visible(let value): "visible(\(value))"
-        case .manual(let scale): "manual(\(scale))"
+        case .manual: "manual pan"
         case .automatic: "automatic"
         case .content(let id, let revision): "content(\(id),\(revision))"
         }
@@ -86,7 +86,7 @@ private func generateTrace(seed: UInt64, length: Int = 18) -> StateTrace {
         case 6:
             events.append(.visible(random.coin()))
         case 7:
-            events.append(random.coin() ? .manual(Double(random.pick(60...150)) / 100) : .automatic)
+            events.append(random.coin() ? .manual : .automatic)
         default:
             guard let id = live.sorted().randomElement(using: &random) else { continue }
             events.append(.content(id, random.pick(0...5)))
@@ -170,8 +170,8 @@ struct NativeOverviewStateProperties {
                 fixture.layoutPaused = value
             case .visible(let value):
                 fixture.visible = value
-            case .manual(let scale):
-                fixture.state.camera.setManualTransform(.init(scale: scale, x: -120, y: 80))
+            case .manual:
+                fixture.state.camera.pan(deltaX: -120, deltaY: 80)
             case .automatic:
                 fixture.state.camera.returnToAuto()
             case .content(let id, let revision):

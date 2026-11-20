@@ -94,6 +94,9 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private var applicationVisit: NativeOverviewCollectionVisit?
     @ObservationIgnored private var applicationReadDeadline: Task<Void, Never>?
     private(set) var returnMember: ApplicationThreadRef?
+    // A member reader covers a live grid. Save its ranking inputs before the
+    // visit writes reading evidence, so Back can restore the same grid seat.
+    @ObservationIgnored private var heldCollectionRanks: [ApplicationThreadRef: (idle: Bool, qualifiedAt: Double?)] = [:]
     @ObservationIgnored private var projectedCollectionScene: String?
     @ObservationIgnored private var collectionAgeSample = Date().timeIntervalSince1970
     @ObservationIgnored private var snapshots: [String: NativeOverviewCardSnapshot] = [:]
@@ -316,7 +319,7 @@ public final class NativeOverviewWorkspaceModel {
             visit.promote(&evidence)
             saveReading(visit.reference, evidence)
             // The deliberate promotion can use the full budget on prepared return.
-            projectedCollectionScene = nil
+            if heldCollectionRanks[visit.reference] == nil { projectedCollectionScene = nil }
             readingChanged()
         } else if visible {
             let delay = max(0.01, visit.threshold - visit.elapsed)
@@ -328,6 +331,21 @@ public final class NativeOverviewWorkspaceModel {
                 } catch { }
             }
         }
+    }
+
+    func holdCollectionRank(for reference: ApplicationThreadRef) {
+        guard heldCollectionRanks[reference] == nil,
+              let entry = try? workspace.catalog.applicationEntry(reference) else { return }
+        heldCollectionRanks[reference] = (isIdle(entry, now: collectionAgeSample), reading(reference)?.lastQualifiedAt)
+    }
+
+    func releaseCollectionRanks() {
+        guard !heldCollectionRanks.isEmpty else { return }
+        if heldCollectionRanks.contains(where: { reading($0.key)?.lastQualifiedAt != $0.value.qualifiedAt }) {
+            projectedCollectionScene = nil
+        }
+        heldCollectionRanks.removeAll()
+        readingChanged()
     }
 
     private func reading(_ reference: ApplicationThreadRef) -> ApplicationCollectionReading? {
@@ -754,8 +772,9 @@ public final class NativeOverviewWorkspaceModel {
             let snapshotsForType = applications.filter { $0.entry.ref.typeID == typeID }.map { applicationCache[$0.entry.ref.threadID]!.1 }
             let ranked = snapshotsForType.map { snapshot in
                 let entry = snapshot.entry
-                let qualified = reading(entry.ref)?.lastQualifiedAt
-                return (snapshot: snapshot, qualified: qualified != nil, idle: isIdle(entry, now: now),
+                let rank = heldCollectionRanks[entry.ref] ?? (isIdle(entry, now: now), reading(entry.ref)?.lastQualifiedAt)
+                let qualified = rank.qualifiedAt
+                return (snapshot: snapshot, qualified: qualified != nil, idle: rank.idle,
                         priority: qualified ?? entry.createdAt / 1000)
             }.sorted { a, b in
                 if a.idle != b.idle { return a.idle }
@@ -857,7 +876,7 @@ public final class NativeOverviewWorkspaceModel {
     public func stop() async {
         active = false
         collectionSources.removeAll(); collectionSelections.removeAll(); recentApplicationReading.removeAll()
-        collectionReadingOwners.removeAll()
+        collectionReadingOwners.removeAll(); heldCollectionRanks.removeAll()
         applicationReadDeadline?.cancel(); applicationReadDeadline = nil
         applicationVisit = nil
         await publication?.value

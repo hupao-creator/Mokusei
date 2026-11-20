@@ -237,11 +237,17 @@ struct NativeReportCollection: View {
             restoreReturnMember(returnMember)
         }
         .onChange(of: active) { _, value in
-            if !value { hovered = false; showingMembers = false; settle() }
-            else { restoreReturnMember(returnMember) }
+            if value { restoreReturnMember(returnMember); refreshMembers() }
+            else {
+                hovered = false; settle()
+                if memberPresentation?.readingMember == nil { showingMembers = false }
+            }
         }
         .onChange(of: visibility?.isVisible) { _, visible in
-            if visible == false { hovered = false; showingMembers = false; settle() }
+            if visible == false {
+                hovered = false; settle()
+                if memberPresentation?.readingMember == nil { showingMembers = false }
+            }
         }
         .task(id: motionEpoch) {
             guard outgoingID != nil else { return }
@@ -290,15 +296,20 @@ struct NativeReportCollection: View {
         memberPresentation?.update(owner: panelOwner, content: AnyView(memberPanel))
     }
 
+    private func allowsMemberAction(_ reference: ApplicationThreadRef) -> Bool {
+        memberPresentation?.owner == panelOwner && active && currentMembers.contains(reference)
+            && memberPresentation?.closing == false && memberPresentation?.readingMember == nil
+    }
+
     private var memberPanel: some View {
         // This content is retained outside the card's view updates. Its captured
         // State value can still say showingMembers=false while drawing; the
         // observable presentation is the live authority for this panel visit.
         NativeReportCollectionMembers(props: props, locale: locale,
             close: { memberPresentation?.close(owner: panelOwner) },
-            allowsActions: { memberPresentation?.owner == panelOwner && active && memberPresentation?.closing != true && currentMembers.contains($0) },
+            allowsActions: allowsMemberAction,
             openThread: { reference in
-                guard memberPresentation?.owner == panelOwner, active, currentMembers.contains(reference), memberPresentation?.closing != true else { return }
+                guard allowsMemberAction(reference) else { return }
                 openThread(reference)
                 // A host without a reader handoff still releases its member grid.
                 memberPresentation?.dismiss(owner: panelOwner)

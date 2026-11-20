@@ -53,7 +53,7 @@
 | `performance-policy` | [性能门禁](../benchmarks/gate/README.md)、[架构](../benchmarks/gate/SPEC.md)、[执行契约](../benchmarks/BOUNDARY_CONTRACT.md)：配对/区间、身份、证据与 baseline 晋升 | [catalog.json](../benchmarks/gate/catalog.json)、[engine.py](../benchmarks/gate/engine.py)、[performance.py](../benchmarks/performance.py)、[verify.py](../benchmarks/gate/verify.py) | CLI 生成属性/e2e 验证判定机与证据拒绝，属于数学/状态不变量补充；不认证实机时延或校准暂定预算，PBT runner 仍用独立 summary 格式 |
 | `build-scope` | [CI](../../scripts/ci/README.md)、[打包](../../app/macos/build/README.md)、[本地检查](../../.agents/linting.md) | [Makefile](../../Makefile)、[ci.yml](../../.github/workflows/ci.yml)、[scope.py](../../scripts/ci/scope.py)、[devtool](../../internal/tooling/devtool/) | Complete coverage 含常规 Go、几何、Collection 占格 PBT 与重放 CLI 机制。性能 CLI/e2e 和产品交互各有独立 workflow，COMPOSER 需要人工辅助。显式 alpha 以独立 bundle/profile、ad-hoc 签名和 DMG 发布。实际分发、首次启动、隐私授权和远程 required checks 另行核对 |
 
-[成员网格打开与中间帧复核](../e2e/README.md#collection-member-opening)关联真实卡片激活与阅读器入场；语义打开和画面采样分别核对。
+[成员网格打开与中间帧复核](../e2e/README.md#collection-member-opening)与 [PBT-COLLECTION-REGROUP](pbt/README.md) 分别覆盖挂载交互和生成的面板访问序列。回放核对两条入口的系统点击、AXPress、阅读器往返帧、减少动态效果、返回目标，以及关闭网格后再应用阅读晋升的判据。
 
 ## 基建记录规则
 

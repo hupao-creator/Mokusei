@@ -1,8 +1,9 @@
 # Native motion and admission
 
-In the [Super Thread member grid](../app/macos/Sources/Host/Overview/README.md#viewed-application-collections),
-macOS Reduce Motion skips the member zoom and grid crossfade when you open a
-member. The reader can show its usual loading state while the report loads.
+Opening a Report from Overview or the [Super Thread member grid](../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
+uses one native panel transition. The panel opens from the activated card and
+returns to the card in the originating surface. macOS Reduce Motion skips
+Report panel travel in both directions. The reader can show its usual loading state.
 Reduce Motion also settles member removals and the
 [final Overview card exit](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
 immediately. Other application-owned animations use their ordinary timing,

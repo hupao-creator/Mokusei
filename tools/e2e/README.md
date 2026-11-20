@@ -220,17 +220,21 @@ does not certify first-run onboarding.
 
 ### Collection member opening
 
-The automated Collection journey opens a member by semantic target. To check
-the mounted grid, use the journey's populated, isolated workspace. Open the
-collection's page count, then activate the same visible member in separate runs
-with a pointer click and Accessibility Press. Record the window through reader
-arrival. Verify the report identity and title, and check that the cover grows
-toward the panel center across intermediate frames. Close the reader and check
-which cover is selected on Overview. Repeat with Reduce Motion and check that
-the grid zoom and crossfade are absent. Record any reader loading state and
-whether Reduce Motion came from the system setting or a replay-local override.
-The [member panel contract](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
-owns the geometry and interaction gates.
+The automated Collection journey opens members by semantic Overview target.
+For the grid and its return destination, use the same populated, isolated
+workspace. Open the page count, scroll to a member and record its frame. Use
+a system click and AXPress in separate visits. Capture opening and return.
+The Report shell expands from the member and contracts to it on Back. Check
+intermediate shell positions, the report title and the **Back to Super Thread
+Collection** arrow. Back must restore the grid’s scroll position and member
+order. Qualify a read and check that regrouping waits for the grid’s Close.
+For a brief read, check the retained carousel cover after closing the grid.
+
+Repeat from an Overview card. Its **Close Super Thread** button returns to
+Overview. With Reduce Motion, both entry points switch directly in both
+directions. Record whether the setting was system-wide or a replay-local
+override. Semantic state alone cannot certify those frames or system inputs.
+See the [member panel contract](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections).
 
 ## External input and isolation
 

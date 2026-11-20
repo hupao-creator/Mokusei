@@ -9,6 +9,7 @@ public extension NativeWorkspacePresentation {
         if onboarding.blocksWorkspace { return "onboarding" }
         if scene.settingsOpen { return "settings" }
         if scene.mokuOpen { return "moku" }
+        if browsingCollection { return "collection" }
         return selected == nil ? "overview" : "thread"
     }
 
@@ -48,13 +49,14 @@ public extension NativeWorkspacePresentation {
             }
             return actions.sorted()
         }
+        if browsingCollection { return ["navigation.back", "overview.show"] }
         var actions: [String] = canOpenSettings ? ["settings.open"] : []
         if interactionPage == "overview" {
             actions += ["filter.select"]
             if !interactionThreads.isEmpty { actions += ["thread.open"] }
         } else {
             actions += ["overview.show"]
-            if navigation != nil || scene.mokuOpen || (selected != nil && nativeApplicationNavigation) { actions += ["navigation.back"] }
+            if readingCollectionMember || navigation != nil || scene.mokuOpen || (selected != nil && nativeApplicationNavigation) { actions += ["navigation.back"] }
         }
         actions += overviewInteractionActions
         actions += readingInteractionActions
@@ -82,7 +84,7 @@ public extension NativeWorkspacePresentation {
             ])
         return .object([
             "page": .text(interactionPage), "mounted": .bool(interactionReady && pageMounted),
-            "transitioning": .bool(openingCollectionMember || messageMotion.active || scene.historyMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
+            "transitioning": .bool(openingCollectionMember || collectionPanel.transitioning || messageMotion.active || scene.historyMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
                 || (onboarding.blocksWorkspace && onboarding.step == .landing)),
             "onboarding": .object(["step": .integer(onboarding.step.rawValue), "canContinue": .bool(onboarding.canAdvance),
                 "editorReady": .bool(onboarding.editorReady), "admitted": .bool(onboarding.admitted),
@@ -148,8 +150,9 @@ public extension NativeWorkspacePresentation {
                 if let mokuNavigation { mokuNavigation.onBack() }
                 else { scene.closeHistory() }
             }
+            else if browsingCollection, let owner = collectionPanel.owner { collectionPanel.close(owner: owner) }
             else if let navigation { navigation.onBack() }
-            else if selected != nil, nativeApplicationNavigation { closeApplication() }
+            else if selected != nil, nativeApplicationNavigation || readingCollectionMember { closeApplication() }
             else { scene.setMokuOpen(false) }
         case .openThread(let ref):
             guard interactionThreads.contains(ref) else {

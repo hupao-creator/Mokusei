@@ -73,8 +73,10 @@ Super Thread collections expose every real member as a `thread.open` target.
 Overview card observations include `members` and the currently displayed member's
 `ref`/`title`; the synthetic collection identity is only a canvas slot. Opening
 by semantic target uses the Overview card as its source. Opening from the mounted
-member grid uses its visible member instead. Both paths use the same return
-geometry and profile-local reading fact. During the grid-to-reader transition,
+member grid uses its visible member. Both use the same Report motion and
+profile-local reading fact. Back from a grid member restores the mounted
+`collection` page. That page exposes navigation back and Overview, and
+withholds canvas actions. Close from an Overview entry restores Overview. During the grid-to-reader transition,
 the snapshot reports `transitioning`, withholds reading controls and excludes
 that time from foreground reading. Selecting a carousel page is not a reading event.
 

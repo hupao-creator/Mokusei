@@ -37,12 +37,11 @@ surface without creating a route or a native child window. Its environment
 presentation owns one UUID-scoped visit, uses native source/viewport anchors to
 convert camera geometry, and delegates travel, resize settling,
 blank-margin dismissal and Escape arbitration to the existing reading stack.
-Explicit Close refreshes the carousel source frame. For a navigation accepted
-from a grid member, the host keeps the grid visible until the destination reader
-commits its layout. It zooms the outgoing grid from the measured member frame and
-crossfades to that reader. Reduce Motion skips the grid animation at layout
-admission. The report content has its own loading state. Covering routes retire
-the visit; source removal dismisses an unclaimed grid. Callers refresh the
+Explicit Close refreshes the carousel source frame. The grid is the retained parent of a
+member reader. Its activated card supplies the source and return frame for the
+workspace’s shared Report transition. Back reveals the same grid and resumes
+its controls. Report panel travel settles directly under Reduce Motion.
+Callers refresh the
 contents when member facts change and retain their own selection, playback and
 data lifetimes.
 The collection parent remains mounted for those updates while drawing, input and

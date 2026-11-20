@@ -10,7 +10,6 @@ private struct LayoutCase: Codable, Equatable {
     var seed: UInt64
     var members: [NativeOverviewMember]
     var usable: NativeOverviewContentRect
-    var scaleCap: Double?
 }
 
 private let tolerance = 1e-9
@@ -44,8 +43,7 @@ private func generate(seed: UInt64) -> LayoutCase {
     let usable = NativeOverviewContentRect(left: random.double(-400...400),
                                            top: random.double(-200...200),
                                            width: width, height: height)
-    let cap: Double? = random.integer(0...2) == 0 ? nil : random.double(1...2.6)
-    return LayoutCase(seed: seed, members: members, usable: usable, scaleCap: cap)
+    return LayoutCase(seed: seed, members: members, usable: usable)
 }
 
 private func violations(_ input: LayoutCase) -> [String] {
@@ -53,8 +51,7 @@ private func violations(_ input: LayoutCase) -> [String] {
     do {
         result = try NativeOverviewLayout.solve(
             members: input.members,
-            usableViewport: input.usable,
-            policy: .init(metrics: .standard, scaleCap: input.scaleCap))
+            usableViewport: input.usable)
     } catch {
         return ["solve threw: \(error)"]
     }
@@ -120,8 +117,7 @@ private func violations(_ input: LayoutCase) -> [String] {
     if ![camera.scale, camera.x, camera.y].allSatisfy(\.isFinite) { issues.append("non-finite camera") }
     if camera.scale <= 0 { issues.append("non-positive scale") }
     let fit = min(input.usable.width / result.bounds.width, input.usable.height / result.bounds.height)
-    let expectedScale = max(1, min(input.scaleCap ?? fit, fit))
-    if abs(camera.scale - expectedScale) > 1e-7 { issues.append("scale is not bounded framing") }
+    if abs(camera.scale - 1) > tolerance { issues.append("standard camera is not at 1×") }
     var screenUnion = CGRect.null
     for placement in result.placements {
         let cardFrame = frame(of: placement)

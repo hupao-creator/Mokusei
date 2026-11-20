@@ -29,15 +29,16 @@ selects only these entries and requires evidence that they actually ran.
 | PBT-CODEX-TERMINAL | [Codex](../../../internal/plugins/harness/codex/README.md): generated start/event/follow-up/reject/settle histories | Durable state decodes; first terminal is absorbing; rejection notice retained |
 | PBT-CODEX-CATALOG | [Codex](../../../internal/plugins/harness/codex/README.md): client version, valid/malformed timestamp and a write before/during/after acquisition | Counted native probes distinguish reuse, one re-enumeration and reuse of the new result |
 | PBT-REPORT-PREVIEW | [Report](../../../internal/plugins/applications/report/README.md): Go fuzz over bounded arbitrary HTML | Parser safety and preview code-point bound |
-| PBT-OVERVIEW-GEOMETRY | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): 0–18 cards, generated footprints/viewports/caps | Independent geometry constraints, regular-grid lower bound and exact area/fit of shuffled six-tile rectangles |
+| PBT-OVERVIEW-GEOMETRY | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): 0–18 cards, generated footprints and viewports at the shipping 1× camera scale | Independent geometry constraints, regular-grid lower bound and exact area/fit of shuffled six-tile rectangles |
 | PBT-OVERVIEW-COLLECTION | [Collection budget](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries), 0–20 fixed cells and 1–2 types of 0–10 ordered eligible reports | Exhaustive prefix scoring covers idle groups, pressure and the two-cell release margin. Generated visits check length-adjusted foreground dwell, pauses, 24-hour aging and repeated short visits. |
-| PBT-OVERVIEW-STATE | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): generated clearances, sparse and crowded starts, 18 event attempts plus reduced corpus | Mounted membership, scale and rendered frame center after returning to automatic |
+| PBT-COLLECTION-REGROUP | [Member panel lifecycle](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries), 9–12 Reports, 1–2 panels with 1–3 visits of 1–7 seconds each | Compare live group order before and after Back, at Close and after dismissal. Check saved reading evidence independently, including repeated short reads. |
+| PBT-OVERVIEW-STATE | [Overview](../../../app/macos/Sources/Host/Overview/README.md#property-boundaries): generated clearances, sparse and crowded starts, manual pan and automatic framing, 18 event attempts plus reduced corpus | Mounted membership, scale and rendered frame center after returning to automatic |
 | PBT-SYSTEM-COMBINATION | [Runtime](../../../internal/core/runtime/README.md#property-boundaries) with 1–3 scopes, role-wise HTTP/SSE faults, action sequence and restart | Real Codex, composition and loopback provider. Checks ordered tool results for finished, missing and repeated stop targets, visibility immediately after each Report archive or restore, scoped effects and retained facts. |
 
 The limited cross-boundary properties have distinct value: Codex's absorbing
 terminal state supplies Runtime execution facts. Codex cache writes can occur
 during enumeration and leave a fallback model list apparently fresh. Report parses untrusted agent
-output; geometry has mathematical invariants. Collection membership has a finite set of legal prefixes with an independent scoring rule. Mounted Overview state has a
+output; geometry has mathematical invariants. Collection membership has a finite set of legal prefixes with an independent scoring rule. Deferred regrouping spans multiple visits with different promotion times inside a single panel. Mounted Overview state has a
 latest-wins convergence contract. They do not justify expanding PBT to every UI
 or plugin. The optional system property validates durable composition effects,
 not user gestures. Power-loss recovery, all-Harness equivalence, live model
@@ -58,7 +59,7 @@ python3 tools/verification/pbt/run.py --property PBT-MOKU-QUEUE --race --cases 3
 python3 tools/verification/pbt/run.py --list
 ```
 
-`make pbt` and `make check` use routine Go properties, native geometry and the collection budget.
+`make pbt` and `make check` use routine Go properties, native geometry, the collection budget and deferred regrouping.
 Mounted state and system properties are opt-in. Run Swift builds/properties
 serially. The system suite requires macOS, a native executable (not the npm
 JavaScript launcher), `sandbox-exec` and loopback listeners. It uses isolated
@@ -66,7 +67,7 @@ profiles/configuration and a scripted model provider; it does not read user
 conversations or contact a real model service.
 
 Rapid defaults to 100 cases per property (system: 3), seed 1. Swift geometry and collection budgets
-default to 480 seeds, mounted state to 8 plus corpus. `--cases` (1–10000),
+default to 480 seeds, deferred regrouping to 64, mounted state to 8 plus corpus. `--cases` (1–10000),
 `--seed` (nonzero UInt64), `MOKUSEI_PBT_CASES` and `MOKUSEI_PBT_SEED` control
 generated budgets. `--timeout` defaults to 600s per property including compilation;
 `--shrink-seconds` defaults to 30. Swift checks its shrinking deadline between

@@ -16,9 +16,11 @@ To send a follow-up, use the input below the source conversation. Click **Back t
 
 ## Browse Super Threads in a collection
 
-A collection shows one Super Thread at a time and can turn pages automatically. To choose a Super Thread, move the pointer over the card and use the arrows or the page menu between them. Collections of up to seven Super Threads also show a clickable marker for each page. Click the card to read the displayed Super Thread.
+A collection shows one Super Thread at a time and can turn pages automatically. To choose a Super Thread, move the pointer over the card and use the arrows or the page menu between them. Collections of up to seven Super Threads also show a clickable marker for each page. Click the card to read the displayed Super Thread. Use **Close Super Thread** in the reader to return to Overview.
 
-To see all the Super Threads together, click the page count in the upper-right corner. Scroll the members and click the Super Thread you want to read. The reader opens from the card you chose. With macOS **Reduce motion** enabled, the app skips the card zoom. The reader may show a loading indicator before the report appears. **Close** stays in the upper-left corner as you scroll. At high window zoom, the cards fit in one column below **Close**. Click **Close** or press **Esc** to return to Overview.
+To browse all members, click the page count in the upper-right corner of the collection card. Scroll the grid and click a Super Thread. The reader expands from the card you chose, just as it does on Overview. With macOS **Reduce motion** enabled, the reader switches directly. It may show a loading indicator while the report loads.
+
+Click the reader’s upper-left arrow, **Back to Super Thread Collection**, to return to your place in the grid. You can read another member from there. The grid’s **Close** button stays in the upper-left corner as you scroll. At high window zoom, the cards fit in one column below it. Click **Close** or press **Esc** in the grid to return to Overview. Any regrouping caused by reading those members takes effect when you close the grid.
 
 After a quick look at a Super Thread, its cover stays selected if it is still in the collection. Spending time reading a Super Thread or its source conversations, or returning to it within a day, gives it a better chance of appearing as an individual card. The available space also affects which Super Threads stay grouped.
 
