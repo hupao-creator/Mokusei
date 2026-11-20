@@ -35,9 +35,10 @@ types and the executable bit independently of Git's stat cache. The correspondin
 Git objects must exist in shared storage without a lazy fetch. Extra entries,
 including ignored files and empty directories, keep the checkout in place.
 The private ownership record stores the path and filesystem identity of each
-execution-path directory Chief actually creates. Such a directory can remain
-empty or contain the rest of that recorded chain. Its contents are still walked.
-A proof without creation evidence grants no empty-directory exception.
+execution-path directory Chief actually creates. A directory whose recorded
+identity includes a verifiable birth time can remain empty or contain the rest
+of that recorded chain. Its contents are still walked. The manager retains
+extra directories when birth time or creation evidence is unavailable.
 Masked or unresolved index entries, Git submodules, active checkout conversions
 (such as clean filters or explicit EOL conversion) and unknown private Git state
 also prevent removal. Inspection leaves the index in place and uses the Git

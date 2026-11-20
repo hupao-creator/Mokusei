@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -588,13 +589,19 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 			t.Fatal("retry touched another owner", err)
 		}
 
-		// Only the original mkdir identities authorize extra empty directories.
+		// The Apple Silicon runtime records birth time for Chief-created directories.
+		// Linux retains the entire extra directory chain when birth time is unavailable.
+		provesDirectoryBirth := runtime.GOOS == "darwin"
 		emptyArgs := map[string]any{"threadId": empty.ID}
 		emptyCwd := empty.Worktree.Cwd
 		spare := filepath.Join(tmp, "original-empty")
 		check(os.Rename(emptyCwd, spare))
 		check(os.Mkdir(emptyCwd, 0700))
-		expectError(emptyArgs, "identity changed")
+		if provesDirectoryBirth {
+			expectError(emptyArgs, "identity changed")
+		} else {
+			expectError(emptyArgs, "untracked")
+		}
 		check(os.Remove(emptyCwd))
 		check(os.Rename(spare, emptyCwd))
 		write(filepath.Join(emptyCwd, "notes"), "keep these")
@@ -603,6 +610,10 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		check(os.Mkdir(filepath.Join(emptyCwd, "user-dir"), 0700))
 		expectError(emptyArgs, "untracked")
 		check(os.Remove(filepath.Join(emptyCwd, "user-dir")))
+		if !provesDirectoryBirth {
+			expectError(emptyArgs, "untracked")
+			check(os.Rename(filepath.Dir(emptyCwd), filepath.Join(tmp, "unverifiable-empty-chain")))
+		}
 		_, err = call(emptyArgs)
 		check(err)
 		legacyArgs := map[string]any{"threadId": legacy.ID}
