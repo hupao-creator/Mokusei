@@ -478,11 +478,15 @@ private final class OverviewProbe {
         let directory = options.output.deletingLastPathComponent().appendingPathComponent("swift-profile", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let preferences = DesktopPreferences(directory: directory)
-        try preferences.setAppearance(.dark)
-        try preferences.setLocale(.chinese)
         let client = RuntimeClient(storageDirectory: directory, connectionSource: FixtureConnectionSource(connection: ready.connection.runtime))
+        let plugins = try NativePluginComposition(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: [])
+        #if MOKUSEI_SYSTEM_PRESENTATION
+        let workspace = NativeWorkspaceModel(client: client, preferences: preferences, plugins: plugins, locale: .chinese)
+        #else
+        try preferences.setLocale(.chinese)
         let workspace = NativeWorkspaceModel(client: client, preferences: preferences,
-            plugins: try NativePluginComposition(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: []))
+            plugins: plugins)
+        #endif
         let model = NativeOverviewWorkspaceModel(workspace: workspace, applications: .init(
             projectionCapabilities: { _, _ in throw ProbeFailure(description: "Fixture has no application cards") },
             rendererContext: { _, _, _ in throw ProbeFailure(description: "Fixture has no application cards") }))

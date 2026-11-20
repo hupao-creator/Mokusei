@@ -33,7 +33,6 @@ with (application / "Contents/Info.plist").open("wb") as output:
         "CFBundlePackageType": "APPL",
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "26.0",
-        "SettingsDemoDirectory": str(application.parent.resolve()),
         "SettingsDemoOpensMoku": options.moku_map,
     }, output)
 objects = [line.strip().strip('"') for line in link_list.read_text().splitlines()

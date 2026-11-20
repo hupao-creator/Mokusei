@@ -5,7 +5,7 @@ Chief brings Codex, Claude, Pi Agent, and OpenCode into one Mac workspace. Ask C
 ## Set up your workspace
 
 - Install Chief Alpha, connect an agent, and send your first request. [Getting started](getting-started.md)
-- Choose which agents can take tasks, set up Tag Agent and Super Thread Agent, or change the app's language and appearance. [Settings](settings.md)
+- Choose which agents can take tasks and set up Tag Agent and Super Thread Agent. [Settings](settings.md)
 
 ## Give instructions and follow the work
 

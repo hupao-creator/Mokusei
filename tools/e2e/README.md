@@ -22,7 +22,7 @@ contains every requested ID, including blocked and unreached entries.
 | --- | --- | --- | --- |
 | `E2E-OVERVIEW-001` | Observe a mounted task at 1×, pan by (+48, −90)pt, and restore the center of all card placements. Cell spans and window clearances determine the expected coordinates. | One task in the default suite, two tasks and eight reports in the Collection suite. The automatic, panned and recentered snapshots record the three poses. | Semantic camera actions and mounted identity. Pointer hit testing and drawn pixels need separate evidence. |
 | `E2E-READ-001` | Open the prepared Agent from Overview; observe its ready, nonempty mounted turn; deliver an external follow-up; observe its mounted successor; activate the first history entry; Back returns to the successor; Overview closes the reader | Fresh profile, real Codex directory, settled source reply; `creation.json`, scoped content, `ui-initial/current/history/return/overview.json`, `ui-events.jsonl` | Navigation callbacks, content acquisition and mounted turn identity; HTTP follow-up input, not composer submission. Semantic readiness is not proof of exact rendered pixels or text layout |
-| `E2E-SETTINGS-001` | Open Settings/Chief; activate an unselected `routingPreset` capsule; observe selection; close through the save gate; read the exact saved preset through public Runtime state; reopen and observe it selected | Same isolated connected workspace; `settings-before/edited/persisted/reopened.json`, UI operations and public API receipts | Real binding/draft/transport/persistence/reopen path for one preset; not IME, keyboard, pointer hit-testing, errors/conflicts or all settings |
+| `E2E-SETTINGS-001` | Open Settings with Chief selected and only Chief, Tag and Super Thread available; activate an unselected `routingPreset` capsule; close through the save gate; read the exact saved preset through public Runtime state; reopen on Chief and observe it selected | Same isolated connected workspace; `settings-before/edited/persisted/reopened.json`, UI operations and public API receipts | Default navigation and the binding/draft/transport/persistence/reopen path for one preset; IME, keyboard, pointer hit-testing, errors/conflicts and system presentation need separate evidence |
 | `E2E-COLLECTION-001` | Open a grouped member, return, then revisit and read. Switch directory and archive/restore unrelated reports while All remains mounted. | Two isolated directories, two completed tasks and eight reports from a deterministic peer. | The 18-cell All groups two fresh reports. A nine-cell directory releases them. A brief visit holds the cover, a qualified visit promotes the report, and the group releases when the expanded view reaches 14 cells. |
 | `E2E-COMPOSER-001` | Type a follow-up and activate the actual Send button; observe accepted draft clearing and completed output; send a held task, observe Stop in the empty action seat, activate it and observe interruption and an editable empty composer without navigating away | Exclusive desktop, accessible isolated bundle, external operator; `operator-send/stop.json` AX observations, exact persisted prompts, `composer-send-content/oracle/ui.json`, `composer-running/stopped/stop-content/stop-ui.json` | Operator-assisted OS input, not unattended CI; current ordinary Thread text input and cancellation only, not pause/resume, historical forks, IME or uncertain receipt recovery |
 
@@ -36,6 +36,35 @@ Reading uses two completed executions; Composer adds one completed follow-up and
 one interrupted execution. Real provider behavior/authentication, other Harnesses,
 forks, archive button input, reconnect/restart recovery and cancellation invariants are not
 certified by these scenarios.
+
+### System appearance and language
+
+Use a private profile and a disposable macOS session for system-wide setting
+changes. The [native app contract](../../app/macos/README.md#system-appearance-and-language)
+owns resolution, profile compatibility and window appearance.
+
+1. Launch into a fresh profile and inspect onboarding and menus. Repeat with a
+   profile containing saved `preferences.appearance` and `preferences.locale`
+   opposite to the system settings. Check that this profile keeps its onboarding
+   marker, selection and reading records across a normal write and relaunch.
+2. Cover Chinese with different scripts and regions, English with different
+   regions, and a different primary language with Chinese second. Inspect the
+   visible language and `snapshot.settings.locale`, including after changing the
+   preferred order while Chief is running. Check the profile's output locale
+   receipt before starting a generated-output operation.
+3. Open Settings from loaded Overview and confirm Chief is selected and the
+   available tabs are Chief, Tag and Super Thread. Select another tab, close
+   Settings, and reopen on Chief. Repeat the open on a previously loaded Overview
+   while disconnected.
+4. Change macOS Appearance from Light to Dark and back with Overview, a reader
+   and an attachment preview open. Record effective appearance in the snapshot
+   and capture each window. Settings, onboarding and the Dock use scoped dark
+   content styling within the system-themed window.
+
+Keep the revision, primary language order, appearance, profile fixture, launch
+mode and before/after observations with each run. A process-local simulation
+covers only its injected inputs. It cannot certify macOS notifications or all
+window pixels.
 
 ### Super Thread reading regression
 

@@ -156,7 +156,7 @@ Downloads retain the validated host basename, including `.partial`.
 Directory-list entries use their own host, target and entry name for UI identity,
 so distinct symlinks to the same target retain stable labels after redraws.
 
-Client appearance and language preferences live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
+Native navigation and drafts belong to the workspace. [Desktop preferences](../Host/Shell/DesktopPreferences.swift) persist profile-local selection, onboarding and reading activity. The native app [derives its interface settings from macOS](../../README.md#system-appearance-and-language) and publishes the resolved language for generated output through profile metadata.
 
 HTTP and command rejections after handoff retain the original fork identity;
 an explicit replacement preserves it until the accepted draft is consumed.

@@ -53,12 +53,9 @@ Dock's separate trailing control inset. Its configuration adapts within that
 reserved content seat as described below.
 
 Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
-panel and history input capsule keep their existing dark
-appearance independently of the system and workspace preference.
-The current and archived Moku conversation reading cards inherit the workspace
-appearance: light, dark or system. No local reader override or separate theme
-state masks the window preference. The dark capsule override is a local SwiftUI
-environment, not a window/application appearance preference.
+panel and history input capsule use a dark SwiftUI environment.
+The current and archived Moku conversation reading cards inherit the workspace's
+system appearance. The capsule's dark environment is scoped to its own content.
 Settings and onboarding retain their fixed dark appearance. Settings uses an
 opaque native window background in its local dark appearance,
 including with Reduce Transparency. The coordination map has its own

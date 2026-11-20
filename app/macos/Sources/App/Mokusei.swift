@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import MokuseiPluginUI
 import Observation
 import Darwin
@@ -42,15 +43,15 @@ private struct WorkspaceApp: App {
             session.benchmarkOverview ? WindowPlacement(CGPoint(x: 50, y: 60), size: CGSize(width: 1280, height: 820)) : WindowPlacement()
         }
         .commands {
-            NativeWorkspaceCommands()
+            NativeWorkspaceCommands(locale: session.locale)
             CommandGroup(replacing: .appTermination) {
-                Button(session.model?.preferences.locale.text("退出", "Quit") ?? "Quit") { session.quit() }.keyboardShortcut("q")
+                Button(session.locale.text("退出", "Quit")) { session.quit() }.keyboardShortcut("q")
             }
             CommandGroup(after: .toolbar) {
-                Button("Reload") { session.performWebCommand("mokuseiReloadFocusedWebContent:") { session.reload() } }.keyboardShortcut("r").disabled(session.busy)
-                Button("Actual Size") { session.performWebCommand("mokuseiResetFocusedWebContentZoom:") { session.setZoom(0) } }.keyboardShortcut("0")
-                Button("Zoom In") { session.performWebCommand("mokuseiZoomInFocusedWebContent:") { session.setZoom(session.zoom + 0.5) } }.keyboardShortcut("+")
-                Button("Zoom Out") { session.performWebCommand("mokuseiZoomOutFocusedWebContent:") { session.setZoom(session.zoom - 0.5) } }.keyboardShortcut("-")
+                Button(session.locale.text("重新载入", "Reload")) { session.performWebCommand("mokuseiReloadFocusedWebContent:") { session.reload() } }.keyboardShortcut("r").disabled(session.busy)
+                Button(session.locale.text("实际大小", "Actual Size")) { session.performWebCommand("mokuseiResetFocusedWebContentZoom:") { session.setZoom(0) } }.keyboardShortcut("0")
+                Button(session.locale.text("放大", "Zoom In")) { session.performWebCommand("mokuseiZoomInFocusedWebContent:") { session.setZoom(session.zoom + 0.5) } }.keyboardShortcut("+")
+                Button(session.locale.text("缩小", "Zoom Out")) { session.performWebCommand("mokuseiZoomOutFocusedWebContent:") { session.setZoom(session.zoom - 0.5) } }.keyboardShortcut("-")
             }
         }
     }
@@ -60,6 +61,7 @@ private struct WorkspaceApp: App {
 final class WorkspaceSession {
     private(set) var benchmarkOverview = false
     private(set) var benchmarkEmojiGlass = false
+    private(set) var locale = DesktopLocale.system
     var model: NativeWorkspaceModel?
     var presentation: NativeWorkspacePresentation?
     var error: String?
@@ -108,7 +110,7 @@ final class WorkspaceSession {
             }
             let client = RuntimeClient(profile: profile, launch: options.launch)
             let composition = try NativePlugins.make()
-            let model = NativeWorkspaceModel(client: client, preferences: preferences, plugins: composition)
+            let model = NativeWorkspaceModel(client: client, preferences: preferences, plugins: composition, locale: locale)
             if let path = options.automationSocket {
                 interactionServer = try NativeInteractionServer(path: path) { [weak self] in
                     guard let self, !self.busy else { return nil }
@@ -122,9 +124,17 @@ final class WorkspaceSession {
     #if MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY
     init(model: NativeWorkspaceModel) {
         self.model = model
+        locale = model.locale
         presentation = NativeWorkspacePresentation(workspace: model)
     }
     #endif
+    func refreshSystemLocale() {
+        let value = DesktopLocale.system
+        guard locale != value else { return }
+        locale = value
+        model?.updateSystemLocale(value)
+    }
+
     func start() {
         guard let model else { return }
         model.start()
@@ -218,9 +228,9 @@ final class WorkspaceSession {
         operationID = nil
         quitting = false; quitSavingSettings = false; busy = false
         quitSettingsBlocked = true
-        self.error = model?.preferences.locale.text(
+        self.error = locale.text(
             "设置尚未保存。可以继续编辑，或不保存并退出。\n\(error.localizedDescription)",
-            "Settings have not been saved. Keep editing, or quit without saving.\n\(error.localizedDescription)") ?? error.localizedDescription
+            "Settings have not been saved. Keep editing, or quit without saving.\n\(error.localizedDescription)")
         if let reloadTask, let model {
             // Keep the failed Settings draft; restarting Reload would discard it.
             replacePresentation(for: model) { await reloadTask.value }
@@ -239,6 +249,11 @@ final class WorkspaceSession {
     private struct SavedZoom: Codable { let level: Double }
 }
 
+private extension UserDefaults {
+    // Observe the OS key through KVO, which receives changes from other processes.
+    @objc(AppleLanguages) dynamic var preferredInterfaceLanguages: [String]? { stringArray(forKey: "AppleLanguages") }
+}
+
 private struct WorkspaceWindow: View {
     let session: WorkspaceSession
     var body: some View {
@@ -247,7 +262,10 @@ private struct WorkspaceWindow: View {
                 if let model = session.model, let presentation = session.presentation {
                     NativeWorkspaceView(model: model, presentation: presentation).id(session.generation)
                         .environment(\.agentThreadEmojiUsesLiquidGlass, session.benchmarkEmojiGlass)
-                } else { ContentUnavailableView("无法打开 Chief", systemImage: "exclamationmark.triangle", description: Text(session.error ?? "")) }
+                } else {
+                    ContentUnavailableView(session.locale.text("无法打开 Chief", "Unable to open Chief"),
+                        systemImage: "exclamationmark.triangle", description: Text(session.error ?? ""))
+                }
             }
             .frame(width: geometry.size.width / session.scale, height: geometry.size.height / session.scale)
             .environment(\.nativeWindowContentScale, CGFloat(session.scale))
@@ -255,17 +273,27 @@ private struct WorkspaceWindow: View {
             .disabled(session.busy)
         }
         .modifier(NativeWorkspaceWindowSurface())
-        .onAppear { session.start() }
+        .environment(\.locale, Locale(identifier: session.locale.rawValue))
+        .onAppear { session.refreshSystemLocale(); session.start() }
+        .onReceive(UserDefaults.standard.publisher(for: \.preferredInterfaceLanguages).receive(on: RunLoop.main)) { _ in
+            session.refreshSystemLocale()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification).receive(on: RunLoop.main)) { _ in
+            session.refreshSystemLocale()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            session.refreshSystemLocale()
+        }
         .onDisappear { session.quit() }
         .alert("Chief", isPresented: Binding(get: { session.error != nil && session.model != nil }, set: { if !$0 { session.error = nil } })) {
             if session.quitSettingsBlocked {
-                Button(session.model?.preferences.locale.text("继续编辑", "Keep Editing") ?? "Keep Editing", role: .cancel) {
+                Button(session.locale.text("继续编辑", "Keep Editing"), role: .cancel) {
                     session.error = nil; session.quitSettingsBlocked = false
                 }
-                Button(session.model?.preferences.locale.text("不保存并退出", "Quit Without Saving") ?? "Quit Without Saving", role: .destructive) {
+                Button(session.locale.text("不保存并退出", "Quit Without Saving"), role: .destructive) {
                     session.error = nil; session.quitSettingsBlocked = false; session.quit(discardSettings: true)
                 }
-            } else { Button("OK") { session.error = nil } }
+            } else { Button(session.locale.text("好", "OK")) { session.error = nil } }
         } message: { Text(session.error ?? "") }
     }
 }

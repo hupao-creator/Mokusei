@@ -13,7 +13,7 @@ python3 demos/settings-navigation/build.py
 
 预览支持交互，不配置自动断言或截图验收。
 
-数据和保存使用内存 fixture；偏好写入 demo 私有 profile。
+数据和保存使用内存 fixture。
 不启动 Runtime、模型服务或麦克风。Harness 子表单为空，不代表其功能已验证。
 需要 macOS 26 / Xcode 26；不安装或重启 Dev 应用。
 

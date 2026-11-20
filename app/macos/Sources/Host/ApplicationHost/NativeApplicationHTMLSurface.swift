@@ -153,7 +153,7 @@ private struct HTMLDocumentSession: View {
         .nativeReadingEscape(perform: panel && !ready && !suppressed ? onBack : nil)
         .preference(key: NativeApplicationHTMLReadinessKey.self, value:
             NativeApplicationHTMLReadiness(source: source, thread: thread, generation: loadedGeneration, ready: ready))
-        .preferredColorScheme(theme == .dark ? .dark : .light)
+        .environment(\.colorScheme, theme == .dark ? .dark : .light)
         .task(id: refresh) {
             document = nil; failure = nil; ready = false; scrollHidden = false; hovered = false; navigationNotice = nil
             onNativeNavigationChange(false)

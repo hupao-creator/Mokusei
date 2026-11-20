@@ -65,7 +65,7 @@ public extension NativeWorkspacePresentation {
     /// Callers observe mounted/transitioning and their own route postcondition.
     func interactionSnapshot() -> JSONValue {
         let sections = interactionSettingsSections
-        let section = sections.contains(settingsNavigation.section) ? settingsNavigation.section : "general"
+        let section = settingsNavigation.activeSection(in: sections)
         let draft = workspace.settingsModel.draft
         let pageMounted = onboarding.blocksWorkspace ? onboarding.mounted : scene.settingsOpen ? settingsNavigation.mounted
             : scene.mokuOpen ? mokuNavigation != nil
@@ -78,7 +78,7 @@ public extension NativeWorkspacePresentation {
                 "error": draft.error.map(JSONValue.text) ?? .null,
                 "composing": .bool(draft.composing), "conflicted": .bool(draft.conflicted),
                 "invalidField": draft.firstInvalidField.map(JSONValue.text) ?? .null,
-                "appearance": .text(workspace.preferences.appearance.rawValue), "locale": .text(workspace.preferences.locale.rawValue)
+                "appearance": .text(workspace.systemTheme.rawValue), "locale": .text(workspace.locale.rawValue)
             ])
         return .object([
             "page": .text(interactionPage), "mounted": .bool(interactionReady && pageMounted),
@@ -132,7 +132,7 @@ public extension NativeWorkspacePresentation {
                 catch let error as NativeSettingsControlError { throw NativeInteractionError(error.code, error.message) }
                 return
             }
-            let section = interactionSettingsSections.contains(settingsNavigation.section) ? settingsNavigation.section : "general"
+            let section = settingsNavigation.activeSection(in: interactionSettingsSections)
             do {
                 try settingsNavigation.interactions.perform(id: id, handle: handle, operation: operation, value: value,
                     context: settingsNavigation.interactionContext(section: section))

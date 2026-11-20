@@ -228,7 +228,7 @@ public final class NativeWorkspaceServices {
     }
 
     private func openExternalURL(_ text: JSONText) throws {
-        let locale = workspace?.preferences.locale ?? .english
+        let locale = workspace?.locale ?? .english
         guard JSONText(text.string) == text, let url = URL(string: text.string) else { throw PluginContractError(locale.text("无效的链接", "Invalid link")) }
         if url.isFileURL {
             guard let local = ClientWebNavigation.localFileURL(text.string) else {

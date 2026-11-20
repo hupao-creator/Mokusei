@@ -13,6 +13,8 @@ The suite ID is `overview-release`; scenario IDs are `R0`, `S4`, `A4`.
 All use N=40 with four running 2×1 cards fully visible, fixed camera, dark
 appearance, product-owned animation, Reduce Transparency disabled and the
 product's default card materials.
+The harness gives each probe window a dark appearance and supplies Simplified
+Chinese through the locale API exposed by the paired product checkout.
 Each fresh process receives 5s load-bearing warmup, 20s formal input and a maximum
 5s catch-up tail. There are six adjacent A/B pairs per scenario, 36 fresh-process
 observations in total. Three blocks each run R0/S4/A4 in AB order, then A4/S4/R0

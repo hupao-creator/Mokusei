@@ -33,7 +33,7 @@ final class NativeMokuSubmission {
     init(workspace: NativeWorkspaceModel) { self.workspace = workspace }
 
     func send(input: JSONValue, source: JSONValue, commandID: String, request: @MainActor () async throws -> JSONValue) async throws {
-        guard !sending else { throw PluginContractError(workspace.preferences.locale.text(
+        guard !sending else { throw PluginContractError(workspace.locale.text(
             "上一发送仍在确认，请稍候；草稿已保留。", "The previous send is still being confirmed. Please wait; your draft has been kept.")) }
         sending = true
         defer { sending = false }
@@ -55,7 +55,7 @@ final class NativeMokuSubmission {
             $0.channel == "moku:submit" && $0.status != .rejected
         }) {
             await workspace.client.reconcileCommandReceipts()
-            throw blocked(held.commandID, detail: workspace.preferences.locale.text(
+            throw blocked(held.commandID, detail: workspace.locale.text(
                 "先前提交的草稿上下文无法可靠还原，请核对 Chief 和原回执；不会重新发送。",
                 "The previous draft context cannot be restored reliably. Check Chief and the original receipt; no resend will be attempted."))
         }
@@ -103,10 +103,10 @@ final class NativeMokuSubmission {
     }
 
     private func blocked(_ id: String, kind: RuntimeError.Kind = .protocolFailure, detail: String? = nil) -> RuntimeError {
-        RuntimeError("MOKU_SUBMISSION_UNRESOLVED", workspace.preferences.locale.text(
+        RuntimeError("MOKU_SUBMISSION_UNRESOLVED", workspace.locale.text(
             "上一输入可能已经成功，已阻止重新发送，草稿已保留。回执：\(id)。",
             "The previous input may already have succeeded. Resending is blocked and your draft has been kept. Receipt: \(id).")
-            + (detail.map { " " + $0 } ?? workspace.preferences.locale.text(
+            + (detail.map { " " + $0 } ?? workspace.locale.text(
                 "请在原草稿中查询上一条回执。",
                 "Use Check previous receipt in the original draft.")), kind: kind, receiptID: id)
     }

@@ -32,7 +32,7 @@ enum NativeOnboardingStep: Int, CaseIterable {
     var panelFrame = CGRect.zero
     var blocksWorkspace: Bool { !finished }
     var settings: NativeSettingsModel { workspace.settingsModel }
-    var locale: DesktopLocale { workspace.preferences.locale }
+    var locale: DesktopLocale { workspace.locale }
     var context: NativeSettingsInteractionContext {
         .init(visit: visit, section: "onboarding.\(step.rawValue)")
     }

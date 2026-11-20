@@ -15,7 +15,6 @@ public final class NativeWorkspacePresentation {
     public let messageMotion = NativeReadingPageMotion()
     public let threadIdentityRegistry = NativeThreadIdentityRegistry()
     public private(set) var threadIdentityVisit: NativeThreadIdentityVisit?
-    public let themeTransition = NativeThemeTransitionController()
     public let readingNavigation = NativeReadingNavigationState()
     public let readingInteractions = NativeReadingInteractions()
     public private(set) var reportSidecards = NativeReportSidecardPresentation()
@@ -258,7 +257,7 @@ public final class NativeWorkspacePresentation {
         guard reference.thread.typeID == "agent",
               let thread = workspace.catalog.thread(reference.thread.threadID),
               thread.moku != true, !thread.mokuHistory else {
-            workspace.report(PluginContractError(NativePluginLocalization.localize("链接指向的执行不可用。", locale: Locale(identifier: workspace.preferences.locale.rawValue))))
+            workspace.report(PluginContractError(NativePluginLocalization.localize("链接指向的执行不可用。", locale: Locale(identifier: workspace.locale.rawValue))))
             return
         }
         open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
@@ -364,7 +363,7 @@ public final class NativeWorkspacePresentation {
         if !scene.settingsOpen || scene.settingsClosing {
             workspace.settingsModel.draft.beginPageEditing()
             settingsNavigation.visit = UUID()
-            settingsNavigation.section = workspace.settingsModel.runtimeAvailable ? "moku" : "general"
+            settingsNavigation.section = NativeSettingsNavigation.defaultSection
         }
         NativeReadingPageMotion.cancelAll(); scene.openSettings()
     }
@@ -677,12 +676,6 @@ public final class NativeWorkspacePresentation {
         scene.toggleNotePanelFromUser()
     }
 
-    public func setAppearance(_ appearance: DesktopAppearance) throws {
-        try themeTransition.perform(appearance: appearance) {
-            try workspace.preferences.setAppearance(appearance)
-            scene.settle(); NativeReadingPageMotion.cancelAll()
-        }
-    }
     public func perform(_ operation: @escaping () async throws -> Void) {
         workspace.dismissOperationError()
         Task { do { try await operation() } catch { workspace.report(error) } }
@@ -734,7 +727,7 @@ public final class NativeWorkspacePresentation {
         scene.resetNoteExposureAuthority()
         workspace.onCatalogChange = nil; workspace.onConnectionChange = nil
         workspace.onOverviewFilter = nil; workspace.onFollowUp = nil; workspace.onStopped = nil
-        themeTransition.cancel(); scene.settle(); moku.stop(); applicationHost.release()
+        scene.settle(); moku.stop(); applicationHost.release()
         let task = Task {
             await overview.stop(); await draft.dispose(discardRemoteAttachments: !runtimeStopped)
             for draft in threadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
@@ -750,6 +743,7 @@ public final class NativeWorkspacePresentation {
 public struct NativeWorkspaceView: View {
     public let model: NativeWorkspaceModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.controlActiveState) private var controlActiveState
     @State private var presentation: NativeWorkspacePresentation
     @State private var canvasInputRegions = NativeCanvasInputRegions()
@@ -772,10 +766,6 @@ public struct NativeWorkspaceView: View {
     }
 
     public var body: some View {
-        NativeThemeTransitionHost(controller: presentation.themeTransition) { workspaceSurface }
-    }
-
-    private var workspaceSurface: some View {
         NativeOperationNotice(error: presentation.scene.mokuOpen ? nil : model.localizedOperationError,
             suppressed: presentation.scene.settingsOpen,
             onScroll: { presentation.scene.setShellScrollOffset($0) },
@@ -795,11 +785,10 @@ public struct NativeWorkspaceView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             NativeMokuTimerBar(timer: model.timer, exclusions: presentation.scene.outsideClickExclusions)
         }
-        .environment(\.locale, Locale(identifier: model.preferences.locale.rawValue))
+        .environment(\.locale, Locale(identifier: model.locale.rawValue))
         .environment(\.nativeOfflineDraftEditing, model.hasInitialContent && !model.runtimeAvailable && !model.stopping)
         .environment(\.nativeCanvasInputRegions, canvasInputRegions)
         .coordinateSpace(name: "workspace")
-        .preferredColorScheme(model.preferences.appearance == .system ? nil : model.preferences.appearance == .dark ? .dark : .light)
         .onChange(of: scenePhase, initial: true) { _, phase in presentation.setScenePhase(phase) }
         .onChange(of: controlActiveState, initial: true) { _, state in presentation.setReadingWindowActive(state == .key) }
         .focusedSceneValue(\.workspacePresentation, presentation)
@@ -809,7 +798,7 @@ public struct NativeWorkspaceView: View {
             if value { presentation.openSettings() }
             else if presentation.scene.settingsOpen { presentation.scene.closeSettings() }
         }
-        .onChange(of: model.preferences.appearance) { _, value in
+        .onChange(of: colorScheme) { _, _ in
             presentation.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
         }
         .onChange(of: presentation.openingCollectionMember) { _, _ in presentation.publishPresence() }
@@ -834,8 +823,8 @@ public struct NativeWorkspaceView: View {
                     running: presentation.moku.running, disabled: disabled,
                     loadMentionDirectories: { try await model.services.knownDirectories() },
                     backLabel: presentation.selected == nil
-                        ? model.preferences.locale.text("返回俯瞰", "Back to overview")
-                        : model.preferences.locale.text("返回上一会话", "Back to previous conversation"),
+                        ? model.locale.text("返回俯瞰", "Back to overview")
+                        : model.locale.text("返回上一会话", "Back to previous conversation"),
                     focusEnabled: presentation.scene.mokuOpen && !presentation.scene.cameraActive && !presentation.scene.settingsOpen,
                     onNavigationChange: {
                         if presentation.scene.mokuOpen, presentation.scene.historyVisit == historyVisit { presentation.mokuNavigation = $0 }
@@ -1031,7 +1020,7 @@ public struct NativeWorkspaceView: View {
                 enabledSidecardIDs: enabledSidecards, services: presentation.sidecardServices(),
                 onBack: { presentation.showOverview() },
                 onFollowUpVisibilityChange: { presentation.setFollowUpVisible($0) },
-                backLabel: model.preferences.locale.text("返回俯瞰", "Back to overview"),
+                backLabel: model.locale.text("返回俯瞰", "Back to overview"),
                 onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } },
                 executionReveal: presentation.threadExecutionReveal,
                 onEntranceReady: { presentation.admitReadingEntrance(routeID: routeID, reference: selected) })
@@ -1063,7 +1052,7 @@ public struct NativeWorkspaceView: View {
     }
 
     private var settings: some View {
-        NativeSettingsPage(model: model.settingsModel, navigation: presentation.settingsNavigation, preferences: model.preferences, harnesses: model.plugins.harnesses.modules,
+        NativeSettingsPage(model: model.settingsModel, navigation: presentation.settingsNavigation, locale: model.locale, harnesses: model.plugins.harnesses.modules,
             applicationSections: presentation.applicationHost.settingsSections(model: model.settingsModel),
             harnessSettings: { request in
                 AnyView(NativeHarnessSettingsView(host: model.harnessHost,
@@ -1072,8 +1061,7 @@ public struct NativeWorkspaceView: View {
                         scope: .global(applicationSettings: request.scopeID, executionOwner: request.executionSnapshot ? .moku : nil)),
                     section: request.section, executionSnapshot: request.executionSnapshot, settingsFormPage: true,
                     refreshSequence: request.refreshSequence, value: request.value))
-            }, onSetAppearance: { try presentation.setAppearance($0) },
-            onSetLocale: { try model.updateLocale($0) }, onClose: { _ in presentation.scene.closeSettings() },
+            }, onClose: { _ in presentation.scene.closeSettings() },
             mokuController: presentation.scene.settingsCharacter,
             onCoordinatorFrame: { presentation.scene.setCoordinatorFrame($0, pending: $1) })
     }
@@ -1107,8 +1095,8 @@ public extension FocusedValues {
 
 public struct NativeWorkspaceCommands: Commands {
     @FocusedValue(\.workspacePresentation) private var presentation
-    private var locale: DesktopLocale { presentation?.workspace.preferences.locale ?? .chinese }
-    public init() {}
+    private let locale: DesktopLocale
+    public init(locale: DesktopLocale) { self.locale = locale }
     public var body: some Commands {
         CommandGroup(after: .sidebar) {
             Button(locale.text("会话俯瞰", "Overview")) { presentation?.showOverview(focusFilter: true) }.keyboardShortcut("k")

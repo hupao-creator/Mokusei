@@ -37,7 +37,7 @@ final class NativeExecutionContinuation {
     init(workspace: NativeWorkspaceModel) { self.workspace = workspace }
 
     func send(threadID: JSONText, executionID: JSONText?, input: JSONValue, commandID: String) async throws -> ApplicationExecutionRef {
-        guard !sending else { throw PluginContractError(workspace.preferences.locale.text(
+        guard !sending else { throw PluginContractError(workspace.locale.text(
             "上一发送仍在确认，请稍候；草稿已保留。", "The previous send is still being confirmed. Please wait; your draft has been kept.")) }
         sending = true
         defer { sending = false }
@@ -57,13 +57,13 @@ final class NativeExecutionContinuation {
         let held = await workspace.client.commandOutcomes().first { $0.requiresContinuationContext }
         if let held {
             await workspace.client.reconcileCommandReceipts()
-            throw blocked(held.commandID, detail: workspace.preferences.locale.text(
+            throw blocked(held.commandID, detail: workspace.locale.text(
                 "先前操作的提交上下文无法可靠还原，请核对原 Thread 和回执；不会自动创建分支或重新发送。",
                 "The previous submission context cannot be restored reliably. Check the original thread and receipt; no fork or resend will be attempted."))
         }
         guard let source = workspace.catalog.thread(threadID), source.moku != true, !source.mokuHistory,
               workspace.canExecute(source) else {
-            throw PluginContractError(workspace.preferences.locale.text(
+            throw PluginContractError(workspace.locale.text(
                 "此 Thread 当前无法接收输入，草稿已保留。", "This thread cannot accept input right now. Your draft has been kept."))
         }
         let reference = executionID.map { ApplicationExecutionRef(thread: .init(threadID: threadID, typeID: "agent"), executionID: $0) }
@@ -181,11 +181,11 @@ final class NativeExecutionContinuation {
     }
 
     private func blocked(_ id: String, kind: RuntimeError.Kind = .protocolFailure, detail: String? = nil) -> RuntimeError {
-        let message = workspace.preferences.locale.text(
+        let message = workspace.locale.text(
             "上一操作可能已经成功，已阻止新的分叉或重发，草稿已保留。回执：\(id)。",
             "The previous operation may already have succeeded. New forks and resends are blocked; your draft has been kept. Receipt: \(id).")
         return RuntimeError("EXECUTION_CONTINUATION_UNRESOLVED", message
-            + (detail.map { " " + $0 } ?? workspace.preferences.locale.text(
+            + (detail.map { " " + $0 } ?? workspace.locale.text(
                 "请在原草稿中查询上一条回执并核对原 Thread。",
                 "Use Check previous receipt in the original draft and check the original thread.")), kind: kind, receiptID: id)
     }

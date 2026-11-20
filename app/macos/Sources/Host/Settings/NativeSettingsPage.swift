@@ -33,17 +33,14 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
 
 @MainActor public struct NativeSettingsPage: View {
     public let model: NativeSettingsModel
-    public let preferences: DesktopPreferences
+    public let locale: DesktopLocale
     public let harnesses: [AnyHarnessPlugin]
     public let applicationSections: [NativeApplicationSettingsSection]
     public let harnessSettings: (NativeHarnessSettingsRequest) -> AnyView
-    public let onSetAppearance: (DesktopAppearance) throws -> Void
-    public let onSetLocale: (DesktopLocale) throws -> Void
     public let onClose: (CGRect) -> Void
     public var mokuController: MokuCharacterController?
     public var onCoordinatorFrame: (CGRect?, Bool) -> Void
     @State private var navigation: NativeSettingsNavigation
-    @State private var preferencesErrors: [String: String] = [:]
     @FocusState private var focusedTab: String?
     @FocusState private var focusedBack: Bool
     @State private var settingsContentHeight: CGFloat = 0
@@ -53,28 +50,24 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     @State private var animationVisits = NativeSettingsAnimationVisits()
     @Namespace private var tabSelection
 
-    public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, preferences: DesktopPreferences, harnesses: [AnyHarnessPlugin],
+    public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, locale: DesktopLocale, harnesses: [AnyHarnessPlugin],
                 applicationSections: [NativeApplicationSettingsSection] = [],
                 harnessSettings: @escaping (NativeHarnessSettingsRequest) -> AnyView,
-                onSetAppearance: @escaping (DesktopAppearance) throws -> Void,
-                onSetLocale: @escaping (DesktopLocale) throws -> Void,
                 onClose: @escaping (CGRect) -> Void,
                 mokuController: MokuCharacterController? = nil,
                 onCoordinatorFrame: @escaping (CGRect?, Bool) -> Void = { _, _ in }) {
         self.model = model
-        _navigation = State(initialValue: navigation ?? NativeSettingsNavigation(section: model.runtimeAvailable ? "moku" : "general"))
-        self.preferences = preferences; self.harnesses = harnesses
+        _navigation = State(initialValue: navigation ?? NativeSettingsNavigation())
+        self.locale = locale; self.harnesses = harnesses; self.onClose = onClose
         self.applicationSections = applicationSections; self.harnessSettings = harnessSettings
-        self.onSetAppearance = onSetAppearance; self.onSetLocale = onSetLocale; self.onClose = onClose
         self.mokuController = mokuController; self.onCoordinatorFrame = onCoordinatorFrame
     }
 
-    private var locale: DesktopLocale { preferences.locale }
     private var activeApplications: [NativeApplicationSettingsSection] {
         applicationSections.filter { definition in sections.contains(definition.id) }
     }
     private var sections: [String] { NativeSettingsNavigation.sections(model: model, applications: applicationSections) }
-    private var activeSection: String { sections.contains(navigation.section) ? navigation.section : "general" }
+    private var activeSection: String { navigation.activeSection(in: sections) }
     private var busy: Bool { model.clearing }
 
     public var body: some View {
@@ -122,8 +115,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 navigation.section = activeSection
             }
             .onChange(of: model.runtimeAvailable) { _, available in
-                if !available { navigation.section = "general" }
-                else { Task { await model.refreshInstallations() } }
+                if available { Task { await model.refreshInstallations() } }
             }
             .onChange(of: navigation.section) { _, _ in
                 if navigation.section != "moku" { onCoordinatorFrame(nil, true) }
@@ -138,7 +130,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 NativeScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         if !model.runtimeAvailable {
-                            SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
+                            SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。", "Connect to the runtime service to edit Agent configuration."))
                         }
                         if let error = model.draft.error ?? model.operationError {
                             SettingsNotice(localizedError(error), error: true) {
@@ -259,9 +251,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     }
 
     @ViewBuilder private var sectionBody: some View {
-        if activeSection == "general" {
-            general
-        } else if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
+        if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
             NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale, showsHeading: false,
                                          visitPlaybackStarted: role == .tag ? $animationVisits.tag : role == .report ? $animationVisits.report : nil) {
                 if role == .moku {
@@ -284,39 +274,13 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             .environment(\.nativeSettingsInteractionScope, application.id)
     }
 
-    private var general: some View {
-        SettingsGroup(title: locale.text("界面偏好", "Interface preferences")) {
-            ForEach(["appearance", "locale"], id: \.self) { field in
-                if let error = preferencesErrors[field] { SettingsNotice(error, error: true) }
-            }
-            SettingsRow(label: locale.text("外观", "Appearance")) {
-                SettingsSelect(label: locale.text("外观", "Appearance"), selection: Binding(get: { preferences.appearance }, set: { value in
-                    do { try onSetAppearance(value); preferencesErrors.removeValue(forKey: "appearance") } catch { preferencesErrors["appearance"] = error.localizedDescription }
-                }), options: [
-                    .init(value: .system, title: locale.text("跟随系统", "System")),
-                    .init(value: .light, title: locale.text("浅色", "Light")),
-                    .init(value: .dark, title: locale.text("深色", "Dark"))
-                ]).nativeSettingsControl("appearance")
-            }
-            SettingsRow(label: locale.text("界面语言", "Interface language")) {
-                SettingsSelect(label: locale.text("界面语言", "Interface language"), selection: Binding(get: { preferences.locale }, set: { value in
-                    do { try onSetLocale(value); preferencesErrors.removeValue(forKey: "locale") } catch { preferencesErrors["locale"] = error.localizedDescription }
-                }), options: [
-                    .init(value: .chinese, title: locale.text("简体中文", "Simplified Chinese")),
-                    .init(value: .english, title: locale.text("英语", "English"))
-                ]).nativeSettingsControl("locale")
-            }
-        }
-    }
-
     private func requestClose() {
         navigation.requestClose(model: model, onClose: onClose)
     }
     private func sectionLabel(_ id: String) -> String {
-        switch id {
-        case "general": locale.text("通用", "General")
-        default: NativeSettingsRole(section: id)?.tabLabel ?? activeApplications.first(where: { $0.id == id }).map { locale.text($0.label, $0.englishLabel) } ?? id
-        }
+        NativeSettingsRole(section: id)?.tabLabel
+            ?? activeApplications.first(where: { $0.id == id }).map { locale.text($0.label, $0.englishLabel) }
+            ?? id
     }
     private func navigateTab(from id: String, key: KeyEquivalent) {
         guard let index = sections.firstIndex(of: id), !sections.isEmpty else { return }

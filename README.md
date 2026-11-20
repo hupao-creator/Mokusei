@@ -43,8 +43,9 @@ from your inviter.
 
 No Go, Xcode, or Apple developer membership is needed to use the alpha.
 Updates are manual, and alpha app data may be incompatible between versions.
-Follow the accompanying installation guide when updating. Fresh installs open
-in Simplified Chinese; English is available in Settings.
+Follow the accompanying installation guide when updating. Chief follows your
+Mac's appearance and opens in Simplified Chinese when Chinese is the primary
+system language. For all other primary languages, Chief uses English.
 
 [Full installation and first-request guide →](docs/getting-started.md)
 

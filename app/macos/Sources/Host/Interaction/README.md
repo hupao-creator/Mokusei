@@ -11,9 +11,10 @@ commands or independent copy of page state.
 surface, navigation animation activity, settings save state, filter and
 thread identities, available action names and errors. Overview camera observations
 contain ordinary framing, viewport, motion and pause facts; they expose no
-automatic per-card target. `settings.appearance` and
-`settings.locale` report the saved client preferences even when Settings is closed
-or the Runtime is unavailable. Thread targets are the current Overview projection;
+automatic per-card target. `settings.appearance` reports the effective AppKit
+appearance (`light` or `dark`) and `settings.locale` reports the resolved interface
+language (`zh-CN` or `en-US`), including when Settings is closed or the Runtime is
+unavailable. Thread targets are the current Overview projection;
 stale or filtered-out targets are rejected.
 Available actions are advisory: dispatch checks current state again. A successful
 call means the intent was applied; it does not mean SwiftUI has rendered a frame,
@@ -31,7 +32,7 @@ Direct Swift callers can use, on the main actor:
 
 ```swift
 try presentation.performInteraction(.openSettings)
-try presentation.performInteraction(.selectSettingsSection("general"))
+try presentation.performInteraction(.selectSettingsSection("moku"))
 try presentation.performInteraction(.closeSettings)
 let state = presentation.interactionSnapshot()
 ```

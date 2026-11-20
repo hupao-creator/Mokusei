@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import MokuseiCore
@@ -7,6 +8,10 @@ import MokuseiPluginAPI
 public final class NativeWorkspaceModel {
     public let client: RuntimeClient
     public let preferences: DesktopPreferences
+    public private(set) var locale: DesktopLocale
+    var systemTheme: PluginTheme {
+        NSApp?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
+    }
     public let plugins: NativePluginComposition
     public let timer: NativeMokuTimerController
     public let catalog = NativeWorkspaceCatalog()
@@ -41,7 +46,7 @@ public final class NativeWorkspaceModel {
             "附件正在处理中，请稍候": "Attachments are being processed. Please wait.",
             "关联 Thread 已删除，无法打开。": "The linked Thread was deleted and cannot be opened."
         ]
-        return preferences.locale == .english ? translations[operationError] ?? operationError : operationError
+        return locale == .english ? translations[operationError] ?? operationError : operationError
     }
     @ObservationIgnored private let catalogPreparation = NativeCatalogPreparation()
     @ObservationIgnored private var eventTask: Task<Void, Never>?
@@ -79,11 +84,12 @@ public final class NativeWorkspaceModel {
     )
 
     public init(client: RuntimeClient, preferences: DesktopPreferences, plugins: NativePluginComposition,
-                timer: NativeMokuTimerController? = nil) {
+                timer: NativeMokuTimerController? = nil, locale: DesktopLocale = .system) {
         self.client = client
         self.preferences = preferences
         self.plugins = plugins
         self.timer = timer ?? NativeMokuTimerController()
+        self.locale = locale
     }
 
     private func makeSettingsModel() -> NativeSettingsModel {
@@ -246,10 +252,10 @@ public final class NativeWorkspaceModel {
     public func prepareCommand() async throws {
         guard !stopping else { throw CancellationError() }
         while true {
-            let locale = preferences.locale
+            let locale = self.locale
             try await publishOutputLocale(locale).value
             guard !stopping else { throw CancellationError() }
-            if preferences.locale == locale { return }
+            if self.locale == locale { return }
         }
     }
 
@@ -283,9 +289,9 @@ public final class NativeWorkspaceModel {
                 // current language before any launch/reconnect is permitted.
                 while true {
                     guard !self.stopping else { return }
-                    let locale = self.preferences.locale
+                    let locale = self.locale
                     try await self.publishOutputLocale(locale).value
-                    if self.preferences.locale == locale { break }
+                    if self.locale == locale { break }
                 }
                 guard !self.stopping else { return }
                 if retry { try await client.retryConnection() }
@@ -301,21 +307,10 @@ public final class NativeWorkspaceModel {
         return task
     }
 
-    public func setAppearance(_ appearance: DesktopAppearance) {
-        do { try preferences.setAppearance(appearance); operationError = nil }
-        catch { operationError = error.localizedDescription }
-    }
-
-    public func setLocale(_ locale: DesktopLocale) {
-        guard !stopping else { return }
-        do { try updateLocale(locale); operationError = nil }
-        catch { operationError = error.localizedDescription; return }
-    }
-
-    public func updateLocale(_ locale: DesktopLocale) throws {
-        guard !stopping else { throw CancellationError() }
-        try preferences.setLocale(locale)
-        publishOutputLocale(locale)
+    public func updateSystemLocale(_ value: DesktopLocale) {
+        guard locale != value else { return }
+        locale = value
+        if eventTask != nil && !stopping { publishOutputLocale(value) }
     }
 
     @discardableResult
@@ -323,10 +318,10 @@ public final class NativeWorkspaceModel {
         let previous = localeTask
         let task = Task<Void, Error> { [weak self, client] in
             _ = try? await previous?.value
-            guard let self, self.preferences.locale == locale else { return }
+            guard let self, self.locale == locale else { return }
             do { try await client.setOutputLocale(locale.rawValue) }
             catch {
-                if self.preferences.locale == locale { self.operationError = error.localizedDescription }
+                if self.locale == locale { self.operationError = error.localizedDescription }
                 throw error
             }
         }

@@ -28,7 +28,7 @@ public struct NativeApplicationBackgroundEditor: View {
         self.value = value; self.change = change
     }
 
-    private var locale: DesktopLocale { workspace.preferences.locale }
+    private var locale: DesktopLocale { workspace.locale }
     private var inherited: Bool {
         if case .inherit = value.mode { return true }; return false
     }

@@ -170,7 +170,7 @@ private struct NativeApplicationConversationWorkspace: View {
                     .disabled(!host.isHarnessAvailable(thread.harnessID))
             } else if conversation != nil {
                 VStack(alignment: .leading, spacing: 8) {
-                    Button(host.workspace.preferences.locale.text("打开会话", "Open conversation")) {
+                    Button(host.workspace.locale.text("打开会话", "Open conversation")) {
                         Task {
                             initializing = true; failure = nil
                             defer { initializing = false }
@@ -241,7 +241,7 @@ private struct NativeApplicationReferencedExecution: View {
                     .environment(\.threadRelatedExecution, true)
                     .environment(\.nativeReadingNavigation, nil)
             } else {
-                Text(host.workspace.preferences.locale.text("关联执行不可用", "Related execution unavailable"))
+                Text(host.workspace.locale.text("关联执行不可用", "Related execution unavailable"))
                     .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .nativeReadingContentReady()
             }

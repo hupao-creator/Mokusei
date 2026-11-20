@@ -47,7 +47,7 @@ public struct NativeOverviewWorkspaceView: View {
     @State private var localInputRegions = NativeCanvasInputRegions()
     @State private var callbackStore: NativeOverviewWorkspaceCallbackStore
     private var inputRegions: NativeCanvasInputRegions { sharedInputRegions ?? localInputRegions }
-    private var locale: DesktopLocale { model.workspace.preferences.locale }
+    private var locale: DesktopLocale { model.workspace.locale }
     public init(model: NativeOverviewWorkspaceModel, callbacks: NativeOverviewWorkspaceCallbacks,
                 interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false, chromeVisible: Bool = true) {
         self.model = model; self.callbacks = callbacks; self.interactionPaused = interactionPaused
@@ -83,7 +83,7 @@ public struct NativeOverviewWorkspaceView: View {
                     cardContentIdentity: ObjectIdentifier(model),
                     inputRegions: inputRegions) { item in
                         NativeOverviewWorkspaceCard(item: item, model: model, callbacks: callbackStore)
-                            .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
+                            .environment(\.locale, Locale(identifier: model.workspace.locale.rawValue))
                             .environment(\.threadCardNativeDecorationsEnabled, true)
                     }
                     .opacity(canvasVisible ? 1 : 0)
@@ -215,7 +215,7 @@ private struct NativeOverviewWorkspaceCard: View {
                     .focusable()
                     .focusEffectDisabled()
                     .onKeyPress(.return) { open(thread.id); return .handled }
-                    .accessibilityAction(named: Text(model.workspace.preferences.locale.text("打开会话", "Open conversation"))) { open(thread.id) }
+                    .accessibilityAction(named: Text(model.workspace.locale.text("打开会话", "Open conversation"))) { open(thread.id) }
             case .application(let plugin, let snapshot):
                 applicationCard(plugin: plugin, snapshot: snapshot)
             case .collection(let plugin, let members):

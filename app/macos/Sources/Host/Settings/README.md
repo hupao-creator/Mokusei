@@ -11,7 +11,6 @@ selection, Undo, label activation and the draft close/save gate.
 
 | Settings surface | Native interactions |
 | --- | --- |
-| General | Appearance and language popups |
 | Chief | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing preset capsules and custom text editor |
 | Tag and Super Thread | Off/inherited/independent filled choices, Harness seats, native execution fields and live capability animations |
 
@@ -97,22 +96,23 @@ invalid-field focus and save flushing. Quit waits for the pending valid save
 before Runtime teardown; invalid or failed saves offer Keep Editing and Quit
 Without Saving. The existing bounded cleanup deadline and repeated Quit remain
 available.
-The horizontal header includes General, Chief, Tag and Super Thread in that order, followed by any other enabled application sections. Native tab semantics, a selected underline and roving keyboard focus are shared at every width; the header scrolls when its tabs no longer fit.
+The horizontal header starts with Chief, followed by Tag, Super Thread and any
+other enabled application sections. Each opening selects Chief, including after
+disconnection. Native tab semantics, a selected underline and roving keyboard
+focus are shared at every width; the header scrolls when its tabs no longer fit.
 Switching sections scrolls the whole padded form to its top, retaining the same
 18-point content inset whether the selected form fits or overflows. At extreme
 zoom the outer shell scrolls back to its top as well. Form width follows the
 panel rather than SwiftUI's overflow-dependent scroller proposal, keeping its
 560-point column centered on the same axis with or without overflow. Horizontal
 padding keeps controls clear of the native gutter. The navigation labels identify
-the pages. General starts with Interface preferences, Chief starts with its
-configuration, and Tag and Super Thread start with their capability illustrations
+the pages. Chief starts with its configuration, and Tag and Super Thread start with their capability illustrations
 followed by their configuration. Harness fields and advanced options are inline.
-Unavailable selections fall back to General and normalize when the available sections change or the page mounts.
+Unavailable selections fall back to Chief and normalize when the available sections change or the page mounts. When disconnected, the selected tab stays in place and the form shows a connection notice until the Runtime is available.
 Thread archive data and commands remain independent of Settings.
 
-The expanded surface and page retain their fixed dark appearance in light,
-dark and system workspaces. This is a local environment override; the workspace
-appearance preference and other windows retain their existing ownership.
+The expanded surface and page use a local dark SwiftUI environment. The workspace
+and other windows follow the [system appearance](../../../README.md#system-appearance-and-language).
 
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
 same capsule grows toward a centered 780-point-wide surface, starting at a
@@ -143,8 +143,8 @@ stuck. Opening and return both report transitioning to semantic callers.
 The application menu and Cmd+, are enabled only for a loaded Overview. Direct
 presentation and semantic requests enforce the same boundary; reading, Moku
 history and initial connection/recovery pages cannot open Settings or implicitly
-navigate to Overview. A previously loaded Overview can still edit local
-preferences while disconnected.
+navigate to Overview. A previously loaded Overview can open Settings while
+disconnected.
 
 [NativeSettingsModel](NativeSettingsModel.swift) loads public settings and Harness presentation. [NativeSettingsDraft](NativeSettingsDraft.swift) keeps editable, ready and committed state separately. Page, control and native text-editor adapters present that state; the [Runtime](../../../../../internal/core/runtime/README.md#settings) remains persistence and validation authority.
 
@@ -152,8 +152,8 @@ Opening Settings starts a page-owned commit boundary for the entire `moku`
 configuration and the `tag.settings`/`report.settings` records. Every choice,
 switch and text field edits the retained draft. Debounce, blur, composition
 completion, reconnect, explicit retry and saves from other sections exclude these
-unaccepted role edits. General/local preferences, other application settings and
-onboarding retain their existing persistence behavior.
+unaccepted role edits. Other application settings and onboarding retain their
+existing persistence behavior.
 
 Close, Escape, backdrop and semantic navigation accept the three roles in one
 settings snapshot. Quit also accepts and awaits that snapshot before teardown.
@@ -256,7 +256,7 @@ lifecycle directly, including when their window is not the key window. Ending
 or unmounting one editor releases only that editor's composition; unrelated
 text-field notifications cannot clear another editor's close/save gate.
 
-Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible. Local appearance/language persistence has its own path and works without a connected Runtime. General → Interface preferences saves `DesktopPreferences` directly without entering a Runtime draft. `desktop-preferences.json` stores `preferences.appearance` and `preferences.locale`; updates retain selection and onboarding state. Atomic write failures retain the prior observed value and show the existing preference error notice. Interaction snapshots expose the saved values as `settings.appearance` and `settings.locale`.
+Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible.
 
 Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Super Thread Agent and Tag Agent use their built-in system instructions; settings do not expose full system-prompt replacement. Chief's “Model selection preferences” (模型选择偏好) offers Economy, Balanced,
 Performance and Custom separate capsule buttons after its basic execution fields
@@ -343,7 +343,7 @@ Harness editors report acquisition and incomplete local model choices through
 Settings starts with a 900-point preferred height and grows to the active tab's
 natural document height (including header and form insets). The shared Dock shell
 keeps its 780-point preferred width and caps both dimensions to the workspace
-viewport with 24-point margins. General, Chief, Tag and Super Thread use this same sizing,
+viewport with 24-point margins. Chief, Tag and Super Thread use this same sizing,
 including inherited and independent Harness forms. Smaller windows, app zoom,
 expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
@@ -359,8 +359,8 @@ disclosure; native keyboard activation, localized expanded state, disabled gates
 and the semantic interaction binding remain available. Collapsing retains values.
 
 DesktopPreferences stores report close times, the latest foreground close,
-qualified visit and default collection preference in the local profile. Appearance,
-locale and onboarding writes preserve these records. Current space membership
+qualified visit and default collection preference in the local profile. Selection
+and onboarding writes preserve these records. Current space membership
 and carousel selection are session presentation state. See the
 [reading contract](../Overview/README.md#viewed-application-collections).
 
@@ -369,10 +369,11 @@ and carousel selection are session presentation state. See the
 [`E2E-SETTINGS-001`](../../../../../tools/e2e/README.md) operates the actual
 `moku.routingPreset.economy|balanced|performance|custom` mounted action controls.
 The fresh connected profile uses real Runtime and Codex discovery. From Overview,
-the runner opens Settings/Chief, activates an unselected Economy or Performance
+the runner opens Settings, verifies that Chief is selected and that the only tabs
+are Chief, Tag and Super Thread, then activates an unselected Economy or Performance
 capsule using its observed handle, and observes its selected value after refresh.
 It closes through the normal save gate, checks the exact saved preset through
-public `state:load`, then reopens and observes the same selection. The four
+public `state:load`, then reopens on Chief and observes the same selection. The four
 `settings-before/edited/persisted/reopened.json` artifacts and UI/API transcripts
 retain the criterion inputs.
 

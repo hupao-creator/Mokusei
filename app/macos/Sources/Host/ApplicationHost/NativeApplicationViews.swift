@@ -61,11 +61,11 @@ private struct NativeApplicationThreadDetail: View {
          environment: NativeApplicationDetailEnvironment) {
         self.host = host; self.thread = thread; self.readingTarget = readingTarget; self.environment = environment
         _navigation = State(initialValue: ThreadDetailBackAction(
-            label: host.workspace.preferences.locale.text("返回俯瞰", "Back to overview"), onBack: environment.onBack))
+            label: host.workspace.locale.text("返回俯瞰", "Back to overview"), onBack: environment.onBack))
     }
 
     var body: some View {
-        let label = host.workspace.preferences.locale.text("返回俯瞰", "Back to overview")
+        let label = host.workspace.locale.text("返回俯瞰", "Back to overview")
         ThreadDetailFrame(navigation: navigation,
             onNavigationChange: environment.onNavigationChange) {
             if let lease, lease.identity == thread, !lease.lifetime.isCancelled {
