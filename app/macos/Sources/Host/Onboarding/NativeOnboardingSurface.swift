@@ -14,10 +14,8 @@ struct NativeOnboardingSurface: View {
     @State private var contentVisible = true
     @State private var collapsed = false
     @State private var panelVisible = true
-    // Onboarding unfolds from the always-dark Moku, so its own surface tokens
-    // stay dark even when the workspace window follows a light appearance.
-    private var ink: Color { Color(white: 0.94) }
-    private var secondary: Color { Color(white: 0.73) }
+    private let ink = NativePalette.settings.text.swiftUI
+    private let secondary = NativePalette.settings.muted.swiftUI
     private var motion: Animation? { .smooth(duration: 0.32) }
     private var locale: DesktopLocale { state.locale }
 
@@ -32,17 +30,16 @@ struct NativeOnboardingSurface: View {
                 .opacity(contentVisible ? 1 : 0)
                 .frame(width: collapsed ? destination.width : panelSize.width,
                        height: collapsed ? destination.height : panelSize.height)
-                // Stay opaque for the whole contraction. Cross-fading this fill
-                // to clear glass while the Dock is still hidden samples the light
-                // workspace and paints a bright pill before the composer appears.
+                // Once the form ink has retired, carry the capsule's material
+                // color through the contraction so the Dock can appear behind it.
                 .background {
-                    Color(white: 0.10)
+                    (collapsed ? Color(white: 0.10) : Color(nsColor: .windowBackgroundColor))
                         .opacity(reduceTransparency || contrast == .increased ? 1 : 0.96)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
                 .overlay {
                     RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-                        .strokeBorder(.white.opacity(0.12), lineWidth: 0.8)
+                        .strokeBorder(.primary.opacity(0.12), lineWidth: 0.8)
                         .opacity(collapsed ? 0 : 1)
                 }
                 .shadow(color: .black.opacity(0.13), radius: collapsed ? 13 : 30, y: collapsed ? 6 : 16)
@@ -56,9 +53,6 @@ struct NativeOnboardingSurface: View {
         }
         .coordinateSpace(name: "onboarding")
         .ignoresSafeArea()
-        // Scope the dark appearance locally: the containing window and the rest
-        // of the workspace keep following the selected/system appearance.
-        .environment(\.colorScheme, .dark)
         .environment(\.nativeSettingsCompactPresentation, true)
         .environment(\.nativeSettingsInteractions, state.interactions)
         .environment(\.nativeSettingsInteractionContext, state.context)

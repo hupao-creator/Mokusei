@@ -93,6 +93,7 @@ public struct NativeMokuDock: View {
     public var openExecution: ((ApplicationExecutionRef) -> Void)?
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     @Environment(\.nativeMokuSettingsContent) private var settingsContent
+    @Environment(\.colorScheme) private var workspaceColorScheme
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.scenePhase) private var scenePhase
@@ -231,8 +232,7 @@ public struct NativeMokuDock: View {
 
     /// Moku's face keeps its layout seat for its whole lifetime. While Settings
     /// owns the shell the same view is shifted into the page's header slot, and
-    /// the shift returns to zero as the shell contracts. The panel is dark like
-    /// the capsule, so the face keeps its existing ink there.
+    /// the shift returns to zero as the shell contracts.
     private func face(_ input: NativeMokuCharacterInput) -> some View {
         NativeMokuCharacterSurface(controller: character, input: input, seat: .face)
             // The panel corner shows the eyes at their ordinary size, so the
@@ -767,7 +767,7 @@ public struct NativeMokuDock: View {
             // Settings covers the Dock but keeps the face on screen in the page's
             // header, so its blink and expression keep their clock.
             motion: scenePhase == .active && state.windowVisible && (!state.dockCovered || state.settingsOpen),
-            dark: true, immediateOrbit: threadID != nil)
+            dark: !state.settingsExpanded || workspaceColorScheme == .dark, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
         .overlay(alignment: .bottom) {
@@ -859,6 +859,7 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.settingsOpen {
                 settingsContent
+                    .environment(\.colorScheme, workspaceColorScheme)
                     .frame(width: settingsSize.width, height: settingsSize.height)
                     // Settle the page layout during the capsule morph without
                     // suppressing animations initiated later by its children.
@@ -939,7 +940,9 @@ public struct NativeMokuDock: View {
             ZStack {
                 NativeMokuCapsuleGlass(regular: noteExpanded).opacity(state.settingsExpanded ? 0 : 1)
                 if state.settingsOpen {
-                    NativeSettingsPanelBackground().opacity(state.settingsExpanded ? 1 : 0)
+                    NativeSettingsPanelBackground()
+                        .environment(\.colorScheme, workspaceColorScheme)
+                        .opacity(state.settingsExpanded ? 1 : 0)
                 }
             }
         }.clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))

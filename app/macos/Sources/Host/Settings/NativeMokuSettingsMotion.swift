@@ -300,7 +300,6 @@ enum NativeMokuSettingsMotion {
                 .opacity(changing ? frame.arriving.opacity : 1)
         }
         .frame(width: 12, height: 12)
-        .environment(\.colorScheme, .dark)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

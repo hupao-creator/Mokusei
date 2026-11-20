@@ -58,8 +58,9 @@ owns resolution, profile compatibility and window appearance.
    while disconnected.
 4. Change macOS Appearance from Light to Dark and back with Overview, a reader
    and an attachment preview open. Record effective appearance in the snapshot
-   and capture each window. Settings, onboarding and the Dock use scoped dark
-   content styling within the system-themed window.
+   and capture each window. Repeat with the same Settings visit and the same
+   first-run form mounted. Check that the form backgrounds and controls follow
+   the new appearance without changing the active tab or setup step.
 
 Keep the revision, primary language order, appearance, profile fixture, launch
 mode and before/after observations with each run. A process-local simulation

@@ -13,12 +13,11 @@ A pending marker takes priority over subsequently created history. Marker write
 failures stay visible and retryable. Completion is written only after the last
 settings flush succeeds; ordinary preference writes preserve that state.
 
-The floating panel keeps the existing landing background and uses an opaque
-neutral reading surface with untinted Liquid Glass controls. Its surface is
-always dark: the panel scopes `\.colorScheme` to `.dark`, so its own tokens, the
-shared glass shell, hosted AppKit popups/editors and the Tag/Report animations
-stay dark in a light workspace while the window keeps its appearance. Overview
-presentation and native controls remain unchanged outside the panel. Discovery presents
+The floating panel keeps the landing background and uses a neutral window
+surface with untinted Liquid Glass controls. The panel, hosted controls, and
+Tag and Super Thread animations inherit the system appearance. During the
+noninteractive handoff, the contracting surface takes on the Dock's capsule
+color. Discovery presents
 Harnesses independently as checking installation, loading configuration, ready,
 or failed with a Harness-specific retry. An executable alone is not discovered:
 readiness joins the workspace's retained Moku execution and enabled independent

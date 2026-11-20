@@ -90,8 +90,6 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                         + NativeSettingsHeaderLayout.bottomInset + 18 + 36)
             .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
-            // Settings scopes its dark appearance without recoloring the workspace.
-            .environment(\.colorScheme, .dark)
             .environment(\.locale, Locale(identifier: locale.rawValue))
             .environment(\.nativeSettingsInteractions, navigation.interactions)
             .environment(\.nativeSettingsInteractionContext, navigation.interactionContext(section: activeSection))

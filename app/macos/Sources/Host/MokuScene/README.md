@@ -56,9 +56,8 @@ Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
 panel and history input capsule use a dark SwiftUI environment.
 The current and archived Moku conversation reading cards inherit the workspace's
 system appearance. The capsule's dark environment is scoped to its own content.
-Settings and onboarding retain their fixed dark appearance. Settings uses an
-opaque native window background in its local dark appearance,
-including with Reduce Transparency. The coordination map has its own
+Settings and the onboarding forms use the system appearance. Settings uses the
+opaque native window background, including with Reduce Transparency. The coordination map has its own
 [Liquid Glass background](../Settings/README.md) inside the Settings panel.
 The resident eyes travel into its reserved header seat during expansion.
 

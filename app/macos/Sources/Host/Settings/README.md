@@ -111,17 +111,17 @@ followed by their configuration. Harness fields and advanced options are inline.
 Unavailable selections fall back to Chief and normalize when the available sections change or the page mounts. When disconnected, the selected tab stays in place and the form shows a connection notice until the Runtime is available.
 Thread archive data and commands remain independent of Settings.
 
-The expanded surface and page use a local dark SwiftUI environment. The workspace
-and other windows follow the [system appearance](../../../README.md#system-appearance-and-language).
+The expanded surface, page, and form controls follow the workspace's
+[system appearance](../../../README.md#system-appearance-and-language).
 
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
 same capsule grows toward a centered 780-point-wide surface, starting at a
 900-point preferred height and growing with the active form, bounded by 24-point
 viewport margins. Its expanded surface uses the opaque native
-`NSColor.windowBackgroundColor` in the panel’s fixed dark appearance, with no tint
-or Liquid Glass. The same readable fill is used with Reduce Transparency.
-The resident eyes travel into the reserved leading 30-point header column and
-return to the composer with the shell. A single
+`NSColor.windowBackgroundColor` without a tint or Liquid Glass, including with
+Reduce Transparency. The resident eyes adapt to the expanded surface as they
+travel into the reserved leading 30-point header column, and return to the
+composer with the shell. A single
 Close button replaces the full-page traffic-light/back capsule and its 74-point
 safe area; the main window retains its own native controls. When extreme zoom
 leaves less than 220 logical points of page height, the entire settings shell
