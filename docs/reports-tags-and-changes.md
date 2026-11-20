@@ -18,7 +18,7 @@ Use the input below the source conversation to write a follow-up for the run you
 
 A collection shows one Super Thread at a time and can turn pages automatically. To choose a Super Thread, move the pointer over the card and use the arrows or the page menu between them. Collections of up to seven Super Threads also show a clickable marker for each page. Click the card to read the displayed Super Thread. Use **Close Super Thread** in the reader to return to Overview.
 
-To browse all members, click the page count in the upper-right corner of the collection card. Scroll the grid and click a Super Thread. The reader expands from the card you chose, just as it does on Overview. With macOS **Reduce motion** enabled, the reader switches directly. It may show a loading indicator while the report loads.
+To browse all members, click the page count in the upper-right corner of the collection card. Scroll the grid and click a Super Thread. The reader expands from the card you chose, just as it does on Overview. It may show a loading indicator while the report loads.
 
 Click the reader’s upper-left arrow, **Back to Super Thread Collection**, to return to your place in the grid. You can read another member from there. The grid’s **Close** button stays in the upper-left corner as you scroll. At high window zoom, the cards fit in one column below it. Click **Close** or press **Esc** in the grid to return to Overview. Any regrouping caused by reading those members takes effect when you close the grid.
 
@@ -30,7 +30,7 @@ Right-click a Super Thread card and choose **Archive Super Thread**. In the list
 
 The Super Thread and its linked task conversations disappear from Overview. Their records stay saved and any work already running continues.
 
-When archiving leaves the collection open, the archived card briefly fades away. With macOS **Reduce motion** enabled, it disappears immediately. If fewer than two Super Threads remain in the collection, the panel closes and any remaining Super Threads appear as individual cards in Overview.
+When archiving leaves the collection open, the archived card briefly fades away. If fewer than two Super Threads remain in the collection, the panel closes and any remaining Super Threads appear as individual cards in Overview.
 
 ## Check Git changes on a task card
 

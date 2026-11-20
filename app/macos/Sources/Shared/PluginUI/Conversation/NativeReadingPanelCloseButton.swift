@@ -15,7 +15,6 @@ public struct NativeReadingPanelCloseButton: View {
     @Environment(\.isEnabled) private var enabled
     @FocusState private var focused: Bool
     @Environment(\.nativeReadingPanelClosing) private var closing
-    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
     @Environment(\.nativeThreadPreparing) private var preparing
     @State private var appeared = false
 
@@ -51,9 +50,9 @@ public struct NativeReadingPanelCloseButton: View {
         }
         .help(label).accessibilityLabel(label)
         .opacity(appeared && !closing && !preparing ? 1 : 0)
-        .animation(animatesEntrance ? .easeOut(duration: 0.16) : nil, value: preparing)
-        .animation(animatesEntrance ? .easeOut(duration: closing ? 0.08 : 0.16) : nil, value: closing)
-        .onAppear { withAnimation(animatesEntrance ? .easeOut(duration: 0.16) : nil) { appeared = true } }
+        .animation(.easeOut(duration: 0.16), value: preparing)
+        .animation(.easeOut(duration: closing ? 0.08 : 0.16), value: closing)
+        .onAppear { withAnimation(.easeOut(duration: 0.16)) { appeared = true } }
     }
 }
 

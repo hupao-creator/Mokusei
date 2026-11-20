@@ -2,29 +2,21 @@
 
 Opening a Report from Overview or the [Super Thread member grid](../app/macos/Sources/Host/Overview/README.md#viewed-application-collections)
 uses one native panel transition. The panel opens from the activated card and
-returns to the card in the originating surface. macOS Reduce Motion skips
-Report panel travel in both directions. The reader can show its usual loading state.
+returns to the card in the originating surface. The reader can show its usual loading state.
 A Chief Note link closes the Note before Overview reveals its destination.
 If the active filter excludes the destination, Overview selects a matching
 filter. A grouped Report turns to the requested page before the reader opens.
 The settled card uses its ordinary 420ms opening, including the Agent card’s
 identity handoff when its anchors are available. The Report
 admits the cited execution after its document and sidebar layout are ready.
-With Reduce Motion, each handoff settles directly. A preselected execution
-reserves both Report panes while the content loads, and the input opens at
-its final width once ready. The native document and cited execution appear at
-full opacity when each finishes loading.
-Reduce Motion also settles member removals and the
-[final Overview card exit](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
-immediately. The bottom Chief Dock also opens and closes its input directly
-in Overview with Reduce Motion. Its ordinary 420ms transition carries the eyes
-and Stop button with the shell. [Dock and composer](../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
+The bottom Chief Dock opens and closes its Overview input over 420ms,
+carrying the eyes and Stop button with the shell. [Dock and composer](../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
 
-Other application-owned animations use their ordinary timing,
-curves and completion gates. Visibility, focus, occlusion,
-offscreen state, explicit pause, drag/resize and performance gates remain active.
-Reduce Transparency, Increase Contrast, keyboard navigation and accessibility
-semantics remain separate supported boundaries.
+Application-owned animations use their authored curves and completion gates.
+Visibility, focus, occlusion, offscreen state, explicit pause, drag/resize and
+performance gates govern when motion runs. Reduce Transparency and Increase
+Contrast govern appearance. Keyboard navigation and accessibility semantics
+follow the active controls.
 
 The [PluginUI guide](../app/macos/Sources/Shared/PluginUI/README.md#motion-and-materials)
 owns decorative rendering and reading carriers. Native panel/ink travel uses

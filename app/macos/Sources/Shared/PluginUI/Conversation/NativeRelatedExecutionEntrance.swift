@@ -11,7 +11,6 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
     @State private var preparation = NativeReadingContentPreparation()
     @State private var admitted = false
     @Environment(\.nativeReadingInteractionActive) private var interactionActive
-    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
 
     public init(fades: Bool = true, onReady: @escaping () -> Void = {}, @ViewBuilder content: () -> Content) {
         self.fades = fades; self.onReady = onReady; self.content = content()
@@ -23,7 +22,7 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
                 ProgressView().controlSize(.small)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            RelatedExecutionFade(admitted: admitted, fades: fades && animatesEntrance) {
+            RelatedExecutionFade(admitted: admitted, fades: fades) {
                 content
                 // A manifest mounts before its row and asynchronous Markdown.
                 // Use the reader's content signal plus the existing parse gate;

@@ -222,7 +222,6 @@ README/入口核对。资源来源说明属于自有文档；法律原文与生�
 | `design/reading-entrance-choreography.md` | [design/reading.md](../../design/reading.md) | 约束归属/引用核对；不沿用输入文档的运行通过声明 |
 | `design/reading-placeholder-alignment.md` | [design/reading.md](../../design/reading.md) | 约束归属/引用核对；不沿用输入文档的运行通过声明 |
 | `design/related-thread-fade.md` | [design/reading.md](../../design/reading.md) | 约束归属/引用核对；不沿用输入文档的运行通过声明 |
-| `design/remove-reduce-motion.md` | [design/motion.md](../../design/motion.md) | 约束归属/引用核对；不沿用输入文档的运行通过声明 |
 | `design/report-execution-continuation.md` | [design/reading.md](../../design/reading.md) | 约束归属/引用核对；不沿用输入文档的运行通过声明 |
 | `design/report-sidecard-admission.md` | [design/reading.md](../../design/reading.md) | 约束归属/引用核对；不沿用输入文档的运行通过声明 |
 | `design/report-sidecard-close.md` | [design/reading.md](../../design/reading.md) | 约束归属/引用核对；不沿用输入文档的运行通过声明 |

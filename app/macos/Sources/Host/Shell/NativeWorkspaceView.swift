@@ -292,7 +292,7 @@ public final class NativeWorkspacePresentation {
             card: overview.visibleCardID(for: destination), layoutRevision: overview.content.structureRevision)
     }
 
-    fileprivate func prepareNoteSource(_ request: NoteSourcePreparation?, reduceMotion: Bool) async {
+    fileprivate func prepareNoteSource(_ request: NoteSourcePreparation?) async {
         guard !Task.isCancelled, request == noteSourcePreparation else { return }
         overview.readingSource = nil
         guard let request else { return }
@@ -306,7 +306,7 @@ public final class NativeWorkspacePresentation {
             guard !Task.isCancelled, request == noteSourcePreparation else { return }
             if let card = request.card, canvas.layoutError == nil,
                let placement = canvas.presentedPlacements.first(where: { $0.id == card }) {
-                await canvas.camera.revealReadingCard(placement.cardFrame, reduceMotion: reduceMotion)
+                await canvas.camera.revealReadingCard(placement.cardFrame)
                 guard !Task.isCancelled, request == noteSourcePreparation else { return }
                 overview.readingSource = .init(member: request.destination) { [weak self] in
                     guard let self, request == noteSourcePreparation else { return }
@@ -854,7 +854,6 @@ public final class NativeWorkspacePresentation {
 public struct NativeWorkspaceView: View {
     public let model: NativeWorkspaceModel
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.controlActiveState) private var controlActiveState
     @State private var presentation: NativeWorkspacePresentation
@@ -902,7 +901,7 @@ public struct NativeWorkspaceView: View {
         .focusedSceneValue(\.workspacePresentation, presentation)
         .onAppear { presentation.start() }
         .task(id: presentation.noteSourcePreparation) { [request = presentation.noteSourcePreparation] in
-            await presentation.prepareNoteSource(request, reduceMotion: reduceMotion)
+            await presentation.prepareNoteSource(request)
         }
         .onDisappear { Task { await presentation.release() } }
         .onChange(of: model.settingsOpen) { _, value in
@@ -1056,7 +1055,6 @@ public struct NativeWorkspaceView: View {
                 panelFrontIdentity: "workspace-reading-front",
                 threadPanelMotion: presentation.selected?.typeID == "agent",
                 reportPanelMotion: presentation.selected?.typeID == "report.document",
-                respectsReduceMotion: presentation.scene.noteReadingOrigin != nil,
                 requiresPanelSource: presentation.scene.noteReadingOrigin != nil,
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
@@ -1081,14 +1079,13 @@ public struct NativeWorkspaceView: View {
                         onSettings: { presentation.openSettings() }),
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,
-                    chromeVisible: presentation.selected == nil, revealingNoteSource: presentation.scene.noteReadingOrigin != nil)
+                    chromeVisible: presentation.selected == nil)
                     .nativeCollectionPanelHost(enabled: presentation.readingCollectionMember || (!presentation.scene.settingsOpen
                         && !presentation.scene.mokuOpen && !presentation.scene.cameraActive && !presentation.onboarding.blocksWorkspace),
                         presentation: presentation.collectionPanel)
             } front: {
                 readingFront.id(routeID)
                     .environment(\.nativeExecutionDockRoute, routeID)
-                    .environment(\.nativeReadingEntranceAnimated, !(reduceMotion && presentation.scene.noteReadingOrigin != nil))
             }
             .task(id: [readingIdentity, presentation.readingTarget?.executionID ?? ""]) {
                 guard let selected = presentation.selected, selected.typeID == "agent",

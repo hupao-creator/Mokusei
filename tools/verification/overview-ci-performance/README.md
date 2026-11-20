@@ -86,9 +86,8 @@ restores the original mode. It creates no virtual display. Self-hosted images
 must supply the display policy in advance.
 
 The hosted workflow sets Reduce Transparency false only for the disposable
-GitHub-hosted account. It does not change Reduce Motion; product-owned animation
-does not read that preference. Self-hosted accounts must already satisfy the
-transparency policy.
+GitHub-hosted account. Self-hosted accounts must already satisfy the transparency
+policy.
 
 Power source must be known and stable per process and equal within a pair.
 Fixture/window/camera/display identities must match. Foreground, source, clock,

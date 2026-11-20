@@ -292,8 +292,7 @@ inserted reader geometry. The related capability owns one 200ms native opacity
 entrance per selected visit, after scoped-row and Markdown readiness; manifest
 mounting cannot consume it. Loading remains visible while preparing, and hidden
 reader controls/accessibility cannot act. Errors admit normally, refresh/retry
-keeps the same entrance, and a new selection retires pending preparation. A Chief Note entry under Reduce Motion shows the ready execution immediately. The
-ordinary list entrance keeps its 200ms timing. See the
+keeps the same entrance, and a new selection retires pending preparation. See the
 [execution entrance contract](../../../../../design/reading.md) and the [Report viewport contract](../../../../../design/reading.md).
 
 Closing a settled Report retains its current split layout from return preparation

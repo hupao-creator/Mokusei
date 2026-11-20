@@ -14,7 +14,6 @@ struct NativeMokuCharacterInput: Equatable {
     var capsuleSize: CGSize
     var cornerRadius: CGFloat
     var motion: Bool
-    var reduceMotion: Bool
     var dark: Bool
     var immediateOrbit = false
 }
@@ -150,7 +149,7 @@ struct NativeMokuCharacterPose {
     }
 
     private var canPlayOnboardingBlink: Bool {
-        NSApp.isActive && input?.motion == true && input?.reduceMotion == false && face?.motionVisible == true
+        NSApp.isActive && input?.motion == true && face?.motionVisible == true
     }
 
     func scheduleOnboardingBlink(at start: Date) {

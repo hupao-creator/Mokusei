@@ -402,7 +402,7 @@ public final class NativeOverviewCamera {
 
     /// An explicit reading link can target a card outside a saved pan or the
     /// automatic scale floor. Keep the current zoom and pan only when needed.
-    func revealReadingCard(_ rect: CGRect, reduceMotion: Bool) async {
+    func revealReadingCard(_ rect: CGRect) async {
         if let animationTask { await animationTask.value }
         guard !Task.isCancelled, let viewport, let live else { return }
         let region = NativeOverviewCameraGeometry.contentRegion(viewport)
@@ -413,13 +413,10 @@ public final class NativeOverviewCamera {
         guard !usable.isEmpty, !usable.intersects(frame) else { return }
         let target = NativeOverviewTransform(scale: transform.scale,
             x: transform.x + usable.midX - frame.midX, y: transform.y + usable.midY - frame.midY)
-        if reduceMotion { setManualTransform(target) }
-        else {
-            manual = true
-            pendingAutoFit = false
-            startAnimation(to: target)
-            await animationTask?.value
-        }
+        manual = true
+        pendingAutoFit = false
+        startAnimation(to: target)
+        await animationTask?.value
     }
 
     public func setInteractionPaused(_ paused: Bool) {

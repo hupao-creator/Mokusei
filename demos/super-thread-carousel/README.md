@@ -37,8 +37,7 @@ the archive icon on a visible member. The production card calls the fixture's
 archive capability, and the new ordered members arrive through the production
 panel update. Capture before, during and after removal. The outgoing card fades
 and shrinks in place, then the grid closes the gap. Other members and **Close**
-stay usable. Repeat with two different cards in quick succession, and with
-macOS Reduce Motion already enabled to check immediate removal. With the
+stay usable. Repeat with two different cards in quick succession. With the
 expanded fixture off and only two grouped reports visible, archiving a member
 closes the panel. **重置** restores the archived fixtures after closing.
 The archive capability changes only in-memory fixtures. Live Runtime persistence,

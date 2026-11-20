@@ -40,20 +40,19 @@ certified by these scenarios.
 ### First-run handoff
 
 Launch the native app with a fresh private profile and a ready Chief-capable
-agent. With the window active and Reduce Motion off, record the window as you
+agent. With the window active and visible, record the window as you
 click **Start using Chief** on the Super Thread Agent page. Inspect the frames
 as the panel reaches the input box. Both eyes should be open as the box comes
 into view, then narrow together once and reopen in the same seat. Watch for
 the next idle blink after a full interval. Type in the
 revealed editor. Reopen the same profile and check that it skips setup.
-Repeat with a fresh profile for each interruption. Enable Reduce Motion during
-the final 180ms fade, or cover the window during the fade and uncover it during
-the following 320ms. Both eyes should be open on return and stay open until
-the next idle blink. Also enable Reduce Motion while the eyes are closing and
-check that they reopen immediately. In each case verify that you can type at
-handoff. Record the revision, the times of the interruption and return, and
-the eye frames through the next idle blink. Starting with Reduce Motion on
-also skips the handoff blink.
+Repeat with a fresh profile for each interruption. Cover the window during
+the final 180ms fade and uncover it during the following 320ms. In a separate
+visit, leave the app while the eyes are closing and return before the blink
+would have ended. Both eyes should be open on return and stay open until
+the next idle blink. Verify that you can type at handoff in each case.
+Record the revision, the times of the interruption and return, and the
+eye frames through the next idle blink.
 This visual check exercises the [onboarding handoff](../../app/macos/Sources/Host/Onboarding/README.md).
 
 ### System appearance and language
@@ -162,9 +161,7 @@ carousel member, execution identities and link position alongside the recording.
    After a brief visit, return to the Note and check the carousel page and
    the Note’s scroll position.
 4. Repeat the three routes with system AXPress. Check English and Simplified
-   Chinese. With Reduce Motion enabled, inspect the recording for a direct
-   change at each handoff and on return. Record the preference source and the
-   capture rate. Track source revision, executable identity, scoped replies,
+   Chinese. Record the capture rate. Track source revision, executable identity, scoped replies,
    input targets and returned state for each visit.
 
 The semantic Note toggle exercises the Note entrance. Mounted route identity
@@ -330,9 +327,8 @@ order. Qualify a read and check that regrouping waits for the grid’s Close.
 For a brief read, check the retained carousel cover after closing the grid.
 
 Repeat from an Overview card. Its **Close Super Thread** button returns to
-Overview. With Reduce Motion, both entry points switch directly in both
-directions. Record whether the setting was system-wide or a replay-local
-override. Semantic state alone cannot certify those frames or system inputs.
+Overview. Check that the panel contracts to the original card. Semantic
+state alone cannot certify those frames or system inputs.
 See the [member panel contract](../../app/macos/Sources/Host/Overview/README.md#viewed-application-collections).
 
 ## External input and isolation

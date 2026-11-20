@@ -42,8 +42,6 @@ public struct NativeOverviewWorkspaceView: View {
     public var clickExclusions: NativeClickExclusions
     public var chromeVisible: Bool
     public var landing: Bool
-    var revealingNoteSource = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
     @State private var callbackStore: NativeOverviewWorkspaceCallbackStore
@@ -51,10 +49,10 @@ public struct NativeOverviewWorkspaceView: View {
     private var locale: DesktopLocale { model.workspace.locale }
     public init(model: NativeOverviewWorkspaceModel, callbacks: NativeOverviewWorkspaceCallbacks,
                 interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false,
-                chromeVisible: Bool = true, revealingNoteSource: Bool = false) {
+                chromeVisible: Bool = true) {
         self.model = model; self.callbacks = callbacks; self.interactionPaused = interactionPaused
         self.clickExclusions = clickExclusions
-        self.landing = landing; self.chromeVisible = chromeVisible; self.revealingNoteSource = revealingNoteSource
+        self.landing = landing; self.chromeVisible = chromeVisible
         _callbackStore = State(initialValue: NativeOverviewWorkspaceCallbackStore(callbacks))
     }
     public var body: some View {
@@ -67,7 +65,7 @@ public struct NativeOverviewWorkspaceView: View {
             // The last card can make the Dock switch to landing before the
             // canvas admits its empty layout. Keep that exit drawable while
             // landing and its input take over immediately.
-            let retiringToLanding = landing && !reduceMotion && !model.facts.settingsOpen
+            let retiringToLanding = landing && !model.facts.settingsOpen
                 && model.content.isEmpty
                 && (!model.canvasState.presentedPlacements.isEmpty || model.canvasState.isLayingOut)
             let canvasVisible = !landing || retiringToLanding
@@ -78,7 +76,6 @@ public struct NativeOverviewWorkspaceView: View {
                     headerInputBottom: headerBottom,
                     visible: model.facts.overviewVisible && model.facts.documentVisible && canvasVisible,
                     layoutPaused: !model.presentationActive,
-                    reduceLayoutMotion: revealingNoteSource && reduceMotion,
                     cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
                     interactionPaused: interactionPaused || landing, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },

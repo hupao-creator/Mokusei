@@ -34,7 +34,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var panelIdentity: NativeThreadIdentityVisit?
     public var panelFrontIdentity: JSONText?
     public var reportPanelMotion: Bool
-    private let respectsReduceMotion: Bool
     private let requiresPanelSource: Bool
     public var threadPanelMotion: Bool
     public var emphasizedOpening: Bool
@@ -48,9 +47,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     private let parent: Parent
     private let front: Front
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var animatesTravel: Bool {
-        enabled && !(respectsReduceMotion && reduceMotion) && (!requiresPanelSource || panelSource != nil)
+        enabled && (!requiresPanelSource || panelSource != nil)
     }
 
     @Environment(\.scenePhase) private var scenePhase
@@ -74,7 +72,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 emphasizedOpening: Bool = false, panel: Bool = false, panelUsesGlass: Bool = false,
                 isolatesParent: Bool = false, panelSource: CGRect? = nil,
                 panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false,
-                respectsReduceMotion: Bool = false, requiresPanelSource: Bool = false,
+                requiresPanelSource: Bool = false,
                 duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
@@ -90,7 +88,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.panelUsesGlass = panelUsesGlass
         self.isolatesParent = isolatesParent
         self.panelIdentity = panelIdentity; self.panelFrontIdentity = panelFrontIdentity
-        self.respectsReduceMotion = respectsReduceMotion || reportPanelMotion
         self.requiresPanelSource = requiresPanelSource
         self.reportPanelMotion = reportPanelMotion
         self.threadPanelMotion = threadPanelMotion
@@ -226,10 +223,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 if axis == .vertical && direction != 0 && enabled { trackReplacement() }
             }
             mountedIdentity = identity
-        }
-        .onChange(of: reduceMotion) { _, value in
-            bindActions()
-            if value && respectsReduceMotion && motion.active { settle(finishingClose: true) }
         }
         .onChange(of: scenePhase) { _, value in if value != .active { settle(finishingClose: true) } }
         .onChange(of: direction, initial: true) { _, value in

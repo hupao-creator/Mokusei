@@ -97,7 +97,6 @@ public struct NativeMokuDock: View {
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @State private var hovered = false
     @State private var hoverTask: Task<Void, Never>?
@@ -165,11 +164,8 @@ public struct NativeMokuDock: View {
         self.loadMentionDirectories = loadMentionDirectories
     }
     private var retaining: Bool { state.inputLeaving || state.capsuleSealed }
-    private var retiringInputSeat: Bool {
-        state.inputLeaving && !(reduceMotion && ordinaryOverviewDock)
-    }
     private var inputPresent: Bool {
-        !state.settingsOpen && !state.notePanelOpen && (state.inputOpen || retiringInputSeat) && interaction == nil
+        !state.settingsOpen && !state.notePanelOpen && (state.inputOpen || state.inputLeaving) && interaction == nil
             && (state.inputOpen || displayedMessage == nil)
     }
     /// Settings retires the composer the moment it opens, but the face should
@@ -201,7 +197,7 @@ public struct NativeMokuDock: View {
     }
     private var rowControlAvailable: Bool {
         state.inputInteractionReady && state.dockRouteVisible && state.windowVisible && !state.dockCovered && !navigationDisabled
-            && interaction == nil && !state.inputOpen && !retiringInputSeat
+            && interaction == nil && !state.inputOpen && !state.inputLeaving
     }
 
     private var displayedMessage: NativeMokuTalkMessage? { visibleTalk }
@@ -223,9 +219,8 @@ public struct NativeMokuDock: View {
     private var settlingNoteDock: Bool {
         linkedNoteLayout != nil && (state.notePanelOpen || !state.inputInteractionReady)
     }
-    private var directNoteReading: Bool { reduceMotion && state.noteReadingOrigin != nil }
     private var surfaceAnimation: Animation? {
-        if directNoteReading || settlingNoteDock { return nil }
+        if settlingNoteDock { return nil }
         guard state.readingPanelVisible else { return .smooth(duration: 0.42, extraBounce: 0) }
         if state.inputOpen && !rowExpanded { return .easeOut(duration: NativeReadingPageTiming.duration) }
         if let readingInputAnimation, state.inputOpen, state.inputInteractionReady { return readingInputAnimation }
@@ -446,7 +441,7 @@ public struct NativeMokuDock: View {
             let destination = NativeMokuHorizontalDestination(offset: placement.surface.midX - geometry.size.width / 2,
                 verticalOffset: readingOffset,
                 frame: executionFrame, revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
-                dragging: executionPlacement?.dragging == true, inactive: scenePhase != .active || directNoteReading || settlingNoteDock,
+                dragging: executionPlacement?.dragging == true, inactive: scenePhase != .active || settlingNoteDock,
                 composer: state.composerGeneration, reading: state.readingPanelVisible)
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
@@ -463,7 +458,7 @@ public struct NativeMokuDock: View {
                     .offset(y: placement.surface.maxY - geometry.size.height - readingOffset)
                     // A column change must drive shell width on the same curve
                     // as native travel, before it can reach the narrower seat.
-                    .animation(directNoteReading || executionPlacement?.dragging == true ? nil
+                    .animation(executionPlacement?.dragging == true ? nil
                         : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
                     // Keep the small reading-seat descent out of SwiftUI layout
@@ -471,21 +466,10 @@ public struct NativeMokuDock: View {
                     .geometryGroup()
                     .offset(y: destination.verticalOffset)
                     .animation(nil, value: destination.verticalOffset)
-                    // The panel owns this handoff. In particular, a shrinking
-                    // composer must not leave an additive width animation on
-                    // the restored Note when Reduce Motion cuts to its frame.
+                    // The panel owns this handoff. Keep the outgoing composer's
+                    // width animation from carrying into the restored Note.
                     .transaction(value: state.noteReadingOrigin?.phase == .reading) {
                         $0.animation = nil; $0.disablesAnimations = true
-                    }
-                    .transaction(value: state.inputOpen) {
-                        if reduceMotion && ordinaryOverviewDock {
-                            $0.animation = nil; $0.disablesAnimations = true
-                        }
-                    }
-                    .transaction {
-                        if directNoteReading || (reduceMotion && settlingNoteDock) {
-                            $0.animation = nil; $0.disablesAnimations = true
-                        }
                     }
                     // Direct resize settles the native trip and shell together.
                     .transaction(value: geometry.size) {
@@ -623,8 +607,7 @@ public struct NativeMokuDock: View {
         .onChange(of: NoteDestination(open: state.notePanelOpen, readingLink: state.noteReadingOrigin != nil,
             dismissingLink: state.noteReadingOrigin?.phase == .dismissing ? state.noteReadingOrigin?.id : nil,
             immediate: scenePhase != .active || !state.windowVisible || !state.dockRouteVisible
-                || state.dockCovered || state.inputOpen || interaction != nil
-                || directNoteReading), initial: true) { previous, destination in
+                || state.dockCovered || state.inputOpen || interaction != nil), initial: true) { previous, destination in
             transitionNote(to: destination, returningFromLink: previous.readingLink && destination.open)
             if !destination.readingLink { linkedNoteLayout = nil }
         }
@@ -831,7 +814,7 @@ public struct NativeMokuDock: View {
             // Settings covers the Dock but keeps the face on screen in the page's
             // header, so its blink and expression keep their clock.
             motion: scenePhase == .active && state.windowVisible && (!state.dockCovered || state.settingsOpen),
-            reduceMotion: reduceMotion, dark: !state.settingsExpanded || workspaceColorScheme == .dark, immediateOrbit: threadID != nil)
+            dark: !state.settingsExpanded || workspaceColorScheme == .dark, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
         .overlay(alignment: .bottom) {
@@ -968,7 +951,7 @@ public struct NativeMokuDock: View {
             NativeMokuDockIdentity(harness: threadHarness,
                 showsHarness: threadID != nil && !state.settingsOpen,
                 entranceReady: state.inputAdmissionReady,
-                generation: generation, motion: state.windowVisible && !directNoteReading,
+                generation: generation, motion: state.windowVisible,
                 onSettled: { state.completeInputIdentity(generation: generation) }) {
                 face(characterInput)
             }
@@ -996,7 +979,7 @@ public struct NativeMokuDock: View {
                         RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
                             // The hover fade owns only ink. The moving button's
                             // position and hit seat follow the shell's transaction.
-                            .animation(ordinaryOverviewDock && reduceMotion ? nil : .easeInOut(duration: 0.12)) {
+                            .animation(.easeInOut(duration: 0.12)) {
                                 $0.opacity(stopVisible ? 1 : 0)
                             }
                             .geometryGroup()

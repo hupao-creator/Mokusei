@@ -127,8 +127,7 @@ row reserves its measured seat beside Send. Stop is visible while editing
 and on hover or focus in the compact capsule. The editor uses its final
 width throughout the 420ms motion. Its ink fades in during the last tenth
 of expansion and fades out over the same part of the return. Closing ends
-editing immediately. Reduce Motion switches this Dock directly between its
-two layouts. See the [Overview Dock replay](../../../../../demos/moku-panel-transition/README.md#overview-dock-replay).
+editing immediately. See the [Overview Dock replay](../../../../../demos/moku-panel-transition/README.md#overview-dock-replay).
 
 `inputLeaving` keeps the ordinary closing editor mounted for 420ms to retain
 its selection. Returning from an Agent conversation to Overview closes the reading
@@ -238,9 +237,9 @@ The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.
 Static character targets are cached until their input changes. The native display
 link sleeps between blinks (4.2-second period, 0.32-second blink). The
 [first-run handoff](../Onboarding/README.md) schedules a single blink on the
-mounted face and sets its next idle blink one full period later. The Dock's
-Reduce Motion and scene state, together with the face's AppKit visibility,
-govern that first blink. Losing eligibility clears it immediately, including
+mounted face and sets its next idle blink one full period later. App activation,
+scene state and the face's AppKit visibility govern that first blink.
+Losing eligibility clears it immediately, including
 while the display link sleeps. The next idle blink keeps its scheduled time.
 One cancellable wake resumes the display link at the next blink. A Harness
 identity with no face and no moving decoration has neither frames nor a blink
@@ -432,7 +431,6 @@ Note restores its retained viewport. Escape in the ordinary cited document
 performs that Back action. In the Report, the sidebar arrow restores the related
 list, where the Report arrow returns to the Note.
 The closed Note remains ineligible for input, accessibility and exposure.
-Reduce Motion switches directly on entry and return.
 
 ## Settings expansion
 
@@ -706,8 +704,7 @@ authority, consume a draft or navigate before a confirmed receipt. Failure or
 an unresolved receipt retires submission feedback and leaves the existing draft
 and error/recovery path intact. Accepted continuation keeps its pending feedback
 while waiting for a new Thread's catalog event. Confirmed execution activity can continue the
-same orbit clock; unrelated Moku execution updates cannot restart it. The feedback
-retains its ordinary orbit animation without consulting system motion preferences.
+same orbit clock; unrelated Moku execution updates cannot restart it.
 
 An accepted exact-execution continuation retains the previous Dock column,
 expanded shell and Harness logo seat while its new reading visit prepares. Native column

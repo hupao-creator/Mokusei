@@ -96,10 +96,10 @@ The illustration has no visible text and exposes a single accessibility descript
 The setup panel does not mount a hidden composer. Pointer, keyboard, semantic
 navigation and direct presentation entry points remain gated. After persistence,
 the panel fades its contents, contracts to the actual Dock geometry, and reveals
-the real composer. In an active, visible window with Reduce Motion off, the
+the real composer. In an active, visible window, the
 resident eyes stay open through the 180ms final fade and blink once for 320ms
-as the input box comes fully into view. Enabling Reduce Motion, leaving the
-foreground or hiding the face during either interval cancels the cue for
+as the input box comes fully into view. Leaving the foreground or hiding
+the face during either interval cancels the cue for
 this handoff. The editor accepts input as soon as the handoff finishes.
 See the [first-run handoff replay](../../../../../tools/e2e/README.md#first-run-handoff)
 for the window capture procedure. The one-time marker is independent of empty-workspace landing:
