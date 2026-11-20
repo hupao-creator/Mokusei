@@ -24,7 +24,7 @@ You can start writing the next message while Chief confirms the previous send. O
 
 When there are several runs to read, look for the short horizontal lines halfway down the left edge of the reading area. Each line in **Conversation contents** represents a run, from oldest at the top to newest at the bottom. The longer line marks the run on screen.
 
-Hover over a line to preview the run, then click it to read. With keyboard focus on **Conversation contents**, use the Up and Down arrows to preview runs and Return to open one. Click the newest run’s line to return to it. Any newer work keeps going while you read.
+Hover over a line to preview the run, then click it to read. With keyboard focus on **Conversation contents**, use the Up and Down arrows to preview runs and Return to open one. Click the newest run’s line to return to it. You can then press Up to preview the previous run again. Any newer work keeps going while you read.
 
 If you send a message from an earlier run, Chief tries to start a separate conversation from that point. The original stays intact. Branching depends on whether the agent can recover the selected run's history.
 

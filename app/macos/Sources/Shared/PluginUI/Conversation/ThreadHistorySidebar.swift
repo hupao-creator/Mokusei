@@ -200,7 +200,9 @@ struct ThreadHistorySidebar: View {
         clearHover()
         keyboardPreview = preview
         keyboardRow = id
-        keyboardFocused = true
+        // Re-requesting held focus on Back can give the enclosing Report
+        // host the first responder when the history page disappears.
+        if !keyboardFocused { keyboardFocused = true }
         reveal(id)
     }
     private func showHover(_ id: JSONText) {

@@ -571,7 +571,8 @@ Hover or explicit keyboard navigation emphasizes an entry and reveals
 its bounded title and answer preview.
 The answer wraps naturally to at most three lines, with the title and timestamp
 remaining visible; shorter answers do not reserve unused lines.
-Restoring focus after Back does not reopen the preview. The mark and preview share
+Back restores focus to the current run's mark with the preview closed. The
+next Up or Down press opens a preview. The mark and preview share
 a cancellable 100ms pointer handoff, including the gap between them; leaving both,
 unmounting or deactivating the scene retires pointer previews. The
 viewport-bounded, independently scrollable index includes inherited history and

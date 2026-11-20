@@ -194,10 +194,13 @@ To check the [Agent reader's history marks](../../app/macos/Sources/Shared/Plugi
 also start with one completed run and send a second at a fixed window size.
 Compare the heading and body frames before and after the marks appear. The
 column should keep its width and horizontal position. Check the two lines on
-the leading margin, hover each for its preview, then open the earlier run and
-return. Repeat in the related-execution reader beside a Super Thread and at a
-narrow width. Record the viewport, document and mark bounds alongside the
-frames. The mounted navigation scenario alone does not measure this geometry.
+the leading margin, hover each for its preview, then click the earlier run and
+click the newest mark to return. Press Up immediately. The earlier preview
+should appear while the newest document stays on screen. Press Return and
+check that the earlier document opens. Repeat in the related-execution reader
+beside a Super Thread and at a narrow width. Record the viewport, document and
+mark bounds alongside the frames. The mounted navigation scenario alone does
+not measure this geometry.
 
 For the [composer geometry contract](../../design/composer.md#geometry-and-surfaces),
 record the isolated window during each selection. Check intermediate frames at
