@@ -467,7 +467,8 @@ public final class NativeWorkspacePresentation {
         agentInputTarget = target
         // TOC navigation changes the draft without taking keyboard focus from
         // the history rail or the document the user just selected.
-        configureDockInput(in: scene, autofocus: !readingEntranceAdmitted)
+        configureDockInput(in: scene, autofocus: !readingEntranceAdmitted,
+            retainingOpenInput: readingEntranceAdmitted && target != nil)
     }
 
     func updateReportExecution(_ reference: ApplicationExecutionRef?, ready: Bool, onBack: (() -> Void)?, route: UUID) {
@@ -547,7 +548,8 @@ public final class NativeWorkspacePresentation {
         configureDockInput(in: scene)
     }
 
-    private func configureDockInput(in state: NativeMokuSceneState, autofocus: Bool = true) {
+    private func configureDockInput(in state: NativeMokuSceneState, autofocus: Bool = true,
+                                    retainingOpenInput: Bool = false) {
         let superThread = selected?.typeID == "report.document" && reportExecution == nil
             && !state.mokuOpen && !state.cameraActive ? selected?.threadID : nil
         let thread = selected.flatMap { ref -> HarnessThread? in
@@ -600,7 +602,7 @@ public final class NativeWorkspacePresentation {
             inputAdmissionReady: (selected == nil || readingEntranceAdmitted)
                 && (selected?.typeID != "report.document" || (thread != nil && reportInputReady)),
             waitsForHarnessIdentity: thread != nil,
-            autofocus: autofocus)
+            autofocus: autofocus, retainingOpenInput: retainingOpenInput)
     }
 
     fileprivate func admitReadingEntrance(routeID: UUID, reference: ApplicationThreadRef) -> Bool {

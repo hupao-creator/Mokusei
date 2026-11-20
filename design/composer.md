@@ -63,7 +63,14 @@ See the [Dock contract](../app/macos/Sources/Host/MokuScene/README.md#dock-and-c
 Native horizontal travel retains the current position on retargeting and moves
 directly to the committed destination column. A route owns column markers;
 outgoing markers cannot overwrite incoming geometry. Resize, dragging and
-inactivity settle the admitted destination. Submission orbit begins on captured
+inactivity settle the admitted destination. Selecting a different run in the
+same admitted Agent reader keeps the pinned shell expanded and the settled
+Harness mark in place. The replacement editor uses the selected run's draft
+and admission state. If the selection changes the owning column, the expanded
+shell travels directly there. See the
+[history navigation replay](../tools/e2e/README.md#agent-history-composer).
+
+Submission orbit begins on captured
 input, but grants neither Stop authority nor navigation before confirmed
 execution admission. Receipt uncertainty preserves draft/recovery state.
 

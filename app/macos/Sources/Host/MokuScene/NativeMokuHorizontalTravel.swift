@@ -88,7 +88,8 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
     override func layout() {
         super.layout()
         CATransaction.begin(); CATransaction.setDisableActions(true)
-        if surface.frame != bounds { surface.frame = bounds }
+        let frame = bounds.offsetBy(dx: destination?.offset ?? 0, dy: 0)
+        if surface.frame != frame { surface.frame = frame }
         if hosting?.frame != surface.bounds { hosting?.frame = surface.bounds }
         CATransaction.commit()
     }
@@ -108,6 +109,12 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
         let current = generation
         let delta = CGPoint(x: visible.m41 + (previous?.offset ?? next.offset) - next.offset,
             y: visible.m42 + (previous?.verticalOffset ?? next.verticalOffset) - next.verticalOffset)
+        // Commit the horizontal model seat with its presentation correction.
+        // A separate SwiftUI offset can show the destination a frame early.
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        let origin = CGPoint(x: bounds.minX + next.offset, y: bounds.minY)
+        if surface.frame.origin != origin { surface.setFrameOrigin(origin) }
         layer.removeAnimation(forKey: "moku-travel")
         travelling = !immediate && (abs(delta.x) > 0.01 || abs(delta.y) > 0.01)
         guard travelling else {

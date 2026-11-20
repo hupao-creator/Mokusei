@@ -95,6 +95,29 @@ the original timeout and sample when present, and the isolated cleanup receipt.
 Mounted readiness and UI request times measure different events from display
 frame times.
 
+### Agent history composer
+
+Use an isolated profile with an ordinary Agent Thread and at least three
+runs. After the input below the current run settles, select an earlier run
+from Conversation contents, select another earlier run, and return to current.
+Check the visible run in each direction, including when returning to the first
+historical selection. Use distinct drafts to check that input follows the
+selected run and that selection leaves focus with the reader. The mounted
+history controls use the same navigation callbacks as the rail.
+
+For the [composer geometry contract](../../design/composer.md#geometry-and-surfaces),
+record the isolated window during each selection. Check intermediate frames at
+fixed window size with empty drafts. The glass must stay expanded and the
+Harness mark must remain visible. Compare each frame's horizontal center and
+width to the settled bar at the same column, allowing for capture and edge
+detection precision. With a running execution in an open Execution sidecard,
+switch between historical runs in the main pane and check the same geometry.
+When the destination actually changes columns, check for direct travel between
+the two settled centers. Repeat at ordinary and narrow window sizes in English
+and Simplified Chinese. Record the build identity, observed sizes, language,
+events, frame samples and capture limitations. `E2E-READ-001` checks mounted
+navigation, while the window recording supplies the geometry evidence.
+
 ## Fact sources
 
 Expectations follow these current production contracts, not removed replays:

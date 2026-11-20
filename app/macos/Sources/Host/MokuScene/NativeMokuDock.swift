@@ -435,14 +435,15 @@ public struct NativeMokuDock: View {
                     .scaleEffect(placement.scale, anchor: .bottom)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
                     .offset(y: placement.surface.maxY - geometry.size.height - readingOffset)
+                    // A column change must drive shell width on the same curve
+                    // as native travel, before it can reach the narrower seat.
                     .animation(executionPlacement?.dragging == true ? nil
                         : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
                     // Keep the small reading-seat descent out of SwiftUI layout
                     // animation too: reader preparation must not stall its frames.
                     .geometryGroup()
-                    .offset(x: destination.offset, y: destination.verticalOffset)
-                    .animation(nil, value: destination.offset)
+                    .offset(y: destination.verticalOffset)
                     .animation(nil, value: destination.verticalOffset)
                     // Direct resize settles the native trip and shell together.
                     .transaction(value: geometry.size) {
@@ -454,10 +455,14 @@ public struct NativeMokuDock: View {
                         .nativeCanvasNavigationRegion()
                         .background { NativeMokuCapsuleGlass(interactive: false) }
                         .environment(\.colorScheme, .dark)
-                        .position(x: panel.midX, y: panel.midY)
+                        .position(x: panel.midX - destination.offset, y: panel.midY)
                 }
             }
             .coordinateSpace(name: "native-moku-dock")
+            .overlay(alignment: .topLeading) {
+                // Local event monitors need an attached origin, not a hit area.
+                interactionMonitors(horizontalOffset: destination.offset).frame(width: 0, height: 0)
+            }
             .background {
                 NativeMokuHorizontalTravelCommand(destination: destination,
                     hitRects: [placement.surface.insetBy(dx: -5, dy: -5)]
@@ -490,12 +495,6 @@ public struct NativeMokuDock: View {
             .onChange(of: interactionIsQuestion) { _, value in
                 state.setDockInteractionVisible(state.dockRouteVisible && interaction != nil, question: value)
             }
-        }
-        .overlay(alignment: .topLeading) {
-            // Local event monitors need an attached origin, not a hit area.
-            // A full-size SwiftUI NSViewRepresentable host can intercept clicks
-            // even when its child returns nil from AppKit hitTest.
-            interactionMonitors.frame(width: 0, height: 0)
         }
         .nativeReadingEscape(perform: !state.inputPinnedOpen && state.inputOpen && state.dockContentVisible && interaction == nil ? {
             escapeInput()
@@ -640,7 +639,7 @@ public struct NativeMokuDock: View {
         .environment(\.colorScheme, .dark)
     }
 
-    private var interactionMonitors: some View {
+    private func interactionMonitors(horizontalOffset: CGFloat) -> some View {
         ZStack {
             NativeMokuOutsideClickMonitor(
                 exclusions: state.outsideClickExclusions,
@@ -653,7 +652,8 @@ public struct NativeMokuDock: View {
                     state.dismissTalk()
                 } : nil,
                 isInside: { point in
-                    NativeMokuOutsideClick.isInside(point: point, dockRects: state.dockHitRects)
+                    NativeMokuOutsideClick.isInside(point: CGPoint(x: point.x + horizontalOffset, y: point.y),
+                        dockRects: state.dockHitRects)
                         || state.dockMentionHitRect?.contains(point) == true
                 },
                 click: { _ in
@@ -671,7 +671,7 @@ public struct NativeMokuDock: View {
             NativeMokuSwipeMonitor(
                 isActive: { rowControlAvailable },
                 isInside: { point in
-                    let row = controlRowFrame
+                    let row = controlRowFrame.offsetBy(dx: -horizontalOffset, dy: 0)
                     return NativeMokuSwipeTarget.contains(point, row: row,
                         eyesOnly: displayedMessage?.dispatch != nil,
                         excluding: (stopControlPresent ? [stopControlsFrame] : []))
@@ -959,7 +959,6 @@ public struct NativeMokuDock: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)).onHover(perform: updateHover)
         .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
-        .animation(surfaceAnimation, value: surface)
         .nativeCanvasNavigationRegion()
         // In detail, only Dock focus may use this close route. A window-sized
         // fallback would race the reader's nested history/Sidecard cancellation.

@@ -502,9 +502,9 @@ panels' full column width and keep the same bottom reading baseline. Composer
 expansion retains its separate entrance timing.
 
 The Scene keeps the complete Dock in one persistent native hosting tree. Its
-native outer layer owns horizontal travel; the Dock lays out at the target
-column once, and a compositor translation carries its editor, controls and glass
-together. Main-thread work therefore does not stop an already admitted trip.
+native outer layer owns horizontal travel. The native host moves to the target
+column in the same transaction that starts compositor travel. Its editor,
+controls and glass travel together even while the main thread prepares content.
 Reversal starts at the current presentation position. Completion is fenced to
 the current native animation, placement revision and composer generation;
 resizing settles immediately. Keyboard focus survives travel,
@@ -535,6 +535,9 @@ a travel wait. Once input is admitted, later card choices move the retained edit
 without folding it. Direct resizing settles without a delay.
 Scene-level input admission also gates interaction restoration,
 input controls and focus; navigation cannot bypass it by reconfiguring the draft.
+Within an admitted Agent reader, TOC selection and Back replace the editor's
+draft without folding the pinned shell or readmitting its settled Harness mark.
+Input readiness still follows the selected document.
 Automatic focus follows the current composer visit's ink reveal. The Dock
 requests focus when the reveal reaches 10% opacity. Admitted click and Tab
 focus remain available during opening. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,

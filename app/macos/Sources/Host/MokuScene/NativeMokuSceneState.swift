@@ -165,11 +165,15 @@ import MokuseiPluginUI
     /// editor selection must never cross from Moku or one Thread to another.
     public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool, keepsInputOpen: Bool = false,
                                    inputAdmissionReady: Bool = true, waitsForHarnessIdentity: Bool = false,
-                                   autofocus: Bool = true) {
+                                   autofocus: Bool = true, retainingOpenInput: Bool = false) {
         let identity = ObjectIdentifier(draft)
+        // A document change inside an admitted reader replaces the draft, but
+        // the pinned shell and its settled Harness mark still belong to the visit.
+        let retainOpenInput = retainingOpenInput && opensInput && keepsInputOpen && inputPinnedOpen
+            && inputOpen && inputInteractionReady && inputAdmissionReady
         inputPinnedOpen = keepsInputOpen
         if !waitsForHarnessIdentity { inputIdentityReady = true }
-        else if !inputAdmissionReady || composerIdentity != identity { inputIdentityReady = false }
+        else if !retainOpenInput, !inputAdmissionReady || composerIdentity != identity { inputIdentityReady = false }
         if self.inputAdmissionReady != inputAdmissionReady {
             self.inputAdmissionReady = inputAdmissionReady
             if !inputAdmissionReady {
@@ -186,7 +190,7 @@ import MokuseiPluginUI
         composerAutofocus = autofocus
         composerGeneration = UUID()
         capsuleTask?.cancel(); capsuleTask = nil
-        inputOpen = false; inputLeaving = false; capsuleSealed = false
+        inputOpen = retainOpenInput; inputLeaving = false; capsuleSealed = false
         retainedSelection = nil; retainedSelectionText = nil
         retainDraft(draft)
         setInputOpen(opensInput)
