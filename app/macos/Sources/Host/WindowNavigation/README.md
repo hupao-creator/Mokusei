@@ -79,11 +79,18 @@ action; unmounting clears it and a new mount owns a new identity.
 
 [NativeReadingPageStack](../../Shared/PluginUI/Conversation/NativeReadingPageStack.swift) retains reading-page identity through transitions. [NativeReadingPageTiming](../../Shared/PluginUI/Conversation/NativeReadingPageTiming.swift) centralizes duration and curves: outer ordinary-detail opening uses the emphasized 420 ms curve, while nested/default navigation and closing retain their declared policies. Non-panel page offset, horizontal parent shade/blur and the clipped horizontal page shadow derive from shared progress. Panel position, aperture and closing fade use the independent native compositor driver in [NativeReadingPanelTransition](../../Shared/PluginUI/Conversation/NativeReadingPanelTransition.swift). Vertical conversation-history navigation uses equal full-height travel on a flat plane, without these depth effects; its retained document changes enabled state only offscreen to preserve the native scroller gutter during opening/return. History replacement keeps that hidden document disabled throughout, independently of the shared active-motion flag. The parent remains mounted through the return transition. Resize or an inactive scene completes an accepted Close for that same route visit; otherwise the animation simply settles. Identity replacement, explicit cancellation and disabled presentation still cancel the current generation without closing a replacement route.
 
+Chief history opts into the shared carrier's workspace overlay. Its live
+content spans the shared reading-card frame and the space below for the input
+capsule. The compositor animates position and opacity at this fixed layout.
+The front stays mounted through reversal and return, with the existing native
+completion fenced to the active visit. See the
+[Chief history contract](../MokuScene/README.md).
+
 The outer workspace reading stack also owns the retained Overview presentation
 gate. Panel opening pauses display projection immediately. Ordinary Agent card
 entries preload the primary reader after native animation-start delivery; drawing,
-input, accessibility and secondary surfaces wait for arrival. Other panel entries
-retain their arrival mounting gate. Card identity flights first mount
+input, accessibility and secondary surfaces wait for arrival. Report and
+Collection entries mount their readers on arrival. Card identity flights first mount
 a lightweight workspace layout with a row-free conversation heading. Its
 anchors supply the initial destination. If preloading selects an Execution
 Sidecard, the compositor follows the measured heading in the main column

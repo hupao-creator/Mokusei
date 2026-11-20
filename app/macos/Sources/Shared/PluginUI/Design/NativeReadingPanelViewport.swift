@@ -12,13 +12,13 @@ public extension View {
     /// overlay readers instead provide a backed Close above their content.
     /// Document owners can opt into matching the fixed chrome at both ends.
     func nativeReadingPanelViewport(topInset: CGFloat = 48, balancedVerticalInsets: Bool = false,
-                                    clearsCloseHorizontally: Bool = false) -> some View {
+                                    clearsCloseHorizontally: Bool = false, minimumBottomInset: CGFloat = 0) -> some View {
         let side: CGFloat = 8
         let closeEdge = NativeReadingPanelCloseButton.edgeInset + NativeReadingPanelCloseButton.diameter
         return environment(\.threadDocumentMinimumInset, clearsCloseHorizontally ? closeEdge - side : 0)
             .padding(.horizontal, side)
             .padding(.top, topInset)
-            .padding(.bottom, balancedVerticalInsets ? topInset : 22)
+            .padding(.bottom, max(balancedVerticalInsets ? topInset : 22, minimumBottomInset))
     }
 
     /// The main timeline supplies its viewport width before SwiftUI allocates a scroller.

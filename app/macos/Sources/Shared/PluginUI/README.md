@@ -174,8 +174,10 @@ with ordinary Agent card readers preloading only after the native animation-star
 callback. Their host stays transparent, hit testing and accessibility stay closed,
 and reading controls are not registered until arrival. Primary Markdown and
 TextKit preparation therefore overlap compositor-owned travel without advancing
-text entrance or secondary surfaces. Source-less and non-Agent entries retain
-their existing mounting gate. The retained reader has one stable native hosting view after admission;
+text entrance or secondary surfaces. Chief history uses the carrier's workspace
+overlay mode to reveal the live card and its capsule together with native
+position and opacity. See the [history contract](../../Host/MokuScene/README.md).
+Report and Collection entries mount their readers on arrival. The retained reader has one stable native hosting view after admission;
 its environment comes from the enclosing SwiftUI surface and its layout width
 stays at the destination width throughout return travel. Reversal samples native
 presentation layers, and generation-fenced completion cannot admit or close a
