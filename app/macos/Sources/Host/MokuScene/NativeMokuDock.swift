@@ -573,6 +573,7 @@ public struct NativeMokuDock: View {
         }
         .onChange(of: incomingTalk, initial: true) { _, message in state.receiveTalk(message) }
         .onAppear {
+            state.dockCharacter = character
             character.onReasoningRetired = {
                 guard !reasoningRequested else { return }
                 withAnimation(surfaceAnimation) { reasoningSeatReserved = false }
@@ -672,6 +673,8 @@ public struct NativeMokuDock: View {
         }
         .onChange(of: presentation?.displayToken, initial: true) { _, _ in acknowledgePresentation() }
         .onDisappear {
+            if state.dockCharacter === character { state.dockCharacter = nil }
+            character.cancelOnboardingBlink()
             character.onReasoningRetired = nil
             reasoningRequested = false; reasoningReady = false; reasoningSeatReserved = false
             reasoningTransition += 1; retainedReasoningGlyphs = []
@@ -828,8 +831,7 @@ public struct NativeMokuDock: View {
             // Settings covers the Dock but keeps the face on screen in the page's
             // header, so its blink and expression keep their clock.
             motion: scenePhase == .active && state.windowVisible && (!state.dockCovered || state.settingsOpen),
-            dark: !state.settingsExpanded || workspaceColorScheme == .dark, immediateOrbit: threadID != nil,
-            blinkOrigin: state.onboardingBlinkStart)
+            reduceMotion: reduceMotion, dark: !state.settingsExpanded || workspaceColorScheme == .dark, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
         .overlay(alignment: .bottom) {

@@ -20,17 +20,18 @@ enum NativeMokuCapsuleBlinkTiming {
     static let interval = 4.2
     static let duration = 0.32
 
-    // An explicit blink starts a fresh idle interval on the same display clock.
-    static func cycleStart(at date: Date, origin: Date?) -> Date {
-        let origin = origin ?? Date(timeIntervalSinceReferenceDate: 0)
+    // Both the eye shape and its sleeping display link use this same current or next blink.
+    static func window(at date: Date, first: Date? = nil) -> Range<Date> {
+        let origin = first ?? Date(timeIntervalSinceReferenceDate: 0)
         let cycle = floor(date.timeIntervalSince(origin) / interval)
-        return origin.addingTimeInterval(cycle * interval)
+        var start = origin.addingTimeInterval((first == nil ? cycle : max(0, cycle)) * interval)
+        if date >= start.addingTimeInterval(duration) { start.addTimeInterval(interval) }
+        return start..<start.addingTimeInterval(duration)
     }
 
-    static func factor(at date: Date, origin: Date? = nil) -> Double {
-        let start = cycleStart(at: date, origin: origin)
-        // Compare absolute dates so epoch rounding cannot leave a completed blink closed.
-        guard date < start.addingTimeInterval(duration) else { return 1 }
-        return 1 - sin(date.timeIntervalSince(start) / duration * .pi) * 0.91
+    static func factor(at date: Date, first: Date? = nil) -> Double {
+        let blink = window(at: date, first: first)
+        guard blink.contains(date) else { return 1 }
+        return 1 - sin(date.timeIntervalSince(blink.lowerBound) / duration * .pi) * 0.91
     }
 }

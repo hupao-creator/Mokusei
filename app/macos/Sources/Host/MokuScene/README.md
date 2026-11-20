@@ -237,9 +237,12 @@ The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.
 
 Static character targets are cached until their input changes. The native display
 link sleeps between blinks (4.2-second period, 0.32-second blink). The
-[first-run handoff](../Onboarding/README.md) sets the start of that cycle for
-the window as the eyes appear. One cancellable wake resumes the display link at
-the next blink. A Harness
+[first-run handoff](../Onboarding/README.md) schedules a single blink on the
+mounted face and sets its next idle blink one full period later. The Dock's
+Reduce Motion and scene state, together with the face's AppKit visibility,
+govern that first blink. Losing eligibility clears it immediately, including
+while the display link sleeps. The next idle blink keeps its scheduled time.
+One cancellable wake resumes the display link at the next blink. A Harness
 identity with no face and no moving decoration has neither frames nor a blink
 wake. Role transitions, loading, visible reasoning and retiring ink keep their
 frames through the final paint. Resuming starts a fresh wall-time interval, so

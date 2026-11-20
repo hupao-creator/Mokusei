@@ -46,9 +46,14 @@ as the panel reaches the input box. Both eyes should be open as the box comes
 into view, then narrow together once and reopen in the same seat. Watch for
 the next idle blink after a full interval. Type in the
 revealed editor. Reopen the same profile and check that it skips setup.
-With Reduce Motion on, a fresh profile should still reveal the editor without
-cueing a blink at the handoff. Record the revision, motion setting and window
-capture with the observed result.
+Repeat with a fresh profile for each interruption. Enable Reduce Motion during
+the final 180ms fade, or cover the window during the fade and uncover it during
+the following 320ms. Both eyes should be open on return and stay open until
+the next idle blink. Also enable Reduce Motion while the eyes are closing and
+check that they reopen immediately. In each case verify that you can type at
+handoff. Record the revision, the times of the interruption and return, and
+the eye frames through the next idle blink. Starting with Reduce Motion on
+also skips the handoff blink.
 This visual check exercises the [onboarding handoff](../../app/macos/Sources/Host/Onboarding/README.md).
 
 ### System appearance and language
