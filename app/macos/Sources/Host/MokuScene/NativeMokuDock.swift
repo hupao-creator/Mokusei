@@ -338,9 +338,13 @@ public struct NativeMokuDock: View {
               state.composerAutofocus || explicitFocusGeneration == state.composerGeneration else { return nil }
         return state.composerGeneration
     }
-    private var completionVisible: Bool { composerVisible && !retaining && directoryMentions.isOpen }
+    private var agentMentions: NativeMokuDirectoryMentions? {
+        guard threadID != nil, sidecardComposer == nil, loadMentionDirectories != nil else { return nil }
+        return directoryMentions
+    }
+    private var completionVisible: Bool { composerVisible && !retaining && agentMentions?.isOpen == true }
     private var mentionsEnabled: Bool {
-        sidecardComposer == nil && state.dockRouteVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
+        agentMentions != nil && state.dockRouteVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
     }
     private var reminder: NativeMokuDockReply? {
         guard let reply, !state.readReplies.contains(JSONText(reply.readKey)),
@@ -670,7 +674,9 @@ public struct NativeMokuDock: View {
             hoverTask?.cancel(); hoverTask = nil
             focusGeneration = nil
         }
-        .task(id: "\(state.composerGeneration):\(mentionsEnabled)") { await directoryMentions.load(enabled: mentionsEnabled, using: loadMentionDirectories) }
+        .task(id: "\(state.composerGeneration):\(mentionsEnabled)") {
+            await directoryMentions.load(enabled: mentionsEnabled, using: loadMentionDirectories)
+        }
         // Keep the override local: a preferredColorScheme would also recolor
         // the containing workspace window and its other application surfaces.
         .environment(\.colorScheme, .dark)
@@ -695,7 +701,7 @@ public struct NativeMokuDock: View {
                 },
                 click: { _ in
                     if state.notePanelOpen { state.setNotePanelOpen(false) }
-                    else if state.inputPinnedOpen, directoryMentions.dismiss() {
+                    else if state.inputPinnedOpen, agentMentions?.dismiss() == true {
                         state.preserveInputForOwnedClick()
                     }
                     else if state.inputOpen { state.dismissInputForOutsideClick() }
@@ -854,8 +860,8 @@ public struct NativeMokuDock: View {
             if !visible { state.dockMentionHitRect = nil }
         }
         .overlay(alignment: .top) {
-            if completionVisible {
-                NativeMokuComposerCompletion(mentions: directoryMentions, draft: draft,
+            if completionVisible, let agentMentions {
+                NativeMokuComposerCompletion(mentions: agentMentions, draft: draft,
                     maxHeight: max(0, room - capsuleHeight - 12),
                     onFrame: { state.dockMentionHitRect = completionVisible ? $0 : nil })
                     .disabled((disabled && !offlineDraftEditing) || draft.clearing || draft.isDisposed)
@@ -1045,16 +1051,17 @@ public struct NativeMokuDock: View {
             guard let window = NSApp.currentEvent?.window ?? NSApp.keyWindow,
                   window.attachedSheet == nil, NSApp.modalWindow == nil,
                   !(window.childWindows ?? []).contains(where: { $0.isVisible && $0.canBecomeKey }) else { return }
-            if directoryMentions.dismiss() { return }
+            if agentMentions?.dismiss() == true { return }
             if let sidecardComposer { sidecardComposer.cancel() }
             else { onThreadClose?() }
         }
         else { _ = state.dismissInputForEscape() }
     }
     private func composer(room: CGFloat, compact: Bool) -> some View {
+        let mentions = agentMentions
         // The ink reveal owns only automatic acquisition. An admitted
         // editor must accept clicks/Tab without a delayed update blurring it.
-        NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
+        return NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             submissionPending: draft.submitting,
             targetsThread: threadID != nil, sidecardComposer: sidecardComposer,
             readOnly: state.inputLeaving, focusEnabled: composerCanFocus && (sidecardComposer?.ready ?? true),
@@ -1067,9 +1074,7 @@ public struct NativeMokuDock: View {
             retainedDirectories: retaining ? state.retainedDirectories : nil,
             running: running, onCancel: onCancel,
             onReservedStopSeatChange: ordinaryOverviewDock ? { inset in composerStopInset = inset } : nil,
-            availableHeight: room,
-            mentions: directoryMentions, includesCompletion: false, onMentionFrame: { state.dockMentionHitRect = $0 },
-            selectionRequest: directoryMentions.selectionRequest,
+            selectionRequest: mentions?.selectionRequest,
             initialSelection: state.selectionForReopening(text: retaining ? state.retainedText : draft.text),
             onEditorStateChange: { editor in
                 guard state.ownsComposer(draft) else { return }
@@ -1077,9 +1082,11 @@ public struct NativeMokuDock: View {
                    editor.text.utf16.elementsEqual(draft.text.utf16) {
                     state.retainSelection(editor.selection, text: editor.text)
                 }
-                directoryMentions.update(editor)
+                mentions?.update(editor)
             },
-            onKeyDown: { state.ownsComposer(draft) && directoryMentions.handle($0, draft: draft) },
+            onKeyDown: mentions.map { completion in
+                { state.ownsComposer(draft) && completion.handle($0, draft: draft) }
+            },
             onEditorSeatChange: {
                 // The retiring editor remains mounted inside a shrinking capsule.
                 // Its new anchor would redirect the eyes mid-collapse; keep the

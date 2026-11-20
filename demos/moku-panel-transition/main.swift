@@ -217,6 +217,14 @@ private struct Controls: View {
     var window: NSWindow!
     var controls: NSPanel!
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--replay-chief-input") {
+            Task {
+                do { try await replayChiefInput() }
+                catch { print("Chief input replay failed:", error); exit(EXIT_FAILURE) }
+                NSApp.terminate(nil)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--capture-overview") {
             startOverviewCapture()
             return
@@ -402,8 +410,8 @@ private struct Controls: View {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         // A nonactivating panel need not count as an open main window.
-        // Capture owns termination until the movie and observations are sealed.
-        !model.isolatedReplay
+        // Replay owns termination until every case and its observations finish.
+        !model.isolatedReplay && !CommandLine.arguments.contains("--replay-chief-input")
     }
 
     // A presentation reel, not a regression suite: no assertions or test runner.
@@ -500,7 +508,9 @@ private struct Controls: View {
         try prepareIsolatedNativeReplay()
         NativeTypography.registerFonts()
         let app = NSApplication.shared
-        app.setActivationPolicy((CommandLine.arguments.contains("--capture-collapse") || CommandLine.arguments.contains("--capture-agent-entrance") || CommandLine.arguments.contains("--capture-overview") || CommandLine.arguments.contains("--replay-send")) ? .accessory : .regular)
+        let isolated = ["--capture-collapse", "--capture-agent-entrance", "--capture-overview", "--replay-send", "--replay-chief-input"]
+            .contains { CommandLine.arguments.contains($0) }
+        app.setActivationPolicy(isolated ? .accessory : .regular)
         let delegate = Delegate(); app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }

@@ -145,8 +145,7 @@ public struct NativeComposerHostFilePicker: View {
     private func choose() {
         guard !draft.isDisposed else { dismiss(); return }
         if mode == .directory, let directory {
-            guard draft.insertDirectory(.init(name: JSONText(URL(fileURLWithPath: directory.reference.path).lastPathComponent),
-                                        path: JSONText(directory.reference.path), hostID: directory.reference.hostID)) else { return }
+            guard draft.chooseHostDirectory(directory.reference) else { return }
         } else if mode == .files {
             let entries = selected.values.sorted { $0.id < $1.id }
             Task { await draft.chooseHostFiles(entries) }
@@ -155,7 +154,8 @@ public struct NativeComposerHostFilePicker: View {
     }
     private var directoryLimitReached: Bool {
         guard mode == .directory, draft.directories.count >= NativeComposerDraft.maximumDirectories else { return false }
-        return !draft.directories.contains { $0.path.string == directory?.reference.path && $0.hostID == directory?.reference.hostID }
+        let path = directory.map { JSONText($0.reference.path) }
+        return !draft.directories.contains { $0.path == path }
     }
     private func localized(_ chinese: String, _ english: String) -> String {
         locale.language.languageCode?.identifier == "zh" ? chinese : english

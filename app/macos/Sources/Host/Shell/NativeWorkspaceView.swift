@@ -521,9 +521,10 @@ public final class NativeWorkspacePresentation {
         guard !onboarding.blocksWorkspace else { throw PluginContractError("Complete onboarding before sending a task.") }
         guard (scene.mokuOpen || !reportExecutionSelected), source == mokuSubmissionSource,
               var request = source.objectValue else { throw CancellationError() }
-        request["input"] = submission.input
+        let input = submission.input(knownDirectoryReferencesAsText: true)
+        request["input"] = input
         workspace.dismissOperationError()
-        try await mokuSubmission.send(input: submission.input, source: source, commandID: submission.commandID) {
+        try await mokuSubmission.send(input: input, source: source, commandID: submission.commandID) {
             await overview.recordUserAction(kind: "moku-input", text: JSONText(submission.text))
             return .object(request)
         }
@@ -933,7 +934,6 @@ public struct NativeWorkspaceView: View {
                 NativeMokuThreadView(harnessHost: model.harnessHost, thread: thread, draft: presentation.draft,
                     readingTarget: presentation.scene.readingTarget,
                     running: presentation.moku.running, disabled: disabled,
-                    loadMentionDirectories: { try await model.services.knownDirectories() },
                     backLabel: presentation.selected == nil
                         ? model.locale.text("返回俯瞰", "Back to overview")
                         : model.locale.text("返回上一会话", "Back to previous conversation"),
@@ -987,7 +987,7 @@ public struct NativeWorkspaceView: View {
                     note: presentation.moku.note,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
                     openExecution: presentation.openNoteExecution,
-                    loadMentionDirectories: { try await model.services.knownDirectories() },
+                    loadMentionDirectories: detail == nil ? nil : { try await model.services.knownDirectories() },
                     onSend: { submission in
                         if let sidecardComposer {
                             guard presentation.sidecardComposer?.id == sidecardComposer.id,

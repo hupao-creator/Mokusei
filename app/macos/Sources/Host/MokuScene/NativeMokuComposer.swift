@@ -96,10 +96,6 @@ struct NativeMokuComposerInput: View {
     var running = false
     var onCancel: () -> Void = {}
     var onReservedStopSeatChange: ((CGPoint) -> Void)?
-    var availableHeight: CGFloat = 420
-    var mentions: NativeMokuDirectoryMentions?
-    var includesCompletion = true
-    var onMentionFrame: (CGRect?) -> Void = { _ in }
     var showsEyes = false
     var selectionRequest: NativeComposerSelectionRequest?
     var initialSelection: NSRange?
@@ -110,14 +106,12 @@ struct NativeMokuComposerInput: View {
     let onSend: () -> Void
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
-    @State private var inputHeight: CGFloat = 58
     @State private var editorRowHeight: CGFloat = 58
     @State private var errorHeight: CGFloat = 0
     @State private var editorID = UUID()
     @State private var composingDraft: NativeComposerDraft?
     @State private var hostPicker: NativeComposerHostFilePicker.Mode?
 
-    private var completionVisible: Bool { mentions?.isOpen == true && !readOnly }
     private var actionsUnavailable: Bool {
         disabled || (submissionPending && sidecardComposer == nil) || draft.clearing || draft.isDisposed
     }
@@ -132,21 +126,11 @@ struct NativeMokuComposerInput: View {
         sidecardComposer?.placeholder ?? localize("输入消息…", "Type a message…")
     }
     var body: some View {
-        VStack(spacing: 0) {
-            if includesCompletion, let mentions, completionVisible {
-                NativeMokuComposerCompletion(mentions: mentions, draft: draft,
-                    maxHeight: max(0, availableHeight - inputHeight - 12), onFrame: onMentionFrame)
-                    .transition(.opacity)
-            }
-            input
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { inputHeight = $0 }
-        }.coordinateSpace(name: "moku-composer-input")
-            .foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
-            .animation(.smooth(duration: 0.42, extraBounce: 0), value: includesCompletion && completionVisible)
+        input.foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
             .onChange(of: ObjectIdentifier(draft)) { _, _ in
                 if composingDraft !== draft { updateComposition(false) }
             }
-            .onDisappear { updateComposition(false); onMentionFrame(nil) }
+            .onDisappear { updateComposition(false) }
             .sheet(item: $hostPicker) { mode in NativeComposerHostFilePicker(draft: draft, mode: mode) }
     }
     private var input: some View {
@@ -390,33 +374,26 @@ public struct NativeMokuHistoryComposer: View {
     public var focusEnabled = true
     public var focusRequestKey = 0
     public var suppressInitialFocus = false
-    public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     public let onSend: (NativeComposerSubmission) async throws -> Void
     public let onSendConsumed: (NativeComposerSubmission) async -> Void
     public let onCancel: () -> Void
-    @State private var mentions = NativeMokuDirectoryMentions()
-    @State private var availableHeight: CGFloat = 420
     @State private var compact = false
     @State private var hovered = false
 
     public init(draft: NativeComposerDraft, cwd: JSONText, disabled: Bool = false, running: Bool = false,
                 focusEnabled: Bool = true, focusRequestKey: Int = 0, suppressInitialFocus: Bool = false,
-                loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
                 onSend: @escaping (NativeComposerSubmission) async throws -> Void,
                 onSendConsumed: @escaping (NativeComposerSubmission) async -> Void = { _ in },
                 onCancel: @escaping () -> Void) {
         self.draft = draft; self.cwd = cwd; self.disabled = disabled; self.running = running
         self.focusEnabled = focusEnabled; self.focusRequestKey = focusRequestKey; self.suppressInitialFocus = suppressInitialFocus
-        self.loadMentionDirectories = loadMentionDirectories; self.onSend = onSend
+        self.onSend = onSend
         self.onSendConsumed = onSendConsumed; self.onCancel = onCancel
     }
     public var body: some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, suppressInitialFocus: suppressInitialFocus,
-            compact: compact, running: running, onCancel: onCancel, availableHeight: availableHeight,
-            mentions: mentions, showsEyes: true,
-            selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
-            onKeyDown: { mentions.handle($0, draft: draft) },
+            compact: compact, running: running, onCancel: onCancel, showsEyes: true,
             onSend: {
                 guard !disabled else { return }
                 let sendingDraft = draft, send = onSend, consumed = onSendConsumed
@@ -427,13 +404,7 @@ public struct NativeMokuHistoryComposer: View {
             .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
             .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
             .onHover { hovered = $0 }
-            .coordinateSpace(name: "native-moku-dock")
             .onGeometryChange(for: Bool.self) { $0.size.width < 260 } action: { compact = $0 }
-            .onGeometryChange(for: CGFloat.self) { max(58, $0.frame(in: .global).maxY - 24) } action: { availableHeight = $0 }
-            .animation(.smooth(duration: 0.42, extraBounce: 0), value: mentions.isOpen)
-            .task(id: focusEnabled && !disabled) {
-                await mentions.load(enabled: focusEnabled && !disabled, using: loadMentionDirectories)
-            }
             .accessibilityElement(children: .contain).accessibilityLabel("Chief")
             .accessibilityIdentifier("moku-history-capsule")
             .environment(\.colorScheme, .dark)

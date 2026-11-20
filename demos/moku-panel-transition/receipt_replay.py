@@ -120,6 +120,10 @@ try:
                     server.shutdown()
             for channel in ("moku:submit", "thread:follow-up"):
                 receipt = writes[channel][0][0]
+                if channel == "moku:submit":
+                    original = json.loads(requests[receipt][1])["args"][0]["input"]["parts"]
+                    assert original[1:] == [{"kind": "mention", "name": "Previous project",
+                                             "path": "/fixture/Previous project", "pathType": "directory"}], original
                 status, observed = lookup(receipt, auth)
                 assert status == 200 and observed["status"] == "complete" and observed["result"]["ok"]
                 assert queries.count(receipt) >= 2, queries

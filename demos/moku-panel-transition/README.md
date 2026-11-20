@@ -167,6 +167,24 @@ draft through AppKit marked text. The fixture returns to Overview and rejects
 the earlier send. It checks the exact restored Agent draft and that Overview
 keeps its own draft and focus.
 
+## Chief input replay
+
+Run `--replay-chief-input` under the same shared desktop verification lease to
+check the [Chief composer contract](../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer).
+The nonactivating panel mounts the production Overview Dock and current Chief
+history in turn. It delivers local AppKit key events, pastes through a private
+pasteboard, edits the text and submits through Return. The replay checks that
+typing `@` opens no completion UI and that bare `@` and messages with and without
+`@` reach the submission callback as exact text parts. **Show user messages**
+reveals a recorded message with a directory mention from fixture subscription
+data. A reopened draft sends a saved catalog path as plain text. The replay
+feeds host metadata to the draft action used by the directory picker's
+**Choose** button and checks that the explicit selection stays structured.
+The app prints the covered cases and exits nonzero on a failed assertion.
+The isolated callback captures the payload without starting a Runtime.
+The [Chief file picker procedure](../../tools/e2e/README.md#chief-file-picker)
+covers system interaction with the picker UI.
+
 ## Pending send replay
 
 Build the preview as above and run the executable with `--replay-send` under
@@ -210,6 +228,8 @@ reports pending. The Go Host fixture counts actual handler entries. A baseline
 bare UUID must fail admission, and a duplicate of an admitted ID must return
 the recorded result with no additional handler entry. The execution-change
 path checks both derived fork and follow-up IDs. Both the live and reconstructed Host check the captured ID.
+The Chief case begins with a saved send that carried a structured catalog
+mention and checks the receipt under its original command ID.
 Assertions cover a pending result, final acceptance and rejection, a different
 draft with identical text, and a subsequent explicit send. The replay also
 makes the temporary draft directory read-only for one edit, restores its
