@@ -99,6 +99,7 @@ func (m *Manager) load() (registry, error) {
 		return empty, err
 	}
 	for i, p := range result.Entries {
+		delete(raw.Entries[i], "removalStage")
 		if len(raw.Entries[i]) != 5 {
 			return empty, fmt.Errorf("proof %d has missing authority fields", i)
 		}
@@ -113,6 +114,9 @@ var identityPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?$`)
 var oidPattern = regexp.MustCompile(`(?i)^[0-9a-f]{40,64}$`)
 
 func validateProof(p ownershipProof) error {
+	if p.RemovalStage != "" && p.RemovalStage != removing && p.RemovalStage != unregistered {
+		return errors.New("unknown worktree removal stage")
+	}
 	if err := ownerID(p.OwnerThreadID); err != nil {
 		return err
 	}
@@ -148,7 +152,7 @@ func validateProof(p ownershipProof) error {
 func (m *Manager) RehydratePersistedOwners(ctx context.Context, threads []model.ThreadRecord) []RecoveryFailure {
 	records := make([]PersistedOwner, 0, len(threads))
 	for _, t := range threads {
-		if t.Worktree != nil && t.Worktree.RemovedCwd == "" {
+		if t.Worktree != nil {
 			records = append(records, PersistedOwner{OwnerThreadID: t.ID, BaseCwd: t.Cwd, Worktree: *t.Worktree})
 		}
 	}

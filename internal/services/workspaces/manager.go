@@ -73,6 +73,7 @@ type ownershipProof struct {
 	CreationHeadOID     string   `json:"creationHeadOid"`
 	CurrentHeadOID      string   `json:"currentHeadOid"`
 	InitialGrantPending bool     `json:"initialGrantPending"`
+	RemovalStage        string   `json:"removalStage,omitempty"`
 }
 
 func New(paths Paths) *Manager {
@@ -222,12 +223,12 @@ func (m *Manager) PrepareForStart(ctx context.Context, baseCwd, threadID string,
 	if label == "" {
 		label = generatedLabel(threadID)
 	}
-	root, err := createStaging(repo.StagingRoot, label, randomSuffix)
+	root, err := m.createStaging(repo, label, randomSuffix)
 	fallbackUsed := false
 	if err != nil && sanitized != "" && errors.Is(err, errStagingCollision) {
 		// Exhausted every readable variant of a caller-chosen name. Falling back
 		// to the generated name is still better than failing the creation.
-		root, err = createStaging(repo.StagingRoot, generatedLabel(threadID), true)
+		root, err = m.createStaging(repo, generatedLabel(threadID), true)
 		fallbackUsed = err == nil
 	}
 	if err != nil {
@@ -339,6 +340,9 @@ func (m *Manager) inspectOwned(ctx context.Context, r AuthorizationRequest, poli
 	}
 	if !found {
 		return empty, zero, errors.New("managed worktree lacks thread-bound Core ownership")
+	}
+	if p.RemovalStage != "" && policy != "remove" {
+		return empty, zero, errors.New("managed worktree removal pending; retry removal")
 	}
 	expected := r.ExpectedHeadOID
 	proofHead := ""
@@ -542,14 +546,16 @@ func (m *Manager) removeProof(root, id string) error {
 	}
 	next := cloneProofs(m.proofs)
 	delete(next, root)
-	delete(m.proofs, root)
-	delete(m.pendingRecovery, root)
 	if err := m.persist(next); err != nil {
-		m.registryErr = err
-		m.proofs = map[string]ownershipProof{}
+		// A removal intent already fences every execution grant. Keep it
+		// retryable. Other revocations still fail closed on a storage error.
+		if p.RemovalStage == "" {
+			m.registryErr = err
+		}
 		return err
 	}
 	m.proofs = next
+	delete(m.pendingRecovery, root)
 	return nil
 }
 func (m *Manager) ClearOwned(ctx context.Context) error {

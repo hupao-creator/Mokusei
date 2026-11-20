@@ -37,7 +37,7 @@ The command lease, native admission and cancellation gates fence foreground,
 background and pending input during retirement. The base cwd continues to own
 directory scope. The Thread retains native history with an empty execution
 `worktree.cwd` and its previous directory in `worktree.removedCwd`. Further
-execution requires a new Thread. [Workspace contract](../../services/workspaces/README.md#explicit-removal)
+execution requires a new Thread. Git unregistration retires execution even when files remain. A retry on that Thread can complete pending ownership cleanup. [Workspace contract](../../services/workspaces/README.md#explicit-removal)
 
 Attachment cleanup follows durable owner removal. Thread deletion releases its
 attachment references after the database commit; startup and history reset first

@@ -29,10 +29,7 @@ func (r *Runtime) RemoveWorktree(ctx context.Context, id string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	if t.Worktree != nil && t.Worktree.RemovedCwd != "" {
-		return "", plugin.CallerError(fmt.Errorf("managed worktree already removed for %s", t.Worktree.RemovedCwd))
-	}
-	if t.Moku || t.MokuHistory || t.Worktree == nil || t.Worktree.Cwd == "" {
+	if t.Moku || t.MokuHistory || t.Worktree == nil || (t.Worktree.Cwd == "" && t.Worktree.RemovedCwd == "") {
 		return "", plugin.CallerError(errors.New("select an ordinary Thread with a managed worktree"))
 	}
 	busy := func(t model.ThreadRecord) bool {
@@ -71,20 +68,27 @@ func (r *Runtime) RemoveWorktree(ctx context.Context, id string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	root, err := r.config.Workspaces.RemoveManaged(ctx, t, protected)
-	if err != nil {
-		return "", err
+	root, outcomeErr := r.config.Workspaces.RemoveManaged(ctx, t, protected)
+	if root == "" {
+		return "", outcomeErr
 	}
 	finish := context.WithoutCancel(ctx)
-	err = r.UpdateThread(finish, id, func(current *model.ThreadRecord) error {
-		current.Worktree = &model.Worktree{RemovedCwd: t.Worktree.Cwd}
-		return nil
-	})
-	if err != nil {
-		return "", fmt.Errorf("worktree %s is absent; retry to record removal: %w", root, err)
+	former := t.Worktree.RemovedCwd
+	if former == "" {
+		former = t.Worktree.Cwd
+		err = r.UpdateThread(finish, id, func(current *model.ThreadRecord) error {
+			current.Worktree = &model.Worktree{RemovedCwd: former}
+			return nil
+		})
+		if err != nil {
+			return "", errors.Join(outcomeErr, fmt.Errorf("Git unregistered worktree %s; retry to record removal: %w", root, err))
+		}
 	}
-	if err := r.config.Workspaces.Unregister(finish, id, t.Worktree); err != nil {
-		return "", fmt.Errorf("worktree %s removed; could not retire ownership proof: %w", root, err)
+	if outcomeErr != nil {
+		return "", outcomeErr
+	}
+	if err := r.config.Workspaces.Unregister(finish, id, &model.Worktree{Cwd: former}); err != nil {
+		return "", fmt.Errorf("worktree %s removed; retry to retire ownership proof: %w", root, err)
 	}
 	return root, nil
 }

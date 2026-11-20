@@ -77,7 +77,7 @@ Every `create_thread` call supplies `worktree` as a boolean. `false` uses an exp
 On an explicit cleanup request, `remove_worktree` accepts only the owning ordinary
 `threadId`. Its binding uses the current Chief execution scope and records the
 call and result in the tool transcript. Success returns `ok`, `threadId` and
-the confirmed `absentRoot`. The thread still reports its base `workspace.cwd`
+the confirmed `absentRoot`. A partial removal reports the retained path or pending write. Retry with the same owning `threadId`. The thread still reports its base `workspace.cwd`
 and directory tag. Its former execution directory is available as
 `workspace.removedWorktreeCwd`. See the [removal checks](../workspaces/README.md#explicit-removal).
 
