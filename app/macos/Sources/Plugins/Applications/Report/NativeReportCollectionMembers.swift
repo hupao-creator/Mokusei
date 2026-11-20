@@ -67,7 +67,7 @@ struct NativeReportCollectionMembers: View {
                             .accessibilityHidden(exiting)
                     }
                 }.frame(maxWidth: .infinity)
-                    .padding(.horizontal, inset).padding(.top, compact ? 0 : leadingMargin).padding(.bottom, 28)
+                    .padding(.horizontal, inset).padding(.top, compact ? 0 : leadingMargin - 8).padding(.bottom, 28)
             }
             // In a single compact column, clear Close vertically for every
             // scroll position. The overlay still owns only the button.
