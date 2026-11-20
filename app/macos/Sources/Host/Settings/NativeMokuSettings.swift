@@ -157,13 +157,7 @@ import SwiftUI
             if showsMapGlass {
                 dispatchMap
                     .padding(.horizontal, 12)
-                    .background {
-                        Color.clear.nativeRegularCardGlass(
-                            in: RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius),
-                            opaque: NativePalette.settings.hintSurface.swiftUI)
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                    }
+                    .background { NativeSettingsIllustrationBackdrop() }
                     .accessibilityElement(children: .contain)
                     .accessibilityLabel(locale.text("协调与派发", "Coordination and dispatch"))
             } else {

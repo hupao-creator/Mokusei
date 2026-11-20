@@ -49,6 +49,10 @@ Each Settings opening gives Tag and Super Thread independent animation visits. O
 playback starts, switching tabs and returning shows the completed composition;
 closing and reopening Settings permits both animations to play again. An
 interrupted playback settles to its final frame. Onboarding retains its own step lifetime.
+In Settings, each visible animation sits above the same noninteractive regular
+Liquid Glass backdrop as the Chief map, including its 29-point corner radius and
+opaque Reduce Transparency fallback. The backdrop follows the workspace appearance
+and the animation's existing bounds. Onboarding presents the animations inline.
 
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving

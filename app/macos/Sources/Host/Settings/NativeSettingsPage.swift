@@ -250,7 +250,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
 
     @ViewBuilder private var sectionBody: some View {
         if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
-            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale, showsHeading: false,
+            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale, showsHeading: false, showsAnimationGlass: true,
                                          visitPlaybackStarted: role == .tag ? $animationVisits.tag : role == .report ? $animationVisits.report : nil) {
                 if role == .moku {
                     NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,

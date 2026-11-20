@@ -61,6 +61,11 @@ owns resolution, profile compatibility and window appearance.
    and capture each window. Repeat with the same Settings visit and the same
    first-run form mounted. Check that the form backgrounds and controls follow
    the new appearance without changing the active tab or setup step.
+5. With an installed, enabled agent, compare the Chief map and the Tag and
+   Super Thread animation backdrops in both appearances. Capture the animations
+   during playback and after switching away and back. Check that the role mode
+   controls below them remain clickable and that Reduce Transparency uses the
+   opaque fallback. See the [Settings backdrop and playback contract](../../app/macos/Sources/Host/Settings/README.md).
 
 Keep the revision, primary language order, appearance, profile fixture, launch
 mode and before/after observations with each run. A process-local simulation

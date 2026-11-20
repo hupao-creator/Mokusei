@@ -63,6 +63,7 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
     let harnesses: [AnyHarnessPlugin]
     let locale: DesktopLocale
     let showsHeading: Bool
+    var showsAnimationGlass = false
     var visitPlaybackStarted: Binding<Bool>? = nil
     @ViewBuilder var content: Content
 
@@ -77,13 +78,33 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
                     .multilineTextAlignment(.center).frame(maxWidth: .infinity)
                     .fixedSize(horizontal: false, vertical: true).padding(.bottom, 24)
             }
-            if role == .tag {
-                NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted).padding(.bottom, 24)
-            } else if role == .report {
-                NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted).padding(.bottom, 24)
+            if role != .moku {
+                Group {
+                    if role == .tag {
+                        NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
+                    } else {
+                        NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
+                    }
+                }
+                .background {
+                    if showsAnimationGlass, !harnesses.isEmpty {
+                        NativeSettingsIllustrationBackdrop()
+                    }
+                }
+                .padding(.bottom, 24)
             }
             content
         }.environment(\.nativeSettingsCompactPresentation, true)
+    }
+}
+
+struct NativeSettingsIllustrationBackdrop: View {
+    var body: some View {
+        Color.clear.nativeRegularCardGlass(
+            in: RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius),
+            opaque: NativePalette.settings.hintSurface.swiftUI)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
