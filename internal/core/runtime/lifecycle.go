@@ -10,13 +10,21 @@ import (
 )
 
 func (r *Runtime) appendEvent(tx *store.Tx, kind string, subject store.Subject, source string, data any, introduced []string) error {
+	event, err := r.recordEvent(tx, kind, subject, source, data, introduced)
+	if err == nil && kind == "thread.input-accepted" && source == "user" && subject.TypeID == "agent" {
+		return queueUserThreadInputNotification(tx, event)
+	}
+	return err
+}
+
+func (r *Runtime) recordEvent(tx *store.Tx, kind string, subject store.Subject, source string, data any, introduced []string) (store.Event, error) {
 	id, err := newID()
 	if err != nil {
-		return err
+		return store.Event{}, err
 	}
 	raw, err := json.Marshal(data)
 	if err != nil {
-		return err
+		return store.Event{}, err
 	}
 	scope := ""
 	if subject.Kind == "thread" && subject.TypeID == "agent" && subject.ID != "" {
@@ -26,13 +34,7 @@ func (r *Runtime) appendEvent(tx *store.Tx, kind string, subject store.Subject, 
 		}
 	}
 	event := store.Event{ID: id, CreatedAt: time.Now().UnixMilli(), Type: kind, Subject: subject, Scope: scope, Source: source, Data: raw, IntroducedInteractionIDs: introduced}
-	if err := tx.AppendEvent(event); err != nil {
-		return err
-	}
-	if kind == "thread.input-accepted" && source == "user" && subject.TypeID == "agent" {
-		return queueUserThreadInputNotification(tx, event)
-	}
-	return nil
+	return event, tx.AppendEvent(event)
 }
 func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *model.ThreadRecord) error {
 	record := next
@@ -122,6 +124,11 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 			}
 		}
 		if err := r.appendEvent(tx, "execution."+after.Status, subject, "application", after, introduced); err != nil {
+			return err
+		}
+	}
+	if typeID == "agent" && old != nil && next.UserInterruptedExecutionID != "" && next.UserInterruptedExecutionID != old.UserInterruptedExecutionID {
+		if err := r.recordUserInterrupt(tx, subject, *next); err != nil {
 			return err
 		}
 	}

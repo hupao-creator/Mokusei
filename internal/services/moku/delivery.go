@@ -57,7 +57,11 @@ func (c *Coordinator) deliverNotification(ctx context.Context, delivery plugin.M
 		if err != nil {
 			return err
 		}
-		serialized, err := json.Marshal(publicThread(delivery.Thread))
+		thread := publicThread(delivery.Thread)
+		if delivery.UserAction != nil {
+			thread["event"] = delivery.UserAction
+		}
+		serialized, err := json.Marshal(thread)
 		if err != nil {
 			return err
 		}

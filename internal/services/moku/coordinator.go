@@ -30,7 +30,7 @@ type userAdmission struct {
 type coordinatorEvent struct {
 	record     *model.ThreadRecord
 	diagnostic string
-	userInput  *plugin.LifecycleEvent
+	userAction *plugin.LifecycleEvent
 	lifetime   context.Context
 }
 type Coordinator struct {
@@ -57,7 +57,7 @@ type Coordinator struct {
 	workers                sync.WaitGroup
 	unsubscribe            func()
 	unsubscribeDiagnostics func()
-	unsubscribeUserInputs  func()
+	unsubscribeUserActions func()
 	refreshWake            chan struct{}
 	runContext             []plugin.ContextEntry
 	runContextGeneration   uint64
@@ -183,10 +183,10 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 		}
 	}
 	c.mu.Unlock()
-	if c.config.SubscribeUserThreadInputs != nil && (c.config.PendingDeliveries == nil || c.config.SendDelivery == nil) {
+	if c.config.SubscribeUserThreadActions != nil && (c.config.PendingDeliveries == nil || c.config.SendDelivery == nil) {
 		lifetime := c.ctx
-		c.unsubscribeUserInputs, err = c.config.SubscribeUserThreadInputs(lifetime, func(event plugin.LifecycleEvent) {
-			c.enqueueEvent(coordinatorEvent{userInput: &event, lifetime: lifetime})
+		c.unsubscribeUserActions, err = c.config.SubscribeUserThreadActions(lifetime, func(event plugin.LifecycleEvent) {
+			c.enqueueEvent(coordinatorEvent{userAction: &event, lifetime: lifetime})
 		})
 		if err != nil {
 			c.mu.Lock()
@@ -249,9 +249,9 @@ func (c *Coordinator) Stop(ctx context.Context) error {
 		c.unsubscribeDiagnostics()
 		c.unsubscribeDiagnostics = nil
 	}
-	if c.unsubscribeUserInputs != nil {
-		c.unsubscribeUserInputs()
-		c.unsubscribeUserInputs = nil
+	if c.unsubscribeUserActions != nil {
+		c.unsubscribeUserActions()
+		c.unsubscribeUserActions = nil
 	}
 	done := make(chan struct{})
 	go func() { c.workers.Wait(); close(done) }()

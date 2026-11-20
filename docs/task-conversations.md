@@ -10,7 +10,7 @@ Click the blank margin outside the conversation to return to Overview. The input
 
 If the agent asks a question or requests permission, respond to the prompt. The choices depend on the agent and its request.
 
-To stop the current run, click **Stop this thread**. The button shares the **Send** position and appears when the run is active and the input box is empty. Keep any unsent draft you want before clearing the box. You can send a new message to continue later. Closing the conversation or its **Execution** sidecard leaves the task running. [Watch a live run](sidecards.md#watch-a-run-in-progress)
+To stop the current run, click **Stop this thread**. The button shares the **Send** position and appears when the run is active and the input box is empty. Keep any unsent draft you want before clearing the box. When the run stops, Chief receives a notification that you stopped it. You can send a new message to continue later. Closing the conversation or its **Execution** sidecard leaves the task running. [Watch a live run](sidecards.md#watch-a-run-in-progress)
 
 ## Send a follow-up or attachment
 

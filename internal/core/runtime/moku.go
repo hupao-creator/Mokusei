@@ -13,10 +13,10 @@ import (
 
 type userThreadInputKey struct{}
 
-// SubscribeUserThreadInputs observes committed admissions only. The existing
+// SubscribeUserThreadActions observes committed direct inputs and acknowledged Stops. The existing
 // lifecycle subscription suppresses historical events and duplicate revisions.
-func (r *Runtime) SubscribeUserThreadInputs(ctx context.Context, listener func(plugin.LifecycleEvent)) (func(), error) {
-	return r.lifecycle.Subscribe(ctx, plugin.LifecycleScope{{Sources: []string{"user"}, Types: []string{"thread.input-accepted"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}}}, listener)
+func (r *Runtime) SubscribeUserThreadActions(ctx context.Context, listener func(plugin.LifecycleEvent)) (func(), error) {
+	return r.lifecycle.Subscribe(ctx, plugin.LifecycleScope{{Sources: []string{"user"}, Types: []string{"thread.input-accepted", "thread.interrupt-acknowledged"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}}}, listener)
 }
 
 func (r *Runtime) OnThreadCommitted(listener func(model.ThreadRecord)) func() {

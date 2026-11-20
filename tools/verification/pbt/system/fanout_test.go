@@ -114,7 +114,7 @@ func (p *provider) fanoutPlan(ctx context.Context, req object, declarations []an
 
 // Moku retains its independent native-history question capability. Read only
 // after an actual completion notification; this is evidence review, not polling.
-func mokuTerminalPlan(input any) (tool, call string, args object, err error) {
+func (p *provider) mokuTerminalPlan(input any) (tool, call string, args object, err error) {
 	const marker = "Mokusei Agent Thread terminal event:\n"
 	for _, raw := range list(input) {
 		message := record(raw)
@@ -132,6 +132,17 @@ func mokuTerminalPlan(input any) (tool, call string, args object, err error) {
 				return "", "", nil, fmt.Errorf("Moku terminal notification is not JSON: %w", err)
 			}
 			execution := record(record(thread["observation"])["latestExecution"])
+			if event := record(thread["event"]); event != nil {
+				executionID := text(execution["executionId"])
+				threadID := text(thread["threadId"])
+				if execution["status"] != "interrupted" || event["source"] != "user" || event["type"] != "thread.interrupt-acknowledged" ||
+					record(event["data"])["executionId"] != executionID || record(event["subject"])["id"] != threadID {
+					return "", "", nil, fmt.Errorf("incorrect user Stop context in Chief input: %v", thread)
+				}
+				p.mu.Lock()
+				p.userStops[executionID] = threadID
+				p.mu.Unlock()
+			}
 			if execution["status"] != "completed" {
 				continue
 			}
