@@ -148,7 +148,7 @@ func validateProof(p ownershipProof) error {
 func (m *Manager) RehydratePersistedOwners(ctx context.Context, threads []model.ThreadRecord) []RecoveryFailure {
 	records := make([]PersistedOwner, 0, len(threads))
 	for _, t := range threads {
-		if t.Worktree != nil {
+		if t.Worktree != nil && t.Worktree.RemovedCwd == "" {
 			records = append(records, PersistedOwner{OwnerThreadID: t.ID, BaseCwd: t.Cwd, Worktree: *t.Worktree})
 		}
 	}

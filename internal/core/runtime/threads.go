@@ -170,7 +170,7 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 		return nil, errors.New("thread deletion is in progress")
 	}
 	if cached != nil && cached.recoveryOnly && injection != nil {
-		if err := r.retireMokuRecoveryHandle(ctx, cached); err != nil {
+		if err := r.retireIdleHandle(ctx, cached, "MOKU_RECOVERY_BUSY", "Chief recovery"); err != nil {
 			return nil, &plugin.MokuAdmissionRejectedError{Cause: err}
 		}
 		var err error
@@ -264,18 +264,16 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 	return owner, nil
 }
 
-// The caller owns threadLock. Do not patch an admission callback into the old
-// native handle: its tools/instructions were also absent at Open. Fence stop and
-// native admission while claiming an idle owner, then release every state gate
-// before Close drains native callbacks. Failed cleanup keeps the owner fenced.
-func (r *Runtime) retireMokuRecoveryHandle(ctx context.Context, owner *threadHandle) error {
+// The caller owns threadLock. Fence stop and native admission while claiming
+// an idle owner, then release every state gate before Close drains callbacks. Failed cleanup keeps the owner fenced.
+func (r *Runtime) retireIdleHandle(ctx context.Context, owner *threadHandle, busyCode, subject string) error {
 	cancellation, release := r.cancellationState(owner.id)
 	defer release()
 	err := func() error {
 		cancellation.mu.Lock()
 		defer cancellation.mu.Unlock()
 		if cancellation.cancelling {
-			return model.NewError("EXECUTION_CANCELLING", "Chief recovery is being stopped; retry after cancellation finishes")
+			return model.NewError("EXECUTION_CANCELLING", subject+" is being stopped; retry after cancellation finishes")
 		}
 		owner.admissionMu.Lock()
 		defer owner.admissionMu.Unlock()
@@ -292,15 +290,15 @@ func (r *Runtime) retireMokuRecoveryHandle(ctx context.Context, owner *threadHan
 			return err
 		}
 		if e := current.Observation.LatestExecution; e != nil && !e.Terminal() {
-			return model.NewError("MOKU_RECOVERY_BUSY", "Chief recovery still has an active execution; stop or wait before preparing")
+			return model.NewError(busyCode, subject+" still has an active execution")
 		}
 		if current.Observation.BackgroundWork != nil {
-			return model.NewError("MOKU_RECOVERY_BUSY", "Chief recovery still has native background work; stop or wait before preparing")
+			return model.NewError(busyCode, subject+" still has native background work")
 		}
 		owner.mu.Lock()
 		defer owner.mu.Unlock()
 		if owner.activeSends != 0 || owner.admission != nil {
-			return model.NewError("MOKU_RECOVERY_BUSY", "Chief recovery still has pending native input")
+			return model.NewError(busyCode, subject+" still has pending native input")
 		}
 		// Future native Accept observes closed before a new owner can open.
 		owner.closed = true
@@ -713,6 +711,11 @@ func (r *Runtime) CreateThread(ctx context.Context, request CreateThreadRequest)
 	if err != nil {
 		return CreatedThread{}, err
 	}
+	// Until its shell is durable this creation is invisible to a removal's
+	// scan for other Threads using the target checkout.
+	r.workspaceMu.RLock()
+	published := sync.OnceFunc(r.workspaceMu.RUnlock)
+	defer published()
 	cwd := request.Cwd
 	var preparation *workspaces.Preparation
 	durable := false
@@ -814,6 +817,7 @@ func (r *Runtime) CreateThread(ctx context.Context, request CreateThreadRequest)
 		return CreatedThread{}, err
 	}
 	durable = true
+	published()
 	r.refreshScopeAgents(ctx)
 	created := func(record model.ThreadRecord, execution SendResult, ack json.RawMessage) CreatedThread {
 		result := CreatedThread{Record: record, Execution: execution, Acknowledgement: ack}
@@ -905,13 +909,12 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 	if t.MokuHistory {
 		return SendResult{}, errors.New("Chief history is read-only")
 	}
-	if _, err := validateCwd(effectiveCwd(t)); err != nil {
-		return SendResult{}, err
-	}
 	if r.config.Workspaces != nil {
 		if _, err := r.config.Workspaces.AdmitThread(ctx, t); err != nil {
 			return SendResult{}, err
 		}
+	} else if _, err := validateCwd(effectiveCwd(t)); err != nil {
+		return SendResult{}, err
 	}
 	if r.config.Attachments != nil {
 		input, err = r.config.Attachments.RetainInput(ctx, id, input)

@@ -32,6 +32,13 @@ does not change `note.updatedAt`, create lifecycle events or wake Moku.
 
 [threads.go](threads.go) owns thread identity, execution admission and serialized session access. Harness session data remains opaque; each Harness validates it and produces its public observation and renderer projection. Accepted work belongs to the service and survives client disconnection.
 
+[Explicit worktree removal](worktree.go) requires an idle ordinary Thread.
+The command lease, native admission and cancellation gates fence foreground,
+background and pending input during retirement. The base cwd continues to own
+directory scope. The Thread retains native history with an empty execution
+`worktree.cwd` and its previous directory in `worktree.removedCwd`. Further
+execution requires a new Thread. [Workspace contract](../../services/workspaces/README.md#explicit-removal)
+
 Attachment cleanup follows durable owner removal. Thread deletion releases its
 attachment references after the database commit; startup and history reset first
 reconcile surviving Thread/private-session owners and then collect. The attachment

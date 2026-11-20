@@ -19,3 +19,33 @@ whitespace and backslashes in macOS filenames remain part of their identity;
 the filesystem root is a directory scope, distinct from Inbox.
 
 Removal and recovery validate recorded ownership and filesystem/Git identity before cleanup. Closing a client does not release task workspaces. History/reset cleanup participates in Runtime's drained generation and preserves failure rather than deleting unknown external state.
+
+## Explicit removal
+
+Chief can retire one ordinary Thread's managed checkout. The [workspace manager](remove.go)
+resolves the registered root from the Thread's base and execution cwd and its private
+ownership proof. The selected execution directory can be below that root. The
+linked checkout, repository, staging directory, Git metadata pointers and detached
+HEAD must still pass managed-workspace inspection.
+
+Removal checks the whole checkout, including staged, unstaged, untracked and
+ignored files. Hidden index entries (assume-unchanged or skip-worktree) and
+in-progress Git operations can prevent removal. Inspection uses the workspace
+Git runner’s 10-second and 1 MiB per-command limits. The detached HEAD and commits in
+its HEAD reflog must be reachable from a branch, remote-tracking branch or tag.
+Git performs the final lock and cleanliness checks with ordinary
+`git worktree remove -- <root>`. Independent writers should finish their work
+or lock the checkout before requesting cleanup. Git and the filesystem provide
+no atomic exclusion against an unrelated process that edits the directory during removal.
+
+Runtime drains an idle native handle, fences admission and checks other workspace
+users before removal. New Thread registration and removal are mutually exclusive.
+Another Thread whose base or execution directory uses the checkout keeps it in
+place, including an archived Thread. The [Runtime](../../core/runtime/worktree.go)
+records the former execution cwd on the same Thread and then retires its ownership
+proof. If Git succeeds before the Thread write, a retry can finish recording absence
+once the proven root and its registration metadata are both gone. A replacement
+directory must pass the original identity checks.
+
+[PBT-MOKU-WORKTREE](../../../tools/verification/pbt/README.md) invokes the tool
+from a Chief Harness injection against real Git and SQLite in temporary directories.

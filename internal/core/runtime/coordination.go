@@ -33,8 +33,21 @@ func (r *Runtime) threadLock(id string) *threadCommandLease {
 
 // Each lease is used for one Lock/Unlock pair.
 func (l *threadCommandLease) Lock() { l.lock.mu.Lock() }
+
+// A destructive operation must reject a busy command (including a native
+// history read) instead of queuing behind it and acting later.
+func (l *threadCommandLease) TryLock() bool {
+	if l.lock.mu.TryLock() {
+		return true
+	}
+	l.release()
+	return false
+}
 func (l *threadCommandLease) Unlock() {
 	l.lock.mu.Unlock()
+	l.release()
+}
+func (l *threadCommandLease) release() {
 	l.runtime.mu.Lock()
 	defer l.runtime.mu.Unlock()
 	l.lock.users--

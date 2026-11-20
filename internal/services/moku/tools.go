@@ -204,6 +204,16 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			}
 		}
 		return encode(result)
+	case "remove_worktree":
+		id := object["threadId"].(string) // validated by the binding's closed schema
+		if c.config.RemoveWorktree == nil {
+			return nil, errors.New("managed worktree removal unavailable")
+		}
+		root, err := c.config.RemoveWorktree(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		return encode(map[string]any{"ok": true, "threadId": id, "absentRoot": root})
 	case "describe_native_harness":
 		if len(object) != 1 {
 			return nil, errors.New("Invalid native Harness selection")

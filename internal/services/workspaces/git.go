@@ -34,6 +34,17 @@ func runGit(parent context.Context, cwd string, args ...string) (string, error) 
 	}
 	defer stderrR.Close()
 	cmd := exec.Command("git", args...)
+	// A checkout and its real index are selected only by cwd. A parent Git
+	// invocation (for example a hook) may export a different repository/index.
+	cmd.Env = []string{}
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		switch key {
+		case "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_SHALLOW_FILE":
+			continue
+		}
+		cmd.Env = append(cmd.Env, entry)
+	}
 	cmd.Dir = cwd
 	cmd.Stdin = nil
 	cmd.Stdout = stdoutW
@@ -171,7 +182,7 @@ func runGit(parent context.Context, cwd string, args ...string) (string, error) 
 		}
 	}
 	budgetMu.Lock()
-	out := strings.TrimSpace(stdout.String())
+	out := strings.TrimSuffix(stdout.String(), "\n")
 	errText := strings.TrimSpace(stderr.String())
 	if total > 1024*1024 && reason == nil {
 		reason = errors.New("Git output exceeds 1 MiB limit")

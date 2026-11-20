@@ -72,6 +72,7 @@ type Configuration struct {
 	SubscribeCommitted         func(func(model.ThreadRecord)) func()
 	SubscribeUserThreadActions func(context.Context, func(plugin.LifecycleEvent)) (func(), error)
 	SubscribeDiagnostics       func(func(string)) func()
+	RemoveWorktree             func(context.Context, string) (string, error)
 	CreateThread               func(context.Context, CreateThreadRequest) (CreatedThread, error)
 	SendThread                 func(context.Context, string, model.AgentInput) (SendResult, error)
 	AskThread                  func(context.Context, string, string) (string, error)

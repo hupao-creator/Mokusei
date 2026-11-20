@@ -42,7 +42,7 @@ contract even when native tool-schema conversion drops composition details.
 Moku retains the same named-target schema and authoritative validation; Pi,
 OpenCode and Claude continue receiving their existing definitions.
 
-[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `ask_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and queries retain bounded, explicit public access. `ask_thread` makes a model request against an ordinary Agent Thread history fork or captured snapshot; it does not return raw history, send a message to the source, or change source state. The snapshot can be stale and is not a live status query. Terminal events arrive automatically; do not poll for progress or readiness.
+[tools.go](tools.go) implements `list_threads`, `create_thread`, `remove_worktree`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `ask_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and queries retain bounded, explicit public access. `ask_thread` makes a model request against an ordinary Agent Thread history fork or captured snapshot; it does not return raw history, send a message to the source, or change source state. The snapshot can be stale and is not a live status query. Terminal events arrive automatically; do not poll for progress or readiness.
 
 Tool scopes follow the current Moku Thread's monotonic record revision, not the
 arrival order of commit callbacks. A delayed note or metadata notification cannot
@@ -73,6 +73,13 @@ controls are in the [PBT guide](../../../tools/verification/pbt/README.md).
 Moku guidance defaults to managed `worktree:true` for tasks in a committed Git workspace, even without parallel tasks. It reserves `false` for tasks without an eligible Git workspace, explicit requests for the existing checkout, or tasks requiring its uncommitted changes or live state. Moku creates the managed worktree through `create_thread` rather than delegating worktree creation to the Agent. This is model guidance, not an enforced boolean default.
 
 Every `create_thread` call supplies `worktree` as a boolean. `false` uses an explicit existing directory or allocates a temporary workspace. `true` requires an explicit committed Git workspace. The result distinguishes base `workspace.cwd` from execution `workspace.worktreeCwd`. Optional `worktreeName` is a directory label, never the task title; [workspace rules](../workspaces/README.md) define validation, normalization, collisions and reported adjustments.
+
+On an explicit cleanup request, `remove_worktree` accepts only the owning ordinary
+`threadId`. Its binding uses the current Chief execution scope and records the
+call and result in the tool transcript. Success returns `ok`, `threadId` and
+the confirmed `absentRoot`. The thread still reports its base `workspace.cwd`
+and directory tag. Its former execution directory is available as
+`workspace.removedWorktreeCwd`. See the [removal checks](../workspaces/README.md#explicit-removal).
 
 Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. All built-in targets expose their native options in the initial creation schema; Moku does not need an on-demand discovery call to compare Harnesses. Cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
 
