@@ -25,12 +25,15 @@ class ComposerReplayPanel: NSPanel {
     var thread = true
     var collapseCapture = false
     var agentEntranceCapture = false
+    var overviewCapture = false
+    var language = "zh-Hans"
+    @ObservationIgnored var overviewInputChanges: [Bool] = []
     var openingClock = CaptureOpeningClock.realtime
     var title = "修复历史执行工具消息泄漏"
     var readingRoute = UUID()
     let overviewDraft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var sendReplay: PendingSendReplay?
-    var isolatedReplay: Bool { collapseCapture || agentEntranceCapture || sendReplay != nil }
+    var isolatedReplay: Bool { collapseCapture || agentEntranceCapture || overviewCapture || sendReplay != nil }
     let route = UUID()
     let harness = AnyHarnessPlugin(CodexHarnessPlugin())
     var status = "普通 Thread · 点击胶囊打开，Escape 或外部点击收起"
@@ -76,13 +79,16 @@ private struct Surface: View {
                     ColumnMarker(model: model)
                         .environment(\.nativeExecutionDockRoute, model.readingRoute)
                 }
+            } else if model.overviewCapture {
+                Color(white: 0.91)
+                    .onChange(of: model.scene.inputOpen) { _, open in model.overviewInputChanges.append(open) }
             } else {
                 previewBackdrop
             }
         } thread: { Color.white } dock: {
             dock
         } settings: { EmptyView() }
-        .environment(\.locale, Locale(identifier: "zh-Hans"))
+        .environment(\.locale, Locale(identifier: model.language))
         .environment(\.nativeExecutionDockRoute, model.route)
         .environment(\.scenePhase, model.isolatedReplay ? .active : scenePhase)
         .transaction { if model.transitionsDisabled { $0.animation = nil; $0.disablesAnimations = true } }
@@ -211,6 +217,10 @@ private struct Controls: View {
     var window: NSWindow!
     var controls: NSPanel!
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--capture-overview") {
+            startOverviewCapture()
+            return
+        }
         if CommandLine.arguments.contains("--capture-agent-entrance") {
             startAgentEntranceCapture()
             return
@@ -290,6 +300,74 @@ private struct Controls: View {
             }
         }
     }
+    private func startOverviewCapture() {
+        let args = CommandLine.arguments
+        let systemInput = args.contains("--system-input")
+        let reduced = args.contains("--reduce-motion")
+        let language = args.contains("--english") ? "en" : "zh-Hans"
+        model.overviewCapture = true
+        model.language = language
+        model.thread = false
+        model.scene.setComposerContext(model.draft, opensInput: false)
+        let panel = ComposerReplayPanel(contentRect: .init(x: 0, y: 0, width: 720, height: 260),
+            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        window = panel
+        panel.title = "Chief Dock replay"
+        panel.isReleasedWhenClosed = false
+        panel.ignoresMouseEvents = !systemInput
+        panel.level = .floating
+        if !systemInput, let screen = NSScreen.screens.max(by: { $0.frame.maxX < $1.frame.maxX }) {
+            panel.setFrameOrigin(.init(x: screen.frame.maxX - 2, y: screen.visibleFrame.minY))
+        } else {
+            panel.center()
+        }
+        panel.contentView = NSHostingView(rootView: Surface(model: model)
+            .environment(\._accessibilityReduceMotion, reduced))
+        panel.orderFrontRegardless()
+        Task {
+            do {
+                try await Task.sleep(for: .milliseconds(400))
+                let folder = ["overview", language, reduced ? "reduced" : "motion",
+                              systemInput ? "system" : "scene"].joined(separator: "-")
+                let movie = try await DockMovieCapture(window: panel, folder: folder)
+                // The ready file lets an external driver address only this panel.
+                let ready: [String: Any] = ["pid": ProcessInfo.processInfo.processIdentifier,
+                                            "window": panel.windowNumber]
+                try JSONSerialization.data(withJSONObject: ready)
+                    .write(to: movie.directory.appendingPathComponent("ready.json"), options: .atomic)
+                if systemInput {
+                    // Click the eyes, click outside, AXPress Open, then activate Stop.
+                    // Stop ends the running fixture through the production action.
+                    let deadline = ContinuousClock.now.advanced(by: .seconds(35))
+                    while model.running && ContinuousClock.now < deadline {
+                        try await Task.sleep(for: .milliseconds(50))
+                    }
+                } else {
+                    for _ in 0..<2 {
+                        try await Task.sleep(for: .milliseconds(650))
+                        model.scene.setInputOpen(true)
+                        try await Task.sleep(for: .milliseconds(750))
+                        model.scene.setInputOpen(false)
+                    }
+                }
+                try await Task.sleep(for: .milliseconds(650))
+                try await movie.finish()
+                let expected = systemInput ? [true, false, true] : [true, false, true, false]
+                let observed: [String: Any] = ["inputChanges": model.overviewInputChanges,
+                    "running": model.running, "reduceMotion": reduced, "locale": language]
+                try JSONSerialization.data(withJSONObject: observed, options: .prettyPrinted)
+                    .write(to: movie.directory.appendingPathComponent("observations.json"), options: .atomic)
+                guard model.overviewInputChanges == expected, model.running != systemInput else {
+                    throw NSError(domain: "Unexpected Overview input or running state: \(observed)", code: 1)
+                }
+            } catch {
+                print("Overview capture failed:", error)
+                exit(EXIT_FAILURE)
+            }
+            NSApp.terminate(nil)
+        }
+    }
+
     private func startAgentEntranceCapture() {
         model.agentEntranceCapture = true
         let replay = PendingSendReplay()
@@ -424,7 +502,7 @@ private struct Controls: View {
         try prepareIsolatedNativeReplay()
         NativeTypography.registerFonts()
         let app = NSApplication.shared
-        app.setActivationPolicy((CommandLine.arguments.contains("--capture-collapse") || CommandLine.arguments.contains("--capture-agent-entrance") || CommandLine.arguments.contains("--replay-send")) ? .accessory : .regular)
+        app.setActivationPolicy((CommandLine.arguments.contains("--capture-collapse") || CommandLine.arguments.contains("--capture-agent-entrance") || CommandLine.arguments.contains("--capture-overview") || CommandLine.arguments.contains("--replay-send")) ? .accessory : .regular)
         let delegate = Delegate(); app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }

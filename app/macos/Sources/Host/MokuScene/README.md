@@ -121,9 +121,17 @@ Its measured height changes the shell without replacing the editor or its
 selection owner through entry, exit and rapid reversal. The pending-send replay
 selects the same directory in two consecutive drafts using Return.
 
-Input collapse hides the composer immediately. The shell and eyes continue
-their motion while `inputLeaving` keeps the ordinary closing editor mounted for
-420ms. Returning from an Agent conversation to Overview closes the reading
+The bottom Overview Dock carries one Stop button while the running Chief's
+eyes and capsule move between their compact and input positions. The input
+row reserves its measured seat beside Send. Stop is visible while editing
+and on hover or focus in the compact capsule. The editor uses its final
+width throughout the 420ms motion. Its ink fades in during the last tenth
+of expansion and fades out over the same part of the return. Closing ends
+editing immediately. Reduce Motion switches this Dock directly between its
+two layouts. See the [Overview Dock replay](../../../../../demos/moku-panel-transition/README.md#overview-dock-replay).
+
+`inputLeaving` keeps the ordinary closing editor mounted for 420ms to retain
+its selection. Returning from an Agent conversation to Overview closes the reading
 panel's input gate while the workspace still owns the outgoing draft. The
 composer and its directory suggestions hide at that point. The shell starts
 contracting in its reading column on the same update, easing out over the

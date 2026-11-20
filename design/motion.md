@@ -16,7 +16,11 @@ its final width once ready. The native document and cited result appear at
 full opacity when each finishes loading.
 Reduce Motion also settles member removals and the
 [final Overview card exit](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
-immediately. Other application-owned animations use their ordinary timing,
+immediately. The bottom Chief Dock also opens and closes its input directly
+in Overview with Reduce Motion. Its ordinary 420ms transition carries the eyes
+and Stop button with the shell. [Dock and composer](../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
+
+Other application-owned animations use their ordinary timing,
 curves and completion gates. Visibility, focus, occlusion,
 offscreen state, explicit pause, drag/resize and performance gates remain active.
 Reduce Transparency, Increase Contrast, keyboard navigation and accessibility

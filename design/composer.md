@@ -54,8 +54,9 @@ The Dock uses one persistent character/eyes owner and one glass shell. The
 share production layout. Below 260pt available width, the editor gets the top
 row and the identity, attachment and action seats share the bottom row without
 replacing the NSTextView. The editor remains
-scrollable and the shell stays within the viewport. Closing input hides its ink
-immediately while retaining the native editor for the shell's 420ms travel.
+scrollable and the shell stays within the viewport. Closing the bottom Overview
+input fades the draft as the capsule starts to fold. The native editor stays
+mounted for the 420ms return and keeps its selection for reopening.
 Returning to Overview hides the Agent composer and starts folding its shell
 as soon as the reading panel blocks input. The outgoing shell stays in its
 reading column until route release.
