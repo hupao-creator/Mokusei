@@ -44,9 +44,10 @@ Source: [layout](../app/macos/Sources/Host/Overview/NativeOverviewLayout.swift),
 
 The passive cover's logical viewport is 360×308 CSS pixels. Native height is
 width × 308/360: 273.8pt at 320pt width, followed by a 4pt gap and 130.2pt metadata
-region. One outer 1×2 card owns open/archive actions; introduction display allows
-three lines. The agent prompt asks for concise text suited to two lines; this
-writing guidance is distinct from the three-line native limit.
+region. One outer 1×2 card owns open/archive actions. Individual cards, carousel
+pages and member grid cards show up to three lines of the authored introduction.
+The metadata keeps 18pt top and side insets and gives the remaining height to
+the excerpt. Longer introductions truncate at the end of the third line.
 
 `coverHTML` persists separately from report HTML and has its own revision. Catalog
 carries only that revision; mounted covers query the matching source. A bounded

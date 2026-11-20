@@ -143,7 +143,7 @@ Report documents persist `emoji` (one complete Unicode emoji) and
 of HTML. Create requires both; update can replace either without changing the
 HTML content revision. Read/list and the native catalog expose these fields.
 Super Thread Agent supplies them through its tool schema. Its instructions ask for
-a concise, evidence-grounded two-line card snapshot; the 220-scalar limit remains a
+a concise, evidence-grounded introduction for a three-line preview. The 220-scalar limit is a
 hard validation boundary, not a target to fill. On report updates the agent
 revisits the introduction when new evidence changes the report or can make the
 card more useful. Existing descriptions are not rewritten in bulk; they change
@@ -296,7 +296,6 @@ visible from time zero so a replay does not start with an empty background. The 
 and then replays; authors must not include the hold, infinite loops, hover
 transitions or scroll timelines. Covers supply both light and dark palettes.
 This guidance is independent of the report body's ELI5/host-integration rules.
-The report introduction targets a concise two-line card.
 Cover markup is HTML/CSS, limited to 64,000 Unicode scalars; inline SVG, scripts
 and embedded documents are rejected at admission. See the
 [cover dimensions](../../../../design/overview.md)
