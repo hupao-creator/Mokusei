@@ -346,13 +346,9 @@ struct NativeSidecardWorkspaceLayout: View {
             if preparing { status = .init() }
         }
         .onPreferenceChange(NativeReadingContentStatusKey.self, perform: onContentStatusChange)
-        // Reserve the history rail across initial loading. The reading column
-        // still centers itself inside the current main pane when it resizes.
+        // Top-level loading and errors share the live reader's balanced margins.
         .environment(\.nativeThreadReservesHistoryRail, true)
         .environment(\.nativeThreadReservesSidecardColumn, snapshot.layoutSelection != nil)
-        // The 48pt leading rail keeps the document and its scroller to the
-        // right of Close; the rail itself has 64pt of vertical clearance.
-        // Do not also reserve Close's height above the entire reading viewport.
         .nativeReadingPanelViewport(topInset: 22)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))

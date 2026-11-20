@@ -11,6 +11,12 @@ private struct HistorySidebarAnchor: PreferenceKey {
 /// A lightweight index, independent of the document's bounded content window.
 /// Hovering reads only the manifest summary; it never acquires a turn resource.
 struct ThreadHistorySidebar: View {
+    static let leadingInset: CGFloat = 4
+    private static let hitWidth: CGFloat = 44
+    static let documentMargin = leadingInset + hitWidth
+    private static let rowHeight: CGFloat = 24
+    private static let endInset: CGFloat = 8
+
     let rows: [ThreadConversationRow]
     let selected: JSONText?
     let current: JSONText?
@@ -35,9 +41,11 @@ struct ThreadHistorySidebar: View {
     private var preview: JSONText? { hovered ?? (keyboardPreview ? focused : nil) }
 
     private var window: Range<Int> {
-        let start = min(rows.count, max(0, Int(top / 24) - 8))
-        return start..<min(rows.count, start + Int(ceil(viewport / 24)) + 17)
+        let start = min(rows.count, max(0, Int(top / Self.rowHeight) - 8))
+        return start..<min(rows.count, start + Int(ceil(viewport / Self.rowHeight)) + 17)
     }
+
+    private var contentHeight: CGFloat { CGFloat(rows.count) * Self.rowHeight + 2 * Self.endInset }
 
     @ViewBuilder private var indexView: some View {
         let window = window
@@ -45,12 +53,12 @@ struct ThreadHistorySidebar: View {
             // Fixed-height marks allow direct offset navigation and a bounded
             // mounted window, even when Home/End skips thousands of entries.
             VStack(spacing: 0) {
-                Color.clear.frame(height: CGFloat(window.lowerBound) * 24).accessibilityHidden(true)
+                Color.clear.frame(height: CGFloat(window.lowerBound) * Self.rowHeight).accessibilityHidden(true)
                 ForEach(Array(rows[window].enumerated()), id: \.element.id) { offset, row in
                     entry(row, index: window.lowerBound + offset)
                 }
-                Color.clear.frame(height: CGFloat(rows.count - window.upperBound) * 24).accessibilityHidden(true)
-            }.padding(.vertical, 8)
+                Color.clear.frame(height: CGFloat(rows.count - window.upperBound) * Self.rowHeight).accessibilityHidden(true)
+            }.padding(.vertical, Self.endInset)
         }
         .scrollIndicators(.hidden)
         .scrollPosition($position)
@@ -61,8 +69,8 @@ struct ThreadHistorySidebar: View {
             if active { keyboardRow = selected; reveal(selected) }
             else { keyboardPreview = false }
         }
-        .frame(width: 44)
-        .frame(maxHeight: CGFloat(rows.count) * 24 + 16)
+        .frame(width: Self.hitWidth)
+        .frame(maxHeight: contentHeight)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             viewport = height
             reveal(focused ?? selected)
@@ -89,6 +97,9 @@ struct ThreadHistorySidebar: View {
         .onKeyPress(.end) { focus(rows.last?.id); return .handled }
         .onKeyPress(.return) { activateFocused() }
         .onKeyPress(.space) { activateFocused() }
+        // Center short indexes in the reader. A preview can be taller than all
+        // its marks combined and should still sit beside the hovered row.
+        .frame(maxHeight: .infinity)
         .overlayPreferenceValue(HistorySidebarAnchor.self) { anchors in
             previewOverlay(anchors)
         }
@@ -125,7 +136,7 @@ struct ThreadHistorySidebar: View {
                 if rect.maxY > 0 && rect.minY < geometry.size.height {
                     ThreadHistoryPreview(row: row, current: id == current)
                         .id(id)
-                        .frame(width: min(340, max(0, availableWidth - 60)), alignment: .leading)
+                        .frame(width: min(340, max(0, availableWidth - Self.documentMargin - 12)), alignment: .leading)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { previewHeight = $0 }
                         // Include the gap in the hover region so crossing from
                         // a mark to its summary does not retire the preview.
@@ -135,7 +146,7 @@ struct ThreadHistorySidebar: View {
                             if inside { showHover(id) }
                             else { dismissHover(id) }
                         }
-                        .offset(x: 44, y: max(0, min(rect.midY - previewHeight / 2, geometry.size.height - previewHeight)))
+                        .offset(x: Self.hitWidth, y: max(0, min(rect.midY - previewHeight / 2, geometry.size.height - previewHeight)))
                         .accessibilityHidden(true)
                         .onDisappear { dismissHover(id) }
                 }
@@ -153,9 +164,9 @@ struct ThreadHistorySidebar: View {
         let label = localize("第 {count} 轮对话").replacingOccurrences(of: "{count}", with: String(index + 1)) + ": " + title
         return Button { keyboardRow = row.id; select(row.id) } label: {
             Rectangle().fill(emphasized ? NativePalette.thread.inkStrong.swiftUI : NativePalette.thread.muted.swiftUI)
-                .opacity(emphasized || contrast == .increased ? 1 : 0.55)
+                .opacity(emphasized || contrast == .increased ? 1 : 0.62)
                 .frame(width: active ? 26 : emphasized ? 22 : 16, height: active ? 2 : 1.5)
-                .frame(width: 44, height: 24).contentShape(Rectangle())
+                .frame(width: Self.hitWidth, height: Self.rowHeight).contentShape(Rectangle())
         }
         .buttonStyle(.plain).focusable(false)
         .id(row.id)
@@ -220,7 +231,8 @@ struct ThreadHistorySidebar: View {
     }
     private func reveal(_ id: JSONText?) {
         guard let id, let index = rows.firstIndex(where: { $0.id == id }) else { return }
-        let offset = max(0, min(CGFloat(rows.count) * 24 + 16 - viewport, CGFloat(index) * 24 + 20 - viewport / 2))
+        let center = Self.endInset + (CGFloat(index) + 0.5) * Self.rowHeight
+        let offset = max(0, min(contentHeight - viewport, center - viewport / 2))
         top = offset
         position.scrollTo(y: offset)
     }

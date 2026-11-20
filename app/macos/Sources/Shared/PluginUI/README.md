@@ -562,8 +562,12 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).
 
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
-conversation's turn index as a left-hand TOC. The selected mark is longer and
-brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
+conversation's turn index as horizontal marks centered vertically at the leading
+edge. An ordinary single turn has no marks. Multiple entries, inherited history
+or a history visit expose the index. The selected mark measures 26×2pt in strong
+ink, and the remaining marks measure 16×1.5pt in muted ink. Their centers are
+24pt apart. Hover or explicit keyboard navigation emphasizes an entry and reveals
+its bounded title and answer preview.
 The answer wraps naturally to at most three lines, with the title and timestamp
 remaining visible; shorter answers do not reserve unused lines.
 Restoring focus after Back does not reopen the preview. The mark and preview share
@@ -1235,15 +1239,14 @@ viewport/margin contract for production and the standalone native fixture.
 reading panels. Report panels opt into
 `topInset: 8, balancedVerticalInsets: true`, reserving 8pt at both ends. The main
 Agent Thread panel and live execution Sidecard use `topInset: 22`, matching their
-bottom viewport clearance. The Sidecard has no Close control of its own. The main
-panel's reserved
-48pt leading history rail separates the document and its scroller horizontally
-from Close; the rail itself retains 64pt of vertical padding. `ThreadConversation`
-consumes that rail reservation before rendering nested rows. Top-level loading
-and Harness error views use `nativeThreadRailFallback()`
-to reserve the same 48pt when no conversation layout is present; nested status
-views do not add it again. This also keeps heading-only loading aligned with
-the preparation reader without changing viewport height during admission.
+bottom viewport clearance. The Sidecard has no Close control of its own.
+The main Agent reader and the related-execution reader in a Report overlay
+the TOC on the page stack. Each mark has a 44×24pt hit target starting 4pt
+from the viewport's leading edge. The index clears the top and bottom by at
+least 64pt. The bounded document column uses a minimum margin of 48pt on both
+sides, including before the second turn arrives. The scrollbar stays at the
+viewport edge. Main-panel preparation, loading and top-level Harness errors
+use the same margins. Each document applies them once around its content.
 Current and historical Agent documents use 12pt of scrollable padding at each end, without
 additional vertical padding around the conversation viewport. This keeps the
 Close clearance while expanding the readable area at every window width;
@@ -1252,8 +1255,8 @@ keeps its existing host layout. The entire viewport
 sits inside this frame, so persistent and
 overlay indicators, their hit regions and both scroll limits clear the rounded
 edge. The default top clears Close's complete 14pt inset + 32pt hit region,
-including when an overlay scroller expands on hover. The main Agent reader's
-horizontal clearance supplies that separation with the smaller top inset.
+including when an overlay scroller expands on hover. The main Agent document's
+leading margin clears Close with the smaller top inset.
 Close remains anchored to the outer
 panel. The frame reduces available
 content width by only 16pt; native gutter ownership remains as described above.
@@ -1289,7 +1292,7 @@ The main Agent panel has fixed viewport chrome of 22pt above and below, with
 no additional page-stack inset around its main conversation. Together with the
 12pt document inset, this gives 34pt from either outer panel edge to the
 corresponding document boundary at its scroll limit. Title/emoji and author spacing belong inside the document. Close stays at its
-14pt panel inset, separate from the document's reserved leading rail throughout
+14pt panel inset, clear of the document and the TOC marks throughout
 scrolling, history navigation, resizing and Sidecard layout changes.
 Short documents remain top aligned;
 unused viewport height below them is not padding and is not forcibly filled or
@@ -1367,9 +1370,8 @@ Agent Overview cards register window-local title/emoji anchors through
 `NativeThreadIdentityRegistry`. An ordinary card-open copies their text and
 geometry into one route visit. Before travel, the workspace prepares its sidecard
 geometry and a row-free `ThreadConversation` using the same heading layout.
-The main Agent reader reserves its 48pt history rail across loading. Its bounded
-reading column remains centered in the available reading viewport, with the
-existing responsive insets. A real sidecard open/close resizes that viewport and
+The main Agent reader centers the bounded reading column in the full viewport
+throughout loading and history navigation. A real sidecard open/close resizes that viewport and
 recenters the entire column normally; it does not start another identity flight.
 Do not lock the reading origin to the panel's left edge to prevent this reflow:
 that breaks wide-window composition. Loading and loaded headings use the same

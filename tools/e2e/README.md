@@ -190,6 +190,15 @@ historical selection. Use distinct drafts to check that input follows the
 selected run and that selection leaves focus with the reader. The mounted
 history controls use the same navigation callbacks as the rail.
 
+To check the [Agent reader's history marks](../../app/macos/Sources/Shared/PluginUI/README.md#reading-panel-presentation),
+also start with one completed run and send a second at a fixed window size.
+Compare the heading and body frames before and after the marks appear. The
+column should keep its width and horizontal position. Check the two lines on
+the leading margin, hover each for its preview, then open the earlier run and
+return. Repeat in the related-execution reader beside a Super Thread and at a
+narrow width. Record the viewport, document and mark bounds alongside the
+frames. The mounted navigation scenario alone does not measure this geometry.
+
 For the [composer geometry contract](../../design/composer.md#geometry-and-surfaces),
 record the isolated window during each selection. Check intermediate frames at
 fixed window size with empty drafts. The glass must stay expanded and the

@@ -304,7 +304,7 @@ private final class ThreadIdentityInkHost: NSView {
 }
 
 /// The same heading and timeline layout, without any Harness rows or parser.
-/// Reserve the history rail across loading so data cannot shift the heading.
+/// The row-free reader shares the live document's width and margins.
 public struct NativeThreadOpeningContent: View {
     @Environment(\.nativeThreadIdentityVisit) private var visit
     private let showsLoading: Bool

@@ -13,16 +13,24 @@ public extension View {
             .padding(.bottom, balancedVerticalInsets ? topInset : 22)
     }
 
-    /// Top-level loading/error content has no conversation sidebar. Reserve its
-    /// host's unconsumed rail so the smaller viewport still clears Close.
-    func nativeThreadRailFallback() -> some View { modifier(NativeThreadRailFallback()) }
+    /// Top-level status views can precede the timeline that normally sets the margins.
+    func nativeThreadRailFallback() -> some View { nativeThreadDocumentMargins(standard: 0) }
 }
 
-private struct NativeThreadRailFallback: ViewModifier {
+extension View {
+    func nativeThreadDocumentMargins(standard: CGFloat) -> some View {
+        modifier(NativeThreadDocumentMargins(standard: standard))
+    }
+}
+
+private struct NativeThreadDocumentMargins: ViewModifier {
+    let standard: CGFloat
     @Environment(\.nativeThreadReservesHistoryRail) private var reservesHistoryRail
 
     func body(content: Content) -> some View {
-        content.padding(.leading, reservesHistoryRail ? 48 : 0)
+        // Leave the hit targets in the margin, including when a second turn
+        // arrives. The scroll view and its indicator keep the full viewport.
+        content.padding(.horizontal, reservesHistoryRail ? ThreadHistorySidebar.documentMargin : standard)
             .environment(\.nativeThreadReservesHistoryRail, false)
     }
 }

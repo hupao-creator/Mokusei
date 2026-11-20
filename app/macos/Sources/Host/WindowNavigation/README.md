@@ -169,8 +169,9 @@ its return frame after resize. These routes share panel margins, source-frame
 animation, rounded surfaces and the full-circle Close target.
 The shared Close sits at the panel's upper-left. Viewports normally reserve
 48pt below the top edge; the main Agent reader uses symmetric 22pt viewport
-insets and clears Close horizontally through its reserved 48pt history rail.
-The rail retains its own 64pt vertical padding. This applies to both opening
+insets and clears Close through its symmetric document margins. The history
+marks overlay the leading margin and retain 64pt of vertical clearance.
+The document margins apply to both opening
 heading preparation and the live current/history reader, retaining measured
 title handoff and the existing content readiness gates for input and Sidecards.
 Agent Sidecards use their right-side launcher as
