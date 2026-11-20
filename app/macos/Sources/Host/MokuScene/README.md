@@ -141,6 +141,19 @@ width throughout the 420ms motion. Its ink fades in during the last tenth
 of expansion and fades out over the same part of the return. Closing ends
 editing immediately. See the [Overview Dock replay](../../../../../demos/moku-panel-transition/README.md#overview-dock-replay).
 
+The foreground workspace's Compose command (⌘⇧B) requests focus when it
+admits an opening. The mounted editor can receive keystrokes during the ink
+transition. Pointer openings use the ink reveal for autofocus. Closing the
+input or replacing its draft invalidates an unfinished command request. An
+open pinned editor uses Compose to request focus again. See the
+[Chief shortcut replay](../../../../../tools/e2e/README.md#chief-compose-shortcut).
+
+When an ordinary keyboard opening leaves the key window itself as responder
+until the editor attaches, printable typing waits for that request's native
+editor. The handoff sends those events in order to the same key window.
+Pointer input, other key commands, loss of the key window and route retirement
+end the handoff.
+
 `inputLeaving` keeps the ordinary closing editor mounted for 420ms to retain
 its selection. Returning from an Agent conversation to Overview closes the reading
 panel's input gate while the workspace still owns the outgoing draft. The

@@ -380,6 +380,7 @@ private struct Controls: View {
         model.sendReplay = replay
         model.thread = false
         model.running = false
+        model.draft = model.overviewDraft
         let panel = CollapseCapturePanel(contentRect: .init(x: 100, y: 100, width: 1024, height: 650),
             styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false)
         window = panel

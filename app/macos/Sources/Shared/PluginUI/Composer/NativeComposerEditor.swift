@@ -3,11 +3,18 @@ import SwiftUI
 
 /// The native input session owns text and selection while marked text exists.
 struct NativeComposerEditor: NSViewRepresentable {
+    struct FocusRequest: Equatable {
+        let key: Int
+        let context: String
+    }
+
     @Binding var value: String
     var draft: NativeComposerDraft?
     @Binding var selection: NSRange?
     @Binding var focused: Bool
     var pasteOwnerID: UUID
+    var focusRequest: FocusRequest?
+    var onFocusRequestAcquired: ((Int, NSTextView) -> Void)?
     var selectionRequest: NativeComposerSelectionRequest?
     var initialSelection: NSRange?
     var preservesSelection = false
@@ -52,6 +59,7 @@ struct NativeComposerEditor: NSViewRepresentable {
             coordinator?.publish(synchronizeText: true, nativeEdit: edited)
         }
         editor.focusChanged = { [weak coordinator = context.coordinator] in coordinator?.schedulePublish() }
+        editor.windowChanged = { [weak coordinator = context.coordinator] in coordinator?.applyFocusRequest() }
         editor.handleKey = { [weak coordinator = context.coordinator] event in coordinator?.handle(event) ?? false }
         scroll.documentView = editor
         context.coordinator.editor = editor
@@ -126,11 +134,11 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.emphasizedInsertionPoint = emphasizedInsertionPoint
         scroll.hasVerticalScroller = showsScroller
         coordinator.applySelectionRequest()
-        if let window = editor.window {
-            if focused && focusEnabled && !unavailable && window.firstResponder !== editor { window.makeFirstResponder(editor) }
-            // A mouse click can make AppKit first responder before the next
-            // SwiftUI focus report. Only explicit availability changes may blur it.
-            else if (!focusEnabled || unavailable) && window.firstResponder === editor { window.makeFirstResponder(nil) }
+        if active { coordinator.applyFocusRequest() }
+        // Availability can end editing. The focus binding reports AppKit's
+        // responder and stays out of the acquisition path.
+        else if let window = editor.window, window.firstResponder === editor {
+            window.makeFirstResponder(nil)
         }
         if restoredSelection { editor.scrollRangeToVisible(editor.selectedRange()) }
     }
@@ -146,6 +154,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         var active: Bool?
         var suspendedSelection: (text: String, range: NSRange)?
         private var lastRequest: UUID?
+        private var appliedFocusRequest: FocusRequest?
         private var lastState: NativeComposerEditorState?
         private var publishScheduled = false
         init(_ parent: NativeComposerEditor) { self.parent = parent }
@@ -185,6 +194,17 @@ struct NativeComposerEditor: NSViewRepresentable {
             lastRequest = request.id
             editor.setSelectedRange(clamped(request.range))
             if request.focus && parent.focusEnabled && !parent.unavailable { editor.window?.makeFirstResponder(editor) }
+        }
+        func applyFocusRequest() {
+            guard active == true, let editor, let window = editor.window,
+                  let request = parent.focusRequest, request != appliedFocusRequest else { return }
+            // A request made before attachment waits for this editor's window.
+            // A non-key window can set its own responder without taking foreground.
+            // Respect AppKit's refusal and any later user focus change.
+            appliedFocusRequest = request
+            if window.firstResponder !== editor { window.makeFirstResponder(editor) }
+            if window.firstResponder === editor { parent.onFocusRequestAcquired?(request.key, editor) }
+            schedulePublish()
         }
         func schedulePublish() {
             guard !publishScheduled else { return }
@@ -256,6 +276,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     var pasteOwnerID: UUID?
     var changed: ((Bool) -> Void)?
     var focusChanged: (() -> Void)?
+    var windowChanged: (() -> Void)?
     var handleKey: ((NSEvent) -> Bool)?
     var pasteAttachments: (([NSItemProvider], NSRange) -> Void)?
     var composerTextInsets = EdgeInsets() {
@@ -277,6 +298,10 @@ struct NativeComposerEditor: NSViewRepresentable {
     // AppKit may replace selected text with identical characters. Carry its
     // edit notification through the outer input call, including IME callbacks.
     private var editedDuringInput = false
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        windowChanged?()
+    }
     override func didChangeText() {
         if operationDepth > 0 { editedDuringInput = true }
         super.didChangeText()

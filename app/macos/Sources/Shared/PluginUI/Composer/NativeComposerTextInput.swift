@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import CoreText
 import UniformTypeIdentifiers
 import SwiftUI
@@ -54,6 +55,7 @@ public struct NativeComposerTextInput: View {
     private let focusRequestKey: Int
     private let focusContext: String
     private let suppressInitialFocus: Bool
+    private let onFocusRequestAcquired: ((Int, NSTextView) -> Void)?
     private let minHeight: CGFloat
     private let maxHeight: CGFloat
     private let fontSize: CGFloat
@@ -72,7 +74,6 @@ public struct NativeComposerTextInput: View {
     private let submitOnReturn: Bool
     private let emphasizedInsertionPoint: Bool
     @State private var focused = false
-    @State private var appliedFocusRequest: FocusRequest?
     @State private var pasting = false
     @State private var pasteOwnerID = UUID()
     @State private var selection: NSRange?
@@ -86,6 +87,7 @@ public struct NativeComposerTextInput: View {
                 disabled: Bool = false, readOnly: Bool = false,
                 focusEnabled: Bool = true, automaticFocus: Bool = true,
                 focusRequestKey: Int = 0, focusContext: String = "", suppressInitialFocus: Bool = false,
+                onFocusRequestAcquired: ((Int, NSTextView) -> Void)? = nil,
                 minHeight: CGFloat = 54, maxHeight: CGFloat = 180, fontSize: CGFloat = 13.5,
                 lineHeight: CGFloat = 20.925,
                 insets: NativeComposerInsets = NativeComposerInsets(top: 15, left: 16, bottom: 8, right: 16),
@@ -104,6 +106,7 @@ public struct NativeComposerTextInput: View {
         self.automaticFocus = automaticFocus
         self.focusRequestKey = focusRequestKey; self.focusContext = focusContext
         self.suppressInitialFocus = suppressInitialFocus
+        self.onFocusRequestAcquired = onFocusRequestAcquired
         self.minHeight = minHeight; self.maxHeight = max(minHeight, maxHeight)
         self.fontSize = fontSize; self.lineHeight = lineHeight; self.insets = insets
         self.selectionRequest = selectionRequest
@@ -120,6 +123,9 @@ public struct NativeComposerTextInput: View {
         let placeholderCapHeight = CTFontGetCapHeight(nativeFont)
         NativeComposerEditor(value: $value, draft: draft, selection: $selection, focused: $focused,
             pasteOwnerID: pasteOwnerID,
+            focusRequest: focusRequestKey > 0 || automaticFocus && !suppressInitialFocus
+                ? .init(key: focusRequestKey, context: focusContext) : nil,
+            onFocusRequestAcquired: onFocusRequestAcquired,
             selectionRequest: selectionRequest, initialSelection: initialSelection, preservesSelection: preservesSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
@@ -177,19 +183,6 @@ public struct NativeComposerTextInput: View {
                 paste(providers)
             }
             .onChange(of: focused) { _, value in onFocusChange?(value) }
-            .task(id: FocusAttempt(request: FocusRequest(key: focusRequestKey, context: focusContext),
-                enabled: focusEnabled && !unavailable,
-                requested: focusRequestKey > 0 || automaticFocus && !suppressInitialFocus)) {
-                let request = FocusRequest(key: focusRequestKey, context: focusContext)
-                guard focusEnabled, !unavailable, appliedFocusRequest != request,
-                      focusRequestKey > 0 || automaticFocus && !suppressInitialFocus else { return }
-                // Availability may settle after the request arrives. Retry that
-                // pending intent once, without refocusing on later rerenders.
-                appliedFocusRequest = request
-                focused = true
-            }
-            .onChange(of: unavailable) { _, unavailable in if unavailable { focused = false } }
-            .onChange(of: focusEnabled) { _, enabled in if !enabled { focused = false } }
             .dropDestination(for: URL.self) { urls, _ in
                 guard !unavailable, let onFiles else { return false }
                 let files = urls.filter(\.isFileURL).map(NativeComposerFile.init(url:))
@@ -229,8 +222,6 @@ public struct NativeComposerTextInput: View {
             if !content.files.isEmpty { await onFiles(content.files) }
         }
     }
-    private struct FocusRequest: Equatable { let key: Int; let context: String }
-    private struct FocusAttempt: Equatable { let request: FocusRequest; let enabled: Bool; let requested: Bool }
     private var nativeFont: CTFont { CTFontCreateUIFontForLanguage(.system, fontSize, nil)! }
     private var spacing: CGFloat {
         let font = nativeFont
