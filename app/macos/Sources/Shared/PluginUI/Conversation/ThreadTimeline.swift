@@ -261,7 +261,8 @@ public struct HarnessMessageTimeline: View {
                                 value: max(0, column.frame(in: .named("thread-timeline-content")).minX))
                         }
                     }
-                    .nativeThreadDocumentMargins(standard: bounds.size.width <= 540 ? 18 : 32)
+                    .nativeThreadDocumentMargins(standard: bounds.size.width <= 540 ? 18 : 32,
+                                                viewportWidth: bounds.size.width)
                     .padding(.vertical, readingVerticalInset(bounds.size.width)).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
                     .environment(\.nativeReadingPageCapacity, readingPageCapacity(bounds.size))

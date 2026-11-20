@@ -21,18 +21,29 @@ public extension View {
             .padding(.bottom, balancedVerticalInsets ? topInset : 22)
     }
 
-    /// A panel with a fixed Close control needs the same clearance during loading.
-    func nativeThreadDocumentMargins(standard: CGFloat = 0) -> some View {
-        modifier(NativeThreadDocumentMargins(standard: standard))
+    /// The main timeline supplies its viewport width before SwiftUI allocates a scroller.
+    func nativeThreadDocumentMargins(standard: CGFloat = 0, viewportWidth: CGFloat? = nil) -> some View {
+        modifier(NativeThreadDocumentMargins(standard: standard, viewportWidth: viewportWidth))
     }
 }
 
 private struct NativeThreadDocumentMargins: ViewModifier {
     let standard: CGFloat
+    let viewportWidth: CGFloat?
     @Environment(\.threadDocumentMinimumInset) private var minimumInset
 
     func body(content: Content) -> some View {
-        content.padding(.horizontal, max(standard, minimumInset))
-            .environment(\.threadDocumentMinimumInset, 0)
+        let document = content.environment(\.threadDocumentMinimumInset, 0)
+        let inset = max(standard, minimumInset)
+        if minimumInset > 0, let viewportWidth {
+            let width = min(NativeGeometry.readingWidth, max(0, viewportWidth - 2 * inset))
+            // A persistent scroller uses part of the trailing margin. Anchor the
+            // column to the full viewport so its appearance cannot rewrap a reply.
+            document.frame(width: width, alignment: .leading)
+                .padding(.leading, (viewportWidth - width) / 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            document.padding(.horizontal, inset)
+        }
     }
 }

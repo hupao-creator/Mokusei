@@ -316,8 +316,10 @@ must own both indicator visibility and the document-width proposal: forcing a
 resident AppKit gutter while its initial document is empty can leave loaded
 content measured at full width until the first scroll. In legacy mode its gutter
 is allocated when content becomes scrollable, rather than reserved for short
-content. Content loading can therefore change the available width; scrolling an
-already loaded document must not. Explicit hidden indicators remain SwiftUI-owned.
+content. The main Agent reader centers its column in the full viewport, so a
+persistent scroller occupies the trailing margin. Other SwiftUI readers that
+use the scroll content width can receive a narrower proposal during loading.
+Explicit hidden indicators remain SwiftUI-owned.
 The AppKit subclass and scoped control adapter retain their resident-gutter policy.
 
 No native scrollbar correctness suite or windowless styling replay is
@@ -1252,6 +1254,9 @@ placement unchanged. The column uses the timeline's normal 18pt or 32pt
 horizontal insets and its 744pt width limit. In the main panel, the fixed Close
 button requires 46pt from the panel edge, including the 8pt viewport inset.
 Preparation, loading, errors and live content honor this clearance on both sides.
+The main timeline measures its column width and leading edge outside the scroll
+view. At a fixed panel size a short reply, a scrollable reply and a historical
+reply use the same column, including with macOS scroll bars set to Always.
 Current and historical Agent documents use 12pt of scrollable padding at each end, without
 additional vertical padding around the conversation viewport. This keeps the
 Close clearance while expanding the readable area at every window width;

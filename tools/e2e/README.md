@@ -180,6 +180,18 @@ the original timeout and sample when present, and the isolated cleanup receipt.
 Mounted readiness and UI request times measure different events from display
 frame times.
 
+### Agent reader alignment
+
+At a fixed main Agent panel width, show one short reply, extend that same reply
+until it scrolls, then shorten it again. Start the native replay process with
+`-AppleShowScrollBars Always`. Record the argument-domain value, the actual
+document scroll view's legacy style, clip width and vertical scroller visibility.
+Measure the heading or full-width divider against both panel edges. The short
+and long states must have the same centered column and wrap the same sample text
+identically. Check a narrow pane at or below 540pt and a pane wide enough to
+reach the 744pt column limit. Open an earlier run from the margin and return
+to verify the same geometry in both documents.
+
 ### Agent history composer
 
 Use an isolated profile with an ordinary Agent Thread and at least three
