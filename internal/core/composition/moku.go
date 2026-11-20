@@ -36,9 +36,9 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 			return r.ConfigureMokuThread(ctx, id, revision, value.HarnessID, value.Settings, value.AppliedSettings, value.SettingsRevision, value.Cwd)
 		},
 		OpenSession: r.OpenMokuThread, CloseSession: r.CloseMokuThread, SendSession: r.SendMokuThread,
-		PendingDeliveries: r.PendingMokuDeliveries, SendDelivery: r.SendMokuDelivery,
+		PendingDeliveries: r.ReadyMokuDeliveries, SendDelivery: r.SendMokuDelivery,
 		SubscribeCommitted: r.OnThreadCommitted, SubscribeDiagnostics: b.subscribeDiagnostics,
-		SubscribeUserThreadInputs: r.SubscribeUserThreadInputs,
+		SubscribeUserThreadActions: r.SubscribeUserThreadActions,
 		CreateThread: func(ctx context.Context, request moku.CreateThreadRequest) (moku.CreatedThread, error) {
 			result, err := r.CreateThread(ctx, core.CreateThreadRequest{ResolveSettings: request.ResolveSettings, HarnessID: request.HarnessID, Input: request.Input, Cwd: request.Cwd, Settings: request.Settings, Worktree: request.Worktree})
 			return moku.CreatedThread{Record: result.Record, Execution: result.Execution, Acknowledgement: result.Acknowledgement, WorktreeName: result.WorktreeName, WorktreeNameAdjusted: result.WorktreeNameAdjusted, WorktreeNameNotice: result.WorktreeNameNotice}, err

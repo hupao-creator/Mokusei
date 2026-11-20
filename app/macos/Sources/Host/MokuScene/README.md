@@ -72,9 +72,9 @@ at the trailing edge with its existing cancellation and accessibility semantics.
 
 The shared input row places the attachment plus immediately to the right of
 the identity seat. Below 260pt the editor takes the upper row and the plus
-stays beside the identity on the lower row. The localized control opens the
-device picker directly for device-only drafts. Host-enabled drafts expose the
-device picker, host files and host directory references through the plus menu.
+stays beside the identity on the lower row. A primary click or accessibility press opens
+the device file chooser directly. For host-enabled drafts, the contextual
+menu on the same button offers host files and host directory references.
 The composer remains dark in both macOS appearances. A native chooser keeps
 its Escape and Cancel behavior. Cancelling adds no chips and leaves the draft
 available. The same current Chief draft and send route serve Overview and
@@ -121,9 +121,17 @@ Its measured height changes the shell without replacing the editor or its
 selection owner through entry, exit and rapid reversal. The pending-send replay
 selects the same directory in two consecutive drafts using Return.
 
-Input collapse hides the composer immediately. The shell and eyes continue
-their motion while `inputLeaving` keeps the ordinary closing editor mounted for
-420ms. Returning from an Agent conversation to Overview closes the reading
+The bottom Overview Dock carries one Stop button while the running Chief's
+eyes and capsule move between their compact and input positions. The input
+row reserves its measured seat beside Send. Stop is visible while editing
+and on hover or focus in the compact capsule. The editor uses its final
+width throughout the 420ms motion. Its ink fades in during the last tenth
+of expansion and fades out over the same part of the return. Closing ends
+editing immediately. Reduce Motion switches this Dock directly between its
+two layouts. See the [Overview Dock replay](../../../../../demos/moku-panel-transition/README.md#overview-dock-replay).
+
+`inputLeaving` keeps the ordinary closing editor mounted for 420ms to retain
+its selection. Returning from an Agent conversation to Overview closes the reading
 panel's input gate while the workspace still owns the outgoing draft. The
 composer and its directory suggestions hide at that point. The shell starts
 contracting in its reading column on the same update, easing out over the

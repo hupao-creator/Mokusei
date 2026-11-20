@@ -66,24 +66,24 @@ type Configuration struct {
 	CloseSession             func(context.Context, string) error
 	// onAdmitted runs after durable running observation and before native execution
 	// resumes. It must run once for each successful user admission, also follow-ups.
-	SendSession               func(context.Context, string, model.AgentInput, *plugin.Injection, []plugin.ContextEntry, func(SendResult) error) (SendResult, error)
-	PendingDeliveries         func() ([]plugin.MokuDelivery, error)
-	SendDelivery              func(context.Context, string, string, model.AgentInput, *plugin.Injection, []plugin.ContextEntry) (SendResult, error)
-	SubscribeCommitted        func(func(model.ThreadRecord)) func()
-	SubscribeUserThreadInputs func(context.Context, func(plugin.LifecycleEvent)) (func(), error)
-	SubscribeDiagnostics      func(func(string)) func()
-	CreateThread              func(context.Context, CreateThreadRequest) (CreatedThread, error)
-	SendThread                func(context.Context, string, model.AgentInput) (SendResult, error)
-	AskThread                 func(context.Context, string, string) (string, error)
-	InterruptThread           func(context.Context, string) error
-	InterruptThreadTarget     func(context.Context, string, string) (model.CancellationResult, error)
-	ClaimThreadInput          func(context.Context, string) (context.Context, context.CancelFunc, error)
-	RespondThread             func(context.Context, string, model.RespondRequest) error
-	CanonicalizeInput         func(context.Context, model.AgentInput) (model.AgentInput, error)
-	StageAttachments          func(context.Context, json.RawMessage) (any, error)
-	CollectContext            func(context.Context, string, model.Settings) ([]plugin.ContextEntry, error)
-	SuperThreadContext        func(context.Context, string) (json.RawMessage, error)
-	Ledger                    func(string) plugin.TelemetryLedger
+	SendSession                func(context.Context, string, model.AgentInput, *plugin.Injection, []plugin.ContextEntry, func(SendResult) error) (SendResult, error)
+	PendingDeliveries          func() ([]plugin.MokuDelivery, error)
+	SendDelivery               func(context.Context, string, string, model.AgentInput, *plugin.Injection, []plugin.ContextEntry) (SendResult, error)
+	SubscribeCommitted         func(func(model.ThreadRecord)) func()
+	SubscribeUserThreadActions func(context.Context, func(plugin.LifecycleEvent)) (func(), error)
+	SubscribeDiagnostics       func(func(string)) func()
+	CreateThread               func(context.Context, CreateThreadRequest) (CreatedThread, error)
+	SendThread                 func(context.Context, string, model.AgentInput) (SendResult, error)
+	AskThread                  func(context.Context, string, string) (string, error)
+	InterruptThread            func(context.Context, string) error
+	InterruptThreadTarget      func(context.Context, string, string) (model.CancellationResult, error)
+	ClaimThreadInput           func(context.Context, string) (context.Context, context.CancelFunc, error)
+	RespondThread              func(context.Context, string, model.RespondRequest) error
+	CanonicalizeInput          func(context.Context, model.AgentInput) (model.AgentInput, error)
+	StageAttachments           func(context.Context, json.RawMessage) (any, error)
+	CollectContext             func(context.Context, string, model.Settings) ([]plugin.ContextEntry, error)
+	SuperThreadContext         func(context.Context, string) (json.RawMessage, error)
+	Ledger                     func(string) plugin.TelemetryLedger
 	// Runtime captures the current ordinary Thread target and owns stop provenance.
 	InterruptThreadFromMokuTool func(context.Context, string) (model.CancellationResult, error)
 }

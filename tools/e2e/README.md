@@ -422,15 +422,18 @@ Use a uniquely bundled production build and an isolated online profile with a
 configured Chief. The [Dock contract](../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
 and [shared composer](../../app/macos/Sources/Shared/PluginUI/README.md#cards-composer-and-forms)
 own the control and its draft import. Start on Overview and click the plus next
-to the eyes. Choose **Import from this device**, cancel the native chooser, and
-check that the draft text and chips are still present. Reopen it and select a
+to the eyes with the system mouse. Check that the native chooser opens on the
+first click, cancel it, and check that the draft text and chips are still present.
+Use AXPress on the same button and confirm the chooser opens directly. Select a
 known text file and image. Check their ready chips, open and dismiss the image
 preview, and send. Independently read the current Chief transcript through
 Runtime and match the user message, attachment names and sizes. Check the
 managed file bytes against the fixtures and confirm the draft clears. A
 deterministic external peer can observe native delivery without a provider account.
 
-Repeat the control and chooser check in Chief history. Capture the plus and
+On a host-enabled draft, Control-click the plus and check that each host option
+opens the corresponding file or directory browser. Repeat the primary control
+and chooser check in Chief history. Check English and Chinese. Capture the plus and
 the eyes in the same row in light and dark system appearances and at a narrow
 width or app zoom that admits the two-row composer. Inspect the control's
 localized accessibility label, action and frame. Keep the commit, app digest,

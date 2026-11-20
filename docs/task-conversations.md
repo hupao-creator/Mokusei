@@ -10,13 +10,13 @@ Click the blank margin outside the conversation to return to Overview. The input
 
 If the agent asks a question or requests permission, respond to the prompt. The choices depend on the agent and its request.
 
-To stop the current run, click **Stop this thread**. The button shares the **Send** position and appears when the run is active and the input box is empty. Keep any unsent draft you want before clearing the box. You can send a new message to continue later. Closing the conversation or its **Execution** sidecard leaves the task running. [Watch a live run](sidecards.md#watch-a-run-in-progress)
+To stop the current run, click **Stop this thread**. The button shares the **Send** position and appears when the run is active and the input box is empty. Keep any unsent draft you want before clearing the box. When the run stops, Chief receives a notification that you stopped it. You can send a new message to continue later. Closing the conversation or its **Execution** sidecard leaves the task running. [Watch a live run](sidecards.md#watch-a-run-in-progress)
 
 ## Send a follow-up or attachment
 
 Type your follow-up in **Type a message…** and click **Send** or press Return. Use Shift+Return for a new line. If the current run accepts follow-ups, your message goes to that run. If it has ended, sending starts a new run in the same conversation. Answer any pending question or permission request first.
 
-Click **+** to add an image or file. Supported attachments vary by agent. If the agent rejects an attachment, remove it and try a supported type or describe it in text. You can return to finish an unsent draft after opening a different conversation.
+Click **+** and select an image or file on your Mac. It appears above your draft. Supported attachments vary by agent. If the agent rejects an attachment, remove it and try a supported type or describe it in text. You can return to finish an unsent draft after opening a different conversation.
 
 You can start writing the next message while Chief confirms the previous send. Once the send succeeds, the next draft stays in the box. If the send is rejected, Chief puts the earlier message above your new text so you can review both before sending.
 

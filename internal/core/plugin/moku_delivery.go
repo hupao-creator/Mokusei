@@ -26,6 +26,7 @@ var ErrMokuIdle = errors.New("Chief is idle; notification remains queued")
 // MokuDelivery is a committed system notification awaiting coordinator admission.
 // Uncertain means native Send may have consumed it; automatic replay is unsafe.
 type MokuDelivery struct {
+	UserAction   *LifecycleEvent    `json:"userAction,omitempty"`
 	Sequence     int64              `json:"sequence"`
 	Lazy         bool               `json:"lazy,omitempty"`
 	Notification string             `json:"notification,omitempty"`

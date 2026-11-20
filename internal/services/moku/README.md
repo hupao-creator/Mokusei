@@ -273,6 +273,14 @@ event queue and its duplicate tracking. Configurations without the outbox retain
 the live notification path. Already queued Moku terminal audit settlement stays
 local and drains during shutdown.
 
+For an acknowledged user Stop, the terminal notification includes the same
+lifecycle `event.source` field as a direct input, with value `user`.
+The `thread.interrupt-acknowledged` event identifies the child in
+`event.subject.id` and the interrupted execution in `event.data.executionId`.
+The terminal observation retains its native status. Without an acknowledged
+user Stop, the terminal notification omits this event. A live-only coordinator
+receives the same acknowledgement as a separate execution-specific notice.
+
 Direct user input to an ordinary Thread writes a **lazy** system notification in
 that input's successful admission transaction. Idle Moku keeps it queued without
 starting an execution. The next ordinary Moku input (typed input or a

@@ -14,7 +14,9 @@ Type `@` and select a project folder from the suggestions. You can select severa
 
 If you send without selecting a folder in the message, Chief takes the current Overview folder into account. A folder you select in the message takes priority. Tasks created without a project folder go into Inbox.
 
-Click **+** just to the right of Chief's eyes, then choose **Import from this device** to select one or more files on your Mac. Click **Cancel** in the file chooser to keep your draft as it is. You can also choose **Choose host files** to browse files on the connected host or drop files into the input box.
+Click **+** just to the right of Chief's eyes to open the file chooser on your Mac. Select one or more files, or click **Cancel** to keep your draft as it is. You can also drop files into the input box.
+
+To browse the connected host, Control-click **+** and choose **Choose host files** to attach files or **Choose a host directory** to reference a folder.
 
 Selected files appear above the input. Click an image thumbnail to preview it or use the **×** on an attachment to remove it. Wait for the files to finish preparing, then click **Send**. You can attach up to 20 files per message. Size limits apply, and the agent running Chief determines which attachment types it can use. If you want Chief to delegate work on a file, say which file the agent should use in your request.
 
@@ -27,7 +29,7 @@ Selected files appear above the input. Click an image thumbnail to preview it or
 
 ## Stop work or acknowledge an alert
 
-To stop Chief's current response, click **Stop Chief** when the square stop button appears. To stop one or more delegated tasks, name them in a message to Chief. Chief tries each request separately. You can also stop a task yourself from its conversation. [Stop a run](task-conversations.md#respond-to-a-request-or-stop-a-run)
+To stop Chief's current response, hover over its eyes at the bottom of Overview and click the square **Stop Chief** button on the right. The button stays on the right when you open the input box. To stop one or more delegated tasks, name them in a message to Chief. Chief tries each request separately. You can also stop a task yourself from its conversation. [Stop a run](task-conversations.md#respond-to-a-request-or-stop-a-run)
 
 Chief can send an immediate alert that rings until you click **Received**. If another alert is waiting, it appears next. Alerts are kept while Chief is open and are cleared when you quit.
 

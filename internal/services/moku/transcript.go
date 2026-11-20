@@ -270,8 +270,8 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 				subjectID := ""
 				if event.record != nil {
 					subjectID = event.record.ID
-				} else if event.userInput != nil {
-					subjectID = event.userInput.Subject.ID
+				} else if event.userAction != nil {
+					subjectID = event.userAction.Subject.ID
 				}
 				if subjectID == "" {
 					return nil
@@ -288,8 +288,8 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 					return err
 				}
 				var input model.AgentInput
-				if event.userInput != nil {
-					input = userThreadInputNotification(*event.userInput, subject)
+				if event.userAction != nil {
+					input = userThreadActionNotification(*event.userAction, subject)
 				} else {
 					serialized, _ := json.Marshal(publicThread(*event.record))
 					input = textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
@@ -310,7 +310,13 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 	}
 }
 
-func userThreadInputNotification(event plugin.LifecycleEvent, thread model.ThreadRecord) model.AgentInput {
+func userThreadActionNotification(event plugin.LifecycleEvent, thread model.ThreadRecord) model.AgentInput {
+	if event.Type == "thread.interrupt-acknowledged" {
+		// The live terminal callback may already have run. This fact identifies
+		// its exact execution even if the child has since started another.
+		serialized, _ := json.Marshal(map[string]any{"event": event})
+		return textInput("Mokusei user Stop acknowledgement:\n" + string(serialized))
+	}
 	return plugin.MokuUserThreadInputNotification(event, publicThread(thread))
 }
 func publicWorkspace(record model.ThreadRecord) map[string]any {

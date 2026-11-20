@@ -16,6 +16,30 @@ transaction. The production [composer contract](../../design/composer.md)
 owns pinned Agent input and its single active-execution action seat; fixture
 route toggles cannot establish real Runtime or receipt behavior.
 
+## Overview Dock replay
+
+Build the preview as below and run its executable under the shared desktop
+verification lease with `--capture-overview`. A small isolated panel mounts
+the running Chief's production Dock over a plain backdrop. It records two
+open/close cycles at production speed. Use `--english` for English (the default
+is Chinese) and `--reduce-motion` to set the fixture's SwiftUI accessibility
+environment. Each combination writes its own `overview-*/window.mp4` and
+`observations.json` next to the temporary bundle. Use a fresh output directory.
+
+Add `--system-input` to drive the panel externally. Once `ready.json` identifies
+its PID and window, click the eyes, click the blank area inside the panel,
+activate **Open Chief input** via AXPress, then click or AXPress **Stop Chief**.
+The replay checks the open/closed/open sequence and the
+fixture's cancellation callback. Run
+`python3 demos/moku-panel-transition/check_overview.py <capture-directory>`
+on the system-input movie using FFmpeg and ffprobe. With the pointer over the
+compact eyes before each opening, the square must remain visible as the
+capsule widens. Its measured distance from the right edge stays between
+the compact and open seats, including while it fades on outside click.
+With Reduce Motion each width change goes directly between 168pt and 560pt.
+Review the input ink as the capsule folds.
+The fixture uses an in-memory draft and a simulated running task.
+
 ## Collapse replay
 
 Build the preview without `--open`, then run the printed app's executable directly.

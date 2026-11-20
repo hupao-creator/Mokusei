@@ -64,7 +64,7 @@ func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, 
 		return e
 	}
 	var convergence object
-	mock := &provider{faultPlan: plan, faultHits: map[string]int{}, children: map[string]string{}, scopeChecks: map[string]bool{}}
+	mock := &provider{userStops: map[string]string{}, faultPlan: plan, faultHits: map[string]int{}, children: map[string]string{}, scopeChecks: map[string]bool{}}
 	if scopes > 1 {
 		// This prefix is outside the product's mokusei-* temporary-workspace
 		// namespace, so each directory has its own real scope without writing HOME.

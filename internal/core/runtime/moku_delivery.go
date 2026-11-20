@@ -18,12 +18,42 @@ type mokuDeliveryAttemptKey struct{}
 // PendingMokuDeliveries includes uncertain attempts so operators can reconcile
 // them. Delivered entries are removed only by the durable admission callback.
 func (r *Runtime) PendingMokuDeliveries() ([]plugin.MokuDelivery, error) {
+	return r.mokuDeliveries(false)
+}
+
+// ReadyMokuDeliveries withholds the interrupted terminal while its user Stop is being acknowledged.
+func (r *Runtime) ReadyMokuDeliveries() ([]plugin.MokuDelivery, error) {
+	return r.mokuDeliveries(true)
+}
+
+func (r *Runtime) mokuDeliveries(readyOnly bool) ([]plugin.MokuDelivery, error) {
 	snapshot := r.config.Store.Snapshot()
 	result := []plugin.MokuDelivery{}
 	for _, key := range snapshot.Keys(mokuDeliveryPrefix) {
 		var delivery plugin.MokuDelivery
 		if _, err := snapshot.Get(key, &delivery); err != nil {
 			return nil, err
+		}
+		if e := delivery.Thread.Observation.LatestExecution; readyOnly && e != nil && e.Status == "interrupted" {
+			// The native commit can precede its Stop acknowledgement. Read the
+			// delivery again under the target gate so neither an early poll nor
+			// an old snapshot can send the terminal without its confirmed source.
+			state, release := r.cancellationState(delivery.Thread.ID)
+			state.mu.Lock()
+			ready := state.userStopExecutionID != e.ExecutionID
+			var err error
+			if current := r.config.Store.Snapshot(); ready && current.Revision() != snapshot.Revision() {
+				delivery = plugin.MokuDelivery{}
+				ready, err = current.Get(key, &delivery)
+			}
+			state.mu.Unlock()
+			release()
+			if err != nil {
+				return nil, err
+			}
+			if !ready {
+				continue
+			}
 		}
 		result = append(result, delivery)
 	}
@@ -65,7 +95,7 @@ func (r *Runtime) SendMokuDelivery(ctx context.Context, deliveryID, id string, i
 // selected identity, so a stale poll cannot resend a notification already bundled
 // with another input. Newly committed notifications remain for a later admission.
 func (r *Runtime) prepareMokuDeliveries(ctx context.Context, entries []plugin.ContextEntry) (context.Context, []plugin.ContextEntry, *mokuDeliveryBatch, error) {
-	pending, err := r.PendingMokuDeliveries()
+	pending, err := r.ReadyMokuDeliveries()
 	if err != nil {
 		return ctx, entries, nil, err
 	}
@@ -213,11 +243,7 @@ func queueUserThreadInputNotification(tx *store.Tx, event store.Event) error {
 	}
 	public := map[string]any{"threadId": thread.ID, "title": thread.Title, "tags": thread.Tags, "harnessId": thread.HarnessID,
 		"workspace": workspace, "updatedAt": thread.UpdatedAt, "observation": thread.Observation}
-	input := plugin.MokuUserThreadInputNotification(plugin.LifecycleEvent{
-		ID: event.ID, CreatedAt: event.CreatedAt, Type: event.Type,
-		Subject: plugin.LifecycleSubject{Kind: event.Subject.Kind, ID: event.Subject.ID, TypeID: event.Subject.TypeID},
-		Scope:   event.Scope, Source: event.Source, Data: event.Data,
-	}, public)
+	input := plugin.MokuUserThreadInputNotification(publicEvent(event), public)
 	return queueLazyMokuNotification(tx, thread, event.ID, input.Parts[0].Text)
 }
 
@@ -229,9 +255,33 @@ func queueLazyMokuNotification(tx *store.Tx, thread model.ThreadRecord, eventID 
 	return putMokuDelivery(tx, plugin.MokuDelivery{ID: id, Thread: thread, Lazy: true, Notification: notification})
 }
 
-func queueMokuDelivery(tx *store.Tx, thread model.ThreadRecord) error {
+// The marker transition is already fenced to an acknowledged interrupted execution.
+func (r *Runtime) recordUserInterrupt(tx *store.Tx, subject store.Subject, thread model.ThreadRecord) error {
+	event, err := r.recordEvent(tx, "thread.interrupt-acknowledged", subject, "user", map[string]string{"executionId": thread.UserInterruptedExecutionID}, nil)
+	if err != nil {
+		return err
+	}
+	key := mokuDeliveryPrefix + terminalDeliveryID(thread)
+	var delivery plugin.MokuDelivery
+	found, err := tx.Get(key, &delivery)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return errors.New("missing Chief terminal delivery for acknowledged user Stop")
+	}
+	action := publicEvent(event)
+	delivery.UserAction = &action
+	return tx.Put(key, delivery)
+}
+
+func terminalDeliveryID(thread model.ThreadRecord) string {
 	execution := thread.Observation.LatestExecution
-	id := thread.ID + ":" + execution.ExecutionID + ":" + execution.Status
+	return thread.ID + ":" + execution.ExecutionID + ":" + execution.Status
+}
+
+func queueMokuDelivery(tx *store.Tx, thread model.ThreadRecord) error {
+	id := terminalDeliveryID(thread)
 	// Keep only public notification fields, not opaque native state or settings.
 	thread = model.ThreadRecord{
 		SessionRecord: model.SessionRecord{ID: thread.ID, HarnessID: thread.HarnessID, Cwd: thread.Cwd, UpdatedAt: thread.UpdatedAt, Observation: thread.Observation, Worktree: thread.Worktree, Revision: thread.Revision},

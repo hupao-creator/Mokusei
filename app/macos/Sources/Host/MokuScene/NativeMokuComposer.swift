@@ -95,6 +95,7 @@ struct NativeMokuComposerInput: View {
     var retainedDirectories: [NativeComposerDirectory]?
     var running = false
     var onCancel: () -> Void = {}
+    var onReservedStopSeatChange: ((CGPoint) -> Void)?
     var availableHeight: CGFloat = 420
     var mentions: NativeMokuDirectoryMentions?
     var includesCompletion = true
@@ -139,7 +140,8 @@ struct NativeMokuComposerInput: View {
             }
             input
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { inputHeight = $0 }
-        }.foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
+        }.coordinateSpace(name: "moku-composer-input")
+            .foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
             .animation(.smooth(duration: 0.42, extraBounce: 0), value: includesCompletion && completionVisible)
             .onChange(of: ObjectIdentifier(draft)) { _, _ in
                 if composingDraft !== draft { updateComposition(false) }
@@ -264,7 +266,19 @@ struct NativeMokuComposerInput: View {
             : localize("输入内容将发送给 Chief", "Input is sent to Chief")
     }
     @ViewBuilder private var actions: some View {
-        if running && !targetsThread { stopButton }
+        if running && !targetsThread {
+            if let onReservedStopSeatChange {
+                // The bottom Dock owns one Stop through the whole morph. Report
+                // its final seat in row-local coordinates, including recovery UI.
+                Color.clear.frame(width: 32, height: 32)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+                    .onGeometryChange(for: CGPoint?.self) { geometry in
+                        guard let row = geometry.bounds(of: .named("moku-composer-input")) else { return nil }
+                        return CGPoint(x: row.maxX - geometry.size.width / 2,
+                                       y: row.maxY - geometry.size.height / 2)
+                    } action: { if let inset = $0 { onReservedStopSeatChange(inset) } }
+            } else { stopButton }
+        }
         // Retain the editor's width as the draft and its action change.
         ZStack {
             if hasInput {
@@ -292,30 +306,22 @@ struct NativeMokuComposerInput: View {
             .accessibilityIdentifier("moku-stop")
     }
     private var attachmentButton: some View {
-        Group {
-            if draft.supportsHostFiles {
-                Menu {
-                    Button(localize("从此设备导入", "Import from this device"), action: chooseDeviceFiles)
-                    Button(localize("从主机选择文件", "Choose host files")) { hostPicker = .files }
-                    Button(localize("从主机选择目录", "Choose a host directory")) { hostPicker = .directory }
-                } label: { attachmentSymbol }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-            } else {
-                Button(action: chooseDeviceFiles) { attachmentSymbol }
-            }
+        Button(action: chooseDeviceFiles) {
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 28, height: 32).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(width: 28, height: 32)
+        .contextMenu {
+            if draft.supportsHostFiles {
+                Button(localize("从主机选择文件", "Choose host files")) { hostPicker = .files }
+                Button(localize("从主机选择目录", "Choose a host directory")) { hostPicker = .directory }
+            }
+        }
         .disabled(actionsUnavailable || draft.importing || readOnly)
         .help(localize("添加图片或文件", "Add images or files"))
         .accessibilityLabel(localize("添加图片或文件", "Add images or files"))
         .accessibilityIdentifier("moku-add-attachment")
-    }
-    private var attachmentSymbol: some View {
-        // The macOS menu uses an image representation of its label.
-        Image(systemName: "plus")
-            .font(.system(size: 14, weight: .medium))
-            .frame(width: 28, height: 32).contentShape(Rectangle())
     }
     private func chooseDeviceFiles() {
         Task.immediate { await draft.chooseFiles(cwd: cwd) }
