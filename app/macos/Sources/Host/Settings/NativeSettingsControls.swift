@@ -89,7 +89,7 @@ struct SettingsTextArea: NSViewRepresentable {
         view.insertionPointColor = NativeAppKitPalette.settings.text
         view.emphasizedInsertionPointColor = .labelColor
         view.emphasizedInsertionPoint = true
-        view.textContainerInset = NSSize(width: 10, height: 7)
+        view.textContainerInset = NSSize(width: 16, height: 12)
         view.textContainer?.lineFragmentPadding = 0
         let paragraph = NSMutableParagraphStyle(); paragraph.minimumLineHeight = 18.2; paragraph.maximumLineHeight = 18.2
         view.defaultParagraphStyle = paragraph
@@ -137,7 +137,7 @@ struct SettingsTextArea: NSViewRepresentable {
         }
     }
     final class Surface: NativeStyledScrollView {
-        // Match the material's shape for focus and validation.
+        // Match the material's shape for validation and the opaque fallback.
         private let outline = CALayer()
         override func layout() {
             super.layout()
@@ -154,7 +154,6 @@ struct SettingsTextArea: NSViewRepresentable {
         }
         var opaqueBackdrop = false
         var invalid = false
-        var editorFocused = false { didSet { updateBorder() } }
         override func viewDidChangeEffectiveAppearance() {
             super.viewDidChangeEffectiveAppearance()
             updateBorder()
@@ -162,12 +161,12 @@ struct SettingsTextArea: NSViewRepresentable {
         func updateBorder() {
             // Resolve dynamic colors in this view's appearance before CGColor.
             let palette = NativeAppKitPalette.settings
-            let idleColor = opaqueBackdrop ? palette.inputBorder.withAlphaComponent(0.32) : NSColor.clear
-            let color = invalid ? palette.danger : editorFocused ? palette.accent : idleColor
+            let backdropBorder = opaqueBackdrop ? palette.inputBorder.withAlphaComponent(0.32) : NSColor.clear
+            let color = invalid ? palette.danger : backdropBorder
             effectiveAppearance.performAsCurrentDrawingAppearance {
                 CATransaction.begin()
                 CATransaction.setDisableActions(true)
-                outline.borderWidth = editorFocused ? 2 : 1
+                outline.borderWidth = 1
                 outline.borderColor = color.cgColor
                 CATransaction.commit()
             }
@@ -177,7 +176,6 @@ struct SettingsTextArea: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if window == nil { interactionLease.remove() } else { updateInteraction?() }
-            editorFocused = window != nil && window?.firstResponder === documentView
         }
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
@@ -227,22 +225,18 @@ struct SettingsTextArea: NSViewRepresentable {
         var placeholder: String? { didSet { if oldValue != placeholder { needsDisplay = true } } }
         override func draw(_ dirtyRect: NSRect) {
             super.draw(dirtyRect)
-            guard string.isEmpty, !hasMarkedText(), let placeholder else { return }
-            let text = NSAttributedString(string: placeholder, attributes: [
-                .font: font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: NativeAppKitPalette.settings.muted.withAlphaComponent(0.7)
-            ])
-            text.draw(in: CGRect(x: textContainerInset.width, y: textContainerInset.height,
-                                 width: max(0, bounds.width - 2 * textContainerInset.width), height: max(0, bounds.height - 2 * textContainerInset.height)))
-        }
-        override func becomeFirstResponder() -> Bool {
-            let accepted = super.becomeFirstResponder()
-            if accepted { (enclosingScrollView as? Surface)?.editorFocused = true }
-            return accepted
-        }
-        override func resignFirstResponder() -> Bool {
-            let accepted = super.resignFirstResponder()
-            if accepted { (enclosingScrollView as? Surface)?.editorFocused = false }
-            return accepted
+            guard string.isEmpty, !hasMarkedText(), let placeholder, let textContainer else { return }
+
+            // Lay out the hint like typed text while keeping it out of the editable storage.
+            var attributes = typingAttributes
+            attributes[.foregroundColor] = NativeAppKitPalette.settings.muted.withAlphaComponent(0.7)
+            let hint = NSTextStorage(string: placeholder, attributes: attributes)
+            let layout = NSLayoutManager()
+            let container = NSTextContainer(size: textContainer.size)
+            container.lineFragmentPadding = textContainer.lineFragmentPadding
+            hint.addLayoutManager(layout)
+            layout.addTextContainer(container)
+            layout.drawGlyphs(forGlyphRange: layout.glyphRange(for: container), at: textContainerOrigin)
         }
         override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
             compositionChanged?(true)

@@ -75,14 +75,21 @@ window pixels.
 ### Custom task orchestration editor
 
 Open **Chief → Task Orchestration Preferences → Custom** in Settings. Verify
-the title in English and Simplified Chinese. In light and dark appearance,
-capture the editor focused and unfocused. Check the rounded glass, legible text
-and the breathing insertion point, then repeat with Reduce Transparency and
-check for an opaque editor. Compare same-line typing and Return with Chief's
-composer: the insertion point eases along a line and moves directly to a new
-line. Select text and move focus away to check that the glow clears.
+the title and hint in English and Simplified Chinese. In light and dark
+appearance, capture the empty editor before and after focus. The rounded
+glass has the same border in both states. Type the first words of the hint,
+return the insertion point to the start of the line, and compare the first text
+origin, baseline and insertion position with the empty frame. At narrow widths,
+compare the hint and the same text typed into the editor across wrapped lines.
+Delete the text and check that the entire hint returns with the same padding.
+Repeat with Reduce Transparency and check for an opaque editor with a neutral
+outline. Check that an invalid draft shows the danger outline on and off focus.
+Compare same-line typing and Return with Chief's composer. The insertion point
+eases along a line and moves directly to a new line. Select text and move focus
+away to check that the glow clears.
 
 Enter multiline text, replace and undo a selection, and scroll within the field.
+Check that the text and selection share the inset as lines scroll in and out.
 Check that macOS exposes a labeled multiline editor with the current value and
 selection. With a system input method, start composing and cancel or commit the
 marked text. Check that composition uses the native caret and that Escape during

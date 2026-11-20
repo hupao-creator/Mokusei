@@ -276,9 +276,13 @@ The Custom editor places a transparent multiline AppKit viewport over a
 16-point rounded Regular Liquid Glass backdrop. The backdrop follows the system
 appearance and uses an opaque, outlined background with Reduce Transparency. The
 editor shares [Chief's animated insertion point](../../Shared/PluginUI/README.md#cards-composer-and-forms),
-using the adaptive label color for its core. A single rounded outline shows
-accent focus or danger validation above the backdrop. AppKit owns selection, Undo, IME and
-accessibility. See the [native editor replay](../../../../../tools/e2e/README.md#custom-task-orchestration-editor).
+using the adaptive label color for its core. The text viewport uses symmetric
+16-point horizontal and 12-point vertical text insets. The empty editor's hint
+uses the same text origin, paragraph metrics and wrapping as typed text,
+aligning with the first insertion position. The hint stays outside the editable
+value. The insertion point indicates focus without an accent outline. Validation
+uses a danger outline. AppKit owns selection, Undo, IME and accessibility. See the
+[native editor replay](../../../../../tools/e2e/README.md#custom-task-orchestration-editor).
 The preset buttons reuse the role-mode choice style, show a checkmark on the selected item and
 wrap into fewer columns as the window narrows. Each capsule includes an info
 icon and exposes its own localized explanation as a native tooltip and
