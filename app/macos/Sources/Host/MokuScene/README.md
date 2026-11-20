@@ -503,7 +503,8 @@ expansion retains its separate entrance timing.
 
 The Scene keeps the complete Dock in one persistent native hosting tree. Its
 native outer layer owns horizontal travel. The native host moves to the target
-column in the same transaction that starts compositor travel. Its editor,
+column in the same transaction that starts compositor travel. The source
+correction holds through the first compositor sample. Its editor,
 controls and glass travel together even while the main thread prepares content.
 Reversal starts at the current presentation position. Completion is fenced to
 the current native animation, placement revision and composer generation;

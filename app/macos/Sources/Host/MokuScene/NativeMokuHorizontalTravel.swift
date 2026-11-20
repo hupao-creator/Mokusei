@@ -140,6 +140,10 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
         animation.animations = [horizontal, vertical]
         animation.duration = max(horizontal.duration, vertical.duration)
         animation.timingFunction = CAMediaTimingFunction(name: .linear)
+        // Keep the source correction visible when the model seat commits
+        // before the first active compositor sample.
+        animation.beginTime = layer.convertTime(CACurrentMediaTime(), from: nil)
+        animation.fillMode = .backwards
         animation.delegate = self; animation.setValue(current, forKey: "generation")
         layer.add(animation, forKey: "moku-travel")
     }
