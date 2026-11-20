@@ -1,5 +1,6 @@
 [
   {"id":"PBT-RUNTIME-ADMISSION","suite":"go","engine":"rapid","package":"tools/verification/pbt/runtime","test":"TestSendAdmissionProperties","doc":"internal/core/runtime/README.md","cases":100},
+  {"id":"PBT-MOKU-WORKTREE","suite":"go","engine":"rapid","package":"tools/verification/pbt/runtime","test":"TestRemoveWorktreeProperties","doc":"internal/services/workspaces/README.md","cases":5},
   {"id":"PBT-MOKU-OUTBOX","suite":"go","engine":"rapid","package":"internal/core/runtime","test":"TestMokuOutboxProperties","doc":"internal/core/runtime/README.md","cases":100},
   {"id":"PBT-MOKU-SCOPE","suite":"go","engine":"rapid","package":"internal/services/moku","test":"TestToolScopeProperties","doc":"internal/services/moku/README.md","cases":100},
   {"id":"PBT-MOKU-QUEUE","suite":"go","engine":"rapid","package":"internal/services/moku","test":"TestAdmissionQueueProperties","doc":"internal/services/moku/README.md","cases":100},

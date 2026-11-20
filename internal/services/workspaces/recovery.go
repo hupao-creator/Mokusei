@@ -34,6 +34,20 @@ func (m *Manager) loadRecoveryCandidates(ctx context.Context, records []Persiste
 		proofRoots[p.Snapshot.Root]++
 		byOwner[p.OwnerThreadID] = p
 	}
+	// A committed retirement can precede proof cleanup. Keep only its matching
+	// pending intent. Historical rows without an intent do not claim a name.
+	active := make([]PersistedOwner, 0, len(records))
+	for _, r := range records {
+		if former := r.Worktree.RemovedCwd; former != "" {
+			p := byOwner[r.OwnerThreadID]
+			if p.RemovalStage == "" || p.Snapshot.ExecutionCwd != former || r.Worktree.Cwd != "" {
+				continue
+			}
+			r.Worktree.Cwd = former
+		}
+		active = append(active, r)
+	}
+	records = active
 	ownerCounts := map[string]int{}
 	rootCounts := map[string]int{}
 	claimedRoots := make([]string, len(records))

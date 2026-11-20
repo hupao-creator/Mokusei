@@ -21,6 +21,7 @@ selects only these entries and requires evidence that they actually ran.
 | Property ID | Contract and generated domain | Oracle / boundary |
 | --- | --- | --- |
 | PBT-RUNTIME-ADMISSION | [Runtime](../../../internal/core/runtime/README.md) with 1–25 native accept/reject/end/failure/cancel actions followed by Moku stop requests and two public follow-up/Stop pairs | Exact retry permission, execution identity, one event per acknowledged input, acknowledged or stale stops, direct input source and terminal attribution before/after the native Stop response in real Runtime + SQLite |
+| PBT-MOKU-WORKTREE | [Workspace removal](../../../internal/services/workspaces/README.md#explicit-removal). Generated order of content, index, file type, conversion and lock cases, including equal-size edits with restored mtime | The injected Chief tool preserves private recovery commits, direct shared refs, the index and other workspace users. Git permission failures leave either the checkout or the registration behind. Retries across restart preserve sibling registrations. The domain includes committed cwd renames, proven and unproven empty directories, byte-identical and changed text, multi-row fetch history, SQLite and registry write faults and name reservation in disposable repositories and profiles. |
 | PBT-MOKU-OUTBOX | [Runtime](../../../internal/core/runtime/README.md): 1–12 rounds of 1–10 lazy/waking arrivals, attempts, rejection/acknowledgement, reopen/reconcile | Stable order, atomic uncertainty fences, exact-batch removal, late arrivals retained; not scheduler wake behavior |
 | PBT-MOKU-SCOPE | [Moku](../../../internal/services/moku/README.md): two owners, 1–12 executions, permuted/duplicate callbacks and configuration installs | Highest observed owner revision controls tools; retired scopes cancel |
 | PBT-MOKU-QUEUE | [Moku](../../../internal/services/moku/README.md): 1–8 cohorts of 1–12 waiters and cancellation subsets | Cancelled waiters release behind held owner; surviving admission is exclusive; queue reusable |
@@ -66,7 +67,7 @@ JavaScript launcher), `sandbox-exec` and loopback listeners. It uses isolated
 profiles/configuration and a scripted model provider; it does not read user
 conversations or contact a real model service.
 
-Rapid defaults to 100 cases per property (system: 3), seed 1. Swift geometry and collection budgets
+Rapid defaults to 100 cases per property (worktree removal: 5, system: 3), seed 1. Swift geometry and collection budgets
 default to 480 seeds, deferred regrouping to 64, mounted state to 8 plus corpus. `--cases` (1–10000),
 `--seed` (nonzero UInt64), `MOKUSEI_PBT_CASES` and `MOKUSEI_PBT_SEED` control
 generated budgets. `--timeout` defaults to 600s per property including compilation;

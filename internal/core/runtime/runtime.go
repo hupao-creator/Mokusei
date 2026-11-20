@@ -82,6 +82,7 @@ type Runtime struct {
 	cancel                    context.CancelFunc
 	generationCtx             context.Context
 	generationCancel          context.CancelFunc
+	workspaceMu               sync.RWMutex // new workspace users vs. explicit worktree removal
 	lifecycleMu               sync.Mutex
 	mu                        sync.Mutex
 	configurationGate         chan struct{}

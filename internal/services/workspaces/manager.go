@@ -68,11 +68,13 @@ type observationAuthority struct {
 	Managed           *Validation
 }
 type ownershipProof struct {
-	Snapshot            snapshot `json:"snapshot"`
-	OwnerThreadID       string   `json:"ownerThreadId"`
-	CreationHeadOID     string   `json:"creationHeadOid"`
-	CurrentHeadOID      string   `json:"currentHeadOid"`
-	InitialGrantPending bool     `json:"initialGrantPending"`
+	CreatedDirectories  map[string]directoryIdentity `json:"createdDirectories,omitempty"`
+	Snapshot            snapshot                     `json:"snapshot"`
+	OwnerThreadID       string                       `json:"ownerThreadId"`
+	CreationHeadOID     string                       `json:"creationHeadOid"`
+	CurrentHeadOID      string                       `json:"currentHeadOid"`
+	InitialGrantPending bool                         `json:"initialGrantPending"`
+	RemovalStage        string                       `json:"removalStage,omitempty"`
 }
 
 func New(paths Paths) *Manager {
@@ -222,12 +224,12 @@ func (m *Manager) PrepareForStart(ctx context.Context, baseCwd, threadID string,
 	if label == "" {
 		label = generatedLabel(threadID)
 	}
-	root, err := createStaging(repo.StagingRoot, label, randomSuffix)
+	root, err := m.createStaging(repo, label, randomSuffix)
 	fallbackUsed := false
 	if err != nil && sanitized != "" && errors.Is(err, errStagingCollision) {
 		// Exhausted every readable variant of a caller-chosen name. Falling back
 		// to the generated name is still better than failing the creation.
-		root, err = createStaging(repo.StagingRoot, generatedLabel(threadID), true)
+		root, err = m.createStaging(repo, generatedLabel(threadID), true)
 		fallbackUsed = err == nil
 	}
 	if err != nil {
@@ -261,7 +263,8 @@ func (m *Manager) PrepareForStart(ctx context.Context, baseCwd, threadID string,
 	if subdir != "." {
 		executionCwd = filepath.Join(root, subdir)
 	}
-	if err = ensureDirectoryPath(root, executionCwd, rootID); err != nil {
+	created, err := ensureDirectoryPath(root, executionCwd, rootID)
+	if err != nil {
 		return rollback(err)
 	}
 	executionCwd, err = canonical(executionCwd)
@@ -286,7 +289,7 @@ func (m *Manager) PrepareForStart(ctx context.Context, baseCwd, threadID string,
 			return rollback(errors.New("thread already owns another managed worktree"))
 		}
 	}
-	proof := ownershipProof{Snapshot: s, OwnerThreadID: threadID, CreationHeadOID: s.HeadOID, CurrentHeadOID: s.HeadOID, InitialGrantPending: true}
+	proof := ownershipProof{CreatedDirectories: created, Snapshot: s, OwnerThreadID: threadID, CreationHeadOID: s.HeadOID, CurrentHeadOID: s.HeadOID, InitialGrantPending: true}
 	next := cloneProofs(m.proofs)
 	next[s.Root] = proof
 	if err = m.persist(next); err != nil {
@@ -340,6 +343,9 @@ func (m *Manager) inspectOwned(ctx context.Context, r AuthorizationRequest, poli
 	if !found {
 		return empty, zero, errors.New("managed worktree lacks thread-bound Core ownership")
 	}
+	if p.RemovalStage != "" {
+		return empty, zero, errors.New("managed worktree removal pending; retry removal")
+	}
 	expected := r.ExpectedHeadOID
 	proofHead := ""
 	if p.InitialGrantPending {
@@ -380,9 +386,8 @@ func (m *Manager) inspectOwned(ctx context.Context, r AuthorizationRequest, poli
 		if err = ctx.Err(); err != nil {
 			return empty, zero, err
 		}
-		previous := p
-		p.CurrentHeadOID = verified.HeadOID
-		if p != previous {
+		if p.CurrentHeadOID != verified.HeadOID {
+			p.CurrentHeadOID = verified.HeadOID
 			next := cloneProofs(m.proofs)
 			next[verified.Root] = p
 			if err = m.persist(next); err != nil {
@@ -435,7 +440,7 @@ func (m *Manager) advance(ctx context.Context, r AuthorizationRequest, s snapsho
 	nextProof := previous
 	nextProof.CurrentHeadOID = s.HeadOID
 	nextProof.InitialGrantPending = false
-	changed := nextProof != previous
+	changed := previous.InitialGrantPending || previous.CurrentHeadOID != s.HeadOID
 	if changed {
 		next := cloneProofs(m.proofs)
 		next[s.Root] = nextProof
@@ -542,14 +547,16 @@ func (m *Manager) removeProof(root, id string) error {
 	}
 	next := cloneProofs(m.proofs)
 	delete(next, root)
-	delete(m.proofs, root)
-	delete(m.pendingRecovery, root)
 	if err := m.persist(next); err != nil {
-		m.registryErr = err
-		m.proofs = map[string]ownershipProof{}
+		// A removal intent already fences every execution grant. Keep it
+		// retryable. Other revocations still fail closed on a storage error.
+		if p.RemovalStage == "" {
+			m.registryErr = err
+		}
 		return err
 	}
 	m.proofs = next
+	delete(m.pendingRecovery, root)
 	return nil
 }
 func (m *Manager) ClearOwned(ctx context.Context) error {

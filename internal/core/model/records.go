@@ -13,7 +13,8 @@ type ThinkingCapability struct {
 	Reason     string   `json:"reason,omitempty"`
 }
 type Worktree struct {
-	Cwd string `json:"cwd"`
+	Cwd        string `json:"cwd"`
+	RemovedCwd string `json:"removedCwd,omitempty"`
 }
 type WorktreeOptions struct {
 	Enabled *bool  `json:"enabled,omitempty"`

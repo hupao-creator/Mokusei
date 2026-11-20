@@ -65,6 +65,9 @@ func (m *Manager) validatePaths(ctx context.Context, t model.ThreadRecord) error
 		}
 		return ctx.Err()
 	}
+	if t.Worktree != nil && t.Worktree.RemovedCwd != "" {
+		return errors.New("this Thread’s managed worktree was removed; start a new Thread for further work")
+	}
 	paths := []string{t.Cwd}
 	if t.Worktree != nil {
 		paths = append(paths, t.Worktree.Cwd)

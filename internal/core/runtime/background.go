@@ -293,6 +293,10 @@ func (c backgroundCapability) Configure(ctx context.Context, request plugin.Conf
 		lock.Lock()
 		defer lock.Unlock()
 	}
+	// Keep a new private workspace visible to removal from validation through
+	// publication, including a plugin workspace reached through a symlink.
+	c.runtime.workspaceMu.RLock()
+	defer c.runtime.workspaceMu.RUnlock()
 	expectedCwd, err := validateCwd(c.Cwd())
 	if err != nil {
 		return plugin.PrivateSessionSnapshot{}, err

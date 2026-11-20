@@ -48,6 +48,11 @@ and contain no NUL; a display tag never identifies a selected directory.
 
 `ThreadRecord.mokuHistory` marks an archived, read-only conversation retained when the coordinating Harness changes. It retains the original Harness payload and transcript but no Moku note; Runtime forbids execution, fork and unarchiving. Current Moku identity remains singular.
 
+A managed Thread has a `worktree.cwd` for execution, separate from its base
+`cwd`. After [explicit removal](../../services/workspaces/README.md#explicit-removal)
+the execution cwd is empty and `worktree.removedCwd` retains its former location.
+The base cwd and native session history stay on the same Thread.
+
 Native string default admission and public answers share `ValidatePublicQuestionString`: UTF-16 length, ECMAScript patterns (including all four dot line terminators), email shape, WHATWG URI and date formats. Date-time accepts signed expanded ISO years and JavaScript Date.toString offset/comment forms; unknown legacy timezone abbreviations are rejected.
 
 `ThreadRecord.executionTitles` is an optional execution-ID-to-title map, separate

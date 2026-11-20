@@ -238,7 +238,9 @@ func queueUserThreadInputNotification(tx *store.Tx, event store.Event) error {
 		workspace["cwd"] = thread.Cwd
 		workspace["directoryTag"] = directorytag.Name(thread.Cwd)
 	}
-	if thread.Worktree != nil {
+	if thread.Worktree != nil && thread.Worktree.RemovedCwd != "" {
+		workspace["removedWorktreeCwd"] = thread.Worktree.RemovedCwd
+	} else if thread.Worktree != nil {
 		workspace["worktreeCwd"] = thread.Worktree.Cwd
 	}
 	public := map[string]any{"threadId": thread.ID, "title": thread.Title, "tags": thread.Tags, "harnessId": thread.HarnessID,

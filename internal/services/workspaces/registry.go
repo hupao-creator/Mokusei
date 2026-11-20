@@ -99,6 +99,8 @@ func (m *Manager) load() (registry, error) {
 		return empty, err
 	}
 	for i, p := range result.Entries {
+		delete(raw.Entries[i], "removalStage")
+		delete(raw.Entries[i], "createdDirectories")
 		if len(raw.Entries[i]) != 5 {
 			return empty, fmt.Errorf("proof %d has missing authority fields", i)
 		}
@@ -113,6 +115,9 @@ var identityPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?$`)
 var oidPattern = regexp.MustCompile(`(?i)^[0-9a-f]{40,64}$`)
 
 func validateProof(p ownershipProof) error {
+	if p.RemovalStage != "" && p.RemovalStage != removing && p.RemovalStage != unregistered {
+		return errors.New("unknown worktree removal stage")
+	}
 	if err := ownerID(p.OwnerThreadID); err != nil {
 		return err
 	}
@@ -122,7 +127,14 @@ func validateProof(p ownershipProof) error {
 			return errors.New("invalid canonical proof path")
 		}
 	}
-	for _, id := range []directoryIdentity{s.Identity, s.ExecutionCwdIdentity, s.BaseRootIdentity, s.StagingRootIdentity, s.CommonDirectoryIdentity, s.GitDirectoryIdentity, s.ObjectDirectoryIdentity} {
+	ids := []directoryIdentity{s.Identity, s.ExecutionCwdIdentity, s.BaseRootIdentity, s.StagingRootIdentity, s.CommonDirectoryIdentity, s.GitDirectoryIdentity, s.ObjectDirectoryIdentity}
+	for name, id := range p.CreatedDirectories {
+		if !filepath.IsLocal(name) || filepath.Clean(name) != name || name == "." || !within(filepath.Join(s.Root, name), s.ExecutionCwd) {
+			return errors.New("created directory outside recorded execution path")
+		}
+		ids = append(ids, id)
+	}
+	for _, id := range ids {
 		for _, part := range []string{id.Dev, id.Ino, id.Birthtime} {
 			if len(part) > 128 || !identityPattern.MatchString(part) {
 				return errors.New("invalid directory identity")
