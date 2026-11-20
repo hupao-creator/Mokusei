@@ -17,16 +17,25 @@ import SwiftUI
     // Compact panels keep the same map and character without group explanations.
     var presentation = Presentation.settings
     var showsRoutingGuidance = false
-    var showsMapGlass = false
+    var illustrationWidth: CGFloat? = nil
+    private struct DispatchGeometry: Equatable {
+        var frame = CGRect.zero
+        var width: CGFloat = 0
+
+        func globalX(_ x: CGFloat) -> CGFloat {
+            frame.minX + x * frame.width / max(1, width)
+        }
+    }
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
-    @State private var dispatchFrame = CGRect.zero
+    @State private var dispatchGeometry = DispatchGeometry()
     @Environment(\.nativeSettingsInteractionScope) private var interactionScope
     @FocusState private var focusedHost: String?
 
     // Settings uses the compact map too; routing visibility belongs to the
     // page's explicit opt-in, independently of the map presentation.
     private var includesRoutingGuidance: Bool { presentation == .settings || showsRoutingGuidance }
+    private var formWidth: CGFloat? { illustrationWidth.map { _ in NativeSettingsContentLayout.formWidth } }
     private var moku: JSONValue { model.draft.value["moku"] ?? .object([:]) }
     private var selectedHost: String? {
         let preference = moku["hostHarnessPreference"]?.stringValue
@@ -64,7 +73,7 @@ import SwiftUI
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: illustrationWidth == nil ? .leading : .center, spacing: 0) {
             if presentation == .compact {
                 coordinationContent.padding(.bottom, 20)
             } else {
@@ -74,27 +83,7 @@ import SwiftUI
                     }
                 }
             }
-            if model.mokuRunning {
-                SettingsNotice(locale.text("当前运行使用启动时的配置，修改将在下次运行生效。", "The current run uses the configuration captured at startup. Changes take effect on the next run."))
-            }
-            if rosterReady, !rosterPending, let host {
-                harnessSettings(NativeHarnessSettingsRequest(harnessID: host.descriptor.id, section: .thread,
-                    executionSnapshot: true, scopeID: nil, refreshSequence: 0,
-                    savedValue: model.savedSettings["moku"]?["executionHarnesses"]?[host.descriptor.id.string] ?? .null,
-                    value: model.harnessValueBinding(host.descriptor.id.string, execution: true)))
-                    .environment(\.nativeSettingsInteractionScope, "moku." + host.descriptor.id.string)
-                    .environment(\.nativeSettingsBeforeAdvanced, includesRoutingGuidance ? AnyView(routingGuidance.environment(\.nativeSettingsInteractionScope, interactionScope)) : nil)
-            } else if rosterReady, !rosterPending, selectedHost.flatMap({ model.installations[$0]?.status }) == .checking {
-                NativeSettingsNotice(message: locale.text("正在读取所选 Agent 配置…", "Loading the selected Agent configuration…"))
-            } else if rosterReady, !rosterPending, !pickable.isEmpty,
-                      selectedHost.flatMap({ model.installations[$0]?.status }) != .error {
-                SettingsNotice(selectedHost == nil
-                    ? locale.text("当前值不可用，请选择", "The current value is unavailable. Please choose one.")
-                    : locale.text("当前 Chief provider 值不可用，请重新选择。", "The selected Chief provider is unavailable. Please choose another."), error: selectedHost != nil)
-            }
-            if includesRoutingGuidance, !(rosterReady && !rosterPending && host != nil) {
-                routingGuidance
-            }
+            configuration.frame(maxWidth: formWidth, alignment: .leading)
         }
         .environment(\.nativeSettingsGroupBottomSpacing, 8)
         .environment(\.nativeSettingsRowVerticalPadding, includesRoutingGuidance ? 12 : 15)
@@ -124,6 +113,32 @@ import SwiftUI
         }
     }
 
+    private var configuration: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if model.mokuRunning {
+                SettingsNotice(locale.text("当前运行使用启动时的配置，修改将在下次运行生效。", "The current run uses the configuration captured at startup. Changes take effect on the next run."))
+            }
+            if rosterReady, !rosterPending, let host {
+                harnessSettings(NativeHarnessSettingsRequest(harnessID: host.descriptor.id, section: .thread,
+                    executionSnapshot: true, scopeID: nil, refreshSequence: 0,
+                    savedValue: model.savedSettings["moku"]?["executionHarnesses"]?[host.descriptor.id.string] ?? .null,
+                    value: model.harnessValueBinding(host.descriptor.id.string, execution: true)))
+                    .environment(\.nativeSettingsInteractionScope, "moku." + host.descriptor.id.string)
+                    .environment(\.nativeSettingsBeforeAdvanced, includesRoutingGuidance ? AnyView(routingGuidance.environment(\.nativeSettingsInteractionScope, interactionScope)) : nil)
+            } else if rosterReady, !rosterPending, selectedHost.flatMap({ model.installations[$0]?.status }) == .checking {
+                NativeSettingsNotice(message: locale.text("正在读取所选 Agent 配置…", "Loading the selected Agent configuration…"))
+            } else if rosterReady, !rosterPending, !pickable.isEmpty,
+                      selectedHost.flatMap({ model.installations[$0]?.status }) != .error {
+                SettingsNotice(selectedHost == nil
+                    ? locale.text("当前值不可用，请选择", "The current value is unavailable. Please choose one.")
+                    : locale.text("当前 Chief provider 值不可用，请重新选择。", "The selected Chief provider is unavailable. Please choose another."), error: selectedHost != nil)
+            }
+            if includesRoutingGuidance, !(rosterReady && !rosterPending && host != nil) {
+                routingGuidance
+            }
+        }
+    }
+
     private var routingGuidance: some View {
         SettingsGroup {
             NativeModelRoutingPreferences(value: Binding(get: { model.draft.value["moku"] ?? .object([:]) }, set: { next in
@@ -147,19 +162,17 @@ import SwiftUI
             rosterStatus {
                 NativeSettingsNotice(message: locale.text("正在读取 Agent 配置…", "Loading Agent configuration…"),
                     leading: AnyView(ProgressView().controlSize(.small)))
-            }
+            }.frame(maxWidth: formWidth, alignment: .leading)
         } else if !rosterReady || pickable.isEmpty {
             rosterStatus {
                 SettingsNotice(rosterError == nil
                     ? locale.text("暂无可用的 Agent。请在此 Mac 上安装受支持的 Agent 后重试。", "No Agents are available. Install a supported Agent on this Mac, then retry.")
                     : locale.text("无法读取 Agent 配置，请重试。", "Unable to load Agent configuration. Please retry."), error: rosterError != nil) { retryDiscovery }
                 if let rosterError { SettingsNotice(rosterError, error: true) }
-            }
+            }.frame(maxWidth: formWidth, alignment: .leading)
         } else {
-            if showsMapGlass {
-                dispatchMap
-                    .padding(.horizontal, 12)
-                    .background { NativeSettingsIllustrationBackdrop() }
+            if let illustrationWidth {
+                NativeSettingsIllustrationPanel(width: illustrationWidth) { dispatchMap }
                     .accessibilityElement(children: .contain)
                     .accessibilityLabel(locale.text("协调与派发", "Coordination and dispatch"))
             } else {
@@ -167,6 +180,7 @@ import SwiftUI
             }
             if let rosterError {
                 SettingsNotice(locale.text("部分 Agent 检测失败：", "Some Agents could not be detected: ") + rosterError, error: true) { retryDiscovery }
+                    .frame(maxWidth: formWidth, alignment: .leading)
             }
         }
     }
@@ -186,10 +200,8 @@ import SwiftUI
 
     private var dispatchMap: some View {
         GeometryReader { geometry in
-            let available = max(0, geometry.size.width - 38)
-            let count = max(1, pickable.count)
             let hostIndex = pickable.firstIndex { $0.descriptor.id == host?.descriptor.id }
-            let sourceX = hostIndex.map { 19 + available * (CGFloat($0) + 0.5) / CGFloat(count) }
+            let sourceX = hostIndex.map { hostX($0, width: geometry.size.width) }
             let source = sourceX.map { CGPoint(x: $0, y: 111.8) }
             TimelineView(.animation(minimumInterval: NativeFrameRate.interval)) { _ in
                 let now = NativeMokuSettingsAnimationState.now
@@ -203,7 +215,7 @@ import SwiftUI
                                 path.addCurve(to: destination, control1: CGPoint(x: point.x, y: point.y + bend),
                                               control2: CGPoint(x: destination.x, y: destination.y - bend))
                                 let accent = NativePalette.settings.accent.swiftUI
-                                let color = showsMapGlass ? (harness.themeColor ?? accent) : accent.opacity(0.7)
+                                let color = illustrationWidth != nil ? (harness.themeColor ?? accent) : accent.opacity(0.7)
                                 context.stroke(path, with: .color(color),
                                     style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [5, 7],
                                                        dashPhase: NativeMokuSettingsMotion.dispatchDashPhase(nowMilliseconds: now)))
@@ -212,7 +224,7 @@ import SwiftUI
                     }.allowsHitTesting(false)
                     ForEach(Array(pickable.enumerated()), id: \.element.descriptor.id) { index, harness in
                         let id = harness.descriptor.id.string
-                        let x = 19 + available * (CGFloat(index) + 0.5) / CGFloat(count)
+                        let x = hostX(index, width: geometry.size.width)
                         let selected = host?.descriptor.id == harness.descriptor.id
                         let supported = harness.descriptor.threadCapabilities.canHostMoku
                         NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id), transparent: true,
@@ -250,8 +262,9 @@ import SwiftUI
             }
             .onChange(of: source, initial: true) { _, point in motion.configureDispatch(source: point, hasTargets: !visibleTargets.isEmpty) }
             .onChange(of: visibleTargets) { _, _ in motion.configureDispatch(source: source, hasTargets: !visibleTargets.isEmpty) }
-            .onAppear { dispatchFrame = geometry.frame(in: .global) }
-            .onChange(of: geometry.frame(in: .global)) { _, frame in dispatchFrame = frame }
+            .onGeometryChange(for: DispatchGeometry.self) { map in
+                DispatchGeometry(frame: map.frame(in: .global), width: map.size.width)
+            } action: { dispatchGeometry = $0 }
         }.frame(height: 246).overlay {
             if presentation == .settings {
                 RoundedRectangle(cornerRadius: 12).strokeBorder(NativePalette.settings.inputBorder.swiftUI)
@@ -288,6 +301,9 @@ import SwiftUI
         guard let clip = motion.feedback, clip.request.targetID == target else { return nil }
         return NativeMokuSettingsMotion.feedback(enabled: clip.request.enabled, gazeX: clip.request.gazeX,
                                                  elapsedMilliseconds: now - clip.startedAt)
+    }
+    private func hostX(_ index: Int, width: CGFloat) -> CGFloat {
+        19 + max(0, width - 38) * (CGFloat(index) + 0.5) / CGFloat(max(1, pickable.count))
     }
     private func targetX(_ index: Int, width: CGFloat) -> CGFloat {
         let count = max(1, pickable.count)
@@ -327,7 +343,7 @@ import SwiftUI
     private func selectHost(_ harness: AnyHarnessPlugin) {
         guard harness.descriptor.threadCapabilities.canHostMoku, host?.descriptor.id != harness.descriptor.id else { return }
         if !coordinatorFrame.isEmpty, let index = pickable.firstIndex(where: { $0.descriptor.id == harness.descriptor.id }) {
-            let destination = dispatchFrame.minX + 19 + max(0, dispatchFrame.width - 38) * (CGFloat(index) + 0.5) / CGFloat(max(1, pickable.count))
+            let destination = dispatchGeometry.globalX(hostX(index, width: dispatchGeometry.width))
             motion.beginHandoff(to: harness.descriptor.id.string, direction: destination - coordinatorFrame.midX)
         }
         changeMoku("hostHarnessPreference", .string(harness.descriptor.id))
@@ -336,7 +352,7 @@ import SwiftUI
         let selected = targets.contains(id)
         guard !selected || visibleTargets.count > 1 else { return }
         let index = pickable.firstIndex { $0.descriptor.id.string == id }
-        let gaze = index.map { (dispatchFrame.minX + targetX($0, width: dispatchFrame.width) - coordinatorFrame.midX) / 4 } ?? 0
+        let gaze = index.map { (dispatchGeometry.globalX(targetX($0, width: dispatchGeometry.width)) - coordinatorFrame.midX) / 4 } ?? 0
         motion.requestFeedback(targetID: id, enabled: !selected, gazeX: coordinatorFrame.isEmpty ? 0 : gaze)
         changeMoku("targetHarnessIds", .array((selected ? targets.filter { $0 != id } : targets + [id]).map(JSONValue.text)))
     }

@@ -63,7 +63,7 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
     let harnesses: [AnyHarnessPlugin]
     let locale: DesktopLocale
     let showsHeading: Bool
-    var showsAnimationGlass = false
+    var illustrationWidth: CGFloat? = nil
     var visitPlaybackStarted: Binding<Bool>? = nil
     @ViewBuilder var content: Content
 
@@ -79,32 +79,61 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
                     .fixedSize(horizontal: false, vertical: true).padding(.bottom, 24)
             }
             if role != .moku {
-                Group {
-                    if role == .tag {
-                        NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
-                    } else {
-                        NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
+                if let illustrationWidth, !harnesses.isEmpty {
+                    NativeSettingsIllustrationPanel(width: illustrationWidth) {
+                        animation
                     }
+                    .padding(.bottom, 24)
+                } else {
+                    animation.padding(.bottom, 24)
                 }
-                .background {
-                    if showsAnimationGlass, !harnesses.isEmpty {
-                        NativeSettingsIllustrationBackdrop()
-                    }
-                }
-                .padding(.bottom, 24)
             }
             content
+                .frame(maxWidth: illustrationWidth != nil && role != .moku ? NativeSettingsContentLayout.formWidth : nil,
+                       alignment: .leading)
         }.environment(\.nativeSettingsCompactPresentation, true)
+    }
+
+    @ViewBuilder private var animation: some View {
+        if role == .tag {
+            NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
+        } else {
+            NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
+        }
     }
 }
 
-struct NativeSettingsIllustrationBackdrop: View {
+struct NativeSettingsIllustrationPanel<Content: View>: View {
+    let width: CGFloat
+    @ViewBuilder var content: Content
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     var body: some View {
-        Color.clear.nativeRegularCardGlass(
-            in: RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius),
-            opaque: NativePalette.settings.hintSurface.swiftUI)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        let paddingScale = min(1, width / 320)
+        let horizontalInset = 16 * paddingScale
+        let canvasHeight: CGFloat = 250
+        let innerWidth = max(0, width - 2 * horizontalInset)
+        // Preserve the positions and legibility of the seats, tokens and figures at high zoom.
+        let canvasWidth = max(500, innerWidth)
+        let scale = innerWidth / canvasWidth
+        content.frame(width: canvasWidth, height: canvasHeight)
+            .scaleEffect(scale)
+            .frame(width: innerWidth, height: canvasHeight * scale)
+            .padding(.vertical, 14 * paddingScale)
+            .frame(width: width)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius * paddingScale)
+                Color.clear.nativeRegularCardGlass(
+                    in: shape,
+                    opaque: NativePalette.settings.hintSurface.swiftUI)
+                    .overlay {
+                        if reduceTransparency {
+                            shape.strokeBorder(NativePalette.settings.inputBorder.swiftUI)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
     }
 }
 

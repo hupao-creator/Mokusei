@@ -117,6 +117,7 @@ public struct NativeMokuDock: View {
     @State private var messageInkVisible = true
     @State private var noteTransitionGeneration = 0
     @State private var settingsPreferredHeight: CGFloat = 900
+    @State private var settingsHeaderScroll: CGFloat = 0
     @State private var historyActionWidth: CGFloat = 110
     @State private var stopControlsFrame = CGRect.zero
     @State private var talkScrollbarStyle = NSScroller.preferredScrollerStyle
@@ -481,6 +482,9 @@ public struct NativeMokuDock: View {
             .onPreferenceChange(NativeSettingsPreferredHeightKey.self) { height in
                 settingsPreferredHeight = max(900, ceil(height))
             }
+            .onPreferenceChange(NativeSettingsHeaderScrollKey.self) { offset in
+                settingsHeaderScroll = offset
+            }
             .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil && !state.settingsOpen, noteButton: noteButtonRect), initial: true) { _, layout in
                 guard state.dockRouteVisible else {
                     state.dockHitRects = []
@@ -758,9 +762,10 @@ public struct NativeMokuDock: View {
                                               historyBand: historyBand, capsuleWidth: width,
                                               composerFraction: 1, editorBottomInset: editorBottomInset,
                                               followsEditor: false)
+        // At extreme zoom the header scrolls inside the shell.
         let faceShift = state.settingsExpanded
             ? CGSize(width: NativeSettingsHeaderLayout.faceCenter.x - settledFace.x,
-                     height: NativeSettingsHeaderLayout.faceCenter.y - settledFace.y)
+                     height: NativeSettingsHeaderLayout.faceCenter.y - settledFace.y - settingsHeaderScroll)
             : .zero
         let faceCenter = Self.faceSeatCenter(shell: surface.size, rowHeight: rowHeight,
             historyBand: historyBand, capsuleWidth: width, composerFraction: capsuleFraction,

@@ -63,9 +63,17 @@ owns resolution, profile compatibility and window appearance.
    the new appearance without changing the active tab or setup step.
 5. With an installed, enabled agent, compare the Chief map and the Tag and
    Super Thread animation backdrops in both appearances. Capture the animations
-   during playback and after switching away and back. Check that the role mode
-   controls below them remain clickable and that Reduce Transparency uses the
-   opaque fallback. See the [Settings backdrop and playback contract](../../app/macos/Sources/Host/Settings/README.md).
+   during playback and after switching away and back. At the full Settings
+   width, check that all three panels extend equally past both sides of the form
+   and have internal padding above and below their contents. Narrow the viewport
+   until the illustration canvas scales down. Check that the art and the panel
+   fit, that the form below remains reachable by scrolling, and that clicking a
+   Chief dispatch target and each role's mode control updates its selection.
+   At 5× zoom, scroll the header out of view and continue down to the form.
+   Check that the resident eyes move out with the header.
+   Repeat the backdrop check with Reduce Transparency and inspect the opaque
+   fallback. Record the window width, zoom, frames and observed selections.
+   See the [Settings backdrop and playback contract](../../app/macos/Sources/Host/Settings/README.md).
 
 Keep the revision, primary language order, appearance, profile fixture, launch
 mode and before/after observations with each run. A process-local simulation

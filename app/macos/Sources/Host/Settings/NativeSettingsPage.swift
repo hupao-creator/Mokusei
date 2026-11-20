@@ -14,12 +14,26 @@ enum NativeSettingsHeaderLayout {
     static let topInset: CGFloat = 16
     static let bottomInset: CGFloat = 12
     static let rowHeight: CGFloat = 42
+    static let height = topInset + rowHeight + bottomInset
     /// Placeholder the header reserves at the leading edge, left of the tabs.
     static let faceSlot = CGSize(width: 30, height: 30)
     /// Centre of that column in panel-local points.
     static var faceCenter: CGPoint {
         CGPoint(x: horizontalInset + faceSlot.width / 2, y: topInset + rowHeight / 2)
     }
+}
+
+struct NativeSettingsHeaderScrollKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+enum NativeSettingsContentLayout {
+    static let formWidth: CGFloat = 560
+    static let illustrationWidth: CGFloat = 640
+    static let horizontalInset: CGFloat = 30
 }
 
 /// The scroll document reports its natural height, independent of the clipped
@@ -44,6 +58,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     @FocusState private var focusedTab: String?
     @FocusState private var focusedBack: Bool
     @State private var settingsContentHeight: CGFloat = 0
+    @State private var headerScroll: CGFloat = 0
     @State private var hoveredTab: String?
     @State private var keyboardNavigation = false
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
@@ -78,7 +93,13 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 ScrollViewReader { reader in
                     NativeScrollView {
                         panel(width: geometry.size.width).frame(minHeight: 360).id("settings-shell-top")
-                    }.onChange(of: activeSection) { _, _ in reader.scrollTo("settings-shell-top", anchor: .top) }
+                    }
+                    .onScrollGeometryChange(for: CGFloat.self) { scroll in
+                        min(NativeSettingsHeaderLayout.height, max(0, scroll.contentOffset.y + scroll.contentInsets.top))
+                    } action: { _, offset in headerScroll = offset }
+                    .preference(key: NativeSettingsHeaderScrollKey.self, value: headerScroll)
+                    .onChange(of: activeSection) { _, _ in reader.scrollTo("settings-shell-top", anchor: .top) }
+                    .onDisappear { headerScroll = 0 }
                 }.environment(\.nativeSettingsViewportWidth, geometry.size.width)
             } else {
                 panel(width: geometry.size.width)
@@ -86,8 +107,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
             }
         }.preference(key: NativeSettingsPreferredHeightKey.self,
                       value: settingsContentHeight
-                        + NativeSettingsHeaderLayout.topInset + NativeSettingsHeaderLayout.rowHeight
-                        + NativeSettingsHeaderLayout.bottomInset + 18 + 36)
+                        + NativeSettingsHeaderLayout.height + 18 + 36)
             .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
             .environment(\.locale, Locale(identifier: locale.rawValue))
@@ -122,13 +142,16 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
     }
 
     private func panel(width: CGFloat) -> some View {
-        VStack(spacing: 0) {
+        let illustrationWidth = min(NativeSettingsContentLayout.illustrationWidth,
+                                    max(0, width - 2 * NativeSettingsContentLayout.horizontalInset))
+        return VStack(spacing: 0) {
             header
             ScrollViewReader { reader in
                 NativeScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
+                    VStack(spacing: 0) {
                         if !model.runtimeAvailable {
                             SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。", "Connect to the runtime service to edit Agent configuration."))
+                                .frame(maxWidth: NativeSettingsContentLayout.formWidth, alignment: .leading)
                         }
                         if let error = model.draft.error ?? model.operationError {
                             SettingsNotice(localizedError(error), error: true) {
@@ -142,16 +165,16 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                                         }
                                     }.buttonStyle(.bordered).disabled(busy || !model.runtimeAvailable)
                                 }
-                            }.id("notice")
+                            }.frame(maxWidth: NativeSettingsContentLayout.formWidth, alignment: .leading).id("notice")
                         }
-                        sectionBody.disabled(busy)
+                        sectionBody(illustrationWidth: illustrationWidth).disabled(busy)
                             .environment(\.nativeSettingsFormPage, true)
-                    }.background(GeometryReader { content in
+                    }.frame(width: illustrationWidth)
+                    .background(GeometryReader { content in
                         Color.clear.onAppear { settingsContentHeight = content.size.height }
                             .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
                     })
-                        .frame(maxWidth: 560, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
-                        .padding(.horizontal, 30).padding(.top, 18).padding(.bottom, 36)
+                        .padding(.top, 18).padding(.bottom, 36)
                         // Overflow must not shift the centered form. Horizontal
                         // padding keeps controls clear of the native gutter.
                         .frame(width: width)
@@ -248,14 +271,14 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
         }
     }
 
-    @ViewBuilder private var sectionBody: some View {
+    @ViewBuilder private func sectionBody(illustrationWidth: CGFloat) -> some View {
         if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
-            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale, showsHeading: false, showsAnimationGlass: true,
+            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale, showsHeading: false, illustrationWidth: illustrationWidth,
                                          visitPlaybackStarted: role == .tag ? $animationVisits.tag : role == .report ? $animationVisits.report : nil) {
                 if role == .moku {
                     NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,
                         harnessSettings: harnessSettings, controller: mokuController, onCoordinatorFrame: onCoordinatorFrame,
-                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true, showsMapGlass: true)
+                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true, illustrationWidth: illustrationWidth)
                 } else if let application = activeApplications.first(where: { $0.id == activeSection }) {
                     applicationContent(application)
                 }
@@ -263,6 +286,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                 .id(activeSection + model.draft.editorDrafts.generation.uuidString)
         } else if let application = activeApplications.first(where: { $0.id == activeSection }), model.runtimeAvailable {
             applicationContent(application)
+                .frame(maxWidth: NativeSettingsContentLayout.formWidth, alignment: .leading)
         }
     }
 

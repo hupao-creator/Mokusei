@@ -49,10 +49,17 @@ Each Settings opening gives Tag and Super Thread independent animation visits. O
 playback starts, switching tabs and returning shows the completed composition;
 closing and reopening Settings permits both animations to play again. An
 interrupted playback settles to its final frame. Onboarding retains its own step lifetime.
-In Settings, each visible animation sits above the same noninteractive regular
-Liquid Glass backdrop as the Chief map, including its 29-point corner radius and
-opaque Reduce Transparency fallback. The backdrop follows the workspace appearance
-and the animation's existing bounds. Onboarding presents the animations inline.
+The Chief map and both capability animations share a centered illustration panel
+up to 640 points wide, extending up to 40 points beyond each side of the
+560-point form. The Settings scroll document reserves at least 30 points on
+each side of the panel. The illustrations have 16-point horizontal and 14-point
+vertical padding over a noninteractive regular Liquid Glass backdrop with a
+29-point corner radius. The backdrop follows the workspace appearance, with an
+opaque settings color and a fine outline under Reduce Transparency. At narrow
+widths, the panel fits the viewport and the illustration canvas scales
+proportionally below 500 points of inner width so the composition and its hit
+regions stay inside the panel. Below 320 points of panel width, the padding and
+corner radius also scale proportionally. Onboarding presents the animations inline.
 
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
@@ -72,9 +79,7 @@ and keyboard focus rings. Targets use icons, selection underlines and dashed
 paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled.
 
-In Settings the two rows, character and paths share a noninteractive regular
-Liquid Glass background with the Settings panel's 29-point corner radius and
-12-point horizontal insets. Reduce Transparency uses an opaque settings color.
+In Settings the two rows, character and paths use the shared illustration panel.
 Each animated dashed path takes the adaptive accent of its current target
 Harness. A Harness without a theme color uses the Settings accent.
 The coordination and dispatch accessibility group contains the individual
@@ -108,10 +113,11 @@ Switching sections scrolls the whole padded form to its top, retaining the same
 18-point content inset whether the selected form fits or overflows. At extreme
 zoom the outer shell scrolls back to its top as well. Form width follows the
 panel rather than SwiftUI's overflow-dependent scroller proposal, keeping its
-560-point column centered on the same axis with or without overflow. Horizontal
-padding keeps controls clear of the native gutter. The navigation labels identify
-the pages. Chief starts with its configuration, and Tag and Super Thread start with their capability illustrations
-followed by their configuration. Harness fields and advanced options are inline.
+form and illustration columns centered on the same axis with or without overflow.
+Horizontal padding keeps controls clear of the native gutter. Chief starts with
+the coordination map. Tag and Super Thread start with their capability
+illustrations. Each form follows its illustration, with inline Harness fields
+and advanced options.
 Unavailable selections fall back to Chief and normalize when the available sections change or the page mounts. When disconnected, the selected tab stays in place and the form shows a connection notice until the Runtime is available.
 Thread archive data and commands remain independent of Settings.
 
@@ -129,7 +135,8 @@ composer with the shell. A single
 Close button replaces the full-page traffic-light/back capsule and its 74-point
 safe area; the main window retains its own native controls. When extreme zoom
 leaves less than 220 logical points of page height, the entire settings shell
-also scrolls so its fixed chrome cannot make form controls unreachable.
+also scrolls so its chrome cannot make form controls unreachable. The resident
+eyes scroll with the header so they stay with their seat above the form.
 
 The scene blurs Overview and blocks pointer, keyboard and accessibility access
 until the capsule finishes returning. Close, Escape and backdrop click share

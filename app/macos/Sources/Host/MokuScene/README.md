@@ -57,9 +57,10 @@ panel and history input capsule use a dark SwiftUI environment.
 The current and archived Moku conversation reading cards inherit the workspace's
 system appearance. The capsule's dark environment is scoped to its own content.
 Settings and the onboarding forms use the system appearance. Settings uses the
-opaque native window background, including with Reduce Transparency. The coordination map has its own
-[Liquid Glass background](../Settings/README.md) inside the Settings panel.
-The resident eyes travel into its reserved header seat during expansion.
+opaque native window background, including with Reduce Transparency. The
+illustrations have their own [Liquid Glass panels](../Settings/README.md).
+The resident eyes travel into the reserved header seat during expansion and
+follow that seat when the Settings shell scrolls at extreme zoom.
 
 The collapsed Overview Dock is the original 168×44-point eye capsule. Its warm
 capsule material and Note's Regular glass share one persistent native glass node.
