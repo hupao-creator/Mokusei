@@ -50,8 +50,8 @@ Source: [workspace](../app/macos/Sources/Host/Shell/NativeWorkspaceView.swift),
 ## Geometry and surfaces
 
 The Dock uses one persistent character/eyes owner and one glass shell. The
-168×44pt resident capsule, expanded editor, directory suggestions and actions
-share production layout. Below 260pt available width, the editor gets the top
+168×44pt resident capsule, expanded editor, Agent directory suggestions and
+actions share production layout. Below 260pt available width, the editor gets the top
 row and the identity, attachment and action seats share the bottom row without
 replacing the NSTextView. The editor remains
 scrollable and the shell stays within the viewport. Closing the bottom Overview

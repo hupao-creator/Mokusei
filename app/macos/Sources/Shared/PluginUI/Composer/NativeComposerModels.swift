@@ -99,13 +99,23 @@ public struct NativeComposerSubmission: Sendable {
         self.commandID = commandID
         self.text = text; self.directories = directories; self.attachments = attachments
     }
-    public var input: JSONValue {
+    public var input: JSONValue { input(knownDirectoryReferencesAsText: false) }
+
+    public func input(knownDirectoryReferencesAsText: Bool) -> JSONValue {
         var parts: [JSONValue] = []
-        let trimmed = NativeComposerSubmissionPolicy.trimmedText(text)
-        if !trimmed.isEmpty { parts.append(.object(["kind": .string("text"), "text": .string(JSONText(trimmed))])) }
-        parts += directories.map { .object([
-            "kind": .string("mention"), "name": .string($0.name), "path": .string($0.path), "pathType": .string("directory")
-        ]) }
+        var body = NativeComposerSubmissionPolicy.trimmedText(JSONText(text)).codeUnits
+        // Completion stored a path but no host identity or original query. The
+        // explicit host picker records its host identity and keeps its reference.
+        for directory in directories where knownDirectoryReferencesAsText && directory.hostID == nil {
+            if !body.isEmpty { body.append(0x0A) }
+            body.append(contentsOf: directory.path.codeUnits)
+        }
+        if !body.isEmpty { parts.append(.object(["kind": .string("text"), "text": .string(JSONText(codeUnits: body))])) }
+        for directory in directories where !knownDirectoryReferencesAsText || directory.hostID != nil {
+            parts.append(.object([
+                "kind": .string("mention"), "name": .string(directory.name), "path": .string(directory.path), "pathType": .string("directory")
+            ]))
+        }
         parts += attachments.map { .object([
             "kind": .string($0.kind == .image ? "image" : "local-file"), "file": .object(["id": .string($0.id)])
         ]) }

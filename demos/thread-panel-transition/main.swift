@@ -167,7 +167,7 @@ private struct PanelDemo: View {
             }
         } thread: { EmptyView() } dock: {
             NativeMokuDock(state: state.scene, draft: state.draft, cwd: "/demo/Mokusei", mode: .idle,
-                loadMentionDirectories: { [] }, onSend: { _ in state.status = "已收到（演示）" }, onCancel: {})
+                onSend: { _ in state.status = "已收到（演示）" }, onCancel: {})
         } settings: { EmptyView() }
         .coordinateSpace(name: "panel-stage")
         .coordinateSpace(name: "workspace")

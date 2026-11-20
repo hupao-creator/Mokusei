@@ -45,7 +45,7 @@ private struct ReportDemo: View {
             .overlay(alignment: .top) { controls.padding(.top, 23).padding(.horizontal, 48) }
         } thread: { EmptyView() } dock: {
             NativeMokuDock(state: state.scene, draft: state.draft, cwd: "/demo/Mokusei", mode: .idle,
-                loadMentionDirectories: { [] }, onSend: { _ in }, onCancel: {})
+                onSend: { _ in }, onCancel: {})
                 .allowsHitTesting(false).accessibilityHidden(true)
         } settings: { EmptyView() }
         .coordinateSpace(name: "demo")

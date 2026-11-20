@@ -4,7 +4,7 @@ import MokuseiCore
 import MokuseiPluginUI
 import SwiftUI
 
-/// Moku capsules opt into directory completion. The editor remains a generic
+/// Agent follow-up capsules opt into directory completion. The editor remains a generic
 /// text field, and selected directories remain owned by its shared draft.
 @MainActor @Observable public final class NativeMokuDirectoryMentions {
     public private(set) var selectionRequest: NativeComposerSelectionRequest?

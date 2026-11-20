@@ -32,7 +32,7 @@ private struct Controls: View {
                 Button("宽窗口") { resize(.init(width: 1100, height: 720)) }
                 Button("窄窗口") { resize(.init(width: 480, height: 620)) }
             }
-            Text("主窗口可直接输入，Return 发送；输入 @ 选择目录。派发结果为模拟数据。").font(.system(size: 12)).foregroundStyle(.secondary)
+            Text("在主窗口输入后按 Return 发送。派发结果为模拟数据。").font(.system(size: 12)).foregroundStyle(.secondary)
         }
         .buttonStyle(.bordered)
         .padding(22).frame(width: 290)

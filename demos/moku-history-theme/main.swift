@@ -14,7 +14,6 @@ import MokuseiUI
     let client: RuntimeClient
     let host: NativeHarnessHost
     let current: HarnessThread
-    let archive: HarnessThread
     var appearance = "light"
     var running = false
     var resize: (CGSize) -> Void = { _ in }
@@ -23,17 +22,12 @@ import MokuseiUI
     init() throws {
         client = RuntimeClient(profile: try RuntimeProfile(dataDirectory:
             Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("profile")))
-        func thread(_ id: JSONText, archived: Bool) throws -> HarnessThread {
-            try HarnessThread(id: id, harnessID: "codex", revision: 0,
-                sessionState: .null, observation: .init(), cwd: "/fixture", settings: .object([:]),
-                createdAt: 1, updatedAt: 2, title: archived ? "Previous Moku" : "Moku", tags: [],
-                archived: archived ? true : nil, moku: archived ? nil : true, mokuHistory: archived, transcript: .array([]))
-        }
-        current = try thread("moku", archived: false)
-        archive = try thread("archive", archived: true)
-        let threads = [current, archive]
+        let thread = try HarnessThread(id: "moku", harnessID: "codex", revision: 0,
+            sessionState: .null, observation: .init(), cwd: "/fixture", settings: .object([:]),
+            createdAt: 1, updatedAt: 2, title: "Moku", tags: [], moku: true, transcript: .array([]))
+        current = thread
         host = NativeHarnessHost(client: client, registry: try HarnessPluginRegistry([AnyHarnessPlugin(CodexHarnessPlugin())]),
-            currentThread: { id in threads.first { $0.id == id } },
+            currentThread: { id in id == thread.id ? thread : nil },
             callbacks: .init(openExternal: { _ in }, openFollowUp: { _, _ in }, onError: { _ in }))
     }
     // Supply private content at the real subscription boundary. Never start the
@@ -69,8 +63,7 @@ private struct Surface: View {
             }
         } thread: {
             NativeMokuThreadView(harnessHost: model.host, thread: model.current, draft: model.draft,
-                archiveThreads: [model.archive], running: model.running,
-                loadMentionDirectories: { [.init(name: "Mokusei", path: "/fixture/Mokusei")] },
+                running: model.running,
                 focusEnabled: model.scene.mokuOpen,
                 onNavigationChange: { _ in }, onBack: { model.scene.closeHistory() },
                 onSend: { _ in model.running = true }, onCancel: { model.running = false })

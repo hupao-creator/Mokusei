@@ -147,9 +147,23 @@ public final class NativeComposerDraft {
     }
 
     @discardableResult
+    func chooseHostDirectory(_ reference: RuntimeHostFileReference) -> Bool {
+        insertDirectory(.init(name: JSONText(URL(fileURLWithPath: reference.path).lastPathComponent),
+                              path: JSONText(reference.path), hostID: reference.hostID))
+    }
+
+    @discardableResult
     public func insertDirectory(_ directory: NativeComposerDirectory) -> Bool {
         guard !isDisposed, !directory.path.codeUnits.isEmpty else { return false }
-        if directories.contains(where: { $0.path == directory.path }) { return true }
+        if let index = directories.firstIndex(where: { $0.path == directory.path }) {
+            // A host picker selection for the same path gives a saved catalog
+            // reference the explicit host identity used for submission.
+            if directories[index].hostID == nil, directory.hostID != nil {
+                directories[index] = directory
+                directoryRevisions[directory.path] = UUID()
+            }
+            return true
+        }
         let used = Set(directories.map(\.path)).union(pending?.original.directories.map(\.path) ?? [])
         guard used.contains(directory.path) || used.count < Self.maximumDirectories else { return false }
         directories.append(directory)

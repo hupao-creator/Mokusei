@@ -26,7 +26,7 @@ If you see a load or save error, use **Retry** next to it. If you quit partway t
 
 ## Send your first request
 
-In **Type a message…**, describe what you want done and what you'd like to get back. If your project folder appears when you type `@`, select it before sending. If it doesn't appear, include the folder's full path in your message.
+In **Type a message…**, describe what you want done and what you'd like to get back. Include your project folder's full path if you want Chief to work there.
 
 Chief can reply directly or assign the work to an agent. When it creates a task conversation, click its card in **Overview** to check progress, read the result, or respond to a request. [Working with Chief](working-with-moku.md)
 
