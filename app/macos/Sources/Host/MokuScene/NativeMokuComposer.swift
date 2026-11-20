@@ -292,30 +292,22 @@ struct NativeMokuComposerInput: View {
             .accessibilityIdentifier("moku-stop")
     }
     private var attachmentButton: some View {
-        Group {
-            if draft.supportsHostFiles {
-                Menu {
-                    Button(localize("从此设备导入", "Import from this device"), action: chooseDeviceFiles)
-                    Button(localize("从主机选择文件", "Choose host files")) { hostPicker = .files }
-                    Button(localize("从主机选择目录", "Choose a host directory")) { hostPicker = .directory }
-                } label: { attachmentSymbol }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-            } else {
-                Button(action: chooseDeviceFiles) { attachmentSymbol }
-            }
+        Button(action: chooseDeviceFiles) {
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 28, height: 32).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(width: 28, height: 32)
+        .contextMenu {
+            if draft.supportsHostFiles {
+                Button(localize("从主机选择文件", "Choose host files")) { hostPicker = .files }
+                Button(localize("从主机选择目录", "Choose a host directory")) { hostPicker = .directory }
+            }
+        }
         .disabled(actionsUnavailable || draft.importing || readOnly)
         .help(localize("添加图片或文件", "Add images or files"))
         .accessibilityLabel(localize("添加图片或文件", "Add images or files"))
         .accessibilityIdentifier("moku-add-attachment")
-    }
-    private var attachmentSymbol: some View {
-        // The macOS menu uses an image representation of its label.
-        Image(systemName: "plus")
-            .font(.system(size: 14, weight: .medium))
-            .frame(width: 28, height: 32).contentShape(Rectangle())
     }
     private func chooseDeviceFiles() {
         Task.immediate { await draft.chooseFiles(cwd: cwd) }

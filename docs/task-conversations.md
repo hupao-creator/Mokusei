@@ -16,7 +16,7 @@ To stop the current run, click **Stop this thread**. The button shares the **Sen
 
 Type your follow-up in **Type a message…** and click **Send** or press Return. Use Shift+Return for a new line. If the current run accepts follow-ups, your message goes to that run. If it has ended, sending starts a new run in the same conversation. Answer any pending question or permission request first.
 
-Click **+** to add an image or file. Supported attachments vary by agent. If the agent rejects an attachment, remove it and try a supported type or describe it in text. You can return to finish an unsent draft after opening a different conversation.
+Click **+** and select an image or file on your Mac. It appears above your draft. Supported attachments vary by agent. If the agent rejects an attachment, remove it and try a supported type or describe it in text. You can return to finish an unsent draft after opening a different conversation.
 
 You can start writing the next message while Chief confirms the previous send. Once the send succeeds, the next draft stays in the box. If the send is rejected, Chief puts the earlier message above your new text so you can review both before sending.
 

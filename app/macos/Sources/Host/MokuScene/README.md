@@ -72,9 +72,9 @@ at the trailing edge with its existing cancellation and accessibility semantics.
 
 The shared input row places the attachment plus immediately to the right of
 the identity seat. Below 260pt the editor takes the upper row and the plus
-stays beside the identity on the lower row. The localized control opens the
-device picker directly for device-only drafts. Host-enabled drafts expose the
-device picker, host files and host directory references through the plus menu.
+stays beside the identity on the lower row. A primary click or accessibility press opens
+the device file chooser directly. For host-enabled drafts, the contextual
+menu on the same button offers host files and host directory references.
 The composer remains dark in both macOS appearances. A native chooser keeps
 its Escape and Cancel behavior. Cancelling adds no chips and leaves the draft
 available. The same current Chief draft and send route serve Overview and
