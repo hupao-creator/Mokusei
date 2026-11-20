@@ -44,8 +44,8 @@ Transparency keep their own rendering boundaries. Source: [NativePalette](../app
 The panel uses compositor-owned geometry and 420ms travel. Native animation-start
 admits hidden preparation of an ordinary Agent reader while travel continues.
 Drawing, input, accessibility, text entrance and secondary surfaces wait for
-arrival and their own readiness. Source-less and non-Agent entries retain their
-own mount gate. The same reader survives arrival. Both title anchors must exist;
+arrival and their own readiness. Report and Collection entries mount their
+readers on arrival. The same Agent reader survives arrival. Both title anchors must exist;
 coalesced native layout supplies the opening geometry. If reserving an Execution
 Sidecard changes the horizontal landing during entry, the compositor can
 redirect the flying title and emoji once from their presented positions to
@@ -63,6 +63,11 @@ travel reaches the refreshed source at 86%, and the final 14% crossfades to card
 content. Closing before primary admission uses the opening-reversal path.
 A deleted/archived source supplies no stale return target. Route/generation
 identity fences all preparation and completion callbacks.
+
+[Chief history](../app/macos/Sources/Host/MokuScene/README.md) uses the same
+settled card frame. Its live reader and bottom input capsule share one native
+overlay that fades and moves at a fixed layout. Its return can reverse while
+retaining the same reading visit.
 
 The reading parent uses the window's existing material, without capturing the
 Overview bitmap. It keeps the native Overview owner and hides its host after
@@ -111,9 +116,6 @@ List state uses a 3:7 Sidecard-to-Report ratio; exact execution detail uses 5:5,
 subject to shared width/stacking constraints. HTML stays mounted, anchored left,
 and its viewport follows shell width continuously. A selected execution waits for
 scoped content and Markdown readiness, then fades one retained host over 200ms.
-A Chief Note entry under Reduce Motion reserves the final panes on the first
-Report layout and shows native document and execution content directly when
-ready. The ordinary Thread reader also shows its cited content directly.
 Hidden controls/accessibility cannot act. Streaming/retry does not replay the
 entrance; unavailable/error content admits as readable content.
 

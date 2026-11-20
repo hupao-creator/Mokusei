@@ -93,7 +93,6 @@ struct NativeReportDetail: View {
     @State private var referencesRevealed = false
     @Environment(\.nativeReportSidecards) private var sharedSidecards
     @FocusState private var launcherFocused: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @Environment(\.nativeReadingAuxiliarySuppressed) private var suppressed
     @Environment(\.nativeReportPanelReturn) private var returning
@@ -104,12 +103,7 @@ struct NativeReportDetail: View {
     private var expanded: Bool { sidecards.active == .relatedExecutions }
     var body: some View {
         GeometryReader { geometry in
-            // A cited execution already has a destination. With Reduce
-            // Motion, reserve both panes on the first frame while the HTML and
-            // execution load. Input and accessibility still require admission.
-            let showsExecutionPane = expanded || (reduceMotion && selected != nil && sidecards.entryPosition.pinsExecution
-                && sidecards.pending == .relatedExecutions && !suppressed)
-            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: showsExecutionPane,
+            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: expanded,
                 preferredWidth: selected == nil ? 0.3 : 0.5)
             let source = launcherPosition.map { CGRect(x: $0.x - 21, y: $0.y - 21, width: 42, height: 42) }
             ZStack(alignment: .topLeading) {
@@ -157,7 +151,7 @@ struct NativeReportDetail: View {
                 // Later reader-owned animation transactions remain independent.
                 .transaction(value: selected) { $0.animation = nil }
                 .clipShape(RoundedRectangle(cornerRadius: 21))
-                .modifier(NativeSidecardFold(progress: showsExecutionPane ? 1 : 0, source: source,
+                .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source,
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight),
                     frameIdentifier: "report-executions-sidecard", reportReturn: true))
@@ -169,9 +163,9 @@ struct NativeReportDetail: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(applicationText(locale, "关联执行", "Related executions"))
             }
-            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
-            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: selected)
-            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
+            .animation(NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(NativeSidecardTiming.foldAnimation, value: selected)
+            .animation(NativeSidecardTiming.foldAnimation, value: layout.stacked)
             .background {
                 NativeReadingEntranceStage(enabled: entranceReady && !suppressed && !entranceAdmitted) {
                     entranceAdmitted = true

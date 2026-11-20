@@ -10,7 +10,6 @@ struct NativeReportCollectionMembers: View {
     let close: () -> Void
     let allowsActions: (ApplicationThreadRef) -> Bool
     let openThread: (ApplicationThreadRef) -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var displayedMembers: [Member]?
     @State private var replayIDs: [CoverIdentity: Int] = [:]
     @State private var completed: [CoverIdentity: Int] = [:]
@@ -29,7 +28,7 @@ struct NativeReportCollectionMembers: View {
 
     var body: some View {
         let current = Dictionary(uniqueKeysWithValues: props.map { ($0.entry.ref, $0) })
-        let members = (reduceMotion ? nil : displayedMembers) ?? props.map(Member.init)
+        let members = displayedMembers ?? props.map(Member.init)
         let nextExitDeadline = members.compactMap(\.exitDeadline).min()
         GeometryReader { geometry in
             // At high window zoom the panel can be narrower than a single
@@ -39,11 +38,14 @@ struct NativeReportCollectionMembers: View {
             let scale = max(1, geometry.size.width) / layoutWidth
             let inset: CGFloat = compact ? 14 : 54
             let available = min(1160, layoutWidth - 2 * inset)
-            let columns = max(1, Int((available + 20) / 300))
-            let width = min(360, (available - CGFloat(columns - 1) * 20) / CGFloat(columns))
+            let spacing: CGFloat = 20
+            let columns = max(1, Int((available + spacing) / 300))
+            let gapsWidth = CGFloat(columns - 1) * spacing
+            let width = min(360, (available - gapsWidth) / CGFloat(columns))
+            let leadingMargin = (layoutWidth - CGFloat(columns) * width - gapsWidth) / 2
             NativeScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: 20, alignment: .top), count: columns),
-                          alignment: .center, spacing: 20) {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: spacing, alignment: .top), count: columns),
+                          alignment: .center, spacing: spacing) {
                     ForEach(members) { displayed in
                         let live = current[displayed.id]
                         let member = live ?? displayed.props
@@ -60,12 +62,12 @@ struct NativeReportCollectionMembers: View {
                             openThread: { openThread(member.entry.ref) })
                             .scaleEffect(exiting ? 0.98 : 1)
                             .opacity(exiting ? 0 : 1)
-                            .animation(reduceMotion ? nil : .easeOut(duration: Self.exitDuration), value: exiting)
+                            .animation(.easeOut(duration: Self.exitDuration), value: exiting)
                             .allowsHitTesting(!exiting)
                             .accessibilityHidden(exiting)
                     }
                 }.frame(maxWidth: .infinity)
-                    .padding(.horizontal, inset).padding(.top, compact ? 0 : 14).padding(.bottom, 28)
+                    .padding(.horizontal, inset).padding(.top, compact ? 0 : leadingMargin - 8).padding(.bottom, 28)
             }
             // In a single compact column, clear Close vertically for every
             // scroll position. The overlay still owns only the button.
@@ -81,7 +83,6 @@ struct NativeReportCollectionMembers: View {
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .background(NativeReadingPanelFrame(identifier: "collection-members-panel"))
         .onChange(of: props.map(\.entry), initial: true) { _, _ in reconcileMembers(currentIDs: Set(current.keys)) }
-        .onChange(of: reduceMotion) { _, _ in reconcileMembers(currentIDs: Set(current.keys)) }
         .task(id: nextExitDeadline) {
             guard let nextExitDeadline else { return }
             do {
@@ -97,7 +98,7 @@ struct NativeReportCollectionMembers: View {
 
     private func reconcileMembers(currentIDs: Set<ApplicationThreadRef>) {
         var next = props.map(Member.init)
-        if !reduceMotion, let displayedMembers {
+        if let displayedMembers {
             let deadline = ContinuousClock.now + .seconds(Self.exitDuration)
             // Retain only the outgoing card's last content and seat. A restored
             // reference keeps its mounted identity and drops its old deadline.

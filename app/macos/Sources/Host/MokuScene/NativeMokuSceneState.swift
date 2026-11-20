@@ -159,8 +159,8 @@ import MokuseiPluginUI
     }
     public func closeHistory() { historyMotion.close() }
     public func toggleMoku() {
-        if mokuOpen { closeHistory() }
-        else { setMokuOpen(true) }
+        guard mokuOpen else { setMokuOpen(true); return }
+        if !historyMotion.reopenIfClosing() { closeHistory() }
     }
     /// Entrance belongs to the scene, so remounting or uncovering the Dock
     /// cannot reopen input over the resident character or a waiting notification.

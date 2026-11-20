@@ -27,6 +27,7 @@ public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings:
             NativeReadingPageStack(open: state.mokuOpen, identity: JSONText(state.historyVisit.uuidString),
                 motion: state.historyMotion, enabled: !state.settingsOpen && !state.cameraActive,
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true, panel: true,
+                panelPresentation: .workspaceOverlay,
                 onParentPresentationChange: onHistoryParentPresentationChange,
                 prepareParent: prepareHistoryReturn,
                 onPanelOutsideClick: { state.closeHistory() },

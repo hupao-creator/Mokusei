@@ -11,7 +11,7 @@ opened. Its parser runs off main; attributed text/TextKit stay on main. Native
 text uses bounded per-input width/scale height caching and updates execution-link
 roots only for actual content/selection/locale/appearance changes. The expanded
 shell is dark Regular Liquid Glass and uses opaque fallback under Reduce
-Transparency. Ordinary shell/ink timing does not read Reduce Motion.
+Transparency.
 
 ## Reproduce the measurement
 

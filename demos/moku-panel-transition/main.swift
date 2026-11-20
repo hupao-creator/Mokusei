@@ -311,7 +311,6 @@ private struct Controls: View {
     private func startOverviewCapture() {
         let args = CommandLine.arguments
         let systemInput = args.contains("--system-input")
-        let reduced = args.contains("--reduce-motion")
         let language = args.contains("--english") ? "en" : "zh-Hans"
         model.overviewCapture = true
         model.language = language
@@ -329,13 +328,12 @@ private struct Controls: View {
         } else {
             panel.center()
         }
-        panel.contentView = NSHostingView(rootView: Surface(model: model)
-            .environment(\._accessibilityReduceMotion, reduced))
+        panel.contentView = NSHostingView(rootView: Surface(model: model))
         panel.orderFrontRegardless()
         Task {
             do {
                 try await Task.sleep(for: .milliseconds(400))
-                let folder = ["overview", language, reduced ? "reduced" : "motion",
+                let folder = ["overview", language, "motion",
                               systemInput ? "system" : "scene"].joined(separator: "-")
                 let movie = try await DockMovieCapture(window: panel, folder: folder)
                 // The ready file lets an external driver address only this panel.
@@ -362,7 +360,7 @@ private struct Controls: View {
                 try await movie.finish()
                 let expected = systemInput ? [true, false, true] : [true, false, true, false]
                 let observed: [String: Any] = ["inputChanges": model.overviewInputChanges,
-                    "running": model.running, "reduceMotion": reduced, "locale": language]
+                    "running": model.running, "locale": language]
                 try JSONSerialization.data(withJSONObject: observed, options: .prettyPrinted)
                     .write(to: movie.directory.appendingPathComponent("observations.json"), options: .atomic)
                 guard model.overviewInputChanges == expected, model.running != systemInput else {

@@ -63,14 +63,9 @@ def check(folder):
             return "compact"
         return "open" if frame["width"] > 554 else "travel"
     phases = [(kind, list(group)) for kind, group in itertools.groupby(frames, phase)]
-    reduced = receipt["reduceMotion"]
-    expected = ["compact", "open", "compact", "open"] if reduced else [
-        "compact", "travel", "open", "travel", "compact", "travel", "open"]
+    expected = ["compact", "travel", "open", "travel", "compact", "travel", "open"]
     if [kind for kind, _ in phases] != expected:
         raise ValueError("Missing or out-of-order input transitions")
-    widths = {f["width"] for f in frames}
-    if reduced and widths != {168, 560}:
-        raise ValueError(f"Reduce Motion recorded additional widths: {sorted(widths)}")
 
     # Read the visible seats from the rendered endpoints, allowing two
     # points for the antialiased silhouette and square center in the movie.
@@ -81,7 +76,7 @@ def check(folder):
             raise ValueError(f"No settled Stop at {width}pt")
         return sorted(values)[len(values) // 2]
     compact = settled_inset(0, 168)
-    expanded = settled_inset(1 if reduced else 2, 560)
+    expanded = settled_inset(2, 560)
     if not (0 < compact < expanded < 84):
         raise ValueError(f"Stop outside its trailing seats: {compact}, {expanded}")
     for index, (kind, group) in enumerate(phases):
@@ -95,7 +90,7 @@ def check(folder):
                 continue  # Outside press retires hover ink on the return.
             if inset is None or not compact - 2 <= inset <= expanded + 2:
                 raise ValueError(f"Stop left its trailing seats ({compact}, {expanded}) at {frame}")
-    return dict(reducedMotion=reduced, locale=receipt["locale"], frames=len(frames),
+    return dict(locale=receipt["locale"], frames=len(frames),
                 compactInset=compact, expandedInset=expanded,
                 phases=[dict(phase=kind, first=group[0]["pts"], last=group[-1]["pts"],
                              distinctWidths=len({f["width"] for f in group}),

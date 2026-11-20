@@ -40,9 +40,8 @@ blank-margin dismissal and Escape arbitration to the existing reading stack.
 Explicit Close refreshes the carousel source frame. The grid is the retained parent of a
 member reader. Its activated card supplies the source and return frame for the
 workspace’s shared Report transition. Back reveals the same grid and resumes
-its controls. Report panel travel settles directly under Reduce Motion.
-Callers refresh the
-contents when member facts change and retain their own selection, playback and
+its controls. Callers refresh the contents when member facts change and retain
+their own selection, playback and
 data lifetimes.
 The collection parent remains mounted for those updates while drawing, input and
 accessibility are suppressed. The shared compositor's auxiliary lane stays
@@ -174,8 +173,10 @@ with ordinary Agent card readers preloading only after the native animation-star
 callback. Their host stays transparent, hit testing and accessibility stay closed,
 and reading controls are not registered until arrival. Primary Markdown and
 TextKit preparation therefore overlap compositor-owned travel without advancing
-text entrance or secondary surfaces. Source-less and non-Agent entries retain
-their existing mounting gate. The retained reader has one stable native hosting view after admission;
+text entrance or secondary surfaces. Chief history uses the carrier's workspace
+overlay mode to reveal the live card and its capsule together with native
+position and opacity. See the [history contract](../../Host/MokuScene/README.md).
+Report and Collection entries mount their readers on arrival. The retained reader has one stable native hosting view after admission;
 its environment comes from the enclosing SwiftUI surface and its layout width
 stays at the destination width throughout return travel. Reversal samples native
 presentation layers, and generation-fenced completion cannot admit or close a
@@ -545,8 +546,7 @@ ordinary follow-ups in Agent detail as one line of literal text and one line of
 recorded message time. It has no author/sequence heading, receipt state or status
 icon. Missing time is not replaced by the execution timestamp. Text that does not
 fit the actual reading width can expand; attachment/annotation detail reuses the
-Harness's existing user-message renderer only after expansion. Expansion uses
-the ordinary explicit animation without consulting system motion preferences.
+Harness's existing user-message renderer only after expansion.
 `.steer` rows render only while their execution is running and become invisible
 once it is no longer running
 (completed, failed, interrupted or waiting for input), even though the model, wire
@@ -1025,8 +1025,7 @@ One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display. Hiding, backgrounding or detaching cancels that owner and settles the latest title. Cancelling an active transition replaces only its stateless animated text leaf,
 so an in-flight fade-in is retired even when its model phase is already settled;
 the transition owner and card keep their identity. Disabling cloud effects does
-not freeze text content. Title and excerpt animations use their ordinary timing
-under Reduce Motion. The [motion contract](../../../../../design/motion.md)
+not freeze text content. The [motion contract](../../../../../design/motion.md)
 describes Collection member opening and card removal. Native framework defaults
 and external Report HTML/CSS remain renderer-owned.
 
@@ -1534,10 +1533,8 @@ WindowServer. Wide/stacked openings, switches, first-link/reopen,
 resize and close/reversal still need visual acceptance when that scope is allowed.
 
 Report commits its initial folded layout through `NativeReadingEntranceStage`
-after primary reading travel. A preselected Note execution under Reduce Motion
-reserves its final side-by-side or stacked panes from the first Report layout.
-Document and execution readiness still govern content and input admission.
-The reduced-motion Note visit presents its ready content at full opacity. `NativeApplicationHTMLReadinessKey` carries the
+after primary reading travel. Document and execution readiness govern content
+and input admission. `NativeApplicationHTMLReadinessKey` carries the
 current source, thread, WebKit view generation and main-frame readiness.
 `NativeReportSidecardPresentation` waits for both gates, then 200ms, before
 admitting the latest pending selection. Report references and Browser share

@@ -26,6 +26,6 @@ After you stop a task yourself, you can archive its conversation once it has no 
 
 Super Threads have a separate archive action that also hides their source conversations. [Archive a Super Thread](reports-tags-and-changes.md#archive-a-super-thread)
 
-When the workspace has no cards left, Chief opens its input box as the last card fades away. With macOS **Reduce motion** enabled, the card disappears immediately.
+When the workspace has no cards left, Chief opens its input box as the last card fades away.
 
 [Back to the product guide](README.md)

@@ -23,9 +23,12 @@ public struct NativeMokuThreadView: View {
     public let onSendConsumed: (NativeComposerSubmission) async -> Void
     public let onCancel: () -> Void
     @Environment(\.locale) private var locale
+    @Environment(\.nativeReadingEntranceReady) private var entranceReady
+    @Environment(\.nativeReadingPanelHeight) private var readingPanelHeight
     @State private var navigation: ThreadDetailBackAction
     @State private var nestedNavigation: ThreadDetailBackAction?
     @State private var focusRequest = 0
+    @State private var composerHeight: CGFloat = 0
 
     public init(harnessHost: NativeHarnessHost, thread: HarnessThread, draft: NativeComposerDraft,
                 readingTarget: HarnessReadingTarget? = nil,
@@ -47,39 +50,54 @@ public struct NativeMokuThreadView: View {
     }
     public var body: some View {
         let label = backLabel ?? (locale.language.languageCode?.identifier == "zh" ? "返回俯瞰" : "Back to overview")
+        let inputReady = focusEnabled && entranceReady
         ThreadDetailFrame(navigation: navigation, onNavigationChange: { action in
             nestedNavigation = action
             onNavigationChange?(action)
         }) {
-            VStack(spacing: 12) {
-                VStack(spacing: 0) {
-                    NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
-                        routes: NativeHarnessThreadRoutes(interrupt: { onCancel() }, openFollowUp: { initialDraft in
-                            draft.text = initialDraft.string
-                            focusRequest &+= 1
-                        }, openExternal: externalRoute))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    if let message = displayError, !message.isEmpty, draft.error == nil {
-                        Text(message).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.thread.danger.swiftUI)
-                            .textSelection(.enabled).padding(.horizontal, 24).padding(.bottom, 12)
-                    }
+            GeometryReader { geometry in
+                let viewport = CGRect(origin: .zero, size: geometry.size)
+                let panelHeight = readingPanelHeight ?? viewport.height
+                let composerSeat = NativeMokuCapsuleLayout.frame(in: viewport, reading: true)
+                // A tall draft or a short window can bring the capsule over
+                // the card. Reserve its overlap in the scroll viewport only.
+                let clearance = max(0, panelHeight - (composerSeat.maxY - composerHeight) + 12)
+                ZStack(alignment: .topLeading) {
+                    conversation
+                        .modifier(NativeApplicationReadingPanel(enabled: true, suppressed: !inputReady,
+                            escapeEnabled: nestedNavigation.map { $0.id == navigation.id } ?? true,
+                            reservesAuxiliaryLane: false, minimumBottomInset: clearance,
+                            identifier: "moku-reading-panel", onClose: onBack))
+                        .frame(width: viewport.width, height: panelHeight)
+                    NativeMokuHistoryComposer(draft: draft, cwd: thread.cwd, disabled: disabled,
+                        running: running || thread.observation.isExecutionActive,
+                        focusEnabled: inputReady, focusRequestKey: focusRequest,
+                        suppressInitialFocus: readingTarget?.message != nil,
+                        onSend: onSend,
+                        onSendConsumed: onSendConsumed, onCancel: onCancel)
+                        .frame(width: composerSeat.width)
+                        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { composerHeight = $0 }
+                        .nativeCanvasNavigationRegion()
+                        .frame(width: viewport.width, height: composerSeat.maxY, alignment: .bottom)
                 }
-                .modifier(NativeApplicationReadingPanel(enabled: true, suppressed: !focusEnabled,
-                    escapeEnabled: nestedNavigation.map { $0.id == navigation.id } ?? true,
-                    identifier: "moku-reading-panel", onClose: onBack))
-                // Keep the draft outside the reading surface, aligned with its
-                // center rather than the shared panel's trailing toolbar seat.
-                NativeMokuHistoryComposer(draft: draft, cwd: thread.cwd, disabled: disabled,
-                    running: running || thread.observation.isExecutionActive,
-                    focusEnabled: focusEnabled, focusRequestKey: focusRequest,
-                    suppressInitialFocus: readingTarget?.message != nil,
-                    onSend: onSend,
-                    onSendConsumed: onSendConsumed, onCancel: onCancel)
-                    .frame(maxWidth: 560)
-                    .padding(.horizontal, 24).padding(.trailing, 76)
             }
         }
         .task(id: [thread.id, JSONText(label)]) { navigation = ThreadDetailBackAction(label: label, onBack: onBack) }
+    }
+
+    private var conversation: some View {
+        VStack(spacing: 0) {
+            NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
+                routes: NativeHarnessThreadRoutes(interrupt: { onCancel() }, openFollowUp: { initialDraft in
+                    draft.text = initialDraft.string
+                    focusRequest &+= 1
+                }, openExternal: externalRoute))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if let message = displayError, !message.isEmpty, draft.error == nil {
+                Text(message).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.thread.danger.swiftUI)
+                    .textSelection(.enabled).padding(.horizontal, 24).padding(.bottom, 12)
+            }
+        }
     }
     private var externalRoute: ((JSONText) async throws -> Void)? {
         openExternal.map { open in

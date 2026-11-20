@@ -12,7 +12,6 @@ struct NativeReportCollection: View {
     let openThread: (ApplicationThreadRef) -> Void
     @Environment(\.collectionReturnMember) private var returnMember
     @Environment(\.collectionReadingSource) private var readingSource
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: ApplicationThreadRef
     @State private var currentMembers: Set<ApplicationThreadRef>
     @State private var direction = 1
@@ -235,7 +234,6 @@ struct NativeReportCollection: View {
         .onChange(of: returnMember, initial: true) { _, ref in restoreReturnMember(ref) }
         .onChange(of: readingSource?.id, initial: true) { _, _ in revealReadingSource() }
         .onChange(of: outgoingID) { _, outgoing in if outgoing == nil { revealReadingSource() } }
-        .onChange(of: reduceMotion) { _, value in if value { revealReadingSource() } }
         .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
         .onChange(of: playing) { _, value in
             if !value { playbackStarted = nil }
@@ -290,7 +288,7 @@ struct NativeReportCollection: View {
 
     private func revealReadingSource() {
         guard let ref = readingSource?.member, let index = members.firstIndex(of: ref) else { return }
-        if reduceMotion || !active {
+        if !active {
             settle()
             selection = ref
             onSelection(ref)

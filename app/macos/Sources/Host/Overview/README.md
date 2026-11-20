@@ -257,8 +257,7 @@ Thread and Report archive, linked Threads hidden by Report archive, and
 visibility or coverage changes that remove a placement. Status and content
 updates that preserve membership keep the mounted card. When the final
 workspace card leaves, the Dock's landing composer takes input immediately
-while the empty canvas layout finishes the card's exit. Reduce Motion hides
-the canvas immediately on that handoff. **Clear all history**
+while the empty canvas layout finishes the card's exit. **Clear all history**
 is a workspace reset under Settings, where the covered canvas coalesces
 catalog changes and resumes from the latest projection.
 
@@ -383,8 +382,7 @@ observes fixed-count app rendering with explicit measurement limits.
 For a native check of the empty-workspace handoff, use an isolated profile
 with one ordinary Thread and Moku. Stop that Thread, then use its Overview
 archive button. The card leaves while the Moku composer becomes available.
-Repeat with Reduce Motion enabled and verify the immediate removal. Mounted
-geometry properties do not exercise this handoff.
+Mounted geometry properties do not exercise this handoff.
 
 ## Agent reading panels
 
@@ -561,8 +559,9 @@ is open; this is not a screen-sized popover or a zoomed canvas child. The panel
 uses a rounded regular Liquid Glass backdrop throughout opening, scrolling and
 return. Close floats in the upper-left corner and stays fixed as rows scroll.
 At logical panel widths of 320pt and above, the scroll viewport reaches the top
-edge and the centered grid leaves 54pt on each side for the 32pt Close button
-and its 14pt inset. Columns adapt up to 360pt per card with 20pt gaps.
+edge. The centered grid reserves at least 54pt on each side for the 32pt Close
+button and its 14pt inset. The first row’s top margin is 8pt smaller than the
+centered grid’s left margin. Columns adapt up to 360pt per card with 20pt gaps.
 In narrower panels, the single column uses the space below Close, with 14pt
 side margins. The 320pt layout scales to fit the panel width, including its
 scroll viewport and hit targets, so the cover, title and badge fit together. Cover
@@ -577,8 +576,7 @@ workspace coordinates. The stack expands the same native panel as an Overview
 open. Back returns to the retained member grid and uses the member frame at
 return time. The grid keeps its scroll position and cover playback state. Its
 controls and accessibility children are inactive while the reader covers it.
-Overview entries show Close and return to their current Overview card. Both
-Report routes skip panel travel under Reduce Motion.
+Overview entries show Close and return to their current Overview card.
 
 Reading evidence and foreground time accrue during the reader visit. The grid
 holds the pre-visit grouping rank of each member read from it until panel
@@ -626,7 +624,6 @@ its last content and grid seat for a 160ms fade and slight shrink. It immediatel
 stops accepting input, leaves the accessibility tree and pauses cover playback.
 Other members and Close remain available. Each exit has its own deadline.
 A returning reference resumes in the same mounted card with the current data.
-macOS Reduce Motion settles removals immediately, including in-progress exits.
 A surviving selection is retained; removal of that selection chooses a
 remaining member. If the new projection selects fewer than two eligible
 members, the panel closes and each remaining report appears individually. Archive
