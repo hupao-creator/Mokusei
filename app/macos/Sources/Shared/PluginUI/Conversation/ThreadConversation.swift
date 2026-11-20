@@ -102,7 +102,6 @@ public struct ThreadConversation: View {
     public let actions: AnyView?
     public let emptyState: AnyView?
     public let renderRow: ((JSONText) -> AnyView)?
-    @Environment(\.nativeThreadReservesHistoryRail) private var reservesHistoryRail
     @Environment(\.locale) private var locale
     @Environment(\.nativeReadingContentHandoff) private var contentHandoff
     @Environment(\.threadDetailNavigation) private var navigation
@@ -270,9 +269,6 @@ public struct ThreadConversation: View {
                 readingLayout.nativeReadingScope(interactionScope)
             }
         }
-        // This layout owns the rail. Nested loading/error rows already sit to
-        // its right and must not reserve another rail of their own.
-        .environment(\.nativeThreadReservesHistoryRail, false)
         .font(NativeTypography.inter(size: 16))
         .environment(\.nativeInteractionQuestionInDocument, true)
         .foregroundStyle(NativePalette.thread.ink.swiftUI)
@@ -308,20 +304,30 @@ public struct ThreadConversation: View {
     }
     private var readingLayout: some View {
         GeometryReader { bounds in
-            HStack(spacing: 0) {
-                if !executionCard && (tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
-                    ThreadHistorySidebar(rows: tocRows, selected: selectedRowID, current: currentRow?.id,
-                        availableWidth: bounds.size.width, focusRevision: sidebarFocusRevision, select: selectRow)
-                        .padding(.leading, 4).padding(.vertical, 64)
-                        .nativeReadingScope("sidebar")
-                        .zIndex(1)
+            if agentDetail {
+                pageStack.overlayPreferenceValue(ThreadDocumentLeadingMargin.self) { margin in
+                    historySidebar(availableWidth: bounds.size.width, margin: margin ?? 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                if !executionCard && reservesHistoryRail && !(tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
-                    Color.clear.frame(width: 48)
+            } else {
+                HStack(spacing: 0) {
+                    historySidebar(availableWidth: bounds.size.width, margin: ThreadHistorySidebar.preferredMargin)
+                    pageStack
                 }
-                pageStack
             }
-            .nativeReadingExitCommand(perform: readingPage ? { closeHistory() } : nil)
+        }
+        .nativeReadingExitCommand(perform: readingPage ? { closeHistory() } : nil)
+    }
+    @ViewBuilder private func historySidebar(availableWidth: CGFloat, margin: CGFloat) -> some View {
+        if !executionCard {
+            let rows = tocRows
+            if rows.count > 1 || rows.contains(where: \.history) || readingPage {
+                ThreadHistorySidebar(rows: rows, selected: selectedRowID, current: currentRow?.id,
+                    availableWidth: availableWidth, availableMargin: margin, focusRevision: sidebarFocusRevision, select: selectRow)
+                    .padding(.vertical, 64)
+                    .nativeReadingScope("sidebar")
+                    .zIndex(1)
+            }
         }
     }
     private var pageStack: some View {

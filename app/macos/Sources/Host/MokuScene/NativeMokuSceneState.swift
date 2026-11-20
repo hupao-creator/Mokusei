@@ -22,6 +22,8 @@ import MokuseiPluginUI
     public private(set) var historyVisit = UUID()
     public private(set) var cameraActive = false
     private var landingActive = false
+    // The handoff can cue only the Dock currently mounted in this scene.
+    @ObservationIgnored weak var dockCharacter: NativeMokuCharacterMotion?
     public private(set) var inputOpen = false
     public private(set) var inputPinnedOpen = false
     public private(set) var inputAdmissionReady = true
@@ -437,7 +439,10 @@ import MokuseiPluginUI
         onSettingsOpenChange?(false)
     }
     func setWindowVisible(_ value: Bool) {
-        if !value { talkPresentation.setPresented(false); closeNotePanel(cancelReading: false) }
+        if !value {
+            dockCharacter?.cancelOnboardingBlink()
+            talkPresentation.setPresented(false); closeNotePanel(cancelReading: false)
+        }
         windowVisible = value
         if value, mokuOpen, !cameraActive, let key = liveReplyKey { markReplyRead(key) }
     }

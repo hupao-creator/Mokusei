@@ -250,9 +250,14 @@ struct NativeOnboardingSurface: View {
             // Reveal the Dock behind the still-opaque panel first. Animating the
             // panel and the Dock against each other leaves both translucent over
             // the light workspace for a frame, which reads as a second flash.
+            let firstReveal = !state.dockVisible
             state.dockVisible = true
             try await Task.sleep(for: .milliseconds(30))
-            withAnimation(.easeInOut(duration: 0.18)) { panelVisible = false }
+            let revealDuration = 0.18
+            if firstReveal, scene.windowVisible {
+                scene.dockCharacter?.scheduleOnboardingBlink(at: .now.addingTimeInterval(revealDuration))
+            }
+            withAnimation(.easeInOut(duration: revealDuration)) { panelVisible = false }
             try await Task.sleep(for: .milliseconds(200))
             state.finishHandoff()
         } catch { return }

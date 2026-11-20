@@ -37,6 +37,25 @@ one interrupted execution. Real provider behavior/authentication, other Harnesse
 forks, archive button input, reconnect/restart recovery and cancellation invariants are not
 certified by these scenarios.
 
+### First-run handoff
+
+Launch the native app with a fresh private profile and a ready Chief-capable
+agent. With the window active and Reduce Motion off, record the window as you
+click **Start using Chief** on the Super Thread Agent page. Inspect the frames
+as the panel reaches the input box. Both eyes should be open as the box comes
+into view, then narrow together once and reopen in the same seat. Watch for
+the next idle blink after a full interval. Type in the
+revealed editor. Reopen the same profile and check that it skips setup.
+Repeat with a fresh profile for each interruption. Enable Reduce Motion during
+the final 180ms fade, or cover the window during the fade and uncover it during
+the following 320ms. Both eyes should be open on return and stay open until
+the next idle blink. Also enable Reduce Motion while the eyes are closing and
+check that they reopen immediately. In each case verify that you can type at
+handoff. Record the revision, the times of the interruption and return, and
+the eye frames through the next idle blink. Starting with Reduce Motion on
+also skips the handoff blink.
+This visual check exercises the [onboarding handoff](../../app/macos/Sources/Host/Onboarding/README.md).
+
 ### System appearance and language
 
 Use a private profile and a disposable macOS session for system-wide setting
@@ -180,6 +199,18 @@ the original timeout and sample when present, and the isolated cleanup receipt.
 Mounted readiness and UI request times measure different events from display
 frame times.
 
+### Agent reader alignment
+
+At a fixed main Agent panel width, show one short reply, extend that same reply
+until it scrolls, then shorten it again. Start the native replay process with
+`-AppleShowScrollBars Always`. Record the argument-domain value, the actual
+document scroll view's legacy style, clip width and vertical scroller visibility.
+Measure the heading or full-width divider against both panel edges. The short
+and long states must have the same centered column and wrap the same sample text
+identically. Check a narrow pane at or below 540pt and a pane wide enough to
+reach the 744pt column limit. Open an earlier run from the margin and return
+to verify the same geometry in both documents.
+
 ### Agent history composer
 
 Use an isolated profile with an ordinary Agent Thread and at least three
@@ -189,6 +220,22 @@ Check the visible run in each direction, including when returning to the first
 historical selection. Use distinct drafts to check that input follows the
 selected run and that selection leaves focus with the reader. The mounted
 history controls use the same navigation callbacks as the rail.
+
+To check the [Agent reader's history marks](../../app/macos/Sources/Shared/PluginUI/README.md#reading-panel-presentation),
+also start with one completed run and send a second at a fixed window size.
+Compare the heading and body frames before and after the marks appear. The
+column should keep its width and horizontal position. Check both marks in the
+leading margin. Start just outside the 24pt hit area and check that the preview
+stays closed. The selected and idle marks should be equally long and share a
+left edge. Hover each mark to open its preview. In a longer history check that
+nearby marks extend progressively less and that the original widths return
+when the pointer leaves. Click the earlier run
+and click the newest mark to return. Press Up immediately. The earlier preview
+should appear while the newest document stays on screen. Press Return and
+check that the earlier document opens. Repeat in the related-execution reader
+beside a Super Thread and at a narrow width. Record the viewport, document and
+mark bounds alongside the frames. The mounted navigation scenario alone does
+not measure this geometry.
 
 For the [composer geometry contract](../../design/composer.md#geometry-and-surfaces),
 record the isolated window during each selection. Check intermediate frames at

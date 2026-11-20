@@ -12,7 +12,6 @@ public extension EnvironmentValues {
     /// already arrived through the independent title/emoji handoff.
     @Entry var nativeThreadBodyEntranceHidden = false
     @Entry var nativeThreadReservesSidecardColumn = false
-    @Entry var nativeThreadReservesHistoryRail = false
     @Entry var nativeThreadIdentityVisit: NativeThreadIdentityVisit? = nil
 }
 
@@ -304,7 +303,7 @@ private final class ThreadIdentityInkHost: NSView {
 }
 
 /// The same heading and timeline layout, without any Harness rows or parser.
-/// Reserve the history rail across loading so data cannot shift the heading.
+/// The row-free reader shares the live document's width and margins.
 public struct NativeThreadOpeningContent: View {
     @Environment(\.nativeThreadIdentityVisit) private var visit
     private let showsLoading: Bool

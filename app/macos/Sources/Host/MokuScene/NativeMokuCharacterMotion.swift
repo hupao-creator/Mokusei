@@ -14,6 +14,7 @@ struct NativeMokuCharacterInput: Equatable {
     var capsuleSize: CGSize
     var cornerRadius: CGFloat
     var motion: Bool
+    var reduceMotion: Bool
     var dark: Bool
     var immediateOrbit = false
 }
@@ -61,6 +62,10 @@ struct NativeMokuCharacterPose {
     private var stationaryTarget: NativeMokuCharacterPose?
     private var blinkWake: Task<Void, Never>?
     private var blinkWakeDate: Date?
+    private(set) var onboardingBlinkStart: Date? {
+        didSet { face?.needsDisplay = true }
+    }
+    private var firstIdleBlink: Date?
     var onReasoningRetired: (() -> Void)?
 
     var currentReasoning: MokuReasoningContent? { input?.presentsReasoning == true ? reasoningAnimation.content : nil }
@@ -144,7 +149,31 @@ struct NativeMokuCharacterPose {
         visibilityChanged()
     }
 
+    private var canPlayOnboardingBlink: Bool {
+        NSApp.isActive && input?.motion == true && input?.reduceMotion == false && face?.motionVisible == true
+    }
+
+    func scheduleOnboardingBlink(at start: Date) {
+        guard firstIdleBlink == nil, canPlayOnboardingBlink else { return }
+        onboardingBlinkStart = start
+        firstIdleBlink = start.addingTimeInterval(NativeMokuCapsuleBlinkTiming.interval)
+        visibilityChanged()
+    }
+
+    func cancelOnboardingBlink() {
+        guard onboardingBlinkStart != nil else { return }
+        onboardingBlinkStart = nil
+        visibilityChanged()
+    }
+
     func visibilityChanged() {
+        let now = Date.now
+        // Latch loss of the original face here. Its AppKit hide and unhide can both
+        // arrive before SwiftUI next configures the Dock.
+        if let start = onboardingBlinkStart,
+           !canPlayOnboardingBlink || now >= start.addingTimeInterval(NativeMokuCapsuleBlinkTiming.duration) {
+            onboardingBlinkStart = nil
+        }
         let active = visible
         if active != wasVisible { lastWall = ProcessInfo.processInfo.systemUptime; wasVisible = active }
         guard active, let anchor = face ?? decorations else {
@@ -167,12 +196,9 @@ struct NativeMokuCharacterPose {
             linkView = anchor
             link?.add(to: .main, forMode: .common)
         }
-        let now = Date()
-        let blinkStart = Date(timeIntervalSinceReferenceDate:
-            floor(now.timeIntervalSinceReferenceDate / NativeMokuCapsuleBlinkTiming.interval)
-                * NativeMokuCapsuleBlinkTiming.interval)
+        let blink = NativeMokuCapsuleBlinkTiming.window(at: now, first: onboardingBlinkStart ?? firstIdleBlink)
         let faceVisible = face?.motionVisible == true
-        let blinking = faceVisible && now < blinkStart.addingTimeInterval(NativeMokuCapsuleBlinkTiming.duration)
+        let blinking = faceVisible && blink.contains(now)
         let moving = input?.running == true || isTransitioning
             || (input?.presentsReasoning == true && reasoningAnimation.needsFrames)
             || retirementPending || (!replacementGlyphs.isEmpty && clock - replacementAt < 220)
@@ -188,7 +214,7 @@ struct NativeMokuCharacterPose {
                 blinkWake?.cancel(); blinkWake = nil; blinkWakeDate = nil
                 return
             }
-            let next = blinkStart.addingTimeInterval(NativeMokuCapsuleBlinkTiming.interval)
+            let next = blink.lowerBound
             guard blinkWakeDate != next else { return }
             blinkWake?.cancel(); blinkWakeDate = next
             blinkWake = Task { @MainActor [weak self] in
@@ -275,7 +301,7 @@ struct NativeMokuCharacterPose {
     func paintFace(in context: CGContext, bounds: CGRect) {
         guard let input else { return }
         context.saveGState(); defer { context.restoreGState() }
-        let blink = visible ? NativeMokuCapsuleBlinkTiming.factor(at: Date()) : 1
+        let blink = visible ? NativeMokuCapsuleBlinkTiming.factor(at: .now, first: onboardingBlinkStart ?? firstIdleBlink) : 1
         let shape = NativeMokuCapsuleEyes(left: pose.eye("l"), right: pose.eye("r"), blink: blink)
         context.setFillColor((input.dark ? NSColor.white : NSColor.black).cgColor)
         context.addPath(shape.path(in: bounds).cgPath); context.fillPath()
@@ -350,6 +376,12 @@ struct NativeMokuCharacterSurface: NSViewRepresentable {
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         observers = []
         if let window {
+            if seat == .face {
+                observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,
+                    object: NSApp, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.controller.cancelOnboardingBlink() }
+                })
+            }
             for name in [NSWindow.didChangeOcclusionStateNotification, NSWindow.didMiniaturizeNotification,
                          NSWindow.didDeminiaturizeNotification] {
                 observers.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
