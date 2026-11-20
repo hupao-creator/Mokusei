@@ -2,7 +2,7 @@
 
 ## Find a task by folder or tag
 
-Press **⌘K** to open **Overview**. Select **All** to see the full view, or click a project folder to see its tasks. Move the pointer over a folder with tags to pick one of its tags. Tasks with no project folder go into Inbox. Their tags appear directly in the filter bar.
+Press **⌘K** to open **Overview**. In the filter bar at the top center, select **All** to see the full view, or click a project folder to see its tasks. If the bar wraps to a second row, look below the window controls. Move the pointer over a folder with tags to pick one of its tags. Tasks with no project folder go into Inbox. Their tags appear directly in the filter bar.
 
 Folders with the same name appear separately. If a folder and its only tag show the same cards, select the folder. If your filter seems too narrow, choose **All**.
 

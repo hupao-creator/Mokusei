@@ -89,13 +89,21 @@ private final class WheelSample: NSEvent {
         let directory = URL(filePath: FileManager.default.currentDirectoryPath).appending(path: "evidence")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var records: [[String: Any]] = []
-        for (size, scale) in [(CGSize(width: 860, height: 640), 5.0), (CGSize(width: 1100, height: 760), 1.0), (CGSize(width: 1100, height: 760), 1.44),
-                              (CGSize(width: 860, height: 640), 5.0), (CGSize(width: 860, height: 600), 5.0)] {
+        // Filter tops are logical points. Native button centers are window points.
+        let cases: [(size: CGSize, scale: CGFloat, filterTop: CGFloat, buttonCenter: CGFloat)] = [
+            (CGSize(width: 860, height: 640), 5, 76, 225),
+            (CGSize(width: 1100, height: 760), 1, 16, 57),
+            (CGSize(width: 1100, height: 760), 1.44, 16, 68.24),
+            (CGSize(width: 860, height: 640), 2.5, 76, 112.5),
+            (CGSize(width: 860, height: 640), 5, 76, 225),
+            (CGSize(width: 860, height: 600), 5, 68, 225),
+        ]
+        for (size, scale, filterTop, buttonCenter) in cases {
             zoom = scale
             window.setContentSize(size)
             window.setFrameTopLeftPoint(CGPoint(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY + size.height / 2))
             try await Task.sleep(for: .seconds(2))
-            let result = try inspect(window, scale: scale)
+            let result = try inspect(window, scale: scale, filterTop: filterTop, buttonCenter: buttonCenter)
             if CommandLine.arguments.contains("--capture"), scale == 1.44 || records.isEmpty {
                 try await capture(window, to: directory.appending(path: scale == 5 ? "maximum.png" : "menu.png"))
             }
@@ -131,7 +139,7 @@ private final class WheelSample: NSEvent {
         return nil
     }
 
-    private func inspect(_ window: NSWindow, scale: CGFloat) throws -> [String: Any] {
+    private func inspect(_ window: NSWindow, scale: CGFloat, filterTop: CGFloat, buttonCenter: CGFloat) throws -> [String: Any] {
         guard let content = window.contentView, let frame = content.superview,
               let host = descendant(NativeReadingParentView.self, in: content),
               let monitor = descendant(NativeOverviewScrollInput.MonitorView.self, in: host),
@@ -162,21 +170,23 @@ private final class WheelSample: NSEvent {
                 return frame.hitTest(frame.superview?.convert(point, from: nil) ?? point) === button
             }
         }
-        // Actual-size and menu zoom fit one row. The rendered tag scroller is an
-        // independent sibling of both the action row and its native anchor.
-        // At 5× the actions occupy the separate first row (24pt inset, 42pt height).
-        let rowCenter = scale == 5 ? window.frame.height - 45 * scale : filterFrame.midY
-        let aligned = rects.allSatisfy { abs($0.midY - rowCenter) <= 0.5 }
+        let buttonCenters = rects.map { window.frame.height - $0.midY }
+        let aligned = buttonCenters.allSatisfy { abs($0 - buttonCenter) <= 0.5 }
+        let renderedFilterTop = window.frame.height - filterFrame.maxY
+        let filterPositioned = abs(renderedFilterTop - filterTop * scale) <= 0.5
+        let filterBottom = window.frame.height - filterFrame.minY
         let filterInside = filterFrame.minY >= 0 && filterFrame.maxY <= window.frame.height
+        let filterExcluded = filterBottom <= boundary * scale
         let strip = size.height - boundary
         let inputPoint = monitor.windowPoint(below)
         let pointInside = CGRect(origin: .zero, size: window.frame.size).contains(inputPoint)
         return ["windowSize": [window.frame.width, window.frame.height], "scale": scale,
-                "logicalViewport": [size.width, size.height], "filterTopInWindow": window.frame.height - filterFrame.maxY,
-                "filterBottomInWindow": window.frame.height - filterFrame.minY,
-                "buttonCentersFromTop": rects.map { window.frame.height - $0.midY }, "buttonHits": hits,
+                "logicalViewport": [size.width, size.height], "filterTopInWindow": renderedFilterTop,
+                "expectedFilterTopInWindow": filterTop * scale, "filterBottomInWindow": filterBottom,
+                "buttonCentersFromTop": buttonCenters, "expectedButtonCenterFromTop": buttonCenter, "buttonHits": hits,
                 "headerInputBottom": boundary, "canvasStripHeight": strip, "inputPointInWindow": [inputPoint.x, inputPoint.y],
                 "rejectsHeader": rejectsHeader, "wheelPanned": scrolled, "pinchEnteredManual": pinched,
-                "passed": buttons.count == 3 && hits && aligned && filterInside && strip >= 8 && pointInside && rejectsHeader && scrolled && pinched]
+                "passed": buttons.count == 3 && hits && aligned && filterPositioned && filterInside && filterExcluded
+                    && strip >= 8 && pointInside && rejectsHeader && scrolled && pinched]
     }
 }

@@ -110,8 +110,8 @@ public struct NativeOverviewChrome: View {
     }
 
     public var body: some View {
-        let topInset = viewportHeight.map(NativeMokuCapsuleLayout.restingInset(forHeight:)) ?? NativeWindowNavigationGeometry.top
-        let rowOffset = OverviewTagMetrics.secondRowOffset(viewportHeight: viewportHeight ?? .infinity, topInset: topInset)
+        let actionTop = viewportHeight.map(NativeMokuCapsuleLayout.restingInset(forHeight:)) ?? NativeWindowNavigationGeometry.top
+        let stackedFilterTop = OverviewTagMetrics.stackedFilterTop(viewportHeight: viewportHeight ?? .infinity, actionTop: actionTop)
         GeometryReader { geometry in
             let narrow = geometry.size.width <= CGFloat(NativeOverviewCameraGeometry.compactViewportWidth)
             let inset: CGFloat = narrow ? 14 : 18
@@ -127,19 +127,19 @@ public struct NativeOverviewChrome: View {
                     if alignsWindowControls { NativeWindowControlPlacement.OverviewRow().accessibilityHidden(true) }
                 }
                 .padding(.horizontal, inset)
+                .padding(.top, actionTop)
                 // Retain the scroll/container identities through an empty result so
                 // outgoing surfaces can finish, while hiding the empty bar as before.
                 filtersBar(maximumWidth: maximumFilterWidth)
                     .frame(width: min(naturalFilterWidth, maximumFilterWidth), height: OverviewTagMetrics.barHeight)
-                    .padding(.top, stacked ? rowOffset : 0)
+                    .padding(.top, stacked ? stackedFilterTop : OverviewTagMetrics.singleRowFilterTop)
                     .opacity(presentedFilters.isEmpty ? 0 : 1)
                     .allowsHitTesting(!presentedFilters.isEmpty)
                     .disabled(presentedFilters.isEmpty)
                     .accessibilityHidden(presentedFilters.isEmpty)
             }
-            .padding(.top, topInset)
         }
-        .frame(height: topInset + rowOffset + OverviewTagMetrics.chipHeight)
+        .frame(height: stackedFilterTop + OverviewTagMetrics.chipHeight)
         .onChange(of: cameraManual) { _, manual in
             withAnimation(.smooth(duration: 0.32)) { returnToAutoVisible = manual }
         }
@@ -687,13 +687,15 @@ enum OverviewTagMetrics {
     /// Tag filters, traffic-light capsules and circular actions share one height.
     static let actionDiameter = NativeWindowNavigationGeometry.height
     static let barHeight = chipHeight
+    static let singleRowFilterTop: CGFloat = 16
+    private static let preferredStackedFilterTop: CGFloat = 76
     private static let headerClearance: CGFloat = 2
     private static let minimumCanvasStrip: CGFloat = 8
 
-    /// Shorten the inter-row gap at high zoom so both rows and the canvas input strip fit.
-    static func secondRowOffset(viewportHeight: CGFloat, topInset: CGFloat) -> CGFloat {
-        let available = viewportHeight - topInset - chipHeight - headerClearance - minimumCanvasStrip
-        return min(66, max(chipHeight, available))
+    /// Keep the preferred filter position when there is room for both rows and canvas input.
+    static func stackedFilterTop(viewportHeight: CGFloat, actionTop: CGFloat) -> CGFloat {
+        let latestTop = viewportHeight - chipHeight - headerClearance - minimumCanvasStrip
+        return max(actionTop + actionDiameter, min(preferredStackedFilterTop, latestTop))
     }
     static func stacksFilters(in width: CGFloat) -> Bool {
         // Two action envelopes (up to three buttons) and a 96pt central filter viewport.
@@ -701,9 +703,10 @@ enum OverviewTagMetrics {
     }
 
     static func headerBottom(in size: CGSize, hasFilters: Bool) -> CGFloat {
-        let top = NativeMokuCapsuleLayout.restingInset(forHeight: size.height)
-        let rowOffset = hasFilters && stacksFilters(in: size.width) ? secondRowOffset(viewportHeight: size.height, topInset: top) : 0
-        return top + rowOffset + chipHeight + headerClearance
+        let actionTop = NativeMokuCapsuleLayout.restingInset(forHeight: size.height)
+        let actionBottom = actionTop + actionDiameter
+        guard hasFilters, stacksFilters(in: size.width) else { return actionBottom + headerClearance }
+        return stackedFilterTop(viewportHeight: size.height, actionTop: actionTop) + chipHeight + headerClearance
     }
     /// Packing and camera framing are independent of the floating input regions.
     static let wideToolbarClearance = 18 + chipHeight
