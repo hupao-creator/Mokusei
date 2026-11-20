@@ -91,6 +91,7 @@ struct NativeReportDetail: View {
     @State private var localSidecards = NativeReportSidecardPresentation()
     @State private var entranceAdmitted = false
     @State private var referencesRevealed = false
+    @State private var excerpts: [JSONText: String] = [:]
     @Environment(\.nativeReportSidecards) private var sharedSidecards
     @FocusState private var launcherFocused: Bool
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
@@ -102,6 +103,10 @@ struct NativeReportDetail: View {
     private var selected: ApplicationExecutionRef? { sidecards.selectedExecution }
     private var expanded: Bool { sidecards.active == .relatedExecutions }
     var body: some View {
+        let excerptSources = Set(references.compactMap { $0.preview?.excerpt }.filter { !$0.codeUnits.isEmpty })
+        let excerptsReady = excerptSources.isSubset(of: excerpts.keys)
+        let excerptPreparation = expanded && !suppressed && returning == nil ? excerptSources : nil
+        let listVisible = excerptsReady && referencesRevealed
         GeometryReader { geometry in
             let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: expanded,
                 preferredWidth: selected == nil ? 0.3 : 0.5)
@@ -141,8 +146,16 @@ struct NativeReportDetail: View {
                                 .padding(12)
                             }
                     } else {
-                        referencesContent
-                            .opacity(referencesRevealed ? 1 : 0)
+                        referencesContent(visible: expanded && !suppressed && listVisible)
+                            .opacity(listVisible ? 1 : 0)
+                            .allowsHitTesting(listVisible)
+                            .disabled(!listVisible)
+                            .accessibilityHidden(!listVisible)
+                            .overlay {
+                                if !excerptsReady {
+                                    ProgressView().controlSize(.small)
+                                }
+                            }
                     }
                 }
                 .environment(\.nativeReadingNavigation, nil)
@@ -182,9 +195,23 @@ struct NativeReportDetail: View {
         .onDisappear { unsubscribe?(); unsubscribe = nil; sidecards.cancel(); entranceAdmitted = false }
         .onChange(of: expanded) { _, open in
             if open { refresh() }
-            if open && !referencesRevealed {
+        }
+        .onChange(of: expanded && !suppressed && selected == nil && excerptsReady, initial: true) { _, ready in
+            if ready && !referencesRevealed {
                 withAnimation(.easeOut(duration: 0.2)) { referencesRevealed = true }
             }
+        }
+        .task(id: excerptPreparation) {
+            guard let sources = excerptPreparation else { return }
+            // Keep prepared text with the Report, across replacements of the
+            // list by the execution reader. Publish only a complete source set.
+            var prepared = excerpts.filter { sources.contains($0.key) }
+            for source in sources where prepared[source] == nil {
+                let text = await NativeMarkdownSummary.plainText(source.string, limit: 600)
+                guard !Task.isCancelled else { return }
+                prepared[source] = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            }
+            if !Task.isCancelled, prepared != excerpts { excerpts = prepared }
         }
         .onChange(of: [entranceReady && entranceAdmitted && !suppressed, returning != nil]) { _, _ in
             sidecards.updateLayout(ready: entranceReady && entranceAdmitted && !suppressed,
@@ -257,7 +284,7 @@ struct NativeReportDetail: View {
         .preference(key: NativeReadingAuxiliaryBackKey.self, value: auxiliaryBack)
     }
 
-    private var referencesContent: some View {
+    private func referencesContent(visible: Bool) -> some View {
         NativeScrollView {
             GlassEffectContainer(spacing: 8) {
                 VStack(alignment: .leading, spacing: 14) {
@@ -273,7 +300,8 @@ struct NativeReportDetail: View {
                             try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).logo(id, 12)
                         },
                             relation: relations?.revision == props.entry.revision ? relations?.items.first(where: { $0.reference == item.reference }) : nil,
-                            visible: expanded && !suppressed && (referencesRevealed)) {
+                            excerpt: item.preview.flatMap { excerpts[$0.excerpt] } ?? "",
+                            visible: visible) {
                             guard !sidecards.retainingForReturn else { return }
                             failure = nil
                             openingReference = item.reference

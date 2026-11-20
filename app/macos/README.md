@@ -141,9 +141,13 @@ Missing, out-of-scope or execution-less Threads leave the list open with an unav
 notice; query failures remain retryable by clicking again. Closing, covering or
 replacing the sidecard invalidates pending navigation. Unknown timing is
 explicit; absent eligible agent text leaves the excerpt empty. Reduced Transparency
-uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list begins directly with its items. Returning preserves the existing sidecard navigation and
-execution reader scroll ownership. The list fades in on its first opening in a
-Report visit. Each selected execution waits for its scoped row and Markdown
+uses opaque reading surfaces. Details use a floating Liquid Glass back button;
+the list begins directly with its items. The Report prepares and retains the
+current Markdown excerpts while its related sidecard is open, including during
+execution detail. The list shows a loading indicator if those excerpts are still
+preparing and fades in once on its first reveal in a Report visit. Folded and
+covered sidecards suspend excerpt work, and clocks only tick in the visible list.
+Each selected execution waits for its scoped row and Markdown
 parse readiness, then fades its entire native reader in once over 200ms. A visible
 loading indicator covers preparation; hidden reader controls and accessibility
 are excluded. Read errors and unavailable executions also admit readable content.
