@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hupao-creator/Chief/internal/core/model"
 	"github.com/hupao-creator/Chief/internal/core/plugin"
@@ -49,8 +50,13 @@ func (m *Manager) RemoveManaged(ctx context.Context, t model.ThreadRecord, prote
 	if proof.OwnerThreadID == "" {
 		return "", plugin.CallerError(errors.New("managed worktree lacks matching Thread ownership"))
 	}
+	s := proof.Snapshot
+	rel, err := filepath.Rel(s.Root, cwd)
+	if err != nil || !within(s.Root, cwd) || filepath.Join(s.BaseRoot, rel) != t.Cwd {
+		return "", errors.New("Thread base directory differs from worktree ownership proof")
+	}
 	if proof.RemovalStage != "" {
-		root, err := m.removalOutcome(ctx, t.Cwd, proof)
+		root, err := m.removalOutcome(ctx, proof)
 		if root != "" || err != nil {
 			return root, err
 		}
@@ -58,28 +64,63 @@ func (m *Manager) RemoveManaged(ctx context.Context, t model.ThreadRecord, prote
 			return "", errors.New("a Git registration occupies the retired path; retained")
 		}
 	}
-	if err := m.validatePaths(ctx, t); err != nil {
-		return "", err
-	}
-	s, proof, err := m.inspectOwned(ctx, requestFor(t), "remove")
-	if err != nil {
-		return "", err
-	}
 	if err := checkWorkspaceUsers(s, protected); err != nil {
 		return "", err
 	}
-	if err := verifyRecoveryHistory(ctx, s); err != nil {
+	present, err := exists(s.Root)
+	if err != nil {
 		return "", err
 	}
-	if err := verifyCheckout(ctx, s); err != nil {
+	if present {
+		// Removal belongs to the proven root, even if a commit renamed the
+		// original execution subdirectory. Normal execution still needs its cwd.
+		rootTree := model.Worktree{Cwd: s.Root}
+		t.Cwd, t.Worktree = s.BaseRoot, &rootTree
+		if err := m.validatePaths(ctx, t); err != nil {
+			return "", err
+		}
+		expected := s
+		expected.ExecutionCwd, expected.ExecutionCwdIdentity = s.Root, s.Identity
+		head := ""
+		if proof.InitialGrantPending {
+			head = proof.CreationHeadOID
+		}
+		s, err = inspect(ctx, s.BaseRoot, rootTree, head, &expected)
+	} else if proof.RemovalStage == removing {
+		s.HeadOID, err = inspectRemainingRegistration(ctx, s)
+	} else {
+		return "", errors.New("checkout missing without a recorded removal intent; registration retained")
+	}
+	if err != nil {
 		return "", err
 	}
-	if _, err := inspect(ctx, t.Cwd, *t.Worktree, s.HeadOID, &s); err != nil {
+	intentHead := s.HeadOID
+	if proof.RemovalStage == removing {
+		intentHead = proof.CurrentHeadOID
+	}
+	if err := verifyRecoveryHistory(ctx, s, intentHead); err != nil {
 		return "", err
+	}
+	if err := verifyCheckout(ctx, s, proof.CreatedDirectories, present); err != nil {
+		return "", err
+	}
+	if present {
+		if _, err := inspect(ctx, s.BaseRoot, model.Worktree{Cwd: s.Root}, s.HeadOID, &s); err != nil {
+			return "", err
+		}
+	} else {
+		head, err := inspectRemainingRegistration(ctx, s)
+		if err != nil {
+			return "", err
+		}
+		if head != s.HeadOID {
+			return "", errors.New("private HEAD changed during registration recovery; retained")
+		}
 	}
 
 	if proof.RemovalStage == "" {
 		proof.RemovalStage = removing
+		proof.CurrentHeadOID = s.HeadOID
 		if err := m.recordRemoval(proof); err != nil {
 			return "", err
 		}
@@ -87,14 +128,72 @@ func (m *Manager) RemoveManaged(ctx context.Context, t model.ThreadRecord, prote
 	// A nonzero exit can still mean Git removed the registration. Reconcile
 	// before deciding whether this Thread still has an execution workspace.
 	_, gitErr := runGit(ctx, s.BaseRoot, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "-c", "status.showUntrackedFiles=all", "worktree", "remove", "--", s.Root)
-	root, err := m.removalOutcome(context.WithoutCancel(ctx), t.Cwd, proof)
+	root, err := m.removalOutcome(context.WithoutCancel(ctx), proof)
 	if root != "" && err == nil {
 		return root, nil
 	}
-	if root == "" && err == nil && gitErr == nil {
-		err = errors.New("Git still registers the worktree after removal")
+	if root == "" && err == nil {
+		err = errors.New("Git still registers the worktree; resolve any reported access error and retry this Thread")
 	}
 	return root, errors.Join(err, gitErr)
+}
+
+// Git may remove the checkout before it can unlink its admin files. Without
+// the forward .git pointer, authority comes from the persisted intent, exact
+// private directory identity, unique registration and surviving backlinks.
+func inspectRemainingRegistration(ctx context.Context, s snapshot) (string, error) {
+	if present, err := exists(s.Root); err != nil || present {
+		return "", errors.Join(err, errors.New("checkout absence cannot be confirmed; registration retained"))
+	}
+	if err := privateDirectory(s.StagingRoot); err != nil {
+		return "", err
+	}
+	if filepath.Dir(s.GitDirectory) != filepath.Join(s.CommonDirectory, "worktrees") || filepath.Dir(s.Root) != s.StagingRoot {
+		return "", errors.New("unexpected linked worktree registration path")
+	}
+	for _, entry := range []struct {
+		path string
+		id   directoryIdentity
+	}{
+		{s.GitDirectory, s.GitDirectoryIdentity}, {s.CommonDirectory, s.CommonDirectoryIdentity},
+		{s.StagingRoot, s.StagingRootIdentity}, {s.BaseRoot, s.BaseRootIdentity}, {s.ObjectDirectory, s.ObjectDirectoryIdentity},
+	} {
+		real, err := canonical(entry.path)
+		if err != nil {
+			return "", err
+		}
+		if real != entry.path {
+			return "", fmt.Errorf("registration path changed; retained: %s", entry.path)
+		}
+		if err := assertIdentity(entry.path, entry.id); err != nil {
+			return "", err
+		}
+	}
+	for _, pointer := range []struct{ name, target string }{{"gitdir", filepath.Join(s.Root, ".git")}, {"commondir", s.CommonDirectory}} {
+		body, err := readRegular(filepath.Join(s.GitDirectory, pointer.name), 64<<10)
+		if err != nil {
+			return "", err
+		}
+		value := strings.TrimSuffix(string(body), "\n")
+		if filepath.Clean(value) != value || resolve(s.GitDirectory, value) != pointer.target {
+			return "", fmt.Errorf("private %s pointer changed; registration retained", pointer.name)
+		}
+	}
+	if present, err := exists(s.PackedRefsLock); err != nil || present {
+		return "", errors.Join(err, errors.New("cannot verify unlocked shared refs"))
+	}
+	if err := assertRegistered(ctx, s.BaseRoot, s.Root); err != nil {
+		return "", err
+	}
+	head, err := readRegular(filepath.Join(s.GitDirectory, "HEAD"), 128)
+	if err != nil {
+		return "", err
+	}
+	oid := strings.TrimSuffix(string(head), "\n")
+	if len(oid) != len(s.HeadOID) || !oidPattern.MatchString(oid) {
+		return "", errors.New("remaining registration lacks a detached HEAD")
+	}
+	return oid, nil
 }
 
 func (m *Manager) recordRemoval(p ownershipProof) error {
@@ -110,9 +209,9 @@ func (m *Manager) recordRemoval(p ownershipProof) error {
 // A nonempty root means the proven Git registration and admin directory are
 // gone: retire execution even if the filesystem retained a checkout remnant.
 // No recovery path removes anything from an unregistered directory.
-func (m *Manager) removalOutcome(ctx context.Context, cwd string, p ownershipProof) (string, error) {
+func (m *Manager) removalOutcome(ctx context.Context, p ownershipProof) (string, error) {
 	s := p.Snapshot
-	base, err := repositoryContext(ctx, cwd)
+	base, err := repositoryContext(ctx, s.BaseRoot)
 	if err != nil {
 		return "", err
 	}

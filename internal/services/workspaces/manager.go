@@ -68,12 +68,13 @@ type observationAuthority struct {
 	Managed           *Validation
 }
 type ownershipProof struct {
-	Snapshot            snapshot `json:"snapshot"`
-	OwnerThreadID       string   `json:"ownerThreadId"`
-	CreationHeadOID     string   `json:"creationHeadOid"`
-	CurrentHeadOID      string   `json:"currentHeadOid"`
-	InitialGrantPending bool     `json:"initialGrantPending"`
-	RemovalStage        string   `json:"removalStage,omitempty"`
+	CreatedDirectories  map[string]directoryIdentity `json:"createdDirectories,omitempty"`
+	Snapshot            snapshot                     `json:"snapshot"`
+	OwnerThreadID       string                       `json:"ownerThreadId"`
+	CreationHeadOID     string                       `json:"creationHeadOid"`
+	CurrentHeadOID      string                       `json:"currentHeadOid"`
+	InitialGrantPending bool                         `json:"initialGrantPending"`
+	RemovalStage        string                       `json:"removalStage,omitempty"`
 }
 
 func New(paths Paths) *Manager {
@@ -262,7 +263,8 @@ func (m *Manager) PrepareForStart(ctx context.Context, baseCwd, threadID string,
 	if subdir != "." {
 		executionCwd = filepath.Join(root, subdir)
 	}
-	if err = ensureDirectoryPath(root, executionCwd, rootID); err != nil {
+	created, err := ensureDirectoryPath(root, executionCwd, rootID)
+	if err != nil {
 		return rollback(err)
 	}
 	executionCwd, err = canonical(executionCwd)
@@ -287,7 +289,7 @@ func (m *Manager) PrepareForStart(ctx context.Context, baseCwd, threadID string,
 			return rollback(errors.New("thread already owns another managed worktree"))
 		}
 	}
-	proof := ownershipProof{Snapshot: s, OwnerThreadID: threadID, CreationHeadOID: s.HeadOID, CurrentHeadOID: s.HeadOID, InitialGrantPending: true}
+	proof := ownershipProof{CreatedDirectories: created, Snapshot: s, OwnerThreadID: threadID, CreationHeadOID: s.HeadOID, CurrentHeadOID: s.HeadOID, InitialGrantPending: true}
 	next := cloneProofs(m.proofs)
 	next[s.Root] = proof
 	if err = m.persist(next); err != nil {
@@ -341,7 +343,7 @@ func (m *Manager) inspectOwned(ctx context.Context, r AuthorizationRequest, poli
 	if !found {
 		return empty, zero, errors.New("managed worktree lacks thread-bound Core ownership")
 	}
-	if p.RemovalStage != "" && policy != "remove" {
+	if p.RemovalStage != "" {
 		return empty, zero, errors.New("managed worktree removal pending; retry removal")
 	}
 	expected := r.ExpectedHeadOID
@@ -384,9 +386,8 @@ func (m *Manager) inspectOwned(ctx context.Context, r AuthorizationRequest, poli
 		if err = ctx.Err(); err != nil {
 			return empty, zero, err
 		}
-		previous := p
-		p.CurrentHeadOID = verified.HeadOID
-		if p != previous {
+		if p.CurrentHeadOID != verified.HeadOID {
+			p.CurrentHeadOID = verified.HeadOID
 			next := cloneProofs(m.proofs)
 			next[verified.Root] = p
 			if err = m.persist(next); err != nil {
@@ -439,7 +440,7 @@ func (m *Manager) advance(ctx context.Context, r AuthorizationRequest, s snapsho
 	nextProof := previous
 	nextProof.CurrentHeadOID = s.HeadOID
 	nextProof.InitialGrantPending = false
-	changed := nextProof != previous
+	changed := previous.InitialGrantPending || previous.CurrentHeadOID != s.HeadOID
 	if changed {
 		next := cloneProofs(m.proofs)
 		next[s.Root] = nextProof

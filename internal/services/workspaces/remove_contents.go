@@ -25,8 +25,8 @@ var dirtyCheckout = plugin.CallerError(errors.New("worktree contains uncommitted
 // Compare three independent representations: the committed tree, index entries
 // and the actual directory entries and bytes. Git status can report clean based
 // solely on cached stat data, file-type emulation or a lossy clean filter.
-func verifyCheckout(ctx context.Context, s snapshot) error {
-	tree, err := runGit(ctx, s.Root, "--no-lazy-fetch", "--no-replace-objects", "ls-tree", "-rtz", s.HeadOID)
+func verifyCheckout(ctx context.Context, s snapshot, created map[string]directoryIdentity, checkoutPresent bool) error {
+	tree, err := runGit(ctx, s.BaseRoot, "--no-lazy-fetch", "--no-replace-objects", "ls-tree", "-rtz", s.HeadOID)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func verifyCheckout(ctx context.Context, s snapshot) error {
 	if err := verifyObjectTypes(ctx, s.BaseRoot, blobs.String(), "blob"); err != nil {
 		return err
 	}
-	if err := verifyIndex(ctx, s, entries, filesInTree); err != nil {
+	if err := verifyIndex(ctx, s, entries, filesInTree, checkoutPresent); err != nil || !checkoutPresent {
 		return err
 	}
 	err = filepath.WalkDir(s.Root, func(path string, d fs.DirEntry, err error) error {
@@ -74,6 +74,11 @@ func verifyCheckout(ctx context.Context, s snapshot) error {
 		}
 		entry, ok := entries[name]
 		if !ok {
+			// Keep walking each proven directory. Every descendant must also
+			// match a committed entry or an original Chief-created directory.
+			if id, owned := created[name]; owned && d.IsDir() && strings.Trim(id.Birthtime, "0.") != "" {
+				return assertIdentity(path, id)
+			}
 			return dirtyCheckout
 		}
 		delete(entries, name)
@@ -99,8 +104,18 @@ func verifyCheckout(ctx context.Context, s snapshot) error {
 	return nil
 }
 
-func verifyIndex(ctx context.Context, s snapshot, entries map[string]treeEntry, filesInTree int) error {
-	files, err := runGit(ctx, s.Root, "--no-optional-locks", "-c", "core.fsmonitor=false", "ls-files", "--stage", "-v", "-z")
+func verifyIndex(ctx context.Context, s snapshot, entries map[string]treeEntry, filesInTree int, checkoutPresent bool) error {
+	// ls-files reads only the private index. An explicit existing cwd lets it
+	// inspect staged work even after Git has unlinked the physical checkout.
+	cwd := s.Root
+	if !checkoutPresent {
+		cwd = s.BaseRoot
+		if present, err := exists(filepath.Join(s.GitDirectory, "index")); err != nil || !present {
+			return err
+		}
+	}
+	options := []string{"--git-dir=" + s.GitDirectory, "--work-tree=" + cwd, "--no-optional-locks", "-c", "core.fsmonitor=false"}
+	files, err := runGit(ctx, cwd, append(options, "ls-files", "--stage", "-v", "-z")...)
 	if err != nil {
 		return err
 	}
@@ -126,12 +141,15 @@ func verifyIndex(ctx context.Context, s snapshot, entries map[string]treeEntry, 
 	if count != filesInTree {
 		return dirtyCheckout
 	}
-	undo, err := runGit(ctx, s.Root, "--no-optional-locks", "ls-files", "--resolve-undo", "-z")
+	undo, err := runGit(ctx, cwd, append(options, "ls-files", "--resolve-undo", "-z")...)
 	if err != nil {
 		return err
 	}
 	if undo != "" {
 		return errors.New("worktree index contains conflict recovery entries; retained")
+	}
+	if !checkoutPresent {
+		return nil
 	}
 	// Only accept a literal checkout. A configured clean conversion may map
 	// distinct working copies to the same blob or execute an external driver.
@@ -145,6 +163,9 @@ func verifyIndex(ctx context.Context, s snapshot, entries map[string]treeEntry, 
 			return errors.New("cannot verify checkout attributes")
 		}
 		for i := 0; i < len(fields); i += 3 {
+			if fields[i+1] == "text" && fields[i+2] == "auto" {
+				continue
+			}
 			switch fields[i+1] {
 			case "filter", "working-tree-encoding", "ident", "text", "eol", "crlf":
 				if fields[i+2] != "unset" {

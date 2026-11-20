@@ -150,12 +150,16 @@ func registered(ctx context.Context, base, root string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	found := false
 	for _, e := range strings.Split(out, "\x00") {
 		if strings.HasPrefix(e, "worktree ") && filepath.Clean(strings.TrimPrefix(e, "worktree ")) == filepath.Clean(root) {
-			return true, nil
+			if found {
+				return false, fmt.Errorf("multiple Git registrations name %s; retained", root)
+			}
+			found = true
 		}
 	}
-	return false, nil
+	return found, nil
 }
 func assertRegistered(ctx context.Context, base, root string) error {
 	yes, err := registered(ctx, base, root)

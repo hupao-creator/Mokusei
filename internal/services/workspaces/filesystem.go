@@ -349,33 +349,43 @@ func stagingCandidateName(label string, attempt int, randomSuffix bool, random f
 	}
 	return label + "-" + suffix[:4], nil
 }
-func ensureDirectoryPath(root, target string, id directoryIdentity) error {
+func ensureDirectoryPath(root, target string, id directoryIdentity) (map[string]directoryIdentity, error) {
 	if !within(root, target) {
-		return errors.New("execution directory escapes worktree")
+		return nil, errors.New("execution directory escapes worktree")
 	}
-	rel, _ := filepath.Rel(root, target)
-	current := root
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return nil, err
+	}
 	if rel == "." {
-		return assertIdentity(root, id)
+		return nil, assertIdentity(root, id)
 	}
+	created := make(map[string]directoryIdentity)
+	name := ""
 	for _, segment := range strings.Split(rel, string(os.PathSeparator)) {
 		if err := assertIdentity(root, id); err != nil {
-			return err
+			return nil, err
 		}
-		current = filepath.Join(current, segment)
-		if err := os.Mkdir(current, 0755); err != nil && !errors.Is(err, os.ErrExist) {
-			return err
+		name = filepath.Join(name, segment)
+		current := filepath.Join(root, name)
+		mkdirErr := os.Mkdir(current, 0755)
+		if mkdirErr != nil && !errors.Is(mkdirErr, os.ErrExist) {
+			return nil, mkdirErr
 		}
-		if _, err := directoryID(current); err != nil {
-			return err
+		childID, err := directoryID(current)
+		if err != nil {
+			return nil, err
+		}
+		if mkdirErr == nil {
+			created[name] = childID
 		}
 		got, err := canonical(current)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !within(root, got) {
-			return errors.New("execution directory symlink escaped worktree")
+			return nil, errors.New("execution directory symlink escaped worktree")
 		}
 	}
-	return nil
+	return created, nil
 }

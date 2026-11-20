@@ -16,8 +16,8 @@ import (
 // Only the files ref backend has this private on-disk layout. Inventory it
 // directly: revision walkers omit expired/unreachable reflog edges, pseudorefs
 // and namespaces such as refs/bisect. Unknown recovery formats stay in place.
-func verifyRecoveryHistory(ctx context.Context, s snapshot) error {
-	format, err := runGit(ctx, s.Root, "rev-parse", "--show-ref-format")
+func verifyRecoveryHistory(ctx context.Context, s snapshot, intentHead string) error {
+	format, err := runGit(ctx, s.BaseRoot, "rev-parse", "--show-ref-format")
 	if err != nil {
 		return err
 	}
@@ -38,6 +38,7 @@ func verifyRecoveryHistory(ctx context.Context, s snapshot) error {
 	if err != nil {
 		return err
 	}
+	private[intentHead] = true
 	var revisions strings.Builder
 	oids := make([]string, 0, len(private))
 	for oid := range private {
@@ -100,7 +101,7 @@ func privateRecoveryCommits(ctx context.Context, s snapshot) (map[string]bool, e
 			return nil
 		}
 		log := name == "logs/HEAD" || strings.HasPrefix(name, "logs/refs/")
-		if !log && name != "HEAD" && name != "ORIG_HEAD" && !strings.HasPrefix(name, "refs/") {
+		if !log && name != "HEAD" && name != "ORIG_HEAD" && name != "FETCH_HEAD" && !strings.HasPrefix(name, "refs/") {
 			return fmt.Errorf("unverified private Git state %q; retained", name)
 		}
 		body, err := readRegular(path, remaining)
@@ -108,6 +109,19 @@ func privateRecoveryCommits(ctx context.Context, s snapshot) (map[string]bool, e
 			return err
 		}
 		remaining -= len(body)
+		if name == "FETCH_HEAD" {
+			for line := range strings.Lines(string(body)) {
+				oid, rest, ok := strings.Cut(line, "\t")
+				flag, _, desc := strings.Cut(rest, "\t")
+				if !ok || !desc || (flag != "" && flag != "not-for-merge") || strings.Trim(oid, "0") == "" {
+					return errors.New("cannot verify FETCH_HEAD entry; retained")
+				}
+				if err := add(oid); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		if !log {
 			if strings.Trim(strings.TrimSuffix(string(body), "\n"), "0") == "" {
 				return errors.New("invalid zero private ref; retained")

@@ -116,6 +116,7 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		git(repo, "config", "user.name", "Fixture")
 		git(repo, "config", "user.email", "fixture@example.invalid")
 		write(filepath.Join(base, "tracked"), "base\n")
+		write(filepath.Join(repo, ".gitattributes"), "* text=auto\n")
 		write(filepath.Join(repo, ".gitignore"), "ignored\n")
 		check(os.Symlink("sub/tracked", filepath.Join(repo, "link")))
 		git(repo, "add", ".")
@@ -247,6 +248,13 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 
 		// Recovery sources can be independent of both HEAD and its reflog.
 		recoverable := git(repo, "commit-tree", mainHead+"^{tree}", "-p", mainHead, "-m", "private recovery")
+		// Every row of FETCH_HEAD participates, including not-for-merge rows.
+		fetch := filepath.Join(admin, "FETCH_HEAD")
+		write(fetch, mainHead+"\t\tmain\n"+recoverable+"\tnot-for-merge\tside\n")
+		refuse(args, "not retained")
+		write(fetch, mainHead+"\tunknown\tmain\n")
+		refuse(args, "cannot verify FETCH_HEAD")
+		git(root, "fetch", "--quiet", repo, "main", "sibling")
 		for _, ref := range []string{"ORIG_HEAD", "refs/bisect/review", "refs/rewritten/review", "refs/worktree/review"} {
 			git(root, "update-ref", ref, recoverable)
 			refuse(args, "not retained")
@@ -280,7 +288,7 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		blob := git(root, "rev-parse", "HEAD:sub/tracked")
 		loose := filepath.Join(repo, ".git", "objects", blob[:2], blob[2:])
 		savedBlob := filepath.Join(tmp, "saved-blob")
-		blockers := rapid.Permutation([]string{"untracked", "tracked", "ignored", "locked", "masked", "skip", "stat", "mode", "type", "filter", "missing-blob"}).Draw(t, "order")
+		blockers := rapid.Permutation([]string{"untracked", "tracked", "ignored", "locked", "masked", "skip", "stat", "mode", "type", "filter", "missing-blob", "text-crlf"}).Draw(t, "order")
 
 		for _, blocker := range blockers {
 			want := "uncommitted, untracked or ignored"
@@ -316,6 +324,8 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 				git(repo, "config", "core.symlinks", "false")
 				check(os.Remove(filepath.Join(root, "link")))
 				write(filepath.Join(root, "link"), "sub/tracked")
+			case "text-crlf":
+				write(tracked, "base\r\n")
 			case "missing-blob":
 				check(os.Rename(loose, savedBlob))
 				want = "shared Git object store"
@@ -350,6 +360,8 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 				check(os.Remove(filepath.Join(root, "link")))
 				check(os.Symlink("sub/tracked", filepath.Join(root, "link")))
 				git(repo, "config", "core.symlinks", "true")
+			case "text-crlf":
+				write(tracked, "base\n")
 			case "missing-blob":
 				check(os.Rename(savedBlob, loose))
 			case "filter":
@@ -366,6 +378,22 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		if git(root, "rev-parse", "HEAD") != resultHead {
 			t.Fatal("Git ran without durable intent")
 		}
+
+		// A committed rename removes the execution cwd, while the checkout
+		// and its Thread remain the same. Check data and history at the root.
+		git(root, "mv", "sub", "renamed")
+		git(root, "commit", "-qm", "move selected directory")
+		renameHead := git(root, "rev-parse", "HEAD")
+		if _, err := call(args); err == nil || !strings.Contains(err.Error(), "not retained") {
+			t.Fatal("lost detached rename guard", err)
+		}
+		git(root, "branch", "saved-rename", renameHead)
+		extra := filepath.Join(root, "renamed", "new")
+		write(extra, "keep me")
+		if _, err := call(args); err == nil || !strings.Contains(err.Error(), "untracked") {
+			t.Fatal("lost content guard after rename", err)
+		}
+		check(os.Remove(extra))
 
 		// Two calls can be in flight for the same Chief execution. Only one
 		// may report the successful removal.
@@ -400,7 +428,7 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		if _, err := os.Stat(root); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("removed path still present: %v", err)
 		}
-		if git(repo, "worktree", "list", "--porcelain", "-z") != original || git(repo, "rev-parse", "saved") != resultHead || git(repo, "rev-parse", "main") != mainHead || git(repo, "rev-parse", "saved-recovery^{commit}") != recoverable {
+		if git(repo, "worktree", "list", "--porcelain", "-z") != original || git(repo, "rev-parse", "saved") != resultHead || git(repo, "rev-parse", "saved-rename") != renameHead || git(repo, "rev-parse", "main") != mainHead || git(repo, "rev-parse", "saved-recovery^{commit}") != recoverable {
 			t.Fatal("lost a sibling, branch or commit")
 		}
 		after, err := r.Thread(id)
@@ -484,11 +512,61 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		if retired.Worktree.RemovedCwd != cwd || retired.Worktree.Cwd != "" {
 			t.Fatal("retirement lost on proof write failure")
 		}
+		// Persist two nested execution paths which Git did not materialize.
+		// Reopen one with the older proof format, which lacks mkdir evidence.
+		emptyBase := filepath.Join(repo, "scratch", "nested")
+		check(os.MkdirAll(emptyBase, 0700))
+		createEmpty := func(name string) model.ThreadRecord {
+			t.Helper()
+			created, err := r.CreateThread(ctx, core.CreateThreadRequest{HarnessID: "fixture", Input: input, Cwd: emptyBase, Worktree: &model.WorktreeOptions{Enabled: &enabled, Name: name}})
+			check(err)
+			check(r.InterruptThread(ctx, created.Record.ID))
+			return created.Record
+		}
+		empty, legacy := createEmpty("empty"), createEmpty("legacy")
+		// In the reverse partial failure, Git has removed the checkout but
+		// the registered admin directory still contains the owner's index.
+		adminOnly := createNamed("admin-retry")
+		check(r.InterruptThread(ctx, adminOnly.ID))
+		retry := map[string]any{"threadId": adminOnly.ID}
+		registrationRoot := filepath.Dir(adminOnly.Worktree.Cwd)
+		privateDir := git(registrationRoot, "rev-parse", "--absolute-git-dir")
+		// A missing checkout alone grants no authority to delete a registration.
+		parked := filepath.Join(tmp, "parked-checkout")
+		check(os.Rename(registrationRoot, parked))
+		expectError(retry, "without a recorded removal intent")
+		check(os.Rename(parked, registrationRoot))
+		check(os.Chmod(privateDir, 0500))
+		defer os.Chmod(privateDir, 0700)
+		expectError(retry, "Git still registers")
+		check(os.Chmod(privateDir, 0700))
+		if _, err := os.Lstat(registrationRoot); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("fixture did not leave only Git metadata", err)
+		}
+		if !strings.Contains(git(repo, "worktree", "list", "--porcelain", "-z"), "worktree "+registrationRoot+"\x00") {
+			t.Fatal("lost fixture registration")
+		}
+
 		// Restart the actual Runtime, SQLite store and Chief injection. The
 		// now-historical Thread must recover its pending proof for cleanup.
 		check(coordinator.Stop(ctx))
 		check(r.Close(ctx))
 		check(db.Close())
+		body, err := os.ReadFile(registry)
+		check(err)
+		var disk struct {
+			Version int                          `json:"version"`
+			Entries []map[string]json.RawMessage `json:"entries"`
+		}
+		check(json.Unmarshal(body, &disk))
+		for _, entry := range disk.Entries {
+			if string(entry["ownerThreadId"]) == string(raw(legacy.ID)) {
+				delete(entry, "createdDirectories")
+			}
+		}
+		body, err = json.Marshal(disk)
+		check(err)
+		check(os.WriteFile(registry, body, 0600))
 		if _, staleErr := call(nextArgs); staleErr == nil {
 			t.Fatal("stopped Chief binding authorized a retry")
 		}
@@ -509,6 +587,29 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		if _, err := os.Stat(concurrent.Worktree.Cwd); err != nil {
 			t.Fatal("retry touched another owner", err)
 		}
+
+		// Only the original mkdir identities authorize extra empty directories.
+		emptyArgs := map[string]any{"threadId": empty.ID}
+		emptyCwd := empty.Worktree.Cwd
+		spare := filepath.Join(tmp, "original-empty")
+		check(os.Rename(emptyCwd, spare))
+		check(os.Mkdir(emptyCwd, 0700))
+		expectError(emptyArgs, "identity changed")
+		check(os.Remove(emptyCwd))
+		check(os.Rename(spare, emptyCwd))
+		write(filepath.Join(emptyCwd, "notes"), "keep these")
+		expectError(emptyArgs, "untracked")
+		check(os.Remove(filepath.Join(emptyCwd, "notes")))
+		check(os.Mkdir(filepath.Join(emptyCwd, "user-dir"), 0700))
+		expectError(emptyArgs, "untracked")
+		check(os.Remove(filepath.Join(emptyCwd, "user-dir")))
+		_, err = call(emptyArgs)
+		check(err)
+		legacyArgs := map[string]any{"threadId": legacy.ID}
+		expectError(legacyArgs, "untracked")
+		check(os.Rename(filepath.Dir(legacy.Worktree.Cwd), filepath.Join(tmp, "legacy-empty")))
+		_, err = call(legacyArgs)
+		check(err)
 
 		// A real non-force Git removal can unregister the checkout even when
 		// it cannot unlink a tracked file. Keep the leftover and retire access.
@@ -545,5 +646,63 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 		_, err = call(partialArgs)
 		check(err)
 		expectError(partialArgs, "already removed")
+
+		// The same intent cannot authorize a replacement admin directory.
+		movedAdmin := filepath.Join(tmp, "original-admin")
+		check(os.Rename(privateDir, movedAdmin))
+		check(os.Mkdir(privateDir, 0700))
+		for _, name := range []string{"HEAD", "gitdir", "commondir"} {
+			body, err := os.ReadFile(filepath.Join(movedAdmin, name))
+			check(err)
+			write(filepath.Join(privateDir, name), string(body))
+		}
+		expectError(retry, "identity changed")
+		check(os.Rename(privateDir, filepath.Join(tmp, "replacement-admin")))
+		check(os.Rename(movedAdmin, privateDir))
+		activePeer, err := r.CreateThread(ctx, core.CreateThreadRequest{HarnessID: "fixture", Input: input, Cwd: privateDir})
+		check(err)
+		expectError(retry, "another workspace")
+		check(r.DeleteThread(ctx, activePeer.Record.ID))
+		git(repo, "worktree", "lock", registrationRoot)
+		expectError(retry, "locked")
+		git(repo, "worktree", "unlock", registrationRoot)
+		privateCommit := git(repo, "commit-tree", mainHead+"^{tree}", "-p", mainHead, "-m", "only in remaining registration")
+		write(filepath.Join(privateDir, "FETCH_HEAD"), privateCommit+"\t\tlocal fetch\n")
+		expectError(retry, "not retained")
+		git(repo, "tag", "remaining-history", privateCommit)
+
+		index := filepath.Join(privateDir, "index")
+		originalIndex, err := os.ReadFile(index)
+		check(err)
+		git(repo, "--git-dir="+privateDir, "--work-tree="+repo, "update-index", "--add", "--cacheinfo", "100644,"+blob+",staged-file")
+		expectError(retry, "uncommitted")
+		check(os.WriteFile(index, originalIndex, 0600))
+		// A second missing checkout has its own potentially prunable record.
+		stale := filepath.Join(tmp, "offline")
+		git(repo, "worktree", "add", "--detach", stale, mainHead)
+		staleAdmin := git(stale, "rev-parse", "--absolute-git-dir")
+		check(os.Rename(stale, filepath.Join(tmp, "relocated-sibling")))
+		out, err = call(retry)
+		check(err)
+		check(json.Unmarshal(out, &receipt))
+		if !receipt.OK || receipt.ThreadID != adminOnly.ID || receipt.AbsentRoot != registrationRoot {
+			t.Fatalf("unexpected registration receipt: %s", out)
+		}
+		if _, err := os.Lstat(privateDir); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("registration still present", err)
+		}
+		if _, err := os.Stat(staleAdmin); err != nil || !strings.Contains(git(repo, "worktree", "list", "--porcelain", "-z"), "worktree "+stale+"\x00") {
+			t.Fatal("retry pruned a sibling registration", err)
+		}
+		expectError(retry, "already removed")
+		closed, err := r.Thread(adminOnly.ID)
+		check(err)
+		if closed.Worktree.RemovedCwd != adminOnly.Worktree.Cwd || closed.Observation.LatestExecution.ExecutionID != adminOnly.Observation.LatestExecution.ExecutionID || git(repo, "rev-parse", "remaining-history") != privateCommit {
+			t.Fatal("lost Thread or Git history after retry")
+		}
+		if _, err := os.Stat(concurrent.Worktree.Cwd); err != nil {
+			t.Fatal("retry affected a sibling", err)
+		}
+
 	})
 }

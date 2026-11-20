@@ -24,7 +24,8 @@ Removal and recovery validate recorded ownership and filesystem/Git identity bef
 
 Chief can retire one ordinary Thread's managed checkout. The [workspace manager](remove.go)
 resolves the registered root from the Thread's base and execution cwd and its private
-ownership proof. The selected execution directory can be below that root. The
+ownership proof. A committed rename or removal of the selected execution
+subdirectory leaves that root binding intact. The
 linked checkout, repository, staging directory, Git metadata pointers and detached
 HEAD must still pass managed-workspace inspection.
 
@@ -33,13 +34,19 @@ checkout. It hashes regular file bytes and symlink targets and checks Git file
 types and the executable bit independently of Git's stat cache. The corresponding
 Git objects must exist in shared storage without a lazy fetch. Extra entries,
 including ignored files and empty directories, keep the checkout in place.
+The private ownership record stores the path and filesystem identity of each
+execution-path directory Chief actually creates. Such a directory can remain
+empty or contain the rest of that recorded chain. Its contents are still walked.
+A proof without creation evidence grants no empty-directory exception.
 Masked or unresolved index entries, Git submodules, active checkout conversions
-(such as clean filters or line-ending conversion) and unknown private Git state
+(such as clean filters or explicit EOL conversion) and unknown private Git state
 also prevent removal. Inspection leaves the index in place and uses the Git
-runner's 10-second and 1 MiB per-command bounds.
+runner's 10-second and 1 MiB per-command bounds. With `core.autocrlf=false`,
+`text=auto` is supported when the physical bytes match the committed blobs.
 
 For files-based Git refs, the manager reads HEAD, ORIG_HEAD, loose private refs
-and both endpoints of every private reflog entry. It checks up to 1 MiB of
+and both endpoints of every private reflog entry. Every ordinary or
+`not-for-merge` row of `FETCH_HEAD` must name a verifiable commit. It checks up to 1 MiB of
 recovery records. Every commit must be reachable from a direct shared branch,
 remote-tracking branch or tag in the surviving repository. Symbolic refs,
 alternate object stores and grafted history cannot establish retention.
@@ -53,7 +60,11 @@ the filesystem provide no atomic exclusion against unrelated edits or ref moves.
 
 The manager persists removal intent before ordinary `git worktree remove`.
 It checks the base identity, registration, private Git directory and checkout
-after Git exits, including on error. Once Git unregisters the checkout, the
+after Git exits, including on error. If only the registration remains, the same
+Thread can retry after access is restored. A persisted intent, matching admin
+directory identity and backlinks, unique registration, detached HEAD, clean
+remaining index and retained private history are required for the targeted Git
+retry. Locks and other workspace users still block it. Once Git unregisters the checkout, the
 manager records that stage and Runtime retires the Thread's execution cwd.
 Retries can finish outstanding writes after restart. Both directory names stay
 reserved for managed allocation until the Thread and ownership updates finish.
