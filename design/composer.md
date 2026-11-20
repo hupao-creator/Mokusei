@@ -56,8 +56,9 @@ row and the identity, attachment and action seats share the bottom row without
 replacing the NSTextView. The editor remains
 scrollable and the shell stays within the viewport. Closing input hides its ink
 immediately while retaining the native editor for the shell's 420ms travel.
-Returning to Overview hides the Agent composer as soon as the reading panel
-blocks input. The outgoing shell keeps its reading column until route release.
+Returning to Overview hides the Agent composer and starts folding its shell
+as soon as the reading panel blocks input. The outgoing shell stays in its
+reading column until route release.
 The editor reveals its input ink at its settled position during expansion.
 See the [Dock contract](../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer).
 

@@ -113,6 +113,11 @@ subsequent real-time Agent visits use their ordinary animation clocks.
 The held frames describe geometry at the sampled source times. Use the
 real-time visits for focus timing at normal speed.
 
+On all four returns the checker measures from the Close marker to the first
+frame showing 10% of the width change from expanded to idle. That frame must
+fall within the first half of the 420ms panel return. The silhouette includes
+both vertical seats so its rounded corners remain measurable during travel.
+
 For each geometry visit the check matches the first placeholder glyphs against their
 settled pixels and measures each returning glass silhouette against both the
 open width and the narrowest frame so far. The placeholder must disappear during

@@ -4,6 +4,8 @@
 
 Click the task card in [Overview](overview.md). The conversation keeps finished replies and failure messages. When a run ends, the reading area usually shows its final answer on its own. Click **Show work** when it appears to see the reasoning and tools behind the answer. If you scroll up during a live run, use **Jump to latest** when it appears to return to the newest output.
 
+Click the blank margin outside the conversation to return to Overview. The input bar folds as the conversation closes.
+
 ## Respond to a request or stop a run
 
 If the agent asks a question or requests permission, respond to the prompt. The choices depend on the agent and its request.

@@ -124,8 +124,9 @@ Input collapse hides the composer immediately. The shell and eyes continue
 their motion while `inputLeaving` keeps the ordinary closing editor mounted for
 420ms. Returning from an Agent conversation to Overview closes the reading
 panel's input gate while the workspace still owns the outgoing draft. The
-composer and its directory suggestions hide at that point. When the route
-releases the row, it has no SwiftUI exit fade. Reopening
+composer and its directory suggestions hide at that point. The shell starts
+contracting in its reading column on the same update, easing out over the
+420ms return. Route release removes the row without a SwiftUI exit fade. Reopening
 restores the active draft and its selection. Talk has independent presentation
 and can become readable when input closes. The shell and the single identity
 seat move in the same transaction. The editor overlay reserves its final width
@@ -550,8 +551,7 @@ Automatic focus follows the current composer visit's ink reveal. The Dock
 requests focus when the reveal reaches 10% opacity. Admitted click and Tab
 focus remain available during opening. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,
 without changing its draft, send generation or suppressed automatic-focus policy;
-accepted Close also suspends input hit testing/focus through the panel's live
-motion state without folding the retained shell. The fitted Dock
+accepted Close suspends input hit testing/focus as the shell folds. The fitted Dock
 bottom moves down by up to 16pt, keeping at least
 12pt below it; Super Thread admits the expanded composer only for a selected
 associated Thread; Git retains its normal input policy in that same lower seat.

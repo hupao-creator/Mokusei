@@ -202,13 +202,18 @@ public struct NativeMokuDock: View {
     private var continuationPresenting: Bool {
         threadID != nil && sidecardComposer == nil && (awaitingContinuation || executionPlacement?.continuing == true)
     }
-    private var rowExpanded: Bool { state.inputOpen || continuationPresenting || displayedMessage != nil }
+    // The outgoing draft stays open until route release. Its shell starts
+    // folding when the reading panel withdraws input, alongside its ink.
+    private var rowExpanded: Bool {
+        (state.inputOpen && state.inputInteractionReady) || continuationPresenting || displayedMessage != nil
+    }
     private var expanded: Bool { state.settingsExpanded || noteExpanded || rowExpanded }
     private var capsuleFraction: CGFloat { expanded ? 1 : 0 }
     // The native replay supplies a sampling clock only for admitted reading input.
     var readingInputAnimation: Animation?
     private var surfaceAnimation: Animation? {
         guard state.readingPanelVisible else { return .smooth(duration: 0.42, extraBounce: 0) }
+        if state.inputOpen && !rowExpanded { return .easeOut(duration: NativeReadingPageTiming.duration) }
         if let readingInputAnimation, state.inputOpen, state.inputInteractionReady { return readingInputAnimation }
         return NativeReadingPageTiming.openingAnimation
     }

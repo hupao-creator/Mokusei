@@ -47,10 +47,11 @@ def capture_phases(events, codes, times):
 
 
 def glass_edges(frame):
-    # The same horizontal band crosses the middle of both capsules. Compare it
-    # with the actual backdrop on the left, which brightens during panel return.
-    band = frame[76:82, 20:-20]
-    dark = np.flatnonzero(band.min(axis=0) < np.median(band[:, :40]) * 0.67)
+    # The compact reading seat is lower than the idle Overview seat. Measure
+    # the whole silhouette; a fixed scanline cuts through its rounded corners.
+    band = frame[25:142, 20:-20]
+    backdrop = np.median(band[:, :40], axis=1, keepdims=True)
+    dark = np.flatnonzero((band < backdrop * 0.67).any(axis=0))
     if not dark.size:
         raise ValueError("Capsule silhouette is missing")
     return int(dark[0]) + 20, int(dark[-1]) + 20
@@ -129,6 +130,21 @@ def check_visit(frames, times, phases, index, next_visit, reference_index):
                         and idle_width_error <= 4 and not retiring_ink))
 
 
+def check_return(frames, codes, times, close, open_width, idle_width, name):
+    # A monotone fold can still start an entire panel return too late.
+    # The first 10% of travel should be visible in the first half of the 420ms return.
+    threshold = open_width - 0.1 * (open_width - idle_width)
+    delay = None
+    for i in range(close, len(frames)):
+        if codes[i] != codes[close]:
+            break
+        left, right = glass_edges(frames[i])
+        if right - left + 1 <= threshold:
+            delay = float(times[i] - times[close])
+            break
+    return dict(visit=name, secondsToTenPercentFold=delay, passed=delay is not None and delay <= 0.210)
+
+
 def check_focus(frames, focus, times, start, end, x, y, name, *, reference_index=None, explicit=False):
     # The bottom seat moves vertically during an Overview reversal. Locate
     # the settled strokes near that seat, then measure their contrast relative
@@ -200,17 +216,20 @@ def main():
     finally:
         movie.release()
     phases, mapping = capture_phases(phase_events, codes, times)
-    visits, acquisitions, realtime = [], [], []
+    idle_left, idle_right = glass_edges(frames[phases["agent-enter-0"] - 1])
+    idle_width = idle_right - idle_left + 1
+    visits, acquisitions, realtime, returns = [], [], [], []
     for phase, focus_results in [("agent", acquisitions), ("realtime", realtime)]:
         for index in range(2):
             start = phases[f"{phase}-enter-{index}"]
             end = phases[f"{phase}-close-{index}"] - 1
             # Select the template independently of clock origin and the pixels under test.
             reference = (phases[f"{phase}-open-{index}"] + end) // 2
+            left, right = glass_edges(frames[reference])
+            returns.append(check_return(frames, codes, times, end + 1, right - left + 1, idle_width, f"{phase}-{index}"))
             if phase == "agent":
                 next_visit = ["agent-enter-1", "interrupted-open"][index]
                 visits.append(check_visit(frames, times, phases, index, next_visit, reference))
-            left, _ = glass_edges(frames[reference])
             focus_results.append(check_focus(frames, focus, times, start, end, left + 181, 69,
                                              f"{phase}-{index}", reference_index=reference))
     # The empty Overview placeholder and the second line of its retained
@@ -226,9 +245,9 @@ def main():
     left, _ = glass_edges(frames[end])
     command = check_focus(frames, focus, times, phases["explicit-enter"], end, left + 181, 69, "compose",
                           explicit=True)
-    print(json.dumps(dict(phases=mapping, geometry=visits, autofocus=acquisitions, realtimeAutofocus=realtime,
+    print(json.dumps(dict(phases=mapping, geometry=visits, returns=returns, autofocus=acquisitions, realtimeAutofocus=realtime,
                           explicitCompose=command), indent=2))
-    return all(visit["passed"] for visit in visits + acquisitions + realtime) and command["passed"]
+    return all(visit["passed"] for visit in visits + returns + acquisitions + realtime) and command["passed"]
 
 
 if __name__ == "__main__":
