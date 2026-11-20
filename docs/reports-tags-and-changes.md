@@ -12,7 +12,7 @@ A Super Thread can cite one run per source conversation. Each related card shows
 
 Click the related card to open the source conversation's latest run beside the Super Thread. It may be newer than the cited run or still in progress. Use **Conversation contents** on the left edge of the source conversation to switch between its current run and earlier runs. The Super Thread stays open beside it. If you arrive from a Chief Note link, the side panel opens at the result named in the note. If a related card fails to open, click it again to retry. The list shows when a conversation or run is unavailable.
 
-To send a follow-up, use the input below the source conversation. Click **Back to related executions** to return to the list. If you opened the Super Thread from Chief Note, the arrow on the report itself takes you back to your place in the note.
+Use the input below the source conversation to write a follow-up for the run you’re viewing. If you switch runs before sending, select the same run again to pick up your draft. Click **Back to related executions** to return to the list. If you opened the Super Thread from Chief Note, the arrow on the report itself takes you back to your place in the note.
 
 ## Browse Super Threads in a collection
 

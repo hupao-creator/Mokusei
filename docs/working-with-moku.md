@@ -22,7 +22,7 @@ Selected files appear above the input. Click an image thumbnail to preview it or
 
 - **Replies.** A direct reply appears where you typed your request. You can select the text and scroll through a longer reply. The reply closes on its own, so ask Chief to put anything you want to keep in its note.
 - **Task updates.** A dispatch message tells you that Chief handed off your request. Open the task card in Overview to see how the work is going.
-- **Notes.** From Overview, press **⌘⇧N** or swipe up with two fingers over Chief to open **Chief Note**. Scroll to a run and click its link. If a Super Thread includes the conversation, the Super Thread opens from the link with the cited result in its side panel. Otherwise, the link opens that result in the task conversation. Use the arrow at the top left of the reader to return to your place in the note. Press **⌘K** to go straight to Overview.
+- **Notes.** From Overview, press **⌘⇧N** or swipe up with two fingers over Chief to open **Chief Note**. Scroll to a run and click its link. If the conversation belongs to exactly one Super Thread, the Super Thread opens from the link with the cited result in its side panel. Otherwise, the link opens that result in the task conversation. Use the arrow at the top left of the reader to return to your place in the note. Press **⌘K** to go straight to Overview.
 - **Conversation history.** Press **⌘B** or click **Chief history** below the note. Use the input below the current conversation to keep talking to Chief. When a different agent takes over as Chief, a new conversation starts and the note carries over.
 
 ## Stop work or acknowledge an alert
