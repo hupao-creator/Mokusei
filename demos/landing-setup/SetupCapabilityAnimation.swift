@@ -9,6 +9,6 @@ struct SetupCapabilityAnimation: View {
     var body: some View {
         let harnesses = [SetupAgent.codex, .claude, .opencode].map { $0.plugin }
         if kind == .tag { NativeOnboardingTagAnimation(harnesses: harnesses, locale: .chinese) }
-        else { NativeOnboardingReportAnimation(harnesses: harnesses, locale: .chinese) }
+        else { NativeOnboardingReportAnimation(harnesses: harnesses) }
     }
 }

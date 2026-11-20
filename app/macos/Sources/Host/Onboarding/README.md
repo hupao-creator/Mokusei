@@ -89,8 +89,9 @@ updates retain scene identity, and unmounting pauses and detaches it.
 No native Tag-surface capture suite is configured in this source tree;
 transparent host/layer state and playback lifecycle are production constraints,
 not a claim of continuous-frame coverage.
-Report gathers dense documents into one
-landscape document containing three abstract figures; it is not a report template.
+The Super Thread illustration gathers dense documents into one landscape document.
+Each of its three abstract figures sits directly above two placeholder lines.
+The illustration has no visible text and exposes a single accessibility description.
 
 The setup panel does not mount a hidden composer. Pointer, keyboard, semantic
 navigation and direct presentation entry points remain gated. After persistence,

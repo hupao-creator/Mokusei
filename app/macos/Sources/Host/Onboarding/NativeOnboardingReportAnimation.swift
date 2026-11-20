@@ -3,7 +3,6 @@ import MokuseiPluginAPI
 
 struct NativeOnboardingReportAnimation: View {
     let harnesses: [AnyHarnessPlugin]
-    let locale: DesktopLocale
     var visitPlaybackStarted: Binding<Bool>? = nil
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -39,7 +38,7 @@ struct NativeOnboardingReportAnimation: View {
         }
         .frame(height: 250)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(locale.text("多份长文档汇成一条 Super Thread，用三幅图展示全貌、关系和要点", "Long documents form a concise Super Thread with three visuals for overview, connections, and takeaways"))
+        .accessibilityLabel(Text(verbatim: "Long documents come together in one illustrated Super Thread"))
         .accessibilityIdentifier("report-capability-animation")
         .background(NativeSettingsWindowVisibility { windowVisible = $0 })
         .task(id: active) {
@@ -128,8 +127,6 @@ struct NativeOnboardingReportAnimation: View {
                     VStack(alignment: .leading, spacing: 9) {
                         abstractFigure(index)
                             .frame(height: 102)
-                        Text(locale.text(["全貌", "关系", "要点"][index], ["Overview", "Connections", "Takeaways"][index]))
-                            .font(.system(size: 11, weight: .medium))
                         VStack(alignment: .leading, spacing: 4) {
                             Capsule().fill(.primary.opacity(0.12)).frame(height: 2.5)
                             Capsule().fill(.primary.opacity(0.08)).frame(height: 2.5)

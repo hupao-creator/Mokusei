@@ -98,7 +98,7 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
         if role == .tag {
             NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
         } else {
-            NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted)
+            NativeOnboardingReportAnimation(harnesses: harnesses, visitPlaybackStarted: visitPlaybackStarted)
         }
     }
 }

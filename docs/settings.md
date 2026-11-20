@@ -16,7 +16,7 @@ Use **Task Orchestration Preferences** to guide which models Chief chooses when 
 
 ## Set up Tag Agent and Super Thread Agent
 
-Use **Tag** to set up Tag Agent and **Super Thread** to set up Super Thread Agent. When an agent is available, an illustration on a rounded glass panel plays above the role's settings. You can turn either role on independently. Hover over a choice marked with an info icon to see what it does.
+Use **Tag** to set up Tag Agent and **Super Thread** to set up Super Thread Agent. When an agent is available, an illustration on a rounded glass panel plays above the role's settings. In the Super Thread illustration, several documents come together into one page with three diagrams. You can turn either role on independently. Hover over a choice marked with an info icon to see what it does.
 
 - **Agent off** stops automatic work for that role and keeps its existing tags or Super Threads and saved choices. Pending work resumes when you turn the agent back on.
 - **Use Chief** uses Chief's agent and model settings for future work.
