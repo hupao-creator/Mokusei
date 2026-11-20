@@ -741,7 +741,7 @@ steer and expanded recent-tool rows, with native tail truncation under compressi
 There is no fixed five/eight-line execution limit; larger cells admit more whole
 lines and short replies keep their natural height. Extension cells retain their
 own space. Excerpt reveal layers use the same height proposal as settled text,
-including when the card resizes; Report descriptions keep their explicit five-line
+including when the card resizes; Report descriptions keep their explicit three-line
 limit. The bounded source preview and streaming batch policy remain unchanged.
 `HarnessThreadCard` and the Overview semantic boundary supply
 `threadCardUsesFlatMaterials`: terminal badges and provider badges without an

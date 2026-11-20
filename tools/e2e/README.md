@@ -220,6 +220,14 @@ does not certify first-run onboarding.
 
 ### Collection member opening
 
+Use a report with a cover and an introduction long enough to wrap past three
+lines. On its individual Overview card, carousel page and member grid card,
+check that the first three lines are readable and the ellipsis ends line three.
+Repeat with English and Chinese text, in light and dark appearance, including
+a narrow single-column grid. Check that a short introduction stays on one
+line. Compare the settled pages after switching to check the cover size and
+the alignment of the title, update time and introduction.
+
 The automated Collection journey opens members by semantic Overview target.
 For the grid and its return destination, use the same populated, isolated
 workspace. Open the page count, scroll to a member and record its frame. Use

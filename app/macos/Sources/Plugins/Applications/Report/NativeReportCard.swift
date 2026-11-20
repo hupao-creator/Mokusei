@@ -111,7 +111,10 @@ import SwiftUI
             ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
             if let failure = archiveFailure ?? failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
-        }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+            // A covered Overview card has only 130pt below its cover and gap.
+            .padding([.horizontal, .top], 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .threadCardBadge {
                 ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
                                          completedBackground: true, usesRegularGlass: usesGlassBadge)

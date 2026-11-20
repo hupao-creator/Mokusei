@@ -6,7 +6,7 @@
 
 ## See the work behind a Super Thread
 
-A **Super Thread** is a report that **Super Thread Agent** puts together from completed work in the same project folder. Click the Super Thread card, then open **Related executions** if the list is closed.
+A **Super Thread** is a report that **Super Thread Agent** puts together from completed work in the same project folder. Its card shows up to three lines of the introduction, including when you browse a collection. Click the card to read the report, then open **Related executions** if the list is closed.
 
 A Super Thread can cite one run per source conversation. Each related card shows that run's title, a reply excerpt, and its duration when available. The status tells you how the source conversation is doing now.
 
