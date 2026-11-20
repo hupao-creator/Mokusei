@@ -147,6 +147,34 @@ private struct CollapseCaptureError: Error, CustomStringConvertible {
     do {
         event("idle", beginsPhase: true)
         try await pause(350)
+        scene.toggleInput(focusOnOpening: true)
+        try await pause(80)
+        try require(scene.dismissInputForOutsideClick(), "Shortcut entrance did not close")
+        try await pause(80)
+        scene.toggleInput(focusOnOpening: true)
+        event("shortcut-reopen")
+        // Send the first key through the non-key panel's responder chain
+        // during the ordinary ink transition, before waiting for settled ink.
+        let focusDeadline = ContinuousClock.now + .milliseconds(180)
+        while !(window.firstResponder is NSTextView), ContinuousClock.now < focusDeadline {
+            try await pause(5)
+        }
+        guard let firstKey = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, characters: "a", charactersIgnoringModifiers: "a", isARepeat: false, keyCode: 0) else {
+            throw CollapseCaptureError(description: "First key event unavailable")
+        }
+        window.sendEvent(firstKey)
+        try require(overviewDraft.text == "a", "The first key after Compose reopening missed the Overview editor")
+        event("shortcut-first-key")
+        overviewDraft.text = ""
+        try require(window.makeFirstResponder(nil), "Could not move focus out of the editor")
+        try await pause(650)
+        try require(!(window.firstResponder is NSTextView), "The ink reveal retook focus after it moved")
+        event("shortcut-focus-released")
+        try require(scene.dismissInputForOutsideClick(), "Shortcut replay did not return to Overview")
+        try await pause(650)
+
         try await captureAgentVisits(.heldFrames)
 
         event("interrupted-open", beginsPhase: true)

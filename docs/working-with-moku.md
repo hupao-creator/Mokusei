@@ -2,7 +2,7 @@
 
 ## Send a request
 
-From **Overview**, click Chief's eyes or press **⌘⇧B** to open **Type a message…**. Ask a question, describe a task for Chief to assign, or ask it to find work you already started. Say what you want back and which materials to use.
+From **Overview**, click Chief's eyes or press **⌘⇧B** to open **Type a message…**. After pressing the shortcut, start typing in the box. Ask a question, describe a task for Chief to assign, or ask it to find work you already started. Say what you want back and which materials to use.
 
 In a task conversation, the same input box shows the agent's icon and sends to that conversation. In a Super Thread, open a source conversation in **Related executions** before sending a follow-up. [Agent conversations](task-conversations.md) · [Super Threads](reports-tags-and-changes.md#see-the-work-behind-a-super-thread)
 

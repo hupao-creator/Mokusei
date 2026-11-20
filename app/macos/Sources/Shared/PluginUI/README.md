@@ -743,6 +743,12 @@ Remote Markdown images use URLSession HTTP caching and revalidation, with no pro
 
 ## Cards, composer and forms
 
+The native composer applies a focus request once to its attached AppKit
+editor when editing is available. That window owns its first responder and
+keeps its current key and activation state. Focus changes reported by AppKit
+are observations. Moving focus elsewhere leaves it there until a new request
+or native interaction.
+
 Shared Harness card components keep task identity, usage, plan and extension layout consistent.
 The identity title uses one measured line in every state, including while
 running and before the first reply. Long titles truncate at the tail; the full

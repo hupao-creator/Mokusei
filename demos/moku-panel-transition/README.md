@@ -96,6 +96,10 @@ click-through strip at the screen edge keeps the window rendering during
 current-process capture. The replay checks the 168×44pt idle target after
 each return. All four short/long Agent visits use production-default autofocus. The replay
 interrupts an Overview entrance at 80ms and reopens it after another 80ms.
+In a separate Compose opening, it sends the first key to the non-key fixture
+window during a rapid reopen and checks that the draft receives it. It then
+moves the responder out of the editor and checks that it stays away through
+the rest of the ink transition.
 It also reopens a populated editor during its 420ms retention window. It marks
 and commits text through the mounted `NSTextInputClient`, then types into
 the same editor. It checks the exact multiline

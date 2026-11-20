@@ -487,6 +487,31 @@ HTTP submission is never substituted for Composer input. Keyboard Return, IME,
 attachments, other providers, historical/exact-execution input, steering during
 active output and recovery after uncertain admission are outside this scenario.
 
+### Chief Compose shortcut
+
+Use a development executable in a fresh isolated profile and hold the shared
+desktop lease. Start on a populated Overview with the Chief input collapsed.
+With the workspace key, press **⌘⇧B** and immediately type one character.
+Check that the focused native editor contains that character when the input
+ink appears, without a click or a second character. Record the shortcut and
+key timing, focused element, exact draft value and App revision. Repeat after
+reactivating the workspace and after restoring a minimized workspace.
+
+Open the input, close it with **⌘⇧B** and reopen it before the Dock finishes
+folding. Type a first character again and check that it joined the retained
+draft at the saved selection. Repeat after closing before the input first
+finishes opening. Also open with a mouse click, wait for the caret, then
+switch focus to an Overview filter and verify that the Dock leaves it there.
+Check that Escape and outside click still close the bottom input. A Compose
+shortcut sent while another app is foreground belongs to that app.
+
+This procedure uses the real workspace menu and system keyboard input. The
+[Agent entrance replay](../../demos/moku-panel-transition/README.md#agent-entrance-replay)
+separately drives the Compose intent and the responder chain of a non-key
+fixture window. Its result cannot establish system event delivery or window
+activation. The [Dock contract](../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
+defines focus ownership and admission.
+
 ### Chief file picker
 
 Use a uniquely bundled production build and an isolated online profile with a

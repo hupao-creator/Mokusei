@@ -1224,7 +1224,7 @@ public struct NativeWorkspaceCommands: Commands {
                 .disabled(presentation?.onboarding.blocksWorkspace == true)
             Button("Chief") { presentation?.scene.toggleMoku() }.keyboardShortcut("b")
                 .disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.settingsOpen == true)
-            Button(locale.text("输入", "Compose")) { presentation?.scene.toggleInput() }
+            Button(locale.text("输入", "Compose")) { presentation?.scene.toggleInput(focusOnOpening: true) }
                 .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.dockRouteVisible != true || presentation?.scene.inputInteractionReady != true || presentation?.scene.settingsOpen == true)
             Button(locale.text("Chief 笔记", "Chief Note")) { presentation?.toggleMokuNote() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
