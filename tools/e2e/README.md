@@ -224,6 +224,17 @@ the original timeout and sample when present, and the isolated cleanup receipt.
 Mounted readiness and UI request times measure different events from display
 frame times.
 
+To check [related list reveal](../../design/reading.md#report-and-execution-sidecards),
+use a report with several distinguishable Markdown excerpts. Record first entry,
+open a row and use **Back to related executions**. Inspect the first frame
+showing the cards and the settled list. Each visible card with excerpt text
+should show it in both frames. Repeat with a rapid return and another row
+selection, and with delayed excerpt preparation. A pending list can show a
+progress indicator. Once the cards appear, check that their excerpts match the
+cited runs and that a late completion from a closed visit does not change a new
+visit. The [production component preview](../../demos/report-thread/README.md)
+can exercise this visually with synthetic data and a window recording.
+
 ### Agent reader alignment
 
 At a fixed main Agent panel width, show one short reply, extend that same reply

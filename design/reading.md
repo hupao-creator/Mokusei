@@ -119,6 +119,13 @@ scoped content and Markdown readiness, then fades one retained host over 200ms.
 Hidden controls/accessibility cannot act. Streaming/retry does not replay the
 entrance; unavailable/error content admits as readable content.
 
+The Report visit owns the related list's prepared excerpts. An open related
+sidecard prepares them even while showing an execution. List reveal waits for
+the current excerpt sources, with a progress indicator while preparation is
+pending. Back reuses ready text even when the list rows remount. Preparation is
+cancellable on source changes, folding, coverage and exit. Unchanged source text
+is reused within the visit, and a source with no eligible excerpt needs no parse.
+
 Report continuation keeps the Report, shell, column and resident composer in
 place. A successor execution enters from below as the old viewport moves up;
 same-execution steer keeps reader and scroll. The Back button stays outside the

@@ -4,7 +4,7 @@ import ScreenCaptureKit
 import Observation
 import MokuseiCore
 import MokuseiPluginAPI
-import MokuseiPluginUI
+@testable import MokuseiPluginUI
 import MokuseiHarnessCodex
 import MokuseiHarnessClaude
 @testable import MokuseiApplications
@@ -14,9 +14,16 @@ import MokuseiHarnessClaude
     let showsCover: Bool
     init(showsCover: Bool) { self.showsCover = showsCover }
     var open = false
+    var sidecards = NativeReportSidecardPresentation()
     let motion = NativeReadingPageMotion()
     let sample = ReportFixture.groupedSample
     @ObservationIgnored lazy var props: ApplicationThreadProps<NativeReportView> = makeProps()
+    func openReport(at execution: ApplicationExecutionRef? = nil) {
+        sidecards = NativeReportSidecardPresentation()
+        if let execution { sidecards.selectExecution(execution) }
+        open = true
+    }
+
     private func makeProps() -> ApplicationThreadProps<NativeReportView> {
         let reference = ApplicationThreadRef(threadID: "report-preview", typeID: "report.document")
         let refs = sample.executions.map { ApplicationExecutionRef(thread: .init(threadID: JSONText($0.id), typeID: "agent"), executionID: JSONText($0.id)) }
@@ -33,11 +40,11 @@ import MokuseiHarnessClaude
                     return .init(reference: ref, title: JSONText(item.title), emoji: item.emoji, missing: false, running: false,
                         harness: .init(id: codex ? "codex" : "claude", displayName: JSONText(item.harness.rawValue)), preview: try! .init(startedAt: 0, finishedAt: 138_000, running: false, excerpt: JSONText(item.answer)))
                 }
-            }, subscribe: { _ in {} }, logo: { id, size in
+            }, subscribe: { _, _ in {} }, logo: { id, size in
                 id == "codex" ? AnyView(CodexLogo(size: size)) : AnyView(ClaudeLogo(size: size))
             }, execution: { [sample] ref in
                 guard let item = sample.executions.first(where: { $0.id == ref.executionID.string }) else { throw PluginContractError("Missing fixture execution") }
-                return AnyView(ExecutionReader(execution: item))
+                return AnyView(ExecutionReader(execution: item).nativeReadingContentReady())
             })),
             .init(ApplicationCapabilities.isolatedHTML, value: ApplicationIsolatedHTML { [weak self] source, failure in
                 NativeApplicationHTMLSurface(source: source, thread: reference, theme: .light, suppressed: false,
@@ -83,6 +90,7 @@ struct ProductionReportPreview: View {
         _fixture = State(initialValue: ProductionReportFixture(showsCover: showsCover))
     }
     @State private var slow = false
+    @State private var markdownHeld = false
     @State private var recording = ProductionReportRecording()
     var body: some View {
         NativeReadingPageStack(open: fixture.open, identity: "report-preview", motion: fixture.motion,
@@ -95,7 +103,7 @@ struct ProductionReportPreview: View {
                 Color(white: 0.14)
                 NativeReportCard(props: fixture.props,
                     projection: .init(previewText: fixture.props.entry.view.shortDescription, relatedThreadCount: fixture.sample.executions.count),
-                    openThread: { fixture.open = true })
+                    openThread: { fixture.openReport() })
                 .frame(width: cardWidth, height: cardHeight)
                 .background(NativePalette.overview.surface.swiftUI)
                 .clipShape(RoundedRectangle(cornerRadius: 22))
@@ -112,6 +120,20 @@ struct ProductionReportPreview: View {
                 Button(recording.active ? "停止录制" : "录制本窗口") {
                     Task { await recording.toggle() }
                 }.disabled(recording.busy)
+                if CommandLine.arguments.contains("--excerpt-replay") {
+                    Button(markdownHeld ? "Markdown paused" : "Pause Markdown for 15s") {
+                        markdownHeld = true
+                        Task {
+                            await NativeMarkdownParser.shared.holdForRelatedListReplay()
+                            markdownHeld = false
+                        }
+                    }.disabled(markdownHeld)
+                    Button("Open first cited execution") {
+                        if let reference = fixture.props.entry.view.relatedExecutions.first {
+                            fixture.openReport(at: reference)
+                        }
+                    }.disabled(fixture.open)
+                }
                 Toggle("慢速 ×5", isOn: $slow).toggleStyle(.checkbox)
             }.padding(24)
         }
@@ -125,8 +147,15 @@ private struct ProductionReportRoute: View {
     var body: some View {
         NativeReportDetail(props: fixture.props)
             .modifier(NativeApplicationReadingPanel(enabled: true, identifier: "report-reading-panel", onClose: { fixture.motion.close() }))
+            .environment(\.nativeReportSidecards, fixture.sidecards)
             .environment(\.nativeApplicationReadingPanel, true)
     }
+}
+
+private extension NativeMarkdownParser {
+    // Hold the same actor used by production excerpts without delaying the UI
+    // or adding a synthetic clock to the product.
+    func holdForRelatedListReplay() { Thread.sleep(forTimeInterval: 15) }
 }
 
 /// Manual evidence capture of this isolated production-component window only.

@@ -18,6 +18,16 @@ Cover mode uses passive HTML/CSS and the production Report card/cover renderer.
 Its canvas size comes from current production geometry; see the
 [cover contract](../../design/overview.md).
 
+For the [related-list reveal replay](../../tools/e2e/README.md#super-thread-reading-regression),
+launch with `--production --excerpt-replay --open`. **Pause Markdown for 15s**
+holds the production parser actor inside this preview. Click the Report card
+while paused to check first entry. On a fresh Report visit, pause Markdown,
+choose **Open first cited execution**, then use **Back to related executions**
+while it is still paused. The control opens the Report with a selected
+execution, the same starting selection as a link to a cited run. Start
+**录制本窗口** before the interaction to capture the indicator, first frame
+with cards, and settled list under the preview's temporary directory.
+
 The default nonproduction composition and `--capture` target the independent
 fixture surface. `--cover --capture` is rejected. Generated PNG/geometry output
 belongs to that fixture and cannot certify production data, Runtime persistence,

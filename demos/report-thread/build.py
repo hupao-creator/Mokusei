@@ -17,11 +17,14 @@ parser.add_argument("--disable-sandbox", action="store_true", help="Disable Swif
 parser.add_argument("--skip-update", action="store_true", help="Use pinned dependencies without checking remote updates")
 parser.add_argument("--open", action="store_true")
 parser.add_argument("--production", action="store_true")
+parser.add_argument("--excerpt-replay", action="store_true", help="Add slow Markdown and linked execution controls to the production preview")
 parser.add_argument("--capture", action="store_true")
 parser.add_argument("--cover", action="store_true", help="Show HTML/CSS cover above the production card")
 options = parser.parse_args()
 if options.cover and options.capture:
     parser.error("--capture is the historical proposal capture; use --cover --open for the native cover")
+if options.excerpt_replay and not options.production:
+    parser.error("--excerpt-replay requires --production")
 output = repo / ".build/report-thread"
 output.mkdir(parents=True, exist_ok=True)
 if not options.skip_build:
@@ -58,4 +61,11 @@ if options.capture:
     shutil.copytree(evidence, output / "evidence", dirs_exist_ok=True)
     print(output / "evidence", flush=True)
 if options.open:
-    subprocess.run(["open", "-n", str(application)] + (["--args", "--production"] + (["--cover"] if options.cover else []) if options.production or options.cover else []), check=True)
+    launch = ["open", "-n", str(application)]
+    if options.production or options.cover:
+        launch += ["--args", "--production"]
+        if options.cover:
+            launch += ["--cover"]
+        if options.excerpt_replay:
+            launch += ["--excerpt-replay"]
+    subprocess.run(launch, check=True)

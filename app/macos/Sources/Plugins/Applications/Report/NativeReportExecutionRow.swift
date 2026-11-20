@@ -9,10 +9,10 @@ struct NativeReportExecutionRow: View {
     let locale: JSONText
     let logo: (JSONText) throws -> AnyView
     let relation: NativeReportRelation?
+    let excerpt: String
     let visible: Bool
     let open: () -> Void
     @State private var hovered = false
-    @State private var excerpt: (source: JSONText, text: String)?
     @State private var visibility = ThreadCardAnimationVisibility(isVisible: false)
 
     var body: some View {
@@ -37,8 +37,8 @@ struct NativeReportExecutionRow: View {
                         .font(NativeTypography.inter(size: 11)).foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if let excerpt, excerpt.source == item.preview?.excerpt, !excerpt.text.isEmpty {
-                    Text(excerpt.text).font(NativeTypography.inter(size: 12))
+                if !excerpt.isEmpty {
+                    Text(excerpt).font(NativeTypography.inter(size: 12))
                         .foregroundStyle(NativePalette.thread.muted.swiftUI)
                         .lineSpacing(4).lineLimit(4)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -83,13 +83,7 @@ struct NativeReportExecutionRow: View {
         .onHover { hovered = $0 }
         .help(item.title.string)
         .environment(\.threadCardAnimationVisibility, visibility)
-        .task(id: visible ? item.preview?.excerpt : nil) {
-            guard visible, let source = item.preview?.excerpt else { return }
-            let text = await NativeMarkdownSummary.plainText(source.string, limit: 600)
-            guard !Task.isCancelled else { return }
-            excerpt = (source, text.split(whereSeparator: \.isWhitespace).joined(separator: " "))
-        }
-        // The sidecard remains mounted when folded. Stop excerpt/clock work then.
+        // A hidden or preparing list does not tick its clocks.
         .onChange(of: visible, initial: true) { _, value in visibility.isVisible = value }
         .onDisappear { visibility.isVisible = false }
         .animation(.easeOut(duration: 0.14), value: hovered)
