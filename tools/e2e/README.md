@@ -37,6 +37,20 @@ one interrupted execution. Real provider behavior/authentication, other Harnesse
 forks, archive button input, reconnect/restart recovery and cancellation invariants are not
 certified by these scenarios.
 
+### First-run handoff
+
+Launch the native app with a fresh private profile and a ready Chief-capable
+agent. With the window active and Reduce Motion off, record the window as you
+click **Start using Chief** on the Super Thread Agent page. Inspect the frames
+as the panel reaches the input box. Both eyes should be open as the box comes
+into view, then narrow together once and reopen in the same seat. Watch for
+the next idle blink after a full interval. Type in the
+revealed editor. Reopen the same profile and check that it skips setup.
+With Reduce Motion on, a fresh profile should still reveal the editor without
+cueing a blink at the handoff. Record the revision, motion setting and window
+capture with the observed result.
+This visual check exercises the [onboarding handoff](../../app/macos/Sources/Host/Onboarding/README.md).
+
 ### System appearance and language
 
 Use a private profile and a disposable macOS session for system-wide setting

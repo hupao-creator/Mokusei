@@ -16,6 +16,7 @@ struct NativeMokuCharacterInput: Equatable {
     var motion: Bool
     var dark: Bool
     var immediateOrbit = false
+    var blinkOrigin: Date?
 }
 
 struct NativeMokuCharacterPose {
@@ -168,9 +169,7 @@ struct NativeMokuCharacterPose {
             link?.add(to: .main, forMode: .common)
         }
         let now = Date()
-        let blinkStart = Date(timeIntervalSinceReferenceDate:
-            floor(now.timeIntervalSinceReferenceDate / NativeMokuCapsuleBlinkTiming.interval)
-                * NativeMokuCapsuleBlinkTiming.interval)
+        let blinkStart = NativeMokuCapsuleBlinkTiming.cycleStart(at: now, origin: input?.blinkOrigin)
         let faceVisible = face?.motionVisible == true
         let blinking = faceVisible && now < blinkStart.addingTimeInterval(NativeMokuCapsuleBlinkTiming.duration)
         let moving = input?.running == true || isTransitioning
@@ -275,7 +274,7 @@ struct NativeMokuCharacterPose {
     func paintFace(in context: CGContext, bounds: CGRect) {
         guard let input else { return }
         context.saveGState(); defer { context.restoreGState() }
-        let blink = visible ? NativeMokuCapsuleBlinkTiming.factor(at: Date()) : 1
+        let blink = visible ? NativeMokuCapsuleBlinkTiming.factor(at: .now, origin: input.blinkOrigin) : 1
         let shape = NativeMokuCapsuleEyes(left: pose.eye("l"), right: pose.eye("r"), blink: blink)
         context.setFillColor((input.dark ? NSColor.white : NSColor.black).cgColor)
         context.addPath(shape.path(in: bounds).cgPath); context.fillPath()

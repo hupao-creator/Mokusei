@@ -22,6 +22,7 @@ import MokuseiPluginUI
     public private(set) var historyVisit = UUID()
     public private(set) var cameraActive = false
     private var landingActive = false
+    var onboardingBlinkStart: Date?
     public private(set) var inputOpen = false
     public private(set) var inputPinnedOpen = false
     public private(set) var inputAdmissionReady = true

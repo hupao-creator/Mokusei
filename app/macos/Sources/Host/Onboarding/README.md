@@ -96,7 +96,12 @@ The illustration has no visible text and exposes a single accessibility descript
 The setup panel does not mount a hidden composer. Pointer, keyboard, semantic
 navigation and direct presentation entry points remain gated. After persistence,
 the panel fades its contents, contracts to the actual Dock geometry, and reveals
-the real composer. The one-time marker is independent of empty-workspace landing:
+the real composer. In an active, visible window with Reduce Motion off, the
+resident eyes stay open through the final fade and blink once for 320ms as
+the input box comes fully into view. The editor accepts input as soon as the
+handoff finishes, independently of the blink.
+See the [first-run handoff replay](../../../../../tools/e2e/README.md#first-run-handoff)
+for the window capture procedure. The one-time marker is independent of empty-workspace landing:
 archiving all conversations still restores landing without replaying setup.
 
 The deterministic [visual demo](../../../../../demos/landing-setup/README.md)

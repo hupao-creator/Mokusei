@@ -7,6 +7,8 @@ struct NativeOnboardingSurface: View {
     @Bindable var state: NativeOnboardingState
     let scene: NativeMokuSceneState
     let applicationSections: [NativeApplicationSettingsSection]
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var mapMotion = NativeMokuSettingsAnimationState()
@@ -252,7 +254,12 @@ struct NativeOnboardingSurface: View {
             // the light workspace for a frame, which reads as a second flash.
             state.dockVisible = true
             try await Task.sleep(for: .milliseconds(30))
-            withAnimation(.easeInOut(duration: 0.18)) { panelVisible = false }
+            let revealDuration = 0.18
+            if scene.onboardingBlinkStart == nil, !reduceMotion, scenePhase == .active, scene.windowVisible {
+                // Keep the eyes open through the fade so their closing stroke is visible.
+                scene.onboardingBlinkStart = Date.now.addingTimeInterval(revealDuration)
+            }
+            withAnimation(.easeInOut(duration: revealDuration)) { panelVisible = false }
             try await Task.sleep(for: .milliseconds(200))
             state.finishHandoff()
         } catch { return }

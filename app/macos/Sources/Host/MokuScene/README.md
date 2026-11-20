@@ -236,8 +236,10 @@ The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.
 [NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock. Blink shape uses the continuous timestamp rather than fixed-rate samples.
 
 Static character targets are cached until their input changes. The native display
-link sleeps between the existing absolute-time blinks (4.2-second period,
-0.32-second blink); one cancellable wake resumes it at the next blink. A Harness
+link sleeps between blinks (4.2-second period, 0.32-second blink). The
+[first-run handoff](../Onboarding/README.md) sets the start of that cycle for
+the window as the eyes appear. One cancellable wake resumes the display link at
+the next blink. A Harness
 identity with no face and no moving decoration has neither frames nor a blink
 wake. Role transitions, loading, visible reasoning and retiring ink keep their
 frames through the final paint. Resuming starts a fresh wall-time interval, so

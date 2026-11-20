@@ -828,7 +828,8 @@ public struct NativeMokuDock: View {
             // Settings covers the Dock but keeps the face on screen in the page's
             // header, so its blink and expression keep their clock.
             motion: scenePhase == .active && state.windowVisible && (!state.dockCovered || state.settingsOpen),
-            dark: !state.settingsExpanded || workspaceColorScheme == .dark, immediateOrbit: threadID != nil)
+            dark: !state.settingsExpanded || workspaceColorScheme == .dark, immediateOrbit: threadID != nil,
+            blinkOrigin: state.onboardingBlinkStart)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
         .overlay(alignment: .bottom) {

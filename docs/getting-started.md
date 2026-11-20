@@ -20,7 +20,7 @@ Return to Chief. Click **Check again** if it appears, or **Retry** next to an ag
 
 1. On the **Chief** page, choose the agent that will talk to you and coordinate your work. Below it, choose at least one agent it may assign tasks to. Complete any required model choices and click **Continue**.
 2. On the next two pages, choose how to run **Tag Agent** and **Super Thread Agent**. For either role, choose **Agent off**, **Use Chief**, or **Configure separately**. [What each option does](settings.md#set-up-tag-agent-and-super-thread-agent)
-3. Click **Start using Chief**. When setup finishes, Chief's input box appears in the workspace.
+3. Click **Start using Chief**. The setup panel shrinks into Chief's input box. If Reduce Motion is off, Chief's eyes blink once as the box appears.
 
 If you see a load or save error, use **Retry** next to it. If you quit partway through setup, Chief returns to the agent check and keeps the choices you've already saved.
 
