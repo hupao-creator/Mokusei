@@ -38,11 +38,14 @@ struct NativeReportCollectionMembers: View {
             let scale = max(1, geometry.size.width) / layoutWidth
             let inset: CGFloat = compact ? 14 : 54
             let available = min(1160, layoutWidth - 2 * inset)
-            let columns = max(1, Int((available + 20) / 300))
-            let width = min(360, (available - CGFloat(columns - 1) * 20) / CGFloat(columns))
+            let spacing: CGFloat = 20
+            let columns = max(1, Int((available + spacing) / 300))
+            let gapsWidth = CGFloat(columns - 1) * spacing
+            let width = min(360, (available - gapsWidth) / CGFloat(columns))
+            let leadingMargin = (layoutWidth - CGFloat(columns) * width - gapsWidth) / 2
             NativeScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: 20, alignment: .top), count: columns),
-                          alignment: .center, spacing: 20) {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: spacing, alignment: .top), count: columns),
+                          alignment: .center, spacing: spacing) {
                     ForEach(members) { displayed in
                         let live = current[displayed.id]
                         let member = live ?? displayed.props
@@ -64,7 +67,7 @@ struct NativeReportCollectionMembers: View {
                             .accessibilityHidden(exiting)
                     }
                 }.frame(maxWidth: .infinity)
-                    .padding(.horizontal, inset).padding(.top, compact ? 0 : 14).padding(.bottom, 28)
+                    .padding(.horizontal, inset).padding(.top, compact ? 0 : leadingMargin).padding(.bottom, 28)
             }
             // In a single compact column, clear Close vertically for every
             // scroll position. The overlay still owns only the button.

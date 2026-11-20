@@ -559,8 +559,10 @@ is open; this is not a screen-sized popover or a zoomed canvas child. The panel
 uses a rounded regular Liquid Glass backdrop throughout opening, scrolling and
 return. Close floats in the upper-left corner and stays fixed as rows scroll.
 At logical panel widths of 320pt and above, the scroll viewport reaches the top
-edge and the centered grid leaves 54pt on each side for the 32pt Close button
-and its 14pt inset. Columns adapt up to 360pt per card with 20pt gaps.
+edge. The centered grid reserves at least 54pt on each side for the 32pt Close
+button and its 14pt inset. The first row starts as far from the top as the first
+column is from the left, including extra space when the cards reach their width
+limit. Columns adapt up to 360pt per card with 20pt gaps.
 In narrower panels, the single column uses the space below Close, with 14pt
 side margins. The 320pt layout scales to fit the panel width, including its
 scroll viewport and hit targets, so the cover, title and badge fit together. Cover

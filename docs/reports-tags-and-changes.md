@@ -18,7 +18,7 @@ Use the input below the source conversation to write a follow-up for the run you
 
 A collection shows one Super Thread at a time and can turn pages automatically. To choose a Super Thread, move the pointer over the card and use the arrows or the page menu between them. Collections of up to seven Super Threads also show a clickable marker for each page. Click the card to read the displayed Super Thread. Use **Close Super Thread** in the reader to return to Overview.
 
-To browse all members, click the page count in the upper-right corner of the collection card. Scroll the grid and click a Super Thread. The reader expands from the card you chose, just as it does on Overview. It may show a loading indicator while the report loads.
+To browse all members, click the page count in the upper-right corner of the collection card. At standard panel widths, the first card has equal space above it and to its left. Scroll the grid and click a Super Thread. The reader expands from the card you chose, just as it does on Overview. It may show a loading indicator while the report loads.
 
 Click the reader’s upper-left arrow, **Back to Super Thread Collection**, to return to your place in the grid. You can read another member from there. The grid’s **Close** button stays in the upper-left corner as you scroll. At high window zoom, the cards fit in one column below it. Click **Close** or press **Esc** in the grid to return to Overview. Any regrouping caused by reading those members takes effect when you close the grid.
 
