@@ -42,6 +42,7 @@ public struct NativeOverviewWorkspaceView: View {
     public var clickExclusions: NativeClickExclusions
     public var chromeVisible: Bool
     public var landing: Bool
+    var revealingNoteSource = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
@@ -49,10 +50,11 @@ public struct NativeOverviewWorkspaceView: View {
     private var inputRegions: NativeCanvasInputRegions { sharedInputRegions ?? localInputRegions }
     private var locale: DesktopLocale { model.workspace.locale }
     public init(model: NativeOverviewWorkspaceModel, callbacks: NativeOverviewWorkspaceCallbacks,
-                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false, chromeVisible: Bool = true) {
+                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false,
+                chromeVisible: Bool = true, revealingNoteSource: Bool = false) {
         self.model = model; self.callbacks = callbacks; self.interactionPaused = interactionPaused
         self.clickExclusions = clickExclusions
-        self.landing = landing; self.chromeVisible = chromeVisible
+        self.landing = landing; self.chromeVisible = chromeVisible; self.revealingNoteSource = revealingNoteSource
         _callbackStore = State(initialValue: NativeOverviewWorkspaceCallbackStore(callbacks))
     }
     public var body: some View {
@@ -76,6 +78,7 @@ public struct NativeOverviewWorkspaceView: View {
                     headerInputBottom: headerBottom,
                     visible: model.facts.overviewVisible && model.facts.documentVisible && canvasVisible,
                     layoutPaused: !model.presentationActive,
+                    reduceLayoutMotion: revealingNoteSource && reduceMotion,
                     cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
                     interactionPaused: interactionPaused || landing, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },
@@ -227,6 +230,12 @@ private struct NativeOverviewWorkspaceCard: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
+        .background {
+            if let request = model.readingSource, model.visibleCardID(for: request.member) == item.id,
+               model.sourceCardID(for: request.member) == nil {
+                NativeReadingEntranceStage(enabled: true, onReady: request.onReady).id(request.id)
+            }
+        }
         .environment(\.locale, locale)
         .overlay(alignment: .bottomLeading) {
             if let error { Text(error).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI).padding(12) }
@@ -284,7 +293,9 @@ private struct NativeOverviewWorkspaceCard: View {
                     guard plugin.hasDetail, model.canvasState.allowsActivation(cardID: item.id),
                           members.contains(where: { $0.entry.ref == reference }) else { return }
                     callbacks.current.openApplication(reference, nil)
-                }).environment(\.collectionReturnMember, model.returnMember))
+                }).environment(\.collectionReturnMember, model.returnMember)
+                .environment(\.collectionReadingSource,
+                    model.readingSource.flatMap { model.sourceCardID(for: $0.member) == item.id ? $0 : nil }))
         } catch {
             return AnyView(Text(error.localizedDescription).font(NativeTypography.inter(size: 11))
                 .foregroundStyle(NativePalette.overview.danger.swiftUI).padding(18)

@@ -104,7 +104,12 @@ struct NativeReportDetail: View {
     private var expanded: Bool { sidecards.active == .relatedExecutions }
     var body: some View {
         GeometryReader { geometry in
-            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: expanded,
+            // A direct result entry already knows its destination. With Reduce
+            // Motion, reserve both panes on the first frame while the HTML and
+            // execution load. Input and accessibility still require admission.
+            let showsExecutionPane = expanded || (reduceMotion && selected != nil && sidecards.entryPosition == .result
+                && sidecards.pending == .relatedExecutions && !suppressed)
+            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: showsExecutionPane,
                 preferredWidth: selected == nil ? 0.3 : 0.5)
             let source = launcherPosition.map { CGRect(x: $0.x - 21, y: $0.y - 21, width: 42, height: 42) }
             ZStack(alignment: .topLeading) {
@@ -152,7 +157,7 @@ struct NativeReportDetail: View {
                 // Later reader-owned animation transactions remain independent.
                 .transaction(value: selected) { $0.animation = nil }
                 .clipShape(RoundedRectangle(cornerRadius: 21))
-                .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source,
+                .modifier(NativeSidecardFold(progress: showsExecutionPane ? 1 : 0, source: source,
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight),
                     frameIdentifier: "report-executions-sidecard", reportReturn: true))

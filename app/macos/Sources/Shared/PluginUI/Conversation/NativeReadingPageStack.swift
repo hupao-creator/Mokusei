@@ -35,6 +35,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var panelFrontIdentity: JSONText?
     public var reportPanelMotion: Bool
     private let respectsReduceMotion: Bool
+    private let requiresPanelSource: Bool
     public var threadPanelMotion: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
@@ -48,7 +49,9 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     private let front: Front
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var animatesTravel: Bool { enabled && !(respectsReduceMotion && reduceMotion) }
+    private var animatesTravel: Bool {
+        enabled && !(respectsReduceMotion && reduceMotion) && (!requiresPanelSource || panelSource != nil)
+    }
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.nativeReadingEntranceReady) private var parentEntranceReady
@@ -71,7 +74,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 emphasizedOpening: Bool = false, panel: Bool = false, panelUsesGlass: Bool = false,
                 isolatesParent: Bool = false, panelSource: CGRect? = nil,
                 panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false,
-                respectsReduceMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
+                respectsReduceMotion: Bool = false, requiresPanelSource: Bool = false,
+                duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
                 onParentPresentationChange: ((Bool) -> Void)? = nil,
@@ -87,6 +91,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.isolatesParent = isolatesParent
         self.panelIdentity = panelIdentity; self.panelFrontIdentity = panelFrontIdentity
         self.respectsReduceMotion = respectsReduceMotion || reportPanelMotion
+        self.requiresPanelSource = requiresPanelSource
         self.reportPanelMotion = reportPanelMotion
         self.threadPanelMotion = threadPanelMotion
         self.axis = axis

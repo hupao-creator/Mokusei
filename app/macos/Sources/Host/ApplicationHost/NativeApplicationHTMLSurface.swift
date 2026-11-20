@@ -62,6 +62,7 @@ private struct HTMLDocumentIdentity: Hashable {
 
 @MainActor
 private struct HTMLDocumentSession: View {
+    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
     let source: ApplicationHTMLSource
     let thread: ApplicationThreadRef
     let theme: PluginTheme
@@ -102,7 +103,7 @@ private struct HTMLDocumentSession: View {
                     }, onReady: {
                         ready = true; onNativeNavigationChange(!panel)
                         if !hasRevealedDocument {
-                            withAnimation(.easeOut(duration: 0.2)) { hasRevealedDocument = true }
+                            withAnimation(animatesEntrance ? .easeOut(duration: 0.2) : nil) { hasRevealedDocument = true }
                         }
                     }, onFailure: fail, onNavigation: { intent in
                         guard !suppressed else { return }

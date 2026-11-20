@@ -65,7 +65,7 @@ struct NativeMokuNoteContent: View {
     let availableHeight: CGFloat
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
-    var openExecution: ((ApplicationExecutionRef, CGRect?) -> Void)? = nil
+    var openExecution: ((ApplicationExecutionRef) -> Void)? = nil
     var workspace: NativeWorkspaceModel? = nil
     var onContentHeightChange: ((CGFloat) -> Void)?
     var claimOpenArm: () -> Bool = { false }

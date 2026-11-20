@@ -233,6 +233,7 @@ extension NativeWorkspacePresentation {
                 "mountedMenuIds": .array(overview.chromeInteractions.mountedMenuIDs.map(JSONValue.text))
             ]),
             "dock": .object(["inputOpen": .bool(scene.inputOpen), "inputLeaving": .bool(scene.inputLeaving),
+                "noteExecutionPhase": scene.noteReadingOrigin.map { .text($0.phase.rawValue) } ?? .null,
                 "historyOpen": .bool(scene.mokuOpen), "noteOpen": .bool(scene.notePanelOpen), "covered": .bool(scene.dockCovered)])
         ])
     }

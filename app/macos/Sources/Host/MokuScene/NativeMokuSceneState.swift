@@ -46,13 +46,23 @@ import MokuseiPluginUI
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readReplies: Set<JSONText> = []
     struct NoteReadingOrigin {
-        let document: String
-        var capsule: CGRect?
-        let viewport: CGRect?
-        let landing: Bool
+        enum Phase: String { case dismissing, locating, reading }
+        let id = UUID()
+        let reference: ApplicationExecutionRef
+        var space: String
+        var phase = Phase.dismissing
         var returnsToNote = true
     }
     var noteReadingOrigin: NoteReadingOrigin?
+
+    func finishLinkedNoteDismissal(_ id: UUID?) {
+        guard let id, noteReadingOrigin?.id == id, noteReadingOrigin?.phase == .dismissing else { return }
+        noteReadingOrigin?.phase = .locating
+    }
+
+    func cancelPendingNoteReading() {
+        if let origin = noteReadingOrigin, origin.phase != .reading { noteReadingOrigin = nil }
+    }
     public private(set) var notePanelOpen = false
     public private(set) var noteOpenGeneration = 0
     public var readingPanelVisible = false {
@@ -294,11 +304,12 @@ import MokuseiPluginUI
         guard !settingsOpen else { return }
         guard open != notePanelOpen else { return }
         guard !open || (overviewVisible && !disabled && !dockCovered && !dockInteractionVisible) else { return }
-        if open { setInputOpen(false) }
+        if open { cancelPendingNoteReading(); setInputOpen(false) }
         notePanelOpen = open
         command?(.position)
     }
-    private func closeNotePanel() {
+    private func closeNotePanel(cancelReading: Bool = true) {
+        if cancelReading { cancelPendingNoteReading() }
         guard notePanelOpen else { return }
         notePanelOpen = false
         command?(.position)
@@ -370,6 +381,7 @@ import MokuseiPluginUI
     public func openSettings() {
         guard canOpenSettings else { return }
         guard !settingsOpen || settingsClosing else { return }
+        cancelPendingNoteReading()
         talkPresentation.setPresented(false)
         // Keep the underlying input/Note visit alive. Settings temporarily owns
         // the capsule; a pending intervention is admitted after it retires.
@@ -425,7 +437,7 @@ import MokuseiPluginUI
         onSettingsOpenChange?(false)
     }
     func setWindowVisible(_ value: Bool) {
-        if !value { talkPresentation.setPresented(false); closeNotePanel() }
+        if !value { talkPresentation.setPresented(false); closeNotePanel(cancelReading: false) }
         windowVisible = value
         if value, mokuOpen, !cameraActive, let key = liveReplyKey { markReplyRead(key) }
     }

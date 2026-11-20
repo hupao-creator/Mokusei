@@ -240,7 +240,7 @@ public final class NativeWorkspacePresentation {
             if readingCollectionMember { overview.holdCollectionRank(for: ref) }
             readingPanelSourceCardID = selected == nil ? sourceCardID ?? overview.sourceCardID(for: ref) ?? ref.threadID.string : nil
             readingPanelSource = readingCollectionMember ? collectionPanel.memberFrame : readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
-            threadIdentityVisit = ref.typeID == "agent" && target == nil
+            threadIdentityVisit = ref.typeID == "agent" && (target == nil || sourceCardID != nil)
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
         }
         selected = ref; readingTarget = target
@@ -257,13 +257,9 @@ public final class NativeWorkspacePresentation {
             requestID: JSONText(UUID().uuidString), mode: current == reference.executionID ? .current : .history))
     }
 
-    private var noteViewport: CGRect? {
-        scene.executionDockPlacement.sceneSize.map(scene.dockViewport(in:))
-    }
-
-    public func openNoteExecution(_ reference: ApplicationExecutionRef, sourceInWindow: CGRect?) {
+    public func openNoteExecution(_ reference: ApplicationExecutionRef) {
         guard selected == nil, scene.notePanelOpen, !scene.dockCovered,
-              !onboarding.blocksWorkspace, let note = moku.note else { return }
+              !onboarding.blocksWorkspace, moku.note != nil else { return }
         // The public catalog excludes private background agents. Failed and
         // interrupted ordinary threads remain valid explicit reading targets.
         guard reference.thread.typeID == "agent",
@@ -272,22 +268,78 @@ public final class NativeWorkspacePresentation {
             workspace.report(PluginContractError(NativePluginLocalization.localize("链接指向的执行不可用。", locale: Locale(identifier: workspace.locale.rawValue))))
             return
         }
-        // AX can activate a link outside the scroll clip. The open Note is
-        // still a visible origin when that attachment has no on-screen ink.
-        let source = sourceInWindow.flatMap(scene.executionDockPlacement.sceneFrame(forWindowRect:))
-            ?? (scene.capsuleFrame.isEmpty ? nil : scene.capsuleFrame)
-        let origin = NativeMokuSceneState.NoteReadingOrigin(document: note.documentToken,
-            capsule: source, viewport: noteViewport, landing: moku.landing)
-        if let owner = overview.collectionReadingOwner(of: reference.thread), owner.typeID == "report.document" {
-            open(owner)
-            reportSidecards.selectExecution(reference, position: .result)
-        } else {
-            open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
-                requestID: JSONText(UUID().uuidString), mode: .history, position: .result))
-        }
+        scene.noteReadingOrigin = .init(reference: reference, space: overview.sceneKey)
         scene.setNotePanelOpen(false)
+    }
+
+    fileprivate struct NoteSourcePreparation: Equatable {
+        let visit: UUID
+        let destination: ApplicationThreadRef
+        let space: String
+        let card: String?
+        let layoutRevision: UInt64
+    }
+
+    fileprivate var noteSourcePreparation: NoteSourcePreparation? {
+        guard let origin = scene.noteReadingOrigin, origin.phase == .locating, selected == nil,
+              focused, documentVisible else { return nil }
+        // Membership and ownership indexes update at the catalog boundary.
+        // Restart only if this destination or its actual card changes.
+        _ = workspace.catalog.revision
+        let thread = origin.reference.thread
+        let destination = overview.collectionReadingOwner(of: thread).flatMap { $0.typeID == "report.document" ? $0 : nil } ?? thread
+        return .init(visit: origin.id, destination: destination, space: overview.sceneKey,
+            card: overview.visibleCardID(for: destination), layoutRevision: overview.content.structureRevision)
+    }
+
+    fileprivate func prepareNoteSource(_ request: NoteSourcePreparation?, reduceMotion: Bool) async {
+        guard !Task.isCancelled, request == noteSourcePreparation else { return }
+        overview.readingSource = nil
+        guard let request else { return }
+        guard request.space == scene.noteReadingOrigin?.space else { scene.cancelPendingNoteReading(); return }
+        overview.revealReadingSource(for: request.destination)
+        scene.noteReadingOrigin?.space = overview.sceneKey
+        // A space switch schedules a fresh preparation for its own layout.
+        guard request == noteSourcePreparation else { return }
+        if overview.error == nil {
+            await canvas.prepareForPresentation()
+            guard !Task.isCancelled, request == noteSourcePreparation else { return }
+            if let card = request.card, canvas.layoutError == nil,
+               let placement = canvas.presentedPlacements.first(where: { $0.id == card }) {
+                await canvas.camera.revealReadingCard(placement.cardFrame, reduceMotion: reduceMotion)
+                guard !Task.isCancelled, request == noteSourcePreparation else { return }
+                overview.readingSource = .init(member: request.destination) { [weak self] in
+                    guard let self, request == noteSourcePreparation else { return }
+                    finishNoteOpening(request, sourceCardID: card)
+                }
+                return
+            }
+        }
+        // Explicit links also admit archived or failed Threads with no canvas card.
+        finishNoteOpening(request, sourceCardID: nil)
+    }
+
+    private func finishNoteOpening(_ request: NoteSourcePreparation, sourceCardID: String?) {
+        guard request == noteSourcePreparation, var origin = scene.noteReadingOrigin else { return }
+        overview.readingSource = nil
+        guard !scene.dockCovered, !scene.inputOpen, !browsingCollection, !onboarding.blocksWorkspace,
+              let thread = workspace.catalog.thread(origin.reference.thread.threadID),
+              thread.moku != true, !thread.mokuHistory else {
+            scene.cancelPendingNoteReading()
+            return
+        }
+        let reference = origin.reference
+        if request.destination == reference.thread {
+            open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
+                requestID: JSONText(origin.id.uuidString), mode: .history, position: .result), sourceCardID: sourceCardID)
+        } else {
+            open(request.destination, sourceCardID: sourceCardID)
+            reportSidecards.selectExecution(reference, position: .result)
+        }
+        guard selected == request.destination else { scene.cancelPendingNoteReading(); return }
+        origin.phase = .reading
         scene.noteReadingOrigin = origin
-        readingPanelSource = source
+        if sourceCardID == nil { readingPanelSource = nil; readingPanelSourceCardID = nil }
     }
 
     public func openFollowUp(_ id: JSONText, draft: JSONText) {
@@ -313,6 +365,7 @@ public final class NativeWorkspacePresentation {
 
     public func showOverview(focusFilter: Bool = false) {
         guard !onboarding.blocksWorkspace else { return }
+        scene.cancelPendingNoteReading()
         if scene.settingsOpen {
             guard settingsNavigation.requestClose(model: workspace.settingsModel,
                 onClose: { _ in scene.closeSettings() }) else { return }
@@ -342,13 +395,6 @@ public final class NativeWorkspacePresentation {
         let route = navigationRouteID, target = selected
         await canvas.prepareForPresentation()
         guard !Task.isCancelled, navigationRouteID == route, selected == target else { return }
-        if let origin = scene.noteReadingOrigin, origin.returnsToNote {
-            // Only reverse to the saved seat while its note and layout still
-            // describe this Overview. A changed note has no such destination.
-            readingPanelSource = origin.document == moku.note?.documentToken && origin.viewport == noteViewport
-                && origin.landing == moku.landing ? origin.capsule : nil
-            return
-        }
         // A change in reading eligibility, content or space can move an open
         // report between a collection and its individual card.
         if let target, target.typeID != "agent", readingPanelSourceCardID != nil,
@@ -799,6 +845,7 @@ public final class NativeWorkspacePresentation {
 public struct NativeWorkspaceView: View {
     public let model: NativeWorkspaceModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.controlActiveState) private var controlActiveState
     @State private var presentation: NativeWorkspacePresentation
@@ -845,6 +892,9 @@ public struct NativeWorkspaceView: View {
         .onChange(of: controlActiveState, initial: true) { _, state in presentation.setReadingWindowActive(state == .key) }
         .focusedSceneValue(\.workspacePresentation, presentation)
         .onAppear { presentation.start() }
+        .task(id: presentation.noteSourcePreparation) { [request = presentation.noteSourcePreparation] in
+            await presentation.prepareNoteSource(request, reduceMotion: reduceMotion)
+        }
         .onDisappear { Task { await presentation.release() } }
         .onChange(of: model.settingsOpen) { _, value in
             if value { presentation.openSettings() }
@@ -854,6 +904,9 @@ public struct NativeWorkspaceView: View {
             presentation.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
         }
         .onChange(of: presentation.scene.cameraActive) { _, _ in presentation.publishPresence() }
+        .onChange(of: presentation.collectionPanel.owner) { _, owner in
+            if owner != nil { presentation.scene.cancelPendingNoteReading() }
+        }
         .onChange(of: model.stopping) { _, _ in presentation.publishPresence() }
         .onChange(of: presentation.onboarding.blocksWorkspace) { _, _ in presentation.publishPresence() }
         .onChange(of: presentation.onboarding.step) { _, _ in presentation.publishPresence() }
@@ -995,6 +1048,7 @@ public struct NativeWorkspaceView: View {
                 threadPanelMotion: presentation.selected?.typeID == "agent",
                 reportPanelMotion: presentation.selected?.typeID == "report.document",
                 respectsReduceMotion: presentation.scene.noteReadingOrigin != nil,
+                requiresPanelSource: presentation.scene.noteReadingOrigin != nil,
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
                     if !active || !presentation.readingCollectionMember { presentation.overview.setPresentationActive(active) }
@@ -1017,13 +1071,14 @@ public struct NativeWorkspaceView: View {
                         onSettings: { presentation.openSettings() }),
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,
-                    chromeVisible: presentation.selected == nil)
+                    chromeVisible: presentation.selected == nil, revealingNoteSource: presentation.scene.noteReadingOrigin != nil)
                     .nativeCollectionPanelHost(enabled: presentation.readingCollectionMember || (!presentation.scene.settingsOpen
                         && !presentation.scene.mokuOpen && !presentation.scene.cameraActive && !presentation.onboarding.blocksWorkspace),
                         presentation: presentation.collectionPanel)
             } front: {
                 readingFront.id(routeID)
                     .environment(\.nativeExecutionDockRoute, routeID)
+                    .environment(\.nativeReadingEntranceAnimated, !(reduceMotion && presentation.scene.noteReadingOrigin != nil))
             }
             .task(id: [readingIdentity, presentation.readingTarget?.executionID ?? ""]) {
                 guard let selected = presentation.selected, selected.typeID == "agent",

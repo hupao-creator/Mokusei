@@ -91,6 +91,18 @@ import SwiftUI
 public extension EnvironmentValues {
     @Entry var collectionReturnMember: ApplicationThreadRef? = nil
     @Entry var nativeCollectionPanel: NativeCollectionPanelPresentation? = nil
+    @Entry var collectionReadingSource: NativeOverviewReadingSource? = nil
+}
+
+/// The reader can claim its Overview card after the requested member owns the page.
+@MainActor public struct NativeOverviewReadingSource {
+    public let id = UUID()
+    public let member: ApplicationThreadRef
+    public let onReady: () -> Void
+    public init(member: ApplicationThreadRef, onReady: @escaping () -> Void) {
+        self.member = member
+        self.onReady = onReady
+    }
 }
 
 @MainActor public final class NativeCollectionPanelSource {

@@ -1520,7 +1520,10 @@ WindowServer. Wide/stacked openings, switches, first-link/reopen,
 resize and close/reversal still need visual acceptance when that scope is allowed.
 
 Report commits its initial folded layout through `NativeReadingEntranceStage`
-after primary reading travel. `NativeApplicationHTMLReadinessKey` carries the
+after primary reading travel. A preselected Note result under Reduce Motion
+reserves its final side-by-side or stacked panes from the first Report layout.
+Document and execution readiness still govern content and input admission.
+The reduced-motion Note visit presents its ready content at full opacity. `NativeApplicationHTMLReadinessKey` carries the
 current source, thread, WebKit view generation and main-frame readiness.
 `NativeReportSidecardPresentation` waits for both gates, then 200ms, before
 admitting the latest pending selection. Report references and Browser share

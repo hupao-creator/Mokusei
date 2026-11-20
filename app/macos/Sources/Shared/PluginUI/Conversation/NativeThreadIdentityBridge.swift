@@ -348,6 +348,7 @@ private struct NativeThreadHeadingInk: View {
 }
 
 public struct NativeThreadPreparedReader<Content: View>: View {
+    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
     @Environment(\.nativeThreadPreparing) private var preparing
     @Environment(\.nativeThreadReaderPreloading) private var preloading
     @Environment(\.scenePhase) private var scenePhase
@@ -380,7 +381,7 @@ public struct NativeThreadPreparedReader<Content: View>: View {
                     // Reuse the layout-commit gate so the transparent pose is
                     // rendered before admission, including warm reader opens.
                     NativeReadingEntranceStage(enabled: !preparing && bodyLayoutReady && contentReady && !revealed) {
-                        withAnimation(scenePhase != .active ? nil : .easeOut(duration: 0.2)) {
+                        withAnimation(animatesEntrance && scenePhase == .active ? .easeOut(duration: 0.2) : nil) {
                             revealed = true
                         }
                     }

@@ -387,7 +387,7 @@ Agent Threads qualify, including archived, failed and interrupted ones. Moku,
 its history and missing/private targets produce an unavailable notice. The note
 retains its existing character budget and viewport-exposure semantics.
 
-Note execution references use the selected A clear Liquid Glass capsule with
+Note execution references use a clear Liquid Glass capsule with
 its owning Harness's native logo and a trailing up-right arrow. There is no
 hover scale or interactive glass response. Ordinary links keep their existing
 purple underline. The note observes public catalog membership and uses the
@@ -403,16 +403,15 @@ and copying preserve the full title, without inserting a logo/arrow into copied
 content. Pointer events remain with TextKit for drag selection, and the hosted
 control supplies named keyboard/accessibility activation.
 
-Pointer and accessibility activation use the visible attachment frame at the
-activated character index. The scene converts it from window points into
-logical panel coordinates before the Dock changes owners. The panel expands
-from that link. The Thread's unique Super Thread owner opens its Report with
-the exact linked result selected in Related executions. Without a unique owner
-the ordinary Agent reader opens that result. An offscreen link activated through accessibility uses the
-visible Note shell. Back restores the expanded Note and its retained viewport.
-The covered Note stays ineligible for input, accessibility and exposure.
-A different document or viewport retires the saved return frame. Reduce Motion
-switches the panel directly on entry and return.
+Pointer and accessibility activation dispatch the same exact execution reference.
+The Dock closes the Note and retains its reading position. Once the Note has
+closed, Overview reveals the destination in its filter and, for a grouped Report,
+on its Collection page. The settled Overview card supplies the reader’s origin.
+A unique Super Thread owner opens its Report with the linked result selected
+in Related executions. Other links open the result in the ordinary Agent reader,
+including eligible Threads hidden from Overview. Back restores the expanded
+Note and its retained viewport. The closed Note remains ineligible for input,
+accessibility and exposure. Reduce Motion switches directly on entry and return.
 
 The reader opens one fixed execution at its final visible reply, or its latest
 visible content/status when no final reply exists. Running executions initially

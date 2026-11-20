@@ -11,6 +11,8 @@ struct NativeReportCollection: View {
     let onSelection: (ApplicationThreadRef) -> Void
     let openThread: (ApplicationThreadRef) -> Void
     @Environment(\.collectionReturnMember) private var returnMember
+    @Environment(\.collectionReadingSource) private var readingSource
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: ApplicationThreadRef
     @State private var currentMembers: Set<ApplicationThreadRef>
     @State private var direction = 1
@@ -43,7 +45,7 @@ struct NativeReportCollection: View {
     private var members: [ApplicationThreadRef] { props.map { $0.entry.ref } }
     private var selected: ApplicationThreadRef { members.contains(selection) ? selection : members[0] }
     private var page: Int { members.firstIndex(of: selected) ?? 0 }
-    private var playing: Bool { active && visibility?.isVisible != false && !interacting && !showingMembers && trackingMenus.isEmpty }
+    private var playing: Bool { active && readingSource == nil && visibility?.isVisible != false && !interacting && !showingMembers && trackingMenus.isEmpty }
     private enum Control: Hashable {
         case allMembers, previous, member(ApplicationThreadRef), menu, next
     }
@@ -206,6 +208,11 @@ struct NativeReportCollection: View {
             }
         }
         .background(NativeCollectionPanelAnchor(panelSource))
+        .background {
+            if let readingSource, selected == readingSource.member, outgoingID == nil {
+                NativeReadingEntranceStage(enabled: true, onReady: readingSource.onReady).id(readingSource.id)
+            }
+        }
         .contentShape(RoundedRectangle(cornerRadius: 22))
         .onChange(of: props.map(\.entry)) { _, _ in refreshMembers() }
         .onChange(of: locale) { _, _ in refreshMembers() }
@@ -226,6 +233,9 @@ struct NativeReportCollection: View {
         }
         .onDisappear { hovered = false; showingMembers = false; memberPresentation?.dismiss(owner: panelOwner); trackingMenus.removeAll() }
         .onChange(of: returnMember, initial: true) { _, ref in restoreReturnMember(ref) }
+        .onChange(of: readingSource?.id, initial: true) { _, _ in revealReadingSource() }
+        .onChange(of: outgoingID) { _, outgoing in if outgoing == nil { revealReadingSource() } }
+        .onChange(of: reduceMotion) { _, value in if value { revealReadingSource() } }
         .onChange(of: renderedIdentities) { _, keys in readyCovers.formIntersection(keys) }
         .onChange(of: playing) { _, value in
             if !value { playbackStarted = nil }
@@ -234,7 +244,7 @@ struct NativeReportCollection: View {
             currentMembers = Set(next)
             settle()
             if !next.contains(selection) { selection = next[0] }
-            restoreReturnMember(returnMember)
+            if readingSource != nil { revealReadingSource() } else { restoreReturnMember(returnMember) }
         }
         .onChange(of: active) { _, value in
             if value { restoreReturnMember(returnMember); refreshMembers() }
@@ -254,11 +264,12 @@ struct NativeReportCollection: View {
             do {
                 // Commit the initial pair of native pages before animating it.
                 try await Task.sleep(for: .milliseconds(20))
-                let duration = 0.46 * (slow ? 3 : 1)
-                withAnimation(.easeInOut(duration: duration)) { progress = 1 }
-                try await Task.sleep(for: .seconds(duration))
-                try Task.checkCancellation()
-                outgoingID = nil
+                let epoch = motionEpoch
+                withAnimation(.easeInOut(duration: 0.46 * (slow ? 3 : 1)), completionCriteria: .removed) {
+                    progress = 1
+                } completion: {
+                    if motionEpoch == epoch { outgoingID = nil }
+                }
             } catch { /* View identity owns and cancels this transition. */ }
         }
         .task(id: clockKey) {
@@ -271,10 +282,21 @@ struct NativeReportCollection: View {
         }
     }
     private func restoreReturnMember(_ ref: ApplicationThreadRef?) {
-        guard let ref, members.contains(ref) else { return }
+        guard readingSource == nil, let ref, members.contains(ref) else { return }
         settle()
         selection = ref
         onSelection(ref)
+    }
+
+    private func revealReadingSource() {
+        guard let ref = readingSource?.member, let index = members.firstIndex(of: ref) else { return }
+        if reduceMotion || !active {
+            settle()
+            selection = ref
+            onSelection(ref)
+        } else if outgoingID == nil, ref != selected {
+            select(ref, direction: index >= page ? 1 : -1)
+        }
     }
 
     private func toggleMembers() {

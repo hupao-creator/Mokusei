@@ -462,6 +462,12 @@ visibility, archive, directory/tag selection and exact execution coverage. It
 uses the full individual footprints, including offscreen cards. A report with a
 cover costs two cells and a coverless report costs one.
 
+When a Chief Note link targets a grouped Report, the carousel pauses automatic
+advance and selects that member. The reader opens through the card’s ordinary
+opening path after the target page settles. A brief visit retains that member
+as the return page while it remains grouped. The [Note link contract](../MokuScene/README.md)
+covers dismissal and navigation back to the Note.
+
 The [profile-local reading record](NativeOverviewCollectionReading.swift) determines
 default membership across views. At **24 hours** from the end of the last visit
 (or creation for an unvisited report), a report defaults to collection. Overview

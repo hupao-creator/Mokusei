@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 import SwiftUI
 
 @MainActor
@@ -94,6 +95,7 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private var applicationVisit: NativeOverviewCollectionVisit?
     @ObservationIgnored private var applicationReadDeadline: Task<Void, Never>?
     private(set) var returnMember: ApplicationThreadRef?
+    var readingSource: NativeOverviewReadingSource?
     // A member reader covers a live grid. Save its ranking inputs before the
     // visit writes reading evidence, so Back can restore the same grid seat.
     @ObservationIgnored private var heldCollectionRanks: [ApplicationThreadRef: (idle: Bool, qualifiedAt: Double?)] = [:]
@@ -250,6 +252,32 @@ public final class NativeOverviewWorkspaceModel {
     public func snapshot(for item: NativeOverviewItem) -> NativeOverviewCardSnapshot? { snapshots[item.presentationID] }
 
     public func sourceCardID(for reference: ApplicationThreadRef) -> String? { collectionSources[reference] }
+
+    func visibleCardID(for reference: ApplicationThreadRef) -> String? {
+        let id = sourceCardID(for: reference) ?? reference.threadID.string
+        return content.activeIDs.contains(id) ? id : nil
+    }
+
+    /// Prefer the current space, including a collapsed Collection. Directory
+    /// membership is scope-aware even when two directories share a chip label.
+    func revealReadingSource(for reference: ApplicationThreadRef) {
+        guard visibleCardID(for: reference) == nil else { return }
+        func contains(_ membership: NativeOverviewMembership?) -> Bool {
+            if reference.typeID == "agent" { return membership?.threads.contains(reference.threadID) == true }
+            return membership?.applications.contains(reference) == true
+        }
+        if let filter = allFilters.first(where: { contains(filterMembers[$0.selectionKey]) }) {
+            selectTag(filter)
+        } else if tagSelection != nil, contains(allMembership()) {
+            selectTag(nil)
+        } else if reference.typeID == "agent", let thread = workspace.catalog.thread(reference.threadID),
+                  let directory = filters.first(where: { $0.scope == NativeOverviewSelection.scope(thread) }),
+                  selectedFilter?.selectionKey != directory.selectionKey {
+            // An explicit result can belong to an archived Thread. Its space
+            // can still exist even though no card is eligible to provide geometry.
+            selectTag(directory)
+        }
+    }
 
     public func selectedCollectionMember(for item: NativeOverviewItem) -> ApplicationThreadRef? {
         guard case .collection(_, let members) = snapshot(for: item) else { return nil }

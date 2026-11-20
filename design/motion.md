@@ -4,10 +4,16 @@ Opening a Report from Overview or the [Super Thread member grid](../app/macos/So
 uses one native panel transition. The panel opens from the activated card and
 returns to the card in the originating surface. macOS Reduce Motion skips
 Report panel travel in both directions. The reader can show its usual loading state.
-A Chief Note execution link supplies its visible capsule as the reading panel
-origin. The Agent or owning Report uses its 420ms opening and return. The Report
-admits its selected related execution after the document and layout are ready.
-Reduce Motion switches directly in both directions.
+A Chief Note link closes the Note before Overview reveals its destination.
+If the active filter excludes the destination, Overview selects a matching
+filter. A grouped Report turns to the requested page before the reader opens.
+The settled card uses its ordinary 420ms opening, including the Agent card’s
+identity handoff when its anchors are available. The Report
+admits the cited execution after its document and sidebar layout are ready.
+With Reduce Motion, each handoff settles directly. A preselected result
+reserves both Report panes while the content loads, and the input opens at
+its final width once ready. The native document and cited result appear at
+full opacity when each finishes loading.
 Reduce Motion also settles member removals and the
 [final Overview card exit](../app/macos/Sources/Host/Overview/README.md#layout-motion-and-input)
 immediately. Other application-owned animations use their ordinary timing,

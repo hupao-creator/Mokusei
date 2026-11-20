@@ -23,6 +23,13 @@ and return both report `transitioning`; return keeps the Settings route mounted
 until the capsule finishes contracting. `settings.open` is available only on a
 loaded Overview; other routes reject it without navigation.
 
+A Chief Note execution visit exposes `overview.dock.noteExecutionPhase`. It
+moves from `dismissing` while the Note closes to `locating` while Overview
+reveals the card and any Collection page, then to `reading` when the Host
+selects the reader. The field is null outside the visit. Compare the selected
+filter, Collection member and mounted execution with the isolated window
+recording to verify ordering and card travel.
+
 Moku history reports its shared reading-panel motion as `transitioning`, stays
 mounted until Close completes, and uses a separate navigation action from its
 retained parent. `navigation.back` first follows internal historical-turn

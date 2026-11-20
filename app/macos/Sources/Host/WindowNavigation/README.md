@@ -129,6 +129,10 @@ This entry admits public ordinary threads, including archived and
 failed or Moku-tool-interrupted threads hidden from Overview. The result reading request is
 exact and does not start execution. A missing or ineligible thread shows an
 unavailable notice; a missing execution uses the reader's unavailable page. Each click receives a fresh reading request.
+After Note dismissal, Overview keeps a filter that already contains the
+destination or selects a matching filter. A grouped destination must reach its
+own carousel page before the reader opens from the card. An eligible target
+without an Overview card can still open.
 The catalog indexes Super Thread ownership by ordinary Thread, across its runs.
 A unique owner opens the Report panel with the linked execution's result beside
 the document. The Report's own related-list entry opens the current execution.
@@ -284,8 +288,8 @@ inserted reader geometry. The related capability owns one 200ms native opacity
 entrance per selected visit, after scoped-row and Markdown readiness; manifest
 mounting cannot consume it. Loading remains visible while preparing, and hidden
 reader controls/accessibility cannot act. Errors admit normally, refresh/retry
-keeps the same entrance, and a new selection retires pending preparation. The
-ordinary entrance does not consult system motion preferences. See the
+keeps the same entrance, and a new selection retires pending preparation. A Chief Note entry under Reduce Motion shows the ready execution immediately. The
+ordinary list entrance keeps its 200ms timing. See the
 [execution entrance contract](../../../../../design/reading.md) and the [Report viewport contract](../../../../../design/reading.md).
 
 Closing a settled Report retains its current split layout from return preparation

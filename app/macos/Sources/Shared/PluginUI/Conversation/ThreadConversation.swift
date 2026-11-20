@@ -114,6 +114,7 @@ public struct ThreadConversation: View {
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadRelatedExecution) private var relatedExecution
     @Environment(\.nativeReportSidecards) private var reportSidecards
+    @Environment(\.nativeReadingEntranceAnimated) private var animatesEntrance
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
     @State private var consumedRequest: JSONText?
@@ -326,8 +327,9 @@ public struct ThreadConversation: View {
     private var pageStack: some View {
         GeometryReader { _ in
             NativeReadingPageStack(open: readingPage, identity: readingIdentity, motion: pageMotion,
+                                   respectsReduceMotion: !animatesEntrance && entryRoute,
                                    axis: .vertical,
-                                   direction: pageDirection,
+                                   direction: !animatesEntrance && entryRoute ? 0 : pageDirection,
                                    onClose: finishClosingHistory) {
                 if hasMountedCurrentDocument || !readingPage || !entryRoute {
                     HarnessMessageTimeline(timelineKey: threadId,

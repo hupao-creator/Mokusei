@@ -21,13 +21,6 @@ final class NativeExecutionDockPlacement {
     @ObservationIgnored private weak var execution: NativeExecutionDockRegion.RegionView?
     @ObservationIgnored private var publicationPending = false
 
-    var sceneSize: CGSize? { scene?.bounds.size }
-
-    func sceneFrame(forWindowRect rect: CGRect) -> CGRect? {
-        guard let scene, scene.window != nil else { return nil }
-        return scene.convert(rect, from: nil)
-    }
-
     func beginRoute(_ route: UUID, retaining frame: CGRect? = nil, threadID: JSONText? = nil,
                     continuing: Bool = false) {
         self.route = route

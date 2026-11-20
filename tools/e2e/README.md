@@ -110,36 +110,42 @@ an isolated connected workspace. `E2E-SETTINGS-001` exercises preset persistence
 
 ### Chief Note execution link
 
-Use an isolated desktop window with a completed ordinary Thread. Put two links
-to its execution in different paragraphs of a long Chief Note. Open the Note
-and scroll until the second link is visible. Capture only the isolated window
-continuously through each action.
+Prepare an isolated workspace with two directories. Give both ordinary Threads
+at least two completed runs with distinguishable replies. Have one Super Thread
+cite a different run of the same Thread as the Note. Put links to both Threads
+near the bottom of a long Chief Note. Include enough Reports for a multipage
+Collection on All. Record the isolated window continuously and save the filter,
+carousel member, execution identities and link position alongside the recording.
 
-1. Click the second link with the system pointer. Check that the opening
-   aperture starts at that capsule and grows toward the reader across consecutive
-   frames. Confirm the cited execution and its result in the mounted reader.
-2. Use Back to Chief Note. Check shrinking reader ink and aperture on return,
-   then compare the visible link and its window position with the initial frame.
-3. Repeat using system AXPress on the link and Back button. Under Reduce Motion,
-   inspect both directions for a direct cut. Compare the restored Note shell
-   with its original bounds from the first visible return frame. Record whether
-   the preference came from macOS or a process-local environment override.
-4. With a newer execution in the same Thread, open the older citation. Check
-   its historical result, focus its read-only text and press Escape to return.
-   Open the link again and use the Overview command to leave the Note closed.
+1. In the other directory, scroll the Note to the ordinary link and click it
+   with the system pointer. Check that the Note finishes closing before the
+   filter changes. The reader should open from the target card at the cited
+   result. Repeat from a filter that already contains the target and check that
+   its selection stays put. Return with **Back to Chief Note** and compare the
+   link’s window position. Open the historical link again and use Escape on
+   its read-only text, then repeat with the Overview command to leave Note closed.
+2. Open the associated link from a different directory. Check the Report title
+   and the exact cited reply in its open side panel. Use the conversation
+   contents to visit current and historical rows. Type a draft on the historical
+   run and switch away and back. **Back to related executions** should show
+   the Report’s list. The arrow on the Report returns to the Note.
+3. In All, start with another Report showing in the target Collection. Open
+   the associated link. The filter should stay on All. Check consecutive frames
+   for the Note closing, the carousel moving to the cited Report and settling,
+   then the reader expanding from that card. Compare the panel travel with a
+   direct click on the same card at the same window size and camera position.
+   Repeat the comparison for an ordinary Thread and an individual Report.
+   After a brief visit, return to the Note and check the carousel page and
+   the Note’s scroll position.
+4. Repeat the three routes with system AXPress. Check English and Simplified
+   Chinese. With Reduce Motion enabled, inspect the recording for a direct
+   change at each handoff and on return. Record the preference source and the
+   capture rate. Track source revision, executable identity, scoped replies,
+   input targets and returned state for each visit.
 
-5. Bind that Thread to a Super Thread using a different execution. Reopen the
-   Note link and check the owning Report and the exact linked result in its side
-   panel. Select the current and historical rows in the side panel's conversation
-   contents using pointer and AXPress. Check the selected row, displayed run
-   and retained Report. Type a draft on the historical run, switch to current
-   and back, and compare the editor contents. Return using the Report arrow. Open the
-   same Report from Overview, select the related card and repeat TOC navigation
-   from the current run. Back to related executions restores the list.
-
-Keep the source revision, build identity, input targets, mounted result, return
-state and frame recording together. The semantic note toggle alone exercises
-only the Note entrance. [Note and link behavior](../../app/macos/Sources/Host/MokuScene/README.md)
+The semantic Note toggle exercises the Note entrance. Mounted route identity
+and window frame recordings supply separate evidence.
+[Note and link behavior](../../app/macos/Sources/Host/MokuScene/README.md)
 
 ### Super Thread reading regression
 
