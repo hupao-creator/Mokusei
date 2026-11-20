@@ -325,7 +325,9 @@ func publicWorkspace(record model.ThreadRecord) map[string]any {
 		workspace["cwd"] = record.Cwd
 		workspace["directoryTag"] = ThreadDirectoryTag(record.Cwd)
 	}
-	if record.Worktree != nil {
+	if record.Worktree != nil && record.Worktree.RemovedCwd != "" {
+		workspace["removedWorktreeCwd"] = record.Worktree.RemovedCwd
+	} else if record.Worktree != nil {
 		workspace["worktreeCwd"] = record.Worktree.Cwd
 	}
 	return workspace

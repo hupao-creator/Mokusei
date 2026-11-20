@@ -14,6 +14,9 @@ import (
 	"syscall"
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 )
 
 // Directory identity deliberately excludes mutable mtime/ctime. Darwin's
@@ -229,11 +232,8 @@ func safeStagingLabel(label string) bool {
 	return true
 }
 
-func createStaging(parent, label string, randomSuffix bool) (string, error) {
-	return createStagingWithRandom(parent, label, randomSuffix, randomID)
-}
-
-func createStagingWithRandom(parent, label string, randomSuffix bool, random func() (string, error)) (string, error) {
+func (m *Manager) createStaging(repo repository, label string, randomSuffix bool) (string, error) {
+	parent := repo.StagingRoot
 	if !safeStagingLabel(label) {
 		return "", fmt.Errorf("invalid staging label %q: use Unicode letters, digits, '.', '_' or '-' with no leading dot", label)
 	}
@@ -270,9 +270,12 @@ func createStagingWithRandom(parent, label string, randomSuffix bool, random fun
 		attempts = 16
 	}
 	for attempt := 0; attempt < attempts; attempt++ {
-		name, e := stagingCandidateName(label, attempt, randomSuffix, random)
+		name, e := stagingCandidateName(label, attempt, randomSuffix, randomID)
 		if e != nil {
 			return "", e
+		}
+		if m.reservedName(repo, id, name) {
+			continue
 		}
 		path := filepath.Join(real, name)
 		e = assertIdentity(parent, id)
@@ -299,6 +302,30 @@ func createStagingWithRandom(parent, label string, randomSuffix bool, random fun
 	return "", fmt.Errorf("%w for requested label %q", errStagingCollision, label)
 }
 
+// Git derives the private admin directory from the basename and can append a
+// decimal suffix on collision. Reserve both names until the Thread and proof
+// commits finish, including on case- and normalization-insensitive filesystems.
+func (m *Manager) reservedName(repo repository, parent directoryIdentity, name string) bool {
+	fold := func(s string) string { return norm.NFD.String(cases.Fold().String(s)) }
+	candidate := fold(name)
+	for _, p := range m.proofs {
+		if p.RemovalStage == "" {
+			continue
+		}
+		sameStaging := p.Snapshot.StagingRootIdentity == parent || fold(repo.StagingRoot) == fold(p.Snapshot.StagingRoot)
+		if sameStaging && candidate == fold(filepath.Base(p.Snapshot.Root)) {
+			return true
+		}
+		if fold(repo.CommonDirectory) != fold(p.Snapshot.CommonDirectory) {
+			continue
+		}
+		if suffix, ok := strings.CutPrefix(fold(filepath.Base(p.Snapshot.GitDirectory)), candidate); ok && strings.Trim(suffix, "0123456789") == "" {
+			return true
+		}
+	}
+	return false
+}
+
 func stagingCandidateName(label string, attempt int, randomSuffix bool, random func() (string, error)) (string, error) {
 	if randomSuffix {
 		suffix, err := random()
@@ -322,33 +349,43 @@ func stagingCandidateName(label string, attempt int, randomSuffix bool, random f
 	}
 	return label + "-" + suffix[:4], nil
 }
-func ensureDirectoryPath(root, target string, id directoryIdentity) error {
+func ensureDirectoryPath(root, target string, id directoryIdentity) (map[string]directoryIdentity, error) {
 	if !within(root, target) {
-		return errors.New("execution directory escapes worktree")
+		return nil, errors.New("execution directory escapes worktree")
 	}
-	rel, _ := filepath.Rel(root, target)
-	current := root
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return nil, err
+	}
 	if rel == "." {
-		return assertIdentity(root, id)
+		return nil, assertIdentity(root, id)
 	}
+	created := make(map[string]directoryIdentity)
+	name := ""
 	for _, segment := range strings.Split(rel, string(os.PathSeparator)) {
 		if err := assertIdentity(root, id); err != nil {
-			return err
+			return nil, err
 		}
-		current = filepath.Join(current, segment)
-		if err := os.Mkdir(current, 0755); err != nil && !errors.Is(err, os.ErrExist) {
-			return err
+		name = filepath.Join(name, segment)
+		current := filepath.Join(root, name)
+		mkdirErr := os.Mkdir(current, 0755)
+		if mkdirErr != nil && !errors.Is(mkdirErr, os.ErrExist) {
+			return nil, mkdirErr
 		}
-		if _, err := directoryID(current); err != nil {
-			return err
+		childID, err := directoryID(current)
+		if err != nil {
+			return nil, err
+		}
+		if mkdirErr == nil {
+			created[name] = childID
 		}
 		got, err := canonical(current)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !within(root, got) {
-			return errors.New("execution directory symlink escaped worktree")
+			return nil, errors.New("execution directory symlink escaped worktree")
 		}
 	}
-	return nil
+	return created, nil
 }

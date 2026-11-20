@@ -525,5 +525,5 @@ func sameSettingsSource(a, b model.ThreadRecord) bool {
 	if a.Cwd != b.Cwd || a.HarnessID != b.HarnessID || a.Moku != b.Moku || a.MokuHistory != b.MokuHistory || !bytes.Equal(a.Settings, b.Settings) || (a.Worktree == nil) != (b.Worktree == nil) {
 		return false
 	}
-	return a.Worktree == nil || a.Worktree.Cwd == b.Worktree.Cwd
+	return a.Worktree == nil || *a.Worktree == *b.Worktree
 }
