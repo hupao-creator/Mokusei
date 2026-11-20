@@ -2,7 +2,7 @@
 
 ## Open Settings and save changes
 
-From **Overview**, click the **Settings** gear, press **⌘,**, or choose **Settings…** from the Chief menu. If you're reading a conversation or a Super Thread, press **⌘K** to return to Overview first.
+From **Overview**, click the **Settings** gear in the upper-right corner, press **⌘,**, or choose **Settings…** from the Chief menu. If you're reading a conversation or a Super Thread, press **⌘K** to return to Overview first.
 
 Under **General → Interface preferences**, choose **System**, **Light**, or **Dark** in **Appearance**. Check the result in Overview. Under **Interface language**, choose **English** or **Simplified Chinese**. These choices save immediately, even when your agents are unavailable.
 

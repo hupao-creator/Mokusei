@@ -89,23 +89,30 @@ private final class WheelSample: NSEvent {
         let directory = URL(filePath: FileManager.default.currentDirectoryPath).appending(path: "evidence")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var records: [[String: Any]] = []
-        // Filter tops are logical points. Native button centers are window points.
-        let cases: [(size: CGSize, scale: CGFloat, filterTop: CGFloat, buttonCenter: CGFloat)] = [
-            (CGSize(width: 860, height: 640), 5, 76, 225),
-            (CGSize(width: 1100, height: 760), 1, 16, 57),
-            (CGSize(width: 1100, height: 760), 1.44, 16, 68.24),
-            (CGSize(width: 860, height: 640), 2.5, 76, 112.5),
-            (CGSize(width: 860, height: 640), 5, 76, 225),
-            (CGSize(width: 860, height: 600), 5, 68, 225),
+        // Filter tops are logical points. Settings probes use actual-size window points.
+        let cases: [(size: CGSize, scale: CGFloat, filterTop: CGFloat, settingsProbe: CGPoint?, captureName: String?)] = [
+            (CGSize(width: 860, height: 640), 5, 76, nil, "maximum"),
+            (CGSize(width: 1100, height: 760), 1, 16, CGPoint(x: 1061, y: 22), "wide"),
+            (CGSize(width: 600, height: 480), 1, 76, CGPoint(x: 565, y: 16), "narrow"),
+            (CGSize(width: 1100, height: 760), 1.44, 16, nil, "menu"),
+            (CGSize(width: 860, height: 640), 2.5, 76, nil, nil),
+            (CGSize(width: 860, height: 640), 5, 76, nil, nil),
+            (CGSize(width: 860, height: 600), 5, 68, nil, nil),
         ]
-        for (size, scale, filterTop, buttonCenter) in cases {
+        for (size, scale, filterTop, settingsProbe, captureName) in cases {
             zoom = scale
             window.setContentSize(size)
             window.setFrameTopLeftPoint(CGPoint(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY + size.height / 2))
             try await Task.sleep(for: .seconds(2))
-            let result = try inspect(window, scale: scale, filterTop: filterTop, buttonCenter: buttonCenter)
-            if CommandLine.arguments.contains("--capture"), scale == 1.44 || records.isEmpty {
-                try await capture(window, to: directory.appending(path: scale == 5 ? "maximum.png" : "menu.png"))
+            var result = try inspect(window, scale: scale, filterTop: filterTop)
+            if CommandLine.arguments.contains("--capture"), let captureName {
+                try await capture(window, to: directory.appending(path: captureName + ".png"))
+            }
+            if let settingsProbe {
+                let opened = try await clickSettings(window, at: settingsProbe)
+                result["settingsProbeFromTopLeft"] = [settingsProbe.x, settingsProbe.y]
+                result["settingsOpened"] = opened
+                result["passed"] = opened && result["passed"] as? Bool == true
             }
             records.append(result)
             if result["passed"] as? Bool != true { print("Failed geometry: \(result)") }
@@ -139,7 +146,23 @@ private final class WheelSample: NSEvent {
         return nil
     }
 
-    private func inspect(_ window: NSWindow, scale: CGFloat, filterTop: CGFloat, buttonCenter: CGFloat) throws -> [String: Any] {
+    private func clickSettings(_ window: NSWindow, at point: CGPoint) async throws -> Bool {
+        let location = CGPoint(x: point.x, y: window.frame.height - point.y)
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            guard let event = NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                    context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0) else {
+                throw ReplayError("Cannot create the window-local Settings click")
+            }
+            window.sendEvent(event)
+        }
+        try await Task.sleep(for: .milliseconds(400))
+        let opened = presentation.scene.settingsOpen
+        if opened { presentation.scene.closeSettings() }
+        return opened
+    }
+
+    private func inspect(_ window: NSWindow, scale: CGFloat, filterTop: CGFloat) throws -> [String: Any] {
         guard let content = window.contentView, let frame = content.superview,
               let host = descendant(NativeReadingParentView.self, in: content),
               let monitor = descendant(NativeOverviewScrollInput.MonitorView.self, in: host),
@@ -170,8 +193,10 @@ private final class WheelSample: NSEvent {
                 return frame.hitTest(frame.superview?.convert(point, from: nil) ?? point) === button
             }
         }
-        let buttonCenters = rects.map { window.frame.height - $0.midY }
-        let aligned = buttonCenters.allSatisfy { abs($0 - buttonCenter) <= 0.5 }
+        let buttonCenters = rects.map { CGPoint(x: $0.midX, y: window.frame.height - $0.midY) }
+        let positioned = zip(buttonCenters, [31.0, 51.0, 71.0]).allSatisfy { center, x in
+            abs(center.x - x) <= 0.5 && abs(center.y - 38) <= 0.5
+        }
         let renderedFilterTop = window.frame.height - filterFrame.maxY
         let filterPositioned = abs(renderedFilterTop - filterTop * scale) <= 0.5
         let filterBottom = window.frame.height - filterFrame.minY
@@ -183,10 +208,10 @@ private final class WheelSample: NSEvent {
         return ["windowSize": [window.frame.width, window.frame.height], "scale": scale,
                 "logicalViewport": [size.width, size.height], "filterTopInWindow": renderedFilterTop,
                 "expectedFilterTopInWindow": filterTop * scale, "filterBottomInWindow": filterBottom,
-                "buttonCentersFromTop": buttonCenters, "expectedButtonCenterFromTop": buttonCenter, "buttonHits": hits,
+                "buttonCentersFromTopLeft": buttonCenters.map { [$0.x, $0.y] }, "buttonHits": hits,
                 "headerInputBottom": boundary, "canvasStripHeight": strip, "inputPointInWindow": [inputPoint.x, inputPoint.y],
                 "rejectsHeader": rejectsHeader, "wheelPanned": scrolled, "pinchEnteredManual": pinched,
-                "passed": buttons.count == 3 && hits && aligned && filterPositioned && filterInside && filterExcluded
+                "passed": buttons.count == 3 && hits && positioned && filterPositioned && filterInside && filterExcluded
                     && strip >= 8 && pointInside && rejectsHeader && scrolled && pinched]
     }
 }

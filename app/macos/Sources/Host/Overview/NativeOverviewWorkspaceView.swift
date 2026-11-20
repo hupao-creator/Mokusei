@@ -122,7 +122,6 @@ public struct NativeOverviewWorkspaceView: View {
             }
             .overlay(alignment: .top) {
                 NativeOverviewChrome(filters: filters, viewportHeight: geometry.size.height,
-                    alignsWindowControls: chromeVisible && model.facts.overviewVisible && !model.facts.mokuOpen && !model.facts.settingsOpen,
                     selectedTag: model.selectedTag,
                     selectedScope: model.selectedScope, selectedKind: model.tagSelection?.kind,
                     allHasActiveTasks: model.allHasActiveTasks,

@@ -22,12 +22,12 @@ python3 demos/moku-landing/verify_header.py --capture --output .build/nested-hea
 ```
 
 The replay mounts the production workspace and its nested reading host with
-a temporary fixture catalog. It starts at 5×, checks single-row filters at 1×
-and 1.44×, checks stacked filters at 2.5×, and returns to 5× at two window
-heights. It checks the rendered filter position and native window button
-centers independently. The JSON records button hits, filter bounds, header
-exclusion and whether a window-local wheel sample pans the canvas. It exercises
-the camera pinch path with an injected magnification. Optional captures show
-the fixture's offline workspace.
+a temporary fixture catalog. It starts at 5×, checks 1100pt and 600pt windows
+at actual size, visits 1.44× and 2.5×, and returns to 5× at two window heights.
+The JSON records rendered filter bounds, native window button centers and
+hit tests, and whether a window-local click in the upper part of the
+Settings button opens Settings in both actual-size windows. It also records
+header exclusion and canvas navigation from injected wheel and pinch input.
+Optional captures show the fixture's offline workspace.
 Physical dragging, trackpad delivery and system fullscreen are outside this
 replay.

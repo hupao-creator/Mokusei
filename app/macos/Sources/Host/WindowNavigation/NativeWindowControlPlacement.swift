@@ -2,45 +2,12 @@ import AppKit
 import SwiftUI
 
 /// Deliberate AppKit exception: SwiftUI does not expose placement of the real
-/// window controls. The Overview row supplies its center in window points.
+/// window controls. Their placement is in window points and follows reading offsets.
 struct NativeWindowControlPlacement: NSViewRepresentable {
     // Window layout and reading animation must use the same offset; otherwise
     // a deferred toolbar placement can put collapsed controls back on screen.
     private static let readingOffsets = NSMapTable<NSWindow, NSNumber>.weakToStrongObjects()
     private static let placements = NSMapTable<NSWindow, PlacementView>.weakToWeakObjects()
-
-    private static let overviewRows = NSMapTable<NSWindow, NSView>.weakToWeakObjects()
-
-    /// The action row lives in a nested NSHostingView with its own logical coordinates.
-    /// Keep its native anchor and convert after AppKit has laid out the zoomed hosts.
-    struct OverviewRow: NSViewRepresentable {
-        func makeNSView(context: Context) -> RowView { RowView() }
-        func updateNSView(_ view: RowView, context: Context) { view.schedulePlacement() }
-
-        final class RowView: NSView {
-            override func hitTest(_ point: CGPoint) -> NSView? { nil }
-            override func viewWillMove(toWindow newWindow: NSWindow?) {
-                if let window, window !== newWindow, overviewRows.object(forKey: window) === self {
-                    overviewRows.removeObject(forKey: window)
-                    schedulePlacement()
-                }
-                super.viewWillMove(toWindow: newWindow)
-            }
-            override func viewDidMoveToWindow() {
-                super.viewDidMoveToWindow()
-                guard let window else { return }
-                overviewRows.setObject(self, forKey: window)
-                schedulePlacement()
-            }
-            override func layout() {
-                super.layout()
-                schedulePlacement()
-            }
-            func schedulePlacement() {
-                if let window { placements.object(forKey: window)?.schedulePlacement() }
-            }
-        }
-    }
 
     static func setReadingOffset(_ offset: CGFloat, in window: NSWindow) {
         if offset == 0 { readingOffsets.removeObject(forKey: window) }
@@ -63,16 +30,11 @@ struct NativeWindowControlPlacement: NSViewRepresentable {
         // applying coordinates to the entire group, including on reveal.
         for (_, button) in buttons where button.isHidden != hidden { button.isHidden = hidden }
         for (_, button) in buttons { button.superview?.layoutSubtreeIfNeeded() }
-        let overviewCenter = overviewRows.object(forKey: window).flatMap { row -> CGFloat? in
-            guard !row.bounds.isEmpty, !row.isHiddenOrHasHiddenAncestor else { return nil }
-            return row.convert(row.bounds, to: content).midY
-        }
+        let top = NativeWindowNavigationGeometry.nativeButtonTop + offset
         for (index, button) in buttons {
             guard let parent = button.superview else { continue }
             let height = button.frame.height
-            let readingTop = NativeWindowNavigationGeometry.nativeButtonTop
-            let readingY = content.isFlipped ? content.bounds.minY + readingTop : content.bounds.maxY - readingTop - height
-            let y = (overviewCenter.map { $0 - height / 2 } ?? readingY) + (content.isFlipped ? offset : -offset)
+            let y = content.isFlipped ? content.bounds.minY + top : content.bounds.maxY - top - height
             let rect = CGRect(x: NativeWindowNavigationGeometry.nativeButtonLeft + CGFloat(index * 20),
                               y: y, width: button.frame.width, height: button.frame.height)
             let origin = content.convert(rect, to: parent).origin

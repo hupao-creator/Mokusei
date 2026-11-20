@@ -18,9 +18,9 @@ only to Overview and cannot cover a Thread or application reading route.
 window/back controls. The workspace hides its Back control for Agent, Report and
 Moku history panels; those surfaces use their own production panel Close.
 [NativeWindowControlPlacement](NativeWindowControlPlacement.swift) retains native
-Mac traffic-light actions through resize and workspace zoom. In Overview, AppKit
-converts the mounted action row's bounds from its nested reading host to the
-window content view. The real buttons follow that center at their native size. Reading navigation uses its own placement.
+Mac traffic-light actions through resize and workspace zoom. The real buttons
+keep their native size and sit 31 window points from the top in Overview.
+Reading navigation applies its offset to that window-relative placement.
 The untinted, 42pt-high clear glass capsule extends 12pt beyond either end of
 the group. It sits above the content view so hits within a button's moved frame
 reach that original AppKit button even below the titlebar's bounds. The buttons

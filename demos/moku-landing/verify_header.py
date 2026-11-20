@@ -2,6 +2,7 @@
 from pathlib import Path
 import argparse
 import sys
+from uuid import uuid4
 
 source = Path(__file__).resolve().parent
 repo = source.parents[1]
@@ -16,11 +17,14 @@ parser.add_argument("--capture", action="store_true", help="capture the own wind
 args = parser.parse_args()
 with native_lease():
     args.output.mkdir(parents=True, exist_ok=False)
-    replay = NativeReplay(repo, "NestedHeaderReplay", "com.mokusei.nested-header-replay")
+    # Keep AppKit's saved window state separate across consecutive replay runs.
+    replay = NativeReplay(repo, "NestedHeaderReplay", f"com.mokusei.nested-header-replay.{uuid4().hex}")
     try:
         replay.compile([source / "NestedHeaderReplay.swift"])
         status = replay.run(["--capture"] if args.capture else [], timeout=60, launch_services=False)
-        replay.export(args.output)
     finally:
-        replay.close()
+        try:
+            replay.export(args.output)
+        finally:
+            replay.close()
 sys.exit(status)
