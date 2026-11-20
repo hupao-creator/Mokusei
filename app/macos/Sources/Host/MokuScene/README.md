@@ -78,8 +78,12 @@ menu on the same button offers host files and host directory references.
 The composer remains dark in both macOS appearances. A native chooser keeps
 its Escape and Cancel behavior. Cancelling adds no chips and leaves the draft
 available. The same current Chief draft and send route serve Overview and
-Chief history. Chief's delegation tools take text prompts. When a delegated
-Agent needs a file, its prompt can refer to the file by its managed path.
+Chief history. The editor treats `@` as ordinary text. The send route appends
+saved directory chips without a host identity to the message as plain paths.
+Directory references added through the host picker retain their structured
+form. The history reader displays the stored message, and receipt lookup uses
+the saved command ID. Chief's delegation tools take text prompts. When a
+delegated Agent needs a file, its prompt can refer to the file by its managed path.
 
 Agent entry sequences the compact Dock's travel, the eyes-to-Harness flip and
 composer expansion. The reading entrance's actual arrival/layout admission
@@ -99,7 +103,7 @@ while reading/content readiness still gates input. See the
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. The native editor snapshots selection before becoming unavailable during collapse and restores it on a rapid reopen; the scene retains the selection and its exact UTF-16 text for a later editor remount. Unchanged multiline/Unicode text retains the native range. Changed text reopens at its end rather than reusing stale offsets. Selection restoration neither requests focus nor changes draft persistence; draft context changes clear the scene snapshot, and marked text remains owned by the input method. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
-Dock and history clear submitted text, directory mentions and ready attachment
+Dock and history clear submitted text, directory references and ready attachment
 chips in the mounted editor as soon as the draft captures the send. The
 retiring Dock capsule also clears its sealed ink snapshot before collapse.
 The pinned Thread editor remains editable and keeps its native first responder
@@ -116,7 +120,7 @@ shared strip's local managed-file URLs and independent preview/remove actions.
 No current e2e evidence is supplied for Quick Look focus or pointer behavior.
 
 The identity seat retains the last open editor position while the composer
-retires. Directory completion stays above the same bottom-anchored native editor.
+retires. In Agent input, directory completion stays above the same bottom-anchored native editor.
 Its measured height changes the shell without replacing the editor or its
 selection owner through entry, exit and rapid reversal. The pending-send replay
 selects the same directory in two consecutive drafts using Return.
@@ -161,7 +165,7 @@ separate [first-run onboarding](../Onboarding/README.md) completion marker.
 
 Landing opens input once on entry. Submitting uses the ordinary sealed-draft
 collapse; failure reopens the preserved draft. Escape keeps landing input open;
-IME, directory completion and native transient controls retain their cancellation
+IME and native transient controls retain their cancellation
 priority. Input reopening and Stop use the same paths as the bottom Dock.
 Outside clicks keep landing input open, including clicks in another window or
 app, without consuming the click or losing the draft. Bottom-Dock input still
@@ -186,7 +190,7 @@ also ends landing. Existing workspaces hydrate at the bottom. The same surface
 owns the transition.
 
 
-Directory completion opens above the editor within the same capsule. The editor stays seated at the bottom; scrolling suggestions are clipped to their own area. Selection keys and IME handling use the existing completion state. On macOS, native paste/drop imports files. The Dock and history capsule surfaces have no Moku context menu on right-click or Control-click. An accepted send consumes only its submitted draft revision; failure retains it.
+Agent directory completion opens above the editor within the same capsule. The editor stays seated at the bottom and scrolling suggestions are clipped to their own area. On macOS, native paste/drop imports files. The Dock and history capsule surfaces have no Moku context menu on right-click or Control-click. An accepted send consumes only its submitted draft revision; failure retains it.
 
 [NativeMokuSubmission](../Shell/NativeMokuSubmission.swift) retains one logical
 Moku submission through admission, receipt recovery and persisted draft

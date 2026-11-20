@@ -844,10 +844,10 @@ layout update. The surrounding Dock retains its own shell transitions.
 
 Moku opts into `NativeComposerDraft.submit(optimisticallyClear:)`. Before
 dispatch, persistent drafts atomically save the submitted text, directory
-mentions and ready chips under a send ID alongside a fresh editable draft.
+references and ready chips under a send ID alongside a fresh editable draft.
 Acceptance consumes that ID. Rejection prepends the failed text to the latest
 draft with a blank line and restores its chips. Selecting the same directory
-in the next draft gives that draft its own mention. A reopened owner can
+in the next draft gives that draft its own reference. A reopened owner can
 check the original receipt when the send lock is free. A prior command blocking
 a different draft cannot claim that draft, even when both messages have the
 same text. Local recovery is available when there is no retained receipt.

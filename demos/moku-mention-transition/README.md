@@ -4,7 +4,7 @@
 python3 demos/moku-mention-transition/build.py --open
 ```
 
-默认展示已接入的真实 `NativeMokuDock`。关闭“正式 Dock”可对照已确认的视觉提案。
+默认展示 Agent 跟进所用的 `NativeMokuDock`。关闭“正式 Dock”可对照眼睛布局提案。
 提案复用生产 `NativeMokuComposerInput`、目录菜单、玻璃与眨眼；
 眼睛直接位于输入行，菜单展开时随同一布局移动，避免单独测量眼睛位置后再追赶。
 正式 Dock 保留同一个角色实例；菜单独立放在输入行上方，由胶囊统一过渡高度。

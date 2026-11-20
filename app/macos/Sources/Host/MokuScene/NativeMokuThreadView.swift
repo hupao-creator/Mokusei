@@ -13,7 +13,6 @@ public struct NativeMokuThreadView: View {
     public let readingTarget: HarnessReadingTarget?
     public let running: Bool
     public let disabled: Bool
-    public let loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     public let backLabel: String?
     public let focusEnabled: Bool
     public let onNavigationChange: ((ThreadDetailBackAction?) -> Void)?
@@ -31,7 +30,6 @@ public struct NativeMokuThreadView: View {
     public init(harnessHost: NativeHarnessHost, thread: HarnessThread, draft: NativeComposerDraft,
                 readingTarget: HarnessReadingTarget? = nil,
                 running: Bool = false, disabled: Bool = false,
-                loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
                 backLabel: String? = nil, focusEnabled: Bool = true,
                 onNavigationChange: ((ThreadDetailBackAction?) -> Void)? = nil,
                 error: String? = nil, openExternal: ((URL) -> Void)? = nil,
@@ -41,7 +39,7 @@ public struct NativeMokuThreadView: View {
                 onCancel: @escaping () -> Void) {
         self.harnessHost = harnessHost; self.thread = thread; self.draft = draft; self.readingTarget = readingTarget
         self.running = running; self.disabled = disabled
-        self.error = error; self.loadMentionDirectories = loadMentionDirectories
+        self.error = error
         self.openExternal = openExternal; self.backLabel = backLabel; self.focusEnabled = focusEnabled
         self.onNavigationChange = onNavigationChange; self.onBack = onBack; self.onSend = onSend
         self.onSendConsumed = onSendConsumed; self.onCancel = onCancel
@@ -75,7 +73,7 @@ public struct NativeMokuThreadView: View {
                     running: running || thread.observation.isExecutionActive,
                     focusEnabled: focusEnabled, focusRequestKey: focusRequest,
                     suppressInitialFocus: readingTarget?.message != nil,
-                    loadMentionDirectories: loadMentionDirectories, onSend: onSend,
+                    onSend: onSend,
                     onSendConsumed: onSendConsumed, onCancel: onCancel)
                     .frame(maxWidth: 560)
                     .padding(.horizontal, 24).padding(.trailing, 76)

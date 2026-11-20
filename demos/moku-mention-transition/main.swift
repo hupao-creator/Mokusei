@@ -22,6 +22,7 @@ private struct Preview: View {
     @State private var dark = true
     @State private var replaying = false
     @State private var replay: Task<Void, Never>?
+    @State private var inputHeight: CGFloat = 58
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -29,15 +30,22 @@ private struct Preview: View {
                 : [Color(red: 0.91, green: 0.89, blue: 0.85), Color(red: 0.80, green: 0.85, blue: 0.87)], startPoint: .topLeading, endPoint: .bottomTrailing)
             if original {
                 NativeMokuScene(state: scene) { Color.clear } thread: { EmptyView() } dock: {
-                    NativeMokuDock(state: scene, draft: draft, cwd: "/demo", landing: true,
+                    NativeMokuDock(state: scene, draft: draft, cwd: "/demo", threadID: "fixture-agent",
                         loadMentionDirectories: { directories }, onSend: { _ in }, onCancel: {})
                 } settings: { EmptyView() }
             } else {
                 GeometryReader { proxy in
-                    NativeMokuComposerInput(draft: draft, cwd: "/demo", landing: true,
-                        availableHeight: min(380, proxy.size.height - 180), mentions: mentions,
-                        selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
-                        onKeyDown: { mentions.handle($0, draft: draft) }, onSend: {})
+                    VStack(spacing: 0) {
+                        if mentions.isOpen {
+                            NativeMokuComposerCompletion(mentions: mentions, draft: draft,
+                                maxHeight: max(0, min(380, proxy.size.height - 180) - inputHeight - 12))
+                                .transition(.opacity)
+                        }
+                        NativeMokuComposerInput(draft: draft, cwd: "/demo", landing: true, showsEyes: true,
+                            selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
+                            onKeyDown: { mentions.handle($0, draft: draft) }, onSend: {})
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { inputHeight = $0 }
+                    }
                         .frame(width: min(680, proxy.size.width - 64))
                         .fixedSize(horizontal: false, vertical: true)
                         .background { NativeMokuCapsuleGlass().id(dark) }
@@ -55,7 +63,7 @@ private struct Preview: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Mention · 眼睛与输入行同步").font(.system(size: 22, weight: .semibold))
-                        Text(original ? "正式 Dock · 统一胶囊过渡" : "提案 · 眼睛留在输入行，菜单和玻璃一起展开").foregroundStyle(.secondary)
+                        Text(original ? "Agent Dock · 统一胶囊过渡" : "提案 · 眼睛留在输入行，菜单和玻璃一起展开").foregroundStyle(.secondary)
                     }
                     Spacer()
                     Toggle("正式 Dock", isOn: $original).toggleStyle(.switch)

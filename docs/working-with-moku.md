@@ -10,13 +10,13 @@ When Chief's input is at the bottom of Overview, click outside it or press **Esc
 
 ## Point Chief to the right files
 
-Type `@` and select a project folder from the suggestions. You can select several and say what to use each one for. The menu shows folders Chief already knows about from your work or your agents. If your folder isn't listed, include its full path in the request.
-
-If you send without selecting a folder in the message, Chief takes the current Overview folder into account. A folder you select in the message takes priority. Tasks created without a project folder go into Inbox.
+Include the full path of any project folder in your request and say what you want Chief to do there. You can type or paste `@` as part of your message.
 
 Click **+** just to the right of Chief's eyes to open the file chooser on your Mac. Select one or more files, or click **Cancel** to keep your draft as it is. You can also drop files into the input box.
 
 To browse the connected host, Control-click **+** and choose **Choose host files** to attach files or **Choose a host directory** to reference a folder.
+
+When you send from Overview, Chief takes the current Overview folder into account. A folder added with **Choose a host directory** takes priority. Tasks created without a project folder go into Inbox.
 
 Selected files appear above the input. Click an image thumbnail to preview it or use the **×** on an attachment to remove it. Wait for the files to finish preparing, then click **Send**. You can attach up to 20 files per message. Size limits apply, and the agent running Chief determines which attachment types it can use. If you want Chief to delegate work on a file, say which file the agent should use in your request.
 

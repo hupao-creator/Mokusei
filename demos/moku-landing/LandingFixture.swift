@@ -36,11 +36,6 @@ import MokuseiPluginAPI
     var items: [NativeOverviewItem] {
         hasThread && !archived && !filteredEmpty ? [.init(id: "first-task", columns: card.size.cols, rows: card.size.rows)] : []
     }
-    let directories: [NativeComposerDirectory] = [
-        .init(name: "Mokusei", path: "/demo/Mokusei"),
-        .init(name: "Design", path: "/demo/Design"),
-        .init(name: "Research", path: "/demo/Research"),
-    ]
 
     func reset() {
         epoch += 1; running = false; hasThread = false; archived = false
@@ -93,7 +88,7 @@ import MokuseiPluginAPI
         Task { await draft.submit { try await self.send($0) } }
     }
     func addContext() async {
-        _ = draft.insertDirectory(directories[0])
+        _ = draft.insertDirectory(.init(name: "Mokusei", path: "/demo/Mokusei", hostID: "fixture-host"))
         if draft.attachments.isEmpty {
             await draft.importFiles([.init(data: Data("Moku landing notes".utf8), name: "landing-notes.txt", mimeType: "text/plain")])
         }
@@ -149,7 +144,6 @@ struct LandingSurface: View {
             if showsDock {
                 NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/demo",
                     landing: fixture.landing, mode: fixture.running ? .running : .idle, running: fixture.running,
-                    loadMentionDirectories: { fixture.directories },
                     onSend: fixture.send, onCancel: fixture.stop)
                     .opacity(dockOpacity)
                     .allowsHitTesting(dockOpacity == 1)

@@ -119,6 +119,10 @@ private extension RuntimeClient {
             func consume(_: NativeComposerSubmission) async { acknowledgements += 1 }
             try mode("lose")
             draft.inputText = "A"
+            // Model a retained Chief send whose original wire payload used a
+            // catalog mention. Receipt recovery must use its captured ID.
+            let originalDirectory = NativeComposerDirectory(name: "Previous project", path: "/fixture/Previous project")
+            if route == "moku" { try require(draft.insertDirectory(originalDirectory), "Could not seed old Chief directory") }
             await draft.submit({ submission in
                 let stored = try RuntimeDraftStore(storageDirectory: rootProfile, scope: .init(route)).load()?["pendingSend"]
                 try require(stored?["id"]?.stringValue == submission.commandID &&
@@ -142,6 +146,9 @@ private extension RuntimeClient {
             let reopened = NativeComposerDraft(services: workspace.services.composer(receipts: coldActions), persistence: persistence)
             await reopened.reviewInterruptedSend(restore: true)
             try require(reopened.hasTrackedReceipt && reopened.interruptedInput?.text == "A", "Local review erased tracked receipt")
+            if route == "moku" {
+                try require(reopened.interruptedInput?.directories == [originalDirectory], "Reopen changed the original Chief directory")
+            }
             await reopened.checkPendingReceipt()
             try require(await composerRecords().map(\.commandID) == [id] && reopened.text == "B" && reopened.hasTrackedReceipt,
                 "A pending lookup changed the send")
