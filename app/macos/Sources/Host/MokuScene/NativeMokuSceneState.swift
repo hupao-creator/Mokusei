@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import CoreGraphics
 import Observation
 import MokuseiCore
@@ -24,7 +25,9 @@ import MokuseiPluginUI
     private var landingActive = false
     // The handoff can cue only the Dock currently mounted in this scene.
     @ObservationIgnored weak var dockCharacter: NativeMokuCharacterMotion?
-    public private(set) var inputOpen = false
+    public private(set) var inputOpen = false {
+        didSet { if !inputOpen { cancelComposerFocusRequest() } }
+    }
     public private(set) var inputPinnedOpen = false
     public private(set) var inputAdmissionReady = true
     private var inputIdentityReady = true
@@ -33,9 +36,17 @@ import MokuseiPluginUI
         inputAdmissionReady && inputIdentityReady && (!readingPanelVisible || readingPanelMotion?.active != true)
     }
     public private(set) var inputLeaving = false
-    public private(set) var composerGeneration = UUID()
+    public private(set) var composerGeneration = UUID() {
+        didSet { cancelComposerFocusRequest() }
+    }
     public private(set) var composerAutofocus = true
-    public private(set) var composerFocusRequest = 0
+    struct ComposerFocusRequest: Equatable {
+        let key: Int
+        let generation: UUID
+    }
+    private(set) var composerFocusRequest: ComposerFocusRequest?
+    @ObservationIgnored private var composerFocusSequence = 0
+    @ObservationIgnored private var composeKeys: NativeMokuComposeKeyHandoff?
     @ObservationIgnored private var composerIdentity: ObjectIdentifier?
     public private(set) var talkPresentation = NativeMokuTalkState()
     public private(set) var settingsOpen = false
@@ -169,17 +180,35 @@ import MokuseiPluginUI
         landingActive = active
         return true
     }
-    public func toggleInput() {
+    public func toggleInput(focusOnOpening: Bool = false) {
         // Reject unavailable input before changing the history/camera route;
         // a Compose shortcut must not navigate around the admission gate.
         guard dockRouteVisible, inputInteractionReady else { return }
+        let opening = !inputOpen || mokuOpen || cameraActive
+        let refocusingPinnedInput = inputPinnedOpen && inputOpen && !dockCovered
         if mokuOpen || cameraActive { setMokuOpen(false); setInputOpen(true) }
-        // A pinned Agent editor cannot fold. Compose is an explicit focus
-        // request even when TOC navigation deliberately suppressed autofocus.
-        else if inputPinnedOpen, inputOpen, !dockCovered {
-            composerFocusRequest += 1
-        }
-        else { setInputOpen(!inputOpen) }
+        else if !refocusingPinnedInput { setInputOpen(!inputOpen) }
+
+        // Compose accepts typing during the ink animation. In a pinned Agent
+        // editor it can refocus even when TOC navigation suppressed autofocus.
+        guard inputOpen, !dockCovered,
+              refocusingPinnedInput || opening && focusOnOpening else { return }
+        let key = nextComposerFocusKey()
+        composerFocusRequest = .init(key: key, generation: composerGeneration)
+        if opening, focusOnOpening, !inputPinnedOpen { composeKeys = .init(key: key) }
+    }
+    func nextComposerFocusKey() -> Int {
+        composerFocusSequence += 1
+        return composerFocusSequence
+    }
+    func cancelComposerFocusRequest() {
+        composerFocusRequest = nil
+        composeKeys?.cancel()
+        composeKeys = nil
+    }
+    func composerDidAcquireFocus(key: Int, editor: NSTextView) {
+        guard composeKeys?.key == key else { return }
+        composeKeys?.focused(editor)
     }
     /// Draft ownership changes synchronously with navigation. Retiring ink and
     /// editor selection must never cross from Moku or one Thread to another.

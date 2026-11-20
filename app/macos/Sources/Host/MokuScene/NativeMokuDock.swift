@@ -333,6 +333,11 @@ public struct NativeMokuDock: View {
     private var composerCanFocus: Bool {
         state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered
     }
+    private var explicitFocusRequest: NativeMokuSceneState.ComposerFocusRequest? {
+        guard inputPresent, composerCanFocus, state.ownsComposer(draft),
+              let request = state.composerFocusRequest, request.generation == state.composerGeneration else { return nil }
+        return request
+    }
     private var autofocusGeneration: UUID? {
         guard inputPresent, composerCanFocus,
               state.composerAutofocus || explicitFocusGeneration == state.composerGeneration else { return nil }
@@ -634,21 +639,24 @@ public struct NativeMokuDock: View {
             hoverTask?.cancel(); hoverTask = nil
         }
         .onChange(of: composerCanFocus) { _, available in
-            if !available { focusGeneration = nil }
+            if !available, !composerCanFocus {
+                state.cancelComposerFocusRequest()
+                focusGeneration = nil
+            }
         }
-        .onChange(of: state.composerFocusRequest) { _, _ in
-            guard state.inputOpen, state.dockRouteVisible, !state.dockCovered else { return }
-            explicitFocusGeneration = state.composerGeneration
-            focusGeneration = state.composerGeneration
-            focusRequest += 1
+        .onChange(of: explicitFocusRequest, initial: true) { _, request in
+            guard let request else { return }
+            if state.inputPinnedOpen { explicitFocusGeneration = request.generation }
+            focusGeneration = request.generation
+            focusRequest = max(focusRequest, request.key)
         }
         .onChange(of: draft.text) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
         .onChange(of: draft.attachments) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
         .onChange(of: sidecardComposer?.ready) { _, ready in
-            if ready == true { focusRequest += 1 }
+            if ready == true { focusRequest = state.nextComposerFocusKey() }
         }
         .onChange(of: draft.submitting) { _, busy in
-            if !busy, sidecardComposer?.ready == true { focusRequest += 1 }
+            if !busy, sidecardComposer?.ready == true { focusRequest = state.nextComposerFocusKey() }
         }
         .onChange(of: draft.directories) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
         .onChange(of: reply?.readKey, initial: true) { _, key in
@@ -672,6 +680,7 @@ public struct NativeMokuDock: View {
             if state.dockInteractionVisible { state.setDockInteractionVisible(false, question: false) }
             presentation?.setPresenting(false)
             hoverTask?.cancel(); hoverTask = nil
+            state.cancelComposerFocusRequest()
             focusGeneration = nil
         }
         .task(id: "\(state.composerGeneration):\(mentionsEnabled)") {
@@ -851,9 +860,9 @@ public struct NativeMokuDock: View {
             .geometryGroup()
             .modifier(ComposerInk(expansion: capsuleFraction, autofocusGeneration: autofocusGeneration) { generation in
                 guard autofocusGeneration == generation, state.ownsComposer(draft),
-                      focusGeneration != generation else { return }
+                      explicitFocusRequest == nil, focusGeneration != generation else { return }
                 focusGeneration = generation
-                focusRequest += 1
+                focusRequest = state.nextComposerFocusKey()
             })
         }
         .onChange(of: completionVisible) { _, visible in
@@ -1066,8 +1075,12 @@ public struct NativeMokuDock: View {
             targetsThread: threadID != nil, sidecardComposer: sidecardComposer,
             readOnly: state.inputLeaving, focusEnabled: composerCanFocus && (sidecardComposer?.ready ?? true),
             automaticFocus: false,
-            focusRequestKey: focusGeneration == state.composerGeneration ? focusRequest : 0,
+            // Keep the Compose key through the input's lifetime so installing
+            // the editor in a later layout pass still sees the same request.
+            focusRequestKey: max(explicitFocusRequest?.key ?? 0,
+                focusGeneration == state.composerGeneration ? focusRequest : 0),
             suppressInitialFocus: !state.composerAutofocus,
+            onFocusRequestAcquired: state.composerDidAcquireFocus,
             maxHeight: min(landing ? 156 : 126, room), landing: landing, compact: compact,
             retainedText: retaining ? state.retainedText : nil,
             retainedAttachments: retaining ? state.retainedAttachments : nil,

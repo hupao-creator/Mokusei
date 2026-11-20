@@ -1,3 +1,4 @@
+import AppKit
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
@@ -87,6 +88,7 @@ struct NativeMokuComposerInput: View {
     var automaticFocus = true
     var focusRequestKey = 0
     var suppressInitialFocus = false
+    var onFocusRequestAcquired: ((Int, NSTextView) -> Void)? = nil
     var maxHeight: CGFloat = 126
     var landing = false
     var compact = false
@@ -213,6 +215,7 @@ struct NativeMokuComposerInput: View {
             focusEnabled: focusEnabled, automaticFocus: automaticFocus,
             focusRequestKey: focusRequestKey, focusContext: "moku-dock",
             suppressInitialFocus: suppressInitialFocus,
+            onFocusRequestAcquired: onFocusRequestAcquired,
             minHeight: compact ? 32 : (landing ? 76 : 58), maxHeight: compact ? max(32, maxHeight - 40) : maxHeight,
             fontSize: landing ? 16 : 14, lineHeight: landing ? 24 : 20,
             insets: .init(top: compact ? 6 : (landing ? 26 : 19), left: 6,
