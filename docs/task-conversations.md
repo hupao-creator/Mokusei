@@ -22,7 +22,7 @@ You can start writing the next message while Chief confirms the previous send. O
 
 ## Revisit or branch from an earlier run
 
-When there are several runs to read, look for the short horizontal lines halfway down the left edge of the reading area. Each line in **Conversation contents** represents a run, from oldest at the top to newest at the bottom. The longer line marks the run on screen. In a narrow panel the lines shorten to fit the margin.
+When there are several runs to read, look for the short horizontal lines halfway down the left edge of the reading area. Each line in **Conversation contents** represents a run, from oldest at the top to newest at the bottom. The darker line marks the run on screen. Hover over a line and it extends to the right, along with the lines nearest to it.
 
 Hover over a line to preview the run, then click it to read. With keyboard focus on **Conversation contents**, use the Up and Down arrows to preview runs and Return to open one. Click the newest run’s line to return to it. You can then press Up to preview the previous run again. Any newer work keeps going while you read.
 

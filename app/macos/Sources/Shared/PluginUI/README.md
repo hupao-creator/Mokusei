@@ -566,12 +566,13 @@ The normal composer retains ownership of pending/error/unknown command receipts.
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
 conversation's turn index as horizontal marks centered vertically at the leading
 edge. An ordinary single turn has no marks. Multiple entries, inherited history
-or a history visit expose the index. In Agent readers the selected mark measures
-up to 16×2pt in strong ink. Other marks are 10×1.5pt in muted ink and extend
-to 13pt on hover or keyboard focus. Their lengths scale together when the
-available margin is narrower than 24pt. Their centers are 24pt apart.
-Hover or explicit keyboard navigation emphasizes an entry and reveals
-its bounded title and answer preview.
+or a history visit expose the index. Agent marks share a leading edge, a 2pt
+height and a 10pt pitch. At rest they are 10pt long, with the selected run in
+darker ink. Hover extends the pointed mark to 24pt and its three neighbors on
+either side to 20, 16 and 13pt in order of distance. The hit areas and row
+positions stay fixed. A margin narrower than 24pt scales all lengths together.
+Pointer hover and keyboard navigation both open the title and answer preview.
+Only pointer hover extends the marks.
 The answer wraps naturally to at most three lines, with the title and timestamp
 remaining visible; shorter answers do not reserve unused lines.
 Back restores focus to the current run's mark with the preview closed. The
@@ -1248,7 +1249,7 @@ bottom viewport clearance. The Sidecard has no Close control of its own.
 The main Agent reader and the related-execution reader in a Report overlay
 the TOC on the page stack. The timeline reports the actual leading edge of its
 centered column. Within that margin each mark has a hit target up to 24pt wide
-and 24pt high, inset up to 4pt from the viewport edge. The index keeps 64pt
+and one row high, inset up to 4pt from the viewport edge. The index keeps 64pt
 of vertical clearance. Its appearance leaves line wrapping and scrollbar
 placement unchanged. The column uses the timeline's normal 18pt or 32pt
 horizontal insets and its 744pt width limit. In the main panel, the fixed Close

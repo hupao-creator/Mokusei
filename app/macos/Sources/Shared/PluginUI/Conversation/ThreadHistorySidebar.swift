@@ -13,7 +13,7 @@ private struct HistorySidebarAnchor: PreferenceKey {
 struct ThreadHistorySidebar: View {
     private static let inlineHitWidth: CGFloat = 44
     static let preferredMargin = inlineHitWidth + 4
-    private static let rowHeight: CGFloat = 24
+    private static let hoverWidths: [CGFloat] = [24, 20, 16, 13]
     private static let endInset: CGFloat = 8
 
     let rows: [ThreadConversationRow]
@@ -42,25 +42,28 @@ struct ThreadHistorySidebar: View {
     private var maximumHitWidth: CGFloat { agentDetail ? 24 : Self.inlineHitWidth }
     private var hitWidth: CGFloat { min(maximumHitWidth, availableMargin) }
     private var leadingInset: CGFloat { min(4, availableMargin - hitWidth) }
+    private var rowHeight: CGFloat { agentDetail ? 10 : 24 }
 
     private var window: Range<Int> {
-        let start = min(rows.count, max(0, Int(top / Self.rowHeight) - 8))
-        return start..<min(rows.count, start + Int(ceil(viewport / Self.rowHeight)) + 17)
+        let start = min(rows.count, max(0, Int(top / rowHeight) - 8))
+        return start..<min(rows.count, start + Int(ceil(viewport / rowHeight)) + 17)
     }
 
-    private var contentHeight: CGFloat { CGFloat(rows.count) * Self.rowHeight + 2 * Self.endInset }
+    private var contentHeight: CGFloat { CGFloat(rows.count) * rowHeight + 2 * Self.endInset }
 
     @ViewBuilder private var indexView: some View {
         let window = window
+        let hoveredIndex = hovered.flatMap { id in rows[window].firstIndex { $0.id == id } }
         NativeScrollView(.vertical, showsIndicators: false) {
             // Fixed-height marks allow direct offset navigation and a bounded
             // mounted window, even when Home/End skips thousands of entries.
             VStack(spacing: 0) {
-                Color.clear.frame(height: CGFloat(window.lowerBound) * Self.rowHeight).accessibilityHidden(true)
+                Color.clear.frame(height: CGFloat(window.lowerBound) * rowHeight).accessibilityHidden(true)
                 ForEach(Array(rows[window].enumerated()), id: \.element.id) { offset, row in
-                    entry(row, index: window.lowerBound + offset)
+                    let index = window.lowerBound + offset
+                    entry(row, index: index, hoverDistance: hoveredIndex.map { abs($0 - index) })
                 }
-                Color.clear.frame(height: CGFloat(rows.count - window.upperBound) * Self.rowHeight).accessibilityHidden(true)
+                Color.clear.frame(height: CGFloat(rows.count - window.upperBound) * rowHeight).accessibilityHidden(true)
             }.padding(.vertical, Self.endInset)
         }
         .scrollIndicators(.hidden)
@@ -158,22 +161,31 @@ struct ThreadHistorySidebar: View {
         }
     }
 
-    private func entry(_ row: ThreadConversationRow, index: Int) -> some View {
+    private func entry(_ row: ThreadConversationRow, index: Int, hoverDistance: Int?) -> some View {
         let active = row.id == selected
         let emphasized = active || hovered == row.id || focused == row.id
+        let strong: Bool
         let markWidth: CGFloat
-        if agentDetail { markWidth = active ? 16 : emphasized ? 13 : 10 }
-        else { markWidth = active ? 26 : emphasized ? 22 : 16 }
+        if agentDetail {
+            strong = hovered == row.id || (keyboardPreview && focused == row.id) || (active && contrast == .increased)
+            if let hoverDistance, Self.hoverWidths.indices.contains(hoverDistance) {
+                markWidth = Self.hoverWidths[hoverDistance]
+            } else { markWidth = 10 }
+        } else {
+            strong = emphasized
+            markWidth = active ? 26 : emphasized ? 22 : 16
+        }
         let prompt = row.execution?.prompt ?? ""
         let title: String
         if agentDetail, row.execution != nil { title = row.executionTitle }
         else { title = prompt.isEmpty ? localize("历史对话") : prompt }
         let label = localize("第 {count} 轮对话").replacingOccurrences(of: "{count}", with: String(index + 1)) + ": " + title
         return Button { keyboardRow = row.id; select(row.id) } label: {
-            Rectangle().fill(emphasized ? NativePalette.thread.inkStrong.swiftUI : NativePalette.thread.muted.swiftUI)
-                .opacity(emphasized || contrast == .increased ? 1 : 0.62)
-                .frame(width: markWidth * hitWidth / maximumHitWidth, height: active ? 2 : 1.5)
-                .frame(width: hitWidth, height: Self.rowHeight).contentShape(Rectangle())
+            Rectangle().fill(strong ? NativePalette.thread.inkStrong.swiftUI : NativePalette.thread.muted.swiftUI)
+                .opacity(emphasized || contrast == .increased ? 1 : (agentDetail ? 0.33 : 0.62))
+                .frame(width: markWidth * hitWidth / maximumHitWidth, height: agentDetail || active ? 2 : 1.5)
+                .frame(width: hitWidth, height: rowHeight, alignment: agentDetail ? .leading : .center)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain).focusable(false)
         .id(row.id)
@@ -182,6 +194,7 @@ struct ThreadHistorySidebar: View {
             else { dismissHover(row.id) }
         }
         .onDisappear { dismissHover(row.id) }
+        .animation(.easeOut(duration: 0.12), value: markWidth)
         .animation(.easeOut(duration: 0.12), value: emphasized)
         .animation(.easeOut(duration: 0.12), value: active)
         .accessibilityLabel(label)
@@ -240,7 +253,7 @@ struct ThreadHistorySidebar: View {
     }
     private func reveal(_ id: JSONText?) {
         guard let id, let index = rows.firstIndex(where: { $0.id == id }) else { return }
-        let center = Self.endInset + (CGFloat(index) + 0.5) * Self.rowHeight
+        let center = Self.endInset + (CGFloat(index) + 0.5) * rowHeight
         let offset = max(0, min(contentHeight - viewport, center - viewport / 2))
         top = offset
         position.scrollTo(y: offset)

@@ -207,7 +207,10 @@ also start with one completed run and send a second at a fixed window size.
 Compare the heading and body frames before and after the marks appear. The
 column should keep its width and horizontal position. Check both marks in the
 leading margin. Start just outside the 24pt hit area and check that the preview
-stays closed, then hover each mark to open its preview. Click the earlier run
+stays closed. The selected and idle marks should be equally long and share a
+left edge. Hover each mark to open its preview. In a longer history check that
+nearby marks extend progressively less and that the original widths return
+when the pointer leaves. Click the earlier run
 and click the newest mark to return. Press Up immediately. The earlier preview
 should appear while the newest document stays on screen. Press Return and
 check that the earlier document opens. Repeat in the related-execution reader
