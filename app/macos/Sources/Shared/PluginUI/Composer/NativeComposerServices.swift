@@ -18,7 +18,7 @@ import MokuseiPluginAPI
 /// a general runtime client or chooses another thread's authority.
 @MainActor
 public struct NativeComposerServices {
-    public typealias ChooseFiles = (JSONText, Int, PluginLifetime) async throws -> [NativeComposerStoredAttachment]
+    public typealias ChooseFiles = (JSONText, Int, PluginLifetime) async throws -> [NativeComposerFile]
     public typealias StageFiles = ([NativeComposerFile], PluginLifetime) async throws -> [NativeComposerStoredAttachment]
     public typealias AttachmentPolicy = (PluginLifetime) async throws -> RuntimeAttachmentPolicy
     public typealias HostDirectory = (RuntimeHostFileReference?, PluginLifetime) async throws -> RuntimeHostDirectory
@@ -72,7 +72,7 @@ public struct NativeComposerServices {
             try lifetime.checkCancellation()
             guard result == .OK else { return [] }
             guard panel.urls.count <= limit else { throw PluginContractError("附件数量不能超过 20 个") }
-            return try await stageFiles(panel.urls.map(NativeComposerFile.init(url:)), lifetime)
+            return panel.urls.map(NativeComposerFile.init(url:))
         }
     }
 }

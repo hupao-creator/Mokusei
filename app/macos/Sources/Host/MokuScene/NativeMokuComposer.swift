@@ -37,7 +37,7 @@ private struct NativeMokuComposerRowLayout: Layout {
         let eye = subviews[0].sizeThatFits(.unspecified)
         let attachment = subviews[1].sizeThatFits(.unspecified)
         let actions = subviews[3].sizeThatFits(.unspecified)
-        let editorWidth = max(0, width - attachment.width - (compact ? 0 : eye.width + actions.width))
+        let editorWidth = compact ? width : max(0, width - eye.width - attachment.width - actions.width)
         let editor = subviews[2].sizeThatFits(.init(width: editorWidth, height: nil))
         return [eye, attachment, CGSize(width: editorWidth, height: editor.height), actions]
     }
@@ -45,7 +45,7 @@ private struct NativeMokuComposerRowLayout: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? 560
         let seats = sizes(subviews, width: width)
-        let height = compact ? max(seats[1].height, seats[2].height) + 40
+        let height = compact ? seats[2].height + 40
             : seats.map(\.height).max()!
         return CGSize(width: width, height: height)
     }
@@ -53,14 +53,13 @@ private struct NativeMokuComposerRowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let seats = sizes(subviews, width: bounds.width)
         if compact {
-            let upper = max(seats[1].height, seats[2].height)
-            subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY + upper + 17),
+            let controlsY = bounds.minY + seats[2].height + 17
+            subviews[0].place(at: CGPoint(x: bounds.minX, y: controlsY),
                 anchor: .leading, proposal: .init(seats[0]))
-            subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.minY + upper / 2),
+            subviews[1].place(at: CGPoint(x: bounds.minX + seats[0].width, y: controlsY),
                 anchor: .leading, proposal: .init(seats[1]))
-            subviews[2].place(at: CGPoint(x: bounds.minX + seats[1].width, y: bounds.minY + upper / 2),
-                anchor: .leading, proposal: .init(seats[2]))
-            subviews[3].place(at: CGPoint(x: bounds.maxX, y: bounds.minY + upper + 17),
+            subviews[2].place(at: bounds.origin, anchor: .topLeading, proposal: .init(seats[2]))
+            subviews[3].place(at: CGPoint(x: bounds.maxX, y: controlsY),
                 anchor: .trailing, proposal: .init(seats[3]))
         } else {
             var x = bounds.minX
@@ -296,25 +295,30 @@ struct NativeMokuComposerInput: View {
         Group {
             if draft.supportsHostFiles {
                 Menu {
-                    Button(localize("从此设备导入", "Import from this device")) {
-                        Task { await draft.chooseFiles(cwd: cwd) }
-                    }
+                    Button(localize("从此设备导入", "Import from this device"), action: chooseDeviceFiles)
                     Button(localize("从主机选择文件", "Choose host files")) { hostPicker = .files }
                     Button(localize("从主机选择目录", "Choose a host directory")) { hostPicker = .directory }
-                } label: { attachmentIcon }
+                } label: { attachmentSymbol }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             } else {
-                Button { Task { await draft.chooseFiles(cwd: cwd) } } label: { attachmentIcon }
+                Button(action: chooseDeviceFiles) { attachmentSymbol }
             }
         }
-        .buttonStyle(.plain).disabled(actionsUnavailable || draft.importing || readOnly)
+        .buttonStyle(.plain)
+        .frame(width: 28, height: 32)
+        .disabled(actionsUnavailable || draft.importing || readOnly)
         .help(localize("添加图片或文件", "Add images or files"))
         .accessibilityLabel(localize("添加图片或文件", "Add images or files"))
         .accessibilityIdentifier("moku-add-attachment")
     }
-    private var attachmentIcon: some View {
-        NativeIcon(name: "Plus", size: 16).frame(width: 28, height: 32)
-            .contentShape(Rectangle())
+    private var attachmentSymbol: some View {
+        // The macOS menu uses an image representation of its label.
+        Image(systemName: "plus")
+            .font(.system(size: 14, weight: .medium))
+            .frame(width: 28, height: 32).contentShape(Rectangle())
+    }
+    private func chooseDeviceFiles() {
+        Task.immediate { await draft.chooseFiles(cwd: cwd) }
     }
     private var stopLabel: String {
         targetsThread ? localize("停止此 Thread", "Stop this thread") : localize("停止 Chief", "Stop Chief")
@@ -386,6 +390,7 @@ public struct NativeMokuHistoryComposer: View {
     public let onCancel: () -> Void
     @State private var mentions = NativeMokuDirectoryMentions()
     @State private var availableHeight: CGFloat = 420
+    @State private var compact = false
     @State private var hovered = false
 
     public init(draft: NativeComposerDraft, cwd: JSONText, disabled: Bool = false, running: Bool = false,
@@ -402,7 +407,7 @@ public struct NativeMokuHistoryComposer: View {
     public var body: some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, suppressInitialFocus: suppressInitialFocus,
-            running: running, onCancel: onCancel, availableHeight: availableHeight,
+            compact: compact, running: running, onCancel: onCancel, availableHeight: availableHeight,
             mentions: mentions, showsEyes: true,
             selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
             onKeyDown: { mentions.handle($0, draft: draft) },
@@ -417,6 +422,7 @@ public struct NativeMokuHistoryComposer: View {
             .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
             .onHover { hovered = $0 }
             .coordinateSpace(name: "native-moku-dock")
+            .onGeometryChange(for: Bool.self) { $0.size.width < 260 } action: { compact = $0 }
             .onGeometryChange(for: CGFloat.self) { max(58, $0.frame(in: .global).maxY - 24) } action: { availableHeight = $0 }
             .animation(.smooth(duration: 0.42, extraBounce: 0), value: mentions.isOpen)
             .task(id: focusEnabled && !disabled) {

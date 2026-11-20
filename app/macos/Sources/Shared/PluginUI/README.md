@@ -809,6 +809,13 @@ opacity entrance; remounts and later excerpt revisions keep the existing policy.
 
 Composer state and submitted revision belong to the workspace. Attachment upload, file selection and send receipts are shared by the Dock and conversation surfaces. The Host’s `NativeMokuComposerInput` composes the shared text input, attachment chips and host file picker for both Dock and history; PluginUI owns those primitives and draft persistence. Harness and Moku interaction owners compose `InteractionQuestionField` with their own validation, submission and cancellation controls, sending through injected actions rather than bypassing Runtime admission.
 
+The device open panel reserves the draft import while it is open. Cancelling
+releases the reservation without staging files. Confirmed selections join the
+same draft validation, pending-chip, preview and staging path as drop and host
+file imports. The file values retain their macOS selection grants through preview
+and upload. The desktop client streams local file contents to the connected
+runtime under the existing client attachment lease.
+
 Ready image thumbnails open the existing system Quick Look presentation using
 managed absolute file URLs, with all ready images in the strip available for
 navigation. Preview and remove are sibling buttons; pending images remain

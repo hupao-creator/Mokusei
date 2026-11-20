@@ -14,7 +14,9 @@ Type `@` and select a project folder from the suggestions. You can select severa
 
 If you send without selecting a folder in the message, Chief takes the current Overview folder into account. A folder you select in the message takes priority. Tasks created without a project folder go into Inbox.
 
-Click **+** to add an image or file, or drag it into the input box. Wait for attachments to finish preparing before you send. If one needs to be added again, remove it and select the original file again.
+Click **+** just to the right of Chief's eyes, then choose **Import from this device** to select one or more files on your Mac. Click **Cancel** in the file chooser to keep your draft as it is. You can also choose **Choose host files** to browse files on the connected host or drop files into the input box.
+
+Selected files appear above the input. Click an image thumbnail to preview it or use the **×** on an attachment to remove it. Wait for the files to finish preparing, then click **Send**. You can attach up to 20 files per message. Size limits apply, and the agent running Chief determines which attachment types it can use. If you want Chief to delegate work on a file, say which file the agent should use in your request.
 
 ## Find Chief's replies and notes
 

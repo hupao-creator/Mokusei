@@ -318,3 +318,25 @@ missing controls, a deadline or failed public postconditions remain nonpassing;
 HTTP submission is never substituted for Composer input. Keyboard Return, IME,
 attachments, other providers, historical/exact-execution input, steering during
 active output and recovery after uncertain admission are outside this scenario.
+
+### Chief file picker
+
+Use a uniquely bundled production build and an isolated online profile with a
+configured Chief. The [Dock contract](../../app/macos/Sources/Host/MokuScene/README.md#dock-and-composer)
+and [shared composer](../../app/macos/Sources/Shared/PluginUI/README.md#cards-composer-and-forms)
+own the control and its draft import. Start on Overview and click the plus next
+to the eyes. Choose **Import from this device**, cancel the native chooser, and
+check that the draft text and chips are still present. Reopen it and select a
+known text file and image. Check their ready chips, open and dismiss the image
+preview, and send. Independently read the current Chief transcript through
+Runtime and match the user message, attachment names and sizes. Check the
+managed file bytes against the fixtures and confirm the draft clears. A
+deterministic external peer can observe native delivery without a provider account.
+
+Repeat the control and chooser check in Chief history. Capture the plus and
+the eyes in the same row in light and dark system appearances and at a narrow
+width or app zoom that admits the two-row composer. Inspect the control's
+localized accessibility label, action and frame. Keep the commit, app digest,
+profile and input backend, screenshots or AX observations, fixture digests,
+transcript result and cleanup receipt. This local system-input procedure is
+separate from `E2E-COMPOSER-001` and has no hosted runner.

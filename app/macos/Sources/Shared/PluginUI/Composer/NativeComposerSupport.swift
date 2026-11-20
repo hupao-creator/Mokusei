@@ -53,6 +53,6 @@ public func composerLocalized(_ text: String, locale: Locale) -> String {
         "从此设备导入": "Import from this device", "从主机选择文件": "Choose host files", "从主机选择目录": "Choose a host directory",
         "移除目录": "Remove directory", "移除附件": "Remove attachment", "暂存中…": "Staging…",
         "附件数量不能超过 20 个": "You can attach up to 20 files", "附件正在处理中，请稍候": "Attachments are being processed. Please wait.",
-        "无路径的粘贴内容不能超过 20 MB；请先保存文件后再通过回形针添加": "Pasted content without a file path cannot exceed 20 MB. Save it first, then attach it with the paperclip.",
+        "无路径的粘贴内容不能超过 20 MB；请先保存文件后再添加": "Pasted content without a file path cannot exceed 20 MB. Save it as a file, then attach it.",
     ][text] ?? text
 }

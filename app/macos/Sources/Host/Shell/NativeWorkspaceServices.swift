@@ -79,9 +79,8 @@ public final class NativeWorkspaceServices {
         }
         let requiresStream = files.contains {
             switch $0.source {
-            case .hostPath: true
+            case .hostPath, .file: true
             case .bytes(let data): data.count > 20 * 1024 * 1024
-            case .file: false
             }
         }
         var records: [JSONValue] = []
@@ -93,6 +92,8 @@ public final class NativeWorkspaceServices {
                     case .hostPath(let reference):
                         records += try await workspace.client.stageHostFiles([reference])
                     case .file(let url):
+                        guard url.isFileURL else { throw PluginContractError("Attachments must be local files") }
+                        // Read the file under the desktop client's selection grant.
                         records.append(try await workspace.client.uploadAttachment(file: url, name: file.name))
                     case .bytes(let data):
                         guard data.count == file.size, data.count <= policy.maximumBytes(mimeType: file.mimeType) else {
@@ -171,11 +172,8 @@ public final class NativeWorkspaceServices {
         return try files.map { file in
             try Task.checkCancellation()
             switch file.source {
-            case .file(let url):
-                guard url.isFileURL else { throw PluginContractError("Attachments must be local files") }
-                return .object(["source": .text("path"), "path": .text(url.path), "displayName": .text(file.name)])
-            case .hostPath:
-                throw PluginContractError("Host references require the host file capability")
+            case .file, .hostPath:
+                throw PluginContractError("File references require a file transfer")
             case .bytes(let data):
                 guard data.count <= 20 * 1024 * 1024 else { throw PluginContractError("无路径的粘贴内容不能超过 20 MB") }
                 bytesCount += data.count

@@ -294,9 +294,11 @@ private extension RuntimeClient {
         }
         var selection = 0
         let services = NativeComposerServices(chooseFiles: { _, _, _ in
+            [.init(url: URL(fileURLWithPath: files[selection].path.string))]
+        }, stageFiles: { _, _ in
             defer { selection += 1 }
             return [files[selection]]
-        }, stageFiles: { _, _ in [] }, discardAttachments: { _ in })
+        }, discardAttachments: { _ in })
         let storage = NativeComposerDraftPersistence(storageDirectory: root, scope: "owners")
         let original = NativeComposerDraft(services: services, persistence: storage)
         original.inputText = "A"

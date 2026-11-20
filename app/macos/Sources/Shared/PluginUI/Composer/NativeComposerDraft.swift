@@ -194,16 +194,8 @@ public final class NativeComposerDraft {
         defer { finishImport(operation) }
         do {
             let selected = try await services.chooseFiles(cwd, Self.maximumAttachments - reservedAttachmentCount, lifetime)
-            guard !isDisposed, !operation.retired else { await discard(selected.map(\.id), from: operation); return }
-            let existing = Set(attachments.compactMap(\.attachment).map(\.id))
-            let additions = selected.filter { !existing.contains($0.id) }
-            guard reservedAttachmentCount + additions.count <= Self.maximumAttachments else {
-                await discard(additions.map(\.id), from: operation)
-                throw PluginContractError("附件数量不能超过 20 个")
-            }
-            operation.attachments = additions.map(NativeComposerAttachment.init(attachment:))
-            attachments += operation.attachments
-            loadPreviews(attachments)
+            guard !selected.isEmpty, !isDisposed, !operation.retired else { return }
+            await importFiles(selected, operation: operation)
         } catch { if !operation.retired { record(error) } }
     }
 
@@ -214,15 +206,19 @@ public final class NativeComposerDraft {
         let knownCount = files.filter { !$0.clipboardTIFF }.count
         guard !files.isEmpty, let operation = beginImport(count: knownCount) else { return }
         defer { finishImport(operation) }
+        await importFiles(files, operation: operation)
+    }
+
+    private func importFiles(_ files: [NativeComposerFile], operation: AttachmentImport) async {
         var pending: [NativeComposerAttachment] = []
         do {
             // A pending chip is persisted immediately. Prepare TIFF before
             // publishing any chips so even an interrupted import stays within
             // the same attachment bound used when restoring the draft.
-            try validateFiles(files, policy: nil, excluding: [])
+            try validateFiles(files, policy: nil)
             let policy = try await services.attachmentPolicy?(lifetime)
             guard !isDisposed, !operation.retired else { return }
-            try validateFiles(files.filter { !$0.clipboardTIFF }, policy: policy, excluding: [])
+            try validateFiles(files.filter { !$0.clipboardTIFF }, policy: policy)
             let results = try await NativeRasterPreparation.shared.prepare(files)
             try Task.checkCancellation(); try lifetime.checkCancellation()
             guard !isDisposed, !operation.retired else { return }
@@ -231,7 +227,7 @@ public final class NativeComposerDraft {
             guard reservedAttachmentCount + prepared.count <= Self.maximumAttachments else {
                 throw PluginContractError("附件数量不能超过 20 个")
             }
-            try validateFiles(prepared, policy: policy, excluding: [])
+            try validateFiles(prepared, policy: policy)
             pending = prepared.map { file in
                 NativeComposerAttachment(id: JSONText("pending:\(UUID().uuidString)"), name: JSONText(file.name),
                     status: .pending(size: file.size, mimeType: file.mimeType))
@@ -250,6 +246,11 @@ public final class NativeComposerDraft {
             guard staged.count == pending.count else {
                 await discard(staged.map(\.id), from: operation)
                 throw PluginContractError("Attachment import returned an incomplete result")
+            }
+            // A selected file may change size before the transfer snapshots it.
+            if let policy, !fitsAttachmentBudget(staged.map(\.size), limit: policy.messageBytes) {
+                await discard(staged.map(\.id), from: operation)
+                throw PluginContractError("附件大小超过主机限制")
             }
             var unused: [JSONText] = []
             for (draft, attachment) in zip(pending, staged) {
@@ -676,21 +677,29 @@ public final class NativeComposerDraft {
         }
     }
 
-    private func validateFiles(_ files: [NativeComposerFile], policy: RuntimeAttachmentPolicy?, excluding pending: Set<JSONText>) throws {
-        let existing = attachments.filter { !pending.contains($0.id) }.compactMap(\.attachment)
+    private func validateFiles(_ files: [NativeComposerFile], policy: RuntimeAttachmentPolicy?) throws {
         for file in files {
             if case .bytes(let data) = file.source, data.count > Self.maximumClipboardBytes {
-                throw PluginContractError("无路径的粘贴内容不能超过 20 MB；请先保存文件后再通过回形针添加")
+                throw PluginContractError("无路径的粘贴内容不能超过 20 MB；请先保存文件后再添加")
             }
         }
         if let policy {
-            guard existing.count + files.count <= policy.messageCount else { throw PluginContractError("附件数量超过主机限制") }
-            var bytes = existing.reduce(0) { $0 + $1.size }
-            for file in files {
-                guard file.size >= 0, file.size <= policy.maximumBytes(mimeType: file.mimeType),
-                      bytes <= policy.messageBytes - file.size else { throw PluginContractError("附件大小超过主机限制") }
-                bytes += file.size
+            guard attachments.compactMap(\.attachment).count + files.count <= policy.messageCount else {
+                throw PluginContractError("附件数量超过主机限制")
+            }
+            guard files.allSatisfy({ $0.size >= 0 && $0.size <= policy.maximumBytes(mimeType: $0.mimeType) }),
+                  fitsAttachmentBudget(files.map(\.size), limit: policy.messageBytes) else {
+                throw PluginContractError("附件大小超过主机限制")
             }
         }
+    }
+
+    private func fitsAttachmentBudget(_ addedSizes: [Int], limit: Int) -> Bool {
+        var remaining = limit
+        for size in attachments.compactMap({ $0.attachment?.size }) + addedSizes {
+            guard size <= remaining else { return false }
+            remaining -= size
+        }
+        return true
     }
 }

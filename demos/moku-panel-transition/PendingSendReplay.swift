@@ -257,8 +257,9 @@ private struct ReplayFailure: Error, CustomStringConvertible {
         let folder = NativeComposerDirectory(name: "docs", path: "/fixture/docs")
         let file = NativeComposerStoredAttachment(id: .init(UUID().uuidString.lowercased()), path: "/fixture/note.txt",
             name: "note.txt", mimeType: "text/plain", size: 4, kind: .file)
-        let services = NativeComposerServices(chooseFiles: { _, _, _ in [file] },
-            stageFiles: { _, _ in [] }, discardAttachments: { _ in })
+        let services = NativeComposerServices(chooseFiles: { _, _, _ in
+            [.init(data: Data("note".utf8), name: "note.txt", mimeType: "text/plain")]
+        }, stageFiles: { _, _ in [file] }, discardAttachments: { _ in })
         func checkPeerEdit(_ edit: PeerEdit, reject: Bool, unmark: Bool = false) async throws {
             let deliveries = sent.count
             replace("A")

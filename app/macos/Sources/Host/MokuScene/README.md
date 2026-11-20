@@ -69,9 +69,16 @@ sphere artwork or palette is loaded. Agent detail retains its actual Harness
 logo; Overview and history input reserve the eye seat. The Stop control remains
 at the trailing edge with its existing cancellation and accessibility semantics.
 
-The shared input row places the attachment plus directly before the editor,
-after the identity seat. Attachment import, file/directory picking, native input
-ownership and the zero-size event-monitor origin are unchanged.
+The shared input row places the attachment plus immediately to the right of
+the identity seat. Below 260pt the editor takes the upper row and the plus
+stays beside the identity on the lower row. The localized control opens the
+device picker directly for device-only drafts. Host-enabled drafts expose the
+device picker, host files and host directory references through the plus menu.
+The composer remains dark in both macOS appearances. A native chooser keeps
+its Escape and Cancel behavior. Cancelling adds no chips and leaves the draft
+available. The same current Chief draft and send route serve Overview and
+Chief history. Chief's delegation tools take text prompts. When a delegated
+Agent needs a file, its prompt can refer to the file by its managed path.
 
 Agent entry sequences the compact Dock's travel, the eyes-to-Harness flip and
 composer expansion. The reading entrance's actual arrival/layout admission
