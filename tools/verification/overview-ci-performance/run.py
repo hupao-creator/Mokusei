@@ -1110,7 +1110,7 @@ def main():
               "candidate": args.candidate, "runs": [], "builds": {}, "errors": []}
     budget = Budget(args.time_budget_seconds)
     replays, worktrees = {}, []
-    temporary = tempfile.TemporaryDirectory(prefix="mokusei-overview-performance-")
+    temporary = tempfile.TemporaryDirectory(prefix="chief-overview-performance-")
     work = Path(temporary.name).resolve()
     display_helper = work / "display-mode"
     display_record = output / "display.json"
@@ -1158,13 +1158,15 @@ def main():
             write_json(build_dir / "product-inputs.json", product)
             report["builds"][side] = {"product": product, "harnessSHA256": copied["sha256"], "configuration": "release", "swiftFlags": SWIFT_FLAGS}
             save_report(output, report)
+            swift_product = "Chief" if (checkout / "app/macos/Sources/App/Chief.swift").is_file() else "Mokusei"
             swift = ["xcrun", "swift", "build", "--package-path", str(checkout / "app/macos"), "--configuration", "release",
-                     "--product", "Mokusei", "--force-resolved-versions", "--disable-index-store", "-Xswiftc", "-O", "-Xswiftc", "-enable-testing"]
+                     "--product", swift_product, "--force-resolved-versions", "--disable-index-store", "-Xswiftc", "-O", "-Xswiftc", "-enable-testing"]
             command(swift, build_dir / "swift-build.log", cwd=checkout, timeout=budget.remaining(720))
             runtime = work / ("runtime-" + side)
             command(["go", "build", "-o", str(runtime), "./tools/verification/overview-ci-performance/runtime"],
                     build_dir / "go-build.log", cwd=checkout, timeout=budget.remaining(240))
-            replay = NativeReplay(checkout, "OverviewPerformanceProbe", "com.mokusei.overview-performance", configuration="release")
+            replay = NativeReplay(checkout, "OverviewPerformanceProbe", "com.chief.overview-performance",
+                                  configuration="release", production_product=swift_product)
             replays[side] = replay
             if side == "A":
                 # One lease covers both staged apps and every serial run.
@@ -1175,7 +1177,7 @@ def main():
             # Select the locale injection API in each product. Both variants mount the same fixture in Chinese.
             flags = list(SWIFT_FLAGS)
             if (checkout / "app/macos/Sources/Host/Shell/DesktopLocale.swift").is_file():
-                flags.extend(["-D", "MOKUSEI_SYSTEM_PRESENTATION"])
+                flags.extend(["-D", "CHIEF_SYSTEM_PRESENTATION"])
             probe_build = {"sources": list(map(str, sources)), "swiftFlags": flags,
                            "configuration": "release", "startedAt": utc(), "succeeded": False}
             try:

@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// A malformed contract is surfaced to the owning surface, never replaced with empty content.
 public struct PluginContractError: Error, Sendable, LocalizedError, CustomStringConvertible {

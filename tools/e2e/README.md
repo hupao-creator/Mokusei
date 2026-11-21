@@ -317,12 +317,12 @@ pinned wrapper or CI's `go`; build failures remain nonzero.
 python3 tools/e2e/build.py --go ./scripts/go.sh --with-app
 
 # No GUI. A ready preparation still exits 2: interactions remain unverified.
-python3 tools/e2e/run.py run --runtime .build/e2e/mokusei-runtime \
+python3 tools/e2e/run.py run --runtime .build/e2e/chief-runtime \
   --prepare-only --output output/e2e/preparation
 
 # Arrange an exclusive desktop slot first. All desktop users must agree on this lock.
-python3 tools/e2e/run.py run --runtime .build/e2e/mokusei-runtime \
-  --app app/macos/.build/debug/Mokusei \
+python3 tools/e2e/run.py run --runtime .build/e2e/chief-runtime \
+  --app app/macos/.build/debug/Chief \
   --desktop-lease /private/tmp/mokusei-ui-verification.lock \
   --desktop-owner YOUR_COORDINATOR_THREAD_ID \
   --output output/e2e/interaction
@@ -447,8 +447,8 @@ An external operator activates that App through system Accessibility and perform
 the indicated text input and button clicks. No production debug API is added.
 
 ```sh
-python3 tools/e2e/run.py run --runtime .build/e2e/mokusei-runtime \
-  --app app/macos/.build/debug/Mokusei --suite all --operator-composer \
+python3 tools/e2e/run.py run --runtime .build/e2e/chief-runtime \
+  --app app/macos/.build/debug/Chief --suite all --operator-composer \
   --desktop-lease /private/tmp/mokusei-ui-verification.lock \
   --desktop-owner YOUR_COORDINATOR_THREAD_ID \
   --output output/e2e/operator --timeout 900

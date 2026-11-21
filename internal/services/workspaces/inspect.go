@@ -15,6 +15,10 @@ import (
 )
 
 type repository struct{ Root, CommonDirectory, StagingRoot string }
+
+const stagingSuffix = "-chief-worktrees"
+const legacyStagingSuffix = "-mokusei-worktrees"
+
 type snapshot struct {
 	Root                    string            `json:"root"`
 	ExecutionCwd            string            `json:"executionCwd"`
@@ -139,9 +143,9 @@ func repositoryContext(ctx context.Context, cwd string) (repository, error) {
 	}
 	if super != "" {
 		rel, _ := filepath.Rel(super, r.Root)
-		r.StagingRoot = filepath.Join(filepath.Dir(super), "."+filepath.Base(super)+"-"+slug(rel)+"-mokusei-worktrees")
+		r.StagingRoot = filepath.Join(filepath.Dir(super), "."+filepath.Base(super)+"-"+slug(rel)+stagingSuffix)
 	} else {
-		r.StagingRoot = filepath.Join(filepath.Dir(main), "."+filepath.Base(main)+"-mokusei-worktrees")
+		r.StagingRoot = filepath.Join(filepath.Dir(main), "."+filepath.Base(main)+stagingSuffix)
 	}
 	return r, ctx.Err()
 }
@@ -231,10 +235,15 @@ func inspect(ctx context.Context, baseCwd string, worktree model.Worktree, expec
 	if base.CommonDirectory != existing.CommonDirectory || base.Root == existing.Root {
 		return s, errors.New("managed worktree differs from base repository or points to base checkout")
 	}
-	if err = privateDirectory(base.StagingRoot); err != nil {
+	stagingPath := base.StagingRoot
+	legacyStagingPath := strings.TrimSuffix(stagingPath, stagingSuffix) + legacyStagingSuffix
+	if filepath.Dir(existing.Root) == legacyStagingPath {
+		stagingPath = legacyStagingPath
+	}
+	if err = privateDirectory(stagingPath); err != nil {
 		return s, err
 	}
-	staging, err := canonical(base.StagingRoot)
+	staging, err := canonical(stagingPath)
 	if err != nil {
 		return s, err
 	}

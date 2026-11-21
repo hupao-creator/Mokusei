@@ -33,8 +33,8 @@ def build(label):
     command = ["xcrun", "swift", "build", "--package-path", str(PACKAGE), "-c", "release", "-Xswiftc", "-enable-testing"]
     subprocess.run(command, cwd=REPO, check=True)
     binary = Path(subprocess.check_output([*command, "--show-bin-path"], text=True).strip())
-    objects = [line.strip().strip('"') for line in (binary / "Mokusei.product/Objects.LinkFileList").read_text().splitlines()
-               if "/Mokusei.build/" not in line]
+    objects = [line.strip().strip('"') for line in (binary / "Chief.product/Objects.LinkFileList").read_text().splitlines()
+               if "/Chief.build/" not in line]
     args = ["xcrun", "swiftc", "-O", "-g", "-swift-version", "6", "-warnings-as-errors", "-parse-as-library",
             "-target", f"{platform.machine()}-apple-macosx26.0", "-I", str(binary / "Modules"), "-F", str(binary),
             "-Xlinker", "-rpath", "-Xlinker", str(binary),

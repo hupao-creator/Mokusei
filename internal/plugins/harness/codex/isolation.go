@@ -185,7 +185,7 @@ func cpPrivateDirectory(directory string) error {
 	return os.Chmod(directory, 0700)
 }
 func cpPrivateWrite(path string, data []byte) error {
-	temporary, err := os.CreateTemp(filepath.Dir(path), ".mokusei-private-")
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".chief-private-")
 	if err != nil {
 		return err
 	}

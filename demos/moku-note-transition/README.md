@@ -6,7 +6,7 @@ execution state are synthetic. A production scene owns visibility; mounting a
 Dock alone does not admit foreground motion.
 
 ```sh
-xcrun swift build --package-path app/macos --configuration release --product Mokusei -Xswiftc -warnings-as-errors
+xcrun swift build --package-path app/macos --configuration release --product Chief -Xswiftc -warnings-as-errors
 python3 demos/moku-note-transition/build.py --label candidate
 mkdir -p /private/tmp/moku-note-preview-output
 ditto .build/note-dismiss/candidate/MokuNoteTransitionPreview.app /private/tmp/MokuNoteTransitionPreview.app

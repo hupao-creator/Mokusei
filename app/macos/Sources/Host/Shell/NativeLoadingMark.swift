@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// A local SwiftUI clock preserves the pre-migration compositor's timing without

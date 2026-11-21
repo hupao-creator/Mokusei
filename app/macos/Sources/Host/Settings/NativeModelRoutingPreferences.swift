@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 import SwiftUI
 
 /// Preset identity and hand-written guidance have separate ownership. Choosing a

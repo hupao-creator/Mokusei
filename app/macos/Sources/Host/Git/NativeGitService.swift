@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Internal domain declarations for the built-in Git monitor; no thread/card contribution.
 @MainActor enum NativeGitService {

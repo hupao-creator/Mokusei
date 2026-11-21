@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// A mounted destination acknowledges content (including readable errors), so

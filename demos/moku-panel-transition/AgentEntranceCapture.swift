@@ -1,7 +1,7 @@
 import AppKit
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
-@testable import MokuseiUI
+@testable import ChiefUI
 
 /// Evaluate the production easing on a uniform source grid. Keep each step
 /// on screen for multiple refreshes so a busy capture can still observe it.

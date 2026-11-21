@@ -350,7 +350,7 @@ func (r *Runtime) Request(ctx context.Context, method, path string, body, out an
 	return json.Unmarshal(raw, out)
 }
 
-// Restrict the storage API to roots explicitly registered by Mokusei and their
+// Restrict the storage API to roots explicitly registered by Chief and their
 // native descendants. Never enumerate or mutate the user's unrelated sessions.
 func (r *Runtime) authorizeSessionRequest(method string, u *url.URL, body any) error {
 	id := ""
@@ -385,7 +385,7 @@ func (r *Runtime) authorizeSessionRequest(method string, u *url.URL, body any) e
 	return nil
 }
 
-const rpcPluginID = "mokusei.harness"
+const rpcPluginID = "chief.harness"
 
 // OpenCode activates configured plugins asynchronously after the first location
 // boots. Calling an RPC before that registration settles is rejected as

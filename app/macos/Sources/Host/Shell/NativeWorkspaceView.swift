@@ -1,7 +1,7 @@
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// The window owns routes and drafts; plugins own the contents of their pages.

@@ -11,6 +11,8 @@ The caller chooses the database path under its exclusively owned profile. The
 store additionally holds a nonblocking advisory lock on `<path>.lock`, preventing
 two store instances from writing the same file. The database is mode `0600`, and
 new parent directories are mode `0700`.
+New runtime profiles use `chief-go-state-v1/state.sqlite`. If a profile has the
+existing `mokusei-go-state-v1` directory, the runtime opens that database in place.
 
 The Go format has `application_id = 0x4d4f4b53` (`MOKS`) and `user_version = 1`. Only a completely empty, unversioned
 SQLite database can be initialized. Foreign versions, extra schema objects,

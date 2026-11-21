@@ -103,7 +103,7 @@ guard CommandLine.arguments.count == 2 else {
 }
 let output = URL(fileURLWithPath: CommandLine.arguments[1]).standardizedFileURL
 let manager = FileManager.default
-let temporary = manager.temporaryDirectory.appendingPathComponent("mokusei-icon-\(UUID().uuidString)")
+let temporary = manager.temporaryDirectory.appendingPathComponent("chief-icon-\(UUID().uuidString)")
 let iconset = temporary.appendingPathComponent("AppIcon.iconset")
 try manager.createDirectory(at: iconset, withIntermediateDirectories: true)
 defer { try? manager.removeItem(at: temporary) }

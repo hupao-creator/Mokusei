@@ -1,9 +1,9 @@
 import AppKit
 import Observation
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefPluginUI
+@testable import ChiefUI
 
 enum ThinkingStudy: String, CaseIterable {
     case arc = "胶囊 + Arc"

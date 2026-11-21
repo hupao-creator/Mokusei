@@ -1,8 +1,8 @@
 import Darwin
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 
 public struct NativeOverviewTagSelection: Equatable, Sendable {
     public let tag: String
@@ -13,7 +13,7 @@ public struct NativeOverviewTagSelection: Equatable, Sendable {
     }
 }
 
-/// Only the host's documented mokusei.overview presentation is interpreted here.
+/// Only the host's documented overview presentation is interpreted here.
 /// Application view/session values remain opaque and are decoded by their plugin.
 struct NativeOverviewApplicationEntry: Sendable {
     let entry: ApplicationThreadCatalogEntry<JSONValue>
@@ -30,7 +30,7 @@ struct NativeOverviewApplicationEntry: Sendable {
         }
         guard presentation.apiVersion == 1, presentation.schemaVersion == 1,
               let covers = presentation.value["coversExecutions"]?.arrayValue else {
-            throw PluginContractError("Incompatible mokusei.overview presentation")
+            throw PluginContractError("Incompatible overview presentation")
         }
         if let value = presentation.value["visible"], value.boolValue == nil { throw PluginContractError("Invalid overview visibility") }
         if let value = presentation.value["tagFilter"], value.stringValue != "directory" { throw PluginContractError("Invalid overview tag filter") }
@@ -124,7 +124,7 @@ enum NativeOverviewSelection {
         let cwd = trim(raw)
             .replacingOccurrences(of: #"[\\/]+$"#, with: "", options: .regularExpression)
         let normalized = cwd.replacingOccurrences(of: "\\", with: "/")
-        guard !cwd.isEmpty, !MokuseiWorkspacePath.isTemporary(normalized) else { return "" }
+        guard !cwd.isEmpty, !ChiefWorkspacePath.isTemporary(normalized) else { return "" }
         let repository = repositoryTag(normalized)
         if let tag = repository.tag { return tag }
         let parts = normalized.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
@@ -133,16 +133,16 @@ enum NativeOverviewSelection {
         if generatedTaskName(base), pathIsMissing(cwd) { return "" }
         return base
     }
-    /// Resolves the Mokusei staging convention. Nested repositories include
+    /// Resolves the Chief staging convention. Nested repositories include
     /// the relative slug, so prefer an existing sibling repository to avoid a
     /// second chip for the same repository. Prefix-sharing repositories make
     /// stripping at every dash ambiguous; only worktree metadata can settle
     /// that, otherwise the un-stripped slug is kept.
     private static func managedWorktreeName(_ path: String) -> String? {
-        let suffix = "-mokusei-worktrees"
         let parts = path.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
         for (index, part) in parts.enumerated() {
-            guard part.hasPrefix("."), part.hasSuffix(suffix) else { continue }
+            guard part.hasPrefix("."),
+                  let suffix = ["-chief-worktrees", "-mokusei-worktrees"].first(where: { part.hasSuffix($0) }) else { continue }
             let name = String(part.dropFirst().dropLast(suffix.count))
             guard !name.isEmpty else { continue }
             var parentParts = Array(parts.prefix(index))
@@ -309,7 +309,7 @@ enum NativeOverviewSelection {
     static func scope(cwd raw: String) -> String {
         let cwd = trim(raw).replacingOccurrences(of: #"[\\/]+$"#, with: "", options: .regularExpression)
         let normalized = cwd.replacingOccurrences(of: "\\", with: "/")
-        guard !cwd.isEmpty, !MokuseiWorkspacePath.isTemporary(normalized) else { return inboxScope }
+        guard !cwd.isEmpty, !ChiefWorkspacePath.isTemporary(normalized) else { return inboxScope }
         if let cached = scopeCache.object(forKey: normalized as NSString) { return cached as String }
         let (resolved, exists) = canonicalPath(cwd)
         // Foundation's resolvingSymlinksInPath strips the /private prefix from

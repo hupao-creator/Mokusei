@@ -1,5 +1,5 @@
 import SwiftUI
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 struct NativeOnboardingReportAnimation: View {
     let harnesses: [AnyHarnessPlugin]

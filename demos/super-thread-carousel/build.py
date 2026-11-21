@@ -19,13 +19,13 @@ output = repo / ".build/super-thread-carousel"
 output.mkdir(parents=True, exist_ok=True)
 if not options.skip_build:
     subprocess.run(["xcrun", "swift", "build", "--package-path", str(repo / "app/macos"),
-                    "--product", "Mokusei", "--disable-sandbox", "--disable-automatic-resolution", "-j", "4"],
+                    "--product", "Chief", "--disable-sandbox", "--disable-automatic-resolution", "-j", "4"],
                    cwd=repo, check=True)
-replay = NativeReplay(repo, "SuperThreadProductionDemo", "com.mokusei.super-thread-production-demo")
+replay = NativeReplay(repo, "SuperThreadProductionDemo", "com.chief.super-thread-production-demo")
 try:
     replay.compile([source / name for name in ["Collection.swift", "ReportFixture.swift", "ProductionProjection.swift", "main.swift"]],
                    extra_args=["-disable-sandbox"])
-    retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-carousel-", dir="/private/tmp"))
+    retained = Path(tempfile.mkdtemp(prefix="chief-native-replay-carousel-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     application = retained / replay.application.name
     shutil.copytree(replay.application, application, symlinks=True)

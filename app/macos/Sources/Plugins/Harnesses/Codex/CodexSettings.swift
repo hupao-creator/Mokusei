@@ -1,7 +1,7 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Plugin-owned settings retain their lossless JSON representation, including

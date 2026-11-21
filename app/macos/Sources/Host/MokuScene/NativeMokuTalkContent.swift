@@ -1,6 +1,6 @@
 import AppKit
 import CoreText
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 @MainActor enum NativeMokuTalkTypography {

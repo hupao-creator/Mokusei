@@ -1,9 +1,9 @@
 import AppKit
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 @MainActor

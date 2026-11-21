@@ -2,7 +2,7 @@
 
 The Go module is `github.com/hupao-creator/Chief`, matching the source repository.
 
-The executable [mokusei-runtime](../cmd/mokusei-runtime/main.go) acquires a profile through the daemon and constructs the application through [composition/bootstrap.go](core/composition/bootstrap.go). Each composition owns its registrations, store, services and native process lifetimes.
+The executable [chief-runtime](../cmd/chief-runtime/main.go) acquires a profile through the daemon and constructs the application through [composition/bootstrap.go](core/composition/bootstrap.go). Each composition owns its registrations, store, services and native process lifetimes.
 
 | Module | Responsibility |
 | --- | --- |

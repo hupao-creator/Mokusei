@@ -1,6 +1,6 @@
 # 正式 Overview Tag Morph 原生回放
 
-此入口直接链接当前 Debug `MokuseiUI.NativeOverviewChrome`，用于查看正式实现；不复制标签 UI，不启动 runtime，也不读取用户会话。
+此入口直接链接当前 Debug `ChiefUI.NativeOverviewChrome`，用于查看正式实现；不复制标签 UI，不启动 runtime，也不读取用户会话。
 
 ```sh
 xcrun swift build --package-path app/macos

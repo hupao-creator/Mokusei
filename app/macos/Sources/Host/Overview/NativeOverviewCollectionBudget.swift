@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 /// One budget per complete, ungrouped filter projection. Each type spends only
 /// the excess left by earlier types, in the order their first candidate appears.

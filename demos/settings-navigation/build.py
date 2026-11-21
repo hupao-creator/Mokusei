@@ -1,4 +1,4 @@
-"""Link the real Debug MokuseiUI into an isolated native visual replay."""
+"""Link the real Debug ChiefUI into an isolated native visual replay."""
 import argparse
 from pathlib import Path
 import platform
@@ -17,7 +17,7 @@ name = "MokuMapLogoDemo" if options.moku_map else "SettingsNavigationDemo"
 slug = "settings-moku-map-logo" if options.moku_map else "settings-navigation"
 application = repo / ".build" / slug / f"{name}.app"
 executable = application / "Contents/MacOS" / name
-link_list = build / "Mokusei.product/Objects.LinkFileList"
+link_list = build / "Chief.product/Objects.LinkFileList"
 if not link_list.is_file():
     raise SystemExit("Build current production modules first: swift build --package-path app/macos")
 executable.parent.mkdir(parents=True, exist_ok=True)
@@ -27,7 +27,7 @@ for bundle in build.glob("*.bundle"):
     shutil.copytree(bundle, resources / bundle.name, dirs_exist_ok=True)
 with (application / "Contents/Info.plist").open("wb") as output:
     plistlib.dump({
-        "CFBundleIdentifier": f"com.mokusei.{slug}-demo",
+        "CFBundleIdentifier": f"com.chief.{slug}-demo",
         "CFBundleName": name,
         "CFBundleExecutable": name,
         "CFBundlePackageType": "APPL",
@@ -36,7 +36,7 @@ with (application / "Contents/Info.plist").open("wb") as output:
         "SettingsDemoOpensMoku": options.moku_map,
     }, output)
 objects = [line.strip().strip('"') for line in link_list.read_text().splitlines()
-           if "/Mokusei.build/" not in line]
+           if "/Chief.build/" not in line]
 args = ["/usr/bin/xcrun", "swiftc", "-swift-version", "6", "-warnings-as-errors", "-parse-as-library",
         "-target", f"{platform.machine()}-apple-macosx26.0", "-I", str(build / "Modules"), "-F", str(build),
         "-Xlinker", "-rpath", "-Xlinker", str(build),

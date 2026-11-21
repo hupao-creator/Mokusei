@@ -417,7 +417,7 @@ rapid reversals, narrow/centered layouts and a local no-animation fixture.
 Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The desktop history panel opens the current session. Runtime prevents archive reactivation, fork and execution of previous sessions, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
 
 Note Markdown accepts app-internal execution links in the form
-`[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`. The note
+`[label](chief://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`. The note
 forwards a validated typed reference to the Host; other Markdown surfaces do not
 open these links and they are never handed to the OS. Only ordinary public
 Agent Threads qualify, including archived, failed and interrupted ones. Moku,

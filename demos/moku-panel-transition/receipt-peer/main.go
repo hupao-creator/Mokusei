@@ -94,7 +94,7 @@ func (h *host) branch() map[string]string {
 
 func run() error {
 	dir, err := os.Getwd()
-	if err != nil || filepath.Base(dir) != "workspace" || !strings.HasPrefix(filepath.Base(filepath.Dir(dir)), "mokusei-native-replay-") {
+	if err != nil || filepath.Base(dir) != "workspace" || !strings.HasPrefix(filepath.Base(filepath.Dir(dir)), "chief-native-replay-") {
 		return fmt.Errorf("receipt peer requires a disposable native replay workspace")
 	}
 	p, err := profile.Resolve(profile.Options{DataDir: filepath.Join(dir, "server-profile"), HomeDir: dir})

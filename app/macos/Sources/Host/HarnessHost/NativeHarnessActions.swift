@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 extension NativeHarnessHost {
     func boundActions(threadID: JSONText, harnessID: JSONText,

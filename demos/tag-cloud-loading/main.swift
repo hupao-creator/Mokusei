@@ -7,7 +7,7 @@ struct TagCloudDemo: View {
     @State private var selected: NativeOverviewFilter?
 
     private let filters: [NativeOverviewFilter] = [
-        .init(tag: "Mokusei", count: 12, isDirectory: true),
+        .init(tag: "Chief", count: 12, isDirectory: true),
         .init(tag: "界面设计", count: 4),
         .init(tag: "性能优化", count: 3),
         .init(tag: "代码调研", count: 6),

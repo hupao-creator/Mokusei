@@ -1,12 +1,12 @@
 import AppKit
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginAPI
-@testable import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefPluginAPI
+@testable import ChiefPluginUI
+@testable import ChiefUI
 
 private let directories: [NativeComposerDirectory] = [
-    .init(name: "Mokusei", path: "/demo/Mokusei"),
+    .init(name: "Chief", path: "/demo/Chief"),
     .init(name: "Agent Learn", path: "/demo/Agent Learn"),
     .init(name: "AnyThing", path: "/demo/AnyThing"),
     .init(name: "Design", path: "/demo/Design"),

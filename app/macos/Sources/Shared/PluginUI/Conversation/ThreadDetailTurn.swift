@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 func threadExecutionResultAnchor(_ executionID: JSONText) -> JSONText {

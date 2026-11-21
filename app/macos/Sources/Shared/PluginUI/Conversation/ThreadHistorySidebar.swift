@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 private struct HistorySidebarAnchor: PreferenceKey {

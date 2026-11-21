@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 public enum ApplicationCapabilityPhase: String, Sendable { case projection, renderer }
@@ -174,10 +174,10 @@ public struct ApplicationBackgroundConfigurationUI {
     public func editor(value: ApplicationBackgroundExecutionSettings, change: @escaping (ApplicationBackgroundExecutionSettings) -> Void) -> AnyView { body(value, change) }
 }
 public enum ApplicationCapabilities {
-    public static let conversationUI = ApplicationCapabilityKey<ApplicationConversationUI, ApplicationRendererPhase>("mokusei.conversationUiCapability")
-    public static let conversationProjection = ApplicationCapabilityKey<ApplicationConversationProjection, ApplicationProjectionPhase>("mokusei.conversationProjectionCapability")
-    public static let threadUserActions = ApplicationCapabilityKey<ApplicationThreadUserActions, ApplicationRendererPhase>("mokusei.threadUserActionsCapability")
-    public static let executionReferencesUI = ApplicationCapabilityKey<ApplicationExecutionReferencesUI, ApplicationRendererPhase>("mokusei.executionReferencesUiCapability")
-    public static let isolatedHTML = ApplicationCapabilityKey<ApplicationIsolatedHTML, ApplicationRendererPhase>("mokusei.isolatedHtmlCapability")
-    public static let backgroundConfigurationUI = ApplicationCapabilityKey<ApplicationBackgroundConfigurationUI, ApplicationRendererPhase>("mokusei.backgroundConfigurationUiCapability")
+    public static let conversationUI = ApplicationCapabilityKey<ApplicationConversationUI, ApplicationRendererPhase>("chief.conversationUiCapability")
+    public static let conversationProjection = ApplicationCapabilityKey<ApplicationConversationProjection, ApplicationProjectionPhase>("chief.conversationProjectionCapability")
+    public static let threadUserActions = ApplicationCapabilityKey<ApplicationThreadUserActions, ApplicationRendererPhase>("chief.threadUserActionsCapability")
+    public static let executionReferencesUI = ApplicationCapabilityKey<ApplicationExecutionReferencesUI, ApplicationRendererPhase>("chief.executionReferencesUiCapability")
+    public static let isolatedHTML = ApplicationCapabilityKey<ApplicationIsolatedHTML, ApplicationRendererPhase>("chief.isolatedHtmlCapability")
+    public static let backgroundConfigurationUI = ApplicationCapabilityKey<ApplicationBackgroundConfigurationUI, ApplicationRendererPhase>("chief.backgroundConfigurationUiCapability")
 }

@@ -21,7 +21,7 @@ func prepareApplicationScenario(ctx context.Context, name string, records int) (
 	if name != "application-list" || records < 1 {
 		return nil, nil, fmt.Errorf("invalid application scenario %q with %d records", name, records)
 	}
-	root, err := os.MkdirTemp("", "mokusei-performance-application-")
+	root, err := os.MkdirTemp("", "chief-performance-application-")
 	if err != nil {
 		return nil, nil, err
 	}

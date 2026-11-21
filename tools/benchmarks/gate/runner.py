@@ -122,7 +122,7 @@ def runtime(output, campaign, suite, deadline, go):
     environment = {**os.environ, 'CGO_ENABLED': '1', 'GOTOOLCHAIN': 'local', 'GOFLAGS': '-mod=readonly',
                    'GOMAXPROCS': str(workload['gomaxprocs'])}
     # An owned temporary root also contains any fixture remnants after timeout.
-    with tempfile.TemporaryDirectory(prefix='mokusei-perf-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='chief-perf-') as temporary:
         work = Path(temporary)
         environment['TMPDIR'] = str(work)
         binaries = {}

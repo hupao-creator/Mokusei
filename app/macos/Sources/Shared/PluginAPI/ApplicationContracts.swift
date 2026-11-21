@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 public struct ApplicationThreadRef: Hashable, Sendable {
     public let threadID: JSONText
@@ -14,9 +14,16 @@ public struct ApplicationExecutionRef: Hashable, Sendable {
 }
 /// App-internal references are data, never URLs to hand to the operating system.
 public enum ApplicationExecutionLink {
+    public static func matchesScheme(_ scheme: String?) -> Bool {
+        switch scheme?.lowercased() {
+        case "chief", "mokusei": true
+        default: false
+        }
+    }
+
     public static func parse(_ url: URL) -> ApplicationExecutionRef? {
         guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              parts.scheme == "mokusei", parts.host == "execution",
+              matchesScheme(parts.scheme), parts.host == "execution",
               parts.user == nil, parts.password == nil, parts.port == nil,
               parts.path.isEmpty, parts.fragment == nil,
               let query = parts.queryItems, query.count == 2,

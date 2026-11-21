@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Settings acquisition belongs to the connected workspace, so opening a page
 /// or selecting a Harness only attaches to resources that are already loading.

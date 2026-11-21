@@ -1,7 +1,7 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Thread scope is a directory. Only visible opaque rows acquire their complete

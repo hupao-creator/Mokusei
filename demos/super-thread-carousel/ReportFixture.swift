@@ -1,10 +1,10 @@
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
-import MokuseiHarnessCodex
-import MokuseiHarnessClaude
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
+import ChiefHarnessCodex
+import ChiefHarnessClaude
 import SwiftUI
-@testable import MokuseiApplications
+@testable import ChiefApplications
 
 @MainActor final class ReportFixture {
     let props: ApplicationThreadProps<NativeReportView>

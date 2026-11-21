@@ -694,7 +694,7 @@ retained as property corpus. Failures print original/reduced event traces and
 only shrink to the same failure category. This checks mounted convergence, not
 physical gestures, captured appearance or frame pacing.
 
-These properties live in the dedicated `MokuseiProperties` SwiftPM target.
+These properties live in the dedicated `ChiefProperties` SwiftPM target.
 `make pbt-native` runs geometry, collection budgets and deferred regrouping with explicit seed/case
 budgets. `make pbt-native-state` separately runs mounted convergence and requires
 macOS 26 with a WindowServer; missing display fails. Its 3s bound is a hang guard,

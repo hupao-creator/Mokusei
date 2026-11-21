@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// Card-composition capacity, not an Overview viewport column count. Plugins

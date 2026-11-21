@@ -957,7 +957,7 @@ func atomicJSON(path string, value any) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".mokusei-*.tmp")
+	f, err := os.CreateTemp(filepath.Dir(path), ".chief-*.tmp")
 	if err != nil {
 		return err
 	}

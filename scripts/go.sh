@@ -9,11 +9,17 @@ go_archive_sha256=dd3908cf20959d798c1e06ebe5b72213f0505ce01373b40ce3110975a6cd99
 go_archive_url=https://go.dev/dl/go1.27.3.darwin-arm64.tar.gz
 
 if [ "$(/usr/bin/uname -sm)" != 'Darwin arm64' ]; then
-  echo 'Mokusei native development requires Apple Silicon macOS.' >&2
+  echo 'Chief native development requires Apple Silicon macOS.' >&2
   exit 1
 fi
 
-go_cache_base=${MOKUSEI_GO_CACHE:-"${HOME}/Library/Caches/Mokusei/toolchains"}
+go_cache_base=${CHIEF_GO_CACHE:-"${HOME}/Library/Caches/Chief/toolchains"}
+go_marker=.chief-archive-sha256
+if [ -z "${CHIEF_GO_CACHE:-}" ] && [ -n "${MOKUSEI_GO_CACHE:-}" ]; then
+  # An explicitly shared cache must remain usable by both wrappers.
+  go_cache_base=$MOKUSEI_GO_CACHE
+  go_marker=.mokusei-archive-sha256
+fi
 go_install_root=${go_cache_base}/${go_version}-darwin-arm64
 go_lock=${go_cache_base}/.${go_version}.lock
 go_stage=
@@ -21,8 +27,8 @@ go_owns_lock=0
 
 valid_install() {
   [ -x "${go_install_root}/bin/go" ] &&
-    [ -f "${go_install_root}/.mokusei-archive-sha256" ] &&
-    [ "$(cat "${go_install_root}/.mokusei-archive-sha256")" = "$go_archive_sha256" ] &&
+    [ -f "${go_install_root}/${go_marker}" ] &&
+    [ "$(cat "${go_install_root}/${go_marker}")" = "$go_archive_sha256" ] &&
     [ "$(/usr/bin/head -n 1 "${go_install_root}/VERSION")" = "$go_version" ]
 }
 cleanup() {
@@ -71,7 +77,7 @@ if ! valid_install; then
       if [ "${go_actual%% *}" = "$go_archive_sha256" ]; then go_valid_archive=1; fi
     fi
     if [ "$go_valid_archive" != 1 ]; then
-      echo "Downloading pinned ${go_version} for Mokusei..." >&2
+      echo "Downloading pinned ${go_version} for Chief..." >&2
       /usr/bin/curl --fail --location --proto '=https' --tlsv1.2 --retry 3 \
         --output "$go_stage/archive.tar.gz" "$go_archive_url"
       go_actual=$(/usr/bin/shasum -a 256 "$go_stage/archive.tar.gz")
@@ -87,7 +93,7 @@ if ! valid_install; then
       echo 'Pinned archive did not contain the expected Go toolchain.' >&2
       exit 1
     fi
-    printf '%s\n' "$go_archive_sha256" > "$go_stage/go/.mokusei-archive-sha256"
+    printf '%s\n' "$go_archive_sha256" > "$go_stage/go/$go_marker"
     if [ -e "$go_install_root" ]; then
       /bin/mv "$go_install_root" "${go_install_root}.previous.$$"
     fi
@@ -99,10 +105,10 @@ fi
 # GOTOOLCHAIN=local prevents an unrelated shell setting from selecting an older
 # or automatically downloaded toolchain. GOROOT must belong to this compiler.
 PATH="${go_install_root}/bin:${PATH}"
-MOKUSEI_GO="${go_install_root}/bin/go"
+CHIEF_GO="${go_install_root}/bin/go"
 GOTOOLCHAIN=local
 unset GOROOT
-export PATH MOKUSEI_GO GOTOOLCHAIN
+export PATH CHIEF_GO GOTOOLCHAIN
 cleanup
 trap - EXIT INT TERM HUP
 exec "${go_install_root}/bin/go" "$@"

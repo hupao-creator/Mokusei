@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mokusei.invalid/schemas/performance-boundary-report-v1",
-  "title": "Mokusei performance boundary report v1",
+  "$id": "https://chief.invalid/schemas/performance-boundary-report-v1",
+  "title": "Chief performance boundary report v1",
   "type": "object",
   "required": ["schemaVersion", "kind", "boundary", "suite", "runId", "status", "validity", "decision", "exitCode", "reasons", "evidence", "phases", "metrics"],
   "properties": {

@@ -1,6 +1,6 @@
 import Darwin
 import Foundation
-import MokuseiCore
+import ChiefCore
 import Synchronization
 
 /// System termination can bypass the SwiftUI Quit command. Launch a small,

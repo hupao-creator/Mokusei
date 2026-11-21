@@ -1,6 +1,6 @@
 # 如何新增 Harness plugin
 
-接入一个新的 coding agent，需要为同一个 Harness ID 提供两份实现。Go 适配器驱动用户安装的原生 CLI，Swift 插件把该适配器的投影呈现在 macOS 上。两者都随 Mokusei 编译，通过源码静态注册。设置里的“发现”检查外部引擎及其配置。仓库没有扫描工作区 `plugins/` 或读取第三方 Harness manifest 的加载器。[Go 组装入口](../../core/composition/bootstrap.go) · [macOS 组装入口](../../../app/macos/Sources/Composition/NativePlugins.swift)
+接入一个新的 coding agent，需要为同一个 Harness ID 提供两份实现。Go 适配器驱动用户安装的原生 CLI，Swift 插件把该适配器的投影呈现在 macOS 上。两者都随 Chief 编译，通过源码静态注册。设置里的“发现”检查外部引擎及其配置。仓库没有扫描工作区 `plugins/` 或读取第三方 Harness manifest 的加载器。[Go 组装入口](../../core/composition/bootstrap.go) · [macOS 组装入口](../../../app/macos/Sources/Composition/NativePlugins.swift)
 
 ## 1. 选定 ID 和参照实现
 
@@ -57,7 +57,7 @@
 ## 5. 接入 macOS
 
 1. 在 `app/macos/Sources/Plugins/Harnesses/<Name>/` 实现 `HarnessPlugin`。用相同 ID 和对应能力建立 descriptor，提供 logo、三种 codec（Thread 设置更新、Harness 设置、settings presentation）、阅读视图、Overview 投影与卡片、Thread 和 Harness 设置视图。可按引擎提供 `settingsPresentationIssue` 报告 CLI 或目录问题，支持协调者时参考 `projectMokuDock`。首次设置页的 **Install** 打开 descriptor 的可选 `installationGuide`。Runtime 的 `harness:install` 单独要求实现 Go `Installer`。[Swift 契约与默认实现](../../../app/macos/Sources/Shared/PluginAPI/HarnessPlugin.swift) · [Pi 插件](../../../app/macos/Sources/Plugins/Harnesses/Pi/PiHarnessPlugin.swift)
-2. 在 SwiftPM 增加 `MokuseiHarness<Name>` target，按需依赖 `MokuseiCore`、`MokuseiPluginAPI`、`MokuseiPluginUI`，加入 `MokuseiComposition` 的 dependencies。然后在 `NativePlugins.swift` 导入模块，把具体插件用 `AnyHarnessPlugin` 包装后加入 `NativePlugins.make()` 的 `harnesses` 数组。[Package.swift](../../../app/macos/Package.swift) · [NativePlugins.swift](../../../app/macos/Sources/Composition/NativePlugins.swift)
+2. 在 SwiftPM 增加 `ChiefHarness<Name>` target，按需依赖 `ChiefCore`、`ChiefPluginAPI`、`ChiefPluginUI`，加入 `ChiefComposition` 的 dependencies。然后在 `NativePlugins.swift` 导入模块，把具体插件用 `AnyHarnessPlugin` 包装后加入 `NativePlugins.make()` 的 `harnesses` 数组。[Package.swift](../../../app/macos/Package.swift) · [NativePlugins.swift](../../../app/macos/Sources/Composition/NativePlugins.swift)
 3. 让插件解码 Go 生成的私有 renderer 投影，按 execution ID 关联卡片、交互和正文。共享 Host 通过 `HarnessPluginRegistry` 按 ID 找插件，并通过已认证的 HTTP/NDJSON 获取状态、订阅内容和发命令。阅读视图使用 `HarnessThreadActions`，Overview 卡片只收到回答已有交互和打开 Thread 的回调。[注册表与渲染检查](../../../app/macos/Sources/Shared/PluginAPI/HarnessRegistry.swift) · [原生宿主](../../../app/macos/Sources/Host/HarnessHost/NativeHarnessHost.swift) · [传输与 scope](../../platform/transport/README.md)
 
 ## 6. 从发现走到一次真实执行

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiPluginAPI
-@testable import MokuseiUI
+import ChiefPluginAPI
+@testable import ChiefUI
 
 struct ReportSample: Identifiable {
     let id: String

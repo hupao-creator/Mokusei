@@ -1,7 +1,7 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Native OpenCode presentation. CLI, permissions, native sessions and execution

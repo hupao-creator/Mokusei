@@ -178,7 +178,7 @@ func Ensure(ctx context.Context, p profile.Profile, options LaunchOptions) (*pro
 	defer launchRead.Close()
 	defer launchWrite.Close()
 	command.ExtraFiles = []*os.File{launchRead}
-	command.Env = append(command.Env, "MOKUSEI_LAUNCH_FD=3")
+	command.Env = append(command.Env, "CHIEF_LAUNCH_FD=3")
 	if err = command.Start(); err != nil {
 		return nil, model.NewError("LAUNCH_FAILED", err.Error())
 	}
@@ -344,15 +344,15 @@ func Stop(ctx context.Context, p profile.Profile) error {
 // foreground launches have no handoff; detached children start only after their
 // launcher has persisted an identity that Stop can wait for.
 func AwaitLaunch() error {
-	value := os.Getenv("MOKUSEI_LAUNCH_FD")
+	value := os.Getenv("CHIEF_LAUNCH_FD")
 	if value == "" {
 		return nil
 	}
-	_ = os.Unsetenv("MOKUSEI_LAUNCH_FD")
+	_ = os.Unsetenv("CHIEF_LAUNCH_FD")
 	if value != "3" {
 		return errors.New("invalid runtime startup handoff")
 	}
-	file := os.NewFile(3, "mokusei-launch")
+	file := os.NewFile(3, "chief-launch")
 	if file == nil {
 		return errors.New("runtime startup handoff unavailable")
 	}

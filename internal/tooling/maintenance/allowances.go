@@ -172,7 +172,7 @@ func UpdateAllowances(ctx context.Context, options AllowanceOptions) (AllowanceR
 			return nil, err
 		}
 		request.Header.Set("Accept", "application/vnd.github+json")
-		request.Header.Set("User-Agent", "Mokusei-billing-catalog")
+		request.Header.Set("User-Agent", "Chief-billing-catalog")
 		response, err := client.Do(request)
 		if err != nil {
 			return nil, err

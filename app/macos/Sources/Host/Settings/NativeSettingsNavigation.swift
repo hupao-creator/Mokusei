@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
 import Observation
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefPluginAPI
+import ChiefPluginUI
 
 /// The page and programmatic navigation share the same section and close gate.
 @MainActor @Observable

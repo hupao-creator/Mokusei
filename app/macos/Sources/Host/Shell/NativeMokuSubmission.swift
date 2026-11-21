@@ -1,7 +1,7 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 
 /// The captured input owns its receipt until its persisted draft is consumed.
 /// Retrying an uncertain send observes that receipt, including its original

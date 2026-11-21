@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 import Observation
-import MokuseiUI
-import MokuseiPluginUI
-@testable import MokuseiApplications
+import ChiefUI
+import ChiefPluginUI
+@testable import ChiefApplications
 
 private struct CardShell<Content: View>: View {
     var providesCardSurface = false

@@ -1,6 +1,6 @@
 import AppKit
-import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefPluginUI
+@testable import ChiefUI
 
 private struct ReplayFailure: Error, CustomStringConvertible {
     let description: String

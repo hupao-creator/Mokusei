@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 
 /// Matches the renderer's ^\p{RGI_Emoji}$ / v property without depending on
 /// the operating system's Unicode release or treating a bare digit as emoji.

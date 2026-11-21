@@ -13,11 +13,11 @@ executable = application / "Contents/MacOS/TagCloudLoadingDemo"
 executable.parent.mkdir(parents=True, exist_ok=True)
 resources = application / "Contents/Resources"
 resources.mkdir(exist_ok=True)
-shutil.copytree(build / "MokuseiNative_MokuseiPluginUI.bundle",
-               resources / "MokuseiNative_MokuseiPluginUI.bundle", dirs_exist_ok=True)
+shutil.copytree(build / "ChiefNative_ChiefPluginUI.bundle",
+               resources / "ChiefNative_ChiefPluginUI.bundle", dirs_exist_ok=True)
 with (application / "Contents/Info.plist").open("wb") as output:
     plistlib.dump({
-        "CFBundleIdentifier": "com.mokusei.tagcloudloadingdemo",
+        "CFBundleIdentifier": "com.chief.tagcloudloadingdemo",
         "CFBundleName": "TagCloudLoadingDemo",
         "CFBundleDisplayName": "Tag Filter Cloud Demo",
         "CFBundleExecutable": "TagCloudLoadingDemo",
@@ -27,8 +27,8 @@ with (application / "Contents/Info.plist").open("wb") as output:
     }, output)
 
 objects = [line.strip().strip('"') for line in
-           (build / "Mokusei.product/Objects.LinkFileList").read_text().splitlines()
-           if "/Mokusei.build/" not in line and "/MokuseiUI.build/" not in line]
+           (build / "Chief.product/Objects.LinkFileList").read_text().splitlines()
+           if "/Chief.build/" not in line and "/ChiefUI.build/" not in line]
 args = ["/usr/bin/xcrun", "swiftc", "-swift-version", "6", "-warnings-as-errors",
         "-target", "arm64-apple-macosx26.0", "-I", str(build / "Modules"), "-F", str(build),
         "-Xlinker", "-rpath", "-Xlinker", str(build)]

@@ -15,9 +15,9 @@ import (
 // It is opt-in because the native CLI and macOS sandbox are external dependencies.
 // PBT-SYSTEM-COMBINATION: internal/core/runtime/README.md
 func TestSystemFaultCombinationProperties(t *testing.T) {
-	native := os.Getenv("MOKUSEI_SYSTEM_CODEX")
+	native := os.Getenv("CHIEF_SYSTEM_CODEX")
 	if native == "" {
-		t.Fatal("set MOKUSEI_SYSTEM_CODEX to an absolute native Codex path; missing capability is not a pass")
+		t.Fatal("set CHIEF_SYSTEM_CODEX to an absolute native Codex path; missing capability is not a pass")
 	}
 	rapidcheck.Check(t, func(t *rapid.T) {
 		scopes := rapid.IntRange(1, 3).Draw(t, "scopes")
@@ -28,7 +28,7 @@ func TestSystemFaultCombinationProperties(t *testing.T) {
 				plan = append(plan, role+"="+mode)
 			}
 		}
-		artifacts, err := os.MkdirTemp(os.Getenv("MOKUSEI_PBT_EVIDENCE"), "moku-system-property-")
+		artifacts, err := os.MkdirTemp(os.Getenv("CHIEF_PBT_EVIDENCE"), "moku-system-property-")
 		if err != nil {
 			t.Fatal(err)
 		}

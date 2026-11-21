@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 
 public enum NativeSettingsSaveResult: Sendable {
     case saved(settings: JSONValue, revision: Int)

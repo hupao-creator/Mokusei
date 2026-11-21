@@ -1,7 +1,7 @@
 // No-window production geometry probe. These are not renderer/performance metrics.
 import Foundation
-@testable import MokuseiUI
-import MokuseiPluginUI
+@testable import ChiefUI
+import ChiefPluginUI
 
 @main private enum GeometryProbe {
     static func main() throws {

@@ -91,7 +91,7 @@ func TestRemoveWorktreeProperties(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		tmp, err := os.MkdirTemp("", "mokusei-remove-worktree-")
+		tmp, err := os.MkdirTemp("", "chief-remove-worktree-")
 		check(err)
 		defer os.RemoveAll(tmp)
 		tmp, err = filepath.EvalSymlinks(tmp)

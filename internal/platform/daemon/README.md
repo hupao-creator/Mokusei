@@ -5,9 +5,9 @@
 From the repository root, build with `make runtime`, then manage a selected profile:
 
 ```sh
-.build/go/mokusei-runtime start --data-dir /absolute/profile
-.build/go/mokusei-runtime status --data-dir /absolute/profile
-.build/go/mokusei-runtime stop --data-dir /absolute/profile
+.build/go/chief-runtime start --data-dir /absolute/profile
+.build/go/chief-runtime status --data-dir /absolute/profile
+.build/go/chief-runtime stop --data-dir /absolute/profile
 ```
 
 Client disconnection does not cancel accepted work. Explicitly quitting the Mac app requests coordinated service shutdown.

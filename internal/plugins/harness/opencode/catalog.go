@@ -684,7 +684,7 @@ func readConsoleAccountStatus(ctx context.Context, token, org, expected string) 
 			}
 			req.Header.Set("Authorization", "Bearer "+token)
 			req.Header.Set("Accept", "application/json")
-			req.Header.Set("User-Agent", "Mokusei/0.1")
+			req.Header.Set("User-Agent", "Chief/0.1")
 			req.Header.Set("Cache-Control", "no-store")
 			if org != "" {
 				req.Header.Set("x-org-id", org)

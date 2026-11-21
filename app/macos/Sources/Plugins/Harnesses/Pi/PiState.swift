@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Pi owns this durable boundary. Never repair a malformed private session into
 /// an apparently empty conversation; identities remain JavaScript UTF-16 text.

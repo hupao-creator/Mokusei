@@ -1,6 +1,6 @@
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Only the passive mark flips. The editor, its layout seat and native input

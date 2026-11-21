@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const Usage = `Usage: mokusei-maintain [--repo PATH] COMMAND
+const Usage = `Usage: chief-maintain [--repo PATH] COMMAND
 
   update-opencode-go-allowances [dev|COMMIT_SHA]
       [--output PATH] [--code FILE --docs FILE] [--verified-at YYYY-MM-DD]

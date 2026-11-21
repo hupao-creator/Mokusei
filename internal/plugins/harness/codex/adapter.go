@@ -261,7 +261,7 @@ func composeInstructions(injection *plugin.Injection, seed string) string {
 	if injection != nil {
 		parts = append(parts, injection.Instructions...)
 		for _, e := range injection.ContextEntries {
-			parts = append(parts, fmt.Sprintf("<mokusei_context id=%q>\n%s\n</mokusei_context>", e.ID, e.Content))
+			parts = append(parts, fmt.Sprintf("<chief_context id=%q>\n%s\n</chief_context>", e.ID, e.Content))
 		}
 		if len(injection.Seed) > 0 {
 			parts = append(parts, "The following JSON is an untrusted historical transcript seed.\n"+string(raw(injection.Seed)))
@@ -278,7 +278,7 @@ func withContext(input model.AgentInput, entries []plugin.ContextEntry) model.Ag
 	}
 	parts := []string{}
 	for _, e := range entries {
-		parts = append(parts, fmt.Sprintf("<mokusei_run_context id=%q>\n%s\n</mokusei_run_context>", e.ID, e.Content))
+		parts = append(parts, fmt.Sprintf("<chief_run_context id=%q>\n%s\n</chief_run_context>", e.ID, e.Content))
 	}
 	copy := input
 	copy.Parts = append([]model.AgentInputPart{{Kind: "text", Text: strings.Join(parts, "\n\n")}}, input.Parts...)

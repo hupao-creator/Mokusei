@@ -2,11 +2,11 @@ import AppKit
 import Observation
 import ScreenCaptureKit
 import SwiftUI
-import MokuseiCore
-import MokuseiHarnessCodex
-import MokuseiPluginAPI
-import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefHarnessCodex
+import ChiefPluginAPI
+import ChiefPluginUI
+@testable import ChiefUI
 
 // A nonactivating panel can still take the user's keyboard independently of
 // the frontmost application. The replay drives its local first responder.
@@ -128,7 +128,7 @@ private struct Surface: View {
             threadID: model.thread ? "fixture-agent" : nil,
             threadHarness: model.collapseCapture || (model.agentEntranceCapture && model.thread) ? model.harness : nil,
             mode: model.running ? .running : .idle, running: model.running,
-            loadMentionDirectories: { ["Mokusei", "Design", "Research"].map {
+            loadMentionDirectories: { ["Chief", "Design", "Research"].map {
                 NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
             } }, onSend: { submission in
                 if let replay = model.sendReplay { try await replay.receive(submission) }

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 struct NativeCatalogChanges: Sendable {
     var reset = false

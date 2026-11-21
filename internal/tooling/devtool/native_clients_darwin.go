@@ -57,7 +57,7 @@ func nativeClientProcesses(ctx context.Context) ([]nativeClientProcess, error) {
 		if len(fields) < 3 {
 			return nil, errors.New("invalid process identity snapshot")
 		}
-		if fields[1] != strconv.Itoa(os.Getuid()) || strings.Join(fields[2:], " ") != "Mokusei" {
+		if fields[1] != strconv.Itoa(os.Getuid()) || !isNativeExecutable(strings.Join(fields[2:], " ")) {
 			continue
 		}
 		pid, err := strconv.Atoi(fields[0])
@@ -80,7 +80,7 @@ func nativeClientProcesses(ctx context.Context) ([]nativeClientProcess, error) {
 			return nil, errors.New("unterminated native executable path")
 		}
 		executable := string(path[:end])
-		if filepath.Base(executable) != "Mokusei" {
+		if !isNativeExecutable(filepath.Base(executable)) {
 			continue
 		}
 		arguments, home, err := nativeProcessArguments(pid)

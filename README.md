@@ -99,7 +99,7 @@ for signing, output paths, and distribution constraints.
 Run these commands individually from the repository root as needed:
 
 ```sh
-make runtime                     # .build/go/mokusei-runtime
+make runtime                     # .build/go/chief-runtime
 make dev ARGS=--fresh             # rotate development data to <profile>.previous and launch
 make check                       # static checks, Go/Swift builds, and routine PBT
 make install-hooks               # repository-local pre-commit hook
@@ -120,13 +120,13 @@ app requests a coordinated runtime shutdown. After `make runtime`, manage an
 isolated profile directly:
 
 ```sh
-.build/go/mokusei-runtime start --data-dir /absolute/profile
-.build/go/mokusei-runtime status --data-dir /absolute/profile
-.build/go/mokusei-runtime stop --data-dir /absolute/profile
+.build/go/chief-runtime start --data-dir /absolute/profile
+.build/go/chief-runtime status --data-dir /absolute/profile
+.build/go/chief-runtime stop --data-dir /absolute/profile
 ```
 
-Use `./scripts/go.sh run ./cmd/mokusei-dev --help` for development and installation
-options. Native OpenCode allowance-data maintenance lives in `cmd/mokusei-maintain`.
+Use `./scripts/go.sh run ./cmd/chief-dev --help` for development and installation
+options. Native OpenCode allowance-data maintenance lives in `cmd/chief-maintain`.
 
 </details>
 

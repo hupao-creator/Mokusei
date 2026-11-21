@@ -9,7 +9,7 @@ const contextHash = value => createHash('sha256').update(JSON.stringify(value, (
     Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item)).digest('hex');
 const { endpoint, token, isolated } = JSON.parse(await readFile(new URL('./transport.json', import.meta.url), 'utf8'));
 
-const RPC = { id: 'mokusei.harness', methods: {
+const RPC = { id: 'chief.harness', methods: {
   refresh: { input: { type: 'object', additionalProperties: false }, output: {
     type: 'object', properties: { revisions: { type: 'object' }, tools: { type: 'array', items: { type: 'string' } } },
     required: ['revisions', 'tools']
@@ -27,7 +27,7 @@ const RPC = { id: 'mokusei.harness', methods: {
 }, events: {} };
 
 export default {
-  id: 'mokusei.harness',
+  id: 'chief.harness',
   async setup(ctx) {
     const lifetime = new AbortController();
     const sourcePath = realpathSync(fileURLToPath(import.meta.url));
@@ -47,9 +47,9 @@ export default {
       if (!isolated) return;
       const inventory = (await ctx.plugin.list()).data;
       const unsafe = inventory.some(plugin => plugin.state.status === 'active' &&
-        plugin.source.type !== 'builtin' && !(plugin.id === 'mokusei.harness' &&
+        plugin.source.type !== 'builtin' && !(plugin.id === 'chief.harness' &&
           plugin.source.type === 'local' && isOwnSource(plugin.source.path)));
-      if (unsafe) throw new Error('Mokusei isolated session cannot load external native plugins');
+      if (unsafe) throw new Error('Chief isolated session cannot load external native plugins');
     };
     const invoke = async (path, body, signal) => {
       const response = await fetch(endpoint + path, {
@@ -58,7 +58,7 @@ export default {
       });
       if (!response.ok) {
         const detail = (await response.text().catch(() => '')).trim();
-        throw new Error('Mokusei bridge rejected ' + path + ' (' + response.status + ')' + (detail ? ': ' + detail : ''));
+        throw new Error('Chief bridge rejected ' + path + ' (' + response.status + ')' + (detail ? ': ' + detail : ''));
       }
       return response.json();
     };
@@ -73,7 +73,7 @@ export default {
         const session = await ctx.session.get({ sessionID: current });
         current = session.parentID;
       }
-      throw new Error('Mokusei has not configured this native session');
+      throw new Error('Chief has not configured this native session');
     };
     const loadConfiguration = async () => {
       const data = await invoke('/configuration', {});
@@ -81,7 +81,7 @@ export default {
       await ctx.tool.reload();
       const tools = (await ctx.tool.list()).map(tool => tool.id);
       const expected = data.sessions.flatMap(config => config.tools.map(tool => tool.id));
-      if (expected.some(name => !tools.includes(name))) throw new Error('Mokusei native tool registration failed');
+      if (expected.some(name => !tools.includes(name))) throw new Error('Chief native tool registration failed');
       return { revisions: Object.fromEntries(data.sessions.map(config => [config.sessionID, config.revision])), tools };
     };
     const refresh = async () => { await assertPlugins(); const result = await loadConfiguration(); return result; };
@@ -92,7 +92,7 @@ export default {
           options: { codemode: false },
           async execute(input, context) {
             const owner = await lookup(context.sessionID);
-            if (owner.sessionID !== config.sessionID) throw new Error('Mokusei tool belongs to another session');
+            if (owner.sessionID !== config.sessionID) throw new Error('Chief tool belongs to another session');
             const result = await invoke('/tool', {
               rootSessionID: config.sessionID, sessionID: context.sessionID, revision: config.revision,
               name: tool.name, callId: context.id, arguments: input
@@ -167,11 +167,11 @@ export default {
       // Native generate reuses the source context without executing a tool loop.
       // Keep the same tool definitions for its provider prefix and cache reuse.
       if (config.mode !== 'exclusive') for (const [name, definition] of Object.entries(event.tools)) {
-        if (!name.startsWith('mokusei_host_')) advertised[name] = definition;
+        if (!name.startsWith('chief_host_')) advertised[name] = definition;
       }
       for (const tool of config.tools) {
         const definition = event.tools[tool.id];
-        if (!definition) throw new Error('Mokusei injected tool is unavailable: ' + tool.name);
+        if (!definition) throw new Error('Chief injected tool is unavailable: ' + tool.name);
         // Preserve object identity so OpenCode maps the public alias to the captured executor.
         advertised[tool.name] = definition;
       }
@@ -186,8 +186,8 @@ export default {
     await ctx.session.hook('generate', prepare('generate'));
     await ctx.session.hook('model.request', async event => { await lookup(event.sessionID); });
     await ctx.session.hook('experimental.ws.handshake', async event => { await lookup(event.sessionID); });
-    // Mokusei owns titles. This also prevents auxiliary unadmitted model requests.
-    await ctx.session.hook('title', event => { event.result = 'Mokusei'; });
+    // Chief owns titles. This also prevents auxiliary unadmitted model requests.
+    await ctx.session.hook('title', event => { event.result = 'Chief'; });
     await ctx.session.hook('http.request', async event => {
       const config = await lookup(event.sessionID);
       const response = await invoke('/http-request', { rootSessionID: config.sessionID, sessionID: event.sessionID, revision: config.revision, path: new URL(event.request.url).pathname });

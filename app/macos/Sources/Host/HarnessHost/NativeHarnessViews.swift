@@ -1,6 +1,6 @@
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Stable thread identity preserves plugin interaction state across revisions.

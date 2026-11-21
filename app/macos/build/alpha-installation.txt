@@ -17,8 +17,9 @@ Apple Silicon Mac（M 系列芯片），macOS 26 或更新版本。
    Apple 的说明：https://support.apple.com/zh-cn/102445
 
 数据与更新
-Alpha 与 Chief 正式版、开发版并存，使用独立数据目录：
-~/Library/Application Support/Mokusei Alpha
+Alpha 与 Chief 正式版、开发版并存，新安装使用独立数据目录：
+~/Library/Application Support/Chief Alpha
+如果已有 ~/Library/Application Support/Mokusei Alpha，Chief Alpha 继续使用该目录。
 应用数据独立，但你主动选择的项目目录、Agent 登录状态和外部工具仍由本机共享。
 本阶段没有自动更新。更新前先退出 Chief Alpha，再备份上述数据目录，
 然后用新 DMG 替换 Applications 中的应用。如果原应用名为 Mokusei Alpha.app，
@@ -47,8 +48,9 @@ First installation
    version to your inviter. Apple's guide: https://support.apple.com/en-us/102445
 
 Data and updates
-Alpha can coexist with Chief production and development installations. Its data is in:
-~/Library/Application Support/Mokusei Alpha
+Alpha can coexist with Chief production and development installations. New installs use:
+~/Library/Application Support/Chief Alpha
+If ~/Library/Application Support/Mokusei Alpha exists, Chief Alpha keeps using it.
 App data is separate; projects you choose, Agent sign-ins and external tools are
 still shared on your Mac.
 There is no automatic updater. Quit Chief Alpha, back up that data directory,

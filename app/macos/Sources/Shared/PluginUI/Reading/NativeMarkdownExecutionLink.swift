@@ -1,10 +1,10 @@
 import AppKit
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import SwiftUI
 
 extension NSAttributedString.Key {
-    static let nativeMarkdownExecution = NSAttributedString.Key("MokuseiMarkdownExecution")
+    static let nativeMarkdownExecution = NSAttributedString.Key("ChiefMarkdownExecution")
 }
 
 /// TextKit owns the inline seat, wrapping and source selection. The live native

@@ -21,7 +21,7 @@ import (
 // acknowledgement. This does not simulate the scheduler or claim provider effects.
 func TestMokuOutboxProperties(t *testing.T) {
 	rapidcheck.Check(t, func(t *rapid.T) {
-		root, err := os.MkdirTemp("", "mokusei-outbox-pbt-")
+		root, err := os.MkdirTemp("", "chief-outbox-pbt-")
 		if err != nil {
 			t.Fatal(err)
 		}

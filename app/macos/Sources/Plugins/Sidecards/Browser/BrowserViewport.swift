@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 typealias BrowserViewportNativeView = BrowserViewportNSView
@@ -43,7 +43,7 @@ final class BrowserViewportNSView: NSView {
         self.session = session
         super.init(frame: .zero)
         wantsLayer = true
-        clippingView.identifier = NSUserInterfaceItemIdentifier("mokusei-browser-document-portal")
+        clippingView.identifier = NSUserInterfaceItemIdentifier("chief-browser-document-portal")
         clippingView.wantsLayer = true
         clippingView.layer?.masksToBounds = true
         clippingView.layer?.cornerRadius = 12

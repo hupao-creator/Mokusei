@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 /// Static native composition mirrors the shipped renderer module registry.
 /// The host receives only public module contracts, never concrete app DTOs.

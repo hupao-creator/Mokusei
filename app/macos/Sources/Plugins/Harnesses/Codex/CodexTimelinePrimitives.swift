@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// The renderer's 1.5 px ring and 800 ms linear turn, drawn natively rather than

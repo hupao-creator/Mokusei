@@ -110,6 +110,11 @@ passes the same saved-version check.
 
 The Swift [Report application](../../../../app/macos/Sources/Plugins/Applications/Report/) supplies cards and a native HTML reading route using the shared navigation stack. Report documents have no ordinary task execution lifecycle. Their tags decorate the document and do not independently create Overview filter membership.
 
+The body uses `data-chief-html-content`, the `--chief-safe-area-top` and
+`--chief-safe-area-left` variables, and optional `--chief-html-top-space`.
+The native reader also resolves their existing `mokusei` aliases in saved report
+HTML. It applies these values during rendering and leaves the stored markup intact.
+
 Preview uses a non-executing HTML tree parser. It decodes standard
 entities once, joins inline text without invented spaces, separates structural
 blocks, preserves textarea RCDATA, and excludes nested hidden regions including
@@ -285,7 +290,7 @@ reports remain readable, and create/new binding uses the existing authority.
 New Super Thread tool calls supply `coverHTML`; updates may replace it independently
 of the report document. The shared create/update field description specifies a
 standalone 360×308 CSS-pixel logical HTML/CSS viewport: no host layout CSS, padding
-or safe-area styles are injected. The report body's host-integration rules and `--mokusei-*` variables do
+or safe-area styles are injected. The report body's host-integration rules and `--chief-*` variables do
 not apply to covers; the authored HTML must supply its own CSS and spacing.
 Author JavaScript and external resources are unavailable. The Agent instructions
 and both write tools require purposeful, evidence-grounded CSS keyframes rather

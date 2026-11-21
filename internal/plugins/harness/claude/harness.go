@@ -865,7 +865,7 @@ func nonnil(first, second error) error {
 func systemPrompt(injection *plugin.Injection) string {
 	sections := append([]string{}, injection.Instructions...)
 	for _, e := range injection.ContextEntries {
-		sections = append(sections, fmt.Sprintf("<mokusei_context id=%q>\n%s\n</mokusei_context>", e.ID, e.Content))
+		sections = append(sections, fmt.Sprintf("<chief_context id=%q>\n%s\n</chief_context>", e.ID, e.Content))
 	}
 	if len(injection.Seed) > 0 {
 		b, _ := json.Marshal(injection.Seed)
@@ -877,7 +877,7 @@ func withContext(input model.AgentInput, entries []plugin.ContextEntry, goal boo
 	input.Parts = append([]model.AgentInputPart{}, input.Parts...)
 	parts := []string{}
 	for _, entry := range entries {
-		parts = append(parts, fmt.Sprintf("<mokusei_run_context id=%q>\n%s\n</mokusei_run_context>", entry.ID, entry.Content))
+		parts = append(parts, fmt.Sprintf("<chief_run_context id=%q>\n%s\n</chief_run_context>", entry.ID, entry.Content))
 	}
 	if goal {
 		index := -1

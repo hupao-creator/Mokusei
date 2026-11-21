@@ -1,7 +1,7 @@
 import AppKit
 import Observation
 import SwiftUI
-import MokuseiCore
+import ChiefCore
 
 /// The index can use the document's actual whitespace, including any extra
 /// space around the capped column. Page travel and vertical scroll do not change it.

@@ -16,7 +16,7 @@ const oauthLease = (value, allowExpired = false) => {
       !Number.isSafeInteger(value.expires) || value.expires < 0 ||
       (!allowExpired && value.expires !== 0 && value.expires <= Date.now()) ||
       (value.metadata !== undefined && !object(value.metadata))) {
-    throw new Error('Mokusei received invalid native Console OAuth facts');
+    throw new Error('Chief received invalid native Console OAuth facts');
   }
   // Do not spread value: its real refresh token stays inside this native OpenCode server.
   return { type: 'oauth', methodID: value.methodID, access: value.access, expires: value.expires,
@@ -25,7 +25,7 @@ const oauthLease = (value, allowExpired = false) => {
 const pinned = async (ctx, integrationID, sourceCredentialID) => {
   const connection = await ctx.integration.connection.active(integrationID);
   if (!connection || identity(connection) !== sourceCredentialID) {
-    throw new Error('Mokusei native account changed; reopen the session to select the account');
+    throw new Error('Chief native account changed; reopen the session to select the account');
   }
   return connection;
 };
@@ -34,7 +34,7 @@ const pinned = async (ctx, integrationID, sourceCredentialID) => {
 // Only this callback may resolve the native OAuth object, and strips its grant.
 export async function readConsoleAccount(ctx, input) {
   if (!object(input) || !nonempty(input.providerID)) {
-    throw new Error('Mokusei Console account identity is invalid');
+    throw new Error('Chief Console account identity is invalid');
   }
   return queue('opencode', async () => {
     const connection = await ctx.integration.connection.active('opencode');
@@ -48,7 +48,7 @@ export async function readConsoleAccount(ctx, input) {
       return { provider: provider || {}, model: model || {}, variant: variant || {},
         sourceCredentialID: connection.id };
     }
-    if (input.phase !== 'lease') throw new Error('Mokusei Console fact request is invalid');
+    if (input.phase !== 'lease') throw new Error('Chief Console fact request is invalid');
     await pinned(ctx, 'opencode', input.sourceCredentialID);
     if (connection.type !== 'credential' || connection.method !== 'oauth') return {};
     const value = await ctx.integration.connection.resolve(connection);

@@ -1,6 +1,6 @@
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Pi's private protocol remains with the Node harness. This build-time plugin

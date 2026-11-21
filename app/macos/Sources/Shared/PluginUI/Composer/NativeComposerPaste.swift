@@ -73,7 +73,7 @@ import UniformTypeIdentifiers
                 guard let url else { continuation.resume(returning: nil); return }
                 // Item-provider URLs expire when this callback returns. Copy
                 // on disk, then hold ownership until the upload completes.
-                let directory = FileManager.default.temporaryDirectory.appendingPathComponent("mokusei-import-\(UUID().uuidString)", isDirectory: true)
+                let directory = FileManager.default.temporaryDirectory.appendingPathComponent("chief-import-\(UUID().uuidString)", isDirectory: true)
                 do {
                     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
                     let destination = directory.appendingPathComponent(url.lastPathComponent)

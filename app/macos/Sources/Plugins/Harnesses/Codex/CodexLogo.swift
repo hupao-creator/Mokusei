@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// The Codex SVG rendered as native vector geometry. Arc segments are converted

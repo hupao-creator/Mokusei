@@ -73,7 +73,7 @@ func bridgeConfig(injection plugin.Injection) ([]byte, error) {
 	instructions := append([]string{}, injection.Instructions...)
 	for _, entry := range injection.ContextEntries {
 		id, _ := json.Marshal(entry.ID)
-		instructions = append(instructions, "<mokusei_context id="+string(id)+">\n"+entry.Content+"\n</mokusei_context>")
+		instructions = append(instructions, "<chief_context id="+string(id)+">\n"+entry.Content+"\n</chief_context>")
 	}
 	if len(injection.Seed) > 0 {
 		seed, err := json.Marshal(injection.Seed)

@@ -115,7 +115,7 @@ func (p *provider) fanoutPlan(ctx context.Context, req object, declarations []an
 // Moku retains its independent native-history question capability. Read only
 // after an actual completion notification; this is evidence review, not polling.
 func (p *provider) mokuTerminalPlan(input any) (tool, call string, args object, err error) {
-	const marker = "Mokusei Agent Thread terminal event:\n"
+	const marker = "Chief Agent Thread terminal event:\n"
 	for _, raw := range list(input) {
 		message := record(raw)
 		if message["role"] != "user" {

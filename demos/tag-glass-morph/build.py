@@ -13,7 +13,7 @@ if platform.system() != "Darwin" or int(platform.mac_ver()[0].split(".")[0]) < 2
 executable.parent.mkdir(parents=True, exist_ok=True)
 with (application / "Contents/Info.plist").open("wb") as output:
     plistlib.dump({
-        "CFBundleIdentifier": "com.mokusei.tag-glass-morph-demo",
+        "CFBundleIdentifier": "com.chief.tag-glass-morph-demo",
         "CFBundleName": "TagGlassMorphDemo",
         "CFBundleDisplayName": "Tag Glass Morph 预览",
         "CFBundleExecutable": "TagGlassMorphDemo",

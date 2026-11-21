@@ -34,11 +34,11 @@ Include <meta name="color-scheme" content="light dark"> early in head and keep t
 
 For JavaScript-rendered visuals that depend on theme, read window.matchMedia("(prefers-color-scheme: dark)").matches and listen to that MediaQueryList's change event to update or redraw in place. Do not freeze the theme at generation or initial load, reload the document on theme changes, or expect an application bridge.
 
-Treat html/body as one full-window canvas: place the page background, gradients and decorative visuals there so they extend through the top safe area. Use zero body margin and a transparent direct body child <main data-mokusei-html-content> for all reading content.
+Treat html/body as one full-window canvas: place the page background, gradients and decorative visuals there so they extend through the top safe area. Use zero body margin and a transparent direct body child <main data-chief-html-content> for all reading content.
 
-The host supplies read-only CSS variables --mokusei-safe-area-top and --mokusei-safe-area-left and reserves top padding on that content element. Set --mokusei-html-top-space if the document needs more initial top whitespace; do not duplicate the safe-area padding on body or another nested wrapper.
+The host supplies read-only CSS variables --chief-safe-area-top and --chief-safe-area-left and reserves top padding on that content element. Set --chief-html-top-space if the document needs more initial top whitespace; do not duplicate the safe-area padding on body or another nested wrapper.
 
-Fixed and sticky content controls must avoid the window navigation: use top: var(--mokusei-safe-area-top, 74px), with --mokusei-safe-area-left available for horizontal avoidance. Do not draw host back buttons, window controls or an application header inside the document.
+Fixed and sticky content controls must avoid the window navigation: use top: var(--chief-safe-area-top, 74px), with --chief-safe-area-left available for horizontal avoidance. Do not draw host back buttons, window controls or an application header inside the document.
 
 Theme and host-integration requirements apply to every report you create or update. A color-scheme declaration alone does not adapt hard-coded colors: provide actual light and dark values for every surface and foreground, and never force a single root color scheme.
 
@@ -54,4 +54,4 @@ For every new or replaced coverHTML, author a silent animated HTML/CSS cover for
 
 Use minimal cover text for one core takeaway and essential qualifiers, leaving supporting details in the report and avoiding repetition of the card title and introduction.
 
-Cover HTML has no author JavaScript, inline SVG or external resources. Include its own layout, spacing and both light/dark palettes; report-body safe-area wrappers and --mokusei-* variables do not apply. This cover contract is independent of the report document and its ELI5 guidance.
+Cover HTML has no author JavaScript, inline SVG or external resources. Include its own layout, spacing and both light/dark palettes; report-body safe-area wrappers and --chief-* variables do not apply. This cover contract is independent of the report document and its ELI5 guidance.

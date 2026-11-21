@@ -4,7 +4,7 @@ import AppKit
 /// Native views keep ownership of drawing, selection and accessibility.
 @MainActor
 final class TimelineCursorDeferral: NSObject {
-    private static let deferCursorRects = ProcessInfo.processInfo.environment["MOKUSEI_SCROLL_DEFER_CURSOR_RECTS"] != "0"
+    private static let deferCursorRects = ProcessInfo.processInfo.environment["CHIEF_SCROLL_DEFER_CURSOR_RECTS"] != "0"
     private weak var cursorWindow: NSWindow?
     private var cursorInputMonitor: Any?
     private weak var scroll: NSScrollView?

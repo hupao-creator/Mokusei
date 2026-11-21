@@ -11,7 +11,7 @@ import (
 )
 
 func SettingsContract() plugin.ValueContract {
-	return plugin.ValueContract{ID: "mokusei.background-settings", SchemaVersion: 1, Parse: parseSettings}
+	return plugin.ValueContract{ID: "chief.background-settings", SchemaVersion: 1, Parse: parseSettings}
 }
 func parseSettings(raw json.RawMessage) (json.RawMessage, error) {
 	object, err := model.DecodeObject(raw)

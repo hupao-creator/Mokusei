@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import MokuseiPluginUI
+import ChiefPluginUI
 
 struct HistoricalCharacterView: NSViewRepresentable {
     let role: HistoricalResidentRole

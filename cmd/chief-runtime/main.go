@@ -1,4 +1,4 @@
-// mokusei-runtime manages the independently owned background service. The
+// chief-runtime manages the independently owned background service. The
 // claude-mcp entry point shares this binary but never opens an application profile.
 package main
 
@@ -22,7 +22,7 @@ import (
 	"github.com/hupao-creator/Chief/internal/plugins/harness/claude"
 )
 
-const usage = "Usage: mokusei-runtime <start|status|stop|serve> [--data-dir <directory>]"
+const usage = "Usage: chief-runtime <start|status|stop|serve> [--data-dir <directory>]"
 
 func main() {
 	if err := run(os.Args[1:], os.Stdin, os.Stdout); err != nil {
@@ -80,7 +80,7 @@ func run(args []string, input io.Reader, output io.Writer) error {
 		defer overview.Close()
 		bootstrap := composition.New(composition.Options{
 			Profile: p, Environment: env,
-			Headless: env["MOKUSEI_HEADLESS"] == "1",
+			Headless: env["CHIEF_HEADLESS"] == "1",
 			Overview: overview,
 		})
 		err = daemon.Serve(ctx, daemon.ServeOptions{

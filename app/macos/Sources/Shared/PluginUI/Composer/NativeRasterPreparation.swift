@@ -1,6 +1,6 @@
 import Foundation
 import ImageIO
-import MokuseiPluginAPI
+import ChiefPluginAPI
 import UniformTypeIdentifiers
 
 /// Independent ImageIO objects belong to this serial worker. AppKit capture and

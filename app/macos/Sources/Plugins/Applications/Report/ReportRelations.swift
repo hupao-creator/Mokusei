@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 struct NativeReportExecutionFacts: Hashable, Sendable {
     let id: JSONText

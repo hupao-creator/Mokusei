@@ -1,14 +1,14 @@
 import AppKit
 import Observation
 import SwiftUI
-import MokuseiHarnessClaude
-import MokuseiHarnessCodex
-import MokuseiHarnessOpenCode
-import MokuseiHarnessPi
-import MokuseiPluginAPI
-import MokuseiCore
-import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefHarnessClaude
+import ChiefHarnessCodex
+import ChiefHarnessOpenCode
+import ChiefHarnessPi
+import ChiefPluginAPI
+import ChiefCore
+import ChiefPluginUI
+@testable import ChiefUI
 
 enum SetupAgent: String, CaseIterable, Identifiable {
     case codex, claude, opencode, pi

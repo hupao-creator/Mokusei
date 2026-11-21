@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Public projection of Moku's one persistent milestone note. The transcript is

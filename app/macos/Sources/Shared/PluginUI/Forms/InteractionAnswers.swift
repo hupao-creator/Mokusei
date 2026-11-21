@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// A plugin-projected field, not a transport schema. The owning plugin decides
 /// which questions are active, their semantic constraints, and their wire values.

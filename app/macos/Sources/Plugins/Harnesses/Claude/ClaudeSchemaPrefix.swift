@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// The wire preserves exact keys but JSON object insertion order is not semantic.
 /// A long public form prompt contains only a prefix of JSON.stringify(schema, null, 2).

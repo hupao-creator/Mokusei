@@ -2,11 +2,11 @@ import AppKit
 import Observation
 import ScreenCaptureKit
 import SwiftUI
-import MokuseiCore
-import MokuseiHarnessClaude
-import MokuseiHarnessCodex
-import MokuseiPluginUI
-import MokuseiUI
+import ChiefCore
+import ChiefHarnessClaude
+import ChiefHarnessCodex
+import ChiefPluginUI
+import ChiefUI
 
 enum ReportRoute: Equatable {
     case card, report, execution(ExecutionFixture)
@@ -44,7 +44,7 @@ private struct ReportDemo: View {
             }
             .overlay(alignment: .top) { controls.padding(.top, 23).padding(.horizontal, 48) }
         } thread: { EmptyView() } dock: {
-            NativeMokuDock(state: state.scene, draft: state.draft, cwd: "/demo/Mokusei", mode: .idle,
+            NativeMokuDock(state: state.scene, draft: state.draft, cwd: "/demo/Chief", mode: .idle,
                 onSend: { _ in }, onCancel: {})
                 .allowsHitTesting(false).accessibilityHidden(true)
         } settings: { EmptyView() }

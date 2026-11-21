@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 func claudeMoku(_ state: ClaudeState) -> HarnessMokuPresentation {
     var activity: HarnessActivity?

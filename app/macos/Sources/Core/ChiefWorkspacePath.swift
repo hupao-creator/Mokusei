@@ -2,7 +2,7 @@ import Foundation
 
 /// Shared workspace path predicates. Keep the temporary-workspace patterns in
 /// one place so the Overview and Harness surfaces cannot drift.
-public enum MokuseiWorkspacePath {
+public enum ChiefWorkspacePath {
     public static func isTemporary(_ raw: String) -> Bool {
         var path = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "\\", with: "/")
@@ -13,9 +13,9 @@ public enum MokuseiWorkspacePath {
 
     private static let temporaryPatterns = [
         #"/runtime-workspace/tmp-workspaces(?:/|$)"#,
-        #"/\.Mokusei(?:-headless)?/tmp-workspaces(?:/|$)"#,
-        #"(?i)^/(?:private/)?(?:tmp|var/tmp)/mokusei-[^/]+(?:/|$)"#,
-        #"(?i)^/(?:private/)?var/folders/[^/]+/[^/]+/T/mokusei-[^/]+(?:/|$)"#,
-        #"(?i)^[A-Za-z]:/(?:Windows/Temp|Users/[^/]+/AppData/Local/Temp)/mokusei-[^/]+(?:/|$)"#
+        #"/\.(?:Chief|Mokusei)(?:-headless)?/tmp-workspaces(?:/|$)"#,
+        #"(?i)^/(?:private/)?(?:tmp|var/tmp)/(?:chief|mokusei)-[^/]+(?:/|$)"#,
+        #"(?i)^/(?:private/)?var/folders/[^/]+/[^/]+/T/(?:chief|mokusei)-[^/]+(?:/|$)"#,
+        #"(?i)^[A-Za-z]:/(?:Windows/Temp|Users/[^/]+/AppData/Local/Temp)/(?:chief|mokusei)-[^/]+(?:/|$)"#
     ]
 }

@@ -12,7 +12,7 @@ enum NativeReportCoverPlayback: String {
 
     var isPlaying: Bool { self == .playing || self == .playingOnce }
 
-    @MainActor static let world = WKContentWorld.world(name: "Mokusei.Report.Cover")
+    @MainActor static let world = WKContentWorld.world(name: "Chief.Report.Cover")
 
     // This controller belongs to the host's isolated world. Author JavaScript
     // stays disabled; only finite CSS effects cross into the playback timeline.
@@ -45,7 +45,7 @@ enum NativeReportCoverPlayback: String {
           animation.currentTime = final ? end : 0;
         }
       }
-      globalThis.mokuseiCover = {
+      globalThis.chiefCover = {
         duration: duration / 1000,
         reset() { pose(false); },
         finish() { pose(true); },

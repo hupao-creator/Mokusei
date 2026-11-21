@@ -164,7 +164,7 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 				}
 			}
 		}
-		return r.appendEvent(tx, "settings.changed", store.Subject{Kind: "settings", ID: "mokusei", TypeID: "settings"}, "user", map[string]any{"settingsRevision": revision}, nil)
+		return r.appendEvent(tx, "settings.changed", store.Subject{Kind: "settings", ID: "chief", TypeID: "settings"}, "user", map[string]any{"settingsRevision": revision}, nil)
 	})
 	if err == nil {
 		if result.Status == "saved" {
@@ -488,7 +488,7 @@ func (r *Runtime) KnownDirectories(ctx context.Context) ([]model.KnownDirectory,
 		}
 		excluded := false
 		for _, part := range strings.Split(canonical, string(filepath.Separator)) {
-			if strings.HasPrefix(part, ".") && strings.HasSuffix(part, "-mokusei-worktrees") {
+			if workspaces.ManagedStagingStem(part) != "" {
 				excluded = true
 			}
 		}

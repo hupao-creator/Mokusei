@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Shared public-form presentation for the Dock and readers. Native defaults
 /// participate in conditions even when their fields are hidden; user drafts for

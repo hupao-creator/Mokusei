@@ -60,6 +60,9 @@ def desktop_preflight(tools, directory, observed=True):
 class Application:
     def __init__(self, bundle, directory, count, helper, provider_factory=Provider, emoji_badge=None, window_bounds=None):
         self.bundle, self.root, self.count, self.helper = bundle.resolve(), directory, count, helper
+        self.runtime_executable = self.bundle / "Contents/MacOS/chief-runtime"
+        if not self.runtime_executable.is_file():
+            self.runtime_executable = self.bundle / "Contents/MacOS/mokusei-runtime"
         self.profile = directory / "profile"
         self.socket = directory / "ui.sock"
         self.socket_directory = None
@@ -84,7 +87,7 @@ class Application:
         team = re.search(r'^TeamIdentifier=(.+)$', signature.stderr, re.MULTILINE)
         if not team or team[1] == 'not set' or 'runtime)' not in signature.stderr:
             raise ValueError('production artifact requires a team signature and hardened runtime')
-        runtime_signature = subprocess.run(['codesign','-dv','--verbose=4',str(self.bundle/'Contents/MacOS/mokusei-runtime')],
+        runtime_signature = subprocess.run(['codesign','-dv','--verbose=4',str(self.runtime_executable)],
                                            capture_output=True,text=True,check=True).stderr
         if f'TeamIdentifier={team[1]}\n' not in runtime_signature or 'runtime)' not in runtime_signature:
             raise ValueError('bundled Runtime must have the same hardened team signature')
@@ -125,9 +128,6 @@ exporter = "none"
 trace_exporter = "none"
 '''.replace("BASE_URL", json.dumps(self.provider.url + "/v1"))
         (self.root / "native/config.toml").write_text(config)
-        for key in list(self.env):
-            if key.endswith("API_KEY") or key.startswith("MOKUSEI_"):
-                self.env.pop(key)
         # Per-child environment isolation is intentional. The caller's shell and
         # daily native configuration are untouched.
         self.env.update({"HOME": str(self.root / "home"), "CODEX_HOME": str(self.root / "native"),
@@ -141,7 +141,7 @@ trace_exporter = "none"
         wait_for(self.ui.request, lambda s: s and s.get("runtimeAvailable"), 90)
         connection = json.loads((self.profile / "runtime/connection.json").read_text())
         runtime_process = native(self.helper, "process", connection["pid"])
-        if (Path(runtime_process["path"]).resolve() != (self.bundle / "Contents/MacOS/mokusei-runtime").resolve()
+        if (Path(runtime_process["path"]).resolve() != self.runtime_executable.resolve()
                 or Path(connection["dataDir"]).resolve() != self.profile.resolve()):
             raise ValueError("bundled Runtime/profile identity mismatch")
         self.owned[connection["pid"]] = runtime_process
@@ -277,7 +277,7 @@ trace_exporter = "none"
                 if self.app and pid==self.app.pid:
                     native(self.helper,"quit",pid,self.owned[pid]["identity"])
                     receipt["actions"].append({"pid":pid,"action":"application quit"})
-                elif Path(self.owned[pid]["path"]).name=="mokusei-runtime":
+                elif Path(self.owned[pid]["path"]).resolve() == self.runtime_executable.resolve():
                     stopped=subprocess.run([self.owned[pid]["path"],"stop","--data-dir",str(self.profile)],
                                            env=self.env,capture_output=True,text=True,timeout=20)
                     receipt["actions"].append({"pid":pid,"action":"public Runtime stop","exitStatus":stopped.returncode})

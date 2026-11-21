@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 func claudeValidateActivity(_ value: JSONValue, history: Bool = false) throws {
     try claudeKeys(value, history ? ["kind","label","status","detail","toolName"] : ["id","kind","label","status","toolName","detail","parentId","taskId"])

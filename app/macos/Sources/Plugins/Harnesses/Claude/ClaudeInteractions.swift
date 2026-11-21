@@ -1,8 +1,8 @@
 import CryptoKit
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 func claudeOpaqueID(_ kind: String, execution: JSONText, native: JSONText, indices: [Int] = []) -> JSONText {

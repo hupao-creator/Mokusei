@@ -1,11 +1,11 @@
 import Observation
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
-import MokuseiSidecardConversation
-import MokuseiSidecardBrowser
-@testable import MokuseiUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
+import ChiefSidecardConversation
+import ChiefSidecardBrowser
+@testable import ChiefUI
 
 /// The fixture owns only selection and mock capabilities. Actual plugin sessions
 /// remain mounted while folded, so their editors and drafts survive switching.
@@ -26,7 +26,7 @@ import MokuseiSidecardBrowser
     @ObservationIgnored private let onBack: () -> Void
     init(thread: DemoThread, onBack: @escaping () -> Void) {
         self.thread = try! HarnessThread(id: JSONText(thread.id), harnessID: "codex", revision: 0,
-            sessionState: .null, observation: .init(latestExecution: try! .init(executionID: "demo-running-execution", status: .running, startedAt: 1793602800000)), cwd: "/demo/Mokusei", settings: .object([:]),
+            sessionState: .null, observation: .init(latestExecution: try! .init(executionID: "demo-running-execution", status: .running, startedAt: 1793602800000)), cwd: "/demo/Chief", settings: .object([:]),
             createdAt: 0, updatedAt: 0, title: JSONText(thread.id), tags: [])
         self.onBack = onBack
         for module in modules { sessions[module.descriptor.id] = try! module.makeSession(context: context(module.descriptor.id)) }

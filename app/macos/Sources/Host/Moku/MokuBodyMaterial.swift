@@ -1,6 +1,6 @@
 import AppKit
 import Observation
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// Collects silhouettes from one character paint pass. The inverse canvas CTM

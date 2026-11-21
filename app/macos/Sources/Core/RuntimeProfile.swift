@@ -21,15 +21,39 @@ public struct RuntimeProfile: Sendable, Equatable {
             throw RuntimeError("INVALID_PROFILE", "Runtime profile paths must be local file URLs")
         }
         let selectedDirectory = dataDirectory
+            ?? ProcessInfo.processInfo.environment["CHIEF_RUNTIME_DATA_DIR"].map { URL(fileURLWithPath: $0) }
             ?? ProcessInfo.processInfo.environment["MOKUSEI_RUNTIME_DATA_DIR"].map { URL(fileURLWithPath: $0) }
-            ?? homeDirectory.appendingPathComponent("Library/Application Support/Mokusei", isDirectory: true)
+            ?? Self.defaultDataDirectory(home: homeDirectory, name: "Chief")
         let canonicalDirectory = Self.canonicalPath(selectedDirectory)
         self.dataDirectory = canonicalDirectory
         let identity = SHA256.hash(data: Data(canonicalDirectory.path.utf8)).map { String(format: "%02x", $0) }.joined()
-        self.workspaceRoot = Self.canonicalPath(homeDirectory.appendingPathComponent(".Mokusei/profiles/\(identity)/runtime-workspace", isDirectory: true))
+        let relative = "profiles/\(identity)/runtime-workspace"
+        self.workspaceRoot = Self.canonicalPath(Self.existingPath(
+            homeDirectory.appendingPathComponent(".Mokusei/\(relative)", isDirectory: true),
+            or: homeDirectory.appendingPathComponent(".Chief/\(relative)", isDirectory: true)
+        ))
         let metadataDirectory = canonicalDirectory.appendingPathComponent("runtime", isDirectory: true)
         self.discoveryURL = metadataDirectory.appendingPathComponent("connection.json")
         self.lockURL = metadataDirectory.appendingPathComponent("owner.json")
+    }
+
+    /// Keeps an existing profile at the path used for its ownership identity.
+    public static func defaultDataDirectory(home: URL, name: String) -> URL {
+        let parent = home.appendingPathComponent("Library/Application Support", isDirectory: true)
+        let current = parent.appendingPathComponent(name, isDirectory: true)
+        switch name {
+        case "Chief", "Chief Alpha", "Chief Native Dev":
+            let legacy = "Mokusei" + name.dropFirst("Chief".count)
+            return existingPath(parent.appendingPathComponent(legacy, isDirectory: true), or: current)
+        default:
+            return current
+        }
+    }
+
+    private static func existingPath(_ existing: URL, or fallback: URL) -> URL {
+        var metadata = stat()
+        let result = existing.path.withCString { Darwin.lstat($0, &metadata) }
+        return result != 0 && errno == ENOENT ? fallback : existing
     }
 
     /// Resolve the deepest existing ancestor first, including symlink aliases.

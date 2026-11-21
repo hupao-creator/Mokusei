@@ -21,8 +21,8 @@ flags = [
 # Compile the unmodified platform bridge as a minimal module. This keeps the
 # real capsule and eyes available without linking the runtime stack.
 subprocess.run([
-    *flags, "-module-name", "MokuseiPluginUI", "-emit-module", "-emit-object",
-    "-emit-module-path", str(build / "MokuseiPluginUI.swiftmodule"),
+    *flags, "-module-name", "ChiefPluginUI", "-emit-module", "-emit-object",
+    "-emit-module-path", str(build / "ChiefPluginUI.swiftmodule"),
     str(sources / "Shared/PluginUI/Design/NativePlatform.swift"),
     "-o", str(build / "NativePlatform.o"),
 ], check=True)
@@ -35,7 +35,7 @@ subprocess.run([
 ], check=True)
 with (application / "Contents/Info.plist").open("wb") as output:
     plistlib.dump({
-        "CFBundleIdentifier": "com.mokusei.gradient-material-demo",
+        "CFBundleIdentifier": "com.chief.gradient-material-demo",
         "CFBundleName": "MokuGradientMaterialDemo",
         "CFBundleDisplayName": "Moku 材质预览",
         "CFBundleExecutable": executable.name,

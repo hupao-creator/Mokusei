@@ -21,9 +21,9 @@ output = repo / ".build/execution-handoff"
 output.mkdir(parents=True, exist_ok=True)
 if not options.skip_build:
     subprocess.run(["xcrun", "swift", "build", "--package-path", str(repo / "app/macos"),
-                    "--product", "Mokusei"] + (["--disable-sandbox"] if options.disable_sandbox else []),
+                    "--product", "Chief"] + (["--disable-sandbox"] if options.disable_sandbox else []),
                    cwd=repo, check=True)
-replay = NativeReplay(repo, "ExecutionHandoffDemo", "com.mokusei.execution-handoff-demo")
+replay = NativeReplay(repo, "ExecutionHandoffDemo", "com.chief.execution-handoff-demo")
 try:
     replay.compile([source / "Fixture.swift", source / "HandoffStage.swift", source / "main.swift"])
     if options.capture:
@@ -37,7 +37,7 @@ try:
             raise RuntimeError("Presentation capture failed: " + error.read_text())
         if status:
             raise RuntimeError(f"Demo exited with status {status}")
-    retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-execution-", dir="/private/tmp"))
+    retained = Path(tempfile.mkdtemp(prefix="chief-native-replay-execution-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     application = retained / replay.application.name
     shutil.copytree(replay.application, application, symlinks=True)

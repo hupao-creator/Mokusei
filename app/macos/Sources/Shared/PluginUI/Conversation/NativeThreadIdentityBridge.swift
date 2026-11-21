@@ -1,6 +1,6 @@
 import AppKit
 import Observation
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 public extension EnvironmentValues {

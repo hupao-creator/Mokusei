@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 struct NativeGitSnapshot: Hashable, Sendable {
     let root: JSONText

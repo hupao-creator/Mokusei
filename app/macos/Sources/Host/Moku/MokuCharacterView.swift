@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import AppKit
 import SwiftUI
 

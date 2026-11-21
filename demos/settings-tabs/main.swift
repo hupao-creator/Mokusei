@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
-import MokuseiCore
-@testable import MokuseiUI
+import ChiefCore
+@testable import ChiefUI
 
 private struct ReplayFailure: Error, CustomStringConvertible { let description: String }
 
@@ -82,7 +82,7 @@ private struct DemoControls: View {
         catch { print(error); exit(1) }
     }
     var body: some Scene {
-        Window("Mokusei Settings · Tabs Preview", id: "settings-tabs-demo") {
+        Window("Chief Settings · Tabs Preview", id: "settings-tabs-demo") {
             SettingsTabsSurface(fixture: delegate.fixture).task { await delegate.mount() }
         }
         .nativeWorkspaceWindowStyle().defaultLaunchBehavior(.presented).defaultSize(width: 1080, height: 840)

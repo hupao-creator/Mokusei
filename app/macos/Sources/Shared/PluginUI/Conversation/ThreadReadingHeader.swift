@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// Only mounted turns publish authors: manifests and summaries are not a

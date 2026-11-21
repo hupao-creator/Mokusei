@@ -2,7 +2,7 @@ import AppKit
 import Observation
 import ScreenCaptureKit
 import SwiftUI
-import MokuseiPluginUI
+import ChiefPluginUI
 
 @MainActor @Observable final class PreviewModel {
     var revision = 0
@@ -22,7 +22,7 @@ private struct DemoWindow: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Text("Mokusei").font(NativeTypography.inter(size: 13, weight: 600))
+                Text("Chief").font(NativeTypography.inter(size: 13, weight: 600))
                 Text("/").foregroundStyle(.tertiary)
                 Text("Thread · execution 交接").font(NativeTypography.inter(size: 12))
                 Spacer()

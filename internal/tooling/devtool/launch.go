@@ -36,7 +36,7 @@ func FreshDevelopmentDataWithObserver(beforeRotation func() error) (string, erro
 	if err != nil {
 		return "", err
 	}
-	return rotateDevelopmentDataWithObserver(filepath.Join(home, "Library/Application Support", product.DataDirectoryName), beforeRotation)
+	return rotateDevelopmentDataWithObserver(profile.DefaultDataDirectory(filepath.Join(home, "Library/Application Support"), product.DataDirectoryName), beforeRotation)
 }
 
 func rotateDevelopmentData(directory string) (string, error) {
@@ -122,7 +122,7 @@ func withFreshRuntimeGuard(p profile.Profile, operation func() error) error {
 		return operation()
 	})
 	if !entered && err != nil {
-		return fmt.Errorf("cannot obtain exclusive access to development profile %q (ownership port %d); if the profile is in use, quit its clients and stop its runtime with ./scripts/go.sh run ./cmd/mokusei-runtime stop --data-dir %q; if shutdown fails, retry the stop command to inspect its returned error: %w", p.DataDir, profile.GuardPort(p), p.DataDir, err)
+		return fmt.Errorf("cannot obtain exclusive access to development profile %q (ownership port %d); if the profile is in use, quit its clients and stop its runtime with ./scripts/go.sh run ./cmd/chief-runtime stop --data-dir %q; if shutdown fails, retry the stop command to inspect its returned error: %w", p.DataDir, profile.GuardPort(p), p.DataDir, err)
 	}
 	return err
 }
@@ -130,7 +130,7 @@ func withFreshRuntimeGuard(p profile.Profile, operation func() error) error {
 // LaunchDevelopment waits for a one-shot readiness receipt outside protected
 // checkouts. Only the temporary open observer is stopped; the app stays running.
 func LaunchDevelopment(ctx context.Context, application string) (int, error) {
-	directory, err := os.MkdirTemp("", "mokusei-native-launch-")
+	directory, err := os.MkdirTemp("", "chief-native-launch-")
 	if err != nil {
 		return 0, err
 	}
@@ -194,9 +194,13 @@ func applicationRunning(ctx context.Context, application string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	binaries := []string{filepath.Join(application, "Contents/MacOS/Mokusei")}
+	paths := []string{application}
 	if canonical, err := filepath.EvalSymlinks(application); err == nil {
-		binaries = append(binaries, filepath.Join(canonical, "Contents/MacOS/Mokusei"))
+		paths = append(paths, canonical)
+	}
+	var binaries []string
+	for _, path := range paths {
+		binaries = append(binaries, filepath.Join(path, "Contents/MacOS/Chief"), filepath.Join(path, "Contents/MacOS", legacyNativeExecutable))
 	}
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
@@ -243,7 +247,7 @@ func Install(ctx context.Context, source, destination string) (string, error) {
 	if err = os.MkdirAll(parent, 0755); err != nil {
 		return "", err
 	}
-	staging, err := os.MkdirTemp(parent, ".mokusei-install-")
+	staging, err := os.MkdirTemp(parent, ".chief-install-")
 	if err != nil {
 		return "", err
 	}

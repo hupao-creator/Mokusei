@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 struct NativeMokuBlinkingEyes: View {

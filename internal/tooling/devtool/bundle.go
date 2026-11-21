@@ -111,16 +111,16 @@ func infoPlist(version, buildVersion, releaseVersion string, p Product) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleExecutable</key><string>Mokusei</string>
+<key>CFBundleExecutable</key><string>Chief</string>
 <key>CFBundleIdentifier</key><string>%s</string>
 <key>CFBundleName</key><string>%s</string>
 <key>CFBundleDisplayName</key><string>%s</string>
-<key>MokuseiDataDirectoryName</key><string>%s</string>
+<key>ChiefDataDirectoryName</key><string>%s</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>%s</string>
 <key>CFBundleVersion</key><string>%s</string>
-<key>MokuseiReleaseVersion</key><string>%s</string>
+<key>ChiefReleaseVersion</key><string>%s</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
 <key>NSHighResolutionCapable</key><true/>
@@ -191,13 +191,13 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if opts.SkipBuild {
 		directory, err = BinaryDirectory(ctx, repo, opts.Configuration)
 	} else {
-		directory, err = Build(ctx, repo, opts.Configuration, "Mokusei", opts.SkipRuntime)
+		directory, err = Build(ctx, repo, opts.Configuration, "Chief", opts.SkipRuntime)
 	}
 	if err != nil {
 		return "", err
 	}
-	runtime := filepath.Join(repo, ".build/go/mokusei-runtime")
-	if !exists(runtime) || !exists(filepath.Join(directory, "Mokusei")) {
+	runtime := filepath.Join(repo, ".build/go/chief-runtime")
+	if !exists(runtime) || !exists(filepath.Join(directory, "Chief")) {
 		return "", fmt.Errorf("native executable or Go runtime missing; build before packaging")
 	}
 	if err = os.MkdirAll(output, 0755); err != nil {
@@ -216,12 +216,12 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 			return "", err
 		}
 	}
-	executable := filepath.Join(executables, "Mokusei")
-	nativeHash, err := copyStable(filepath.Join(directory, "Mokusei"), executable)
+	executable := filepath.Join(executables, "Chief")
+	nativeHash, err := copyStable(filepath.Join(directory, "Chief"), executable)
 	if err != nil {
 		return "", err
 	}
-	runtimeHash, err := copyStable(runtime, filepath.Join(executables, "mokusei-runtime"))
+	runtimeHash, err := copyStable(runtime, filepath.Join(executables, "chief-runtime"))
 	if err != nil {
 		return "", err
 	}
@@ -261,7 +261,7 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	if _, err = assertPortableMachO(ctx, executable, false); err != nil {
 		return "", err
 	}
-	if _, err = assertPortableMachO(ctx, filepath.Join(executables, "mokusei-runtime"), false); err != nil {
+	if _, err = assertPortableMachO(ctx, filepath.Join(executables, "chief-runtime"), false); err != nil {
 		return "", err
 	}
 	// Copy the resource bundle declared by the native package, rather than
@@ -286,7 +286,7 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 	}
 	fmt.Printf("Signing native %s bundle with %s\n", opts.Channel, identity.Name)
 
-	if err = sign(ctx, filepath.Join(executables, "mokusei-runtime"), identity, product.BundleIdentifier+".runtime", ""); err != nil {
+	if err = sign(ctx, filepath.Join(executables, "chief-runtime"), identity, product.BundleIdentifier+".runtime", ""); err != nil {
 		return "", err
 	}
 	if err = sign(ctx, app, identity, "", ""); err != nil {
@@ -296,7 +296,7 @@ func Bundle(ctx context.Context, repo string, opts BundleOptions) (string, error
 		return "", err
 	}
 
-	if _, err = verifySignature(ctx, filepath.Join(executables, "mokusei-runtime"), product.BundleIdentifier+".runtime", identity.Team, product.Channel == "alpha"); err != nil {
+	if _, err = verifySignature(ctx, filepath.Join(executables, "chief-runtime"), product.BundleIdentifier+".runtime", identity.Team, product.Channel == "alpha"); err != nil {
 		return "", err
 	}
 

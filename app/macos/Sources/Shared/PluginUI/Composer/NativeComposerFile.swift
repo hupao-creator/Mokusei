@@ -1,6 +1,6 @@
 import Foundation
 import ImageIO
-import MokuseiCore
+import ChiefCore
 import UniformTypeIdentifiers
 
 /// Local sources always mean this device's bytes. Host paths carry the stable

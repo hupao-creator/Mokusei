@@ -126,7 +126,11 @@ func runDevelopmentTool(ctx context.Context, checkout string, noOpen bool) error
 	}
 	// Compile the current checkout's tool, then own it directly. A `go run`
 	// intermediary can exit on SIGTERM before that tool joins its compilers.
-	if err = runVisible(ctx, checkout, nil, goExecutable(), "build", "-o", executable, "./cmd/mokusei-dev"); err != nil {
+	target := "./cmd/chief-dev"
+	if !exists(filepath.Join(checkout, target, "main.go")) {
+		target = "./cmd/mokusei-dev"
+	}
+	if err = runVisible(ctx, checkout, nil, goExecutable(), "build", "-o", executable, target); err != nil {
 		return err
 	}
 	args := []string{"fast"}

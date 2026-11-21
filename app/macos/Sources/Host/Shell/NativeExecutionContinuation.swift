@@ -1,7 +1,7 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 
 /// Once a phase has a command identity, retries observe that phase; catalog
 /// changes cannot choose a different write. The client journal survives windows.

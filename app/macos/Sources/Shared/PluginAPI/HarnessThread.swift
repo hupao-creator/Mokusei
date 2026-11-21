@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 
 /// The public thread envelope. Private payloads are carried without interpretation.
 public struct HarnessThread: Hashable, Sendable {

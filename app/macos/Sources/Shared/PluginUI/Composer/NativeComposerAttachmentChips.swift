@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiCore
+import ChiefCore
 import QuickLook
 import SwiftUI
 

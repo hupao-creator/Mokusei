@@ -292,7 +292,7 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 					input = userThreadActionNotification(*event.userAction, subject)
 				} else {
 					serialized, _ := json.Marshal(publicThread(*event.record))
-					input = textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
+					input = textInput("Chief Agent Thread terminal event:\n" + string(serialized))
 				}
 				input.Presentation = "internal"
 				entries, err := c.sendContext(ctx, input, nil, nil)
@@ -315,7 +315,7 @@ func userThreadActionNotification(event plugin.LifecycleEvent, thread model.Thre
 		// The live terminal callback may already have run. This fact identifies
 		// its exact execution even if the child has since started another.
 		serialized, _ := json.Marshal(map[string]any{"event": event})
-		return textInput("Mokusei user Stop acknowledgement:\n" + string(serialized))
+		return textInput("Chief user Stop acknowledgement:\n" + string(serialized))
 	}
 	return plugin.MokuUserThreadInputNotification(event, publicThread(thread))
 }

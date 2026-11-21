@@ -1,7 +1,7 @@
 import AppKit
 import Observation
 import SwiftUI
-@testable import MokuseiUI
+@testable import ChiefUI
 
 /// Shared mounted replay for Overview geometry tests. Cards report their actual
 /// rendered frames, so assertions read the presented result rather than a

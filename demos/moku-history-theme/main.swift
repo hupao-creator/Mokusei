@@ -2,11 +2,11 @@ import AppKit
 import Observation
 import ScreenCaptureKit
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
-import MokuseiHarnessCodex
-import MokuseiUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
+import ChiefHarnessCodex
+import ChiefUI
 
 @MainActor @Observable private final class Preview {
     let scene = NativeMokuSceneState()

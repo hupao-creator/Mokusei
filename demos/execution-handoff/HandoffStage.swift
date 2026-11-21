@@ -2,7 +2,7 @@ import AppKit
 import QuartzCore
 import Observation
 import SwiftUI
-import MokuseiPluginUI
+import ChiefPluginUI
 
 struct HandoffStage: NSViewRepresentable {
     let model: PreviewModel

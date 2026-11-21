@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 public enum HarnessGitReadError: String, Sendable, CaseIterable {
     case unavailable, timeout, tooLarge = "too-large", inaccessible

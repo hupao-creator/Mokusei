@@ -1,7 +1,7 @@
 import AppKit
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 import WebKit
 
@@ -184,7 +184,7 @@ struct ReportCoverHTML: NSViewRepresentable {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = false
         configuration.userContentController.addUserScript(WKUserScript(source: NativeReportCoverPlayback.script,
             injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: NativeReportCoverPlayback.world))
-        configuration.setURLSchemeHandler(context.coordinator, forURLScheme: "mokusei-cover")
+        configuration.setURLSchemeHandler(context.coordinator, forURLScheme: "chief-cover")
         let view = PassiveCoverWebView(frame: .zero, configuration: configuration)
         // WebKit's initial backing store is white even in a dark card. Reveal
         // only after a rendered snapshot; a retained cover bridges remounts.
@@ -207,13 +207,13 @@ struct ReportCoverHTML: NSViewRepresentable {
             return
         }
         context.coordinator.html = html
-        view.load(URLRequest(url: URL(string: "mokusei-cover://document/index.html")!))
+        view.load(URLRequest(url: URL(string: "chief-cover://document/index.html")!))
     }
     static func dismantleNSView(_ view: PassiveCoverWebView, coordinator: Coordinator) {
         coordinator.onReady = nil; coordinator.onFailure = nil; coordinator.onPlaybackStarted = nil
         coordinator.onPlaybackCompleted = nil
         coordinator.ready = false; coordinator.playbackTask?.cancel(); coordinator.playbackTask = nil
-        view.evaluateJavaScript("globalThis.mokuseiCover?.pause()", in: nil,
+        view.evaluateJavaScript("globalThis.chiefCover?.pause()", in: nil,
             in: NativeReportCoverPlayback.world) { _ in }
         view.configuration.userContentController.removeAllUserScripts()
         view.stopLoading(); view.navigationDelegate = nil
@@ -286,7 +286,7 @@ struct ReportCoverHTML: NSViewRepresentable {
                             command = self.holding || (mode == .playingOnce && self.completedOnce)
                                 ? "finish()" : "play(\(self.elapsed))"
                         }
-                        _ = try await webView.callAsyncJavaScript("return globalThis.mokuseiCover.\(command)",
+                        _ = try await webView.callAsyncJavaScript("return globalThis.chiefCover.\(command)",
                             arguments: [:], in: nil, contentWorld: NativeReportCoverPlayback.world)
                         try Task.checkCancellation()
                         guard mode.isPlaying else { return }
@@ -311,7 +311,7 @@ struct ReportCoverHTML: NSViewRepresentable {
         }
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             // Cache a complete poster, independent of the point in a live cycle.
-            webView.evaluateJavaScript("globalThis.mokuseiCover.finish(); globalThis.mokuseiCover.duration", in: nil,
+            webView.evaluateJavaScript("globalThis.chiefCover.finish(); globalThis.chiefCover.duration", in: nil,
                 in: NativeReportCoverPlayback.world) { [weak self, weak webView] result in
                 guard let self, let webView, self.onReady != nil else { return }
                 switch result {
@@ -329,7 +329,7 @@ struct ReportCoverHTML: NSViewRepresentable {
                     let initial: NativeReportCoverPlayback = self.initiallyFinished ? .finished : .reset
                     let command = initial == .finished ? "finish()" : "reset()"
                     let initialReplayID = self.replayID
-                    webView.evaluateJavaScript("globalThis.mokuseiCover.\(command)", in: nil,
+                    webView.evaluateJavaScript("globalThis.chiefCover.\(command)", in: nil,
                         in: NativeReportCoverPlayback.world) { [weak self, weak webView] result in
                         guard let self, let webView, let onReady = self.onReady else { return }
                         if case .failure(let error) = result { self.onFailure?(error.localizedDescription); return }
@@ -345,7 +345,7 @@ struct ReportCoverHTML: NSViewRepresentable {
         // by author markup, and the custom scheme never resolves files or network.
         func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
             guard let url = urlSchemeTask.request.url,
-                  url.absoluteString == "mokusei-cover://document/index.html", let html else {
+                  url.absoluteString == "chief-cover://document/index.html", let html else {
                 urlSchemeTask.didFailWithError(URLError(.unsupportedURL)); return
             }
             let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: [
@@ -369,7 +369,7 @@ struct ReportCoverHTML: NSViewRepresentable {
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
             let url = navigationAction.request.url?.absoluteString
-            decisionHandler(url == "mokusei-cover://document/index.html" ? .allow : .cancel)
+            decisionHandler(url == "chief-cover://document/index.html" ? .allow : .cancel)
         }
     }
 }

@@ -208,7 +208,7 @@ func (p *provider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if tool == "" && strings.Contains(payload, "Mokusei Agent Thread terminal event:") && !hasResult(req["input"], "system_note") {
+		if tool == "" && strings.Contains(payload, "Chief Agent Thread terminal event:") && !hasResult(req["input"], "system_note") {
 			tool, call, args = "update_note", "system_note", object{"text": "SYSTEM_CHAIN_VERIFIED", "expected": nil}
 		}
 

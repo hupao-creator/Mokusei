@@ -22,7 +22,7 @@ func prepareStoreScenario(ctx context.Context, name string, records int) (operat
 	default:
 		return nil, nil, fmt.Errorf("unknown store scenario %q", name)
 	}
-	root, err := os.MkdirTemp("", "mokusei-performance-store-")
+	root, err := os.MkdirTemp("", "chief-performance-store-")
 	if err != nil {
 		return nil, nil, err
 	}

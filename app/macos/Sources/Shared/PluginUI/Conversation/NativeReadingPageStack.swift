@@ -1,7 +1,7 @@
 import AppKit
 import QuartzCore
 import Observation
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 @MainActor @Observable

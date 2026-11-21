@@ -42,7 +42,7 @@ cancellation is checked between threads and passages (adapter decode and each
 bounded regex search are synchronous). Owner hashes are revalidated against a
 final snapshot; changed/deleted sources lose their hits and request refresh.
 
-Coverage is only public completed-execution text retained in Mokusei state.
+Coverage is only public completed-execution text retained in Chief state.
 Running, waiting, failed/interrupted execution text, reasoning, tool payloads,
 attachments, internal prompts, private Report/Tag agents, Moku and Moku history
 are excluded. Native compaction or earlier retention limits cannot be undone.

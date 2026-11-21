@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 /// A bounded display tail and its original UTF-16 source window. Identity belongs
 /// to the thread/Harness/execution/foreground segment, never to prose similarity.

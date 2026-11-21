@@ -1,8 +1,8 @@
-import MokuseiHarnessClaude
-import MokuseiHarnessCodex
-import MokuseiHarnessOpenCode
-import MokuseiHarnessPi
-import MokuseiPluginUI
+import ChiefHarnessClaude
+import ChiefHarnessCodex
+import ChiefHarnessOpenCode
+import ChiefHarnessPi
+import ChiefPluginUI
 import SwiftUI
 
 // Only fixtures live here; renderer and palettes are production code.

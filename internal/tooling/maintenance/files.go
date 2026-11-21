@@ -73,7 +73,7 @@ func maintenanceAtomicWrite(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	file, err := os.CreateTemp(filepath.Dir(path), ".mokusei-maintain-*")
+	file, err := os.CreateTemp(filepath.Dir(path), ".chief-maintain-*")
 	if err != nil {
 		return err
 	}

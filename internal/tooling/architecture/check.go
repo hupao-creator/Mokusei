@@ -31,9 +31,9 @@ var shims = map[string]bool{
 }
 
 var commandDependencies = map[string]string{
-	"cmd/mokusei-runtime": "core/composition platform/daemon platform/environment plugins/harness/claude core/model core/plugin platform/profile platform/transport",
-	"cmd/mokusei-dev":     "tooling/devtool", "cmd/mokusei-maintain": "tooling/maintenance",
-	"cmd/mokusei-check": "tooling/architecture",
+	"cmd/chief-runtime": "core/composition platform/daemon platform/environment plugins/harness/claude core/model core/plugin platform/profile platform/transport",
+	"cmd/chief-dev":     "tooling/devtool", "cmd/chief-maintain": "tooling/maintenance",
+	"cmd/chief-check": "tooling/architecture",
 }
 
 func Check(root string) error {

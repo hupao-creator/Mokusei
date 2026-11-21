@@ -1,7 +1,7 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 public struct ClaudeOverviewView: Hashable, Sendable {
@@ -228,5 +228,5 @@ private struct ClaudeWorkflowAgents: View {
 }
 
 private func claudeTemporaryWorkspace(_ value: String) -> Bool {
-    MokuseiWorkspacePath.isTemporary(value)
+    ChiefWorkspacePath.isTemporary(value)
 }

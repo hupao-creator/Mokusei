@@ -5,11 +5,11 @@ import SwiftUI
 /// uncompressed copies of the same Fontsource variable fonts.
 public enum NativeTypography {
     static let monoSubsets = [
-        (file: "cyrillic-ext", postScript: "MokuseiJetBrainsMonoCyrillicExt-Regular"),
-        (file: "cyrillic", postScript: "MokuseiJetBrainsMonoCyrillic-Regular"),
-        (file: "greek", postScript: "MokuseiJetBrainsMonoGreek-Regular"),
-        (file: "vietnamese", postScript: "MokuseiJetBrainsMonoVietnamese-Regular"),
-        (file: "latin-ext", postScript: "MokuseiJetBrainsMonoLatinExt-Regular"),
+        (file: "cyrillic-ext", postScript: "ChiefJetBrainsMonoCyrillicExt-Regular"),
+        (file: "cyrillic", postScript: "ChiefJetBrainsMonoCyrillic-Regular"),
+        (file: "greek", postScript: "ChiefJetBrainsMonoGreek-Regular"),
+        (file: "vietnamese", postScript: "ChiefJetBrainsMonoVietnamese-Regular"),
+        (file: "latin-ext", postScript: "ChiefJetBrainsMonoLatinExt-Regular"),
     ]
 
     private static let registration: Void = {
@@ -23,7 +23,7 @@ public enum NativeTypography {
             var error: Unmanaged<CFError>?
             if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
                 let registrationError = error?.takeRetainedValue()
-                // Another Mokusei UI host in this process may already have
+                // Another Chief UI host in this process may already have
                 // registered this exact bundled font.
                 guard registrationError.map({ CFErrorGetCode($0) == CTFontManagerError.alreadyRegistered.rawValue }) == true else {
                     preconditionFailure("Cannot register Chief font \(filename): \(String(describing: registrationError))")
@@ -97,7 +97,7 @@ enum NativeResources {
 
     static let bundle: Bundle = {
         if let resourceURL = Bundle.main.resourceURL {
-            let packagedURL = resourceURL.appendingPathComponent("MokuseiNative_MokuseiPluginUI.bundle", isDirectory: true)
+            let packagedURL = resourceURL.appendingPathComponent("ChiefNative_ChiefPluginUI.bundle", isDirectory: true)
             if let packaged = Bundle(url: packagedURL) {
                 guard packaged.url(forResource: "inter-latin-wght-normal", withExtension: "ttf")
                         ?? packaged.url(forResource: "inter-latin-wght-normal", withExtension: "ttf", subdirectory: "fonts") != nil else {

@@ -1,5 +1,5 @@
 import SwiftUI
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 public enum ThreadCardTerminalStatus: String, Hashable, Sendable { case completed, interrupted, failed }
 public enum ThreadCardStatusKind: String, Hashable, Sendable { case attention, failed, interrupted, running, completed, idle }

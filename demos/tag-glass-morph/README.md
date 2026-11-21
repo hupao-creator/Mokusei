@@ -1,6 +1,6 @@
 # Tag Glass Morph 原生预览
 
-这是独立 Liquid Glass 参数实验；当前原生标签使用 [生产组件回放](../tag-filter-morph/README.md)。本目录描述自身 fixture 的实现，不定义产品行为。无需启动 Mokusei，也不需要项目的 Release 依赖；所有演示数据都来自本目录。
+这是独立 Liquid Glass 参数实验；当前原生标签使用 [生产组件回放](../tag-filter-morph/README.md)。本目录描述自身 fixture 的实现，不定义产品行为。无需启动 Chief，也不需要项目的 Release 依赖；所有演示数据都来自本目录。
 
 ## 打开
 

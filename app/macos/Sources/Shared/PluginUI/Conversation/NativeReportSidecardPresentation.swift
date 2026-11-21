@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 import Observation
 import SwiftUI
 

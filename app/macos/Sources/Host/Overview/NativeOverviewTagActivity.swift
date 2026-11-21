@@ -1,5 +1,5 @@
 import SwiftUI
-import MokuseiPluginUI
+import ChiefPluginUI
 
 /// Callers omit this view and its HStack spacing for inactive tags. Once mounted
 /// for an active tag, retain its measured width while menu transitions

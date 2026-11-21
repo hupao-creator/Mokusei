@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 public struct NativeComposerDirectory: Hashable, Sendable, Identifiable {
     public let name: JSONText

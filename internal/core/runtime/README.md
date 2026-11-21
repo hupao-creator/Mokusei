@@ -398,7 +398,7 @@ carry the current revision and stable IDs from actual scoped tool results.
 Foreign-scope probes must be rejected. The fixture does not synthesize tag
 membership or bypass the production CAS/receipt path.
 
-Run `make pbt-go` for admission; `MOKUSEI_SYSTEM_CODEX=/absolute/path/to/codex
+Run `make pbt-go` for admission; `CHIEF_SYSTEM_CODEX=/absolute/path/to/codex
 make pbt-system` for the opt-in macOS system property. Missing CLI capability
 fails instead of skipping. The system scenario has a 90s total execution budget,
 30s convergence waits and bounded native discovery/cleanup; runner timeouts also

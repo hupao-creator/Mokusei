@@ -1,11 +1,11 @@
 import AppKit
 import Observation
 import SwiftUI
-import MokuseiCore
-import MokuseiHarnessCodex
-import MokuseiPluginAPI
-@testable import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefHarnessCodex
+import ChiefPluginAPI
+@testable import ChiefPluginUI
+@testable import ChiefUI
 
 struct DemoThread: Identifiable {
     let id: String
@@ -166,7 +166,7 @@ private struct PanelDemo: View {
                 }
             }
         } thread: { EmptyView() } dock: {
-            NativeMokuDock(state: state.scene, draft: state.draft, cwd: "/demo/Mokusei", mode: .idle,
+            NativeMokuDock(state: state.scene, draft: state.draft, cwd: "/demo/Chief", mode: .idle,
                 onSend: { _ in state.status = "已收到（演示）" }, onCancel: {})
         } settings: { EmptyView() }
         .coordinateSpace(name: "panel-stage")
@@ -200,7 +200,7 @@ private struct PanelDemo: View {
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("panel-stage")) } action: { state.frames[thread.id] = $0 }
         }
         .overlay(alignment: .top) {
-            NativeOverviewChrome(filters: [.init(tag: "Mokusei", count: 3, isDirectory: true), .init(tag: "设计", count: 2)],
+            NativeOverviewChrome(filters: [.init(tag: "Chief", count: 3, isDirectory: true), .init(tag: "设计", count: 2)],
                 selectedTag: state.filter, onTagChange: { state.filter = $0?.tag ?? "" }, onSettings: { state.dark.toggle() })
                 .scaleEffect(x: 1, y: state.expanded ? 0.1 : 1, anchor: .top)
                 .opacity(state.expanded ? 0 : 1)

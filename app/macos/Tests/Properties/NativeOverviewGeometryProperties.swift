@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import MokuseiPluginAPI
-@testable import MokuseiUI
+import ChiefPluginAPI
+@testable import ChiefUI
 
 /// Independent layout contract. Every oracle below is computed from the input
 /// and the published output; no expectation calls the production solver or its

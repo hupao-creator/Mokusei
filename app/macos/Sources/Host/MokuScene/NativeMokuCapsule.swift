@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// Point geometry shared by the SwiftUI capsule and its interaction regions.

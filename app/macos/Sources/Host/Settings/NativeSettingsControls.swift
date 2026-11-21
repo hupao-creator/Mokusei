@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 // Keep the settings shell on the same primitives as contributed Harness forms.

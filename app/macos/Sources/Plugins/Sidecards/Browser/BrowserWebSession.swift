@@ -1,9 +1,9 @@
 import AppKit
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import WebKit
 
 /// Owns one WKWebView and all callbacks. No page message bridge has runtime,
@@ -82,9 +82,9 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         ]
         // DOM owns editing shortcuts, including shadow-tree inputs and native
         // dialogs. Bridge only an unhandled navigation key from the isolated world.
-        webView.configuration.userContentController.add(BrowserNavigationMessages(session: self), contentWorld: .world(name: "MokuseiBrowser"), name: "mokuseiBrowserNavigation")
+        webView.configuration.userContentController.add(BrowserNavigationMessages(session: self), contentWorld: .world(name: "ChiefBrowser"), name: "chiefBrowserNavigation")
         webView.configuration.userContentController.addUserScript(WKUserScript(source: BrowserPageScripts.navigationKeys,
-            injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .world(name: "MokuseiBrowser")))
+            injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .world(name: "ChiefBrowser")))
     }
 
     func navigate(_ target: URL) {
@@ -420,12 +420,12 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             do {
                 let touchHint = try JSONValue.text(self.translate("轻点元素或拖动框选 · 再点批注按钮取消")).encodedData()
                 let mouseHint = try JSONValue.text(self.translate("点击元素或拖拽框选 · Esc 取消")).encodedData()
-                let raw = try await self.evaluateJSON("globalThis.__mokuseiAnnotationHints = {touch: \(String(decoding: touchHint, as: UTF8.self)), mouse: \(String(decoding: mouseHint, as: UTF8.self))}; return await (\(BrowserPageScripts.selection));")
+                let raw = try await self.evaluateJSON("globalThis.__chiefAnnotationHints = {touch: \(String(decoding: touchHint, as: UTF8.self)), mouse: \(String(decoding: mouseHint, as: UTF8.self))}; return await (\(BrowserPageScripts.selection));")
                 guard self.currentAnnotation(token), raw != .null else { if self.currentAnnotation(token) { self.cancelAnnotation() }; return }
                 self.selection = try BrowserSelection(raw)
                 self.viewport?.refreshAnnotationGeometry()
                 // Escape/pagehide retires the resident composer's request too.
-                _ = try await self.evaluateJSON("return await (globalThis.__mokuseiAnnotationClosed ?? null);")
+                _ = try await self.evaluateJSON("return await (globalThis.__chiefAnnotationClosed ?? null);")
                 if self.currentAnnotation(token) { self.cancelAnnotation() }
             } catch {
                 if self.currentAnnotation(token) { self.captureError = error.localizedDescription; self.cancelAnnotation(keepError: true) }
@@ -441,7 +441,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         if !keepError { captureError = "" }
         viewport?.refreshAnnotationGeometry()
         if wasAnnotating, !released {
-            webView.evaluateJavaScript("globalThis.__mokuseiAnnotationCancel?.();", in: nil, in: .world(name: "MokuseiBrowser")) { _ in }
+            webView.evaluateJavaScript("globalThis.__chiefAnnotationCancel?.();", in: nil, in: .world(name: "ChiefBrowser")) { _ in }
         }
     }
     func captureAnnotation(comment: String) async throws {
@@ -465,7 +465,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         captureTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let raw = try await self.evaluateJSON("return globalThis.__mokuseiAnnotationRead?.() ?? null;")
+                let raw = try await self.evaluateJSON("return globalThis.__chiefAnnotationRead?.() ?? null;")
                 guard self.currentAnnotation(token) else { return }
                 guard raw != .null else { throw PluginContractError("网页选区已变化，请重新选择") }
                 let selection = try BrowserSelection(raw)
@@ -473,7 +473,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 guard self.currentAnnotation(token) else { return }
                 let title: JSONText
                 if case let .string(text) = titleValue { title = text } else { title = "" }
-                _ = try await self.evaluateJSON("await globalThis.__mokuseiAnnotationCapture?.(true); return null;")
+                _ = try await self.evaluateJSON("await globalThis.__chiefAnnotationCapture?.(true); return null;")
                 guard self.currentAnnotation(token) else { return }
                 let size = self.webView.bounds.size
                 guard size.width > 0, size.height > 0 else { throw PluginContractError("网页区域不可见") }
@@ -482,7 +482,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 config.afterScreenUpdates = true
                 let image = try await self.snapshot(config)
                 guard self.currentAnnotation(token) else { return }
-                let after = try await self.evaluateJSON("return globalThis.__mokuseiAnnotationRead?.() ?? null;")
+                let after = try await self.evaluateJSON("return globalThis.__chiefAnnotationRead?.() ?? null;")
                 guard after == raw else { throw PluginContractError("网页选区已变化，请重新选择") }
                 let pixels = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
                 guard let pixels else { throw PluginContractError("截图失败") }
@@ -496,7 +496,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 self.cancelAnnotation()
             } catch {
                 guard self.currentAnnotation(token) else { return }
-                _ = try? await self.evaluateJSON("await globalThis.__mokuseiAnnotationCapture?.(false); return null;")
+                _ = try? await self.evaluateJSON("await globalThis.__chiefAnnotationCapture?.(false); return null;")
                 guard self.currentAnnotation(token) else { return }
                 self.captureError = error.localizedDescription; self.capturing = false
                 self.captureCompletion?.resume(throwing: error); self.captureCompletion = nil
@@ -507,7 +507,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         // Serialize inside the isolated world so Swift receives lossless UTF-16
         // JSON instead of lossy Foundation dictionaries for page text.
         let wrapped = "return JSON.stringify(await (async () => { \(body) })()) ?? 'null';"
-        let raw = try await webView.callAsyncJavaScript(wrapped, arguments: [:], in: nil, contentWorld: .world(name: "MokuseiBrowser"))
+        let raw = try await webView.callAsyncJavaScript(wrapped, arguments: [:], in: nil, contentWorld: .world(name: "ChiefBrowser"))
         guard let raw = raw as? String else { return .null }
         return try JSONValue(data: Data(raw.utf8))
     }
@@ -515,7 +515,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         guard selection != nil, annotating, !capturing else { return }
         let token = annotationGeneration
         Task { [weak self] in
-            guard let self, let raw = try? await self.evaluateJSON("return globalThis.__mokuseiAnnotationRead?.() ?? null;"), self.currentAnnotation(token) else { return }
+            guard let self, let raw = try? await self.evaluateJSON("return globalThis.__chiefAnnotationRead?.() ?? null;"), self.currentAnnotation(token) else { return }
             guard let selection = try? BrowserSelection(raw) else { self.cancelAnnotation(); return }
             self.selection = selection
             self.viewport?.refreshAnnotationGeometry()
@@ -558,7 +558,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         webView.stopLoading(); webView.navigationDelegate = nil; webView.uiDelegate = nil
         webView.onCancelAnnotation = nil
         webView.onReloadDocument = nil; webView.onDocumentZoomChanged = nil
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "mokuseiBrowserNavigation", contentWorld: .world(name: "MokuseiBrowser"))
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "chiefBrowserNavigation", contentWorld: .world(name: "ChiefBrowser"))
         webView.configuration.userContentController.removeAllUserScripts()
         webView.removeFromSuperview(); viewport?.setSuppressed(true); viewport = nil
         backToOverview = nil; onAnnotation = nil
@@ -613,10 +613,10 @@ final class BrowserWKWebView: WKWebView {
 
     // These AppKit selectors are intentionally shared by name, without giving
     // the application host any dependency on a concrete browser plugin type.
-    @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { onReloadDocument?() }
-    @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setDocumentZoomLevel(0) }
-    @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel + 0.5) }
-    @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel - 0.5) }
+    @objc func chiefReloadFocusedWebContent(_ sender: Any?) { onReloadDocument?() }
+    @objc func chiefResetFocusedWebContentZoom(_ sender: Any?) { setDocumentZoomLevel(0) }
+    @objc func chiefZoomInFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel + 0.5) }
+    @objc func chiefZoomOutFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel - 0.5) }
 
     private func setDocumentZoomLevel(_ level: Double) {
         guard level.isFinite else { return }
@@ -651,7 +651,7 @@ private final class BrowserNavigationMessages: NSObject, WKScriptMessageHandler 
     weak var session: BrowserWebSession?
     init(session: BrowserWebSession) { self.session = session }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "mokuseiBrowserNavigation", message.body as? String == "back" else { return }
+        guard message.name == "chiefBrowserNavigation", message.body as? String == "back" else { return }
         session?.handleNavigationKey()
     }
 }

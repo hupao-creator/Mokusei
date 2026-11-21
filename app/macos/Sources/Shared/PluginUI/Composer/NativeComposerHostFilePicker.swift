@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// Browses authenticated host metadata. Paths are never opened by this device;

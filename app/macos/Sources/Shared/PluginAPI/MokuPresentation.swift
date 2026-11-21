@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 
 public enum HarnessActivityBody: Hashable, Sendable {
     case reasoning(text: JSONText, textOffset: Int?)

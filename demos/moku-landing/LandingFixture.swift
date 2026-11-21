@@ -2,11 +2,11 @@ import AppKit
 import Observation
 import ScreenCaptureKit
 import SwiftUI
-import MokuseiCore
-import MokuseiHarnessCodex
-import MokuseiPluginAPI
-@testable import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefHarnessCodex
+import ChiefPluginAPI
+@testable import ChiefPluginUI
+@testable import ChiefUI
 
 @MainActor @Observable final class LandingFixture {
     enum Outcome: String, CaseIterable { case success = "创建成功", failure = "创建前失败", waiting = "保持派发中" }
@@ -88,7 +88,7 @@ import MokuseiPluginAPI
         Task { await draft.submit { try await self.send($0) } }
     }
     func addContext() async {
-        _ = draft.insertDirectory(.init(name: "Mokusei", path: "/demo/Mokusei", hostID: "fixture-host"))
+        _ = draft.insertDirectory(.init(name: "Chief", path: "/demo/Chief", hostID: "fixture-host"))
         if draft.attachments.isEmpty {
             await draft.importFiles([.init(data: Data("Moku landing notes".utf8), name: "landing-notes.txt", mimeType: "text/plain")])
         }
@@ -135,7 +135,7 @@ struct LandingSurface: View {
                 }
                 .overlay(alignment: .top) {
                     NativeOverviewChrome(filters: fixture.hasThread && !fixture.archived
-                        ? [.init(tag: "Mokusei", scope: "demo", count: 1, isDirectory: true)] : [],
+                        ? [.init(tag: "Chief", scope: "demo", count: 1, isDirectory: true)] : [],
                         viewportHeight: geometry.size.height,
                         onTagChange: { _ in fixture.filteredEmpty = false }, onSettings: fixture.openControls)
                 }

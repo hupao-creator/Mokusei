@@ -1,6 +1,6 @@
 import AppKit
-import MokuseiHarnessCodex
-import MokuseiPluginUI
+import ChiefHarnessCodex
+import ChiefPluginUI
 import SwiftUI
 
 // Visual thesis: the approved glass lens on real production plan rows.
@@ -127,7 +127,7 @@ private struct GlassTimelineDemo: View {
         let presentation = ThreadCardPresentation(projection: projection,
             composition: .standard(size: size, identity: identity, placements: [placement], key: "plan-preview"),
             size: size, key: "plan-preview")
-        return HarnessThreadCard(identity: .init(title: "清理并验证 Mokusei 无用代码",
+        return HarnessThreadCard(identity: .init(title: "清理并验证 Chief 无用代码",
             harness: .init(brandKey: "codex", label: "Codex", logoSource: ""), model: "gpt-6.1-sol", effort: "高",
             runtime: .init(startedAt: 1_792_310_000_000, endedAt: 1_792_310_091_000),
             steer: "Swift 只读复核已完成：高置信候选 app/macos/Sources/OpenA…",

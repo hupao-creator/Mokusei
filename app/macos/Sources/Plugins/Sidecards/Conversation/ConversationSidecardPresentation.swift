@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// One execution display per Thread/plugin session. It owns no input draft or
 /// send capability; folding retains the Harness's mounted response forms.

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 import SwiftUI
 
 /// Agent follow-up capsules opt into directory completion. The editor remains a generic

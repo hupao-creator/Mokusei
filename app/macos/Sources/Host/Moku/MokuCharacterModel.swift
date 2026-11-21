@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import AppKit
 
 public enum MokuCharacterMode: Equatable, Sendable {

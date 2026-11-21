@@ -106,7 +106,7 @@ func TestSendAdmissionProperties(t *testing.T) {
 			"accept", "reject", "end", "end-reject", "end-failure", "end-cancel", "invalid-retry", "admitted-failure",
 		}), 1, 25).Draw(t, "schedule")
 		outcomes := rapid.SliceOfN(rapid.SampledFrom([]string{"completed", "failed", "interrupted"}), len(trace), len(trace)).Draw(t, "outcomes")
-		root, err := os.MkdirTemp("", "mokusei-send-pbt-")
+		root, err := os.MkdirTemp("", "chief-send-pbt-")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -302,7 +302,7 @@ func checkUserStopDelivery(t *rapid.T, r *core.Runtime, peer *propertyHarness, t
 	for _, d := range pending {
 		if d.Lazy {
 			var notice struct{ Event plugin.LifecycleEvent }
-			body, ok := strings.CutPrefix(d.Notification, "Mokusei user direct-to-thread event:\n")
+			body, ok := strings.CutPrefix(d.Notification, "Chief user direct-to-thread event:\n")
 			if !ok || json.NewDecoder(strings.NewReader(body)).Decode(&notice) != nil {
 				t.Fatal("invalid direct input notification")
 			}

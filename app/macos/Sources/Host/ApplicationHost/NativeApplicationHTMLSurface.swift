@@ -1,8 +1,8 @@
 import AppKit
 import CryptoKit
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import QuartzCore
 import SwiftUI
 import WebKit
@@ -293,7 +293,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         private var navigation: WKNavigation?
         private var hasReadyDocument = false
         private let documentURL: URL
-        private static let world = WKContentWorld.world(name: "Mokusei.HTML.Presentation")
+        private static let world = WKContentWorld.world(name: "Chief.HTML.Presentation")
         private static let handler = "presentation"
 
         init(_ input: HTMLWebDocument) {
@@ -550,17 +550,20 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             #"""
             (() => {
               const send = value => window.webkit.messageHandlers.presentation.postMessage(value);
-              if (location.protocol === 'mokusei-html:') {
+              if (location.protocol === 'chief-html:') {
                 const root = document.documentElement;
-                root.style.setProperty('--mokusei-safe-area-top', '\#(panel ? 60 : 74)px', 'important');
-                root.style.setProperty('--mokusei-safe-area-left', '\#(panel ? 0 : 160)px', 'important');
+                root.style.setProperty('--chief-safe-area-top', '\#(panel ? 60 : 74)px', 'important');
+                root.style.setProperty('--chief-safe-area-left', '\#(panel ? 0 : 160)px', 'important');
+                root.style.setProperty('--mokusei-safe-area-top', 'var(--chief-safe-area-top)', 'important');
+                root.style.setProperty('--mokusei-safe-area-left', 'var(--chief-safe-area-left)', 'important');
                 const style = document.createElement('style');
                 style.textContent = `
-                  html { color-scheme: light dark; scroll-padding-top: var(--mokusei-safe-area-top); }
+                  html { color-scheme: light dark; scroll-padding-top: var(--chief-safe-area-top); }
                   body { margin: 0 !important; }
-                  body > [data-mokusei-html-content], body:not(:has(> [data-mokusei-html-content])) {
+                  body > :is([data-chief-html-content], [data-mokusei-html-content]),
+                  body:not(:has(> :is([data-chief-html-content], [data-mokusei-html-content]))) {
                     box-sizing: border-box !important;
-                    padding-block-start: max(var(--mokusei-safe-area-top), var(--mokusei-html-top-space, 0px)) !important;
+                    padding-block-start: max(var(--chief-safe-area-top), var(--chief-html-top-space, var(--mokusei-html-top-space, 0px))) !important;
                   }`;
                 (document.head || root).append(style);
               }
@@ -622,7 +625,7 @@ private final class HTMLDocumentScheme: NSObject, WKURLSchemeHandler {
         // Node's createHash(...).update(string) repairs lone UTF-16 surrogates
         // to U+FFFD before UTF-8 encoding, exactly like JSONText.string.
         let hostname = SHA256.hash(data: Data(threadID.string.utf8)).map { String(format: "%02x", $0) }.joined()
-        return URL(string: "mokusei-html://\(hostname)/")!
+        return URL(string: "chief-html://\(hostname)/")!
     }
 
     static func matches(_ candidate: URL, _ document: URL) -> Bool {
@@ -710,7 +713,7 @@ private final class PreparedHTMLDocument: NSObject, WKNavigationDelegate {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
-        configuration.setURLSchemeHandler(scheme, forURLScheme: "mokusei-html")
+        configuration.setURLSchemeHandler(scheme, forURLScheme: "chief-html")
         view = HTMLDocumentWebView(frame: .zero, configuration: configuration)
         super.init()
     }
@@ -739,7 +742,7 @@ final class HTMLDocumentContainer: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        documentViewport.identifier = NSUserInterfaceItemIdentifier("mokusei-report-document-portal")
+        documentViewport.identifier = NSUserInterfaceItemIdentifier("chief-report-document-portal")
     }
     required init?(coder: NSCoder) { nil }
 
@@ -822,7 +825,7 @@ final class HTMLDocumentContainer: NSView {
             if window != nil {
                 let parent = self
                 if documentViewport.superview !== parent {
-                    let navigation = parent.subviews.first { $0.identifier?.rawValue == "mokusei-report-navigation-portal" }
+                    let navigation = parent.subviews.first { $0.identifier?.rawValue == "chief-report-navigation-portal" }
                     if let navigation { parent.addSubview(documentViewport, positioned: .below, relativeTo: navigation) }
                     else { parent.addSubview(documentViewport) }
                 }
@@ -896,7 +899,7 @@ private final class HTMLNavigationAnchor: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        portal.identifier = NSUserInterfaceItemIdentifier("mokusei-report-navigation-portal")
+        portal.identifier = NSUserInterfaceItemIdentifier("chief-report-navigation-portal")
     }
     required init?(coder: NSCoder) { nil }
 
@@ -973,7 +976,7 @@ private final class HTMLNavigationAnchor: NSView {
             // Electron focuses the navigation WebContents on initial open and
             // when returning from the client, but never steals document focus.
             var client = superview
-            while let view = client, view.identifier?.rawValue != "mokusei-native-content-viewport" { client = view.superview }
+            while let view = client, view.identifier?.rawValue != "chief-native-content-viewport" { client = view.superview }
             let responder = window.firstResponder as? NSView
             if responder == nil || responder === root || responder === client ||
                 (client.map { responder?.isDescendant(of: $0) == true } ?? false) {
@@ -1077,10 +1080,10 @@ private final class HTMLNavigationViewport: NSView {
         else { super.keyDown(with: event) }
     }
 
-    @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { remount() }
-    @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setZoomLevel(0) }
-    @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel + 0.5) }
-    @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel - 0.5) }
+    @objc func chiefReloadFocusedWebContent(_ sender: Any?) { remount() }
+    @objc func chiefResetFocusedWebContentZoom(_ sender: Any?) { setZoomLevel(0) }
+    @objc func chiefZoomInFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel + 0.5) }
+    @objc func chiefZoomOutFocusedWebContent(_ sender: Any?) { setZoomLevel(zoomLevel - 0.5) }
 
     private func remount() {
         guard !unavailable else { return }
@@ -1165,11 +1168,11 @@ private final class HTMLDocumentWebView: WKWebView {
         let top = panelPresentation ? 60 / pageZoom : 74 / factor
         let left = panelPresentation ? 0 : 160 / factor
         evaluateJavaScript("""
-            if (location.protocol === 'mokusei-html:') {
-              document.documentElement.style.setProperty('--mokusei-safe-area-top', '\(top)px', 'important');
-              document.documentElement.style.setProperty('--mokusei-safe-area-left', '\(left)px', 'important');
+            if (location.protocol === 'chief-html:') {
+              document.documentElement.style.setProperty('--chief-safe-area-top', '\(top)px', 'important');
+              document.documentElement.style.setProperty('--chief-safe-area-left', '\(left)px', 'important');
             }
-            """, in: nil, in: .world(name: "Mokusei.HTML.Presentation")) { _ in }
+            """, in: nil, in: .world(name: "Chief.HTML.Presentation")) { _ in }
     }
 
     func applyAppearance(_ theme: PluginTheme) {
@@ -1187,10 +1190,10 @@ private final class HTMLDocumentWebView: WKWebView {
         updateSafeArea()
     }
 
-    @objc func mokuseiReloadFocusedWebContent(_ sender: Any?) { reload() }
-    @objc func mokuseiResetFocusedWebContentZoom(_ sender: Any?) { setDocumentZoomLevel(0) }
-    @objc func mokuseiZoomInFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel + 0.5) }
-    @objc func mokuseiZoomOutFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel - 0.5) }
+    @objc func chiefReloadFocusedWebContent(_ sender: Any?) { reload() }
+    @objc func chiefResetFocusedWebContentZoom(_ sender: Any?) { setDocumentZoomLevel(0) }
+    @objc func chiefZoomInFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel + 0.5) }
+    @objc func chiefZoomOutFocusedWebContent(_ sender: Any?) { setDocumentZoomLevel(documentZoomLevel - 0.5) }
 
     private func setDocumentZoomLevel(_ level: Double) {
         guard level.isFinite else { return }

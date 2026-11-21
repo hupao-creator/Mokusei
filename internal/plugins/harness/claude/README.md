@@ -35,7 +35,7 @@ pending entities still become cancelled. `review` and `error` are canonical
 latest-only markers: replacing either after the selected prefix means the fork
 does not inherit the earlier revision.
 
-[harness.go](harness.go), [session.go](session.go) and [transport.go](transport.go) adapt the installed Claude CLI's stream-json protocol. Claude owns native account/model configuration and conversation history. Mokusei supplies admitted inputs, public observations and scoped tool injection.
+[harness.go](harness.go), [session.go](session.go) and [transport.go](transport.go) adapt the installed Claude CLI's stream-json protocol. Claude owns native account/model configuration and conversation history. Chief supplies admitted inputs, public observations and scoped tool injection.
 
 Installation owns the shell pipeline's process group and both output readers. Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
 before returning; uncertain cleanup remains an error. Combined captured output
@@ -131,7 +131,7 @@ ordinary inputs keep their existing behavior.
 
 `search.go` supplies completed-execution public passages with their execution IDs
 for Moku grep. Existing index text joins the same passages, preserving its prior
-exclusions. This extracts only retained Mokusei state, not complete native history;
+exclusions. This extracts only retained Chief state, not complete native history;
 see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).
 
 Reasoning usage totals are recomputed from the parser's replacement map keyed by

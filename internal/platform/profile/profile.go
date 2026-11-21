@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -68,22 +69,48 @@ func Resolve(options Options) (Profile, error) {
 	}
 	path := options.DataDir
 	if path == "" {
+		path = os.Getenv("CHIEF_RUNTIME_DATA_DIR")
+	}
+	if path == "" {
 		path = os.Getenv("MOKUSEI_RUNTIME_DATA_DIR")
 	}
 	if path == "" {
-		path = filepath.Join(appData, "Mokusei")
+		path = DefaultDataDirectory(appData, "Chief")
 	}
 	dataDir, err := canonicalPath(path)
 	if err != nil {
 		return Profile{}, err
 	}
 	digest := sha256.Sum256([]byte(dataDir))
-	workspace, err := canonicalPath(filepath.Join(home, ".Mokusei", "profiles", hex.EncodeToString(digest[:]), "runtime-workspace"))
+	relative := filepath.Join("profiles", hex.EncodeToString(digest[:]), "runtime-workspace")
+	workspace, err := canonicalPath(ExistingPathOr(filepath.Join(home, ".Mokusei", relative), filepath.Join(home, ".Chief", relative)))
 	if err != nil {
 		return Profile{}, err
 	}
 	private := filepath.Join(dataDir, "runtime")
 	return Profile{DataDir: dataDir, WorkspaceRoot: workspace, DiscoveryPath: filepath.Join(private, "connection.json"), LockPath: filepath.Join(private, "owner.json"), ReceiptsPath: filepath.Join(private, "receipts.json"), homeDir: home}, nil
+}
+
+// DefaultDataDirectory matches the native launcher. Keep existing profiles at
+// their original paths because the path itself is part of their lease identity.
+func DefaultDataDirectory(parent, name string) string {
+	current := filepath.Join(parent, name)
+	switch name {
+	case "Chief", "Chief Alpha", "Chief Native Dev":
+		legacy := "Mokusei" + strings.TrimPrefix(name, "Chief")
+		return ExistingPathOr(filepath.Join(parent, legacy), current)
+	default:
+		return current
+	}
+}
+
+// ExistingPathOr falls back only for a missing path. An inaccessible path
+// must go through normal validation rather than opening a second store.
+func ExistingPathOr(existing, fallback string) string {
+	if _, err := os.Lstat(existing); errors.Is(err, os.ErrNotExist) {
+		return fallback
+	}
+	return existing
 }
 
 // Refresh resolves paths again after previously missing directories may have

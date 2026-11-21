@@ -92,7 +92,7 @@ def restart(application):
              and state.get("page") == "overview" and not state.get("transitioning"), 90)
     connection = json.loads((application.profile / "runtime/connection.json").read_text())
     runtime = native(application.helper, "process", connection["pid"])
-    if (Path(runtime["path"]).resolve() != (application.bundle / "Contents/MacOS/mokusei-runtime").resolve()
+    if (Path(runtime["path"]).resolve() != application.runtime_executable.resolve()
             or Path(connection["dataDir"]).resolve() != application.profile.resolve()):
         raise ValueError("restarted bundled Runtime/profile identity mismatch")
     application.owned[connection["pid"]] = runtime
@@ -137,7 +137,7 @@ def roots(application):
     result = []
     for row in rows:
         role = "application" if row["pid"] == application.app.pid else (
-            "runtime" if Path(row["path"]).name == "mokusei-runtime" else "helper")
+            "runtime" if Path(row["path"]).resolve() == application.runtime_executable.resolve() else "helper")
         result.append({**row, "role": role})
     result.append({**native(application.helper, "process", os.getpid()), "role": "source"})
     return result

@@ -1,11 +1,11 @@
 import AppKit
 import ScreenCaptureKit
 import SwiftUI
-import MokuseiCore
-import MokuseiHarnessCodex
-import MokuseiPluginAPI
-@testable import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefHarnessCodex
+import ChiefPluginAPI
+@testable import ChiefPluginUI
+@testable import ChiefUI
 
 private struct ReplayError: Error, CustomStringConvertible {
     let description: String

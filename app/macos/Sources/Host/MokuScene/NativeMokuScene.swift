@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 import SwiftUI
 
 public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings: View>: View {

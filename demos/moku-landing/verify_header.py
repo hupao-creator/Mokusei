@@ -18,7 +18,7 @@ args = parser.parse_args()
 with native_lease():
     args.output.mkdir(parents=True, exist_ok=False)
     # Keep AppKit's saved window state separate across consecutive replay runs.
-    replay = NativeReplay(repo, "NestedHeaderReplay", f"com.mokusei.nested-header-replay.{uuid4().hex}")
+    replay = NativeReplay(repo, "NestedHeaderReplay", f"com.chief.nested-header-replay.{uuid4().hex}")
     try:
         replay.compile([source / "NestedHeaderReplay.swift"])
         status = replay.run(["--capture"] if args.capture else [], timeout=60, launch_services=False)

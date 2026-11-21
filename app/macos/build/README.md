@@ -25,14 +25,14 @@ make install      # install to ~/Applications/Chief.app by default
 make open         # open the installed application
 ```
 
-Each target invokes `./scripts/go.sh run ./cmd/mokusei-dev`. The wrapper
+Each target invokes `./scripts/go.sh run ./cmd/chief-dev`. The wrapper
 downloads the pinned official Go archive into
-`~/Library/Caches/Mokusei/toolchains`, verifies its SHA-256, and atomically
+`~/Library/Caches/Chief/toolchains`, verifies its SHA-256, and atomically
 installs it there; it needs no preinstalled Go and does not change your global Go
 or shell configuration. Use `ARGS` to pass options,
-for example `make fast ARGS='--no-open'`, or invoke `./scripts/go.sh run ./cmd/mokusei-dev` directly.
-`./scripts/go.sh run ./cmd/mokusei-dev help` lists commands. `GO=/path/to/go make build`
-selects the toolchain for Make; `MOKUSEI_GO` selects a Go executable for child
+for example `make fast ARGS='--no-open'`, or invoke `./scripts/go.sh run ./cmd/chief-dev` directly.
+`./scripts/go.sh run ./cmd/chief-dev help` lists commands. `GO=/path/to/go make build`
+selects the toolchain for Make; `CHIEF_GO` selects a Go executable for child
 builds. The version in `go.mod` is the required Go toolchain; `VERSION` supplies
 the application version.
 
@@ -47,19 +47,20 @@ in the selected keychain. Stable signing preserves the designated requirement
 used by privacy permissions across rebuilds.
 
 Development uses `com.mokusei.native.dev`, `Chief Native Dev.app`
-and the `Mokusei Native Dev` profile. Production uses `com.mokusei.desktop`,
-`Chief.app` and the canonical `Mokusei` profile. The Go runtime
-binary is built at `.build/go/mokusei-runtime`. A raw Swift executable can use
-`--runtime /absolute/path/to/mokusei-runtime --data-dir /isolated/profile`.
+and the `Chief Native Dev` default profile. Production uses `com.mokusei.desktop`,
+`Chief.app` and the `Chief` default profile. The Go runtime
+binary is built at `.build/go/chief-runtime`. A raw Swift executable can use
+`--runtime /absolute/path/to/chief-runtime --data-dir /isolated/profile`.
 
-Alpha uses `com.mokusei.desktop.alpha`, `Chief Alpha.app` and the `Mokusei Alpha`
-profile. Its default data directory is `~/Library/Application Support/Mokusei Alpha`.
+Alpha uses `com.mokusei.desktop.alpha`, `Chief Alpha.app` and the `Chief Alpha`
+profile. Its default data directory is `~/Library/Application Support/Chief Alpha`.
 App state is isolated; chosen projects, external tools and their sign-ins are shared.
 
-The bundle names and display names use Chief. The three bundle identifiers,
-Application Support profiles, packaged executables and internal plist keys
-retain their existing identities. The product name is shared across English
-and Simplified Chinese.
+Bundle identifiers are signing identities. Existing `Mokusei`, `Mokusei Alpha`
+and `Mokusei Native Dev` directories in Application Support take precedence over
+the corresponding defaults, preserving the original profile path and ownership
+identity. An explicit `--data-dir` selects its path directly. The executable and
+the bundle metadata fields use Chief.
 
 Build and package do not install applications. `install` refuses to replace a
 running installed app, verifies a private staged copy, and restores the previous
@@ -84,7 +85,7 @@ Ordinary compiler caches remain enabled.
 
 `VERSION` supplies the numeric `CFBundleShortVersionString` (for example `0.1.0`).
 `--build-number` supplies numeric `CFBundleVersion` (1–9999, default 1).
-The separate `MokuseiReleaseVersion` is `0.1.0-alpha.1` for that example.
+The separate `ChiefReleaseVersion` is `0.1.0-alpha.1` for that example.
 Use a new build number for each package you distribute.
 
 The output is a versioned directory under `app/macos/dist/alpha/`:
@@ -119,10 +120,10 @@ The command neither installs nor uploads the release.
 ## Development and watching main
 
 Go and Swift retain their compiler caches. Go also retains its compiler-owned
-link output at `.build/go/runtime-cache/mokusei-runtime`, allowing unchanged
+link output at `.build/go/runtime-cache/chief-runtime`, allowing unchanged
 builds to avoid relinking. Each invocation still runs Go's dependency checks,
 joins compiler descendants, copies to a separate temporary file, validates source
-stability and atomically publishes `.build/go/mokusei-runtime`. A failed build
+stability and atomically publishes `.build/go/chief-runtime`. A failed build
 does not publish the retained intermediate output.
 
 `fast` always packages and verifies
@@ -161,7 +162,8 @@ Rotation retains a native process scan as an additional guard. The scan follows
 kernel executable paths and argument
 boundaries, including older `fast` generations, other checkouts, explicit
 `--data-dir` aliases and the runtime-exit helper. Bundled default profiles use
-Foundation's account home (or `CFFIXED_USER_HOME`) and `MokuseiDataDirectoryName`,
+Foundation's account home (or `CFFIXED_USER_HOME`) and `ChiefDataDirectoryName`
+(or the previous plist field on an older running executable),
 rather than shell `HOME`; a live candidate whose
 profile cannot be inspected causes rotation to fail closed. The scan runs
 again under all locks before any directory is removed or renamed. The optional
@@ -194,9 +196,9 @@ The tools do not reset or grant privacy consent.
 ## Package contents
 
 ```text
-Contents/MacOS/Mokusei
-Contents/MacOS/mokusei-runtime
-Contents/Resources/MokuseiNative_MokuseiPluginUI.bundle
+Contents/MacOS/Chief
+Contents/MacOS/chief-runtime
+Contents/Resources/ChiefNative_ChiefPluginUI.bundle
 Contents/Resources/AppIcon.icns
 Contents/Resources/build-provenance.json
 Contents/Resources/licenses/
@@ -218,7 +220,7 @@ All three channels use the same generated ATS policy in
 client's loopback runtime connection. `NSAllowsArbitraryLoadsInWebContent` is
 retained for the [Browser sidecard](../Sources/Plugins/Sidecards/README.md),
 which accepts user-selected HTTP and HTTPS destinations without a fixed domain
-list. Authored HTML initially loads through the in-memory `mokusei-html` scheme,
+list. Authored HTML initially loads through the in-memory `chief-html` scheme,
 but its navigation, frames and web resources may also use remote HTTP(S).
 The native SwiftUI/AppKit interface itself does not need this exception.
 

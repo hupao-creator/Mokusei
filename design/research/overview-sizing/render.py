@@ -14,7 +14,7 @@ from gate.ux import native_lease
 def render(scratch, destination):
     build = ["xcrun", "swift", "build", "--package-path", str(ROOT / "app/macos"),
              "--scratch-path", str(scratch), "--disable-automatic-resolution",
-             "--target", "MokuseiPluginUI", "-c", "debug", "-j", "3"]
+             "--target", "ChiefPluginUI", "-c", "debug", "-j", "3"]
     subprocess.run(build, check=True)
     binary = Path(subprocess.check_output([*build, "--show-bin-path"], text=True).strip())
     # This private scratch directory contains objects only for the target and
@@ -33,5 +33,5 @@ def render(scratch, destination):
 
 
 if __name__ == "__main__":
-    with native_lease(), tempfile.TemporaryDirectory(prefix="mokusei-sizing-") as scratch:
+    with native_lease(), tempfile.TemporaryDirectory(prefix="chief-sizing-") as scratch:
         render(Path(scratch), Path(sys.argv[1]).resolve())

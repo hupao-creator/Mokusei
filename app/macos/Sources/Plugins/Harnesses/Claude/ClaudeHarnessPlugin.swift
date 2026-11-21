@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import SwiftUI
 
 public struct ClaudeHarnessPlugin: HarnessPlugin {

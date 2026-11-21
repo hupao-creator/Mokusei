@@ -2,13 +2,13 @@ import SwiftUI
 import AppKit
 import ScreenCaptureKit
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
-@testable import MokuseiPluginUI
-import MokuseiHarnessCodex
-import MokuseiHarnessClaude
-@testable import MokuseiApplications
-@testable import MokuseiUI
+import ChiefCore
+import ChiefPluginAPI
+@testable import ChiefPluginUI
+import ChiefHarnessCodex
+import ChiefHarnessClaude
+@testable import ChiefApplications
+@testable import ChiefUI
 
 @MainActor @Observable private final class ProductionReportFixture {
     let showsCover: Bool
@@ -230,7 +230,7 @@ private enum ReportCoverDocument {
     .bars{position:absolute;right:22px;bottom:25px;height:113px;display:flex;gap:8px;align-items:end;opacity:.32}
     .bars i{display:block;width:17px;background:#657b62;border-radius:3px 3px 0 0}
     .bars i:nth-child(1){height:28%}.bars i:nth-child(2){height:48%}.bars i:nth-child(3){height:39%}.bars i:nth-child(4){height:74%}.bars i:nth-child(5){height:100%}
-    </style></head><body><article><small>MOKUSEI / REPORT</small>
+    </style></head><body><article><small>CHIEF / REPORT</small>
     <h1>Report 与 Tag<br>工具留存分析</h1><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     <footer>调用频次 · 成功情况 · 统计边界</footer></article></body></html>
     """

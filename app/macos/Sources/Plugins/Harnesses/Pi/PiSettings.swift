@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 func piThinkingLabel(_ value: JSONValue?) -> String? {

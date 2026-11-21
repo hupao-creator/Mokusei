@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiCore
+import ChiefCore
 
 /// A bounded cache of exact native measurements shared by immutable text lines.
 /// Font equality includes the descriptor/size; paragraph equality includes tabs.

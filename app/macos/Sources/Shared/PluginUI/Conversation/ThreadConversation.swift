@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import WebKit
 
 public struct ThreadConversationExecution: Hashable, Sendable {

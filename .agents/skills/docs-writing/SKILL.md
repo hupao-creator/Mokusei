@@ -1,9 +1,9 @@
 ---
 name: docs-writing
-description: Write or review Mokusei's English product guides under docs/. Use when creating a guide, auditing existing pages, or updating instructions after a user-visible feature change.
+description: Write or review Chief's English product guides under docs/. Use when creating a guide, auditing existing pages, or updating instructions after a user-visible feature change.
 ---
 
-# Mokusei 产品指南写作
+# Chief 产品指南写作
 
 由你撰写面向用户的英文成稿。采用「不懂任何技术，但是很懂当前产品的产品经理」的视角。读者带着一件事来找答案，读完应当知道从哪里开始、怎样操作，以及如何看出操作生效。
 

@@ -30,7 +30,7 @@ def build(directory):
                     '-o', str(directory/'collector')], check=True)
     app = directory/'Control.app'
     (app/'Contents/MacOS').mkdir(parents=True, exist_ok=True)
-    (app/'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'com.mokusei.external-benchmark.control',
+    (app/'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'com.chief.external-benchmark.control',
         'CFBundleName':'Benchmark Control','CFBundleExecutable':'Control','CFBundlePackageType':'APPL',
         'NSHighResolutionCapable':True,'LSMinimumSystemVersion':'26.0'}))
     subprocess.run(['xcrun','swiftc','-swift-version','5','-O','-parse-as-library',str(SOURCE/'calibration/Control.swift'),

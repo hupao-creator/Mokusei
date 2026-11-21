@@ -73,7 +73,7 @@ func validateJSONSchema(raw json.RawMessage, value any) error {
 	compiler.DefaultDraft(jsonschema.Draft7)
 	compiler.UseLoader(noSchemaLoader{})
 	compiler.UseRegexpEngine(compileNativeRegexp)
-	const resource = "https://mokusei.invalid/completion.schema.json"
+	const resource = "https://chief.invalid/completion.schema.json"
 	if err := compiler.AddResource(resource, schema); err != nil {
 		return err
 	}

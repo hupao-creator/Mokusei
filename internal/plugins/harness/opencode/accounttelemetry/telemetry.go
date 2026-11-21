@@ -59,7 +59,7 @@ func readJSON(ctx context.Context, host ClientOptions, url, key string, timeout 
 		return 0, nil, errors.New("invalid account telemetry request")
 	}
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Mokusei/0.1")
+	request.Header.Set("User-Agent", "Chief/0.1")
 	request.Header.Set("Cache-Control", "no-store")
 	if key != "" {
 		request.Header.Set("Authorization", "Bearer "+key)

@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Inspect the captured command and release its receipt after durable draft settlement.
 @MainActor public struct NativeComposerReceiptActions {

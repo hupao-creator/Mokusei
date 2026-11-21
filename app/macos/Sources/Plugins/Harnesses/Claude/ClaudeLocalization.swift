@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiPluginUI
+import ChiefPluginUI
 
 func claudeLocalized(_ source: String, locale: Locale) -> String {
     locale.language.languageCode?.identifier == "zh" ? source : claudeEnglish[source] ?? NativePluginLocalization.localize(source, locale: locale)

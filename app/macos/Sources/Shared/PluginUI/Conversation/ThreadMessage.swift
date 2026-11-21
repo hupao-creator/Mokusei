@@ -1,5 +1,5 @@
 import SwiftUI
-import MokuseiCore
+import ChiefCore
 
 public struct ThreadMessageAttachment: Identifiable, Hashable, Sendable {
     public let id: JSONText

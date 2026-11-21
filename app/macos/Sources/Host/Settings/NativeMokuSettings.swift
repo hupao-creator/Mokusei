@@ -1,6 +1,6 @@
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 @MainActor struct NativeMokuSettings: View {

@@ -2,8 +2,8 @@ import AppKit
 typealias MarkdownPlatformRepresentable = NSViewRepresentable
 typealias MarkdownPlatformTextView = NSTextView
 typealias MarkdownPlatformTextDelegate = NSTextViewDelegate
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import SwiftUI
 
 /// TextKit owns selection, accessibility, native Copy, and links. Attributed
@@ -140,7 +140,7 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
             if span.code { attributes[.nativeMarkdownCode] = true }
             if span.superscript { attributes[.baselineOffset] = fontSize * 0.35 }
             if let url = MarkdownURLPolicy.url(span.link) { attributes[.link] = url }
-            if let anchor = span.anchor { attributes[.init("MokuseiMarkdownAnchor")] = anchor }
+            if let anchor = span.anchor { attributes[.init("ChiefMarkdownAnchor")] = anchor }
             if let title = span.title { attributes[.toolTip] = title }
             if let source = span.image, let image = images[source], image.size.width > 0 {
                 let attachment = NSTextAttachment()
@@ -196,7 +196,7 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
                         func findReference(_ view: NSView) -> Bool {
                             if let text = view as? NSTextView, let storage = text.textStorage {
                                 var found: NSRange?
-                                storage.enumerateAttribute(.init("MokuseiMarkdownAnchor"), in: NSRange(location: 0, length: storage.length)) { value, range, stop in
+                                storage.enumerateAttribute(.init("ChiefMarkdownAnchor"), in: NSRange(location: 0, length: storage.length)) { value, range, stop in
                                     if value as? String == fragment { found = range; stop.pointee = true }
                                 }
                                 if let found {
@@ -256,7 +256,7 @@ struct MarkdownTextInput: Equatable {
 
 final class MarkdownTextView: MarkdownPlatformTextView {
     nonisolated private static let compactDescription =
-        ProcessInfo.processInfo.environment["MOKUSEI_TEXT_COMPACT_DESCRIPTION"] != "0"
+        ProcessInfo.processInfo.environment["CHIEF_TEXT_COMPACT_DESCRIPTION"] != "0"
 
     nonisolated override var description: String {
         guard Self.compactDescription else { return super.description }

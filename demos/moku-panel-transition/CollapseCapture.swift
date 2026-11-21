@@ -1,8 +1,8 @@
 import AppKit
 import AVFoundation
-import MokuseiPluginUI
+import ChiefPluginUI
 import ScreenCaptureKit
-@testable import MokuseiUI
+@testable import ChiefUI
 
 private struct CollapseCaptureError: Error, CustomStringConvertible {
     let description: String

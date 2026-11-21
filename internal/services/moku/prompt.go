@@ -35,7 +35,7 @@ const NoteTextPolicy = "Use Markdown at most 1200 Unicode code points including 
 	"the user can read in under two minutes. Use emoji naturally when they add expression and suit the context. An exactly empty string clears the note. Non-empty text must contain a " +
 	"non-whitespace code point and must not contain NUL. Over-budget, whitespace-only and NUL text is rejected: shorten " +
 	"and retry; content is never silently truncated. " +
-	"Notes can link to a specific ordinary Agent Thread execution with [label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID). " +
+	"Notes can link to a specific ordinary Agent Thread execution with [label](chief://execution?threadId=THREAD_ID&executionId=EXECUTION_ID). " +
 	"Use the threadId and executionId supplied by thread lifecycle reports; do not query a thread just to obtain a link target. " +
 	"The link opens that exact execution at its final reply or latest content, even after subsequent executions. URLs count toward the note character budget. Whether to include a link is your choice."
 

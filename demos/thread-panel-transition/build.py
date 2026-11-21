@@ -20,10 +20,10 @@ output = repo / '.build/thread-panel-transition'
 output.mkdir(parents=True, exist_ok=True)
 if not options.skip_build:
     subprocess.run(['xcrun', 'swift', 'build', '--package-path', str(repo / 'app/macos')], check=True)
-replay = NativeReplay(repo, 'ThreadPanelDemo', 'com.mokusei.thread-panel-demo')
+replay = NativeReplay(repo, 'ThreadPanelDemo', 'com.chief.thread-panel-demo')
 try:
     replay.compile([source / 'Sidecards.swift', source / 'main.swift'])
-    retained = Path(tempfile.mkdtemp(prefix='mokusei-native-replay-thread-panel-', dir='/private/tmp'))
+    retained = Path(tempfile.mkdtemp(prefix='chief-native-replay-thread-panel-', dir='/private/tmp'))
     (retained / 'workspace').mkdir()
     application = retained / replay.application.name
     shutil.copytree(replay.application, application, symlinks=True)

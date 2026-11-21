@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// OpenCode's private state stays inside its native plugin. IDs retain raw UTF-16.
 struct OpenCodeState: Hashable, Sendable {

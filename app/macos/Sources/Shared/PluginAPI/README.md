@@ -105,9 +105,11 @@ execution. It does not itself authorize execution or establish running state.
 move into main. Generic Browser sends and compose notifications do not acquire
 these presentation requests.
 
-`ApplicationExecutionLink` admits only the internal `mokusei://execution` URL
+`ApplicationExecutionLink` admits the internal `chief://execution` URL
 with exactly one nonblank `threadId` and `executionId` query parameter, without
-credentials, ports, path or fragment. It yields an `ApplicationExecutionRef`;
+credentials, ports, path or fragment. Saved `mokusei://execution` links go
+through the same parser. Both schemes are handled within the app. The parser
+yields an `ApplicationExecutionRef`;
 the Host checks public ordinary-thread membership. `HarnessReadingTarget.position`
 defaults to `start`. The `executionStart` and `result` positions pin the
 requested execution. The former opens at its document heading and the latter

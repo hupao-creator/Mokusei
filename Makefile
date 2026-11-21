@@ -1,5 +1,5 @@
 GO ?= ./scripts/go.sh
-DEV = $(GO) run ./cmd/mokusei-dev
+DEV = $(GO) run ./cmd/chief-dev
 ARGS ?=
 PBT_ARGS ?=
 
@@ -27,8 +27,8 @@ install:
 open:
 	$(DEV) open $(ARGS)
 lint:
-	$(GO) run ./cmd/mokusei-check architecture
-	@mokusei_goroot="$$($(GO) env GOROOT)" && mokusei_unformatted="$$("$$mokusei_goroot/bin/gofmt" -l cmd internal tools)" && { test -z "$$mokusei_unformatted" || { echo "Run gofmt on: $$mokusei_unformatted"; exit 1; }; }
+	$(GO) run ./cmd/chief-check architecture
+	@chief_goroot="$$($(GO) env GOROOT)" && chief_unformatted="$$("$$chief_goroot/bin/gofmt" -l cmd internal tools)" && { test -z "$$chief_unformatted" || { echo "Run gofmt on: $$chief_unformatted"; exit 1; }; }
 	$(GO) vet ./...
 typecheck:
 	$(GO) build ./...
@@ -48,4 +48,4 @@ pbt-native-state:
 pbt-system:
 	python3 tools/verification/pbt/run.py --suite system --go "$(GO)" $(PBT_ARGS)
 install-hooks:
-	$(GO) run ./cmd/mokusei-check install-hooks
+	$(GO) run ./cmd/chief-check install-hooks

@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Private wire values retain exact UTF-16 identities and absence versus null.
 struct ClaudeState: Hashable, Sendable {

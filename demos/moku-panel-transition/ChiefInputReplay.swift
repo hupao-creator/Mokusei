@@ -1,10 +1,10 @@
 import AppKit
-import MokuseiCore
-import MokuseiHarnessCodex
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefHarnessCodex
+import ChiefPluginAPI
 import SwiftUI
-@testable import MokuseiPluginUI
-@testable import MokuseiUI
+@testable import ChiefPluginUI
+@testable import ChiefUI
 
 private struct ChiefInputReplayFailure: Error, CustomStringConvertible {
     let description: String

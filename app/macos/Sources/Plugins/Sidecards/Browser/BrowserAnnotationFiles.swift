@@ -4,7 +4,7 @@ actor BrowserAnnotationFiles {
     static let shared = BrowserAnnotationFiles()
     struct Batch: Sendable { let directory: URL; let files: [URL] }
     func write(_ images: [Data]) throws -> Batch {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("mokusei-annotations-\(UUID().uuidString)", isDirectory: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("chief-annotations-\(UUID().uuidString)", isDirectory: true)
         do {
             try Task.checkCancellation()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

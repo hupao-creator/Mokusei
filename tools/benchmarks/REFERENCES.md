@@ -1,7 +1,7 @@
 # External measurement references
 
 These sources inform measurement boundaries, not the product oracle. The
-benchmark does not link them into Mokusei or replace its production renderer.
+benchmark does not link them into Chief or replace its production renderer.
 Source revisions are pinned below.
 
 - [ordo-one Benchmark](https://github.com/ordo-one/benchmark/blob/7d991b052ae06c4065c54cafedb8c9b9667ffed0/Sources/Benchmark/Documentation.docc/WritingBenchmarks.md): explicit setup/measurement/teardown, configurable metric sets, declared units and warmups. Its [Darwin producer](https://github.com/ordo-one/benchmark/blob/7d991b052ae06c4065c54cafedb8c9b9667ffed0/Sources/Benchmark/OperatingSystemStats/OperatingSystemStatsProducer%2BDarwin.swift) samples peaks separately from cumulative CPU. Adopt these distinctions and retain probe cost. Its own-process accounting and allocator instrumentation do not establish complete external process-tree accounting.

@@ -1,6 +1,6 @@
-import MokuseiSidecardBrowser
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefSidecardBrowser
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 extension EnvironmentValues {

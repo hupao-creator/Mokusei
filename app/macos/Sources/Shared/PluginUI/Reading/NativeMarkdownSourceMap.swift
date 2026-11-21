@@ -50,7 +50,7 @@ enum MarkdownSourceMap {
         for row in rows { starts.append(position); position += row.count + 1 }
         cmark_gfm_core_extensions_ensure_registered()
         guard let parser = cmark_parser_new(CMARK_OPT_SOURCEPOS | CMARK_OPT_TABLE_SPANS) else { return [] }
-        guard let observer = cmark_syntax_extension_new("mokusei-source-origins") else {
+        guard let observer = cmark_syntax_extension_new("chief-source-origins") else {
             cmark_parser_free(parser); return []
         }
         defer {

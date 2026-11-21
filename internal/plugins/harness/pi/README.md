@@ -18,7 +18,7 @@ in force. See [Report continuation](../../../../design/reading.md).
 `pi.New(plugin.HostContext)` is the Go implementation of the Pi Agent Harness.
 It uses the external `pi --mode rpc` process and requires a stable Pi release
 at least 0.99.0 for authoritative `started`/`queued`/`handled` prompt replies.
-Mokusei does not launch a Node renderer, bridge server, or
+Chief does not launch a Node renderer, bridge server, or
 separate JavaScript build for this adapter.
 
 The adapter implements `plugin.Harness`, `Forker`, `PromptCompleter`,
@@ -192,7 +192,7 @@ ordinary inputs use the admission reservation described above.
 
 `search.go` supplies completed-execution public passages with their execution IDs
 for Moku grep. Existing index text joins the same passages, preserving its prior
-exclusions. This extracts only retained Mokusei state, not complete native history;
+exclusions. This extracts only retained Chief state, not complete native history;
 see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).
 
 Accepted inputs retain `ordinary`/`internal` presentation in message state. Both

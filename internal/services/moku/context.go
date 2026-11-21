@@ -112,7 +112,7 @@ func (c *Coordinator) describeTarget(ctx context.Context, id string, h plugin.Ha
 		return target, err
 	}
 	var envelope struct {
-		Catalog *plugin.CompleteModelCatalog `json:"x-mokusei-model-catalog"`
+		Catalog *plugin.CompleteModelCatalog `json:"x-chief-model-catalog"`
 	}
 	if err := json.Unmarshal(target.NativeSchema, &envelope); err != nil {
 		return target, fmt.Errorf("invalid native catalog schema: %w", err)

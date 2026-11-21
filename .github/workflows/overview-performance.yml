@@ -29,7 +29,11 @@ defaults:
 jobs:
   paired-release:
     name: Release A/B · foreground Overview
-    runs-on: ${{ fromJSON(vars.MOKUSEI_SELF_HOSTED_MACOS == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","ARM64","mokusei-macos-26-gui"]' || '["macos-26"]') }}
+    runs-on: >-
+      ${{ fromJSON(
+        vars.CHIEF_SELF_HOSTED_MACOS == 'true' && '["self-hosted","macOS","ARM64","chief-macos-26-gui"]' ||
+        vars.MOKUSEI_SELF_HOSTED_MACOS == 'true' && '["self-hosted","macOS","ARM64","mokusei-macos-26-gui"]' ||
+        '["macos-26"]') }}
     timeout-minutes: 45
     env:
       CGO_ENABLED: '1'

@@ -1,8 +1,8 @@
-// Build against this checkout's MokuseiPluginUI. An unordered window drives
-// SwiftUI appearance without opening Mokusei or taking keyboard focus.
+// Build against this checkout's ChiefPluginUI. An unordered window drives
+// SwiftUI appearance without opening Chief or taking keyboard focus.
 import AppKit
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 import SwiftUI
 
 struct Sample {

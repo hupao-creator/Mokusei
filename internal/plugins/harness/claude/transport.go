@@ -186,7 +186,7 @@ func (t *Transport) spawn() error {
 		env[k] = v
 	}
 	env = systemProxy(env)
-	env["CLAUDE_CODE_ENTRYPOINT"] = "mokusei-desktop"
+	env["CLAUDE_CODE_ENTRYPOINT"] = "chief-desktop"
 	args, err := buildArguments(t.options, t.directories, env, overlay)
 	if err != nil {
 		return err

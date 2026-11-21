@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 public struct ClaudeLogo: View {
     static let themeColor = NativePalette.pair(0xd97757, 0xe5a184).swiftUI

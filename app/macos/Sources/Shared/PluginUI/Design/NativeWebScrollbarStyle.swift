@@ -10,24 +10,24 @@ import WebKit
     /// External pages retain their own styling, even after main-frame navigation.
     public static var reportScript: WKUserScript {
         WKUserScript(source: reportSource, injectionTime: .atDocumentEnd,
-                     forMainFrameOnly: false, in: .world(name: "Mokusei.Scrollbars"))
+                     forMainFrameOnly: false, in: .world(name: "Chief.Scrollbars"))
     }
 
     public static var reportSource: String {
         // A Report can navigate away or embed an external document. The reader
         // admits its custom-scheme documents and HTTP(S); only the former are
         // app-owned. Check each loaded frame, including after main-frame POSTs.
-        "if (location.protocol === 'mokusei-html:') {\n" + source + "\n}"
+        "if (location.protocol === 'chief-html:') {\n" + source + "\n}"
     }
 
     public static var script: WKUserScript {
         WKUserScript(source: source, injectionTime: .atDocumentEnd,
-                     forMainFrameOnly: false, in: .world(name: "Mokusei.Scrollbars"))
+                     forMainFrameOnly: false, in: .world(name: "Chief.Scrollbars"))
     }
 
     public static let source = #"""
     (() => {
-      if (globalThis.__mokuseiScrollbarSheet) return;
+      if (globalThis.__chiefScrollbarSheet) return;
       // Constructed sheets also work on documents that disallow inline style
       // elements via CSP. No page capabilities or event handlers are replaced.
       const sheet = new CSSStyleSheet();
@@ -36,7 +36,7 @@ import WebKit
         /* CanvasText can stay black on a black page without color-scheme. Use
            the actual foreground, without reducing its contrast through alpha. */
         * { scrollbar-width: thin !important; scrollbar-color: currentColor transparent !important; }
-        :root { scrollbar-color: var(--mokusei-viewport-scrollbar-thumb, currentColor) transparent !important; }
+        :root { scrollbar-color: var(--chief-viewport-scrollbar-thumb, currentColor) transparent !important; }
         @supports not (scrollbar-color: black transparent) {
           ::-webkit-scrollbar { background: transparent !important; }
           ::-webkit-scrollbar-thumb {
@@ -44,7 +44,7 @@ import WebKit
             border-radius: 999px;
           }
           :root::-webkit-scrollbar-thumb {
-            background: var(--mokusei-viewport-scrollbar-thumb, currentColor) !important;
+            background: var(--chief-viewport-scrollbar-thumb, currentColor) !important;
           }
         }
         /* WebKit before scrollbar-color support, and page-authored pseudo parts. */
@@ -62,8 +62,8 @@ import WebKit
       let writtenRootStyle;
       const updateViewport = () => {
         const color = getComputedStyle(document.body || root).color;
-        if (root.style.getPropertyValue('--mokusei-viewport-scrollbar-thumb') !== color) {
-          root.style.setProperty('--mokusei-viewport-scrollbar-thumb', color);
+        if (root.style.getPropertyValue('--chief-viewport-scrollbar-thumb') !== color) {
+          root.style.setProperty('--chief-viewport-scrollbar-thumb', color);
           writtenRootStyle = root.getAttribute('style');
         }
       };
@@ -115,7 +115,7 @@ import WebKit
       matchMedia('(prefers-color-scheme: dark)').addEventListener('change', scheduleViewport);
       observeContainers();
       updateViewport();
-      globalThis.__mokuseiScrollbarSheet = sheet;
+      globalThis.__chiefScrollbarSheet = sheet;
     })();
     """#
 }

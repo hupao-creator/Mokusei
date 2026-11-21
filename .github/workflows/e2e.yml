@@ -53,9 +53,9 @@ jobs:
           E2E_SUITE: ${{ inputs.suite }}
         run: |
           python3 tools/e2e/run.py run \
-            --runtime .build/e2e/mokusei-runtime \
-            --app app/macos/.build/debug/Mokusei \
-            --desktop-lease "$RUNNER_TEMP/mokusei-desktop-interaction.lock" \
+            --runtime .build/e2e/chief-runtime \
+            --app app/macos/.build/debug/Chief \
+            --desktop-lease "$RUNNER_TEMP/chief-desktop-interaction.lock" \
             --desktop-owner "github-${{ github.run_id }}-${{ github.run_attempt }}" \
             --output output/e2e/ci --suite "$E2E_SUITE"
       - name: Check evidence and report outcome

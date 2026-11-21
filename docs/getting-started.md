@@ -32,7 +32,9 @@ Chief can reply directly or assign the work to an agent. When it creates a task 
 
 ## Update Chief Alpha
 
-Quit Chief Alpha before updating. Back up `~/Library/Application Support/Mokusei Alpha`, then replace **Chief Alpha.app** in **Applications** with the copy from the new disk image. If the installed app is named **Mokusei Alpha.app**, move it out of **Applications** before installing Chief Alpha.
+Quit Chief Alpha before updating. In Finder, use **Go → Go to Folder** to open `~/Library/Application Support`. Back up the data folder you find there, **Chief Alpha** or **Mokusei Alpha**. If both exist, back up both. Chief Alpha uses the **Mokusei Alpha** data folder when it exists.
+
+Replace **Chief Alpha.app** in **Applications** with the copy from the new disk image. If your installed copy is named **Mokusei Alpha.app**, move it out of **Applications** first. Open Chief Alpha and check that your conversations and settings appear.
 
 Alpha updates are manual. App data may be incompatible between versions, and macOS may ask for permissions again. Alpha has its own app data and uses the project folders and agent sign-ins you already have on this Mac.
 

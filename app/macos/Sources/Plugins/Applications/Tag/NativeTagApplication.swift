@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import SwiftUI
 
 @MainActor public enum NativeTagApplication {

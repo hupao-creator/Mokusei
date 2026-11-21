@@ -21,15 +21,20 @@ import (
 type Product struct{ Channel, BundleIdentifier, AppName, DisplayName, DataDirectoryName string }
 
 const legacyProductionAppName = "Mokusei.app"
+const legacyNativeExecutable = "Mokusei"
+
+func isNativeExecutable(name string) bool {
+	return name == "Chief" || name == legacyNativeExecutable
+}
 
 func ProductConfiguration(channel string) (Product, error) {
 	switch channel {
 	case "development":
-		return Product{channel, "com.mokusei.native.dev", "Chief Native Dev.app", "Chief Native Dev", "Mokusei Native Dev"}, nil
+		return Product{channel, "com.mokusei.native.dev", "Chief Native Dev.app", "Chief Native Dev", "Chief Native Dev"}, nil
 	case "production":
-		return Product{channel, "com.mokusei.desktop", "Chief.app", "Chief", "Mokusei"}, nil
+		return Product{channel, "com.mokusei.desktop", "Chief.app", "Chief", "Chief"}, nil
 	case "alpha":
-		return Product{channel, "com.mokusei.desktop.alpha", "Chief Alpha.app", "Chief Alpha", "Mokusei Alpha"}, nil
+		return Product{channel, "com.mokusei.desktop.alpha", "Chief Alpha.app", "Chief Alpha", "Chief Alpha"}, nil
 	default:
 		return Product{}, fmt.Errorf("unknown application channel %q", channel)
 	}
@@ -59,7 +64,7 @@ func Repository(start string) (string, error) {
 		}
 		parent := filepath.Dir(path)
 		if parent == path {
-			return "", fmt.Errorf("run mokusei-dev from a Chief checkout or pass --repo")
+			return "", fmt.Errorf("run chief-dev from a Chief checkout or pass --repo")
 		}
 		path = parent
 	}
@@ -145,6 +150,9 @@ func ProductionEnvironment() []string {
 	return env
 }
 func goExecutable() string {
+	if value := os.Getenv("CHIEF_GO"); value != "" {
+		return value
+	}
 	if value := os.Getenv("MOKUSEI_GO"); value != "" {
 		return value
 	}

@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// JavaScript's pretty JSON is part of Codex's public MCP display contract.
 /// JSONValue retains exact keys and values but intentionally not object insertion

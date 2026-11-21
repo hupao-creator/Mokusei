@@ -1,8 +1,8 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// One visible conversation owns its manifest and visible row subscriptions.

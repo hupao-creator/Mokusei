@@ -1,9 +1,9 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiHarnessCodex
-@testable import MokuseiApplications
-@testable import MokuseiUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefHarnessCodex
+@testable import ChiefApplications
+@testable import ChiefUI
 
 /// Windowless fixture export through the actual catalog, preferences and Overview
 /// model. No Runtime connection, XCTest copy of the rules, or live profile access.

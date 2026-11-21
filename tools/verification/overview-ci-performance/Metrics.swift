@@ -3,11 +3,17 @@ import CryptoKit
 import Darwin
 import Foundation
 import Metal
-import MokuseiCore
-import MokuseiPluginAPI
 import QuartzCore
 import Synchronization
+#if canImport(ChiefCore)
+import ChiefCore
+import ChiefPluginAPI
+@testable import ChiefUI
+#else
+import MokuseiCore
+import MokuseiPluginAPI
 @testable import MokuseiUI
+#endif
 
 struct ProbeFailure: Error, CustomStringConvertible {
     let description: String

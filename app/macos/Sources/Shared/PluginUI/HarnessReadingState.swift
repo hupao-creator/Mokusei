@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import SwiftUI
 
 /// A mounted reader owns publication; its worker retains only the last exact input.

@@ -1,6 +1,6 @@
 import CryptoKit
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// Match native requests to public response authority by domain-separated
 /// identity and complete semantics. A partial match never enables a button.

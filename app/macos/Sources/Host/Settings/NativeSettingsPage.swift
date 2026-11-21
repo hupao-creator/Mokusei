@@ -1,7 +1,7 @@
 import AppKit
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Point geometry of the Settings header. The leading seat belongs to Moku's
