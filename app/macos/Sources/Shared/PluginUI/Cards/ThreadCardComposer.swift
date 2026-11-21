@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 public enum ThreadCardComposerError: Error, LocalizedError {
     case invalidPreferredSize(component: ThreadCardComponentKind, size: ThreadCardSize)

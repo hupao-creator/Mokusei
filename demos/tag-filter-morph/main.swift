@@ -1,8 +1,8 @@
 import AppKit
 import Combine
 import SwiftUI
-import MokuseiUI
-import MokuseiPluginUI
+import ChiefUI
+import ChiefPluginUI
 
 /// Visual replay of the real production component, including its scroll bridge,
 /// typography, selection and floating actions.
@@ -17,7 +17,7 @@ private struct ProductionTagMorphReplay: View {
     @State private var replayIndex = 0
 
     private let catalog: [NativeOverviewFilter] = [
-        .init(tag: "Mokusei", count: 12, isDirectory: true, selectionKey: "members:directory:1"),
+        .init(tag: "Chief", count: 12, isDirectory: true, selectionKey: "members:directory:1"),
         .init(tag: "界面设计", count: 4, aliases: ["Design"], selectionKey: "members:design:1"),
         .init(tag: "性能优化", count: 3, selectionKey: "members:performance:1"),
         .init(tag: "代码调研", count: 6, selectionKey: "members:research:1"),
@@ -28,7 +28,7 @@ private struct ProductionTagMorphReplay: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Overview · 生产 Tag Morph").font(.system(size: 23, weight: .semibold))
-            Text("直接加载 MokuseiUI.NativeOverviewChrome · 两个独立原生滚动视口")
+            Text("直接加载 ChiefUI.NativeOverviewChrome · 两个独立原生滚动视口")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
             HStack {
                 Button("加载 2 项") { filters = Array(catalog.prefix(2)) }

@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 import AppKit
 
@@ -119,7 +119,7 @@ private final class SidecardDividerView: NSView {
     private func logicalPointerX(_ event: NSEvent) -> CGFloat {
         var ancestor = superview
         while let view = ancestor {
-            if view.identifier?.rawValue == "mokusei-native-content-viewport" {
+            if view.identifier?.rawValue == "chief-native-content-viewport" {
                 return view.convert(event.locationInWindow, from: nil).x
             }
             ancestor = view.superview

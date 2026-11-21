@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 import Testing
-@testable import MokuseiUI
+@testable import ChiefUI
 
 /// Random point in the mounted production Canvas's input schedule. Events are
 /// replayed against the real workspace view machinery, not a simulated planner.

@@ -25,19 +25,19 @@ func Smoke(ctx context.Context, repo, application, channel, report string) error
 	if err != nil {
 		return err
 	}
-	binary := filepath.Join(application, "Contents/MacOS/mokusei-runtime")
+	binary := filepath.Join(application, "Contents/MacOS/chief-runtime")
 	runtimeSignature, err := verifySignature(ctx, binary, product.BundleIdentifier+".runtime", signature.Team, product.Channel == "alpha")
 	if err != nil {
 		return err
 	}
-	_, err = assertPortableMachO(ctx, filepath.Join(application, "Contents/MacOS/Mokusei"), false)
+	_, err = assertPortableMachO(ctx, filepath.Join(application, "Contents/MacOS/Chief"), false)
 	if err != nil {
 		return err
 	}
 	if _, err = assertPortableMachO(ctx, binary, false); err != nil {
 		return err
 	}
-	rpaths, err := machORPaths(ctx, filepath.Join(application, "Contents/MacOS/Mokusei"))
+	rpaths, err := machORPaths(ctx, filepath.Join(application, "Contents/MacOS/Chief"))
 	if err != nil {
 		return err
 	}
@@ -70,19 +70,19 @@ func Smoke(ctx context.Context, repo, application, channel, report string) error
 		return err
 	}
 	expected := map[string]string{
-		"CFBundleIdentifier":       product.BundleIdentifier,
-		"CFBundleName":             product.DisplayName,
-		"CFBundleDisplayName":      product.DisplayName,
-		"MokuseiDataDirectoryName": product.DataDirectoryName,
-		"LSMinimumSystemVersion":   "26.0",
-		"CFBundleExecutable":       "Mokusei",
+		"CFBundleIdentifier":     product.BundleIdentifier,
+		"CFBundleName":           product.DisplayName,
+		"CFBundleDisplayName":    product.DisplayName,
+		"ChiefDataDirectoryName": product.DataDirectoryName,
+		"LSMinimumSystemVersion": "26.0",
+		"CFBundleExecutable":     "Chief",
 	}
 	for key, value := range expected {
 		if info[key] != value {
 			return fmt.Errorf("unexpected bundle metadata %s", key)
 		}
 	}
-	result := map[string]any{"application": application, "signature": signature, "runtimeSignature": runtimeSignature, "nodeFree": true, "headless": os.Getenv("MOKUSEI_HEADLESS") == "1", "scope": "Signed bundle, portable Go and Swift binaries, and packaged resources. No application processes are launched."}
+	result := map[string]any{"application": application, "signature": signature, "runtimeSignature": runtimeSignature, "nodeFree": true, "headless": os.Getenv("CHIEF_HEADLESS") == "1", "scope": "Signed bundle, portable Go and Swift binaries, and packaged resources. No application processes are launched."}
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return err

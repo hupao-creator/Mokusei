@@ -1,5 +1,5 @@
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 /// Execution display only. Thread input belongs to the detail Moku bar.

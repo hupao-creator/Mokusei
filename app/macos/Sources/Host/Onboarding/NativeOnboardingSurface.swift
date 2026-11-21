@@ -1,7 +1,7 @@
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 
 struct NativeOnboardingSurface: View {
     @Bindable var state: NativeOnboardingState

@@ -19,11 +19,11 @@ output = repo / ".build/moku-history-theme"
 output.mkdir(parents=True, exist_ok=True)
 if not options.skip_build:
     subprocess.run(["xcrun", "swift", "build", "--package-path", str(repo / "app/macos"),
-                    "--product", "Mokusei"], cwd=repo, check=True)
-replay = NativeReplay(repo, "MokuHistoryPreview", "com.mokusei.moku-history-preview")
+                    "--product", "Chief"], cwd=repo, check=True)
+replay = NativeReplay(repo, "MokuHistoryPreview", "com.chief.moku-history-preview")
 try:
     replay.compile([source / "main.swift"])
-    retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-history-", dir="/private/tmp"))
+    retained = Path(tempfile.mkdtemp(prefix="chief-native-replay-history-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     application = retained / replay.application.name
     shutil.copytree(replay.application, application, symlinks=True)

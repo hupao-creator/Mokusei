@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import AppKit
 
 public enum MokuExpression: String, CaseIterable, Sendable { case idle, focus, deliberating, happy, surprised, sleepy, curious }

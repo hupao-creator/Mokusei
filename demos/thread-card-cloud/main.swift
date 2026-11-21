@@ -1,10 +1,10 @@
 import AppKit
-import MokuseiCore
-import MokuseiHarnessClaude
-import MokuseiHarnessCodex
-import MokuseiHarnessOpenCode
-import MokuseiHarnessPi
-import MokuseiPluginUI
+import ChiefCore
+import ChiefHarnessClaude
+import ChiefHarnessCodex
+import ChiefHarnessOpenCode
+import ChiefHarnessPi
+import ChiefPluginUI
 import SwiftUI
 
 // Visual thesis: the existing glass cards become apertures onto softly drifting
@@ -25,7 +25,7 @@ struct ThreadCloudDemo: View {
     @State private var endedAt: Double?
 
     private let filters: [NativeOverviewFilter] = [
-        .init(tag: "Mokusei", count: 4, isDirectory: true),
+        .init(tag: "Chief", count: 4, isDirectory: true),
         .init(tag: "界面设计", count: 2), .init(tag: "性能优化", count: 2)
     ]
 

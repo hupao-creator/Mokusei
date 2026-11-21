@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Public audit data only. A tool result acknowledges delivery; its arguments
 /// retain the exact text. Identity includes the owner and execution, not text.

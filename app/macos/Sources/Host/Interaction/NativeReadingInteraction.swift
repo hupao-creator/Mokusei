@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 
 @MainActor
 public extension NativeWorkspacePresentation {

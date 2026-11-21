@@ -1,7 +1,7 @@
-// Historical contour comparison only; production Arc lives in MokuseiUI.
+// Historical contour comparison only; production Arc lives in ChiefUI.
 import AppKit
 import CoreText
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// Accepted native study: equal arc-length travel around the capsule, retaining

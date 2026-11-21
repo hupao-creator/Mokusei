@@ -1,6 +1,6 @@
 import AppKit
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import Observation
 import SwiftUI
 

@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// Device-local clipboard/file bytes; never an authorized host path.
 public enum SidecardAttachmentSource: Sendable {

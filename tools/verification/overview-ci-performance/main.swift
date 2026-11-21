@@ -1,12 +1,20 @@
 import AppKit
 import Darwin
 import Foundation
+import SwiftUI
+#if canImport(ChiefCore)
+import ChiefCore
+import ChiefHarnessCodex
+import ChiefPluginAPI
+import ChiefPluginUI
+@testable import ChiefUI
+#else
 import MokuseiCore
 import MokuseiHarnessCodex
 import MokuseiPluginAPI
 import MokuseiPluginUI
-import SwiftUI
 @testable import MokuseiUI
+#endif
 
 private struct ExpectedCard: Decodable {
     let id: String
@@ -400,7 +408,7 @@ private final class OverviewProbe {
     var formalStart: CPUSample?
     var formalEnd: CPUSample?
     var sampler: Task<Void, Never>?
-    let cpuQueue = DispatchQueue(label: "com.mokusei.overview-ci.process-cpu", qos: .userInitiated)
+    let cpuQueue = DispatchQueue(label: "com.chief.overview-ci.process-cpu", qos: .userInitiated)
     var cpuCaptures: [String: ScheduledCPUSample] = [:]
     var sourceProtocolChecks = ["ready": false, "start": false, "status": false, "result": false, "final": false]
     var requestedCamera: NativeOverviewTransform?
@@ -480,7 +488,7 @@ private final class OverviewProbe {
         let preferences = DesktopPreferences(directory: directory)
         let client = RuntimeClient(storageDirectory: directory, connectionSource: FixtureConnectionSource(connection: ready.connection.runtime))
         let plugins = try NativePluginComposition(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: [])
-        #if MOKUSEI_SYSTEM_PRESENTATION
+        #if CHIEF_SYSTEM_PRESENTATION
         let workspace = NativeWorkspaceModel(client: client, preferences: preferences, plugins: plugins, locale: .chinese)
         #else
         try preferences.setLocale(.chinese)
@@ -510,7 +518,7 @@ private final class OverviewProbe {
         let content = CGRect(x: 0, y: 0, width: min(1291, capacity.width), height: min(600, capacity.height))
         let window = NSWindow(contentRect: content, styleMask: style, backing: .buffered, defer: false)
         self.window = window
-        window.title = "Mokusei Overview CI performance"
+        window.title = "Chief Overview CI performance"
         window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = hosting
         window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate()

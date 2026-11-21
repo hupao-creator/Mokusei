@@ -1,6 +1,6 @@
 import SwiftUI
 import AppKit
-import MokuseiPluginUI
+import ChiefPluginUI
 
 /// The source settings page owns Escape at document scope. Native text editors
 /// and popup menus keep their own composing/tracking cancellation first.

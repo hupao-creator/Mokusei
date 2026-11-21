@@ -1,5 +1,5 @@
 // Restored from b478a1f0e; Electron design provenance and adaptations: ../README.md.
-@testable import MokuseiUI
+@testable import ChiefUI
 import Foundation
 
 public enum HistoricalResidentStreamStyle: String, Sendable {

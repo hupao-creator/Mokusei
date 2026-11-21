@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 public enum NativeOverviewTagKind: String, Sendable { case directory, semantic }

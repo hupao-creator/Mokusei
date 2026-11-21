@@ -12,20 +12,20 @@ from report import input_evidence_template, operator_input_evidence, save, sha25
 
 
 def bundle(app, session):
-    target = session.root / "MokuseiE2E.app"
+    target = session.root / "ChiefE2E.app"
     contents = target / "Contents"
     mac = contents / "MacOS"
     resources = contents / "Resources"
     mac.mkdir(parents=True)
     resources.mkdir()
-    executable = mac / "MokuseiE2E"
+    executable = mac / "ChiefE2E"
     shutil.copy2(app, executable)
     for source in app.parent.glob("*.bundle"):
         shutil.copytree(source, resources / source.name)
     (contents / "Info.plist").write_bytes(plistlib.dumps({
-        "CFBundleExecutable": "MokuseiE2E", "CFBundleIdentifier": "com.mokusei.e2e." + session.nonce,
-        "CFBundleName": "Mokusei E2E Isolated", "CFBundlePackageType": "APPL",
-        "MokuseiDataDirectoryName": "MokuseiE2E-" + session.nonce, "NSHighResolutionCapable": True}))
+        "CFBundleExecutable": "ChiefE2E", "CFBundleIdentifier": "com.chief.e2e." + session.nonce,
+        "CFBundleName": "Chief E2E Isolated", "CFBundlePackageType": "APPL",
+        "ChiefDataDirectoryName": "ChiefE2E-" + session.nonce, "NSHighResolutionCapable": True}))
     save(session.output / "operator-bundle.json", {"path": str(target), "executableSHA256": sha256(executable),
         "files": {str(p.relative_to(target)): sha256(p) for p in sorted(target.rglob("*")) if p.is_file()}})
     return executable

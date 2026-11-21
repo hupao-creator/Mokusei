@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import MokuseiCore
+import ChiefCore
 
 /// Only immutable admission results are cached, never actions, resources or
 /// navigation state. Cancellation fences delivery to this mounted reader.

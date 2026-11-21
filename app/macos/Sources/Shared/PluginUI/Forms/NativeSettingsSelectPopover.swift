@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// Settings and onboarding use the system popup; embedded editors retain their layout.

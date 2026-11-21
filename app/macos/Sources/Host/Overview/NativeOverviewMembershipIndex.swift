@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Keeps filter inputs and results by their actual scope. Unscoped applications
 /// have explicit label dependencies; a local change never reselects another

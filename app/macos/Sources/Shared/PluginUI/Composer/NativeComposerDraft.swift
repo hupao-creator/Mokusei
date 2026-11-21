@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Client-owned draft shared by the Dock and full Moku conversation. Keep this
 /// object above those views; disappearing from one surface must not clear it.

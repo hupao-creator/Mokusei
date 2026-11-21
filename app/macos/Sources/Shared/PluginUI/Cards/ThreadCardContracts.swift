@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Pure, ephemeral rendering values. These are not a persisted or canonical timeline.
 public struct ThreadCardSize: Hashable, Sendable {

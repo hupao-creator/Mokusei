@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// A document-level Escape monitor must give its focused control's transient

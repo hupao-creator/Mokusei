@@ -27,14 +27,14 @@ def build(label, skip_build):
     destination.mkdir(parents=True, exist_ok=False)
     before = fingerprint()
     command = ['xcrun', 'swift', 'build', '--package-path', str(PACKAGE),
-               '--scratch-path', str(SCRATCH), '--product', 'Mokusei', '-c', 'release', '--disable-sandbox',
-               '--cache-path', '/tmp/mokusei-swiftpm-cache',
+               '--scratch-path', str(SCRATCH), '--product', 'Chief', '-c', 'release', '--disable-sandbox',
+               '--cache-path', '/tmp/chief-swiftpm-cache',
                '-Xswiftc', '-enable-testing', '-Xswiftc', '-warnings-as-errors']
     if not skip_build:
         subprocess.run(command, cwd=REPO, check=True)
     binary = Path(subprocess.check_output([*command, '--show-bin-path'], cwd=REPO, text=True).strip())
-    objects = [line.strip('"') for line in (binary / 'Mokusei.product/Objects.LinkFileList').read_text().splitlines()
-               if '/Mokusei.build/' not in line]
+    objects = [line.strip('"') for line in (binary / 'Chief.product/Objects.LinkFileList').read_text().splitlines()
+               if '/Chief.build/' not in line]
     probe = (SOURCE / 'main.swift').read_bytes()
     (destination / 'main.swift').write_bytes(probe)
     args = ['xcrun', 'swiftc', '-O', '-g', '-swift-version', '6', '-warnings-as-errors', '-parse-as-library',

@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import AppKit
 
 /// The pixels of a character after its body transform. Handoffs morph one face

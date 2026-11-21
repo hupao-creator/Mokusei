@@ -143,7 +143,7 @@ func readThread(ctx context.Context, host plugin.HostContext, cwd string, settin
 	}
 	guardLoaded := false
 	for _, command := range commands {
-		if command.Name == "mokusei-thread-read-guard" && command.Source == "extension" && command.SourcePath == guard {
+		if command.Name == "chief-thread-read-guard" && command.Source == "extension" && command.SourcePath == guard {
 			guardLoaded = true
 		}
 	}

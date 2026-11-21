@@ -3,7 +3,7 @@
 import { Socket } from 'node:net';
 import { createInterface } from 'node:readline';
 import { readFileSync } from 'node:fs';
-const config = JSON.parse(readFileSync(process.env.MOKUSEI_PI_BRIDGE_CONFIG, 'utf8'));
+const config = JSON.parse(readFileSync(process.env.CHIEF_PI_BRIDGE_CONFIG, 'utf8'));
 export default function(pi) {
   const channel = new Socket({fd: 3, readable: true, writable: true});
   const lines = createInterface({input: channel});
@@ -13,7 +13,7 @@ export default function(pi) {
   const write = value => channel.write(JSON.stringify(value) + '\n');
   const rejectAll = () => {
     closed = true;
-    for (const item of pending.values()) { item.clean(); item.reject(new Error('Mokusei Host bridge disconnected')); }
+    for (const item of pending.values()) { item.clean(); item.reject(new Error('Chief Host bridge disconnected')); }
     pending.clear();
   };
   channel.on('error', rejectAll);
@@ -29,13 +29,13 @@ export default function(pi) {
   });
   for (const tool of config.tools) pi.registerTool({...tool, label: tool.name,
     execute(callId, args, signal) {
-      if (closed || channel.destroyed || signal?.aborted) return Promise.reject(new Error('Mokusei Host call cancelled'));
+      if (closed || channel.destroyed || signal?.aborted) return Promise.reject(new Error('Chief Host call cancelled'));
       const id = String(++sequence);
       return new Promise((resolve, reject) => {
         const abort = () => {
           if (!pending.delete(id)) return;
           signal?.removeEventListener('abort', abort);
-          write({type: 'cancel', id}); reject(new Error('Mokusei Host call cancelled'));
+          write({type: 'cancel', id}); reject(new Error('Chief Host call cancelled'));
         };
         pending.set(id, {resolve, reject, clean: () => signal?.removeEventListener('abort', abort)});
         signal?.addEventListener('abort', abort, {once: true});
@@ -48,7 +48,7 @@ export default function(pi) {
     write({type: 'ready', tools: pi.getActiveTools()});
   });
   pi.on('before_agent_start', async event => {
-    if (closed) throw new Error('Mokusei Host bridge disconnected');
+    if (closed) throw new Error('Chief Host bridge disconnected');
     return {systemPrompt: config.exclusive ? config.instructions : [event.systemPrompt, config.instructions].filter(Boolean).join('\n\n')};
   });
   pi.on('session_shutdown', async () => { rejectAll(); lines.close(); channel.destroy(); });

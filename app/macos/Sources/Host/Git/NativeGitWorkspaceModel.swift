@@ -1,7 +1,7 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Only current execution directories are supplied by the runtime. This cache never
 /// resolves paths itself or infers membership from directory-name prefixes.

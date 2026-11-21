@@ -20,7 +20,7 @@ import (
 // PCG(19,23) to Rapid-generated shrinkable traces. No allocation/timing examples.
 func TestSnapshotProperties(t *testing.T) {
 	rapidcheck.Check(t, func(t *rapid.T) {
-		root, err := os.MkdirTemp("", "mokusei-store-pbt-")
+		root, err := os.MkdirTemp("", "chief-store-pbt-")
 		if err != nil {
 			t.Fatal(err)
 		}

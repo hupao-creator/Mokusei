@@ -67,7 +67,7 @@ func (p nativeClientProcess) dataDirectory(ctx context.Context) (string, error) 
 			continue
 		}
 		benchmarkFlag := flag == "--benchmark-scenario"
-		if (!benchmarkFlag && flag != "--data-dir" && flag != "--runtime" && flag != "--automation-socket") ||
+		if (!benchmarkFlag && flag != "--data-dir" && flag != "--runtime" && flag != "--automation-socket" && flag != "--launch-receipt") ||
 			i+1 == len(args) || options[flag] != "" {
 			return "", errors.New("unrecognized native launch arguments")
 		}
@@ -80,7 +80,10 @@ func (p nativeClientProcess) dataDirectory(ctx context.Context) (string, error) 
 	if directory := options["--data-dir"]; directory != "" {
 		return directory, nil
 	}
-	name := "Mokusei"
+	name := "Chief"
+	if filepath.Base(p.executable) == legacyNativeExecutable {
+		name = "Mokusei"
+	}
 	contents := filepath.Dir(filepath.Dir(p.executable))
 	if filepath.Base(filepath.Dir(p.executable)) == "MacOS" && filepath.Base(contents) == "Contents" {
 		data, err := run(ctx, "", nil, "/usr/bin/plutil", "-convert", "json", "-o", "-", filepath.Join(contents, "Info.plist"))
@@ -91,12 +94,14 @@ func (p nativeClientProcess) dataDirectory(ctx context.Context) (string, error) 
 		if err := json.Unmarshal([]byte(data), &info); err != nil {
 			return "", err
 		}
-		if value, ok := info["MokuseiDataDirectoryName"].(string); ok {
+		if value, ok := info["ChiefDataDirectoryName"].(string); ok {
+			name = value
+		} else if value, ok := info["MokuseiDataDirectoryName"].(string); ok {
 			name = value
 		}
 	}
 	if !filepath.IsAbs(p.home) {
 		return "", errors.New("native home directory is unavailable")
 	}
-	return filepath.Join(p.home, "Library/Application Support", name), nil
+	return profile.DefaultDataDirectory(filepath.Join(p.home, "Library/Application Support"), name), nil
 }

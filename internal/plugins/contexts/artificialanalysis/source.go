@@ -73,7 +73,7 @@ func DefaultCacheRoot() (string, error) {
 			root = filepath.Join(home, ".cache")
 		}
 	}
-	return filepath.Join(root, "Mokusei/model-evaluation"), nil
+	return filepath.Join(root, "Chief/model-evaluation"), nil
 }
 func NewSource(options Options) (*Source, error) {
 	if options.CacheRoot == "" {

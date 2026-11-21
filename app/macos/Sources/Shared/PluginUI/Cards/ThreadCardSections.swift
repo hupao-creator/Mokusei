@@ -1,5 +1,5 @@
 import SwiftUI
-import MokuseiCore
+import ChiefCore
 
 /// The native equivalent of the renderer's checkpoint window.
 public func threadCardPlanWindow(_ variant: ThreadCardVariantId) -> (before: Int, after: Int) {

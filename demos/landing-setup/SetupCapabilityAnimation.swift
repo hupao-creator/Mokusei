@@ -1,5 +1,5 @@
 import SwiftUI
-@testable import MokuseiUI
+@testable import ChiefUI
 
 /// Capability illustrations use local fixtures and never act on real sessions.
 struct SetupCapabilityAnimation: View {

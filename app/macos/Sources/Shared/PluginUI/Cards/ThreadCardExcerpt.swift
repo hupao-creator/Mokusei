@@ -1,7 +1,7 @@
 import Foundation
 import CoreText
 import Markdown
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// Bounded, literal Markdown preview. Buffer scheduling and reveal state stay in

@@ -2,9 +2,9 @@ import Foundation
 import AppKit
 import CoreGraphics
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 
 /// Navigation lifetime shared by the overview, dock, thread and settings seats.
 /// SwiftUI owns presentation and animation; the model owns navigation intent.

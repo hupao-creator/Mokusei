@@ -15,7 +15,7 @@ func main() {
 }
 func run() error {
 	if len(os.Args) != 2 {
-		return fmt.Errorf("Usage: mokusei-check <architecture|install-hooks>")
+		return fmt.Errorf("Usage: chief-check <architecture|install-hooks>")
 	}
 	switch os.Args[1] {
 	case "architecture":

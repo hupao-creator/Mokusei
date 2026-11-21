@@ -1,10 +1,10 @@
-# Mokusei
+# Chief
 
-Mokusei coordinates work performed by native agent runtimes.
+Chief coordinates work performed by native agent runtimes.
 
 ## Language
 
-**Moku**: Mokusei's coordinating assistant. It communicates with the user and delegates work to ordinary Agent Threads through their Harnesses.
+**Moku**: Chief's coordinating assistant. It communicates with the user and delegates work to ordinary Agent Threads through their Harnesses.
 
 **Harness**: An agent runtime that owns execution, tools, permissions and native sessions. It also owns any subscription built into that runtime.
 

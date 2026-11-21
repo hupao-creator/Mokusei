@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 extension HarnessThread {
     /// Presentation only: keep the complete catalog and Moku's access intact.

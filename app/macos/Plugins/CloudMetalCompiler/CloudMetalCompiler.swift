@@ -26,7 +26,7 @@ struct CloudMetalCompiler: BuildToolPlugin {
         let contents = generated.appending(path: "PaletteResources-macosx.bundle/Contents")
         let resources = contents.appending(path: "Resources")
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
-        let info = ["CFBundleIdentifier": "com.mokusei.ui.palette", "CFBundlePackageType": "BNDL",
+        let info = ["CFBundleIdentifier": "com.chief.ui.palette", "CFBundlePackageType": "BNDL",
                     "CFBundleVersion": "1", "CFBundleDevelopmentRegion": "en"]
         let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
         let infoURL = contents.appending(path: "Info.plist")
@@ -52,7 +52,7 @@ struct CloudMetalCompiler: BuildToolPlugin {
                 let dark = UInt32(source.substring(with: match.range(at: 2)), radix: 16)!
                 let name = "palette-\(String(light, radix: 16))-\(String(dark, radix: 16)).colorset/Contents.json"
                 guard FileManager.default.fileExists(atPath: palette.appending(path: name).path) else {
-                    throw NSError(domain: "MokuseiPalette", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing adaptive palette asset: \(name)"])
+                    throw NSError(domain: "ChiefPalette", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing adaptive palette asset: \(name)"])
                 }
             }
         }

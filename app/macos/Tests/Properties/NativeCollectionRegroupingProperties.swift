@@ -1,11 +1,11 @@
 import Foundation
-import MokuseiApplications
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefApplications
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 import Testing
-@testable import MokuseiUI
+@testable import ChiefUI
 
 private struct RegroupingCase: Codable {
     struct Visit: Codable {

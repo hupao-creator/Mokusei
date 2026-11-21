@@ -282,7 +282,7 @@ def startup(application, tools, directory, count, mode, seconds):
         'maximumNoProgressSeconds':.65,'maximumCaptureGapSeconds':.65,'motionTolerancePixels':14.0,
         'anchors':[f'BENCH CARD {n:02d}' for n in range(1,count+1)], 'processRoots':[source],
         'runtimeConnection':str(application.profile/'runtime/connection.json'),
-        'runtimePath':str(application.bundle/'Contents/MacOS/mokusei-runtime')}
+        'runtimePath':str(application.runtime_executable)}
     relative = trajectory({'x':70,'y':110,'width':0,'height':0}, seconds-2)
     # The startup collector translates offsets from its default window-relative
     # point after discovering the new OS window. Keep its fixed timing intact.
@@ -370,7 +370,7 @@ def run_suite(tools, bundle, directory, counts, scenarios, mode, seconds, capabi
                     roots=[]
                     for row in tree:
                         if row['pid']==application.app.pid:role='application'
-                        elif Path(row['path']).name=='mokusei-runtime':role='runtime'
+                        elif Path(row['path']).resolve() == application.runtime_executable.resolve():role='runtime'
                         else:role='helper'
                         roots.append({**row,'role':role})
                         application.owned[row['pid']]=row

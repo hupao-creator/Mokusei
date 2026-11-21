@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiPluginUI
+import ChiefPluginUI
 
 public struct NativeOverviewMember: Equatable, Hashable, Codable, Sendable {
     public let id: String

@@ -12,7 +12,7 @@ import (
 )
 
 const schemaVersion = 1
-const applicationID = 0x4d4f4b53 // MOKS: Mokusei Go transaction store
+const applicationID = 0x4d4f4b53 // MOKS: on-disk transaction store identifier.
 
 type database struct{ handle *sqlite.DB }
 type fatalDatabaseError struct{ err error }

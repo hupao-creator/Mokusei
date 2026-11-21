@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import MokuseiCore
+import ChiefCore
 
 public enum PluginResourceState<Value> {
     case loading

@@ -1,7 +1,7 @@
 import AppKit
 import SpriteKit
 import SwiftUI
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 struct NativeOnboardingTagAnimation: View {
     let harnesses: [AnyHarnessPlugin]

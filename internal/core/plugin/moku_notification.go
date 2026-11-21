@@ -24,7 +24,7 @@ func MokuUserThreadInputNotification(event LifecycleEvent, thread any) model.Age
 			"startedNewExecution": accepted.StartedNewExecution, "inputPreview": string(event.Data[:end]), "truncated": true}
 	}
 	serialized, _ := json.Marshal(data)
-	return model.AgentInput{Presentation: "internal", Parts: []model.AgentInputPart{{Kind: "text", Text: "Mokusei user direct-to-thread event:\n" + string(serialized) + "\n" +
+	return model.AgentInput{Presentation: "internal", Parts: []model.AgentInputPart{{Kind: "text", Text: "Chief user direct-to-thread event:\n" + string(serialized) + "\n" +
 		"The user has already sent this input directly to the identified child Thread; admission succeeded, not necessarily execution completion. " +
 		"Respect the user's direct instructions in that Thread when coordinating, including constraints on follow-ups or integration. " +
 		"Do not resend this input or override those instructions. This is a coordination notification, not a new user request addressed to Chief. " +

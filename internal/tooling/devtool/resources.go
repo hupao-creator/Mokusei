@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-const uiResourceBundle = "MokuseiNative_MokuseiPluginUI.bundle"
+const uiResourceBundle = "ChiefNative_ChiefPluginUI.bundle"
 
 func requiredResource(root, name, subdir string) ([]byte, error) {
 	paths := []string{filepath.Join(root, name)}

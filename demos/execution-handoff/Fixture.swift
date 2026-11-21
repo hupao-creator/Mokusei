@@ -1,6 +1,6 @@
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 
 /// Synthetic executions only; no Harness, Runtime, profile or network services.
 enum Fixture {

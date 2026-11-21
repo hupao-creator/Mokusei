@@ -36,7 +36,7 @@ func mergeOpenCodeConfig(previous, overlay map[string]any) map[string]any {
 
 // readNativeDataConfig follows native discovery order while admitting only model,
 // agent and permission data. Plugins, MCP servers and ambient instructions must
-// never enter an isolated Mokusei session through native configuration.
+// never enter an isolated Chief session through native configuration.
 func readNativeDataConfig(environment map[string]string, cwd string) (map[string]any, error) {
 	home, err := environmentHome(environment)
 	if err != nil {
@@ -596,7 +596,7 @@ func sanitizeFrontmatter(text string) string {
 	return strings.Join(result, "\n")
 }
 
-// These are external native configuration formats, not Mokusei legacy data.
+// These are external native configuration formats, not Chief legacy data.
 func migrateLegacyAgent(input map[string]any) map[string]any {
 	known := map[string]bool{"name": true, "model": true, "variant": true, "temperature": true, "top_p": true, "prompt": true, "tools": true, "disable": true, "description": true, "mode": true, "hidden": true, "options": true, "color": true, "steps": true, "maxSteps": true, "permission": true}
 	body := copyConfigObject(configRecord(input["options"]))

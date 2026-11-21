@@ -19,7 +19,7 @@ while ProcessInfo.processInfo.systemUptime < end {
         continue
     }
     guard let command = queue.makeCommandBuffer(), let blit = command.makeBlitCommandEncoder() else { exit(2) }
-    command.label = "mokusei-independent-gpu-control"
+    command.label = "chief-independent-gpu-control"
     blit.fill(buffer: buffer, range: 0..<buffer.length, value: UInt8(commands % 256))
     blit.endEncoding()
     command.commit()

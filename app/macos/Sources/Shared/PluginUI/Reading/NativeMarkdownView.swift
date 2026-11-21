@@ -1,7 +1,7 @@
 import AppKit
 import Combine
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 import SwiftUI
 
 public struct NativeMarkdownAppliedDocument: Equatable, Sendable {
@@ -50,7 +50,7 @@ public struct NativeMarkdownView: View {
     public var body: some View {
         let actions = model.actions
         actions.openLink = { url in
-            if url.scheme?.lowercased() == "mokusei" {
+            if ApplicationExecutionLink.matchesScheme(url.scheme) {
                 if let reference = ApplicationExecutionLink.parse(url) { openExecution?(reference) }
             } else { (openExternal ?? { MarkdownPlatformActions.open($0) })(url) }
         }
@@ -314,7 +314,7 @@ private struct MarkdownBlockView: View, Equatable {
                     openLink: options.openLink)
                     .frame(width: 23, height: options.fontSize * 1.8, alignment: .leading)
                 MarkdownContent(blocks: children, options: options, compact: true)
-            }.background(MarkdownAnchor(identifier: options.anchorPrefix + "-mokusei-footnote-" + MarkdownParser.anchorID(id)))
+            }.background(MarkdownAnchor(identifier: options.anchorPrefix + "-chief-footnote-" + MarkdownParser.anchorID(id)))
         }
     }
 
@@ -345,7 +345,7 @@ struct MarkdownInlineView: View {
         spans.map { span in
             var value = span
             if let anchor = value.anchor { value.anchor = options.anchorPrefix + "-" + anchor }
-            if let link = value.link, link.hasPrefix("#mokusei-footnote-") { value.link = "#" + options.anchorPrefix + "-" + link.dropFirst() }
+            if let link = value.link, link.hasPrefix("#chief-footnote-") { value.link = "#" + options.anchorPrefix + "-" + link.dropFirst() }
             return value
         }
     }

@@ -54,7 +54,7 @@ From the repository root:
 make pbt-go
 make pbt-native
 make pbt-native-state
-MOKUSEI_SYSTEM_CODEX=/absolute/path/to/native/codex make pbt-system
+CHIEF_SYSTEM_CODEX=/absolute/path/to/native/codex make pbt-system
 make pbt-go PBT_ARGS='--seed 20261117 --cases 300'
 python3 tools/verification/pbt/run.py --property PBT-MOKU-QUEUE --race --cases 300
 python3 tools/verification/pbt/run.py --list
@@ -69,7 +69,7 @@ conversations or contact a real model service.
 
 Rapid defaults to 100 cases per property (worktree removal: 5, system: 3), seed 1. Swift geometry and collection budgets
 default to 480 seeds, deferred regrouping to 64, mounted state to 8 plus corpus. `--cases` (1–10000),
-`--seed` (nonzero UInt64), `MOKUSEI_PBT_CASES` and `MOKUSEI_PBT_SEED` control
+`--seed` (nonzero UInt64), `CHIEF_PBT_CASES` and `CHIEF_PBT_SEED` control
 generated budgets. `--timeout` defaults to 600s per property including compilation;
 `--shrink-seconds` defaults to 30. Swift checks its shrinking deadline between
 replays; one in-progress replay may finish afterward. Rapid has its own shrinking

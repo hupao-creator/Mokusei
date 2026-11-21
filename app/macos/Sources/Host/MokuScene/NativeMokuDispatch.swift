@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Only public create_thread audit facts. Requested options describe the target;
 /// a successful result acknowledges a started Thread, never completed work.

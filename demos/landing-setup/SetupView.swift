@@ -1,6 +1,6 @@
 import SwiftUI
-@testable import MokuseiUI
-import MokuseiPluginUI
+@testable import ChiefUI
+import ChiefPluginUI
 
 struct SetupSurface: View {
     @Bindable var fixture: SetupFixture

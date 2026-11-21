@@ -24,8 +24,8 @@ for bundle in production.glob('*.bundle'):
     shutil.copytree(bundle, resources / bundle.name, dirs_exist_ok=True)
 frameworks = application / 'Contents/Frameworks'
 frameworks.mkdir(exist_ok=True)
-objects = [line.strip().strip('"') for line in (production / 'Mokusei.product/Objects.LinkFileList').read_text().splitlines()
-           if '/Mokusei.build/' not in line]
+objects = [line.strip().strip('"') for line in (production / 'Chief.product/Objects.LinkFileList').read_text().splitlines()
+           if '/Chief.build/' not in line]
 args = ['xcrun', 'swiftc', '-O', '-swift-version', '6', '-warnings-as-errors', '-parse-as-library',
         '-target', 'arm64-apple-macosx26.0', '-I', str(production / 'Modules'), '-F', str(frameworks),
         '-Xlinker', '-rpath', '-Xlinker', '@executable_path/../Frameworks',
@@ -38,7 +38,7 @@ result = subprocess.run([*args, str(Path(__file__).with_name('main.swift')), *ob
 if result.returncode:
     raise SystemExit(result.returncode)
 with (application / 'Contents/Info.plist').open('wb') as output:
-    plistlib.dump({'CFBundleIdentifier': 'com.mokusei.note-transition-preview',
+    plistlib.dump({'CFBundleIdentifier': 'com.chief.note-transition-preview',
                   'CFBundleName': executable.name, 'CFBundleExecutable': executable.name,
                   'CFBundlePackageType': 'APPL', 'NSHighResolutionCapable': True,
                   'LSMinimumSystemVersion': '26.0'}, output)

@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 public struct ThreadActivityRow: View {

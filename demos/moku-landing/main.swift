@@ -1,11 +1,11 @@
 import AppKit
 import Observation
 import SwiftUI
-import MokuseiCore
-import MokuseiHarnessCodex
-import MokuseiPluginAPI
-@testable import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefHarnessCodex
+import ChiefPluginAPI
+@testable import ChiefPluginUI
+@testable import ChiefUI
 
 private struct Controls: View {
     @Bindable var fixture: LandingFixture

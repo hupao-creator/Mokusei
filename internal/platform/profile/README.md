@@ -7,6 +7,14 @@ case-insensitive volume share an identity; distinct directories on a
 case-sensitive volume remain separate. Missing suffixes retain their spelling
 until creation, with their deepest existing ancestor resolved first.
 
+An explicit data path takes precedence over environment and defaults. The
+standalone runtime accepts `CHIEF_RUNTIME_DATA_DIR` and its existing
+`MOKUSEI_RUNTIME_DATA_DIR` alias in that order. New implicit profiles use Chief.
+When the prior channel directory exists, both Go and Swift use that directory
+in place so discovery, ownership and persisted absolute references keep their
+identity. A workspace already present at `.Mokusei/profiles/<identity>/runtime-workspace`
+is reused. New workspaces use `.Chief` with the same identity algorithm.
+
 Call `Refresh` after creating a selected profile, before deriving application
 resources. It retains the selected home when rebuilding the workspace identity.
 `Acquire` binds the selected guard before preparing metadata, and checks the

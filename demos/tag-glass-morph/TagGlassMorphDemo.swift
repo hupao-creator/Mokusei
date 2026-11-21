@@ -1,7 +1,7 @@
 import Combine
 import SwiftUI
 
-/// An isolated visual experiment, deliberately not referenced by MokuseiUI.
+/// An isolated visual experiment, deliberately not referenced by ChiefUI.
 @available(macOS 26.0, *)
 struct TagGlassMorphDemo: View {
     @State private var visibleIDs = ["directory", "design"]
@@ -16,7 +16,7 @@ struct TagGlassMorphDemo: View {
     @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
 
     private let catalog: [MorphTag] = [
-        .init(id: "directory", title: "Mokusei", count: 12, directory: true),
+        .init(id: "directory", title: "Chief", count: 12, directory: true),
         .init(id: "design", title: "界面设计", count: 4),
         .init(id: "performance", title: "性能优化", count: 3),
         .init(id: "research", title: "代码调研", count: 6),

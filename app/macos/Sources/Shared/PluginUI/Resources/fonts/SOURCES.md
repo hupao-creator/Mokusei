@@ -17,8 +17,8 @@ Both fonts use SIL Open Font License 1.1; see `inter-LICENSE.txt` and `jetbrains
 
 The Latin font coverage matches the Inter subset selected by the renderer. All six normal
 JetBrains subsets imported by the renderer are bundled. The five non-Latin subset fonts have
-unique internal family and PostScript names (`Mokusei JetBrains Mono <Subset>` and
-`MokuseiJetBrainsMono<Subset>…`) to let CoreText register them simultaneously; their outlines,
+unique internal family and PostScript names (`Chief JetBrains Mono <Subset>` and
+`ChiefJetBrainsMono<Subset>…`) to let CoreText register them simultaneously; their outlines,
 metrics and variable axes are unchanged. `NativeTypography.mono` supplies these subsets as a
 weighted CoreText cascade, preserving Greek, Cyrillic, Vietnamese and extended Latin coverage.
 Subset source hashes and renamed PostScript names are recorded in `jetbrains-subsets.json`.

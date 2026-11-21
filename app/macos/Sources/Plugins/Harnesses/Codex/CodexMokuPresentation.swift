@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Codex owns the answer target; the shell must carry it back unchanged.
 public enum CodexMokuProjection {

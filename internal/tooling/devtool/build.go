@@ -28,13 +28,13 @@ func BuildRuntime(ctx context.Context, repo string) error {
 		return err
 	}
 	directory := filepath.Join(repo, ".build/go")
-	intermediate := filepath.Join(directory, "runtime-cache", "mokusei-runtime")
+	intermediate := filepath.Join(directory, "runtime-cache", "chief-runtime")
 	if err := os.MkdirAll(filepath.Dir(intermediate), 0755); err != nil {
 		return err
 	}
 	// Go can reuse unchanged link output only while its stable destination exists.
 	// Keep that compiler-owned file separate from the atomically published runtime.
-	if err = runVisible(ctx, repo, nil, goExecutable(), "build", "-trimpath", "-o", intermediate, "./cmd/mokusei-runtime"); err != nil {
+	if err = runVisible(ctx, repo, nil, goExecutable(), "build", "-trimpath", "-o", intermediate, "./cmd/chief-runtime"); err != nil {
 		return err
 	}
 	// Publish only a fully linked binary so parallel development launches never see a partial executable.
@@ -51,7 +51,7 @@ func BuildRuntime(ctx context.Context, repo string) error {
 	if err = unchangedBuildInputs(repo, false, inputs); err != nil {
 		return err
 	}
-	return os.Rename(temp, filepath.Join(directory, "mokusei-runtime"))
+	return os.Rename(temp, filepath.Join(directory, "chief-runtime"))
 }
 func Build(ctx context.Context, repo, configuration, product string, skipRuntime bool) (string, error) {
 	inputs, inputErr := buildInputs(repo, true)
@@ -65,7 +65,7 @@ func Build(ctx context.Context, repo, configuration, product string, skipRuntime
 		return "", err
 	}
 	switch product {
-	case "Mokusei", "MokuseiProbe":
+	case "Chief", "ChiefProbe":
 	default:
 		return "", fmt.Errorf("unknown native product %q", product)
 	}
@@ -81,7 +81,7 @@ func Build(ctx context.Context, repo, configuration, product string, skipRuntime
 		if err = BuildRuntime(ctx, repo); err != nil {
 			return "", err
 		}
-	} else if !exists(filepath.Join(repo, ".build/go/mokusei-runtime")) {
+	} else if !exists(filepath.Join(repo, ".build/go/chief-runtime")) {
 		return "", fmt.Errorf("missing Go runtime; run make runtime first")
 	}
 	if err = runVisible(ctx, repo, nil, "/usr/bin/xcrun", "swift", "build", "--package-path", filepath.Join(repo, "app", "macos"), "--configuration", configuration, "--arch", "arm64", "--product", product); err != nil {

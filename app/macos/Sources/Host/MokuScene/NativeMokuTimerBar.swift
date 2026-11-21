@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// A resident Moku communication seat above every route. It adds space rather

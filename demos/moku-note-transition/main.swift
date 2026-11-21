@@ -1,8 +1,8 @@
 import AppKit
 import AVFoundation
-import MokuseiCore
-import MokuseiUI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefUI
+import ChiefPluginUI
 import Observation
 import ScreenCaptureKit
 import SwiftUI

@@ -85,7 +85,7 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 		// Completeness evidence is consumed by admission. The standard description
 		// already carries every model for native tool serializers.
 		var envelope struct {
-			Catalog *plugin.CompleteModelCatalog `json:"x-mokusei-model-catalog"`
+			Catalog *plugin.CompleteModelCatalog `json:"x-chief-model-catalog"`
 		}
 		if err := json.Unmarshal(target.NativeSchema, &envelope); err != nil {
 			return result, err
@@ -93,7 +93,7 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 		if envelope.Catalog != nil {
 			result.CatalogIdentities[target.HarnessID] = envelope.Catalog.ConfigurationID
 		}
-		delete(schema, "x-mokusei-model-catalog")
+		delete(schema, "x-chief-model-catalog")
 		if schema["type"] != "object" {
 			return result, errors.New("Harness settings schema must describe an object")
 		}

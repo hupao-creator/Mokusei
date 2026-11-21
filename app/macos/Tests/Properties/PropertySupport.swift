@@ -30,9 +30,9 @@ struct PropertyBudget {
     let shrinkSeconds: Int
     init(defaultCases: Int) throws {
         let environment = ProcessInfo.processInfo.environment
-        guard let seed = UInt64(environment["MOKUSEI_PBT_SEED"] ?? "1"),
-              let cases = Int(environment["MOKUSEI_PBT_CASES"] ?? String(defaultCases)),
-              let shrinkSeconds = Int(environment["MOKUSEI_PBT_SHRINK_SECONDS"] ?? "30"),
+        guard let seed = UInt64(environment["CHIEF_PBT_SEED"] ?? "1"),
+              let cases = Int(environment["CHIEF_PBT_CASES"] ?? String(defaultCases)),
+              let shrinkSeconds = Int(environment["CHIEF_PBT_SHRINK_SECONDS"] ?? "30"),
               shrinkSeconds > 0, (1...10000).contains(cases) else { throw PropertyFailure("invalid PBT seed/cases/shrink budget") }
         self.seed = seed
         self.cases = cases
@@ -41,12 +41,12 @@ struct PropertyBudget {
 }
 
 func propertyReplay<T: Decodable>(_ type: T.Type) throws -> T? {
-    guard let path = ProcessInfo.processInfo.environment["MOKUSEI_PBT_REPLAY"] else { return nil }
+    guard let path = ProcessInfo.processInfo.environment["CHIEF_PBT_REPLAY"] else { return nil }
     return try JSONDecoder().decode(type, from: Data(contentsOf: URL(fileURLWithPath: path)))
 }
 
 func propertyEvidence<T: Encodable>(_ value: T, name: String) throws {
-    guard let path = ProcessInfo.processInfo.environment["MOKUSEI_PBT_EVIDENCE"] else { return }
+    guard let path = ProcessInfo.processInfo.environment["CHIEF_PBT_EVIDENCE"] else { return }
     try JSONEncoder().encode(value).write(to: URL(fileURLWithPath: path).appendingPathComponent(name), options: .atomic)
 }
 

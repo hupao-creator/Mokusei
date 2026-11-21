@@ -14,7 +14,7 @@ history to that execution. Missing/unsupported checkpoints fail closed; the
 source must satisfy the existing idle/native-work gates. See
 [Report continuation](../../../../design/reading.md).
 
-[adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
+[adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Chief owns admission, durable public state and injected application capabilities.
 
 Installation owns the shell pipeline's process group and both output readers. Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
 before returning; uncertain cleanup remains an error. Combined captured output
@@ -217,7 +217,7 @@ request. Ordinary sends retain their existing admission behavior.
 
 `search.go` supplies completed-execution public passages with their execution IDs
 for Moku grep. Existing index text joins the same passages, preserving its prior
-exclusions. This extracts only retained Mokusei state, not complete native history;
+exclusions. This extracts only retained Chief state, not complete native history;
 see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).
 
 Execution reasoning summaries persist `reasoningTokensByGeneration` on newly
@@ -252,7 +252,7 @@ The native reader includes hidden models, follows every `model/list` cursor, and
 rejects malformed pages, duplicate identities and cursor cycles instead of
 reporting a truncated directory as complete.
 
-App-server spawn fixes the originator to the same `mokusei_desktop` client used
+App-server spawn fixes the originator to the same `chief_desktop` client used
 by initialize, including pre-initialize model discovery. Full pagination still
 cannot attest whether native discovery silently fell back to bundled metadata;
 see [evidence limits](../../../services/moku/catalog-evidence.md).

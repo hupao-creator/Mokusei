@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 public struct HarnessThreadCapabilities: Hashable, Sendable {

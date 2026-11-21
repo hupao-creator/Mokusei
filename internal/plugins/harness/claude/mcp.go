@@ -25,7 +25,7 @@ import (
 )
 
 const maxToolMessageBytes = 8 * 1024 * 1024
-const toolServerName = "mokusei"
+const toolServerName = "chief"
 
 type ToolDefinition struct {
 	Name         string          `json:"name"`
@@ -124,7 +124,7 @@ func (b *ToolBridge) Deactivate() {
 func (b *ToolBridge) Configuration() map[string]any {
 	return map[string]any{"mcpServers": map[string]any{toolServerName: map[string]any{
 		"type": "stdio", "command": b.executable, "args": []string{"claude-mcp"}, "alwaysLoad": true,
-		"env": map[string]string{"MOKUSEI_TOOL_BRIDGE_URL": b.endpoint, "MOKUSEI_TOOL_BRIDGE_TOKEN": b.token, "MOKUSEI_TOOL_SERVER_NAME": toolServerName},
+		"env": map[string]string{"CHIEF_TOOL_BRIDGE_URL": b.endpoint, "CHIEF_TOOL_BRIDGE_TOKEN": b.token, "CHIEF_TOOL_SERVER_NAME": toolServerName},
 	}}}
 }
 
@@ -416,7 +416,7 @@ type MCPOptions struct {
 }
 
 func MCPOptionsFromEnvironment() MCPOptions {
-	return MCPOptions{Endpoint: os.Getenv("MOKUSEI_TOOL_BRIDGE_URL"), Token: os.Getenv("MOKUSEI_TOOL_BRIDGE_TOKEN"), ServerName: os.Getenv("MOKUSEI_TOOL_SERVER_NAME")}
+	return MCPOptions{Endpoint: os.Getenv("CHIEF_TOOL_BRIDGE_URL"), Token: os.Getenv("CHIEF_TOOL_BRIDGE_TOKEN"), ServerName: os.Getenv("CHIEF_TOOL_SERVER_NAME")}
 }
 
 type mcpRequest struct {
@@ -445,10 +445,10 @@ func ServeMCP(ctx context.Context, reader io.Reader, writer io.Writer, options M
 		options.ServerName = toolServerName
 	}
 	if options.Endpoint == "" {
-		options.Endpoint = os.Getenv("MOKUSEI_TOOL_BRIDGE_URL")
+		options.Endpoint = os.Getenv("CHIEF_TOOL_BRIDGE_URL")
 	}
 	if options.Token == "" {
-		options.Token = os.Getenv("MOKUSEI_TOOL_BRIDGE_TOKEN")
+		options.Token = os.Getenv("CHIEF_TOOL_BRIDGE_TOKEN")
 	}
 	endpoint, err := url.Parse(options.Endpoint)
 	if err != nil || endpoint.Scheme != "http" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Path != "/tool-call" || options.Token == "" {

@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// Mirrors the owning plugin's persisted-state admission. The renderer must
 /// reject malformed private payloads before interpreting presentation authority.

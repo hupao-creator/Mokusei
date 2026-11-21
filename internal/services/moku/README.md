@@ -112,7 +112,7 @@ release their unconsumed attempt without treating wrapped/uncertain native error
 as replay permission. With pending configuration and live background work, input
 remains blocked until the old work drains instead of reopening underneath it.
 
-`x-mokusei-model-catalog` carries enumeration and source evidence separately.
+`x-chief-model-catalog` carries enumeration and source evidence separately.
 Routing accepts a successful nonempty native response inventory for every selected
 Harness. Source proof is informational; native cache/fallback is usable without
 being called remotely complete. Full inventories remain in the initial standard
@@ -359,7 +359,7 @@ generate a summary. Runtime requires idle ordinary tasks and Moku both when
 saving a different Harness preference and when replacing the native owner;
 unrelated configuration edits keep their existing admission behavior.
 
-Notes can contain `[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`
+Notes can contain `[label](chief://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`
 to reference one ordinary Agent Thread execution. Moku obtains the two identities
 from thread lifecycle reports; this capability adds no query tool or reason to
 query proactively. Capability guidance leaves link selection to the model. The

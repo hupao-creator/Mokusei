@@ -346,7 +346,7 @@ func (r *Runtime) persistCapturedSettings(ctx context.Context, expected int64, s
 		if err := tx.Put("settings-revision", revision); err != nil {
 			return err
 		}
-		return r.appendEvent(tx, "settings.changed", store.Subject{Kind: "settings", ID: "mokusei", TypeID: "settings"}, "application", map[string]any{"settingsRevision": revision}, nil)
+		return r.appendEvent(tx, "settings.changed", store.Subject{Kind: "settings", ID: "chief", TypeID: "settings"}, "application", map[string]any{"settingsRevision": revision}, nil)
 	})
 	return err
 }

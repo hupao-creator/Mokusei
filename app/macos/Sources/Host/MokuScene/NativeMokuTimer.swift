@@ -1,7 +1,7 @@
 import AppKit
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// A completed communication operation, never a scheduled reminder.
 public struct NativeMokuTimerMessage: Equatable, Identifiable, Sendable {

@@ -65,7 +65,7 @@ func (c *Coordinator) deliverNotification(ctx context.Context, delivery plugin.M
 		if err != nil {
 			return err
 		}
-		input := textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
+		input := textInput("Chief Agent Thread terminal event:\n" + string(serialized))
 		if delivery.Notification != "" {
 			input = textInput(delivery.Notification)
 		}

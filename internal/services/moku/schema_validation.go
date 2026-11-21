@@ -204,10 +204,10 @@ func compileToolSchema(definition any) (*jsonschema.Schema, error) {
 	compiler.DefaultDraft(jsonschema.Draft7)
 	compiler.UseLoader(localSchemaLoader{})
 	compiler.UseRegexpEngine(compileMokuRegexp)
-	if err := compiler.AddResource("urn:mokusei:moku-tool", definition); err != nil {
+	if err := compiler.AddResource("urn:chief:moku-tool", definition); err != nil {
 		return nil, err
 	}
-	return compiler.Compile("urn:mokusei:moku-tool")
+	return compiler.Compile("urn:chief:moku-tool")
 }
 
 type mokuRegexp struct{ *regexp2.Regexp }

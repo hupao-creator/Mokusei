@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// One draft file per host/surface. No read-cache eviction can remove this file.
 public struct NativeComposerDraftPersistence: Sendable {

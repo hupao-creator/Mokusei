@@ -1,4 +1,4 @@
-# Mokusei Overview 应该怎样在一屏排下 5 列 × 4 行？
+# Chief Overview 应该怎样在一屏排下 5 列 × 4 行？
 
 **建议四个目标场景共用一条规则：取当前窗口的净画布，扣除格间距，再均分为 5 列、4 行。默认相机 1×，保留原字号。** 14 英寸样本得到 264×166 pt，16 英寸得到 307.2×199.75 pt，外屏得到 345.6×190.5 或 473.6×280.5 pt。小格首先要让人认出任务、看清状态、打开详情。完整摘要、长权限说明和多个操作同时可见，需要单独验收。本文是方案调研，生产参数仍为 414×253 pt、16 pt 间距、相机 1×。
 
@@ -38,7 +38,7 @@
 | 基格与 span | 414×253，gap 16，圆角 22；2×1 为 844×253，1×2 为 414×522。Harness 身份区偏好 1×1，问题组件要求 1×2，派生任务偏好 2×1，实际整卡由组件合成；Claude workflow 有 2×2，Report 无封面 1×1、有封面及集合 1×2。卡内槽位也显式使用 16 pt。[几何常量](../../../app/macos/Sources/Shared/PluginUI/Design/NativePalette.swift) · [卡内合成](../../../app/macos/Sources/Shared/PluginUI/Cards/ThreadCardComposer.swift) · [Claude](../../../app/macos/Sources/Plugins/Harnesses/Claude/ClaudeOverview.swift) · [Report](../../../app/macos/Sources/Plugins/Applications/Report/NativeReportApplication.swift) |
 | 卡片内容 | Agent 标题 15 pt，单行尾部省略；状态 12、模型 11、摘要 11.5、部分工具/提示 10 pt。四边内距 18，标题还避开 44 pt 角标加 8 pt。摘要在高度不足时先让位。Report 简介最多三行；封面高为宽 × 308/360，距元数据 4 pt。[身份与槽位](../../../app/macos/Sources/Shared/PluginUI/Cards/HarnessThreadCard.swift) · [角标](../../../app/macos/Sources/Shared/PluginUI/Cards/ThreadCardBrand.swift) · [摘要](../../../app/macos/Sources/Shared/PluginUI/Cards/ThreadCardExcerpt.swift) · [Report 卡](../../../app/macos/Sources/Plugins/Applications/Report/NativeReportCard.swift) · [封面](../../../app/macos/Sources/Plugins/Applications/Report/NativeReportCover.swift) |
 | 相机 | 自动按场景包围盒和可用区域求较小轴比，再套下限 / 上限并居中。标准下限 **1**、上限 **1**；手动捏合也走同一钳制。手动平移仍有效，自动期间收敛到最新布局；手动模式保留用户位置，可返回自动。动画 0.36 s。布局评分比较未钳制 fit，与实际显示倍率分开。[布局与 policy](../../../app/macos/Sources/Host/Overview/NativeOverviewLayout.swift) · [相机与恢复](../../../app/macos/Sources/Host/Overview/NativeOverviewCamera.swift) · [滚动及捏合](../../../app/macos/Sources/Host/Overview/NativeOverviewScrollInput.swift) |
-| 客户区与窗口放大 | 正常首次窗口 1180×780，最小 860×600。窗口缩放 s = 1.2 的 zoom 次方，级别步长 0.5，s 范围 1–5。先将客户区宽高除以 s 布局，再整体渲染放大。⌘+/−/0 优先路由给有焦点的网页，否则改窗口；相机只变卡片平面。文字栅格层级提高采样精度并抵消布局放大。[窗口入口](../../../app/macos/Sources/App/Mokusei.swift) · [Canvas](../../../app/macos/Sources/Host/Overview/NativeOverviewCanvas.swift) · [CardFont](../../../app/macos/Sources/Shared/PluginUI/Cards/ThreadCardText.swift) |
+| 客户区与窗口放大 | 正常首次窗口 1180×780，最小 860×600。窗口缩放 s = 1.2 的 zoom 次方，级别步长 0.5，s 范围 1–5。先将客户区宽高除以 s 布局，再整体渲染放大。⌘+/−/0 优先路由给有焦点的网页，否则改窗口；相机只变卡片平面。文字栅格层级提高采样精度并抵消布局放大。[窗口入口](../../../app/macos/Sources/App/Chief.swift) · [Canvas](../../../app/macos/Sources/Host/Overview/NativeOverviewCanvas.swift) · [CardFont](../../../app/macos/Sources/Shared/PluginUI/Cards/ThreadCardText.swift) |
 | 取景与遮挡 | 标签和窗口动作高度 42 pt。宽窗顶部预留 60；布局宽 ≤620 且有筛选器时为 120。左右各留 64（紧凑 32）。有 Moku 时底部留空闲胶囊高 44 加下边距 clamp(0.05h,24,36)。输入展开、Note、菜单等浮层可能挡住字或捕获操作；布局沿用常驻空间。Settings / 阅读页覆盖期间需考虑交互与可见性。[窗口动作](../../../app/macos/Sources/Host/WindowNavigation/NativeWindowNavigationView.swift) · [Chrome](../../../app/macos/Sources/Host/Overview/NativeOverviewChrome.swift) · [viewport 接线](../../../app/macos/Sources/Host/Overview/NativeOverviewWorkspaceView.swift) · [Dock](../../../app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift) |
 
 基线的设计说明写到标题占两行、FitAll 包含整场。可执行路径中标题明确限制为一行，fit 低于 1 时仍以 1× 居中并产生溢出。本文以这两个源码条件计算。[基线设计说明](../../../design/overview.md) · [Overview 工程手册](../../../app/macos/Sources/Host/Overview/README.md)
@@ -113,6 +113,6 @@
 ## 复算与证据范围
 
 - 直接打开 [HTML](compare.html)，选择同一窗口、同一套固定坐标，对比六种策略。可切换固定相机倍率以分离基格影响，或导出当前窗口内容倍率下所有 **9 个窗口 × 7 个样本 × 6 个方案** 的自动取景 CSV。页面内 `calculator` 脚本给出输入、坐标、几何式与钳制。各图采用相同窗口尺度，虚线代表取景边界；「完整」按卡完全落在虚线内计数，越过边距的部分仍可能在物理窗口可见。极端小窗的自适应列展示强排 5×4 的代价。
-- 独立原生样张使用 macOS 26.5.1（25F80）、arm64、Apple Swift 6.3.2。在共享原生验证锁空闲时只构建 `MokuseiPluginUI`，用离屏的 `NSHostingView` 采集 1000×1733 pt 的 2× PNG，无需打开运行中的应用。复现命令为 `python3 design/research/overview-sizing/render.py /tmp/overview-permissions.png`。调研源码版本见前文，构建使用该版本的 SwiftPM 锁文件。[原生采集入口](render.py)
+- 独立原生样张使用 macOS 26.5.1（25F80）、arm64、Apple Swift 6.3.2。在共享原生验证锁空闲时只构建 `ChiefPluginUI`，用离屏的 `NSHostingView` 采集 1000×1733 pt 的 2× PNG，无需打开运行中的应用。复现命令为 `python3 design/research/overview-sizing/render.py /tmp/overview-permissions.png`。调研源码版本见前文，构建使用该版本的 SwiftPM 锁文件。[原生采集入口](render.py)
 - 20 卡 demo 的采集器是独立线程的原生窗口与 ScreenCaptureKit，图片对应上述 demo 提交。14″ 截图的 20 张都是已完成任务，不能推断多权限、等待输入或 Report 的所有状态。HTML 提供其余窗口计算；这些参考窗口未在四块不同的实体屏幕上逐一完成测试。本次没有修改生产参数或进行原生 UX 性能采样。
 - 本次静态复核用无头 Chrome 切换窗口和混排、下载 CSV，核对 378 条记录、四个目标窗口与初始窗的 20/20 包含；Node 执行页面内的同一计算器，检查四档窗口倍率的 1,512 个组合以及每个固定样本的跨度矩形。已检查本地引用、Swift 采集器编译和实际输出。该目录按仓库 CI 范围规则走完整路径；本地调研未触发托管 CI，独立提交由集成线程接收。

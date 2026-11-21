@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import MokuseiCore
+import ChiefCore
 
 /// Client preferences remain available when the execution service is unavailable.
 /// A successful setter means the new value was saved; failed writes leave it unchanged.

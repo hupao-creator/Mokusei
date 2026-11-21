@@ -57,6 +57,13 @@ type Part struct {
 	ToolCallID string `json:"toolCallId,omitempty"`
 }
 
+func messagePresentation(metadata Object) string {
+	if value := str(metadata["chiefPresentation"]); value != "" {
+		return value
+	}
+	return str(metadata["mokuseiPresentation"])
+}
+
 func (part Part) MarshalJSON() ([]byte, error) {
 	if part.Type == "tool" {
 		return json.Marshal(Object{"type": "tool", "toolCallId": part.ToolCallID})
@@ -430,7 +437,7 @@ func (s *State) observeInboxInput(data Object, owner string, at int64) *Message 
 	id, session := str(data["inboxID"]), str(data["sessionID"])
 	payload := object(item["payload"])
 	return s.observeUserMessage(&Message{ID: id, NativeMessageID: id, NativeSessionID: session,
-		ExecutionID: owner, Role: "user", Presentation: str(object(payload["metadata"])["mokuseiPresentation"]),
+		ExecutionID: owner, Role: "user", Presentation: messagePresentation(object(payload["metadata"])),
 		Text: str(payload["text"]), CreatedAt: at})
 }
 func (s *State) assistant(id, session, execution string, at int64) *Message {
@@ -534,7 +541,7 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 		kind := str(v["type"])
 		if kind == "user" {
 			s.observeUserMessage(&Message{ID: id, NativeMessageID: id, NativeSessionID: session,
-				ExecutionID: execution, Role: "user", Presentation: str(object(v["metadata"])["mokuseiPresentation"]),
+				ExecutionID: execution, Role: "user", Presentation: messagePresentation(object(v["metadata"])),
 				Text: str(v["text"]), CreatedAt: int64(number(object(v["time"])["created"])), Inherited: inherited})
 			continue
 		}

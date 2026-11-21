@@ -1,5 +1,5 @@
 // Package pi implements Pi's native RPC boundary in Go. The two embedded JS
-// resources run only inside the external Harness; Mokusei starts no Node service.
+// resources run only inside the external Harness; Chief starts no Node service.
 package pi
 
 import (

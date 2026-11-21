@@ -1,8 +1,8 @@
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 
 enum NativeOnboardingStep: Int, CaseIterable {
     case discovery, moku, tag, report, landing

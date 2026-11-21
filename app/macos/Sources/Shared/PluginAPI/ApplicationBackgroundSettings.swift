@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 
 /// Shared settings shape; the Harness slices remain opaque to application plugins.
 public struct ApplicationBackgroundExecutionSettings: Hashable, Sendable {

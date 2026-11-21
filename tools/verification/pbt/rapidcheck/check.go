@@ -18,7 +18,7 @@ import (
 // input as a skip instead of silently falling back to random input.
 func Check(t *testing.T, property func(*rapid.T)) {
 	t.Helper()
-	if path := os.Getenv("MOKUSEI_PBT_RAPID_REPLAY"); path != "" {
+	if path := os.Getenv("CHIEF_PBT_RAPID_REPLAY"); path != "" {
 		completed := false
 		passed := t.Run("explicit-replay", func(t *testing.T) {
 			data, err := replayBytes(path)

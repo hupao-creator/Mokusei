@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// What the thread surface renders when its native state cannot be projected.
 /// The primary message is always the most actionable failure: a Harness, CLI

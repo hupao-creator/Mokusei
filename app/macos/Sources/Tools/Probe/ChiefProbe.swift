@@ -1,10 +1,10 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// Exercises the same client library as the application through the real service.
 /// The explicit profile argument prevents a probe from attaching to production by default.
 @main
-struct MokuseiProbe {
+struct ChiefProbe {
     struct Options {
         var directory: URL
         var runtime: URL?

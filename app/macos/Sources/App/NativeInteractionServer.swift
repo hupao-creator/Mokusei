@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
-import MokuseiCore
-import MokuseiUI
+import ChiefCore
+import ChiefUI
 
 /// Opt-in window automation, deliberately separate from the Runtime's authority.
 /// All socket callbacks and actions run on the main queue; nonblocking I/O and

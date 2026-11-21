@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Public Moku tool audit projection. No owning Harness state is interpreted.
 public struct NativeOverviewMokuOperation: Equatable, Sendable, Identifiable {

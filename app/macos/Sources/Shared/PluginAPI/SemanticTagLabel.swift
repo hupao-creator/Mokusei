@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// Decoration is never used as a selection, search, or membership identity.
 public enum SemanticTagLabel {

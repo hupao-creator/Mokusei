@@ -1,4 +1,4 @@
-// Package model contains the public, language-neutral Mokusei wire records.
+// Package model contains the public, language-neutral Chief wire records.
 // Harness state is opaque JSON: only its owning adapter may interpret it.
 package model
 

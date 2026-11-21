@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 struct MarkdownSpan: Hashable, Sendable {
     var text: String
@@ -114,7 +114,7 @@ enum MarkdownURLPolicy {
                 if String(value[..<colon]).lowercased() == "file" {
                     return localFileURL(value) == nil ? nil : value
                 }
-                if String(value[..<colon]).lowercased() == "mokusei" {
+                if ApplicationExecutionLink.matchesScheme(String(value[..<colon])) {
                     return URL(string: value).flatMap(ApplicationExecutionLink.parse) == nil ? nil : value
                 }
                 let allowed = ["http", "https", "irc", "ircs", "mailto", "xmpp"]

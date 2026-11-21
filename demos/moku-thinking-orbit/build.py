@@ -24,7 +24,7 @@ if not options.skip_build:
 sys.path.insert(0, str(repo / "tools/verification"))
 from native_replay import NativeReplay
 
-replay = NativeReplay(repo, "MokuThinkingDemo", "com.mokusei.thinking-history-demo")
+replay = NativeReplay(repo, "MokuThinkingDemo", "com.chief.thinking-history-demo")
 try:
     replay.compile(sorted(demo.rglob("*.swift")))
     output.parent.mkdir(parents=True, exist_ok=True)

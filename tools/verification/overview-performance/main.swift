@@ -1,10 +1,10 @@
 import AppKit
 import Darwin
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiHarnessCodex
-@testable import MokuseiUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefHarnessCodex
+@testable import ChiefUI
 
 private struct Failure: Error { let message: String }
 

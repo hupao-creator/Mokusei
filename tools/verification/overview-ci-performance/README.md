@@ -34,6 +34,9 @@ checks clean product inputs before and after, and records full commit/tree,
 per-file input hashes and actual probe/Core binary hashes. A signed probe linked
 to production objects is a distinct boundary from the signed complete App
 [optical suites](../../benchmarks/gate/UX.md).
+The shared probe sources import the Swift modules exposed by each checkout.
+The build links the selected checkout's application product and resources, so
+a pre-rename baseline can still be paired with a Chief candidate.
 
 ## Source and clock validity
 

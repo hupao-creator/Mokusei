@@ -180,7 +180,7 @@ def execute(output, campaign, suite, deadline, options):
     workload = suite['workload']
     family = workload['family']
     phase(campaign, 'execute')
-    with native_lease(), tempfile.TemporaryDirectory(prefix='mokusei-ux-private-') as temporary:
+    with native_lease(), tempfile.TemporaryDirectory(prefix='chief-ux-private-') as temporary:
         from lifecycle import desktop_preflight
         desktop_preflight(tools, output)
         private = Path(temporary)

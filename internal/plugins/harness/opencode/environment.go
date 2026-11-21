@@ -71,7 +71,7 @@ func privateDirectory(path string) error {
 // PrepareEnvironment preserves native storage and authentication while isolating
 // temporary files and, when requested, executable configuration.
 func PrepareEnvironment(options Options, bridgeDirectory string) ([]string, func() error, error) {
-	root, err := os.MkdirTemp("", "mokusei-opencode-")
+	root, err := os.MkdirTemp("", "chief-opencode-")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -152,7 +152,7 @@ func PrepareEnvironment(options Options, bridgeDirectory string) ([]string, func
 		environment[name] = filepath.Join(root, "tmp")
 	}
 	environment["OPENCODE_CONFIG_CONTENT"] = string(encoded)
-	environment["OPENCODE_DISABLE_AUTOUPDATE"], environment["OPENCODE_CLIENT"] = "1", "mokusei"
+	environment["OPENCODE_DISABLE_AUTOUPDATE"], environment["OPENCODE_CLIENT"] = "1", "chief"
 	for _, key := range []string{"OPENCODE_PASSWORD", "OPENCODE_SERVER_PASSWORD", "OPENCODE_PTY_HANDOFF"} {
 		delete(environment, key)
 	}

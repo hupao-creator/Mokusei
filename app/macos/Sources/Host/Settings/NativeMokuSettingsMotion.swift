@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 import SwiftUI
 
 /// Settings' coordinator choreography, in the source's unscaled CSS units.

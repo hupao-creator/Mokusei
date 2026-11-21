@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 import SwiftUI
 
 struct SettingsSelectOption<Value: Hashable> {

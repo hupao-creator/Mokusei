@@ -1,5 +1,5 @@
 import AppKit
-import MokuseiPluginUI
+import ChiefPluginUI
 import Observation
 import QuartzCore
 import SwiftUI

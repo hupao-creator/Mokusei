@@ -40,9 +40,9 @@ struct ReportDocument: NSViewRepresentable {
     ::-webkit-scrollbar-thumb { background:#8e99aa66; border-radius:5px }
     @media(max-width:680px) { .columns { grid-template-columns:1fr } main { padding-top:64px } h1 { font-size:32px } }
     </style></head><body><main>
-    <div class="eyebrow">MOKUSEI · 保留记录分析</div>
+    <div class="eyebrow">CHIEF · 保留记录分析</div>
     <h1>两个后台 Agent 的工具调用样本</h1>
-    <p class="intro">只统计绑定到 Mokusei 目录的留存记录。两份样本来源和覆盖范围不同，数字不能用来比较总体使用量。</p>
+    <p class="intro">只统计绑定到 Chief 目录的留存记录。两份样本来源和覆盖范围不同，数字不能用来比较总体使用量。</p>
     <div class="columns"><section><h2>Report Agent</h2><div class="number">104</div>
     <div class="caption">次调用 · 93 成功 · 11 失败 · 0 未决</div>
     <table><tr><th>工具</th><th>调用</th></tr>
@@ -67,7 +67,7 @@ struct ReportDocument: NSViewRepresentable {
     <tr><td><code>select_tag_filter</code></td><td>0</td></tr></table>
     <p class="note">仅两份可按目录核实的持久化会话；记录时间跨 11 月 2 日与 4 日。另有 4 次失败执行，不能等同于工具错误。</p></section></div>
     <div class="boundary"><strong>如何阅读这份报告</strong><br>结合右侧关联执行查看原始任务和结论。当前报告说明留存样本的调用结构，不代表两个 Agent 的全部历史活动。</div>
-    <footer>更新于 11 月 4 日 · Mokusei</footer>
+    <footer>更新于 11 月 4 日 · Chief</footer>
     </main></body></html>
     """
 }

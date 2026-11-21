@@ -1,17 +1,17 @@
 import AppKit
 import Combine
-import MokuseiPluginUI
+import ChiefPluginUI
 import Observation
 import Darwin
 import Foundation
-import MokuseiCore
-import MokuseiComposition
-import MokuseiUI
+import ChiefCore
+import ChiefComposition
+import ChiefUI
 import SwiftUI
 
-#if !MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY
+#if !CHIEF_WORKSPACE_LIFECYCLE_REPLAY
 @main @MainActor
-struct Mokusei {
+struct Chief {
     static func main() {
         let arguments = CommandLine.arguments
         if arguments.count == 4, arguments[1] == "--finish-runtime", arguments[2].hasPrefix("/") {
@@ -48,10 +48,10 @@ private struct WorkspaceApp: App {
                 Button(session.locale.text("退出", "Quit")) { session.quit() }.keyboardShortcut("q")
             }
             CommandGroup(after: .toolbar) {
-                Button(session.locale.text("重新载入", "Reload")) { session.performWebCommand("mokuseiReloadFocusedWebContent:") { session.reload() } }.keyboardShortcut("r").disabled(session.busy)
-                Button(session.locale.text("实际大小", "Actual Size")) { session.performWebCommand("mokuseiResetFocusedWebContentZoom:") { session.setZoom(0) } }.keyboardShortcut("0")
-                Button(session.locale.text("放大", "Zoom In")) { session.performWebCommand("mokuseiZoomInFocusedWebContent:") { session.setZoom(session.zoom + 0.5) } }.keyboardShortcut("+")
-                Button(session.locale.text("缩小", "Zoom Out")) { session.performWebCommand("mokuseiZoomOutFocusedWebContent:") { session.setZoom(session.zoom - 0.5) } }.keyboardShortcut("-")
+                Button(session.locale.text("重新载入", "Reload")) { session.performWebCommand("chiefReloadFocusedWebContent:") { session.reload() } }.keyboardShortcut("r").disabled(session.busy)
+                Button(session.locale.text("实际大小", "Actual Size")) { session.performWebCommand("chiefResetFocusedWebContentZoom:") { session.setZoom(0) } }.keyboardShortcut("0")
+                Button(session.locale.text("放大", "Zoom In")) { session.performWebCommand("chiefZoomInFocusedWebContent:") { session.setZoom(session.zoom + 0.5) } }.keyboardShortcut("+")
+                Button(session.locale.text("缩小", "Zoom Out")) { session.performWebCommand("chiefZoomOutFocusedWebContent:") { session.setZoom(session.zoom - 0.5) } }.keyboardShortcut("-")
             }
         }
     }
@@ -121,7 +121,7 @@ final class WorkspaceSession {
             if let executable = Bundle.main.executableURL { exitCleanup = NativeRuntimeExitCleanup(profile: profile, executable: executable) }
         } catch {  self.error = error.localizedDescription }
     }
-    #if MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY
+    #if CHIEF_WORKSPACE_LIFECYCLE_REPLAY
     init(model: NativeWorkspaceModel) {
         self.model = model
         locale = model.locale
@@ -319,7 +319,7 @@ private struct LaunchOptions {
             guard (allowedValues[flag] != nil || ["--data-dir", "--runtime", "--automation-socket", "--launch-receipt"].contains(flag)),
                   index + 1 < arguments.count, options[flag] == nil,
                   allowedValues[flag].map({ $0.contains(arguments[index + 1]) }) ?? arguments[index + 1].hasPrefix("/") else {
-                throw NSError(domain: "MokuseiLaunch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unknown launch argument: \(flag)"])
+                throw NSError(domain: "ChiefLaunch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unknown launch argument: \(flag)"])
             }
             options[flag] = arguments[index + 1]
             index += 2
@@ -330,30 +330,30 @@ private struct LaunchOptions {
         benchmarkOverview = options["--benchmark-scenario"] == "overview"
         benchmarkEmojiBadge = options["--benchmark-agent-emoji-badge"] ?? "flat"
         if options["--benchmark-agent-emoji-badge"] != nil, !benchmarkOverview {
-            throw NSError(domain: "MokuseiLaunch", code: 6,
+            throw NSError(domain: "ChiefLaunch", code: 6,
                           userInfo: [NSLocalizedDescriptionKey: "Badge experiments require --benchmark-scenario overview."])
         }
         if benchmarkOverview, !explicitDataDirectory || automationSocket == nil {
-            throw NSError(domain: "MokuseiLaunch", code: 5,
+            throw NSError(domain: "ChiefLaunch", code: 5,
                           userInfo: [NSLocalizedDescriptionKey: "Benchmark scenarios require explicit --data-dir and --automation-socket."])
         }
         if automationSocket != nil, options["--data-dir"] == nil {
-            throw NSError(domain: "MokuseiLaunch", code: 4,
+            throw NSError(domain: "ChiefLaunch", code: 4,
                           userInfo: [NSLocalizedDescriptionKey: "Automation requires an explicit --data-dir."])
         }
         let home = FileManager.default.homeDirectoryForCurrentUser
-        let dataDirectoryName = Bundle.main.object(forInfoDictionaryKey: "MokuseiDataDirectoryName") as? String
-            ?? "Mokusei"
+        let dataDirectoryName = Bundle.main.object(forInfoDictionaryKey: "ChiefDataDirectoryName") as? String
+            ?? "Chief"
         dataDirectory = options["--data-dir"].map { URL(fileURLWithPath: $0, isDirectory: true) }
-            ?? home.appendingPathComponent("Library/Application Support/\(dataDirectoryName)", isDirectory: true)
+            ?? RuntimeProfile.defaultDataDirectory(home: home, name: dataDirectoryName)
         let executableDirectory = Bundle.main.executableURL?.deletingLastPathComponent()
         let runtime = options["--runtime"].map { URL(fileURLWithPath: $0) }
-            ?? executableDirectory?.appendingPathComponent("mokusei-runtime")
+            ?? executableDirectory?.appendingPathComponent("chief-runtime")
         if let runtime, FileManager.default.isExecutableFile(atPath: runtime.path) {
             launch = RuntimeLaunchConfiguration(executable: runtime, workingDirectory: home)
         } else {
             if options["--runtime"] != nil || Bundle.main.bundleURL.pathExtension == "app" {
-                throw NSError(domain: "MokuseiLaunch", code: 3,
+                throw NSError(domain: "ChiefLaunch", code: 3,
                               userInfo: [NSLocalizedDescriptionKey: "The native application requires its Go runtime executable."])
             }
             // A development executable may explicitly connect to an existing service.

@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// Codex owns this occurrence model. The host sees opaque row keys, never a
 /// second interpretation of Codex's native events. Raw values retain transport

@@ -19,10 +19,10 @@ output = repo / ".build/moku-landing"
 output.mkdir(parents=True, exist_ok=True)
 if not options.skip_build:
     subprocess.run(["xcrun", "swift", "build", "--package-path", str(repo / "app/macos")], cwd=repo, check=True)
-replay = NativeReplay(repo, "MokuLandingDemo", "com.mokusei.moku-landing-demo")
+replay = NativeReplay(repo, "MokuLandingDemo", "com.chief.moku-landing-demo")
 try:
     replay.compile([source / "LandingFixture.swift", source / "main.swift"])
-    retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-moku-landing-", dir="/private/tmp"))
+    retained = Path(tempfile.mkdtemp(prefix="chief-native-replay-moku-landing-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     application = retained / replay.application.name
     shutil.copytree(replay.application, application, symlinks=True)

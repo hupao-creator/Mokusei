@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiPluginAPI
+import ChiefPluginAPI
 
 /// Evidence belongs to the report, including foreground visits through a unique source Thread.
 public struct ApplicationCollectionReading: Codable, Equatable, Sendable {

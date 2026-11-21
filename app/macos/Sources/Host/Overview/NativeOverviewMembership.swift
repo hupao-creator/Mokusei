@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Only facts read by selection/ordering belong in this key. Content, progress
 /// and revision changes still project fresh cards, without rebuilding every

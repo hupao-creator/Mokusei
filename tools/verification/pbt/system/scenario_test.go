@@ -43,7 +43,7 @@ func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, 
 	if *native == "" {
 		return errors.New("-codex is required")
 	}
-	root, err := os.MkdirTemp("", "mokusei-moku-system-")
+	root, err := os.MkdirTemp("", "chief-moku-system-")
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, 
 			os.RemoveAll(root)
 		}
 	}()
-	for _, p := range []string{"bin", "home", "native", "tmp", "profile/mokusei-go-state-v1"} {
+	for _, p := range []string{"bin", "home", "native", "tmp", "profile/chief-go-state-v1"} {
 		if err = os.MkdirAll(filepath.Join(root, p), 0700); err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, 
 	var convergence object
 	mock := &provider{userStops: map[string]string{}, faultPlan: plan, faultHits: map[string]int{}, children: map[string]string{}, scopeChecks: map[string]bool{}}
 	if scopes > 1 {
-		// This prefix is outside the product's mokusei-* temporary-workspace
+		// This prefix is outside the product's chief-* temporary-workspace
 		// namespace, so each directory has its own real scope without writing HOME.
 		scopeRoot, e := os.MkdirTemp("", "pbt-system-scopes-")
 		if e != nil {
@@ -201,7 +201,7 @@ trace_exporter = "none"
 	defer func() {
 		err = errors.Join(err, owner.Release())
 	}()
-	db, err := store.Open(filepath.Join(root, "profile/mokusei-go-state-v1/state.sqlite"))
+	db, err := store.Open(filepath.Join(root, "profile/chief-go-state-v1/state.sqlite"))
 	if err != nil {
 		return err
 	}

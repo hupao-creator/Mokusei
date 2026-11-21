@@ -32,12 +32,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--suite", choices=["go", "native", "native-state", "system"], default="go")
     parser.add_argument("--property", choices=[p["id"] for p in INVENTORY])
-    parser.add_argument("--seed", type=positive, default=os.environ.get("MOKUSEI_PBT_SEED", "1"))
-    parser.add_argument("--cases", type=positive, default=os.environ.get("MOKUSEI_PBT_CASES"))
+    parser.add_argument("--seed", type=positive, default=os.environ.get("CHIEF_PBT_SEED", "1"))
+    parser.add_argument("--cases", type=positive, default=os.environ.get("CHIEF_PBT_CASES"))
     parser.add_argument("--timeout", type=positive, default=600, help="per-property wall seconds, including build")
     parser.add_argument("--shrink-seconds", type=positive, default=30)
     parser.add_argument("--fuzz-seconds", type=positive, default=10)
-    parser.add_argument("--go", default=os.environ.get("MOKUSEI_PBT_GO", "./scripts/go.sh" if sys.platform == "darwin" else "go"))
+    parser.add_argument("--go", default=os.environ.get("CHIEF_PBT_GO", "./scripts/go.sh" if sys.platform == "darwin" else "go"))
     parser.add_argument("--race", action="store_true")
     parser.add_argument("--failfile", type=Path, help="Rapid minimized file; requires one Rapid property")
     parser.add_argument("--replay", type=Path, help="Swift minimized JSON; requires one Swift property")
@@ -58,7 +58,7 @@ def main():
     if args.race and any(p["engine"] != "rapid" for p in selected):
         parser.error("--race requires one Rapid property (select --property)")
 
-    evidence = args.artifacts.resolve() if args.artifacts else Path(tempfile.mkdtemp(prefix="mokusei-pbt-"))
+    evidence = args.artifacts.resolve() if args.artifacts else Path(tempfile.mkdtemp(prefix="chief-pbt-"))
     if args.artifacts:
         evidence.mkdir(parents=True, exist_ok=False)
     print(f"PBT evidence: {evidence}", flush=True)
@@ -85,30 +85,30 @@ def main():
         env = dict(os.environ)
         # Ambient replay flags must not silently turn a generated gate into a
         # single old case. All budgets/replay selectors belong to this invocation.
-        env.pop("MOKUSEI_PBT_REPLAY", None)
+        env.pop("CHIEF_PBT_REPLAY", None)
         env.pop("RAPID_FAILFILE", None)
-        env.pop("MOKUSEI_PBT_RAPID_REPLAY", None)
+        env.pop("CHIEF_PBT_RAPID_REPLAY", None)
         if args.failfile:
             replay = folder / "explicit.fail"
             replay.write_bytes(args.failfile.read_bytes())
             item["replay"] = {"requestedPath": str(args.failfile.resolve()), "artifact": str(replay.relative_to(evidence)),
                               "sha256": hashlib.sha256(replay.read_bytes()).hexdigest(), "status": "pending"}
-            env["MOKUSEI_PBT_RAPID_REPLAY"] = str(replay)
+            env["CHIEF_PBT_RAPID_REPLAY"] = str(replay)
         engine = prop["engine"]
         capability_error = None
         if engine == "swift" or prop["suite"] == "system":
             if sys.platform != "darwin":
                 capability_error = "macOS required"
         if prop["suite"] == "system":
-            native = Path(env.get("MOKUSEI_SYSTEM_CODEX", ""))
+            native = Path(env.get("CHIEF_SYSTEM_CODEX", ""))
             if not native.is_absolute() or not native.is_file() or not os.access(native, os.X_OK):
-                capability_error = "MOKUSEI_SYSTEM_CODEX must name an executable absolute native CLI path"
-            env["MOKUSEI_PBT_EVIDENCE"] = str(folder)
+                capability_error = "CHIEF_SYSTEM_CODEX must name an executable absolute native CLI path"
+            env["CHIEF_PBT_EVIDENCE"] = str(folder)
         if engine == "swift":
-            env.update(MOKUSEI_PBT_SEED=str(args.seed), MOKUSEI_PBT_CASES=str(item["cases"]),
-                       MOKUSEI_PBT_SHRINK_SECONDS=str(args.shrink_seconds), MOKUSEI_PBT_EVIDENCE=str(folder))
+            env.update(CHIEF_PBT_SEED=str(args.seed), CHIEF_PBT_CASES=str(item["cases"]),
+                       CHIEF_PBT_SHRINK_SECONDS=str(args.shrink_seconds), CHIEF_PBT_EVIDENCE=str(folder))
             if args.replay:
-                env["MOKUSEI_PBT_REPLAY"] = str(args.replay.resolve())
+                env["CHIEF_PBT_REPLAY"] = str(args.replay.resolve())
             command = ["xcrun", "swift", "test", "--package-path", "app/macos", "--disable-sandbox", "-Xswiftc", "-warnings-as-errors", "--filter", prop["test"]]
             if args.swift_scratch:
                 command += ["--scratch-path", str(args.swift_scratch.resolve())]

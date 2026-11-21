@@ -1,6 +1,6 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Runtime authority stays at composition. A workspace only receives commands
 /// bound by its owner, and preserves the exact execution identity in each receipt.

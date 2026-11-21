@@ -1,14 +1,14 @@
 import AppKit
 import Observation
 import SwiftUI
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
-import MokuseiUI
-import MokuseiHarnessCodex
-import MokuseiHarnessClaude
-import MokuseiHarnessPi
-import MokuseiHarnessOpenCode
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
+import ChiefUI
+import ChiefHarnessCodex
+import ChiefHarnessClaude
+import ChiefHarnessPi
+import ChiefHarnessOpenCode
 
 // Production Settings, scene and Dock, with in-memory configuration only.
 @MainActor @Observable private final class Fixture {

@@ -39,12 +39,12 @@ def validate(binary):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--go", default="go", help="Go executable or scripts/go.sh")
-    parser.add_argument("--runtime", type=Path, default=ROOT / ".build/e2e/mokusei-runtime")
+    parser.add_argument("--runtime", type=Path, default=ROOT / ".build/e2e/chief-runtime")
     parser.add_argument("--with-app", action="store_true")
     args = parser.parse_args()
     before = source_digest()
     args.runtime.parent.mkdir(parents=True, exist_ok=True)
-    command = [args.go, "build", "-o", str(args.runtime.resolve()), "./cmd/mokusei-runtime"]
+    command = [args.go, "build", "-o", str(args.runtime.resolve()), "./cmd/chief-runtime"]
     subprocess.run(command, cwd=ROOT, check=True, timeout=600)
     app_command = ["xcrun", "swift", "build", "--package-path", "app/macos", "-Xswiftc", "-warnings-as-errors"]
     if args.with_app:
@@ -53,7 +53,7 @@ def main():
         raise RuntimeError("production sources changed during build; no receipt issued")
     receipt(args.runtime, before, command)
     if args.with_app:
-        receipt(ROOT / "app/macos/.build/debug/Mokusei", before, app_command)
+        receipt(ROOT / "app/macos/.build/debug/Chief", before, app_command)
 
 
 if __name__ == "__main__":

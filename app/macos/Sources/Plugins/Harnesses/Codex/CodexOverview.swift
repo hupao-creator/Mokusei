@@ -1,7 +1,7 @@
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import SwiftUI
 
 public enum CodexOverviewStatus: String, Hashable, Sendable {
@@ -463,6 +463,6 @@ enum CodexOverviewProjector {
         return withoutSeparators.components(separatedBy: CharacterSet(charactersIn: "/\\")).last(where: { !$0.isEmpty }) ?? trimmed
     }
     private static func isTemporaryWorkspace(_ value: String) -> Bool {
-        MokuseiWorkspacePath.isTemporary(codexTrim(.text(value)).string)
+        ChiefWorkspacePath.isTemporary(codexTrim(.text(value)).string)
     }
 }

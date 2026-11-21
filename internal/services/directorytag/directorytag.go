@@ -22,12 +22,8 @@ import (
 	"github.com/hupao-creator/Chief/internal/services/workspaces"
 )
 
-const managedWorktreeSuffix = "-mokusei-worktrees"
-
 // InboxScope is the shared scope for threads without a working directory.
 const InboxScope = "inbox"
-
-var managedWorktree = regexp.MustCompile(`^\.(.+)` + managedWorktreeSuffix + `$`)
 
 // generatedTask matches the private staging names created for managed
 // worktrees. It is only consulted when the path no longer exists, so a real
@@ -365,8 +361,8 @@ func coreWorktree(common string) string {
 	return ""
 }
 
-// managedName resolves the Mokusei staging convention. A nested repository
-// staging root includes the relative slug (".Mokusei-internal-runtime-…"),
+// managedName resolves the Chief staging convention. A nested repository
+// staging root includes the relative slug (".Chief-internal-runtime-…"),
 // so prefer a sibling repository that actually exists to avoid a second chip
 // for one repository. Prefix-sharing repositories make stripping at every
 // dash ambiguous; shared prefixes are only accepted when the worktree's own
@@ -374,11 +370,7 @@ func coreWorktree(common string) string {
 func managedName(worktree string) (string, bool) {
 	parts := strings.Split(worktree, "/")
 	for index, part := range parts {
-		match := managedWorktree.FindStringSubmatch(part)
-		if match == nil {
-			continue
-		}
-		name := strings.TrimLeft(match[1], ".")
+		name := strings.TrimLeft(workspaces.ManagedStagingStem(part), ".")
 		if name == "" {
 			continue
 		}

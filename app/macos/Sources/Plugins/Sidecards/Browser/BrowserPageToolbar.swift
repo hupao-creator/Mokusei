@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// Navigation chrome shared by Agent Sidecards and read-only Report link cards.

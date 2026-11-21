@@ -1,9 +1,11 @@
 # Self-hosted CI deployment
 
 The workflows support optional macOS routing; they do not provision runners.
-Without `MOKUSEI_SELF_HOSTED_MACOS=true`, builds use `macos-26`. With it enabled,
-main pushes, manual dispatches and same-repository PRs select all four labels:
-`self-hosted`, `macOS`, `ARM64`, `mokusei-macos-26-gui`.
+When `CHIEF_SELF_HOSTED_MACOS=true`, main pushes, manual dispatches and
+same-repository PRs select all four labels:
+`self-hosted`, `macOS`, `ARM64`, `chief-macos-26-gui`.
+If only `MOKUSEI_SELF_HOSTED_MACOS=true` is configured, eligible jobs select
+`mokusei-macos-26-gui` as the custom label. With neither setting, they use `macos-26`.
 Fork PRs retain GitHub-hosted runners. Linux scope, Go/static and aggregation jobs
 always use `ubuntu-latest`. Offline matching capacity queues work without an
 implicit fallback or passing skip.

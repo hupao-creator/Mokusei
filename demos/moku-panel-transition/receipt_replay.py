@@ -16,7 +16,7 @@ repo = source.parents[1]
 sys.path.insert(0, str(repo / "tools/verification"))
 from native_replay import NativeReplay
 
-replay = NativeReplay(repo, "ComposerReceiptReplay", "com.mokusei.replay.composer-receipt")
+replay = NativeReplay(repo, "ComposerReceiptReplay", "com.chief.replay.composer-receipt")
 writes = defaultdict(list)
 queries = []
 requests = {}

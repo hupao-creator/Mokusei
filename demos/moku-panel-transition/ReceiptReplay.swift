@@ -1,8 +1,8 @@
 import Foundation
-@testable import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
-@testable import MokuseiUI
+@testable import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
+@testable import ChiefUI
 
 private struct Failure: Error, CustomStringConvertible { let description: String }
 private func require(_ ok: Bool, _ message: String) throws {

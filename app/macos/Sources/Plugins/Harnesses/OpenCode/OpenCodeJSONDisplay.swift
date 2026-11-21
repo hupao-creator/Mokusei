@@ -1,5 +1,5 @@
 import Foundation
-import MokuseiCore
+import ChiefCore
 
 /// Tool payload projections carry one producer-rendered display string. Native
 /// decoding trusts that field without rebuilding or validating a second copy.

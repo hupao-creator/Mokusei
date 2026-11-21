@@ -29,15 +29,15 @@ output = repo / ".build/report-thread"
 output.mkdir(parents=True, exist_ok=True)
 if not options.skip_build:
     subprocess.run(["xcrun", "swift", "build", "--package-path", str(repo / "app/macos"),
-                    "--product", "Mokusei"]
+                    "--product", "Chief"]
                    + (["--disable-sandbox"] if options.disable_sandbox else [])
                    + (["--skip-update", "--disable-automatic-resolution"] if options.skip_update else []),
                    cwd=repo, check=True)
-replay = NativeReplay(repo, "ReportThreadDemo", "com.mokusei.report-thread-demo")
+replay = NativeReplay(repo, "ReportThreadDemo", "com.chief.report-thread-demo")
 try:
     replay.compile([source / "Production.swift", source / "Fixtures.swift", source / "ReportDocument.swift", source / "main.swift"],
                    extra_args=["-disable-sandbox"] if options.disable_sandbox else [])
-    retained = Path(tempfile.mkdtemp(prefix="mokusei-native-replay-report-", dir="/private/tmp"))
+    retained = Path(tempfile.mkdtemp(prefix="chief-native-replay-report-", dir="/private/tmp"))
     (retained / "workspace").mkdir()
     if options.cover:
         (retained / "cover-preview").touch()

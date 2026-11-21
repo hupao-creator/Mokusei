@@ -26,7 +26,7 @@ func prepareRuntimeScenario(ctx context.Context, name string, records int) (oper
 	if name != "runtime-list" && name != "runtime-notify" {
 		return nil, nil, fmt.Errorf("unknown runtime scenario %q", name)
 	}
-	root, err := os.MkdirTemp("", "mokusei-performance-runtime-")
+	root, err := os.MkdirTemp("", "chief-performance-runtime-")
 	if err != nil {
 		return nil, nil, err
 	}

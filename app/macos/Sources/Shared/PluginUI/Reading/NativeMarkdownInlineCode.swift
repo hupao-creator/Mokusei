@@ -1,8 +1,8 @@
 import AppKit
 
 extension NSAttributedString.Key {
-    static let nativeMarkdownCode = NSAttributedString.Key("MokuseiMarkdownInlineCode")
-    static let nativeMarkdownPadding = NSAttributedString.Key("MokuseiMarkdownCodePadding")
+    static let nativeMarkdownCode = NSAttributedString.Key("ChiefMarkdownInlineCode")
+    static let nativeMarkdownPadding = NSAttributedString.Key("ChiefMarkdownCodePadding")
 }
 
 /// Inline code's CSS uses real horizontal padding, a three-point radius and a

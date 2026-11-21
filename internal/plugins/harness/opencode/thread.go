@@ -1119,7 +1119,7 @@ func (t *Thread) Send(ctx context.Context, request plugin.SendRequest) error {
 		}
 		if err == nil {
 			dispatched = true
-			err = runtime.Request(ctx, "POST", sessionPath(id, "/prompt"), Object{"id": promptID, "text": prepared.Text, "files": prepared.Files, "metadata": Object{"mokuseiExecutionId": request.ExecutionID, "mokuseiPresentation": presentation}, "delivery": "steer"}, nil)
+			err = runtime.Request(ctx, "POST", sessionPath(id, "/prompt"), Object{"id": promptID, "text": prepared.Text, "files": prepared.Files, "metadata": Object{"chiefExecutionId": request.ExecutionID, "chiefPresentation": presentation}, "delivery": "steer"}, nil)
 			received = err == nil
 		}
 		if err == nil && active != nil {

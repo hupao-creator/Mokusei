@@ -6,7 +6,7 @@ private struct NativeReplayIsolationError: Error, CustomStringConvertible { let 
 /// launcher's cwd, and a timeout must be able to identify this exact app PID.
 func prepareIsolatedNativeReplay() throws {
     let root = Bundle.main.bundleURL.deletingLastPathComponent().resolvingSymlinksInPath()
-    guard root.lastPathComponent.hasPrefix("mokusei-native-replay-"),
+    guard root.lastPathComponent.hasPrefix("chief-native-replay-"),
           ["/private/var/folders/", "/var/folders/", "/private/tmp/", "/tmp/"].contains(where: root.path.hasPrefix) else {
         throw NativeReplayIsolationError(description: "Replay app must be staged in temporary storage: \(root.path)")
     }

@@ -1,4 +1,4 @@
-import MokuseiCore
+import ChiefCore
 import SwiftUI
 
 /// Explicit native membership, including a start hidden by visibility filters.

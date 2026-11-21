@@ -78,7 +78,7 @@ type AppServer struct {
 	authCancel         context.CancelFunc
 }
 
-const codexClientName = "mokusei_desktop"
+const codexClientName = "chief_desktop"
 
 func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) {
 	transferred := false
@@ -205,7 +205,7 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 			e = fmt.Errorf("%w: %s", e, detail)
 		}
 		select {
-		case s.notifications <- Map{"method": "_mokusei/processExit", "params": Map{"message": e.Error()}}:
+		case s.notifications <- Map{"method": "_chief/processExit", "params": Map{"message": e.Error()}}:
 		case <-s.done:
 		}
 		close(s.exited)
@@ -214,7 +214,7 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 		for {
 			select {
 			case f := <-s.notifications:
-				if f["method"] == "_mokusei/processExit" {
+				if f["method"] == "_chief/processExit" {
 					s.fail(errors.New(str(obj(f["params"])["message"])))
 					return
 				}

@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginUI
 import SwiftUI
 
 /// ApplicationStatus owns startup and recovery, independently of plugin content.

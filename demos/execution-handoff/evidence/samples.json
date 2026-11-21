@@ -1,173 +1,34 @@
 [
   {
-    "busy" : false,
-    "elapsed" : "1.346375583 seconds",
-    "name" : "00-running",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "上一轮仍在主 detail · 新 execution 在右侧运行",
-    "systemReducedMotion" : false
+    "busy": false,
+    "elapsed": "1.425041833 seconds",
+    "file": "running.png",
+    "name": "00-running",
+    "size": "{1240, 800}",
+    "status": "上一轮仍在主 detail · 新 execution 在右侧运行"
   },
   {
-    "busy" : true,
-    "elapsed" : "1.630952166 seconds",
-    "name" : "01-handoff-00",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "准备结果 · 等待原生正文排版",
-    "systemReducedMotion" : false
+    "busy": true,
+    "elapsed": "2.30016925 seconds",
+    "file": "absorbing.png",
+    "name": "01-handoff-02",
+    "size": "{1240, 800}",
+    "status": "第一段 · sidecard 收入，主面板变宽"
   },
   {
-    "busy" : true,
-    "elapsed" : "1.920187083 seconds",
-    "name" : "01-handoff-01",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第一段 · sidecard 收入，主面板变宽",
-    "systemReducedMotion" : false
+    "busy": true,
+    "elapsed": "3.425747791 seconds",
+    "file": "paging.png",
+    "name": "01-handoff-06",
+    "size": "{1240, 800}",
+    "status": "第二段 · 向下翻到最新结果"
   },
   {
-    "busy" : true,
-    "elapsed" : "2.195987791 seconds",
-    "name" : "01-handoff-02",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第一段 · sidecard 收入，主面板变宽",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : true,
-    "elapsed" : "2.472707458 seconds",
-    "name" : "01-handoff-03",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第一段 · sidecard 收入，主面板变宽",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : true,
-    "elapsed" : "2.755858416 seconds",
-    "name" : "01-handoff-04",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第一段 · sidecard 收入，主面板变宽",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : true,
-    "elapsed" : "3.046434666 seconds",
-    "name" : "01-handoff-05",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第二段 · 向下翻到最新结果",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : true,
-    "elapsed" : "3.329189375 seconds",
-    "name" : "01-handoff-06",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第二段 · 向下翻到最新结果",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : true,
-    "elapsed" : "3.618876458 seconds",
-    "name" : "01-handoff-07",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第二段 · 向下翻到最新结果",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : true,
-    "elapsed" : "3.90483175 seconds",
-    "name" : "01-handoff-08",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第二段 · 向下翻到最新结果",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : true,
-    "elapsed" : "4.194448 seconds",
-    "name" : "01-handoff-09",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "第二段 · 向下翻到最新结果",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "4.486669583 seconds",
-    "name" : "01-handoff-10",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "4.77185175 seconds",
-    "name" : "01-handoff-11",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "5.043940041 seconds",
-    "name" : "01-handoff-12",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "5.727744958 seconds",
-    "name" : "02-complete",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "7.212525 seconds",
-    "name" : "03-cancel",
-    "reduced" : false,
-    "size" : "{1240, 800}",
-    "status" : "上一轮仍在主 detail · 新 execution 在右侧运行",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "8.010500875 seconds",
-    "name" : "04-compact-dark",
-    "reduced" : false,
-    "size" : "{960, 680}",
-    "status" : "上一轮仍在主 detail · 新 execution 在右侧运行",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "9.48214575 seconds",
-    "name" : "05-compact-result",
-    "reduced" : false,
-    "size" : "{960, 680}",
-    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
-    "systemReducedMotion" : false
-  },
-  {
-    "busy" : false,
-    "elapsed" : "10.344234416 seconds",
-    "name" : "06-reduced",
-    "reduced" : true,
-    "size" : "{960, 680}",
-    "status" : "最新结果已接住 · 减弱动态效果",
-    "systemReducedMotion" : false
+    "busy": false,
+    "elapsed": "5.839150624999999 seconds",
+    "file": "complete.png",
+    "name": "02-complete",
+    "size": "{1240, 800}",
+    "status": "最新结果已接住 · 可滚动阅读，或重播比较"
   }
 ]

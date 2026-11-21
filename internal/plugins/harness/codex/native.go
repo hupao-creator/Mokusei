@@ -151,7 +151,7 @@ func (n *NativeSession) prepare(ctx context.Context, o NativeOptions) (string, e
 			return "", err
 		}
 		servers := obj(config["mcp_servers"])
-		servers["mokusei_injected"] = bridge.Configuration()
+		servers["chief_injected"] = bridge.Configuration()
 		config["mcp_servers"] = servers
 	}
 	cleanup := func() {
@@ -207,7 +207,7 @@ func (n *NativeSession) prepare(ctx context.Context, o NativeOptions) (string, e
 	} else {
 		base["experimentalRawEvents"] = true
 		base["ephemeral"] = o.Settings["ephemeral"] == true
-		base["serviceName"] = "mokusei_desktop"
+		base["serviceName"] = "chief_desktop"
 	}
 	r, err := n.server.Call(ctx, method, base)
 	if err != nil {
@@ -562,7 +562,7 @@ func (n *NativeSession) notification(method string, p Map, wireID any) {
 		n.clearRetryLocked()
 		n.mu.Unlock()
 	}
-	if item := obj(p["item"]); item["type"] == "mcpToolCall" && item["server"] == "mokusei_injected" {
+	if item := obj(p["item"]); item["type"] == "mcpToolCall" && item["server"] == "chief_injected" {
 		item = clone(item)
 		item["type"] = "dynamicToolCall"
 		p = clone(p)

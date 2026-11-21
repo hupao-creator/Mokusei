@@ -1,10 +1,10 @@
 import AppKit
 import Darwin
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-@testable import MokuseiPluginUI
-@testable import MokuseiUI
+import ChiefCore
+import ChiefPluginAPI
+@testable import ChiefPluginUI
+@testable import ChiefUI
 import SwiftUI
 
 private func cpuSeconds() -> Double {
@@ -26,7 +26,7 @@ private func cpuSeconds() -> Double {
     }
 }
 
-private let executionURL = "mokusei://execution?threadId=diagnostic-thread&executionId=diagnostic-execution"
+private let executionURL = "chief://execution?threadId=diagnostic-thread&executionId=diagnostic-execution"
 private func noteText(links: Int) -> String {
     let prose = "已合入本地 main：保留笔记、正文选择、执行链接与历史入口。正在核对打开时的布局和玻璃合成。"
     return "# Moku Note\n\n" + (0..<max(1, links)).map { index in

@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 import SwiftUI
 
 struct ThreadCardGitExtension: View {

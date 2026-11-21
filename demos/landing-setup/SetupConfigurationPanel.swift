@@ -1,7 +1,7 @@
 import SwiftUI
-import MokuseiCore
-@testable import MokuseiUI
-import MokuseiPluginUI
+import ChiefCore
+@testable import ChiefUI
+import ChiefPluginUI
 
 /// One configuration surface shared by the onboarding and tabbed Settings demos.
 /// Only the surrounding navigation differs; selections have the same owner.

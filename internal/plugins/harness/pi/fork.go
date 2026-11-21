@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Public message IDs are local to Mokusei. Match the complete ordered native
+// Public message IDs are local to Chief. Match the complete ordered native
 // assistant sequence before using a JSONL prefix, rather than guessing from a
 // timestamp or choosing the first occurrence of a repeated reply. Native tree
 // branches or missing history that cannot be proven equivalent fail closed.

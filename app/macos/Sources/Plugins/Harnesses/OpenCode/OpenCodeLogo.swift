@@ -1,5 +1,5 @@
 import SwiftUI
-import MokuseiPluginUI
+import ChiefPluginUI
 
 /// Original official OpenCode SVG paths, with its surface-dependent colors.
 public struct OpenCodeLogo: View {

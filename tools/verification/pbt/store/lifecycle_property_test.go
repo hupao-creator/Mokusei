@@ -20,7 +20,7 @@ import (
 // acknowledgements and accepted effects, not the production index algorithm.
 func TestLifecycleProperties(t *testing.T) {
 	rapidcheck.Check(t, func(t *rapid.T) {
-		root, err := os.MkdirTemp("", "mokusei-lifecycle-pbt-")
+		root, err := os.MkdirTemp("", "chief-lifecycle-pbt-")
 		if err != nil {
 			t.Fatal(err)
 		}

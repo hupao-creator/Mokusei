@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 import Observation
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 @MainActor @Observable
 public final class NativeWorkspaceModel {

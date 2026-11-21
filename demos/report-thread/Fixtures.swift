@@ -15,11 +15,11 @@ struct ReportFixture {
         executions: [
             ExecutionFixture(id: "report-audit", harness: .codex, emoji: "🔎", title: "审查 Report Agent 工具调用频率",
                 role: "Report Agent", time: "11 月 4 日 · 16:42", usage: "80.7K",
-                prompt: "审查 Mokusei 目录下 Report Agent 留存的工具调用记录，统计调用频次与成功情况，说明数据范围。",
+                prompt: "审查 Chief 目录下 Report Agent 留存的工具调用记录，统计调用频次与成功情况，说明数据范围。",
                 answer: """
                 ## Report Agent 调用概况
 
-                本次只统计绑定到 **Mokusei** 目录的留存记录，共找到 **104 次工具调用**。
+                本次只统计绑定到 **Chief** 目录的留存记录，共找到 **104 次工具调用**。
 
                 - 成功：93 次
                 - 失败：11 次
@@ -41,7 +41,7 @@ struct ReportFixture {
                 """),
             ExecutionFixture(id: "tag-audit", harness: .claude, emoji: "🏷️", title: "调查 Tag Agent 概览调用依赖成因",
                 role: "Tag Agent", time: "11 月 4 日 · 17:08", usage: "86.8K",
-                prompt: "调查 Tag Agent 为什么依赖概览上下文，并整理 Mokusei 目录下留存的工具调用样本。",
+                prompt: "调查 Tag Agent 为什么依赖概览上下文，并整理 Chief 目录下留存的工具调用样本。",
                 answer: """
                 ## Tag Agent 调用概况
 

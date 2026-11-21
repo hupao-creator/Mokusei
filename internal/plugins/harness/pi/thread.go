@@ -334,7 +334,7 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (_ *Ses
 		if err != nil {
 			return nil, err
 		}
-		env["MOKUSEI_PI_BRIDGE_CONFIG"] = configFile
+		env["CHIEF_PI_BRIDGE_CONFIG"] = configFile
 		hostArgs = append(hostArgs, "-e", extension)
 		bridge = &BridgeOptions{Injection: *h.open.Injection, CanExecute: h.canExecute}
 		if tools := h.open.Injection.Tools; tools != nil && tools.Mode == "exclusive" {

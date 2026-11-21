@@ -58,7 +58,7 @@ func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry, ident
 		return nil, err
 	}
 	catalog.ConfigurationID = fmt.Sprintf("%x", sha256.Sum256([]byte(identity)))
-	schema["x-mokusei-model-catalog"] = catalog
+	schema["x-chief-model-catalog"] = catalog
 	// Standard descriptions survive native schema serializers that discard
 	// extension keywords. Never truncate the routing inventory to candidates.
 	description, _ := schema["description"].(string)

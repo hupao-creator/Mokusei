@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import MokuseiCore
+import ChiefCore
 
 /// Lets a custom native editor participate in its row label's activation.
 /// Registrations are scoped by owner so dismantling an old control cannot

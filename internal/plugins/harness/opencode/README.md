@@ -111,7 +111,7 @@ identity and read narrow account facts from native APIs. Instructions, seeded hi
 exclusive tool policy, request admission, JSON schema selection and account routing
 policy are prepared or checked in Go. The application does not launch a separate
 Node service for this adapter.
-Runtime startup waits for the native plugin inventory to report `mokusei.harness`
+Runtime startup waits for the native plugin inventory to report `chief.harness`
 active before its first RPC. OpenCode activates configured plugins asynchronously
 after the location boots, and a call made before registration settles is rejected
 as `rpc.unavailable` (HTTP 400). The embedded plugin identifies its own inventory
@@ -126,7 +126,7 @@ also joins the SSE reader and its callbacks. Version probes drain their process
 group, including wrapper descendants that inherit output pipes.
 
 Native execution uses one server with OpenCode's native storage, authentication and
-cache. Mokusei registers only its own root sessions and follows their native
+cache. Chief registers only its own root sessions and follows their native
 children; unowned session API calls and unscoped session enumeration are rejected.
 OAuth refresh stays in the native server. Model services and credentials are
 configured by OpenCode. Account telemetry helpers live within this Harness.
@@ -157,7 +157,7 @@ fetch accounts; creation and live model admission retain their native checks.
 
 Ordinary threads require exact provider/model/thinking choices. Native variants are
 validated from their effective request encoding, including at model admission.
-Mokusei always selects the native `build` primary agent. Settings normalization,
+Chief always selects the native `build` primary agent. Settings normalization,
 execution snapshots, effective model presentation, restored Thread settings,
 isolated prompts all use build, including previously saved
 `plan` selections and native configurations with a different default agent.
@@ -228,7 +228,7 @@ ordinary inputs keep their existing behavior.
 
 `search.go` supplies completed-execution public passages with their execution IDs
 for Moku grep. Existing index text joins the same passages, preserving its prior
-exclusions. This extracts only retained Mokusei state, not complete native history;
+exclusions. This extracts only retained Chief state, not complete native history;
 see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).
 
 Accepted inputs retain `ordinary`/`internal` presentation in message state;

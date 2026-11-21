@@ -1,4 +1,4 @@
-import MokuseiPluginUI
+import ChiefPluginUI
 import SwiftUI
 
 /// The shipped pi.dev mark, rendered from the original 800×800 vector geometry.

@@ -1,6 +1,6 @@
 import Foundation
 import Metal
-import MokuseiCore
+import ChiefCore
 import QuartzCore
 import SwiftUI
 
@@ -88,7 +88,7 @@ struct NativeOverviewCloudInput: Sendable {
 final class NativeOverviewCloudRenderer: @unchecked Sendable {
     private let layer: CAMetalLayer
     private let pipeline: NativeOverviewCloudPipeline
-    private let queue = DispatchQueue(label: "com.mokusei.overview.cloud-render", qos: .userInteractive)
+    private let queue = DispatchQueue(label: "com.chief.overview.cloud-render", qos: .userInteractive)
     private let permit = DispatchSemaphore(value: 1)
     private let lock = NSLock()
     private var generation: UInt64 = 0

@@ -16,17 +16,17 @@ import time
 def native_module_cache(repo):
     """Reuse compiler imports without sharing replay binaries or runtime state."""
     runner_temp = os.environ.get("RUNNER_TEMP")
-    cache = (Path(runner_temp) / "mokusei-native-module-cache" if runner_temp
+    cache = (Path(runner_temp) / "chief-native-module-cache" if runner_temp
              else repo / ".build/native-replay/modules")
     cache.mkdir(parents=True, exist_ok=True)
     return cache.resolve()
 
 
 class NativeReplay:
-    def __init__(self, repo, name, bundle_id, configuration="debug"):
+    def __init__(self, repo, name, bundle_id, configuration="debug", production_product="Chief"):
         if configuration not in {"debug", "release"}:
             raise ValueError("Native replay configuration must be debug or release")
-        self.temporary = tempfile.TemporaryDirectory(prefix="mokusei-native-replay-")
+        self.temporary = tempfile.TemporaryDirectory(prefix="chief-native-replay-")
         self.root = Path(self.temporary.name).resolve()
         self.workspace = self.root / "workspace"
         self.workspace.mkdir()
@@ -47,11 +47,11 @@ class NativeReplay:
         production = package / f".build/{platform.machine()}-apple-macosx/{configuration}"
         self.production = production
         self.configuration = configuration
-        link_list = production / "Mokusei.product/Objects.LinkFileList"
+        link_list = production / f"{production_product}.product/Objects.LinkFileList"
         if not link_list.is_file():
             raise RuntimeError("Build current production modules first: make check")
         objects = [Path(line.strip().strip('"')) for line in link_list.read_text().splitlines()
-                   if "/Mokusei.build/" not in line]
+                   if f"/{production_product}.build/" not in line]
         if not objects or any(not item.is_file() for item in objects):
             raise RuntimeError("Production link list contains missing objects; run make check")
         self.objects = []

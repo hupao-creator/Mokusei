@@ -72,7 +72,7 @@ type Bridge struct {
 }
 
 func NewBridge(isolated bool) (*Bridge, error) {
-	dir, err := os.MkdirTemp("", "mokusei-opencode-bridge-")
+	dir, err := os.MkdirTemp("", "chief-opencode-bridge-")
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (b *Bridge) Configure(id string, c BridgeConfiguration) (int, error) {
 			return 0, errors.New("exclusive OpenCode tools require isolated configuration")
 		}
 		for _, binding := range injection.Tools.Bindings {
-			if !toolPattern.MatchString(binding.Name) || strings.HasPrefix(binding.Name, "mokusei_host_") || binding.Execute == nil {
+			if !toolPattern.MatchString(binding.Name) || strings.HasPrefix(binding.Name, "chief_host_") || binding.Execute == nil {
 				return 0, errors.New("invalid OpenCode tool binding")
 			}
 			if _, ok := bindings[binding.Name]; ok {
@@ -165,7 +165,7 @@ func (b *Bridge) Configure(id string, c BridgeConfiguration) (int, error) {
 			} else if !json.Valid(output) {
 				return 0, errors.New("invalid tool output schema")
 			}
-			tools = append(tools, Object{"id": fmt.Sprintf("mokusei_host_%s_%d", prefix, i), "name": v.Name, "description": v.Description, "inputSchema": input, "outputSchema": output})
+			tools = append(tools, Object{"id": fmt.Sprintf("chief_host_%s_%d", prefix, i), "name": v.Name, "description": v.Description, "inputSchema": input, "outputSchema": output})
 		}
 	}
 	instructions := append([]string{}, injection.Instructions...)
@@ -206,7 +206,7 @@ func (b *Bridge) Configure(id string, c BridgeConfiguration) (int, error) {
 	}
 	options := Object{}
 	for k, v := range c.ModelOptions {
-		if k != "mokuseiStructuredOutput" {
+		if k != "chiefStructuredOutput" {
 			options[k] = v
 		}
 	}
@@ -238,7 +238,7 @@ func (b *Bridge) Configure(id string, c BridgeConfiguration) (int, error) {
 	return revision, nil
 }
 
-// Registered roots come from Mokusei session state; children are accepted only
+// Registered roots come from Chief session state; children are accepted only
 // through a native parent relation or the authenticated plugin's root lookup.
 func (b *Bridge) Owns(id string) bool {
 	b.mu.Lock()
@@ -352,8 +352,8 @@ func (b *Bridge) invoke(ctx context.Context, path string, value Object) (any, in
 		}
 		return Object{"admitted": true}, 200, nil
 	case "/http-request":
-		if reg.config.OutputSchema != nil && reg.config.ModelOptions["mokuseiStructuredOutput"] == "openai-chat-json-schema" && strings.HasSuffix(str(value["path"]), "/chat/completions") {
-			return Object{"responseFormat": Object{"type": "json_schema", "json_schema": Object{"name": "mokusei_result", "strict": true, "schema": reg.config.OutputSchema}}}, 200, nil
+		if reg.config.OutputSchema != nil && reg.config.ModelOptions["chiefStructuredOutput"] == "openai-chat-json-schema" && strings.HasSuffix(str(value["path"]), "/chat/completions") {
+			return Object{"responseFormat": Object{"type": "json_schema", "json_schema": Object{"name": "chief_result", "strict": true, "schema": reg.config.OutputSchema}}}, 200, nil
 		}
 		return Object{}, 200, nil
 	case "/tool":

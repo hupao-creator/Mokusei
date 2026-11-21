@@ -1,12 +1,12 @@
-import MokuseiPluginAPI
-import MokuseiUI
-import MokuseiHarnessCodex
-import MokuseiHarnessPi
-import MokuseiHarnessClaude
-import MokuseiHarnessOpenCode
-import MokuseiApplications
-import MokuseiSidecardConversation
-import MokuseiSidecardBrowser
+import ChiefPluginAPI
+import ChiefUI
+import ChiefHarnessCodex
+import ChiefHarnessPi
+import ChiefHarnessClaude
+import ChiefHarnessOpenCode
+import ChiefApplications
+import ChiefSidecardConversation
+import ChiefSidecardBrowser
 
 /// Both application hosts register the same modules. New features belong here
 /// once, so neither device can silently miss a renderer or capability.

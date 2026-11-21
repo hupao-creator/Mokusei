@@ -38,7 +38,7 @@ enum MarkdownParser {
             let count = converter.referenceCounts[id] ?? 1
             let backlinks = (1...max(1, count)).map { reference -> MarkdownSpan in
                 var span = MarkdownSpan(text: reference == 1 ? " ↩" : " ↩\(reference)")
-                span.link = "#mokusei-footnote-reference-\(anchorID(id))-\(reference)"
+                span.link = "#chief-footnote-reference-\(anchorID(id))-\(reference)"
                 span.title = "Back to reference \(index)"; return span
             }
             if case .paragraph(let spans) = content.last {
@@ -211,8 +211,8 @@ enum MarkdownParser {
                 var span = style
                 span.text = String((references.firstIndex(of: id) ?? 0) + 1)
                 referenceCounts[id, default: 0] += 1
-                span.superscript = true; span.link = "#mokusei-footnote-\(anchorID(id))"
-                span.anchor = "mokusei-footnote-reference-\(anchorID(id))-\(referenceCounts[id]!)"
+                span.superscript = true; span.link = "#chief-footnote-\(anchorID(id))"
+                span.anchor = "chief-footnote-reference-\(anchorID(id))-\(referenceCounts[id]!)"
                 result.append(span); cursor = NSMaxRange(match.range)
             }
             if cursor < ns.length { result += autolinks(ns.substring(from: cursor), style: style) }
@@ -235,7 +235,7 @@ enum MarkdownParser {
         id.utf8.map { String(format: "%02x", $0) }.joined()
     }
 
-    private static let referenceToken = try! NSRegularExpression(pattern: "\u{E000}mokusei-[A-Z0-9-]+\u{E001}")
+    private static let referenceToken = try! NSRegularExpression(pattern: "\u{E000}chief-[A-Z0-9-]+\u{E001}")
 
     private static let footnoteReference = try! NSRegularExpression(pattern: #"\[\^([^\]\s]+)\]"#)
     private static let whitespace = try! NSRegularExpression(pattern: "[ \t\r\n\u{000C}]+")
@@ -344,7 +344,7 @@ enum MarkdownParser {
         let protected = MarkdownSourceMap.ranges(source, visibleText: false)
         let raw = source as NSString
         let result = NSMutableString(string: source)
-        let prefix = "\u{E000}mokusei-" + UUID().uuidString + "-"
+        let prefix = "\u{E000}chief-" + UUID().uuidString + "-"
         var tokens: [String: String] = [:]
         for (index, match) in footnoteReference.matches(in: source, range: NSRange(location: 0, length: raw.length)).enumerated().reversed() {
             guard !protected.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) else { continue }

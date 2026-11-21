@@ -17,7 +17,7 @@ def build_control(tools):
         return app
     executable.parent.mkdir(parents=True, exist_ok=True)
     (app / "Contents/Info.plist").write_bytes(plistlib.dumps({
-        "CFBundleIdentifier": "com.mokusei.external-benchmark.reading-control", "CFBundleName": "Reading Control",
+        "CFBundleIdentifier": "com.chief.external-benchmark.reading-control", "CFBundleName": "Reading Control",
         "CFBundleExecutable": "ReadingControl", "CFBundlePackageType": "APPL", "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "26.0"}))
     subprocess.run(["xcrun", "swiftc", "-swift-version", "5", "-O", "-warnings-as-errors", "-parse-as-library",

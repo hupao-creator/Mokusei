@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 import SwiftUI
 
 /// A display fact for the first execution, never a persisted execution phase.

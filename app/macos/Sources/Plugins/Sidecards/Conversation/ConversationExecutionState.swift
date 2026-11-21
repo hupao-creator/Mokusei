@@ -1,5 +1,5 @@
-import MokuseiCore
-import MokuseiPluginAPI
+import ChiefCore
+import ChiefPluginAPI
 
 /// Only observed active executions qualify. A send receipt acknowledges input,
 /// not a still-running execution, and cannot make this display available.

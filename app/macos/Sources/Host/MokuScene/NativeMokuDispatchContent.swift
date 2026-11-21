@@ -1,4 +1,4 @@
-import MokuseiPluginAPI
+import ChiefPluginAPI
 import SwiftUI
 
 /// Fits the existing dispatch capsule without borrowing its eyes or Stop seat.

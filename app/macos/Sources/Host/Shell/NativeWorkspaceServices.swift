@@ -2,9 +2,9 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 import Foundation
-import MokuseiCore
-import MokuseiPluginAPI
-import MokuseiPluginUI
+import ChiefCore
+import ChiefPluginAPI
+import ChiefPluginUI
 import WebURL
 
 @MainActor

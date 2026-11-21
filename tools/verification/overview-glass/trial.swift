@@ -88,7 +88,7 @@
 @MainActor private final class ResearchDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
-            let result = URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "MokuseiReplayResult") as! String)
+            let result = URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "ChiefReplayResult") as! String)
             do {
                 try await runResearchTrial()
                 try Data("PASS research sampling completed\n".utf8).write(to: result)

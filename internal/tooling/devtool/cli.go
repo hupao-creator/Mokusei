@@ -9,10 +9,10 @@ import (
 )
 
 func Usage() {
-	fmt.Println(`mokusei-dev [--repo PATH] COMMAND [OPTIONS]
+	fmt.Println(`chief-dev [--repo PATH] COMMAND [OPTIONS]
 
 build       Build the Go runtime and native Swift product (--configuration debug|release)
-runtime     Build .build/go/mokusei-runtime
+runtime     Build .build/go/chief-runtime
 bundle      Create and verify a signed bundle (--channel production|development|alpha, --zip)
 alpha       Build an isolated ad-hoc signed Release DMG (--build-number 1, --output PATH)
 smoke       Verify signed bundle metadata, linkage and resources (--app PATH)
@@ -61,7 +61,7 @@ func Run(ctx context.Context, repo string, args []string) error {
 	output := f.String("output", "", "bundle output directory")
 	zip := f.Bool("zip", false, "also archive the signed bundle")
 	buildNumber := f.String("build-number", "", "alpha build number (1–9999, default 1)")
-	product := f.String("product", "Mokusei", "Swift product")
+	product := f.String("product", "Chief", "Swift product")
 	app := f.String("app", "", "application path")
 	report := f.String("report", "", "smoke JSON report")
 	destination := f.String("destination", "", "install destination")

@@ -4,6 +4,10 @@
 
 Local clients discover the selected profile's private connection metadata and authenticate requests against its token and service epoch. The server listens only on loopback.
 
+Protocol 11 shares its header names, attachment byte marker and presentation
+IDs across packaged clients and runtime processes. A client can reconnect to
+an already running service for its profile using those same identifiers.
+
 Native imports also carry `X-Mokusei-Attachment-Lease`, a canonical UUID naming
 the importing process's private lock inside that same profile. Authentication
 precedes header validation; accepted command contexts preserve this owner after
