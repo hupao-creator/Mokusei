@@ -128,9 +128,6 @@ exporter = "none"
 trace_exporter = "none"
 '''.replace("BASE_URL", json.dumps(self.provider.url + "/v1"))
         (self.root / "native/config.toml").write_text(config)
-        for key in list(self.env):
-            if key.endswith("API_KEY") or key.startswith(("CHIEF_", "MOKUSEI_")):
-                self.env.pop(key)
         # Per-child environment isolation is intentional. The caller's shell and
         # daily native configuration are untouched.
         self.env.update({"HOME": str(self.root / "home"), "CODEX_HOME": str(self.root / "native"),

@@ -13,7 +13,7 @@ public struct NativeOverviewTagSelection: Equatable, Sendable {
     }
 }
 
-/// Only the host's documented mokusei.overview presentation is interpreted here.
+/// Only the host's documented overview presentation is interpreted here.
 /// Application view/session values remain opaque and are decoded by their plugin.
 struct NativeOverviewApplicationEntry: Sendable {
     let entry: ApplicationThreadCatalogEntry<JSONValue>
@@ -30,7 +30,7 @@ struct NativeOverviewApplicationEntry: Sendable {
         }
         guard presentation.apiVersion == 1, presentation.schemaVersion == 1,
               let covers = presentation.value["coversExecutions"]?.arrayValue else {
-            throw PluginContractError("Incompatible mokusei.overview presentation")
+            throw PluginContractError("Incompatible overview presentation")
         }
         if let value = presentation.value["visible"], value.boolValue == nil { throw PluginContractError("Invalid overview visibility") }
         if let value = presentation.value["tagFilter"], value.stringValue != "directory" { throw PluginContractError("Invalid overview tag filter") }
